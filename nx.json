@@ -1,6 +1,6 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
-  "npmScope": "ts-app-base-se",
+  "npmScope": "edanalytics",
   "tasksRunnerOptions": {
     "default": {
       "runner": "nx/tasks-runners/default",
