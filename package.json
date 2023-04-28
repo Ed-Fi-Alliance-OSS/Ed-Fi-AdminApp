@@ -5,6 +5,7 @@
   "scripts": {},
   "private": true,
   "dependencies": {
+    "@babel/plugin-transform-react-jsx": "^7.21.0",
     "@casl/ability": "^6.3.3",
     "@chakra-ui/icons": "^2.0.17",
     "@chakra-ui/react": "^2.5.1",
@@ -16,6 +17,7 @@
     "@nestjs/core": "^9.0.0",
     "@nestjs/passport": "^9.0.3",
     "@nestjs/platform-express": "^9.0.0",
+    "@nestjs/serve-static": "^3.0.1",
     "@nestjs/swagger": "^6.2.1",
     "@nestjs/typeorm": "^9.0.1",
     "@nrwl/nest": "^15.8.6",

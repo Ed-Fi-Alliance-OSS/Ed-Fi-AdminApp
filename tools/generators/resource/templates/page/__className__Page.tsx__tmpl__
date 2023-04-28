@@ -2,22 +2,22 @@ import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDelete<%= className %>, use<%= className %>s } from '../../api';
+import { useDelete<%= className %>, use<%= className %> } from '../../api';
 import { <%= propertyName %>IndexRoute } from '../../routes';
 import { useNavToParent } from '../../helpers';
 import { Edit<%= className %> } from './Edit<%= className %>';
 import { View<%= className %> } from './View<%= className %>';
+import { ReactNode } from 'react';
 
-export const <%= className %>Page = () => {
+export const <%= className %>Page = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const <%= propertyName %>s = use<%= className %>s();
   const delete<%= className %> = useDelete<%= className %>(() => {
     navigate(navToParentOptions);
   });
-  const <%= propertyName %>Id: string = useParams({ from: <%= propertyName %>IndexRoute.id }).<%= propertyName %>Id;
-  const <%= propertyName %> = <%= propertyName %>s?.data?.[Number(<%= propertyName %>Id)];
+  const params = useParams({ from: <%= propertyName %>IndexRoute.id });
+  const <%= propertyName %> = use<%= className %>(params.<%= propertyName %>Id).data;
   const { edit } = useSearch({ from: <%= propertyName %>IndexRoute.id });
 
   return (
@@ -41,7 +41,7 @@ export const <%= className %>Page = () => {
               onClick={() => {
                 navigate({
                   to: <%= propertyName %>IndexRoute.fullPath,
-                  params: { <%= propertyName %>Id },
+                  params: (old: any) => old,
                   search: { edit: true },
                 });
               }}

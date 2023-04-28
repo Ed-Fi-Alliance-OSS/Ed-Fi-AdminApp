@@ -2,7 +2,7 @@ import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteUser, useUsers } from '../../api';
+import { useDeleteUser, useUser } from '../../api';
 import { useNavToParent } from '../../helpers';
 import { userIndexRoute } from '../../routes';
 import { EditUser } from './EditUser';
@@ -12,12 +12,11 @@ export const UserPage = () => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const users = useUsers();
   const deleteUser = useDeleteUser(() => {
     navigate(navToParentOptions);
   });
   const userId: string = useParams({ from: userIndexRoute.id }).userId;
-  const user = users?.data?.[Number(userId)];
+  const user = useUser(userId).data;
   const { edit } = useSearch({ from: userIndexRoute.id });
 
   return (

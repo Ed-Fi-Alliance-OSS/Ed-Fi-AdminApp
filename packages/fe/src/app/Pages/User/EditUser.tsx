@@ -45,7 +45,7 @@ import { PutUserDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useNavigate, useParams } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutUser, useUsers } from '../../api';
+import { usePutUser, useUser, useUsers } from '../../api';
 import { userIndexRoute, userRoute } from '../../routes/user.routes';
 
 const resolver = classValidatorResolver(PutUserDto);
@@ -60,9 +60,8 @@ export const EditUser = () => {
     });
   };
   const putUser = usePutUser(goToView);
-  const users = useUsers();
   const userId: string = useParams({ from: userRoute.id }).userId;
-  const user = users?.data?.[Number(userId)];
+  const user = useUser(userId).data;
   const {
     register,
     handleSubmit,

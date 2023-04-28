@@ -3,9 +3,11 @@ import { DataTable } from '@edanalytics/common-ui';
 import { use<%= className %>s, useDelete<%= className %>, useUsers } from "../../api"
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
-import { UserLink, <%= propertyName %>Route, <%= className %>Link } from '../../routes';
+import { UserLink, <%= propertyName %>Route, <%= propertyName %>sRoute, <%= className %>Link } from '../../routes';
+import { useParams } from '@tanstack/router';
 
 export const <%= className %>sPage = () => {
+  const params = useParams({ from: <%= propertyName %>sRoute.id });
   const <%= propertyName %>s = use<%= className %>s()
   const delete<%= className %> = useDelete<%= className %>()
   const users = useUsers();
@@ -25,7 +27,10 @@ export const <%= className %>sPage = () => {
                   info={info}
                   mutation={delete<%= className %>.mutate}
                   route={<%= propertyName %>Route}
-                  params={{ <%= propertyName %>Id: String(info.row.original.id) }}
+                  params={(params: any) => ({
+                    ...params,
+                    <%= propertyName %>Id: String(info.row.original.id)
+                  })}
                 />
               </HStack>
             </HStack>

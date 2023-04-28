@@ -1,4 +1,4 @@
-import { Link } from '@chakra-ui/react';
+import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Get<%= className %>Dto } from '@edanalytics/models';
@@ -7,6 +7,7 @@ import { getRelationDisplayName } from '../helpers';
 import { use<%= className %>s } from '../api';
 import { <%= className %>Page } from '../Pages/<%= className %>/<%= className %>Page';
 import { <%= className %>sPage } from '../Pages/<%= className %>/<%= className %>sPage';
+import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const <%= propertyName %>sRoute = new Route({
   getParentRoute: () => mainLayoutRoute,
@@ -51,16 +52,23 @@ export const <%= propertyName %>IndexRoute = new Route({
 export const <%= className %>Link = (props: {
   id: number|undefined;
   query: UseQueryResult<Record<string | number, Get<%= className %>Dto>, unknown>;
-}) => (
-  <Link as='span'>
-    <RouterLink
-      title="Go to <%= propertyName %>"
-      to={<%= propertyName %>Route.fullPath}
-      params={{
-          <%= propertyName %>Id: String(props.id),
-      }}
-    >
-      {getRelationDisplayName(props.id, props.query)}
-    </RouterLink>
-  </Link>
-);
+}) => {
+  const <%= propertyName %> = getEntityFromQuery(props.id, props.query);
+  return <%= propertyName %> ? (
+    <Link as='span'>
+      <RouterLink
+        title="Go to <%= propertyName %>"
+        to={<%= propertyName %>Route.fullPath}
+        params={{
+            <%= propertyName %>Id: String(<%= propertyName %>.id),
+        }}
+      >
+        {getRelationDisplayName(<%= propertyName %>.id, props.query)}
+      </RouterLink>
+    </Link>
+  ) : typeof props.id === 'number' ? (
+    <Text title="<%= className %> may have been deleted." as="i" color="gray.500">
+      not found
+    </Text>
+  ) : null;
+};

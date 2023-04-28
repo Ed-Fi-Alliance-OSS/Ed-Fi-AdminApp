@@ -4,6 +4,7 @@ import {
   Button,
   HStack,
   Icon,
+  Image,
   Menu,
   MenuButton,
   MenuItem,
@@ -34,9 +35,7 @@ export const AppBar = () => {
       py={1}
       px={3}
     >
-      <Text as="b" fontStyle="italic" color="red">
-        LOGO
-      </Text>
+      <Image h={7} src="http://localhost:3001/starting-blocks.svg" />
       <Menu>
         <MenuButton as={Button} variant="unstyled">
           <HStack spacing={0}>

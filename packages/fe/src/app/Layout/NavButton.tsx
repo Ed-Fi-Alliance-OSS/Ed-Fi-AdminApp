@@ -14,6 +14,7 @@ import { useEffect } from 'react';
 import { BsCaretRightFill } from 'react-icons/bs';
 export interface INavButtonProps {
   route: AnyRoute;
+  params?: object;
   onClick?: () => void;
   icon?: As;
   activeIcon?: As;
@@ -63,7 +64,7 @@ export const NavButton = (props: INavButtonProps) => {
         props.onClick && props.onClick();
       }}
       to={props.route.fullPath}
-      params={{}}
+      params={(props.params as any) || {}}
       search={{}}
       w="100%"
       borderRadius="0px"
@@ -106,7 +107,7 @@ export const NavButton = (props: INavButtonProps) => {
                     toggleIsExpanded();
                   }
                 }}
-                ml="0.25em"
+                ml={`calc(0.25em + ${depthOffset})`}
                 pos="absolute"
                 aria-label="open or close"
                 title="open or close"
@@ -115,7 +116,7 @@ export const NavButton = (props: INavButtonProps) => {
                 h="20px"
                 minH="20px"
                 minW="20px"
-                size="sm"
+                size="xs"
                 className={isExpanded ? 'opened' : undefined}
                 css={{
                   '&.opened': {
@@ -133,13 +134,15 @@ export const NavButton = (props: INavButtonProps) => {
           {button}
         </HStack>
         <Collapse in={isExpanded} animateOpacity>
-          {props.childItems?.map((child) => (
-            <NavButton
-              key={child.text + child.route.fullPath}
-              {...child}
-              depth={(props.depth || 0) + 1}
-            />
-          ))}
+          <Box fontSize="1em">
+            {props.childItems?.map((child) => (
+              <NavButton
+                key={child.text + child.route.fullPath}
+                {...child}
+                depth={(props.depth || 0) + 1}
+              />
+            ))}
+          </Box>
         </Collapse>
       </>
     );

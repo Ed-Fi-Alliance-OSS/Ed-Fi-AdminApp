@@ -1,4 +1,4 @@
-import { Link } from '@chakra-ui/react';
+import { Link, Text } from '@chakra-ui/react';
 import { GetUserDto } from '@edanalytics/models';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
@@ -7,6 +7,7 @@ import { useUsers } from '../api';
 import { getRelationDisplayName } from '../helpers';
 import { UserPage } from '../Pages/User/UserPage';
 import { UsersPage } from '../Pages/User/UsersPage';
+import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const usersRoute = new Route({
   getParentRoute: () => mainLayoutRoute,
@@ -49,16 +50,23 @@ export const userIndexRoute = new Route({
 export const UserLink = (props: {
   id: number | undefined;
   query: UseQueryResult<Record<string | number, GetUserDto>, unknown>;
-}) => (
-  <Link as="span">
-    <RouterLink
-      title="Go to user"
-      to={userRoute.fullPath}
-      params={{
-        userId: String(props.id),
-      }}
-    >
-      {getRelationDisplayName(props.id, props.query)}
-    </RouterLink>
-  </Link>
-);
+}) => {
+  const user = getEntityFromQuery(props.id, props.query);
+  return user ? (
+    <Link as="span">
+      <RouterLink
+        title="Go to user"
+        to={userRoute.fullPath}
+        params={{
+          userId: String(props.id),
+        }}
+      >
+        {getRelationDisplayName(props.id, props.query)}
+      </RouterLink>
+    </Link>
+  ) : typeof props.id === 'number' ? (
+    <Text title="User may have been deleted." as="i" color="gray.500">
+      not found
+    </Text>
+  ) : null;
+};

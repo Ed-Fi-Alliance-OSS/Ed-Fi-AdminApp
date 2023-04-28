@@ -14,13 +14,14 @@ apiClient.interceptors.response.use(
   (res) => res.data,
   (error) => {
     if ([401, 403].includes(error?.response?.status)) {
-      window.location.href = `${
-        window.location.origin
-      }/login?redirect=${encodeURIComponent(
-        window.location.href.replace(window.location.origin, '')
-      )}`;
+      window.location.href = `${window.location.origin
+        }/login?redirect=${encodeURIComponent(
+          window.location.href.replace(window.location.origin, '')
+        )}`;
+      console.warn(error);
+    } else {
+      throw error?.response?.data ?? error;
     }
-    console.warn(error);
   }
 );
 

@@ -4,8 +4,10 @@ import {
 } from '@nestjs/common';
 import { ReqUser } from '../auth/user.decorator';
 import { <%= className %>sService } from './<%= fileName %>s.service';
+import { ApiTags } from '@nestjs/swagger';
 
-@Controller('<%= fileName %>s')
+@ApiTags('<%= className %>')
+@Controller()
 export class <%= className %>sController {
   constructor(
     private readonly <%= propertyName %>Service: <%= className %>sService,

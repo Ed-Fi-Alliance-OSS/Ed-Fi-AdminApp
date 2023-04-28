@@ -18,8 +18,10 @@ import {
 } from '@nestjs/common';
 import { ReqUser } from '../auth/user.decorator';
 import { UsersService } from './users.service';
+import { ApiTags } from '@nestjs/swagger';
 
-@Controller('users')
+@ApiTags('User')
+@Controller()
 export class UsersController {
   constructor(private readonly userService: UsersService) { }
 

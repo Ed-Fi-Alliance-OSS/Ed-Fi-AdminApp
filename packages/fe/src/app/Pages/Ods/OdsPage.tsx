@@ -1,0 +1,69 @@
+import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
+import { ConfirmAction } from '@edanalytics/common-ui';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
+import { BiEdit, BiTrash } from 'react-icons/bi';
+import { useDeleteOds, useOds } from '../../api';
+import { useNavToParent } from '../../helpers';
+import { odsIndexRoute } from '../../routes';
+import { EditOds } from './EditOds';
+import { ViewOds } from './ViewOds';
+import { ReactNode } from 'react';
+
+export const OdsPage = (): ReactNode => {
+  const navigate = useNavigate();
+  const navToParentOptions = useNavToParent();
+
+  const deleteOds = useDeleteOds(() => {
+    navigate(navToParentOptions);
+  });
+  const params = useParams({ from: odsIndexRoute.id });
+  const ods = useOds(params.odsId, params.sbeId).data;
+  const { edit } = useSearch({ from: odsIndexRoute.id });
+
+  return (
+    <>
+      <Heading mb={4} fontSize="lg">
+        {ods?.displayName || 'Ods'}
+      </Heading>
+      {ods ? (
+        <Box maxW="40em" borderTop="1px solid" borderColor="gray.200">
+          <ButtonGroup
+            spacing={6}
+            display="flex"
+            size="sm"
+            variant="link"
+            justifyContent="end"
+          >
+            <Button
+              isDisabled={edit}
+              iconSpacing={1}
+              leftIcon={<BiEdit />}
+              onClick={() => {
+                navigate({
+                  to: odsIndexRoute.fullPath,
+                  params: (old: any) => old,
+                  search: { edit: true },
+                });
+              }}
+            >
+              Edit
+            </Button>
+            <ConfirmAction
+              action={() => deleteOds.mutate(ods.id)}
+              headerText={`Delete ${ods.displayName}?`}
+              bodyText="You won't be able to get it back"
+            >
+              {(props) => (
+                <Button {...props} iconSpacing={1} leftIcon={<BiTrash />}>
+                  Delete
+                </Button>
+              )}
+            </ConfirmAction>
+          </ButtonGroup>
+
+          {edit ? <EditOds /> : <ViewOds />}
+        </Box>
+      ) : null}
+    </>
+  );
+};

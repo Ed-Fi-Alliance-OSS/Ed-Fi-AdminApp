@@ -6,6 +6,9 @@ export const ENTITY_GENERATOR_METADATA = Symbol.for(
 
 export type AttributeFaker = (() => any) | any;
 
+// TODO add a class-level overload to use the generic `T` to type the faker argument
+type ClassFaker<T extends object> = (() => Partial<T>) | Partial<T>;
+
 /**
  * Declarative configuration for fake data generation.
  *
@@ -22,15 +25,25 @@ export type AttributeFaker = (() => any) | any;
  * appropriate for the property you're decorating.
  *
  */
-export function FakeMeUsing(faker: AttributeFaker) {
-  return function (target: any, propertyKey: string) {
+export function FakeMeUsing<T extends object>(faker: AttributeFaker) {
+  return function (target: T, propertyKey?: string) {
+    let fn: any
+    if (propertyKey === undefined) {
+      fn = typeof faker === 'function' ? faker : () => faker
+    } else {
+      fn = () => ({
+        [propertyKey]: typeof faker === 'function' ? faker() : faker
+      })
+    }
+    const dfnTarget = 'name' in target ? target : target.constructor
+    const existingMeta = Reflect.getMetadata(ENTITY_GENERATOR_METADATA, dfnTarget)
     Reflect.defineMetadata(
       ENTITY_GENERATOR_METADATA,
-      {
-        ...Reflect.getMetadata(ENTITY_GENERATOR_METADATA, target.constructor),
-        [propertyKey]: faker,
-      },
-      target.constructor
+      [
+        ...(existingMeta || []),
+        fn,
+      ],
+      dfnTarget
     );
   };
 }
@@ -73,14 +86,8 @@ export function generateFake<T extends object>(
   overrides?: PartialEntityGenerator<T> | undefined,
   count?: number | undefined
 ) {
-  const meta: [string, AttributeFaker][] = Object.entries(
-    Reflect.getMetadata(ENTITY_GENERATOR_METADATA, entityClass) || {}
-  );
-
   const propertyGenerators: PartialEntityGeneratorFn<ClassConstructor<T>>[] = [
-    ...meta.map(([key, faker]) => () => ({
-      [key]: typeof faker === 'function' ? faker() : faker,
-    })),
+    ...(Reflect.getMetadata(ENTITY_GENERATOR_METADATA, entityClass) || []),
     ...(overrides
       ? [typeof overrides === 'function' ? overrides : () => overrides]
       : []),

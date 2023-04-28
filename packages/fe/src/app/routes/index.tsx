@@ -1,3 +1,51 @@
+import {
+  ownershipRoute,
+  ownershipsRoute,
+  ownershipsIndexRoute,
+  ownershipIndexRoute,
+} from './ownership.routes';
+import {
+  roleRoute,
+  rolesRoute,
+  rolesIndexRoute,
+  roleIndexRoute,
+} from './role.routes';
+import {
+  userTenantMembershipRoute,
+  userTenantMembershipsRoute,
+  userTenantMembershipsIndexRoute,
+  userTenantMembershipIndexRoute,
+} from './user-tenant-membership.routes';
+import {
+  edorgRoute,
+  edorgsRoute,
+  edorgsIndexRoute,
+  edorgIndexRoute,
+} from './edorg.routes';
+import {
+  sbeRoute,
+  sbesRoute,
+  sbesIndexRoute,
+  sbeIndexRoute,
+} from './sbe.routes';
+import {
+  odsRoute,
+  odssRoute,
+  odssIndexRoute,
+  odsIndexRoute,
+} from './ods.routes';
+import {
+  resourceRoute,
+  resourcesRoute,
+  resourcesIndexRoute,
+  resourceIndexRoute,
+} from './resource.routes';
+import {
+  tenantRoute,
+  tenantsRoute,
+  tenantsIndexRoute,
+  tenantIndexRoute,
+} from './tenant.routes';
 import { Heading } from '@chakra-ui/react';
 import {
   RootRoute,
@@ -19,10 +67,34 @@ import {
   usersIndexRoute,
   usersRoute,
 } from './user.routes';
+import { Fallback404 } from '../Layout/Fallback404';
+import { SuccessContent } from '../Layout/SuccessContent';
+import { useQueryClient } from '@tanstack/react-query';
+import { handleQueryError } from '../helpers';
+export * from './ownership.routes';
+export * from './role.routes';
+export * from './user-tenant-membership.routes';
+export * from './edorg.routes';
+export * from './sbe.routes';
+export * from './ods.routes';
+export * from './resource.routes';
+export * from './tenant.routes';
 export * from './account.routes';
 export * from './user.routes';
 
 export const rootRoute = new RootRoute();
+
+// export const rootLayoutRoute = new Route({
+//   getParentRoute: () => rootRoute,
+//   id: 'root-layout',
+//   component: StandardLayout,
+// });
+
+export const fallback404Route = new Route({
+  getParentRoute: () => rootRoute,
+  path: '404',
+  component: Fallback404,
+});
 
 export const mainLayoutRoute = new Route({
   getParentRoute: () => rootRoute,
@@ -72,8 +144,43 @@ export const loginRoute = new Route({
 const routeTree = rootRoute.addChildren([
   publicRoute,
   loginRoute,
+  fallback404Route,
   mainLayoutRoute.addChildren([
     indexRoute,
+    ownershipsRoute.addChildren([
+      ownershipsIndexRoute,
+      ownershipRoute.addChildren([ownershipIndexRoute]),
+    ]),
+    rolesRoute.addChildren([
+      rolesIndexRoute,
+      roleRoute.addChildren([roleIndexRoute]),
+    ]),
+    userTenantMembershipsRoute.addChildren([
+      userTenantMembershipsIndexRoute,
+      userTenantMembershipRoute.addChildren([userTenantMembershipIndexRoute]),
+    ]),
+    sbesRoute.addChildren([
+      sbesIndexRoute,
+      sbeRoute.addChildren([
+        sbeIndexRoute,
+        odssRoute.addChildren([
+          odssIndexRoute,
+          odsRoute.addChildren([odsIndexRoute]),
+        ]),
+        edorgsRoute.addChildren([
+          edorgsIndexRoute,
+          edorgRoute.addChildren([edorgIndexRoute]),
+        ]),
+      ]),
+    ]),
+    resourcesRoute.addChildren([
+      resourcesIndexRoute,
+      resourceRoute.addChildren([resourceIndexRoute]),
+    ]),
+    tenantsRoute.addChildren([
+      tenantsIndexRoute,
+      tenantRoute.addChildren([tenantIndexRoute]),
+    ]),
     accountRoute,
     usersRoute.addChildren([
       usersIndexRoute,
@@ -85,11 +192,13 @@ const routeTree = rootRoute.addChildren([
 // Create the router using your route tree
 export const router = new Router({ routeTree });
 
-export const Routes = () => (
-  <>
-    <RouterProvider router={router} />
-    {environment.production ? null : (
-      <TanStackRouterDevtools position="bottom-right" router={router} />
-    )}
-  </>
-);
+export const Routes = () => {
+  return (
+    <>
+      <RouterProvider router={router} />
+      {environment.production ? null : (
+        <TanStackRouterDevtools position="bottom-right" router={router} />
+      )}
+    </>
+  );
+};

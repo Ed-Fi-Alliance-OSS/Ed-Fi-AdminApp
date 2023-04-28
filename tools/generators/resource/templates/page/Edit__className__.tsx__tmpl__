@@ -45,8 +45,8 @@ import { Put<%= className %>Dto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useNavigate, useParams } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePut<%= className %>, use<%= className %>s } from '../../api';
-import { <%= propertyName %>IndexRoute, <%= propertyName %>Route } from '../../routes/<%= fileName %>.routes';
+import { usePut<%= className %>, use<%= className %> } from '../../api';
+import { <%= propertyName %>Route } from '../../routes';
 
 const resolver = classValidatorResolver(Put<%= className %>Dto);
 
@@ -54,15 +54,14 @@ export const Edit<%= className %> = () => {
   const navigate = useNavigate();
   const goToView = () => {
     navigate({
-      to: <%= propertyName %>IndexRoute.fullPath,
-      params: { <%= propertyName %>Id },
+      to: <%= propertyName %>Route.fullPath,
+      params: (old: any) => old,
       search: {},
     });
   };
   const put<%= className %> = usePut<%= className %>(goToView);
-  const <%= propertyName %>s = use<%= className %>s();
-  const <%= propertyName %>Id: string = useParams({ from: <%= propertyName %>Route.id }).<%= propertyName %>Id;
-  const <%= propertyName %> = <%= propertyName %>s?.data?.[Number(<%= propertyName %>Id)];
+  const params = useParams({ from: <%= propertyName %>Route.id });
+  const <%= propertyName %> = use<%= className %>(params.<%= propertyName %>Id).data;
   const {
     register,
     handleSubmit,

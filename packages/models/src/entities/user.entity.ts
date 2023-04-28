@@ -14,6 +14,7 @@ import {
 import { GlobalRole } from '../enums/global-role.enum';
 import { IUser, IUserConfig } from '../interfaces/user.interface';
 import { EntityBase } from '../utils/entity-base';
+import { IUserTenantMembership } from '../interfaces';
 
 @Entity()
 export class User implements IUser {
@@ -69,6 +70,9 @@ export class User implements IUser {
   @FakeMeUsing(() => faker.helpers.arrayElement(enumValues(GlobalRole)))
   @Column({ type: 'varchar', nullable: true })
   role: GlobalRole;
+
+  @OneToMany('UserTenantMembership', (userTenantMembership: IUserTenantMembership) => userTenantMembership.tenant)
+  userTenantMemberships: IUserTenantMembership[];
 
   @FakeMeUsing(() => faker.helpers.arrayElement([false, true, true]))
   @Column()

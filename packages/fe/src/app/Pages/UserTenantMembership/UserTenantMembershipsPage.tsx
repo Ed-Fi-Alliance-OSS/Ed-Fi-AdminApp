@@ -1,0 +1,81 @@
+import { Heading, HStack } from '@chakra-ui/react';
+import { DataTable } from '@edanalytics/common-ui';
+import {
+  useUserTenantMemberships,
+  useDeleteUserTenantMembership,
+  useUsers,
+} from '../../api';
+import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
+import { StandardRowActions } from '../../helpers/getStandardActions';
+import {
+  UserLink,
+  userTenantMembershipRoute,
+  userTenantMembershipsRoute,
+  UserTenantMembershipLink,
+} from '../../routes';
+import { useParams } from '@tanstack/router';
+
+export const UserTenantMembershipsPage = () => {
+  const params = useParams({ from: userTenantMembershipsRoute.id });
+  const userTenantMemberships = useUserTenantMemberships();
+  const deleteUserTenantMembership = useDeleteUserTenantMembership();
+  const users = useUsers();
+
+  return (
+    <>
+      <Heading mb={4} fontSize="lg">
+        UserTenantMemberships
+      </Heading>
+      <DataTable
+        data={Object.values(userTenantMemberships?.data || {})}
+        columns={[
+          {
+            accessorKey: 'displayName',
+            cell: (info) => (
+              <HStack justify="space-between">
+                <UserTenantMembershipLink
+                  id={info.row.original.id}
+                  query={userTenantMemberships}
+                />
+                <HStack className="row-hover" color="gray.600" align="middle">
+                  <StandardRowActions
+                    info={info}
+                    mutation={deleteUserTenantMembership.mutate}
+                    route={userTenantMembershipRoute}
+                    params={(params: any) => ({
+                      ...params,
+                      userTenantMembershipId: String(info.row.original.id),
+                    })}
+                  />
+                </HStack>
+              </HStack>
+            ),
+            header: () => 'Name',
+          },
+          {
+            id: 'modifiedBy',
+            accessorFn: (info) =>
+              getRelationDisplayName(info.modifiedById, users),
+            header: () => 'Modified by',
+            cell: (info) => (
+              <UserLink query={users} id={info.row.original.modifiedById} />
+            ),
+          },
+          {
+            accessorKey: 'createdDetailed',
+            header: () => 'Created',
+          },
+          {
+            id: 'createdBy',
+            accessorFn: (info) =>
+              getRelationDisplayName(info.createdById, users),
+            header: () => 'Created by',
+            cell: (info) => (
+              <UserLink query={users} id={info.row.original.createdById} />
+            ),
+          },
+        ]}
+      />
+    </>
+  );
+};

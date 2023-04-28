@@ -61,4 +61,21 @@ describe('entity-generator', () => {
       newValue: 'new value',
     });
   });
+  it('should work with class-level config', () => {
+    @FakeMeUsing({ otherValue: 'other value', otherOtherValue: 'other other value' })
+    class ClassLevel {
+      @FakeMeUsing('some value')
+      staticValue: string;
+
+      otherValue: string;
+      otherOtherValue: string;
+    }
+
+    const classLevel = generateFake(ClassLevel);
+    expect(classLevel).toEqual({
+      staticValue: 'some value',
+      otherValue: 'other value',
+      otherOtherValue: 'other other value',
+    });
+  });
 });

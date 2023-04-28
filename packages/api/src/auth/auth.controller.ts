@@ -14,8 +14,8 @@ import { OidcAuthGuard } from './oidc-auth.guard';
 import { Public } from './public.decorator';
 import { ApiTags } from '@nestjs/swagger';
 
-@Controller('auth')
 @ApiTags('Auth')
+@Controller('auth')
 export class AuthController {
 
   @UseGuards(OidcAuthGuard)

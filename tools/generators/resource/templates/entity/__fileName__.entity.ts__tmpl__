@@ -1,7 +1,7 @@
-import { Column, Entity, ManyToOne, OneToMany, ManyToMany, ViewColumn, ViewEntity } from "typeorm";
+import { Column, Entity, ManyToOne, OneToMany, ManyToMany, ViewColumn, ViewEntity, BeforeInsert, JoinColumn, JoinTable } from "typeorm";
 import { I<%= className %> } from "../interfaces/<%= fileName %>.interface";
 import { EntityBase } from "../utils/entity-base";
-import { FakeMeUsing } from '@edanalytics/utils';
+import { FakeMeUsing, deployEnv, schoolYear, districtName, schoolType } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 
 @Entity()

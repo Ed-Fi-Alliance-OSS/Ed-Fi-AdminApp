@@ -1,5 +1,12 @@
+import { BsCloudRain, BsCloudRainFill } from 'react-icons/bs';
+import { BsDatabase, BsDatabaseFill } from 'react-icons/bs';
 import { Box, Text } from '@chakra-ui/react';
-import { AnyRoute, useRouter } from '@tanstack/router';
+import {
+  AnyRoute,
+  AnyRoutesInfo,
+  RouteMatch,
+  useRouter,
+} from '@tanstack/router';
 import { Resizable } from 're-resizable';
 import {
   BsClipboard,
@@ -10,16 +17,92 @@ import {
   BsPersonFill,
 } from 'react-icons/bs';
 import { HiHome, HiOutlineHome } from 'react-icons/hi';
-import { accountRoute, indexRoute, usersRoute } from '../routes';
+import {
+  accountRoute,
+  indexRoute,
+  usersRoute,
+  tenantsRoute,
+  resourcesRoute,
+  odssRoute,
+  sbesRoute,
+  edorgsRoute,
+  sbeRoute,
+  userTenantMembershipsRoute,
+  rolesRoute,
+  ownershipsRoute,
+} from '../routes';
 import { INavButtonProps, NavButton } from './NavButton';
+import _ from 'lodash';
+import { useSbes } from '../api';
 
 export const Nav = () => {
+  const sbes = useSbes();
+
   const items: INavButtonProps[] = [
     {
       route: usersRoute,
       icon: BsPerson,
       activeIcon: BsPersonFill,
       text: 'Users',
+    },
+    {
+      route: tenantsRoute,
+      icon: BsClipboard,
+      activeIcon: BsClipboardFill,
+      text: 'Tenants',
+    },
+    {
+      route: resourcesRoute,
+      icon: BsGear,
+      activeIcon: BsGearFill,
+      text: 'Ownerships',
+    },
+    {
+      route: sbesRoute,
+      icon: BsGear,
+      activeIcon: BsGearFill,
+      text: 'Environments',
+      childItems: Object.values(sbes.data || {}).map((sbe) => ({
+        route: sbeRoute,
+        params: { sbeId: String(sbe.id) },
+        icon: BsPerson,
+        activeIcon: BsPersonFill,
+        text: sbe.displayName,
+        childItems: [
+          {
+            route: odssRoute,
+            params: { sbeId: String(sbe.id) },
+            icon: BsDatabase,
+            activeIcon: BsDatabaseFill,
+            text: 'ODSs',
+          },
+          {
+            route: edorgsRoute,
+            params: { sbeId: String(sbe.id) },
+            icon: BsCloudRain,
+            activeIcon: BsCloudRainFill,
+            text: 'Ed-Orgs',
+          },
+        ],
+      })),
+    },
+    {
+      route: userTenantMembershipsRoute,
+      icon: BsCloudRain,
+      activeIcon: BsCloudRainFill,
+      text: 'UserTenantMemberships',
+    },
+    {
+      route: rolesRoute,
+      icon: BsGear,
+      activeIcon: BsGearFill,
+      text: 'Roles',
+    },
+    {
+      route: ownershipsRoute,
+      icon: BsClipboard,
+      activeIcon: BsClipboardFill,
+      text: 'Ownerships',
     },
   ];
 
@@ -37,29 +120,45 @@ export const Nav = () => {
       text: 'Account',
     },
   ];
-  const flatItems = [
-    ...items.flatMap((item) => [item, ...(item.childItems ?? [])]),
-    ...staticItems.flatMap((item) => [item, ...(item.childItems ?? [])]),
+  const flatten = (item: INavButtonProps): INavButtonProps[] => [
+    item,
+    ...(item.childItems ?? []).flatMap((ci) => flatten(ci)),
   ];
+  const flatItems = [...items, ...staticItems].flatMap((item) => flatten(item));
 
   let deepestMatch = null;
   const router = useRouter();
 
+  const isMatch = <
+    M extends Pick<RouteMatch<AnyRoutesInfo, AnyRoute>, 'params' | 'route'>
+  >(
+    activeRoute: M,
+    item: INavButtonProps
+  ) => {
+    const itemParams = item.params || {};
+    const paramsEqual = _.isMatch(activeRoute.params, itemParams);
+    const sameRoute = item.route.id === activeRoute.route.id;
+
+    return sameRoute && paramsEqual;
+  };
+
   router.state.currentMatches.forEach((m) => {
-    if (flatItems.some((item) => item.route.id === m.route.id)) {
+    if (flatItems.some((item) => isMatch(m, item))) {
       deepestMatch = m;
     }
   });
 
-  const tagMatch = (
+  const tagMatch = <
+    M extends Pick<RouteMatch<AnyRoutesInfo, AnyRoute>, 'params' | 'route'>
+  >(
     items: INavButtonProps[],
-    match: AnyRoute | null
+    match: M | null
   ): INavButtonProps[] =>
     match === null
       ? items
       : items.map((item) => ({
           ...item,
-          isActive: item.route.id === match.id,
+          isActive: isMatch(match, item),
           childItems: tagMatch(item.childItems || [], match),
         }));
 

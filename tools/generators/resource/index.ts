@@ -46,7 +46,7 @@ export default async function (tree: Tree, schema: ResourceSchema) {
     );
     generateFiles(
       tree,
-      path.join(templates, 'dto'),
+      path.join(templates, 'dto-consolidated'),
       path.join(models, 'dtos'),
       sub
     );
@@ -62,9 +62,7 @@ export default async function (tree: Tree, schema: ResourceSchema) {
           /\n$/,
           [
             '',
-            `export * from './get-${resourceNames.fileName}.dto'`,
-            `export * from './post-${resourceNames.fileName}.dto'`,
-            `export * from './put-${resourceNames.fileName}.dto'`,
+            `export * from './${resourceNames.fileName}.dto'`,
             '',
           ].join('\n')
         )
@@ -80,6 +78,20 @@ export default async function (tree: Tree, schema: ResourceSchema) {
         .replace(
           /\n$/,
           ['', `export * from './${resourceNames.fileName}.entity'`, ''].join(
+            '\n'
+          )
+        )
+    );
+    // update interface index.ts
+    const interfaceIndexPath = path.join(models, 'interfaces', 'index.ts');
+    tree.write(
+      interfaceIndexPath,
+      tree
+        .read(interfaceIndexPath)!
+        .toString()
+        .replace(
+          /\n$/,
+          ['', `export * from './${resourceNames.fileName}.interface'`, ''].join(
             '\n'
           )
         )
@@ -235,6 +247,29 @@ export default async function (tree: Tree, schema: ResourceSchema) {
   }
 
   if (schema.useApiFiles) {
+    const routesPath = path.join(api, 'app', 'routes.ts');
+    let routes = tree.read(routesPath)!.toString();
+    routes = tsquery.replace(
+      routes,
+      `VariableDeclaration:has(Identifier[name=routes]) >
+        ArrayLiteralExpression`,
+      (node) => {
+        return node
+          .getText()
+          .replace(/,?\s*?\]$/, `,\n{
+            path: '${resourceNames.fileName}s',
+            module: ${resourceNames.className}sModule
+          }
+        ]`);
+      }
+    )
+    routes = routes.replace(
+      /^/,
+      `import { ${resourceNames.className}sModule } from '../${resourceNames.fileName}s/${resourceNames.fileName}s.module'\n`
+    );
+    tree.write(routesPath, routes)
+
+
     // update typeorm config
     const typeormConfigPath = path.join(api, 'database', 'typeorm.config.ts');
     let typeormConfig = tree.read(typeormConfigPath)!.toString();

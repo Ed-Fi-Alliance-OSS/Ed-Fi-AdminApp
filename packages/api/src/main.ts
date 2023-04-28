@@ -35,8 +35,8 @@ async function bootstrap() {
 
   const port = process.env.PORT || 3333;
   const config = new DocumentBuilder()
-    .setTitle('TS App Base SE')
-    .setDescription('TS App Base SE API description')
+    .setTitle('Starting Blocks Admin App')
+    .setDescription('OpenAPI spec for the EA Starting Blocks admin console application.')
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);

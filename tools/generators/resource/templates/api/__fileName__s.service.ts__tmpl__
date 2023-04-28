@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import {
   GetUserDto,
@@ -26,15 +26,22 @@ export class <%= className %>sService {
   }
 
   findOne(id: number) {
-    return this.<%= propertyName %>sRepository.findOneBy({ id: id });
+    return this.<%= propertyName %>sRepository.findOneByOrFail({ id: id }).catch(() => {
+      throw new NotFoundException("<%= className %> not found");
+    });
   }
 
   async update(id: number, update<%= className %>Dto: Put<%= className %>Dto) {
     await this.<%= propertyName %>sRepository.update(id, update<%= className %>Dto);
-    return this.<%= propertyName %>sRepository.findOneByOrFail({ id });
+    return this.<%= propertyName %>sRepository.findOneByOrFail({ id }).catch(() => {
+      throw new NotFoundException("<%= className %> not found");
+    });
   }
 
   async remove(id: number, user: GetUserDto) {
+    await this.<%= propertyName %>sRepository.findOneByOrFail({ id }).catch(() => {
+      throw new NotFoundException("<%= className %> not found");
+    });
     await this.<%= propertyName %>sRepository.update(id, { deleted: new Date(), deletedById: user.id });
     return undefined
   }
