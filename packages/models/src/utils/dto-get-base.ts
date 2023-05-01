@@ -53,11 +53,11 @@ export class DtoGetBase__User {
 
   // @ApiProperty()
   @Expose()
-  modifiedById: IUser['id'];
+  modifiedById?: IUser['id'];
 
   // @ApiProperty()
   @Expose()
-  deletedById: IUser['id'];
+  deletedById?: IUser['id'];
 
   get createdShort() {
     return this.created ? stdShort(this.created) : undefined;

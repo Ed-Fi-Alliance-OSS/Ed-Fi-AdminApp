@@ -10,3 +10,4 @@ export * from './user-tenant-membership.queries';
 export * from './privilege.queries';
 export * from './role.queries';
 export * from './ownership.queries';
+export * from './tenant-resources';

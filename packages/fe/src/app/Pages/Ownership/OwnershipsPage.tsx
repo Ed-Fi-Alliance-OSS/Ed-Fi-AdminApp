@@ -1,6 +1,12 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import { useOwnerships, useDeleteOwnership, useUsers } from '../../api';
+import {
+  useOwnerships,
+  useDeleteOwnership,
+  useUsers,
+  useTenantOwnerships,
+  useTenantUsers,
+} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import {
@@ -13,9 +19,9 @@ import { useParams } from '@tanstack/router';
 
 export const OwnershipsPage = () => {
   const params = useParams({ from: ownershipsRoute.id });
-  const ownerships = useOwnerships();
+  const ownerships = useTenantOwnerships(params.asId);
   const deleteOwnership = useDeleteOwnership();
-  const users = useUsers();
+  const users = useTenantUsers(params.asId);
 
   return (
     <>

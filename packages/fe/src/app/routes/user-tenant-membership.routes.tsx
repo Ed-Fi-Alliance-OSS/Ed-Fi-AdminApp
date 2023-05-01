@@ -2,7 +2,7 @@ import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
-import { mainLayoutRoute } from '.';
+import { asRoute, mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
 import { useUserTenantMemberships } from '../api';
 import { UserTenantMembershipPage } from '../Pages/UserTenantMembership/UserTenantMembershipPage';
@@ -10,7 +10,7 @@ import { UserTenantMembershipsPage } from '../Pages/UserTenantMembership/UserTen
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const userTenantMembershipsRoute = new Route({
-  getParentRoute: () => mainLayoutRoute,
+  getParentRoute: () => asRoute,
   path: 'user-tenant-memberships',
   getContext: ({ params }) => ({
     breadcrumb: () => ({ title: () => 'UserTenantMemberships', params }),
@@ -58,12 +58,14 @@ export const UserTenantMembershipLink = (props: {
   >;
 }) => {
   const userTenantMembership = getEntityFromQuery(props.id, props.query);
+  const params = useParams({ from: asRoute.id });
   return userTenantMembership ? (
     <Link as="span">
       <RouterLink
         title="Go to userTenantMembership"
         to={userTenantMembershipRoute.fullPath}
         params={{
+          asId: params.asId,
           userTenantMembershipId: String(userTenantMembership.id),
         }}
       >

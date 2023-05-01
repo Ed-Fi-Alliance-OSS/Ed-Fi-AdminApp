@@ -1,8 +1,8 @@
 import { Route } from '@tanstack/router';
-import { mainLayoutRoute } from '.';
+import { asRoute, mainLayoutRoute } from '.';
 import { AccountPage } from '../Pages/Account/AccountPage';
 
-export const accountRoute = new Route({
+export const accountRouteGlobal = new Route({
   getParentRoute: () => mainLayoutRoute,
   path: 'account',
   validateSearch: (search): { edit?: boolean } =>

@@ -8,13 +8,13 @@ const baseUrl = '';
 export const useOds = (id: number | string, sbeId: number | string) =>
   useQuery({
     queryKey: [`ods`, id],
-    queryFn: () => methods.getOne(`${baseUrl}sbes/${sbeId}/odss/${id}`, GetOdsDto),
+    queryFn: () => methods.getOne(`${baseUrl}/sbes/${sbeId}/odss/${id}`, GetOdsDto),
   });
 
 export const useOdss = (sbeId: number | string) =>
   useQuery({
     queryKey: [`odss`, 'sbe', sbeId],
-    queryFn: () => methods.getManyMap<GetOdsDto>(`${baseUrl}sbes/${sbeId}/odss`, GetOdsDto),
+    queryFn: () => methods.getManyMap<GetOdsDto>(`${baseUrl}/sbes/${sbeId}/odss`, GetOdsDto),
   });
 
 export const usePostOds = (ods: PostOdsDto) => {

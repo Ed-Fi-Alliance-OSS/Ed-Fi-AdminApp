@@ -8,7 +8,7 @@ const baseUrl = '';
 export const useEdorg = (id: number | string, sbeId: number | string) =>
   useQuery({
     queryKey: [`edorg`, id],
-    queryFn: () => methods.getOne(`${baseUrl}sbes/${sbeId}/edorgs/${id}`, GetEdorgDto),
+    queryFn: () => methods.getOne(`${baseUrl}/sbes/${sbeId}/edorgs/${id}`, GetEdorgDto),
   });
 
 export const useEdorgs = (sbeId: number | string) =>

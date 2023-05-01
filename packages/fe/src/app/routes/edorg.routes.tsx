@@ -2,7 +2,7 @@ import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetEdorgDto } from '@edanalytics/models';
-import { mainLayoutRoute, sbeRoute } from '.';
+import { asRoute, mainLayoutRoute, sbeRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
 import { useEdorgs } from '../api';
 import { EdorgPage } from '../Pages/Edorg/EdorgPage';
@@ -52,12 +52,14 @@ export const EdorgLink = (props: {
   query: UseQueryResult<Record<string | number, GetEdorgDto>, unknown>;
 }) => {
   const edorg = getEntityFromQuery(props.id, props.query);
+  const params = useParams({ from: asRoute.id });
   return edorg ? (
     <Link as="span">
       <RouterLink
         title="Go to edorg"
         to={edorgRoute.fullPath}
         params={{
+          asId: params.asId,
           sbeId: String(edorg.sbeId),
           edorgId: String(props.id),
         }}

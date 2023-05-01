@@ -35,12 +35,6 @@ import {
   odsIndexRoute,
 } from './ods.routes';
 import {
-  resourceRoute,
-  resourcesRoute,
-  resourcesIndexRoute,
-  resourceIndexRoute,
-} from './resource.routes';
-import {
   tenantRoute,
   tenantsRoute,
   tenantsIndexRoute,
@@ -60,7 +54,7 @@ import axios from 'axios';
 import { memo, useEffect } from 'react';
 import { environment } from '../../environments/environment.local';
 import { StandardLayout } from '../Layout/StandardLayout';
-import { accountRoute } from './account.routes';
+import { accountRouteGlobal } from './account.routes';
 import {
   userIndexRoute,
   userRoute,
@@ -71,13 +65,13 @@ import { Fallback404 } from '../Layout/Fallback404';
 import { SuccessContent } from '../Layout/SuccessContent';
 import { useQueryClient } from '@tanstack/react-query';
 import { handleQueryError } from '../helpers';
+import { TenantLayout } from '../Layout/TenantLayout';
 export * from './ownership.routes';
 export * from './role.routes';
 export * from './user-tenant-membership.routes';
 export * from './edorg.routes';
 export * from './sbe.routes';
 export * from './ods.routes';
-export * from './resource.routes';
 export * from './tenant.routes';
 export * from './account.routes';
 export * from './user.routes';
@@ -141,50 +135,53 @@ export const loginRoute = new Route({
       : {},
 });
 
+export const asRoute = new Route({
+  getParentRoute: () => mainLayoutRoute,
+  path: 'as/$asId',
+});
+
 const routeTree = rootRoute.addChildren([
   publicRoute,
   loginRoute,
   fallback404Route,
   mainLayoutRoute.addChildren([
     indexRoute,
-    ownershipsRoute.addChildren([
-      ownershipsIndexRoute,
-      ownershipRoute.addChildren([ownershipIndexRoute]),
-    ]),
-    rolesRoute.addChildren([
-      rolesIndexRoute,
-      roleRoute.addChildren([roleIndexRoute]),
-    ]),
-    userTenantMembershipsRoute.addChildren([
-      userTenantMembershipsIndexRoute,
-      userTenantMembershipRoute.addChildren([userTenantMembershipIndexRoute]),
-    ]),
-    sbesRoute.addChildren([
-      sbesIndexRoute,
-      sbeRoute.addChildren([
-        sbeIndexRoute,
-        odssRoute.addChildren([
-          odssIndexRoute,
-          odsRoute.addChildren([odsIndexRoute]),
-        ]),
-        edorgsRoute.addChildren([
-          edorgsIndexRoute,
-          edorgRoute.addChildren([edorgIndexRoute]),
+    asRoute.addChildren([
+      ownershipsRoute.addChildren([
+        ownershipsIndexRoute,
+        ownershipRoute.addChildren([ownershipIndexRoute]),
+      ]),
+      rolesRoute.addChildren([
+        rolesIndexRoute,
+        roleRoute.addChildren([roleIndexRoute]),
+      ]),
+      userTenantMembershipsRoute.addChildren([
+        userTenantMembershipsIndexRoute,
+        userTenantMembershipRoute.addChildren([userTenantMembershipIndexRoute]),
+      ]),
+      sbesRoute.addChildren([
+        sbesIndexRoute,
+        sbeRoute.addChildren([
+          sbeIndexRoute,
+          odssRoute.addChildren([
+            odssIndexRoute,
+            odsRoute.addChildren([odsIndexRoute]),
+          ]),
+          edorgsRoute.addChildren([
+            edorgsIndexRoute,
+            edorgRoute.addChildren([edorgIndexRoute]),
+          ]),
         ]),
       ]),
+      usersRoute.addChildren([
+        usersIndexRoute,
+        userRoute.addChildren([userIndexRoute]),
+      ]),
     ]),
-    resourcesRoute.addChildren([
-      resourcesIndexRoute,
-      resourceRoute.addChildren([resourceIndexRoute]),
-    ]),
+    accountRouteGlobal,
     tenantsRoute.addChildren([
       tenantsIndexRoute,
       tenantRoute.addChildren([tenantIndexRoute]),
-    ]),
-    accountRoute,
-    usersRoute.addChildren([
-      usersIndexRoute,
-      userRoute.addChildren([userIndexRoute]),
     ]),
   ]),
 ]);

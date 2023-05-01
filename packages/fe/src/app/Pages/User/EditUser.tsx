@@ -54,8 +54,9 @@ export const EditUser = () => {
   const navigate = useNavigate();
   const goToView = () => {
     navigate({
+      from: userIndexRoute.fullPath,
       to: userIndexRoute.fullPath,
-      params: { userId },
+      params: (params) => params,
       search: {},
     });
   };

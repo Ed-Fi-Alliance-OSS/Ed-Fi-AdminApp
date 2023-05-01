@@ -1,14 +1,22 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import { useSbes, useDeleteSbe, useUsers } from '../../api';
+import {
+  useSbes,
+  useDeleteSbe,
+  useUsers,
+  useTenantSbes,
+  useTenantUsers,
+} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
-import { UserLink, sbeRoute, SbeLink } from '../../routes';
+import { UserLink, sbeRoute, SbeLink, sbesRoute } from '../../routes';
+import { useParams } from '@tanstack/router';
 
 export const SbesPage = () => {
-  const sbes = useSbes();
+  const params = useParams({ from: sbesRoute.id });
+  const sbes = useTenantSbes(params.asId);
   const deleteSbe = useDeleteSbe();
-  const users = useUsers();
+  const users = useTenantUsers(params.asId);
 
   return (
     <>

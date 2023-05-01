@@ -4,6 +4,8 @@ import {
   useUserTenantMemberships,
   useDeleteUserTenantMembership,
   useUsers,
+  useTenantUserTenantMemberships,
+  useTenantUsers,
 } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
@@ -17,9 +19,9 @@ import { useParams } from '@tanstack/router';
 
 export const UserTenantMembershipsPage = () => {
   const params = useParams({ from: userTenantMembershipsRoute.id });
-  const userTenantMemberships = useUserTenantMemberships();
+  const userTenantMemberships = useTenantUserTenantMemberships(params.asId);
   const deleteUserTenantMembership = useDeleteUserTenantMembership();
-  const users = useUsers();
+  const users = useTenantUsers(params.asId);
 
   return (
     <>

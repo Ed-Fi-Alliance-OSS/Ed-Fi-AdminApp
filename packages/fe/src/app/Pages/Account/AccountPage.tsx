@@ -2,16 +2,16 @@ import { Box, Button, Heading } from '@chakra-ui/react';
 import { useNavigate, useSearch } from '@tanstack/router';
 import { BiEdit } from 'react-icons/bi';
 import { useMe } from '../../api';
-import { accountRoute } from '../../routes';
 import { EditAccount } from './EditAccount';
 import { ViewAccount } from './ViewAccount';
+import { accountRouteGlobal } from '../../routes';
 
 export const AccountPage = () => {
   const me = useMe();
   const user = me.data?.user;
   const navigate = useNavigate();
 
-  const edit = useSearch({ from: accountRoute.id }).edit;
+  const edit = useSearch({ from: accountRouteGlobal.id }).edit;
 
   return (
     <>
@@ -29,8 +29,6 @@ export const AccountPage = () => {
               variant="link"
               onClick={() => {
                 navigate({
-                  to: accountRoute.fullPath,
-                  params: { userId: String(user?.id) },
                   search: { edit: true },
                 });
               }}

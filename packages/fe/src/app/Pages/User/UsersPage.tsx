@@ -1,12 +1,14 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import { useUsers, useDeleteUser } from '../../api';
+import { useUsers, useDeleteUser, useTenantUsers } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
-import { UserLink, userRoute } from '../../routes';
+import { UserLink, userRoute, usersRoute } from '../../routes';
+import { useParams } from '@tanstack/router';
 
 export const UsersPage = () => {
-  const users = useUsers();
+  const params = useParams({ from: usersRoute.id });
+  const users = useTenantUsers(params.asId);
   const deleteUser = useDeleteUser();
 
   return (
