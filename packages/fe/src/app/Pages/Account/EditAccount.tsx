@@ -11,7 +11,6 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useNavigate } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
 import { useMe, usePutMe } from '../../api';
-import { accountRoute } from '../../routes';
 
 const resolver = classValidatorResolver(PutUserDto);
 
@@ -19,8 +18,6 @@ export const EditAccount = () => {
   const navigate = useNavigate();
   const goToView = () => {
     navigate({
-      to: accountRoute.fullPath,
-      params: { userId: String(user?.id) },
       search: {},
     });
   };

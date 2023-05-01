@@ -9,11 +9,18 @@ import { OdssModule } from '../odss/odss.module';
 import { EdorgsModule } from '../edorgs/edorgs.module';
 import { UsersModule } from '../users/users.module';
 import { ResourcesModule } from '../resources/resources.module';
+import { TenantResourcesModule } from '../tenant-resources/tenant-resources.module';
 
 export const routes: Routes = [
   {
     path: 'tenants',
     module: TenantsModule,
+    children: [
+      {
+        path: ':tenantId',
+        module: TenantResourcesModule,
+      }
+    ]
   },
   {
     path: 'resources',

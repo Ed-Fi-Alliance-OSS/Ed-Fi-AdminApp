@@ -118,7 +118,7 @@ export class GetUserDto extends DtoGetBase__User implements GetDto<IUser, 'userT
   @Expose()
   username: string;
   @Expose()
-  role: GlobalRole;
+  role?: GlobalRole;
   @Expose()
   isActive: boolean;
   @Expose()
@@ -145,7 +145,7 @@ export class PutUserDto
   username: string;
 
   @Expose()
-  role: GlobalRole;
+  role?: GlobalRole;
 
   @Expose()
   isActive: boolean;
@@ -169,7 +169,7 @@ export class PostUserDto
   @Expose()
   username: string;
   @Expose()
-  role: GlobalRole;
+  role?: GlobalRole;
   @Expose()
   isActive: boolean;
   @Expose()

@@ -114,6 +114,7 @@ import { IRole } from '../interfaces/role.interface';
 import { PostDto, DtoPostBase } from '../utils/dto-post-base';
 import { RoleType } from '../enums';
 import { ITenant, IPrivilege } from '../interfaces';
+import { GetPrivilegeDto } from './privilege.dto';
 
 export class GetRoleDto extends DtoGetBase implements GetDto<IRole, 'tenant'> {
   @Expose()
@@ -125,6 +126,7 @@ export class GetRoleDto extends DtoGetBase implements GetDto<IRole, 'tenant'> {
   @Expose()
   type: RoleType
   @Expose()
+  @Type(() => GetPrivilegeDto)
   privileges: IPrivilege[];
 
   override get displayName() {
@@ -139,6 +141,7 @@ export class PutRoleDto extends DtoPutBase implements PutDto<IRole, 'tenant' | '
   @Expose()
   description?: string;
   @Expose()
+  @Type(() => GetPrivilegeDto)
   privileges: IPrivilege[];
 }
 
@@ -152,5 +155,6 @@ export class PostRoleDto extends DtoPostBase implements PostDto<IRole, 'tenant'>
   @Expose()
   type: RoleType
   @Expose()
+  @Type(() => GetPrivilegeDto)
   privileges: IPrivilege[];
 }

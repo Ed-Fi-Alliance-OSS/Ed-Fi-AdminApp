@@ -13,7 +13,7 @@ import {
 } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from '@tanstack/router';
 import { apiClient, useMe } from '../api';
-import { accountRoute, publicRoute } from '../routes';
+import { accountRouteGlobal, publicRoute } from '../routes';
 import { RxCaretDown } from 'react-icons/rx';
 import axios from 'axios';
 
@@ -56,7 +56,7 @@ export const AppBar = () => {
             Sign out
           </MenuItem>
           <MenuItem
-            to={accountRoute.fullPath}
+            to={accountRouteGlobal.fullPath}
             params={{}}
             search={{}}
             as={RouterLink}

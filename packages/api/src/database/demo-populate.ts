@@ -14,11 +14,13 @@ import {
   Privilege,
   Resource,
   Role,
+  RoleType,
   Sbe,
   Tenant,
   User,
   UserTenantMembership
 } from '@edanalytics/models';
+import * as _ from 'lodash'
 import { districtName, generateFake, schoolType } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 import { execSync } from 'child_process';
@@ -220,34 +222,89 @@ async function populate() {
         }
       }
     }
+    const privilegeCodes = [
+      'sbe.read',
+      'sbe.write',
+      'vendors.read',
+      'vendors.write',
+      'claimsets.read',
+      'claimsets.write',
+      'odss.read',
+      'odss.write',
+      'edorgs.read',
+      'edorgs.write',
+      'applications.read',
+      'applications.write',
+      'users.read',
+      'users.write',
+      'roles.read',
+      'roles.write',
+    ]
+    const privileges = await dataSource.getRepository(Privilege).save(privilegeCodes.map((c): Privilege => ({
+      code: c,
+      description: c,
+      name: _.reverse(c.split('.')).map(str => str.charAt(0).toLocaleUpperCase() + str.slice(1)).join(' ')
+    })));
 
-    // await dataSource.getRepository(UserTenantMembership).save(
-    //   generateFake(
-    //     UserTenantMembership,
-    //     () => ({
-    //       createdBy: faker.helpers.arrayElement(users),
-    //     }),
-    //     25
-    //   )
-    // );
+    const roles = await dataSource.getRepository(Role).save(
+      generateFake(
+        Role,
+        () => {
+          let rest: object;
+          if (Math.random() > 0.9) {
+            rest = {
+              type: RoleType.ResourceOwnership
+            }
+          } else if (Math.random() > 0.91) {
+            rest = {
+              type: RoleType.UserGlobal
+            }
+          } else {
+            rest = {
+              type: RoleType.UserTenant,
+              tenant: _.sample(tenants),
+            }
+          }
+          return {
+            createdBy: faker.helpers.arrayElement(users),
+            privileges: _.sampleSize(privileges, faker.datatype.number(15)),
+            ...rest
+          }
+        },
+        4
+      )
+    );
 
-    // await dataSource.getRepository(Privilege).save(
-    //   generateFake(
-    //     Privilege,
-    //     undefined,
-    //     25
-    //   )
-    // );
+    const rolesbyType = roles.reduce((types, role) => {
+      types[role.type].push(role);
+      return types
+    }, {
+      [RoleType.ResourceOwnership]: [],
+      [RoleType.UserGlobal]: [],
+      [RoleType.UserTenant]: [],
+    } as {
+      [RoleType.ResourceOwnership]: Role[],
+      [RoleType.UserGlobal]: Role[],
+      [RoleType.UserTenant]: Role[],
+    })
 
-    // await dataSource.getRepository(Role).save(
-    //   generateFake(
-    //     Role,
-    //     () => ({
-    //       createdBy: faker.helpers.arrayElement(users),
-    //     }),
-    //     25
-    //   )
-    // );
+
+    await dataSource.getRepository(UserTenantMembership).save(
+      users.flatMap(user => {
+        const tenantsNoReplacement = faker.helpers.shuffle([...tenants])
+        return generateFake(
+          UserTenantMembership,
+          () => ({
+            createdBy: faker.helpers.arrayElement(users),
+            tenant: tenantsNoReplacement.shift(),
+            role: _.sample([undefined, ...rolesbyType.UserTenant]),
+            user,
+          }),
+          faker.datatype.number(3)
+        )
+      })
+    );
+
 
     // await dataSource.getRepository(Ownership).save(
     //   generateFake(

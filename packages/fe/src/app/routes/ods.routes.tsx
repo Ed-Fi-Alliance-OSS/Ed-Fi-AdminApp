@@ -2,7 +2,7 @@ import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetOdsDto } from '@edanalytics/models';
-import { mainLayoutRoute, sbeRoute } from '.';
+import { asRoute, mainLayoutRoute, sbeRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
 import { useOdss } from '../api';
 import { OdsPage } from '../Pages/Ods/OdsPage';
@@ -52,12 +52,14 @@ export const OdsLink = (props: {
   query: UseQueryResult<Record<string | number, GetOdsDto>, unknown>;
 }) => {
   const ods = getEntityFromQuery(props.id, props.query);
+  const params = useParams({ from: asRoute.id });
   return ods ? (
     <Link as="span">
       <RouterLink
         title="Go to ods"
         to={odsRoute.fullPath}
         params={{
+          asId: params.asId,
           sbeId: String(ods.sbeId),
           odsId: String(props.id),
         }}

@@ -39,8 +39,9 @@ export const SbePage = () => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
+                  from: sbeIndexRoute.fullPath,
                   to: sbeIndexRoute.fullPath,
-                  params: { sbeId },
+                  params: (params) => params,
                   search: { edit: true },
                 });
               }}

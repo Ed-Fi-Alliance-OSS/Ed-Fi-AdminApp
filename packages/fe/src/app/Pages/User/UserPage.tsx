@@ -39,8 +39,9 @@ export const UserPage = () => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
+                  from: userIndexRoute.fullPath,
                   to: userIndexRoute.fullPath,
-                  params: { userId },
+                  params: (params) => params,
                   search: { edit: true },
                 });
               }}

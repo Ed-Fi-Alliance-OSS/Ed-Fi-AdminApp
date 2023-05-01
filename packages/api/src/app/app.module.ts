@@ -17,22 +17,24 @@ import { UsersModule } from '../users/users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { routes } from './routes';
+import { TenantResourcesModule } from '../tenant-resources/tenant-resources.module';
 
 @Module({
   imports: [
     TypeOrmModule.forRoot(typeormConfig),
     RouterModule.register(routes),
-    UsersModule,
     AuthModule,
+    UsersModule,
     TenantsModule,
+    TenantResourcesModule,
+    UserTenantMembershipsModule,
+    OwnershipsModule,
     ResourcesModule,
+    SbesModule,
     OdssModule,
     EdorgsModule,
-    SbesModule,
-    UserTenantMembershipsModule,
-    PrivilegesModule,
     RolesModule,
-    OwnershipsModule,
+    PrivilegesModule,
   ],
   controllers: [AppController],
   providers: [
@@ -43,4 +45,4 @@ import { routes } from './routes';
     },
   ],
 })
-export class AppModule {}
+export class AppModule { }

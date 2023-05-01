@@ -2,7 +2,7 @@ import { Link, Text } from '@chakra-ui/react';
 import { GetUserDto } from '@edanalytics/models';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
-import { mainLayoutRoute } from '.';
+import { asRoute, mainLayoutRoute } from '.';
 import { useUsers } from '../api';
 import { getRelationDisplayName } from '../helpers';
 import { UserPage } from '../Pages/User/UserPage';
@@ -10,7 +10,7 @@ import { UsersPage } from '../Pages/User/UsersPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const usersRoute = new Route({
-  getParentRoute: () => mainLayoutRoute,
+  getParentRoute: () => asRoute,
   path: 'users',
   getContext: ({ params }) => ({
     breadcrumb: () => ({ title: () => 'Users', params }),
@@ -52,12 +52,14 @@ export const UserLink = (props: {
   query: UseQueryResult<Record<string | number, GetUserDto>, unknown>;
 }) => {
   const user = getEntityFromQuery(props.id, props.query);
+  const params = useParams({ from: asRoute.id });
   return user ? (
     <Link as="span">
       <RouterLink
         title="Go to user"
         to={userRoute.fullPath}
         params={{
+          asId: params.asId,
           userId: String(props.id),
         }}
       >

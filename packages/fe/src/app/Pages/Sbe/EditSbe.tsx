@@ -52,16 +52,17 @@ const resolver = classValidatorResolver(PutSbeDto);
 
 export const EditSbe = () => {
   const navigate = useNavigate();
+  const params = useParams({ from: sbeRoute.id });
   const goToView = () => {
     navigate({
+      from: sbeIndexRoute.fullPath,
       to: sbeIndexRoute.fullPath,
-      params: { sbeId },
+      params: (params) => params,
       search: {},
     });
   };
   const putSbe = usePutSbe(goToView);
-  const sbeId: string = useParams({ from: sbeRoute.id }).sbeId;
-  const sbe = useSbe(sbeId).data;
+  const sbe = useSbe(params.sbeId).data;
   const {
     register,
     handleSubmit,

@@ -1,166 +1,35 @@
-import { BsCloudRain, BsCloudRainFill } from 'react-icons/bs';
-import { BsDatabase, BsDatabaseFill } from 'react-icons/bs';
-import { Box, Text } from '@chakra-ui/react';
-import {
-  AnyRoute,
-  AnyRoutesInfo,
-  RouteMatch,
-  useRouter,
-} from '@tanstack/router';
+import { Box, Select, Text } from '@chakra-ui/react';
+import { useNavigate, useParams, useRouter } from '@tanstack/router';
+import Cookies from 'js-cookie';
 import { Resizable } from 're-resizable';
-import {
-  BsClipboard,
-  BsClipboardFill,
-  BsGear,
-  BsGearFill,
-  BsPerson,
-  BsPersonFill,
-} from 'react-icons/bs';
-import { HiHome, HiOutlineHome } from 'react-icons/hi';
-import {
-  accountRoute,
-  indexRoute,
-  usersRoute,
-  tenantsRoute,
-  resourcesRoute,
-  odssRoute,
-  sbesRoute,
-  edorgsRoute,
-  sbeRoute,
-  userTenantMembershipsRoute,
-  rolesRoute,
-  ownershipsRoute,
-} from '../routes';
-import { INavButtonProps, NavButton } from './NavButton';
-import _ from 'lodash';
-import { useSbes } from '../api';
+import { useEffect, useState } from 'react';
+import { BsPerson, BsPersonFill } from 'react-icons/bs';
+import { useTenants } from '../api';
+import { accountRouteGlobal, asRoute } from '../routes';
+import { NavButton } from './NavButton';
+import { TenantNav } from './TenantNav';
 
 export const Nav = () => {
-  const sbes = useSbes();
-
-  const items: INavButtonProps[] = [
-    {
-      route: usersRoute,
-      icon: BsPerson,
-      activeIcon: BsPersonFill,
-      text: 'Users',
-    },
-    {
-      route: tenantsRoute,
-      icon: BsClipboard,
-      activeIcon: BsClipboardFill,
-      text: 'Tenants',
-    },
-    {
-      route: resourcesRoute,
-      icon: BsGear,
-      activeIcon: BsGearFill,
-      text: 'Ownerships',
-    },
-    {
-      route: sbesRoute,
-      icon: BsGear,
-      activeIcon: BsGearFill,
-      text: 'Environments',
-      childItems: Object.values(sbes.data || {}).map((sbe) => ({
-        route: sbeRoute,
-        params: { sbeId: String(sbe.id) },
-        icon: BsPerson,
-        activeIcon: BsPersonFill,
-        text: sbe.displayName,
-        childItems: [
-          {
-            route: odssRoute,
-            params: { sbeId: String(sbe.id) },
-            icon: BsDatabase,
-            activeIcon: BsDatabaseFill,
-            text: 'ODSs',
-          },
-          {
-            route: edorgsRoute,
-            params: { sbeId: String(sbe.id) },
-            icon: BsCloudRain,
-            activeIcon: BsCloudRainFill,
-            text: 'Ed-Orgs',
-          },
-        ],
-      })),
-    },
-    {
-      route: userTenantMembershipsRoute,
-      icon: BsCloudRain,
-      activeIcon: BsCloudRainFill,
-      text: 'UserTenantMemberships',
-    },
-    {
-      route: rolesRoute,
-      icon: BsGear,
-      activeIcon: BsGearFill,
-      text: 'Roles',
-    },
-    {
-      route: ownershipsRoute,
-      icon: BsClipboard,
-      activeIcon: BsClipboardFill,
-      text: 'Ownerships',
-    },
-  ];
-
-  const staticItems: INavButtonProps[] = [
-    {
-      route: indexRoute,
-      icon: HiOutlineHome,
-      activeIcon: HiHome,
-      text: 'Home',
-    },
-    {
-      route: accountRoute,
-      icon: BsPerson,
-      activeIcon: BsPersonFill,
-      text: 'Account',
-    },
-  ];
-  const flatten = (item: INavButtonProps): INavButtonProps[] => [
-    item,
-    ...(item.childItems ?? []).flatMap((ci) => flatten(ci)),
-  ];
-  const flatItems = [...items, ...staticItems].flatMap((item) => flatten(item));
-
-  let deepestMatch = null;
+  const params = useParams({ from: asRoute.id });
+  const defaultTenant: any = params?.asId ?? Cookies.get('defaultTenant');
+  const [tenantId, setTenantId] = useState(
+    typeof defaultTenant === 'string' ? Number(defaultTenant) : undefined
+  );
+  const tenants = useTenants();
   const router = useRouter();
+  const navigate = useNavigate();
 
-  const isMatch = <
-    M extends Pick<RouteMatch<AnyRoutesInfo, AnyRoute>, 'params' | 'route'>
-  >(
-    activeRoute: M,
-    item: INavButtonProps
-  ) => {
-    const itemParams = item.params || {};
-    const paramsEqual = _.isMatch(activeRoute.params, itemParams);
-    const sameRoute = item.route.id === activeRoute.route.id;
-
-    return sameRoute && paramsEqual;
-  };
-
-  router.state.currentMatches.forEach((m) => {
-    if (flatItems.some((item) => isMatch(m, item))) {
-      deepestMatch = m;
+  useEffect(() => {
+    if (
+      String(tenantId) !== params.asId &&
+      router.state.currentMatches.map((m) => m.route.id).includes(asRoute.id)
+    ) {
+      navigate({
+        to: asRoute.fullPath,
+        params: { asId: String(tenantId) },
+      });
     }
-  });
-
-  const tagMatch = <
-    M extends Pick<RouteMatch<AnyRoutesInfo, AnyRoute>, 'params' | 'route'>
-  >(
-    items: INavButtonProps[],
-    match: M | null
-  ): INavButtonProps[] =>
-    match === null
-      ? items
-      : items.map((item) => ({
-          ...item,
-          isActive: isMatch(match, item),
-          childItems: tagMatch(item.childItems || [], match),
-        }));
+  }, [tenantId, router.state.currentMatches, navigate, params.asId]);
 
   return (
     <Box
@@ -177,18 +46,49 @@ export const Nav = () => {
       maxWidth="min(40em, 80%)"
       as={Resizable}
     >
+      {Object.keys(tenants.data ?? {}).length > 1 ? (
+        <Box px={3}>
+          <Select
+            title={tenants.data?.[tenantId ?? '']?.displayName}
+            bg="white"
+            mb={3}
+            value={tenantId}
+            onChange={(e) => {
+              const value = e.target.value;
+              Cookies.set('defaultTenant', value);
+              setTenantId(value === 'undefined' ? undefined : Number(value));
+            }}
+          >
+            {Object.values(tenants.data ?? {}).map((t) => (
+              <option key={t.id} value={t.id}>
+                {t.displayName}
+              </option>
+            ))}
+            <option value={'undefined'}>
+              <Text as="i" color="gray.500">
+                None
+              </Text>
+            </option>
+          </Select>
+        </Box>
+      ) : null}
       <Text px={3} as="h3" color="gray.500" mb={2} fontWeight="600">
         Pages
       </Text>
-      {tagMatch(staticItems, deepestMatch).map((item) => (
-        <NavButton key={item.text + item.route.fullPath} {...item} />
-      ))}
-      <Text px={3} mt={4} as="h3" color="gray.500" mb={2} fontWeight="600">
-        Resources
-      </Text>
-      {tagMatch(items, deepestMatch).map((item) => (
-        <NavButton key={item.text + item.route.fullPath} {...item} />
-      ))}
+      <NavButton
+        {...{
+          route: accountRouteGlobal,
+          icon: BsPerson,
+          activeIcon: BsPersonFill,
+          text: 'Account',
+          isActive: router.state.currentMatches
+            .map((m) => m.route.id)
+            .includes(accountRouteGlobal.id),
+        }}
+      />
+      {tenantId !== undefined ? (
+        <TenantNav tenantId={String(tenantId)} />
+      ) : null}
     </Box>
   );
 };

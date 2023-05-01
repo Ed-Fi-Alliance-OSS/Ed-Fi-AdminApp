@@ -2,15 +2,15 @@ import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetSbeDto } from '@edanalytics/models';
-import { mainLayoutRoute } from '.';
+import { asRoute, mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useSbes } from '../api';
+import { useSbes, useTenantSbes } from '../api';
 import { SbePage } from '../Pages/Sbe/SbePage';
 import { SbesPage } from '../Pages/Sbe/SbesPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const sbesRoute = new Route({
-  getParentRoute: () => mainLayoutRoute,
+  getParentRoute: () => asRoute,
   path: 'sbes',
   getContext: ({ params }) => ({
     breadcrumb: () => ({ title: () => 'Sbes', params }),
@@ -25,7 +25,7 @@ export const sbesIndexRoute = new Route({
 
 const SbeBreadcrumb = () => {
   const params = useParams({ from: sbeRoute.id });
-  const sbe = useSbes();
+  const sbe = useTenantSbes(params.asId);
   return sbe.data?.[params.sbeId]?.displayName ?? params.sbeId;
 };
 
@@ -52,12 +52,14 @@ export const SbeLink = (props: {
   query: UseQueryResult<Record<string | number, GetSbeDto>, unknown>;
 }) => {
   const sbe = getEntityFromQuery(props.id, props.query);
+  const params = useParams({ from: asRoute.id });
   return sbe ? (
     <Link as="span">
       <RouterLink
         title="Go to sbe"
         to={sbeRoute.fullPath}
         params={{
+          asId: params.asId,
           sbeId: String(sbe.id),
         }}
       >
