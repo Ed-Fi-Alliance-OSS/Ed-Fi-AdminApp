@@ -1,6 +1,5 @@
 import { Expose, Type } from "class-transformer";
 import { EdorgType } from "../enums";
-import { SbeMeta } from "../types";
 import { FakeMeUsing, deployEnv, districtName, schoolType, schoolYear } from "@edanalytics/utils";
 import { faker } from "@faker-js/faker";
 
@@ -41,10 +40,6 @@ export class SbMetaEnv {
   @FakeMeUsing(() => `${deployEnv()}-${schoolYear()}-${faker.random.alpha(5)}`)
   @Expose()
   envlabel: string;
-
-  @FakeMeUsing({ adminApiUrl: 'https://www.example.com' })
-  @Expose()
-  meta: SbeMeta;
 
   @Expose()
   @Type(() => SbMetaOds)

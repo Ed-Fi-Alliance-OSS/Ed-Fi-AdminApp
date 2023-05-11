@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
 import { asRoute, mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useUserTenantMemberships } from '../api';
+import { userTenantMembershipQueries } from '../api';
 import { UserTenantMembershipPage } from '../Pages/UserTenantMembership/UserTenantMembershipPage';
 import { UserTenantMembershipsPage } from '../Pages/UserTenantMembership/UserTenantMembershipsPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,10 +26,12 @@ export const userTenantMembershipsIndexRoute = new Route({
 
 const UserTenantMembershipBreadcrumb = () => {
   const params = useParams({ from: userTenantMembershipRoute.id });
-  const userTenantMembership = useUserTenantMemberships();
+  const userTenantMembership = userTenantMembershipQueries.useOne({
+    id: params.userTenantMembershipId,
+    tenantId: params.asId,
+  });
   return (
-    userTenantMembership.data?.[params.userTenantMembershipId]?.displayName ??
-    params.userTenantMembershipId
+    userTenantMembership.data?.displayName ?? params.userTenantMembershipId
   );
 };
 
@@ -57,8 +60,8 @@ export const UserTenantMembershipLink = (props: {
     unknown
   >;
 }) => {
-  const userTenantMembership = getEntityFromQuery(props.id, props.query);
   const params = useParams({ from: asRoute.id });
+  const userTenantMembership = getEntityFromQuery(props.id, props.query);
   return userTenantMembership ? (
     <Link as="span">
       <RouterLink

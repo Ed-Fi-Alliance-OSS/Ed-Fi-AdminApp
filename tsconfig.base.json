@@ -11,14 +11,16 @@
     "importHelpers": true,
     "target": "ES2017",
     "module": "esnext",
-    "lib": ["es2017", "dom"],
+    "lib": ["es2019", "dom"],
     "skipLibCheck": true,
     "skipDefaultLibCheck": true,
     "esModuleInterop": true,
     "baseUrl": ".",
+    "typeRoots": ["./types"],
     "paths": {
       "@edanalytics/common-ui": ["packages/common-ui/src/index.ts"],
       "@edanalytics/models": ["packages/models/src/index.ts"],
+      "@edanalytics/models-server": ["packages/models-server/src/index.ts"],
       "@edanalytics/utils": ["packages/utils/src/index.ts"]
     }
   },
@@ -27,9 +29,11 @@
     "compilerOptions": {
       "experimentalDecorators": true,
       "module": "commonjs",
+      "typeRoots": ["./types"],
       "paths": {
         "@edanalytics/common-ui": ["packages/common-ui/src/index.ts"],
         "@edanalytics/models": ["packages/models/src/index.ts"],
+        "@edanalytics/models-server": ["packages/models-server/src/index.ts"],
         "@edanalytics/utils": ["packages/utils/src/index.ts"]
       }
     },

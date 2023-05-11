@@ -1,12 +1,12 @@
 import { Link, Text } from '@chakra-ui/react';
-import { Link as RouterLink, Route, useParams } from '@tanstack/router';
-import { UseQueryResult } from '@tanstack/react-query';
 import { GetOdsDto } from '@edanalytics/models';
-import { asRoute, mainLayoutRoute, sbeRoute } from '.';
-import { getRelationDisplayName } from '../helpers';
-import { useOdss } from '../api';
+import { UseQueryResult } from '@tanstack/react-query';
+import { Route, Link as RouterLink, useParams } from '@tanstack/router';
+import { asRoute, sbeRoute } from '.';
 import { OdsPage } from '../Pages/Ods/OdsPage';
 import { OdssPage } from '../Pages/Ods/OdssPage';
+import { odsQueries } from '../api';
+import { getRelationDisplayName } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 export const odssRoute = new Route({
@@ -25,8 +25,12 @@ export const odssIndexRoute = new Route({
 
 const OdsBreadcrumb = () => {
   const params = useParams({ from: odsRoute.id });
-  const ods = useOdss(params.sbeId!);
-  return ods.data?.[params.odsId]?.displayName ?? params.odsId;
+  const ods = odsQueries.useOne({
+    id: params.odsId,
+    tenantId: params.asId,
+    sbeId: params.sbeId,
+  });
+  return ods.data?.displayName ?? params.odsId;
 };
 
 export const odsRoute = new Route({

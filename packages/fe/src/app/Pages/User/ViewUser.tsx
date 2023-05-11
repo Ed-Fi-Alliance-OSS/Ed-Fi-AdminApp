@@ -3,21 +3,25 @@ import {
   Button,
   ButtonGroup,
   Flex,
-  FormLabel,
   Grid,
   HStack,
   Stack,
   Text,
   Tooltip,
+  FormLabel,
   VStack,
 } from '@chakra-ui/react';
-import { useParams } from '@tanstack/router';
-import { useUser, useUsers } from '../../api';
-import { userRoute } from '../../routes/user.routes';
+import { useParams, useSearch } from '@tanstack/router';
+import { userQueries } from '../../api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { userRoute, userIndexRoute } from '../../routes';
 
 export const ViewUser = () => {
-  const userId: string = useParams({ from: userRoute.id }).userId;
-  const user = useUser(userId).data;
+  const params = useParams({ from: userRoute.id });
+  const user = userQueries.useOne({
+    id: params.userId,
+    tenantId: params.asId,
+  }).data;
 
   return user ? (
     <>

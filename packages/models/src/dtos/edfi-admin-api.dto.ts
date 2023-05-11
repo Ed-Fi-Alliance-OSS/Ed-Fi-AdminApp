@@ -1,14 +1,18 @@
 import { FakeMeUsing, generateFake } from "@edanalytics/utils";
 import { faker } from "@faker-js/faker";
+import { Expose } from "class-transformer";
+import { makeSerializer } from "../utils/make-serializer";
 
-export class PutVendorDto {
+export class PostVendorDto {
+  @Expose()
   company: string;
+  @Expose()
   namespacePrefixes: string;
+  @Expose()
   contactName: string;
+  @Expose()
   contactEmailAddress: string;
 }
-
-export class PostVendorDto extends PutVendorDto { }
 
 @FakeMeUsing(() => {
   const companyName = faker.company.name()
@@ -22,9 +26,20 @@ export class PostVendorDto extends PutVendorDto { }
     contactEmailAddress: `${contactName.replace(/\s+/g, '.').toLowerCase()}@${safeName}.com`
   }
 })
-export class GetVendorDto extends PutVendorDto {
+export class GetVendorDto extends PostVendorDto {
+  @Expose()
   vendorId: number;
+
+  get id() {
+    return this.vendorId
+  }
+
+  get displayName() {
+    return this.company
+  }
 }
+export class PutVendorDto extends GetVendorDto { }
+export const toGetVendorDto = makeSerializer(GetVendorDto)
 
 class AuthStrategyDto {
   authStrategyName: string;
@@ -66,7 +81,12 @@ export class GetClaimsetDto extends PutClaimsetDto {
   isSystemReserved: boolean;
   @FakeMeUsing(0)
   applicationsCount: number;
+
+  get displayName() {
+    return this.name
+  }
 }
+export const toGetClaimsetDto = makeSerializer(GetClaimsetDto)
 
 export class PostApplicationDto {
   applicationName: string;
@@ -86,6 +106,12 @@ export class PutApplicationDto extends PostApplicationDto {
   applicationId: number;
 }
 
+export class ApplicationResetCredentialResponseDto {
+  applicationId: number;
+  key: string;
+  secret: string;
+}
+
 export class GetApplicationDto {
   @FakeMeUsing(() => faker.datatype.number(999999))
   applicationId: number;
@@ -96,4 +122,14 @@ export class GetApplicationDto {
   profileName: string;
   educationOrganizationId: number;
   odsInstanceName: string;
+
+  get displayName() {
+    return this.applicationName
+  }
+
+  get id() {
+    return this.applicationId
+  }
 }
+
+export const toGetApplicationDto = makeSerializer(GetApplicationDto)

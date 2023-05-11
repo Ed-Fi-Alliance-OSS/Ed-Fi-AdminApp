@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetRoleDto } from '@edanalytics/models';
 import { asRoute, mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useRoles } from '../api';
+import { roleQueries } from '../api';
 import { RolePage } from '../Pages/Role/RolePage';
 import { RolesPage } from '../Pages/Role/RolesPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,8 +26,8 @@ export const rolesIndexRoute = new Route({
 
 const RoleBreadcrumb = () => {
   const params = useParams({ from: roleRoute.id });
-  const role = useRoles();
-  return role.data?.[params.roleId]?.displayName ?? params.roleId;
+  const role = roleQueries.useOne({ id: params.roleId, tenantId: params.asId });
+  return role.data?.displayName ?? params.roleId;
 };
 
 export const roleRoute = new Route({
@@ -51,8 +52,8 @@ export const RoleLink = (props: {
   id: number | undefined;
   query: UseQueryResult<Record<string | number, GetRoleDto>, unknown>;
 }) => {
-  const role = getEntityFromQuery(props.id, props.query);
   const params = useParams({ from: asRoute.id });
+  const role = getEntityFromQuery(props.id, props.query);
   return role ? (
     <Link as="span">
       <RouterLink

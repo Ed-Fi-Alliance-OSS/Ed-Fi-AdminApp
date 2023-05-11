@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -111,7 +111,7 @@ import {
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
 import { IEdorg } from '../interfaces/edorg.interface';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { EdorgType } from '../enums';
 
 export class GetEdorgDto extends DtoGetBase implements GetDto<IEdorg, 'resource' | 'ods' | 'parent' | "children" | "sbe"> {

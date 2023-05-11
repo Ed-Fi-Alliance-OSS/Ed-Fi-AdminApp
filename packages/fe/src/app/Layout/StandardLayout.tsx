@@ -1,19 +1,25 @@
 import { Box, Flex, HStack, VStack } from '@chakra-ui/react';
-import { Outlet, useNavigate } from '@tanstack/router';
+import { useQueryClient } from '@tanstack/react-query';
+import { Outlet } from '@tanstack/router';
+import React from 'react';
 import { AppBar } from './AppBar';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Nav } from './Nav';
-import { useQueryClient } from '@tanstack/react-query';
-import { handleQueryError } from '../helpers';
 
 export const StandardLayout = () => {
   const queryClient = useQueryClient();
-  const navigate = useNavigate();
+  const [err, setErr] = React.useState<null | any>(null);
+  if (err) {
+    throw err;
+  }
+
   queryClient.setDefaultOptions({
     queries: {
       staleTime: 5 * 60 * 1000,
       retry: false,
-      onError: handleQueryError(navigate),
+      onError: (err) => {
+        setErr(err);
+      },
     },
   });
   return (

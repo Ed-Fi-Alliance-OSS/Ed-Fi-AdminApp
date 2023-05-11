@@ -1,12 +1,5 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useUserTenantMemberships,
-  useDeleteUserTenantMembership,
-  useUsers,
-  useTenantUserTenantMemberships,
-  useTenantUsers,
-} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import {
@@ -15,13 +8,19 @@ import {
   userTenantMembershipsRoute,
   UserTenantMembershipLink,
 } from '../../routes';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams } from '@tanstack/router';
+import { userTenantMembershipQueries, userQueries } from '../../api';
 
 export const UserTenantMembershipsPage = () => {
   const params = useParams({ from: userTenantMembershipsRoute.id });
-  const userTenantMemberships = useTenantUserTenantMemberships(params.asId);
-  const deleteUserTenantMembership = useDeleteUserTenantMembership();
-  const users = useTenantUsers(params.asId);
+  const userTenantMemberships = userTenantMembershipQueries.useAll({
+    tenantId: params.asId,
+  });
+  const deleteUserTenantMembership = userTenantMembershipQueries.useDelete({
+    tenantId: params.asId,
+  });
+  const users = userQueries.useAll({ tenantId: params.asId });
 
   return (
     <>

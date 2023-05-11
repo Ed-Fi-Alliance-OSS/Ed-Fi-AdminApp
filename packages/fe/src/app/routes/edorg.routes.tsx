@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetEdorgDto } from '@edanalytics/models';
 import { asRoute, mainLayoutRoute, sbeRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useEdorgs } from '../api';
+import { edorgQueries } from '../api';
 import { EdorgPage } from '../Pages/Edorg/EdorgPage';
 import { EdorgsPage } from '../Pages/Edorg/EdorgsPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,8 +26,12 @@ export const edorgsIndexRoute = new Route({
 
 const EdorgBreadcrumb = () => {
   const params = useParams({ from: edorgRoute.id });
-  const edorg = useEdorgs(params.sbeId!);
-  return edorg.data?.[params.edorgId]?.displayName ?? params.edorgId;
+  const edorg = edorgQueries.useOne({
+    id: params.edorgId,
+    tenantId: params.asId,
+    sbeId: params.sbeId,
+  });
+  return edorg.data?.displayName ?? params.edorgId;
 };
 
 export const edorgRoute = new Route({
@@ -51,8 +56,8 @@ export const EdorgLink = (props: {
   id: number | undefined;
   query: UseQueryResult<Record<string | number, GetEdorgDto>, unknown>;
 }) => {
-  const edorg = getEntityFromQuery(props.id, props.query);
   const params = useParams({ from: asRoute.id });
+  const edorg = getEntityFromQuery(props.id, props.query);
   return edorg ? (
     <Link as="span">
       <RouterLink

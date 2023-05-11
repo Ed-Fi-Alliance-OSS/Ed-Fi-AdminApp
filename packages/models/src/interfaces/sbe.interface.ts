@@ -1,9 +1,21 @@
-import { SbeMeta } from '../types/sbe-meta.type';
 import { IEntityBase } from '../utils/entity-base.interface';
 import { IEdorg } from './edorg.interface';
 import { IOds } from './ods.interface';
 import { IResource } from './resource.interface';
 
+export interface ISbeConfigPublic {
+  hasOdsRefresh: false;
+}
+
+export interface ISbeConfigPrivate {
+  adminApiUrl: string;
+  adminApiKey: string;
+  adminApiSecret: string;
+
+  sbeMetaUrl: string;
+  sbeMetaKey: string;
+  sbeMetaSecret: string;
+}
 export interface ISbe extends IEntityBase {
   resource: IResource;
   resourceId: number;
@@ -12,5 +24,6 @@ export interface ISbe extends IEntityBase {
   edorgs: IEdorg[];
 
   envLabel: string;
-  meta: SbeMeta;
+  configPublic: ISbeConfigPublic;
+  configPrivate: ISbeConfigPrivate;
 }

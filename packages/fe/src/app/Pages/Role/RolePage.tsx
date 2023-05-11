@@ -1,8 +1,9 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteRole, useRole } from '../../api';
+import { roleQueries, userQueries } from '../../api';
 import { roleIndexRoute } from '../../routes';
 import { useNavToParent } from '../../helpers';
 import { EditRole } from './EditRole';
@@ -13,11 +14,17 @@ export const RolePage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteRole = useDeleteRole(() => {
-    navigate(navToParentOptions);
-  });
   const params = useParams({ from: roleIndexRoute.id });
-  const role = useRole(params.roleId).data;
+  const deleteRole = roleQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    tenantId: params.asId,
+  });
+  const role = roleQueries.useOne({
+    id: params.roleId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: roleIndexRoute.id });
 
   return (
@@ -40,8 +47,6 @@ export const RolePage = (): ReactNode => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  to: roleIndexRoute.fullPath,
-                  params: (old: any) => old,
                   search: { edit: true },
                 });
               }}

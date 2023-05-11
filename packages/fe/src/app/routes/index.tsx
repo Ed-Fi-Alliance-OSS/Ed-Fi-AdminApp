@@ -1,96 +1,116 @@
 import {
-  ownershipRoute,
-  ownershipsRoute,
-  ownershipsIndexRoute,
-  ownershipIndexRoute,
-} from './ownership.routes';
+  claimsetRoute,
+  claimsetsRoute,
+  claimsetsIndexRoute,
+  claimsetIndexRoute,
+} from './claimset.routes';
 import {
-  roleRoute,
-  rolesRoute,
-  rolesIndexRoute,
-  roleIndexRoute,
-} from './role.routes';
-import {
-  userTenantMembershipRoute,
-  userTenantMembershipsRoute,
-  userTenantMembershipsIndexRoute,
-  userTenantMembershipIndexRoute,
-} from './user-tenant-membership.routes';
-import {
-  edorgRoute,
-  edorgsRoute,
-  edorgsIndexRoute,
-  edorgIndexRoute,
-} from './edorg.routes';
-import {
-  sbeRoute,
-  sbesRoute,
-  sbesIndexRoute,
-  sbeIndexRoute,
-} from './sbe.routes';
-import {
-  odsRoute,
-  odssRoute,
-  odssIndexRoute,
-  odsIndexRoute,
-} from './ods.routes';
-import {
-  tenantRoute,
-  tenantsRoute,
-  tenantsIndexRoute,
-  tenantIndexRoute,
-} from './tenant.routes';
+  applicationRoute,
+  applicationsRoute,
+  applicationsIndexRoute,
+  applicationIndexRoute,
+} from './application.routes';
 import { Heading } from '@chakra-ui/react';
 import {
   RootRoute,
   Route,
   Router,
   RouterProvider,
-  useNavigate,
   useSearch,
 } from '@tanstack/router';
 import { TanStackRouterDevtools } from '@tanstack/router-devtools';
-import axios from 'axios';
 import { memo, useEffect } from 'react';
 import { environment } from '../../environments/environment.local';
+import { ErrorFallback } from '../Layout/Fallback404';
 import { StandardLayout } from '../Layout/StandardLayout';
 import { accountRouteGlobal } from './account.routes';
+import {
+  edorgIndexRoute,
+  edorgRoute,
+  edorgsIndexRoute,
+  edorgsRoute,
+} from './edorg.routes';
+import {
+  odsIndexRoute,
+  odsRoute,
+  odssIndexRoute,
+  odssRoute,
+} from './ods.routes';
+import {
+  ownershipIndexRoute,
+  ownershipRoute,
+  ownershipsIndexRoute,
+  ownershipsRoute,
+} from './ownership.routes';
+import {
+  roleIndexRoute,
+  roleRoute,
+  rolesIndexRoute,
+  rolesRoute,
+} from './role.routes';
+import {
+  sbeIndexRoute,
+  sbeRoute,
+  sbesIndexRoute,
+  sbesRoute,
+} from './sbe.routes';
+import {
+  tenantIndexRoute,
+  tenantRoute,
+  tenantsIndexRoute,
+  tenantsRoute,
+} from './tenant.routes';
+import {
+  userTenantMembershipIndexRoute,
+  userTenantMembershipRoute,
+  userTenantMembershipsIndexRoute,
+  userTenantMembershipsRoute,
+} from './user-tenant-membership.routes';
 import {
   userIndexRoute,
   userRoute,
   usersIndexRoute,
   usersRoute,
 } from './user.routes';
-import { Fallback404 } from '../Layout/Fallback404';
-import { SuccessContent } from '../Layout/SuccessContent';
-import { useQueryClient } from '@tanstack/react-query';
-import { handleQueryError } from '../helpers';
-import { TenantLayout } from '../Layout/TenantLayout';
+import {
+  vendorIndexRoute,
+  vendorRoute,
+  vendorsIndexRoute,
+  vendorsRoute,
+} from './vendor.routes';
+export * from './claimset.routes';
+export * from './application.routes';
+export * from './account.routes';
+export * from './edorg.routes';
+export * from './ods.routes';
 export * from './ownership.routes';
 export * from './role.routes';
-export * from './user-tenant-membership.routes';
-export * from './edorg.routes';
 export * from './sbe.routes';
-export * from './ods.routes';
 export * from './tenant.routes';
-export * from './account.routes';
+export * from './user-tenant-membership.routes';
 export * from './user.routes';
+export * from './vendor.routes';
 
 export const rootRoute = new RootRoute();
 
-// export const rootLayoutRoute = new Route({
-//   getParentRoute: () => rootRoute,
-//   id: 'root-layout',
-//   component: StandardLayout,
-// });
-
 export const fallback404Route = new Route({
   getParentRoute: () => rootRoute,
-  path: '404',
-  component: Fallback404,
+  path: '*',
+  component: () => <ErrorFallback message="404 - Not found." />,
 });
 
 export const mainLayoutRoute = new Route({
+  errorComponent: (props: {
+    error: { error: string; message: string; statusCode: number } | any;
+  }) => (
+    <ErrorFallback
+      message={
+        props.error?.statusCode
+          ? `${props.error.statusCode} - ${props.error.message}.`
+          : "Oops, there's been an error."
+      }
+    />
+  ),
   getParentRoute: () => rootRoute,
   id: 'main-layout',
   component: StandardLayout,
@@ -143,7 +163,6 @@ export const asRoute = new Route({
 const routeTree = rootRoute.addChildren([
   publicRoute,
   loginRoute,
-  fallback404Route,
   mainLayoutRoute.addChildren([
     indexRoute,
     asRoute.addChildren([
@@ -171,6 +190,18 @@ const routeTree = rootRoute.addChildren([
             edorgsIndexRoute,
             edorgRoute.addChildren([edorgIndexRoute]),
           ]),
+          vendorsRoute.addChildren([
+            vendorsIndexRoute,
+            vendorRoute.addChildren([vendorIndexRoute]),
+          ]),
+          applicationsRoute.addChildren([
+            applicationsIndexRoute,
+            applicationRoute.addChildren([applicationIndexRoute]),
+          ]),
+          claimsetsRoute.addChildren([
+            claimsetsIndexRoute,
+            claimsetRoute.addChildren([claimsetIndexRoute]),
+          ]),
         ]),
       ]),
       usersRoute.addChildren([
@@ -184,6 +215,7 @@ const routeTree = rootRoute.addChildren([
       tenantRoute.addChildren([tenantIndexRoute]),
     ]),
   ]),
+  fallback404Route,
 ]);
 
 // Create the router using your route tree

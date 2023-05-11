@@ -1,10 +1,10 @@
 import { ClassConstructor, plainToInstance } from 'class-transformer';
-import { GettersOmit } from './dto-get-base';
+import { GettersOmit } from './get-base.dto';
 
-export const makeSerializer = <T>(dto: ClassConstructor<T>) => {
-  function serialize<P extends T>(input: Omit<P, GettersOmit>): T;
-  function serialize<P extends T>(input: Omit<P, GettersOmit>[]): T[];
-  function serialize<P extends T>(input: Omit<P, GettersOmit> | P[]) {
+export const makeSerializer = <BaseType, InputType = Omit<BaseType, GettersOmit>>(dto: ClassConstructor<BaseType>) => {
+  function serialize(input: InputType): BaseType;
+  function serialize(input: InputType[]): BaseType[];
+  function serialize(input: InputType | InputType[]) {
     if (Array.isArray(input)) {
       return plainToInstance(dto, input, { excludeExtraneousValues: true });
     } else {

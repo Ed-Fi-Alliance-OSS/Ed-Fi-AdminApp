@@ -4,9 +4,10 @@ import {
   GetUserDto,
   PostUserTenantMembershipDto,
   PutUserTenantMembershipDto,
-  UserTenantMembership,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
+import { UserTenantMembership } from '@edanalytics/models-server';
 
 @Injectable()
 export class UserTenantMembershipsService {
@@ -21,39 +22,32 @@ export class UserTenantMembershipsService {
     );
   }
 
-  findAll() {
-    return this.userTenantMembershipsRepository.find();
+  findAll(tenantId: number) {
+    return this.userTenantMembershipsRepository.findBy({
+      tenantId,
+    });
   }
 
-  findOne(id: number) {
+  findOne(tenantId: number, id: number) {
     return this.userTenantMembershipsRepository
-      .findOneByOrFail({ id: id })
-      .catch(() => {
-        throw new NotFoundException('UserTenantMembership not found');
-      });
+      .findOneByOrFail({ tenantId, id })
+      .catch(throwNotFound);
   }
 
   async update(
+    tenantId: number,
     id: number,
     updateUserTenantMembershipDto: PutUserTenantMembershipDto
   ) {
-    await this.userTenantMembershipsRepository.update(
-      id,
-      updateUserTenantMembershipDto
-    );
-    return this.userTenantMembershipsRepository
-      .findOneByOrFail({ id })
-      .catch(() => {
-        throw new NotFoundException('UserTenantMembership not found');
-      });
+    const old = await this.findOne(tenantId, id);
+    return this.userTenantMembershipsRepository.save({
+      ...old,
+      ...updateUserTenantMembershipDto,
+    });
   }
 
-  async remove(id: number, user: GetUserDto) {
-    await this.userTenantMembershipsRepository
-      .findOneByOrFail({ id })
-      .catch(() => {
-        throw new NotFoundException('UserTenantMembership not found');
-      });
+  async remove(tenantId: number, id: number, user: GetUserDto) {
+    const old = await this.findOne(tenantId, id);
     await this.userTenantMembershipsRepository.update(id, {
       deleted: new Date(),
       deletedById: user.id,

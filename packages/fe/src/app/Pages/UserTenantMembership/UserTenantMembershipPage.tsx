@@ -1,11 +1,9 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import {
-  useDeleteUserTenantMembership,
-  useUserTenantMembership,
-} from '../../api';
+import { userTenantMembershipQueries, userQueries } from '../../api';
 import { userTenantMembershipIndexRoute } from '../../routes';
 import { useNavToParent } from '../../helpers';
 import { EditUserTenantMembership } from './EditUserTenantMembership';
@@ -16,13 +14,17 @@ export const UserTenantMembershipPage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteUserTenantMembership = useDeleteUserTenantMembership(() => {
-    navigate(navToParentOptions);
-  });
   const params = useParams({ from: userTenantMembershipIndexRoute.id });
-  const userTenantMembership = useUserTenantMembership(
-    params.userTenantMembershipId
-  ).data;
+  const deleteUserTenantMembership = userTenantMembershipQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    tenantId: params.asId,
+  });
+  const userTenantMembership = userTenantMembershipQueries.useOne({
+    id: params.userTenantMembershipId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: userTenantMembershipIndexRoute.id });
 
   return (
@@ -45,8 +47,6 @@ export const UserTenantMembershipPage = (): ReactNode => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  to: userTenantMembershipIndexRoute.fullPath,
-                  params: (old: any) => old,
                   search: { edit: true },
                 });
               }}

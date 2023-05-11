@@ -1,23 +1,31 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
+import { ReactNode } from 'react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteEdorg, useEdorg } from '../../api';
-import { edorgIndexRoute } from '../../routes';
+import { edorgQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
+import { edorgIndexRoute } from '../../routes';
 import { EditEdorg } from './EditEdorg';
 import { ViewEdorg } from './ViewEdorg';
-import { ReactNode } from 'react';
 
 export const EdorgPage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteEdorg = useDeleteEdorg(() => {
-    navigate(navToParentOptions);
-  });
   const params = useParams({ from: edorgIndexRoute.id });
-  const edorg = useEdorg(params.edorgId, params.sbeId).data;
+  const deleteEdorg = edorgQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+  const edorg = edorgQueries.useOne({
+    id: params.edorgId,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: edorgIndexRoute.id });
 
   return (
@@ -40,8 +48,6 @@ export const EdorgPage = (): ReactNode => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  to: edorgIndexRoute.fullPath,
-                  params: (old: any) => old,
                   search: { edit: true },
                 });
               }}

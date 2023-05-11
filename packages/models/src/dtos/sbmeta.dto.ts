@@ -1,6 +1,6 @@
-import { Expose, Type } from "class-transformer";
-import { EdorgType } from "../enums";
-import { SbeMeta } from "../types";
+import { Expose, Type } from 'class-transformer';
+import { EdorgType } from '../enums';
+import { SbeConfigPrivate } from './sbe.dto';
 
 export class SbMetaEdorg {
   @Expose()
@@ -14,7 +14,7 @@ export class SbMetaEdorg {
 
   @Expose()
   @Type(() => SbMetaEdorg)
-  edorgs?: SbMetaEdorg[]
+  edorgs?: SbMetaEdorg[];
 }
 
 export class SbMetaOds {
@@ -23,7 +23,7 @@ export class SbMetaOds {
 
   @Expose()
   @Type(() => SbMetaEdorg)
-  edorgs?: SbMetaEdorg[]
+  edorgs?: SbMetaEdorg[];
 }
 
 export class SbMetaEnv {
@@ -31,9 +31,9 @@ export class SbMetaEnv {
   envlabel: string;
 
   @Expose()
-  meta: SbeMeta;
+  meta: SbeConfigPrivate;
 
   @Expose()
   @Type(() => SbMetaOds)
-  odss?: SbMetaOds[]
+  odss?: SbMetaOds[];
 }

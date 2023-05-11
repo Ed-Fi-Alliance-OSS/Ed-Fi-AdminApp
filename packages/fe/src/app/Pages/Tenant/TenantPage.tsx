@@ -1,8 +1,9 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteTenant, useTenant } from '../../api';
+import { tenantQueries, userQueries } from '../../api';
 import { tenantIndexRoute } from '../../routes';
 import { useNavToParent } from '../../helpers';
 import { EditTenant } from './EditTenant';
@@ -13,11 +14,15 @@ export const TenantPage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteTenant = useDeleteTenant(() => {
-    navigate(navToParentOptions);
-  });
   const params = useParams({ from: tenantIndexRoute.id });
-  const tenant = useTenant(params.tenantId).data;
+  const deleteTenant = tenantQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+  });
+  const tenant = tenantQueries.useOne({
+    id: params.tenantId,
+  }).data;
   const { edit } = useSearch({ from: tenantIndexRoute.id });
 
   return (
@@ -40,8 +45,6 @@ export const TenantPage = (): ReactNode => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  to: tenantIndexRoute.fullPath,
-                  params: (old: any) => old,
                   search: { edit: true },
                 });
               }}

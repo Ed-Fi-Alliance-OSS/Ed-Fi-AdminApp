@@ -1,31 +1,33 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useEdorgs,
-  useDeleteEdorg,
-  useUsers,
-  useOdss,
-  useTenantOdss,
-  useTenantEdorgs,
-  useTenantUsers,
-} from '../../api';
+import { useParams } from '@tanstack/router';
+import { edorgQueries, odsQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import {
-  UserLink,
+  EdorgLink,
   edorgRoute,
   edorgsRoute,
-  EdorgLink,
   OdsLink,
+  UserLink,
 } from '../../routes';
-import { useParams } from '@tanstack/router';
 
 export const EdorgsPage = () => {
   const params = useParams({ from: edorgsRoute.id });
-  const edorgs = useTenantEdorgs(params.sbeId, params.asId);
-  const odss = useTenantOdss(params.sbeId, params.asId);
-  const deleteEdorg = useDeleteEdorg();
-  const users = useTenantUsers(params.asId);
+  const odss = odsQueries.useAll({
+    tenantId: params.asId,
+    sbeId: params.sbeId,
+  });
+  const edorgs = edorgQueries.useAll({
+    tenantId: params.asId,
+    sbeId: params.sbeId,
+  });
+  const deleteEdorg = edorgQueries.useDelete({
+    tenantId: params.asId,
+    sbeId: params.sbeId,
+  });
+
+  const users = userQueries.useAll({ tenantId: params.asId });
 
   return (
     <>

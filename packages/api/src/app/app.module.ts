@@ -6,7 +6,6 @@ import { Module } from '@nestjs/common';
 import { APP_GUARD, RouterModule } from '@nestjs/core';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthModule } from '../auth/auth.module';
-import { AuthenticatedGuard } from '../auth/authenticated.guard';
 import typeormConfig from '../database/typeorm.config';
 import { EdorgsModule } from '../edorgs/edorgs.module';
 import { OdssModule } from '../odss/odss.module';
@@ -17,7 +16,9 @@ import { UsersModule } from '../users/users.module';
 import { AppController } from './app.controller';
 import { AppService } from './app.service';
 import { routes } from './routes';
-import { TenantResourcesModule } from '../tenant-resources/tenant-resources.module';
+import { StartingBlocksModule } from '../starting-blocks/starting-blocks.module';
+import { AuthenticatedGuard } from '../auth/authorization/authenticated.guard';
+import { AdminModule } from '../admin/admin.module';
 
 @Module({
   imports: [
@@ -26,15 +27,16 @@ import { TenantResourcesModule } from '../tenant-resources/tenant-resources.modu
     AuthModule,
     UsersModule,
     TenantsModule,
-    TenantResourcesModule,
     UserTenantMembershipsModule,
     OwnershipsModule,
     ResourcesModule,
     SbesModule,
     OdssModule,
     EdorgsModule,
+    StartingBlocksModule,
     RolesModule,
     PrivilegesModule,
+    AdminModule,
   ],
   controllers: [AppController],
   providers: [
@@ -45,4 +47,4 @@ import { TenantResourcesModule } from '../tenant-resources/tenant-resources.modu
     },
   ],
 })
-export class AppModule { }
+export class AppModule {}

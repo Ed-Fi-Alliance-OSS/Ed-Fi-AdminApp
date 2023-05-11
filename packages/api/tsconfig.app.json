@@ -7,6 +7,13 @@
     "emitDecoratorMetadata": true,
     "target": "es2015"
   },
+  "ts-node": {
+    "files": true
+  },
   "exclude": ["jest.config.ts", "src/**/*.spec.ts", "src/**/*.test.ts"],
-  "include": ["src/**/*.ts", "src/database/db.tsrm-config.ts"]
+  "include": [
+    "src/**/*.ts",
+    "../../types/*.d.ts",
+    "src/starting-blocks/test.js"
+  ]
 }

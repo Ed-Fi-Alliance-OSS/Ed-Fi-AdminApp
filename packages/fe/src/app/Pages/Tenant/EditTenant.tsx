@@ -43,10 +43,11 @@ import {
 } from '@chakra-ui/react';
 import { PutTenantDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutTenant, useTenant } from '../../api';
-import { tenantRoute } from '../../routes';
+import { tenantRoute, tenantIndexRoute } from '../../routes';
+import { tenantQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutTenantDto);
 
@@ -59,9 +60,13 @@ export const EditTenant = () => {
       search: {},
     });
   };
-  const putTenant = usePutTenant(goToView);
-  const params = useParams({ from: tenantRoute.id });
-  const tenant = useTenant(params.tenantId).data;
+  const params = useParams({ from: tenantIndexRoute.id });
+  const putTenant = tenantQueries.usePut({
+    callback: goToView,
+  });
+  const tenant = tenantQueries.useOne({
+    id: params.tenantId,
+  }).data;
   const {
     register,
     handleSubmit,

@@ -1,51 +1,16 @@
 import {
-  Box,
   Button,
   ButtonGroup,
-  Checkbox,
-  CheckboxGroup,
-  Editable,
-  EditableInput,
-  EditablePreview,
-  EditableTextarea,
-  Flex,
   FormControl,
   FormErrorMessage,
   FormLabel,
-  Grid,
-  HStack,
-  IconButton,
   Input,
-  NumberDecrementStepper,
-  NumberIncrementStepper,
-  NumberInput,
-  NumberInputField,
-  NumberInputStepper,
-  PinInput,
-  PinInputField,
-  Radio,
-  RadioGroup,
-  RangeSlider,
-  RangeSliderFilledTrack,
-  RangeSliderThumb,
-  RangeSliderTrack,
-  Select,
-  Slider,
-  SliderFilledTrack,
-  SliderMark,
-  SliderThumb,
-  SliderTrack,
-  Stack,
-  Switch,
-  Textarea,
-  Tooltip,
-  VStack,
 } from '@chakra-ui/react';
 import { PutOdsDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useNavigate, useParams } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutOds, useOds } from '../../api';
+import { odsQueries } from '../../api';
 import { odsRoute } from '../../routes';
 
 const resolver = classValidatorResolver(PutOdsDto);
@@ -59,9 +24,17 @@ export const EditOds = () => {
       search: {},
     });
   };
-  const putOds = usePutOds(goToView);
   const params = useParams({ from: odsRoute.id });
-  const ods = useOds(params.odsId, params.sbeId).data;
+  const putOds = odsQueries.usePut({
+    callback: goToView,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+  const ods = odsQueries.useOne({
+    id: params.odsId,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

@@ -1,6 +1,9 @@
+import './environments/environment.local';
+// ^^ make available some global variables before anything else runs.
 import {
   ClassSerializerInterceptor,
-  Logger, ValidationPipe
+  Logger,
+  ValidationPipe,
 } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
@@ -36,13 +39,16 @@ async function bootstrap() {
   const port = process.env.PORT || 3333;
   const config = new DocumentBuilder()
     .setTitle('Starting Blocks Admin App')
-    .setDescription('OpenAPI spec for the EA Starting Blocks admin console application.')
+    .setDescription(
+      'OpenAPI spec for the EA Starting Blocks admin console application.'
+    )
     .setVersion('1.0')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('api', app, document);
 
   await app.listen(port);
+
   Logger.log(
     `🚀 Application is running on: http://localhost:${port}/${globalPrefix}`
   );

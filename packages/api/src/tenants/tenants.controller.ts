@@ -1,6 +1,4 @@
 import {
-  addUserCreating,
-  addUserModifying,
   GetSessionDataDto,
   PostTenantDto,
   PutTenantDto,
@@ -16,9 +14,10 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ReqUser } from '../auth/user.decorator';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { TenantsService } from './tenants.service';
 import { ApiTags } from '@nestjs/swagger';
+import { addUserCreating, addUserModifying } from '@edanalytics/models-server';
 
 @ApiTags('Tenant')
 @Controller()

@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -111,18 +111,20 @@ import {
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
 import { IOwnership } from '../interfaces/ownership.interface';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { ITenant, IRole, IResource } from '../interfaces';
+import { GetResourceDto } from './resource.dto';
 
-export class GetOwnershipDto extends DtoGetBase implements GetDto<IOwnership, 'tenant' | 'role' | 'resource'> {
+export class GetOwnershipDto extends DtoGetBase implements GetDto<IOwnership, 'tenant' | 'role' | 'resourceId' | 'resource'> {
   @Expose()
   tenantId: ITenant['id'];
   @Expose()
   roleId: IRole['id']
   @Expose()
-  resourceId: IResource['id']
+  @Type(() => GetResourceDto)
+  resource: GetResourceDto
 }
-export const toGetOwnershipDto = makeSerializer(GetOwnershipDto);
+export const toGetOwnershipDto = makeSerializer<GetOwnershipDto, IOwnership>(GetOwnershipDto);
 
 export class PutOwnershipDto extends DtoPutBase implements PutDto<IOwnership, 'tenant' | 'role' | 'resource' | 'tenantId' | 'resourceId'> {
   @Expose()

@@ -8,20 +8,25 @@ import {
   Stack,
   Text,
   Tooltip,
+  FormLabel,
   VStack,
 } from '@chakra-ui/react';
-import { useParams } from '@tanstack/router';
-import { useSbe } from '../../api';
-import { sbeRoute } from '../../routes/sbe.routes';
+import { useParams, useSearch } from '@tanstack/router';
+import { sbeQueries } from '../../api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { sbeRoute, sbeIndexRoute } from '../../routes';
 
 export const ViewSbe = () => {
-  const sbeId: string = useParams({ from: sbeRoute.id }).sbeId;
-  const sbe = useSbe(sbeId).data;
+  const params = useParams({ from: sbeRoute.id });
+  const sbe = sbeQueries.useOne({
+    id: params.sbeId,
+    tenantId: params.asId,
+  }).data;
 
   return sbe ? (
     <>
       {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
+      <FormLabel as="p">Id</FormLabel>
       <Text>{sbe.id}</Text>
     </>
   ) : null;

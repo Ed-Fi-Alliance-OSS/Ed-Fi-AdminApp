@@ -1,22 +1,22 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useOdss,
-  useDeleteOds,
-  useUsers,
-  useTenantOdss,
-  useTenantUsers,
-} from '../../api';
+import { useParams } from '@tanstack/router';
+import { odsQueries, userQueries } from '../../api/queries/queries';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
-import { UserLink, odsRoute, OdsLink, odssRoute } from '../../routes';
-import { useParams } from '@tanstack/router';
+import { OdsLink, odsRoute, odssRoute, UserLink } from '../../routes';
 
 export const OdssPage = () => {
   const params = useParams({ from: odssRoute.id });
-  const odss = useTenantOdss(params.sbeId, params.asId);
-  const deleteOds = useDeleteOds();
-  const users = useTenantUsers(params.asId);
+  const odss = odsQueries.useAll({
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+  const deleteOds = odsQueries.useDelete({
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+  const users = userQueries.useAll({ tenantId: params.asId });
 
   return (
     <>

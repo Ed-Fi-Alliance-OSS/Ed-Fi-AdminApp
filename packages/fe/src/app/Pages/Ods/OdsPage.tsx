@@ -1,23 +1,31 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
+import { ReactNode } from 'react';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteOds, useOds } from '../../api';
+import { odsQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
 import { odsIndexRoute } from '../../routes';
 import { EditOds } from './EditOds';
 import { ViewOds } from './ViewOds';
-import { ReactNode } from 'react';
 
 export const OdsPage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteOds = useDeleteOds(() => {
-    navigate(navToParentOptions);
-  });
   const params = useParams({ from: odsIndexRoute.id });
-  const ods = useOds(params.odsId, params.sbeId).data;
+  const deleteOds = odsQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+  const ods = odsQueries.useOne({
+    id: params.odsId,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: odsIndexRoute.id });
 
   return (

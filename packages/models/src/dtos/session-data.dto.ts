@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -110,7 +110,7 @@ import {
   Allow,
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { GetUserDto } from './user.dto';
 
 export class GetSessionDataDto {

@@ -1,16 +1,18 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import { useTenants, useDeleteTenant, useUsers } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import { UserLink, tenantRoute, tenantsRoute, TenantLink } from '../../routes';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams } from '@tanstack/router';
+import { tenantQueries, userQueries } from '../../api';
 
 export const TenantsPage = () => {
   const params = useParams({ from: tenantsRoute.id });
-  const tenants = useTenants();
-  const deleteTenant = useDeleteTenant();
-  const users = useUsers();
+  const tenants = tenantQueries.useAll({});
+  const deleteTenant = tenantQueries.useDelete({});
+  // TODO fix this as soon as tenant urls are validated using fake .Required flag
+  const users = userQueries.useAll({ tenantId: 1 });
 
   return (
     <>

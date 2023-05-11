@@ -1,0 +1,58 @@
+import { addUserCreating, addUserModifying, GetSessionDataDto, Post<%= className %>Dto, Put<%= className %>Dto, toGet<%= className %>Dto } from '@edanalytics/models';
+import {
+  Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put
+} from '@nestjs/common';
+import { ReqUser } from '../auth/user.decorator';
+import { <%= className %>sService } from './<%= fileName %>s.service';
+import { ApiTags } from '@nestjs/swagger';
+
+@ApiTags('<%= className %>')
+@Controller()
+export class <%= className %>sController {
+  constructor(
+    private readonly <%= propertyName %>Service: <%= className %>sService,
+  ) { }
+
+  @Post()
+  async create(
+    @Body() create<%= className %>Dto: Post<%= className %>Dto,
+    @ReqUser() session: GetSessionDataDto,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+  ) {
+    return toGet<%= className %>Dto(await this.<%= propertyName %>Service.create(addUserCreating(create<%= className %>Dto, session.user)))
+  }
+
+  @Get()
+  async findAll(
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+  ) {
+    return toGet<%= className %>Dto(await this.<%= propertyName %>Service.findAll(tenantId))
+  }
+
+  @Get(':<%= propertyName %>Id')
+  async findOne(
+    @Param('<%= propertyName %>Id', new ParseIntPipe()) <%= propertyName %>Id: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+  ) {
+    return toGet<%= className %>Dto(await this.<%= propertyName %>Service.findOne(tenantId, +<%= propertyName %>Id));
+  }
+
+  @Put(':<%= propertyName %>Id')
+  async update(
+    @Param('<%= propertyName %>Id', new ParseIntPipe()) <%= propertyName %>Id: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @Body() update<%= className %>Dto: Put<%= className %>Dto,
+    @ReqUser() session: GetSessionDataDto
+  ) {
+    return toGet<%= className %>Dto(await this.<%= propertyName %>Service.update(tenantId, <%= propertyName %>Id, addUserModifying(update<%= className %>Dto, session.user )));
+  }
+
+  @Delete(':<%= propertyName %>Id')
+  remove(
+    @Param('<%= propertyName %>Id', new ParseIntPipe()) <%= propertyName %>Id: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqUser() session: GetSessionDataDto
+  ) {
+    return this.<%= propertyName %>Service.remove(tenantId, +<%= propertyName %>Id, session.user);
+  }
+}

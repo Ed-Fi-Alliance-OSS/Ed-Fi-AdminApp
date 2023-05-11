@@ -1,6 +1,4 @@
 import {
-  addUserCreating,
-  addUserModifying,
   GetSessionDataDto,
   PostUserDto,
   PutUserDto,
@@ -16,19 +14,21 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ReqUser } from '../auth/user.decorator';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { UsersService } from './users.service';
 import { ApiTags } from '@nestjs/swagger';
+import { addUserCreating, addUserModifying } from '@edanalytics/models-server';
 
 @ApiTags('User')
 @Controller()
 export class UsersController {
-  constructor(private readonly userService: UsersService) { }
+  constructor(private readonly userService: UsersService) {}
 
   @Post()
   async create(
     @Body() createUserDto: PostUserDto,
-    @ReqUser() session: GetSessionDataDto
+    @ReqUser() session: GetSessionDataDto,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
   ) {
     return toGetUserDto(
       await this.userService.create(
@@ -38,23 +38,28 @@ export class UsersController {
   }
 
   @Get()
-  async findAll() {
-    return toGetUserDto(await this.userService.findAll());
+  async findAll(@Param('tenantId', new ParseIntPipe()) tenantId: number) {
+    return toGetUserDto(await this.userService.findAll(tenantId));
   }
 
   @Get(':userId')
-  async findOne(@Param('userId', new ParseIntPipe()) userId: number) {
-    return toGetUserDto(await this.userService.findOne(+userId));
+  async findOne(
+    @Param('userId', new ParseIntPipe()) userId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
+  ) {
+    return toGetUserDto(await this.userService.findOne(tenantId, +userId));
   }
 
   @Put(':userId')
   async update(
     @Param('userId', new ParseIntPipe()) userId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @Body() updateUserDto: PutUserDto,
     @ReqUser() session: GetSessionDataDto
   ) {
     return toGetUserDto(
       await this.userService.update(
+        tenantId,
         userId,
         addUserModifying(updateUserDto, session.user)
       )
@@ -64,8 +69,9 @@ export class UsersController {
   @Delete(':userId')
   remove(
     @Param('userId', new ParseIntPipe()) userId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqUser() session: GetSessionDataDto
   ) {
-    return this.userService.remove(+userId, session.user);
+    return this.userService.remove(tenantId, +userId, session.user);
   }
 }

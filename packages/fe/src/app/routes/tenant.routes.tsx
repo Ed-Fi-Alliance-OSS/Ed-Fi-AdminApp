@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetTenantDto } from '@edanalytics/models';
 import { mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useTenants } from '../api';
+import { tenantQueries } from '../api';
 import { TenantPage } from '../Pages/Tenant/TenantPage';
 import { TenantsPage } from '../Pages/Tenant/TenantsPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,8 +26,10 @@ export const tenantsIndexRoute = new Route({
 
 const TenantBreadcrumb = () => {
   const params = useParams({ from: tenantRoute.id });
-  const tenant = useTenants();
-  return tenant.data?.[params.tenantId]?.displayName ?? params.tenantId;
+  const tenant = tenantQueries.useOne({
+    id: params.tenantId,
+  });
+  return tenant.data?.displayName ?? params.tenantId;
 };
 
 export const tenantRoute = new Route({

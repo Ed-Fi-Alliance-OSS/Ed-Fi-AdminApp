@@ -1,6 +1,4 @@
 import {
-  addUserCreating,
-  addUserModifying,
   GetSessionDataDto,
   PostEdorgDto,
   PutEdorgDto,
@@ -16,19 +14,22 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ReqUser } from '../auth/user.decorator';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { EdorgsService } from './edorgs.service';
 import { ApiTags } from '@nestjs/swagger';
+import { addUserCreating, addUserModifying } from '@edanalytics/models-server';
 
-@ApiTags('Ed-Org')
+@ApiTags('Edorg')
 @Controller()
 export class EdorgsController {
-  constructor(private readonly edorgService: EdorgsService) { }
+  constructor(private readonly edorgService: EdorgsService) {}
 
   @Post()
   async create(
     @Body() createEdorgDto: PostEdorgDto,
-    @ReqUser() session: GetSessionDataDto
+    @ReqUser() session: GetSessionDataDto,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @Param('sbeId', new ParseIntPipe()) sbeId: number
   ) {
     return toGetEdorgDto(
       await this.edorgService.create(
@@ -39,24 +40,35 @@ export class EdorgsController {
 
   @Get()
   async findAll(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @Param('sbeId', new ParseIntPipe()) sbeId: number
   ) {
-    return toGetEdorgDto(await this.edorgService.findAll(sbeId));
+    return toGetEdorgDto(await this.edorgService.findAll(tenantId, sbeId));
   }
 
   @Get(':edorgId')
-  async findOne(@Param('edorgId', new ParseIntPipe()) edorgId: number) {
-    return toGetEdorgDto(await this.edorgService.findOne(+edorgId));
+  async findOne(
+    @Param('edorgId', new ParseIntPipe()) edorgId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @Param('sbeId', new ParseIntPipe()) sbeId: number
+  ) {
+    return toGetEdorgDto(
+      await this.edorgService.findOne(tenantId, sbeId, +edorgId)
+    );
   }
 
   @Put(':edorgId')
   async update(
     @Param('edorgId', new ParseIntPipe()) edorgId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @Body() updateEdorgDto: PutEdorgDto,
-    @ReqUser() session: GetSessionDataDto
+    @ReqUser() session: GetSessionDataDto,
+    @Param('sbeId', new ParseIntPipe()) sbeId: number
   ) {
     return toGetEdorgDto(
       await this.edorgService.update(
+        tenantId,
+        sbeId,
         edorgId,
         addUserModifying(updateEdorgDto, session.user)
       )
@@ -66,8 +78,10 @@ export class EdorgsController {
   @Delete(':edorgId')
   remove(
     @Param('edorgId', new ParseIntPipe()) edorgId: number,
-    @ReqUser() session: GetSessionDataDto
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqUser() session: GetSessionDataDto,
+    @Param('sbeId', new ParseIntPipe()) sbeId: number
   ) {
-    return this.edorgService.remove(+edorgId, session.user);
+    return this.edorgService.remove(tenantId, sbeId, +edorgId, session.user);
   }
 }

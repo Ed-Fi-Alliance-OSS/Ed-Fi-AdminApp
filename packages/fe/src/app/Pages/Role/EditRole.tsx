@@ -43,10 +43,11 @@ import {
 } from '@chakra-ui/react';
 import { PutRoleDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutRole, useRole } from '../../api';
-import { roleRoute } from '../../routes';
+import { roleRoute, roleIndexRoute } from '../../routes';
+import { roleQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutRoleDto);
 
@@ -59,9 +60,15 @@ export const EditRole = () => {
       search: {},
     });
   };
-  const putRole = usePutRole(goToView);
-  const params = useParams({ from: roleRoute.id });
-  const role = useRole(params.roleId).data;
+  const params = useParams({ from: roleIndexRoute.id });
+  const putRole = roleQueries.usePut({
+    callback: goToView,
+    tenantId: params.asId,
+  });
+  const role = roleQueries.useOne({
+    id: params.roleId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

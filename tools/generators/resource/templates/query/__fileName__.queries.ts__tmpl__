@@ -5,8 +5,7 @@ import { methods } from '../methods';
 
 const baseUrl = '';
 
-export const use<%= className %> = (id: number | string) =>
-  useQuery({
+export const <%= propertyName %>Query = (id: number | string) => ({
     queryKey: [`<%= fileName %>`, id],
     queryFn: () =>
       methods.getOne(
@@ -15,8 +14,7 @@ export const use<%= className %> = (id: number | string) =>
       ),
   });
 
-export const use<%= className %>s = () =>
-  useQuery({
+export const <%= propertyName %>sQuery = () => ({
     queryKey: [`<%= fileName %>s`],
     queryFn: () =>
       methods.getManyMap<Get<%= className %>Dto>(
@@ -25,37 +23,37 @@ export const use<%= className %>s = () =>
       ),
   });
 
-export const usePost<%= className %> = (<%= propertyName %>: Post<%= className %>Dto) => {
+export const post<%= className %>Mutation = (<%= propertyName %>: Post<%= className %>Dto) => {
   const queryClient = useQueryClient();
-  return useMutation<unknown, unknown, AxiosResponse<Get<%= className %>Dto>, any>({
+  return {
     mutationFn: () =>
       methods.post(`${baseUrl}/<%= fileName %>s`, Post<%= className %>Dto, Get<%= className %>Dto, <%= propertyName %>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['<%= fileName %>s'] });
     },
-  });
+  };
 };
 
-export const usePut<%= className %> = (callback?: () => void) => {
+export const put<%= className %>Mutation = (callback?: () => void) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return {
     mutationFn: (<%= propertyName %>: Put<%= className %>Dto) =>
       methods.put(`${baseUrl}/<%= fileName %>s/${<%= propertyName %>.id}`, Put<%= className %>Dto, Get<%= className %>Dto, <%= propertyName %>),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['<%= fileName %>s'] });
       callback && callback();
     },
-  });
+  };
 };
 
-export const useDelete<%= className %> = (callback?: () => void) => {
+export const delete<%= className %>Mutation = (callback?: () => void) => {
   const queryClient = useQueryClient();
-  return useMutation({
+  return {
     mutationFn: (id: Get<%= className %>Dto['id']) =>
       methods.delete(`${baseUrl}/<%= fileName %>s/${id}`),
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['<%= fileName %>s'] });
       callback && callback();
     },
-  });
+  };
 };

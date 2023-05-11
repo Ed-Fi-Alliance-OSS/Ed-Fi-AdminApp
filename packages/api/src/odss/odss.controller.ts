@@ -1,6 +1,4 @@
 import {
-  addUserCreating,
-  addUserModifying,
   GetSessionDataDto,
   PostOdsDto,
   PutOdsDto,
@@ -16,19 +14,21 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ReqUser } from '../auth/user.decorator';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { OdssService } from './odss.service';
 import { ApiTags } from '@nestjs/swagger';
+import { addUserCreating, addUserModifying } from '@edanalytics/models-server';
 
-@ApiTags('ODS')
+@ApiTags('Ods')
 @Controller()
 export class OdssController {
-  constructor(private readonly odsService: OdssService) { }
+  constructor(private readonly odsService: OdssService) {}
 
   @Post()
   async create(
     @Body() createOdsDto: PostOdsDto,
-    @ReqUser() session: GetSessionDataDto
+    @ReqUser() session: GetSessionDataDto,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
   ) {
     return toGetOdsDto(
       await this.odsService.create(addUserCreating(createOdsDto, session.user))
@@ -36,25 +36,28 @@ export class OdssController {
   }
 
   @Get()
-  async findAll(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-  ) {
-    return toGetOdsDto(await this.odsService.findAll(sbeId));
+  async findAll(@Param('tenantId', new ParseIntPipe()) tenantId: number) {
+    return toGetOdsDto(await this.odsService.findAll(tenantId));
   }
 
   @Get(':odsId')
-  async findOne(@Param('odsId', new ParseIntPipe()) odsId: number) {
-    return toGetOdsDto(await this.odsService.findOne(+odsId));
+  async findOne(
+    @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
+  ) {
+    return toGetOdsDto(await this.odsService.findOne(tenantId, +odsId));
   }
 
   @Put(':odsId')
   async update(
     @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @Body() updateOdsDto: PutOdsDto,
     @ReqUser() session: GetSessionDataDto
   ) {
     return toGetOdsDto(
       await this.odsService.update(
+        tenantId,
         odsId,
         addUserModifying(updateOdsDto, session.user)
       )
@@ -64,8 +67,9 @@ export class OdssController {
   @Delete(':odsId')
   remove(
     @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqUser() session: GetSessionDataDto
   ) {
-    return this.odsService.remove(+odsId, session.user);
+    return this.odsService.remove(tenantId, +odsId, session.user);
   }
 }

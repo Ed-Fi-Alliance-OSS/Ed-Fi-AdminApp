@@ -1,27 +1,20 @@
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  Grid,
-  HStack,
-  Stack,
-  Text,
-  Tooltip,
-  VStack,
-} from '@chakra-ui/react';
+import { FormLabel, Text } from '@chakra-ui/react';
 import { useParams } from '@tanstack/router';
-import { useEdorg } from '../../api';
+import { edorgQueries } from '../../api';
 import { edorgRoute } from '../../routes';
 
 export const ViewEdorg = () => {
   const params = useParams({ from: edorgRoute.id });
-  const edorg = useEdorg(params.edorgId, params.sbeId).data;
+  const edorg = edorgQueries.useOne({
+    id: params.edorgId,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  }).data;
 
   return edorg ? (
     <>
       {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
+      <FormLabel as="p">Id</FormLabel>
       <Text>{edorg.id}</Text>
     </>
   ) : null;

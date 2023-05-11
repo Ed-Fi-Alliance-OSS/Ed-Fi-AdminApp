@@ -25,6 +25,31 @@ apiClient.interceptors.response.use(
   }
 );
 
+async function getManyMap<R extends object>(
+  url: string,
+  dto: ClassConstructor<R>,
+  params: object | undefined,
+  key: keyof R
+): Promise<Record<string | number, R>>
+async function getManyMap<R extends { id: number }>(
+  url: string,
+  dto: ClassConstructor<R>,
+  params?: object | undefined
+): Promise<Record<string | number, R>>
+async function getManyMap<R extends object>(
+  url: string,
+  dto: ClassConstructor<R>,
+  params?: object | undefined,
+  key?: keyof R
+): Promise<Record<string | number, R>> {
+  const res = (await apiClient.get<R>(url, params)) as unknown as R[];
+  return (res ?? []).reduce((map, o) => {
+    const instance = plainToInstance(dto, o)
+    map[instance[key ?? 'id' as keyof R] as string | number] = instance;
+    return map;
+  }, {} as Record<string | number, R>);
+}
+
 export const methods = {
   getOne: async <R extends object>(
     url: string,
@@ -42,17 +67,7 @@ export const methods = {
     const res = (await apiClient.get<R>(url, params)) as unknown as R[];
     return (res ?? []).map((o) => plainToInstance(dto, o));
   },
-  getManyMap: async <R extends { id: number }>(
-    url: string,
-    dto: ClassConstructor<R>,
-    params?: object
-  ) => {
-    const res = (await apiClient.get<R>(url, params)) as unknown as R[];
-    return (res ?? []).reduce((map, o) => {
-      map[o.id] = plainToInstance(dto, o);
-      return map;
-    }, {} as Record<number | string, R>);
-  },
+  getManyMap,
   put: async <R extends object, P extends object>(
     url: string,
     dtoReq: ClassConstructor<R>,

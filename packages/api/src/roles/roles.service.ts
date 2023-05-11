@@ -1,7 +1,14 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { GetUserDto, PostRoleDto, PutRoleDto, Role } from '@edanalytics/models';
-import { Repository } from 'typeorm';
+import {
+  GetUserDto,
+  PostRoleDto,
+  PutRoleDto,
+  RoleType,
+} from '@edanalytics/models';
+import { IsNull, Not, Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
+import { Role } from '@edanalytics/models-server';
 
 @Injectable()
 export class RolesService {
@@ -16,27 +23,43 @@ export class RolesService {
     );
   }
 
-  findAll() {
-    return this.rolesRepository.find();
+  findAll(tenantId: number) {
+    return this.rolesRepository.findBy([
+      {
+        tenantId,
+        type: Not(RoleType.UserGlobal),
+      },
+      {
+        tenantId: IsNull(),
+        type: Not(RoleType.UserGlobal),
+      },
+    ]);
   }
 
-  findOne(id: number) {
-    return this.rolesRepository.findOneByOrFail({ id: id }).catch(() => {
-      throw new NotFoundException('Role not found');
-    });
+  findOne(tenantId: number, id: number) {
+    return this.rolesRepository
+      .findOneByOrFail([
+        {
+          tenantId,
+          type: Not(RoleType.UserGlobal),
+          id,
+        },
+        {
+          tenantId: IsNull(),
+          type: Not(RoleType.UserGlobal),
+          id,
+        },
+      ])
+      .catch(throwNotFound);
   }
 
-  async update(id: number, updateRoleDto: PutRoleDto) {
-    await this.rolesRepository.update(id, updateRoleDto);
-    return this.rolesRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException('Role not found');
-    });
+  async update(tenantId: number, id: number, updateRoleDto: PutRoleDto) {
+    const old = await this.findOne(tenantId, id);
+    return this.rolesRepository.save({ ...old, ...updateRoleDto });
   }
 
-  async remove(id: number, user: GetUserDto) {
-    await this.rolesRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException('Role not found');
-    });
+  async remove(tenantId: number, id: number, user: GetUserDto) {
+    const old = await this.findOne(tenantId, id);
     await this.rolesRepository.update(id, {
       deleted: new Date(),
       deletedById: user.id,

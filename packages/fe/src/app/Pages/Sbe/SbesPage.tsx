@@ -1,22 +1,21 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useSbes,
-  useDeleteSbe,
-  useUsers,
-  useTenantSbes,
-  useTenantUsers,
-} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
-import { UserLink, sbeRoute, SbeLink, sbesRoute } from '../../routes';
+import { UserLink, sbeRoute, sbesRoute, SbeLink } from '../../routes';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams } from '@tanstack/router';
+import { sbeQueries, userQueries } from '../../api';
 
 export const SbesPage = () => {
   const params = useParams({ from: sbesRoute.id });
-  const sbes = useTenantSbes(params.asId);
-  const deleteSbe = useDeleteSbe();
-  const users = useTenantUsers(params.asId);
+  const sbes = sbeQueries.useAll({
+    tenantId: params.asId,
+  });
+  const deleteSbe = sbeQueries.useDelete({
+    tenantId: params.asId,
+  });
+  const users = userQueries.useAll({ tenantId: params.asId });
 
   return (
     <>
@@ -36,7 +35,10 @@ export const SbesPage = () => {
                     info={info}
                     mutation={deleteSbe.mutate}
                     route={sbeRoute}
-                    params={{ sbeId: String(info.row.original.id) }}
+                    params={(params: any) => ({
+                      ...params,
+                      sbeId: String(info.row.original.id),
+                    })}
                   />
                 </HStack>
               </HStack>

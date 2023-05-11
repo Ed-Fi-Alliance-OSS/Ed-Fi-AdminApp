@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { GetOwnershipDto } from '@edanalytics/models';
 import { asRoute, mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { useOwnerships } from '../api';
+import { ownershipQueries } from '../api';
 import { OwnershipPage } from '../Pages/Ownership/OwnershipPage';
 import { OwnershipsPage } from '../Pages/Ownership/OwnershipsPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,10 +26,11 @@ export const ownershipsIndexRoute = new Route({
 
 const OwnershipBreadcrumb = () => {
   const params = useParams({ from: ownershipRoute.id });
-  const ownership = useOwnerships();
-  return (
-    ownership.data?.[params.ownershipId]?.displayName ?? params.ownershipId
-  );
+  const ownership = ownershipQueries.useOne({
+    id: params.ownershipId,
+    tenantId: params.asId,
+  });
+  return ownership.data?.displayName ?? params.ownershipId;
 };
 
 export const ownershipRoute = new Route({
@@ -53,14 +55,17 @@ export const OwnershipLink = (props: {
   id: number | undefined;
   query: UseQueryResult<Record<string | number, GetOwnershipDto>, unknown>;
 }) => {
-  const ownership = getEntityFromQuery(props.id, props.query);
   const params = useParams({ from: asRoute.id });
+  const ownership = getEntityFromQuery(props.id, props.query);
   return ownership ? (
     <Link as="span">
       <RouterLink
         title="Go to ownership"
         to={ownershipRoute.fullPath}
-        params={{ ownershipId: String(ownership.id), asId: params.asId }}
+        params={{
+          asId: params.asId,
+          ownershipId: String(ownership.id),
+        }}
       >
         {getRelationDisplayName(ownership.id, props.query)}
       </RouterLink>

@@ -3,12 +3,14 @@ import {
   AnyRoute,
   AnyRoutesInfo,
   RouteMatch,
-  useNavigate,
-  useParams,
   useRouter,
 } from '@tanstack/router';
 import _ from 'lodash';
 import {
+  BsBook,
+  BsBookFill,
+  BsBuilding,
+  BsBuildingFill,
   BsClipboard,
   BsClipboardFill,
   BsCloudRain,
@@ -17,13 +19,17 @@ import {
   BsDatabaseFill,
   BsGear,
   BsGearFill,
+  BsKey,
+  BsKeyFill,
   BsPerson,
   BsPersonFill,
+  BsShieldLock,
+  BsShieldLockFill,
 } from 'react-icons/bs';
-import { HiHome, HiOutlineHome } from 'react-icons/hi';
-import { useTenantSbes, useTenants } from '../api';
+import { sbeQueries } from '../api/queries/queries';
 import {
-  asRoute,
+  applicationsRoute,
+  claimsetsRoute,
   edorgsRoute,
   odssRoute,
   ownershipsRoute,
@@ -31,13 +37,35 @@ import {
   sbeRoute,
   sbesRoute,
   usersRoute,
+  vendorsRoute,
 } from '../routes';
 import { INavButtonProps, NavButton } from './NavButton';
 
 export const TenantNav = (props: { tenantId: string }) => {
-  const sbes = useTenantSbes(props.tenantId);
+  const sbes = sbeQueries.useAll({ tenantId: props.tenantId });
 
   const items: INavButtonProps[] = [
+    {
+      route: usersRoute,
+      params: { asId: props.tenantId },
+      icon: BsCloudRain,
+      activeIcon: BsCloudRainFill,
+      text: 'Users',
+    },
+    {
+      route: rolesRoute,
+      params: { asId: props.tenantId },
+      icon: BsGear,
+      activeIcon: BsGearFill,
+      text: 'Roles',
+    },
+    {
+      route: ownershipsRoute,
+      params: { asId: props.tenantId },
+      icon: BsClipboard,
+      activeIcon: BsClipboardFill,
+      text: 'Ownerships',
+    },
     {
       route: sbesRoute,
       params: { asId: props.tenantId },
@@ -61,33 +89,33 @@ export const TenantNav = (props: { tenantId: string }) => {
           {
             route: edorgsRoute,
             params: { asId: props.tenantId, sbeId: String(sbe.id) },
-            icon: BsCloudRain,
-            activeIcon: BsCloudRainFill,
+            icon: BsBook,
+            activeIcon: BsBookFill,
             text: 'Ed-Orgs',
+          },
+          {
+            route: vendorsRoute,
+            params: { asId: props.tenantId, sbeId: String(sbe.id) },
+            icon: BsBuilding,
+            activeIcon: BsBuildingFill,
+            text: 'Vendors',
+          },
+          {
+            route: applicationsRoute,
+            params: { asId: props.tenantId, sbeId: String(sbe.id) },
+            icon: BsKey,
+            activeIcon: BsKeyFill,
+            text: 'Applications',
+          },
+          {
+            route: claimsetsRoute,
+            params: { asId: props.tenantId, sbeId: String(sbe.id) },
+            icon: BsShieldLock,
+            activeIcon: BsShieldLockFill,
+            text: 'Claimsets',
           },
         ],
       })),
-    },
-    {
-      route: usersRoute,
-      params: { asId: props.tenantId },
-      icon: BsCloudRain,
-      activeIcon: BsCloudRainFill,
-      text: 'Users',
-    },
-    {
-      route: rolesRoute,
-      params: { asId: props.tenantId },
-      icon: BsGear,
-      activeIcon: BsGearFill,
-      text: 'Roles',
-    },
-    {
-      route: ownershipsRoute,
-      params: { asId: props.tenantId },
-      icon: BsClipboard,
-      activeIcon: BsClipboardFill,
-      text: 'Ownerships',
     },
   ];
 

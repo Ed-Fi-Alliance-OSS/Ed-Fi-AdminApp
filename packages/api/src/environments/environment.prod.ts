@@ -1,3 +1,24 @@
+// packages/api/src/environments/environment.local.ts
+
 export const environment = {
   production: true,
+  OAUTH2_CLIENT_PROVIDER_OIDC_ISSUER: 'http://localhost:8080/realms/example',
+  OAUTH2_CLIENT_REGISTRATION_LOGIN_CLIENT_ID: 'oidc-client-one',
+  OAUTH2_CLIENT_REGISTRATION_LOGIN_CLIENT_SECRET:
+    '9jGDmoVdnHgSMQGwqBKqWYo5dp4g5e5k',
+  OAUTH2_CLIENT_REGISTRATION_LOGIN_REDIRECT_URI:
+    'http://localhost:3333/api/auth/oidc/callback',
+  OAUTH2_CLIENT_REGISTRATION_LOGIN_SCOPE: '',
+  APPLAUNCHER_LOGIN_URL: 'https://login.rally.edanalytics.org/login',
+  COGNITO_POOL_ID: 'us-east-2_GKriiKORy',
+  COGNITO_CLIENT_ID: '26gf6ua3iholfru7is2tr1ecs4',
+  FE_URL: 'http://localhost:4200',
+  DB_SECRETS_ENCRYPTION_KEY:
+    'B374A26A71490437AA024E4FADD5B497FDFF1A8EA6FF12F6FB65AF2720B59CCF',
+  DB_SECRETS_ENCRYPTION_IV: '7E892875A52C59A3B588306B13C31FBD',
+};
+
+global.DB_SECRETS_ENCRYPTION = {
+  DB_SECRETS_ENCRYPTION_KEY: environment.DB_SECRETS_ENCRYPTION_KEY,
+  DB_SECRETS_ENCRYPTION_IV: environment.DB_SECRETS_ENCRYPTION_IV,
 };

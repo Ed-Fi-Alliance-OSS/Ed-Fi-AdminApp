@@ -1,22 +1,15 @@
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  Grid,
-  HStack,
-  Stack,
-  Text,
-  Tooltip,
-  VStack,
-} from '@chakra-ui/react';
+import { Text } from '@chakra-ui/react';
 import { useParams } from '@tanstack/router';
-import { useOds } from '../../api';
+import { odsQueries } from '../../api';
 import { odsRoute } from '../../routes';
 
 export const ViewOds = () => {
   const params = useParams({ from: odsRoute.id });
-  const ods = useOds(params.odsId, params.sbeId).data;
+  const ods = odsQueries.useOne({
+    id: params.odsId,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  }).data;
 
   return ods ? (
     <>

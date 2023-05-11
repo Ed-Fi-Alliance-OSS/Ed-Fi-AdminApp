@@ -43,10 +43,14 @@ import {
 } from '@chakra-ui/react';
 import { PutUserTenantMembershipDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutUserTenantMembership, useUserTenantMembership } from '../../api';
-import { userTenantMembershipRoute } from '../../routes';
+import {
+  userTenantMembershipRoute,
+  userTenantMembershipIndexRoute,
+} from '../../routes';
+import { userTenantMembershipQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutUserTenantMembershipDto);
 
@@ -59,11 +63,15 @@ export const EditUserTenantMembership = () => {
       search: {},
     });
   };
-  const putUserTenantMembership = usePutUserTenantMembership(goToView);
-  const params = useParams({ from: userTenantMembershipRoute.id });
-  const userTenantMembership = useUserTenantMembership(
-    params.userTenantMembershipId
-  ).data;
+  const params = useParams({ from: userTenantMembershipIndexRoute.id });
+  const putUserTenantMembership = userTenantMembershipQueries.usePut({
+    callback: goToView,
+    tenantId: params.asId,
+  });
+  const userTenantMembership = userTenantMembershipQueries.useOne({
+    id: params.userTenantMembershipId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

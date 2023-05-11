@@ -39,9 +39,7 @@ export const NavButton = (props: INavButtonProps) => {
       (item) =>
         item.isActive || checkIsExpandedNecessarily(item.childItems || [])
     );
-  const isExpandedNecessarily = checkIsExpandedNecessarily(
-    props.childItems || []
-  );
+  const isExpandedNecessarily = false; // checkIsExpandedNecessarily(props.childItems || []);
   const isExpanded = isExpandedNecessarily || isExpandedState;
 
   const depthOffset = `${props.depth || 0}em`;

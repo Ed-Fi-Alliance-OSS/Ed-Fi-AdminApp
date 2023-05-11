@@ -43,10 +43,11 @@ import {
 } from '@chakra-ui/react';
 import { PutUserDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutUser, useUser, useUsers } from '../../api';
-import { userIndexRoute, userRoute } from '../../routes/user.routes';
+import { userRoute, userIndexRoute } from '../../routes';
+import { userQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutUserDto);
 
@@ -54,15 +55,20 @@ export const EditUser = () => {
   const navigate = useNavigate();
   const goToView = () => {
     navigate({
-      from: userIndexRoute.fullPath,
-      to: userIndexRoute.fullPath,
-      params: (params) => params,
+      to: userRoute.fullPath,
+      params: (old: any) => old,
       search: {},
     });
   };
-  const putUser = usePutUser(goToView);
-  const userId: string = useParams({ from: userRoute.id }).userId;
-  const user = useUser(userId).data;
+  const params = useParams({ from: userIndexRoute.id });
+  const putUser = userQueries.usePut({
+    callback: goToView,
+    tenantId: params.asId,
+  });
+  const user = userQueries.useOne({
+    id: params.userId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

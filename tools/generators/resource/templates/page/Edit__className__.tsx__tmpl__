@@ -43,10 +43,11 @@ import {
 } from '@chakra-ui/react';
 import { Put<%= className %>Dto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePut<%= className %>, use<%= className %> } from '../../api';
-import { <%= propertyName %>Route } from '../../routes';
+import { <%= propertyName %>Route, <%= propertyName %>IndexRoute } from '../../routes';
+import {<%= propertyName %>Queries } from '../../api';
 
 const resolver = classValidatorResolver(Put<%= className %>Dto);
 
@@ -59,9 +60,11 @@ export const Edit<%= className %> = () => {
       search: {},
     });
   };
-  const put<%= className %> = usePut<%= className %>(goToView);
-  const params = useParams({ from: <%= propertyName %>Route.id });
-  const <%= propertyName %> = use<%= className %>(params.<%= propertyName %>Id).data;
+  const params = useParams({ from: <%= propertyName %>IndexRoute.id });
+  const put<%= className %> = <%= propertyName %>Queries.usePut({
+    callback: goToView, tenantId: params.asId,
+  });
+  const <%= propertyName %> = <%= propertyName %>Queries.useOne({ id: params.<%= propertyName %>Id, tenantId: params.asId }).data;
   const {
     register,
     handleSubmit,

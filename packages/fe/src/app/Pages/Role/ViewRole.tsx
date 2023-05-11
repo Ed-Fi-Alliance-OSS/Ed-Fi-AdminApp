@@ -8,20 +8,25 @@ import {
   Stack,
   Text,
   Tooltip,
+  FormLabel,
   VStack,
 } from '@chakra-ui/react';
-import { useParams } from '@tanstack/router';
-import { useRole } from '../../api';
-import { roleRoute } from '../../routes';
+import { useParams, useSearch } from '@tanstack/router';
+import { roleQueries } from '../../api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { roleRoute, roleIndexRoute } from '../../routes';
 
 export const ViewRole = () => {
   const params = useParams({ from: roleRoute.id });
-  const role = useRole(params.roleId).data;
+  const role = roleQueries.useOne({
+    id: params.roleId,
+    tenantId: params.asId,
+  }).data;
 
   return role ? (
     <>
       {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
+      <FormLabel as="p">Id</FormLabel>
       <Text>{role.id}</Text>
     </>
   ) : null;

@@ -20,7 +20,12 @@ export const StandardRowActions = <
   mutation: (
     variables: number,
     options?:
-      | MutateOptions<AxiosResponse<unknown, any>, unknown, number, unknown>
+      | MutateOptions<
+          AxiosResponse<unknown, any>,
+          unknown,
+          number | string,
+          unknown
+        >
       | undefined
   ) => void;
 }) => {

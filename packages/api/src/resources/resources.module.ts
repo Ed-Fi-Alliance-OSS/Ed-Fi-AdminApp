@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { ResourcesService } from './resources.service';
 import { ResourcesController } from './resources.controller';
-import { Resource } from '@edanalytics/models';
+import { Resource } from '@edanalytics/models-server';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({

@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { UserTenantMembershipsService } from './user-tenant-memberships.service';
 import { UserTenantMembershipsController } from './user-tenant-memberships.controller';
-import { UserTenantMembership } from '@edanalytics/models';
+import { UserTenantMembership } from '@edanalytics/models-server';
 import { TypeOrmModule } from '@nestjs/typeorm';
 
 @Module({

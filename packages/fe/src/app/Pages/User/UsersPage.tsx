@@ -1,15 +1,20 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import { useUsers, useDeleteUser, useTenantUsers } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import { UserLink, userRoute, usersRoute } from '../../routes';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams } from '@tanstack/router';
+import { userQueries } from '../../api';
 
 export const UsersPage = () => {
   const params = useParams({ from: usersRoute.id });
-  const users = useTenantUsers(params.asId);
-  const deleteUser = useDeleteUser();
+  const users = userQueries.useAll({
+    tenantId: params.asId,
+  });
+  const deleteUser = userQueries.useDelete({
+    tenantId: params.asId,
+  });
 
   return (
     <>
@@ -29,7 +34,10 @@ export const UsersPage = () => {
                     info={info}
                     mutation={deleteUser.mutate}
                     route={userRoute}
-                    params={{ userId: String(info.row.original.id) }}
+                    params={(params: any) => ({
+                      ...params,
+                      userId: String(info.row.original.id),
+                    })}
                   />
                 </HStack>
               </HStack>

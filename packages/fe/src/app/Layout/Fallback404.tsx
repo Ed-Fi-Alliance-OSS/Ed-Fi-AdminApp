@@ -1,12 +1,25 @@
-import { Text } from '@chakra-ui/react';
-export const Fallback404 = () => (
-  <Text
-    textAlign="center"
-    fontWeight="black"
-    margin="auto"
-    fontSize="7xl"
-    color="gray.200"
-  >
-    404 Not found
-  </Text>
+import { Box, Link, Text } from '@chakra-ui/react';
+import { Link as RouterLink } from '@tanstack/router';
+export const ErrorFallback = ({ message }: { message: string }) => (
+  <Box pt="30vh" textAlign="center">
+    <Box display="inline-block" textAlign="left">
+      <Link
+        as="span"
+        onClick={() => {
+          window.history.back();
+        }}
+      >
+        &larr; Back
+      </Link>
+      <Text
+        w="auto"
+        textAlign="center"
+        fontWeight="bold"
+        fontSize="5xl"
+        color="gray.300"
+      >
+        {message}
+      </Text>
+    </Box>
+  </Box>
 );

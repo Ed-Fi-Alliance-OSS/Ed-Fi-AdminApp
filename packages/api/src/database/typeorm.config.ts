@@ -9,7 +9,7 @@ import {
   Privilege,
   Role,
   Ownership,
-} from '@edanalytics/models';
+} from '@edanalytics/models-server';
 import { DataSourceOptions } from 'typeorm';
 
 const config: DataSourceOptions = {
@@ -29,6 +29,7 @@ const config: DataSourceOptions = {
   ],
   synchronize: true,
   migrations: ['packages/api/src/database/migrations/*.{ts,js}'],
+  // logging: ["query"]
 };
 
 export default config;

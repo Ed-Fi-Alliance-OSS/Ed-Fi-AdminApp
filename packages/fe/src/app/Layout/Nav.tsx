@@ -1,13 +1,13 @@
-import { Box, Select, Text } from '@chakra-ui/react';
+import { Box, Select, Text, chakra } from '@chakra-ui/react';
 import { useNavigate, useParams, useRouter } from '@tanstack/router';
 import Cookies from 'js-cookie';
 import { Resizable } from 're-resizable';
 import { useEffect, useState } from 'react';
 import { BsPerson, BsPersonFill } from 'react-icons/bs';
-import { useTenants } from '../api';
 import { accountRouteGlobal, asRoute } from '../routes';
 import { NavButton } from './NavButton';
 import { TenantNav } from './TenantNav';
+import { tenantQueries } from '../api';
 
 export const Nav = () => {
   const params = useParams({ from: asRoute.id });
@@ -15,7 +15,7 @@ export const Nav = () => {
   const [tenantId, setTenantId] = useState(
     typeof defaultTenant === 'string' ? Number(defaultTenant) : undefined
   );
-  const tenants = useTenants();
+  const tenants = tenantQueries.useAll({});
   const router = useRouter();
   const navigate = useNavigate();
 
@@ -52,23 +52,32 @@ export const Nav = () => {
             title={tenants.data?.[tenantId ?? '']?.displayName}
             bg="white"
             mb={3}
-            value={tenantId}
+            value={String(tenantId)}
+            css={
+              tenantId === undefined
+                ? { fontStyle: 'italic', color: 'gray.500' }
+                : undefined
+            }
             onChange={(e) => {
               const value = e.target.value;
               Cookies.set('defaultTenant', value);
               setTenantId(value === 'undefined' ? undefined : Number(value));
             }}
           >
-            {Object.values(tenants.data ?? {}).map((t) => (
-              <option key={t.id} value={t.id}>
-                {t.displayName}
-              </option>
-            ))}
-            <option value={'undefined'}>
-              <Text as="i" color="gray.500">
-                None
-              </Text>
-            </option>
+            {Object.values(tenants.data ?? {})
+              .sort((a, b) => Number(a.displayName > b.displayName) - 0.5)
+              .map((t) => (
+                <chakra.option fontStyle="normal" key={t.id} value={t.id}>
+                  {t.displayName}
+                </chakra.option>
+              ))}
+            <chakra.option
+              color="gray.500"
+              fontStyle="italic"
+              value={'undefined'}
+            >
+              None
+            </chakra.option>
           </Select>
         </Box>
       ) : null}

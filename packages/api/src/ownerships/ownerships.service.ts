@@ -1,12 +1,13 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
 import {
   GetUserDto,
   PostOwnershipDto,
   PutOwnershipDto,
-  Ownership,
 } from '@edanalytics/models';
+import { Injectable } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
+import { Ownership } from '@edanalytics/models-server';
 
 @Injectable()
 export class OwnershipsService {
@@ -21,27 +22,29 @@ export class OwnershipsService {
     );
   }
 
-  findAll() {
-    return this.ownershipsRepository.find();
-  }
-
-  findOne(id: number) {
-    return this.ownershipsRepository.findOneByOrFail({ id: id }).catch(() => {
-      throw new NotFoundException('Ownership not found');
+  findAll(tenantId: number) {
+    return this.ownershipsRepository.findBy({
+      tenantId,
     });
   }
 
-  async update(id: number, updateOwnershipDto: PutOwnershipDto) {
-    await this.ownershipsRepository.update(id, updateOwnershipDto);
-    return this.ownershipsRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException('Ownership not found');
-    });
+  findOne(tenantId: number, id: number) {
+    return this.ownershipsRepository
+      .findOneByOrFail({ tenantId, id })
+      .catch(throwNotFound);
   }
 
-  async remove(id: number, user: GetUserDto) {
-    await this.ownershipsRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException('Ownership not found');
-    });
+  async update(
+    tenantId: number,
+    id: number,
+    updateOwnershipDto: PutOwnershipDto
+  ) {
+    const old = await this.findOne(tenantId, id);
+    return this.ownershipsRepository.save({ ...old, ...updateOwnershipDto });
+  }
+
+  async remove(tenantId: number, id: number, user: GetUserDto) {
+    const old = await this.findOne(tenantId, id);
     await this.ownershipsRepository.update(id, {
       deleted: new Date(),
       deletedById: user.id,

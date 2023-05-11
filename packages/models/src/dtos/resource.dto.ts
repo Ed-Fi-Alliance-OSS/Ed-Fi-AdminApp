@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -111,21 +111,30 @@ import {
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
 import { IResource } from '../interfaces/resource.interface';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { ISbe, IOds, IEdorg } from '../interfaces';
+import { GetSbeDto } from './sbe.dto';
+import { GetOdsDto } from './ods.dto';
+import { GetEdorgDto } from './edorg.dto';
 
-export class GetResourceDto extends DtoGetBase implements GetDto<IResource> {
-  sbe?: ISbe | undefined;
-  ods?: IOds | undefined;
-  edorg?: IEdorg | undefined;
+export class GetResourceDto extends DtoGetBase implements GetDto<IResource, 'sbe' | 'ods' | 'edorg' | 'ownerships'> {
+  @Expose()
+  @Type(() => GetSbeDto)
+  sbe?: GetSbeDto | undefined;
+  @Expose()
+  @Type(() => GetOdsDto)
+  ods?: GetOdsDto | undefined;
+  @Expose()
+  @Type(() => GetEdorgDto)
+  edorg?: GetEdorgDto | undefined;
 
   get resource() {
     // eslint-disable-next-line @typescript-eslint/no-non-null-assertion
     return (this.edorg ?? this.ods ?? this.sbe)!
   }
 }
-export const toGetResourceDto = makeSerializer(GetResourceDto);
+export const toGetResourceDto = makeSerializer<GetResourceDto, IResource>(GetResourceDto);
 
-export class PutResourceDto extends DtoPutBase implements PutDto<IResource> { }
+export class PutResourceDto extends DtoPutBase implements PutDto<IResource, 'ownerships'> { }
 
-export class PostResourceDto extends DtoPostBase implements PostDto<IResource> { }
+export class PostResourceDto extends DtoPostBase implements PostDto<IResource, 'ownerships'> { }

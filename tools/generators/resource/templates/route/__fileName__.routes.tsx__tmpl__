@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
+import { useQuery } from '@tanstack/react-query';
 import { Link as RouterLink, Route, useParams } from '@tanstack/router';
 import { UseQueryResult } from '@tanstack/react-query';
 import { Get<%= className %>Dto } from '@edanalytics/models';
 import { mainLayoutRoute } from '.';
 import { getRelationDisplayName } from '../helpers';
-import { use<%= className %>s } from '../api';
+import { <%= propertyName %>Queries } from '../api';
 import { <%= className %>Page } from '../Pages/<%= className %>/<%= className %>Page';
 import { <%= className %>sPage } from '../Pages/<%= className %>/<%= className %>sPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
@@ -25,8 +26,8 @@ export const <%= propertyName %>sIndexRoute = new Route({
 
 const <%= className %>Breadcrumb = () => {
   const params = useParams({ from: <%= propertyName %>Route.id });
-  const <%= propertyName %> = use<%= className %>s();
-  return <%= propertyName %>.data?.[params.<%= propertyName %>Id]?.displayName ?? params.<%= propertyName %>Id;
+  const <%= propertyName %> = (<%= propertyName %>Queries.useOne({id: params.<%= propertyName %>Id, tenantId: params.asId}));
+  return <%= propertyName %>.data?.displayName ?? params.<%= propertyName %>Id;
 };
 
 export const <%= propertyName %>Route = new Route({
@@ -53,6 +54,7 @@ export const <%= className %>Link = (props: {
   id: number|undefined;
   query: UseQueryResult<Record<string | number, Get<%= className %>Dto>, unknown>;
 }) => {
+  const params = useParams({ from: asRoute.id });
   const <%= propertyName %> = getEntityFromQuery(props.id, props.query);
   return <%= propertyName %> ? (
     <Link as='span'>
@@ -60,7 +62,8 @@ export const <%= className %>Link = (props: {
         title="Go to <%= propertyName %>"
         to={<%= propertyName %>Route.fullPath}
         params={{
-            <%= propertyName %>Id: String(<%= propertyName %>.id),
+          asId: params.asId,
+          <%= propertyName %>Id: String(<%= propertyName %>.id),
         }}
       >
         {getRelationDisplayName(<%= propertyName %>.id, props.query)}

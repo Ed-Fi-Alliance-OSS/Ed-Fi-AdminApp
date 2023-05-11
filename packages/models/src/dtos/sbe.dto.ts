@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -110,19 +110,38 @@ import {
   Allow,
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
-import { ISbe } from '../interfaces/sbe.interface';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
-import { SbeMeta } from '../types';
+import { ISbe, ISbeConfigPrivate, ISbeConfigPublic } from '../interfaces/sbe.interface';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { IOds, IEdorg } from '../interfaces';
+export class SbeConfigPublic implements ISbeConfigPublic {
+  @Expose()
+  hasOdsRefresh: false;
+}
 
-export class GetSbeDto extends DtoGetBase implements GetDto<ISbe, 'resource' | 'odss' | 'edorgs'> {
+export class SbeConfigPrivate implements ISbeConfigPrivate {
+  @Expose()
+  adminApiUrl: string;
+  @Expose()
+  adminApiKey: string;
+  @Expose()
+  adminApiSecret: string;
+  @Expose()
+  sbeMetaUrl: string;
+  @Expose()
+  sbeMetaKey: string;
+  @Expose()
+  sbeMetaSecret: string;
+}
+
+export class GetSbeDto extends DtoGetBase implements GetDto<ISbe, 'resource' | 'odss' | 'edorgs' | 'configPrivate'> {
   @Expose()
   resourceId: number;
 
   @Expose()
   envLabel: string;
   @Expose()
-  meta: SbeMeta;
+  @Type(() => SbeConfigPublic)
+  configPublic: SbeConfigPublic;
 
   override get displayName() {
     return this.envLabel;
@@ -130,14 +149,17 @@ export class GetSbeDto extends DtoGetBase implements GetDto<ISbe, 'resource' | '
 }
 export const toGetSbeDto = makeSerializer(GetSbeDto);
 
-export class PutSbeDto extends DtoPutBase implements PutDto<ISbe, 'resource' | 'resourceId' | 'odss' | 'edorgs'> {
+export class PutSbeDto extends DtoPutBase implements PutDto<ISbe, 'resource' | 'resourceId' | 'odss' | 'edorgs' | 'configPrivate'> {
   @Expose()
   envLabel: string;
   @Expose()
-  meta: SbeMeta;
+  configPublic: SbeConfigPublic;
+  @Expose()
+  @Type(() => SbeConfigPublic)
+  configPrivate?: SbeConfigPrivate;
 }
 
-export class PostSbeDto extends DtoPostBase implements PostDto<ISbe, 'resource' | 'resourceId' | 'odss' | 'edorgs'> {
+export class PostSbeDto extends DtoPostBase implements PostDto<ISbe, 'resource' | 'resourceId' | 'odss' | 'edorgs' | 'configPrivate'> {
   @Expose()
   odss?: IOds[] | undefined;
   @Expose()
@@ -145,5 +167,9 @@ export class PostSbeDto extends DtoPostBase implements PostDto<ISbe, 'resource' 
   @Expose()
   envLabel: string;
   @Expose()
-  meta: SbeMeta;
+  @Type(() => SbeConfigPublic)
+  configPublic: SbeConfigPublic;
+  @Expose()
+  @Type(() => SbeConfigPublic)
+  configPrivate?: SbeConfigPrivate;
 }

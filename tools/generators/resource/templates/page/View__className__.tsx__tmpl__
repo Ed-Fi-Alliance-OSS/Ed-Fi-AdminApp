@@ -8,21 +8,23 @@ import {
   Stack,
   Text,
   Tooltip,
+  FormLabel,
   VStack,
 } from '@chakra-ui/react';
-import { useParams } from '@tanstack/router';
-import { use<%= className %> } from '../../api';
-import { <%= propertyName %>Route } from '../../routes';
+import { useParams, useSearch } from '@tanstack/router';
+import { <%= propertyName %>Queries } from '../../api';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { <%= propertyName %>Route, <%= propertyName %>IndexRoute } from '../../routes';
 
 
 export const View<%= className %> = () => {
   const params = useParams({ from: <%= propertyName %>Route.id });
-  const <%= propertyName %> = use<%= className %>(params.<%= propertyName %>Id).data;
+  const <%= propertyName %> = <%= propertyName %>Queries.useOne({ id: params.<%= propertyName %>Id, tenantId: params.asId }).data;
 
   return <%= propertyName %> ? (
     <>
       {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
+      <FormLabel as="p">Id</FormLabel>
       <Text>{<%= propertyName %>.id}</Text>
     </>
   ) : null;

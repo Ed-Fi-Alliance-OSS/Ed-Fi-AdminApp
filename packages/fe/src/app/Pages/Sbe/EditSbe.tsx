@@ -43,26 +43,32 @@ import {
 } from '@chakra-ui/react';
 import { PutSbeDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutSbe, useSbe } from '../../api';
-import { sbeIndexRoute, sbeRoute } from '../../routes/sbe.routes';
+import { sbeRoute, sbeIndexRoute } from '../../routes';
+import { sbeQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutSbeDto);
 
 export const EditSbe = () => {
   const navigate = useNavigate();
-  const params = useParams({ from: sbeRoute.id });
   const goToView = () => {
     navigate({
-      from: sbeIndexRoute.fullPath,
-      to: sbeIndexRoute.fullPath,
-      params: (params) => params,
+      to: sbeRoute.fullPath,
+      params: (old: any) => old,
       search: {},
     });
   };
-  const putSbe = usePutSbe(goToView);
-  const sbe = useSbe(params.sbeId).data;
+  const params = useParams({ from: sbeIndexRoute.id });
+  const putSbe = sbeQueries.usePut({
+    callback: goToView,
+    tenantId: params.asId,
+  });
+  const sbe = sbeQueries.useOne({
+    id: params.sbeId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

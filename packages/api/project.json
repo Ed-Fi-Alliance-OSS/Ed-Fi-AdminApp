@@ -55,7 +55,7 @@
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "outputPath": "dist/packages/migration",
+        "outputPath": "dist/packages/api",
         "main": "packages/api/src/main.ts",
         "tsConfig": "packages/api/tsconfig.app.json",
         "tsPlugins": [

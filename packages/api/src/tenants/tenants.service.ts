@@ -1,12 +1,8 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import {
-  GetUserDto,
-  PostTenantDto,
-  PutTenantDto,
-  Tenant,
-} from '@edanalytics/models';
+import { GetUserDto, PostTenantDto, PutTenantDto } from '@edanalytics/models';
 import { Repository } from 'typeorm';
+import { Tenant } from '@edanalytics/models-server';
 
 @Injectable()
 export class TenantsService {

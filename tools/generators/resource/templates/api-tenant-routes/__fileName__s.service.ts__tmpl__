@@ -1,0 +1,56 @@
+import { Injectable, NotFoundException } from '@nestjs/common';
+import { InjectRepository } from '@nestjs/typeorm';
+import {
+  GetUserDto,
+  Post<%= className %>Dto,
+  Put<%= className %>Dto,
+  <%= className %>,
+  User,
+} from '@edanalytics/models';
+import { Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
+
+@Injectable()
+export class <%= className %>sService {
+  constructor(
+    @InjectRepository(<%= className %>)
+    private <%= propertyName %>sRepository: Repository<<%= className %>>,
+    @InjectRepository(User)
+    private usersRepository: Repository<User>
+  ) {}
+
+  create(create<%= className %>Dto: Post<%= className %>Dto) {
+    return this.<%= propertyName %>sRepository.save(
+      this.<%= propertyName %>sRepository.create(create<%= className %>Dto)
+    );
+  }
+
+  findAll(tenantId: number) {
+    return this.<%= propertyName %>sRepository.createQueryBuilder('<%= propertyName %>')
+      .innerJoin("<%= propertyName %>.<property>", '<alias>')
+      .where("<alias>.tenantId = :tenantId", { tenantId })
+      .getMany();
+  }
+
+  findOne(tenantId: number, id: number) {
+    return this.<%= propertyName %>sRepository.createQueryBuilder('<%= propertyName %>')
+      .innerJoin("<%= propertyName %>.<property>", '<alias>')
+      .where("<alias>.tenantId = :tenantId", { tenantId })
+      .andWhere("<%= propertyName %>.id = :id", { id })
+      .getOneOrFail().catch(throwNotFound);
+  }
+
+  async update(tenantId: number, id: number, update<%= className %>Dto: Put<%= className %>Dto) {
+    const old = await this.findOne(tenantId, id)
+    return this.<%= propertyName %>sRepository.save({ ...old, ...update<%= className %>Dto });
+  }
+
+  async remove(tenantId: number, id: number, user: GetUserDto) {
+    const old = await this.findOne(tenantId, id)
+    await this.<%= propertyName %>sRepository.update(id, {
+      deleted: new Date(),
+      deletedById: user.id
+    });
+    return undefined
+  }
+}

@@ -1,22 +1,30 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteUser, useUser } from '../../api';
-import { useNavToParent } from '../../helpers';
+import { userQueries } from '../../api';
 import { userIndexRoute } from '../../routes';
+import { useNavToParent } from '../../helpers';
 import { EditUser } from './EditUser';
 import { ViewUser } from './ViewUser';
+import { ReactNode } from 'react';
 
-export const UserPage = () => {
+export const UserPage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteUser = useDeleteUser(() => {
-    navigate(navToParentOptions);
+  const params = useParams({ from: userIndexRoute.id });
+  const deleteUser = userQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    tenantId: params.asId,
   });
-  const userId: string = useParams({ from: userIndexRoute.id }).userId;
-  const user = useUser(userId).data;
+  const user = userQueries.useOne({
+    id: params.userId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: userIndexRoute.id });
 
   return (
@@ -39,9 +47,6 @@ export const UserPage = () => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  from: userIndexRoute.fullPath,
-                  to: userIndexRoute.fullPath,
-                  params: (params) => params,
                   search: { edit: true },
                 });
               }}

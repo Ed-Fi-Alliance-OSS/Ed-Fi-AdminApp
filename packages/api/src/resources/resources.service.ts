@@ -4,9 +4,9 @@ import {
   GetUserDto,
   PostResourceDto,
   PutResourceDto,
-  Resource,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
+import { Resource } from '@edanalytics/models-server';
 
 @Injectable()
 export class ResourcesService {

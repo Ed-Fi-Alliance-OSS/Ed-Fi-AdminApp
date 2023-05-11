@@ -1,6 +1,4 @@
 import {
-  addUserCreating,
-  addUserModifying,
   GetSessionDataDto,
   PostSbeDto,
   PutSbeDto,
@@ -16,19 +14,21 @@ import {
   Post,
   Put,
 } from '@nestjs/common';
-import { ReqUser } from '../auth/user.decorator';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { SbesService } from './sbes.service';
 import { ApiTags } from '@nestjs/swagger';
+import { addUserCreating, addUserModifying } from '@edanalytics/models-server';
 
-@ApiTags('Environment')
+@ApiTags('Sbe')
 @Controller()
 export class SbesController {
-  constructor(private readonly sbeService: SbesService) { }
+  constructor(private readonly sbeService: SbesService) {}
 
   @Post()
   async create(
     @Body() createSbeDto: PostSbeDto,
-    @ReqUser() session: GetSessionDataDto
+    @ReqUser() session: GetSessionDataDto,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
   ) {
     return toGetSbeDto(
       await this.sbeService.create(addUserCreating(createSbeDto, session.user))
@@ -36,23 +36,28 @@ export class SbesController {
   }
 
   @Get()
-  async findAll() {
-    return toGetSbeDto(await this.sbeService.findAll());
+  async findAll(@Param('tenantId', new ParseIntPipe()) tenantId: number) {
+    return toGetSbeDto(await this.sbeService.findAll(tenantId));
   }
 
   @Get(':sbeId')
-  async findOne(@Param('sbeId', new ParseIntPipe()) sbeId: number) {
-    return toGetSbeDto(await this.sbeService.findOne(+sbeId));
+  async findOne(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number
+  ) {
+    return toGetSbeDto(await this.sbeService.findOne(tenantId, +sbeId));
   }
 
   @Put(':sbeId')
   async update(
     @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @Body() updateSbeDto: PutSbeDto,
     @ReqUser() session: GetSessionDataDto
   ) {
     return toGetSbeDto(
       await this.sbeService.update(
+        tenantId,
         sbeId,
         addUserModifying(updateSbeDto, session.user)
       )
@@ -62,8 +67,9 @@ export class SbesController {
   @Delete(':sbeId')
   remove(
     @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqUser() session: GetSessionDataDto
   ) {
-    return this.sbeService.remove(+sbeId, session.user);
+    return this.sbeService.remove(tenantId, +sbeId, session.user);
   }
 }

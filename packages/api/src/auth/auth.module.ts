@@ -1,13 +1,14 @@
-import { User } from '@edanalytics/models';
+import { User } from '@edanalytics/models-server';
 import { Module } from '@nestjs/common';
 import { PassportModule } from '@nestjs/passport';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { UsersModule } from '../users/users.module';
 import { AuthController } from './auth.controller';
 import { AuthService } from './auth.service';
-import { LocalStrategy } from './local.strategy';
-import { buildOpenIdClient, OidcStrategy } from './oidc.strategy';
-import { SessionSerializer } from './session.serializer';
+import { SessionSerializer } from './helpers/session.serializer';
+import { OidcStrategy, buildOpenIdClient } from './login/oidc.strategy';
+import { LocalStrategy } from './login/local.strategy';
+import { ApplauncherStrategy } from './login/applauncher.strategy';
 
 const OidcStrategyFactory = {
   provide: 'OidcStrategy',
@@ -16,7 +17,7 @@ const OidcStrategyFactory = {
     const strategy = new OidcStrategy(authService, client);
     return strategy;
   },
-  inject: [AuthService]
+  inject: [AuthService],
 };
 
 @Module({
@@ -26,6 +27,12 @@ const OidcStrategyFactory = {
     TypeOrmModule.forFeature([User]),
   ],
   controllers: [AuthController],
-  providers: [OidcStrategyFactory, AuthService, LocalStrategy, SessionSerializer],
+  providers: [
+    OidcStrategyFactory,
+    AuthService,
+    LocalStrategy,
+    ApplauncherStrategy,
+    SessionSerializer,
+  ],
 })
-export class AuthModule { }
+export class AuthModule {}

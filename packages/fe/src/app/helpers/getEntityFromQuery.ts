@@ -1,9 +1,9 @@
 import { UseQueryResult } from "@tanstack/react-query";
 
 export const getEntityFromQuery = <
-  R extends { displayName?: string | number }
+  R extends object
 >(
-  source: number | undefined,
+  source: number | string | undefined,
   relations: UseQueryResult<Record<string | number, R>, unknown>
 ) =>
   source === undefined

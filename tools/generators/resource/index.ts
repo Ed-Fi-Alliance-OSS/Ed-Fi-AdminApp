@@ -100,7 +100,7 @@ export default async function (tree: Tree, schema: ResourceSchema) {
   if (schema.apiFiles) {
     generateFiles(
       tree,
-      path.join(templates, 'api'),
+      path.join(templates, 'api-tenant-routes'),
       path.join(api, resourceNames.fileName + 's'),
       sub
     );

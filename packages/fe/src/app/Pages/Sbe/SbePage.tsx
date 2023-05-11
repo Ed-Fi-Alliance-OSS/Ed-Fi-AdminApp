@@ -1,22 +1,30 @@
 import { Box, Button, ButtonGroup, Heading } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
+import { useMutation, useQuery } from '@tanstack/react-query';
 import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { BiEdit, BiTrash } from 'react-icons/bi';
-import { useDeleteSbe, useSbe } from '../../api';
+import { sbeQueries, userQueries } from '../../api';
 import { sbeIndexRoute } from '../../routes';
 import { useNavToParent } from '../../helpers';
 import { EditSbe } from './EditSbe';
 import { ViewSbe } from './ViewSbe';
+import { ReactNode } from 'react';
 
-export const SbePage = () => {
+export const SbePage = (): ReactNode => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
 
-  const deleteSbe = useDeleteSbe(() => {
-    navigate(navToParentOptions);
+  const params = useParams({ from: sbeIndexRoute.id });
+  const deleteSbe = sbeQueries.useDelete({
+    callback: () => {
+      navigate(navToParentOptions);
+    },
+    tenantId: params.asId,
   });
-  const sbeId: string = useParams({ from: sbeIndexRoute.id }).sbeId;
-  const sbe = useSbe(sbeId).data;
+  const sbe = sbeQueries.useOne({
+    id: params.sbeId,
+    tenantId: params.asId,
+  }).data;
   const { edit } = useSearch({ from: sbeIndexRoute.id });
 
   return (
@@ -39,9 +47,6 @@ export const SbePage = () => {
               leftIcon={<BiEdit />}
               onClick={() => {
                 navigate({
-                  from: sbeIndexRoute.fullPath,
-                  to: sbeIndexRoute.fullPath,
-                  params: (params) => params,
                   search: { edit: true },
                 });
               }}

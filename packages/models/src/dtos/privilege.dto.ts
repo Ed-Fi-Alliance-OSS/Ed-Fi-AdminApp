@@ -1,6 +1,6 @@
-import { DtoGetBase, GetDto } from '../utils/dto-get-base';
+import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
-import { PutDto, DtoPutBase } from '../utils/dto-put-base';
+import { PutDto, DtoPutBase } from '../utils/put-base.dto';
 import {
   IsDefined,
   IsOptional,
@@ -111,7 +111,7 @@ import {
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
 import { IPrivilege } from '../interfaces/privilege.interface';
-import { PostDto, DtoPostBase } from '../utils/dto-post-base';
+import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 
 export class GetPrivilegeDto implements GetDto<IPrivilege> {
   @Expose()

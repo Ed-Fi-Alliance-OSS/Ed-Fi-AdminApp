@@ -1,14 +1,16 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { GetUserDto, PostUserDto, PutUserDto, User } from '@edanalytics/models';
+import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
 import { Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
+import { User } from '@edanalytics/models-server';
 
 @Injectable()
 export class UsersService {
   constructor(
     @InjectRepository(User)
     private usersRepository: Repository<User>
-  ) { }
+  ) {}
 
   create(createUserDto: PostUserDto) {
     return this.usersRepository.save(
@@ -16,27 +18,31 @@ export class UsersService {
     );
   }
 
-  findAll() {
-    return this.usersRepository.find();
+  findAll(tenantId: number) {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userTenantMemberships', 'utm')
+      .where('utm.tenantId = :tenantId', { tenantId })
+      .getMany();
   }
 
-  findOne(id: number) {
-    return this.usersRepository.findOneByOrFail({ id: id }).catch(() => {
-      throw new NotFoundException("User not found");
-    });
+  findOne(tenantId: number, id: number) {
+    return this.usersRepository
+      .createQueryBuilder('user')
+      .innerJoin('user.userTenantMemberships', 'utm')
+      .where('utm.tenantId = :tenantId', { tenantId })
+      .andWhere('user.id = :id', { id })
+      .getOneOrFail()
+      .catch(throwNotFound);
   }
 
-  async update(id: number, updateUserDto: PutUserDto) {
-    await this.usersRepository.update(id, updateUserDto);
-    return this.usersRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException("User not found");
-    });
+  async update(tenantId: number, id: number, updateUserDto: PutUserDto) {
+    const old = await this.findOne(tenantId, id);
+    return this.usersRepository.save({ ...old, ...updateUserDto });
   }
 
-  async remove(id: number, user: GetUserDto) {
-    await this.usersRepository.findOneByOrFail({ id }).catch(() => {
-      throw new NotFoundException("User not found");
-    });
+  async remove(tenantId: number, id: number, user: GetUserDto) {
+    const old = await this.findOne(tenantId, id);
     await this.usersRepository.update(id, {
       deleted: new Date(),
       deletedById: user.id,

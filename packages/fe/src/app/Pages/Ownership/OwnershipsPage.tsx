@@ -1,12 +1,5 @@
-import { Heading, HStack } from '@chakra-ui/react';
+import { Heading, Text, HStack, Link } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useOwnerships,
-  useDeleteOwnership,
-  useUsers,
-  useTenantOwnerships,
-  useTenantUsers,
-} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import {
@@ -14,14 +7,36 @@ import {
   ownershipRoute,
   ownershipsRoute,
   OwnershipLink,
+  RoleLink,
+  EdorgLink,
+  edorgRoute,
+  odsRoute,
+  sbeRoute,
 } from '../../routes';
-import { useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useParams, Link as RouterLink } from '@tanstack/router';
+import {
+  edorgQueries,
+  odsQueries,
+  ownershipQueries,
+  roleQueries,
+  sbeQueries,
+  userQueries,
+} from '../../api';
 
 export const OwnershipsPage = () => {
   const params = useParams({ from: ownershipsRoute.id });
-  const ownerships = useTenantOwnerships(params.asId);
-  const deleteOwnership = useDeleteOwnership();
-  const users = useTenantUsers(params.asId);
+  const ownerships = ownershipQueries.useAll({
+    tenantId: params.asId,
+  });
+  const deleteOwnership = ownershipQueries.useDelete({
+    tenantId: params.asId,
+  });
+  const users = userQueries.useAll({ tenantId: params.asId });
+  const roles = roleQueries.useAll({ tenantId: params.asId });
+  const sbes = sbeQueries.useAll({
+    tenantId: params.asId,
+  });
 
   return (
     <>
@@ -50,6 +65,79 @@ export const OwnershipsPage = () => {
               </HStack>
             ),
             header: () => 'Name',
+          },
+          {
+            id: 'role',
+            accessorFn: (info) => getRelationDisplayName(info.roleId, roles),
+            header: () => 'Role',
+            cell: (info) => (
+              <RoleLink query={roles} id={info.row.original.roleId} />
+            ),
+          },
+          {
+            id: 'resource',
+            accessorFn: (info) =>
+              info.resource.edorg
+                ? `Ed-Org - ${info.resource.edorg.displayName}`
+                : info.resource.ods
+                ? `Ods - ${info.resource.ods.displayName}`
+                : `Environment - ${info.resource.sbe?.displayName}`,
+            header: () => 'Resource',
+            cell: ({
+              row: {
+                original: { resource },
+              },
+            }) =>
+              resource.edorg ? (
+                <Link as="span">
+                  <RouterLink
+                    title="Go to edorg"
+                    to={edorgRoute.fullPath}
+                    params={{
+                      asId: params.asId,
+                      sbeId: String(resource.edorg.sbeId),
+                      edorgId: String(resource.edorg.id),
+                    }}
+                  >
+                    {`Ed-Org - ${resource.edorg.displayName}`}
+                  </RouterLink>
+                </Link>
+              ) : resource.ods ? (
+                <Link as="span">
+                  <RouterLink
+                    title="Go to ods"
+                    to={odsRoute.fullPath}
+                    params={{
+                      asId: params.asId,
+                      sbeId: String(resource.ods.sbeId),
+                      odsId: String(resource.ods.id),
+                    }}
+                  >
+                    {`ODS - ${resource.ods.displayName}`}
+                  </RouterLink>
+                </Link>
+              ) : resource.sbe ? (
+                <Link as="span">
+                  <RouterLink
+                    title="Go to sbe"
+                    to={sbeRoute.fullPath}
+                    params={{
+                      asId: params.asId,
+                      sbeId: String(resource.sbe.id),
+                    }}
+                  >
+                    {`Environment - ${resource.sbe.displayName}`}
+                  </RouterLink>
+                </Link>
+              ) : (
+                <Text
+                  title="Edorg may have been deleted."
+                  as="i"
+                  color="gray.500"
+                >
+                  not found
+                </Text>
+              ),
           },
           {
             id: 'modifiedBy',

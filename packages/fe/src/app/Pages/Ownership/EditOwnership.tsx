@@ -43,10 +43,11 @@ import {
 } from '@chakra-ui/react';
 import { PutOwnershipDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from '@tanstack/router';
+import { useQuery, useMutation } from '@tanstack/react-query';
+import { useNavigate, useParams, useSearch } from '@tanstack/router';
 import { useForm } from 'react-hook-form';
-import { usePutOwnership, useOwnership } from '../../api';
-import { ownershipRoute } from '../../routes';
+import { ownershipRoute, ownershipIndexRoute } from '../../routes';
+import { ownershipQueries } from '../../api';
 
 const resolver = classValidatorResolver(PutOwnershipDto);
 
@@ -59,9 +60,15 @@ export const EditOwnership = () => {
       search: {},
     });
   };
-  const putOwnership = usePutOwnership(goToView);
-  const params = useParams({ from: ownershipRoute.id });
-  const ownership = useOwnership(params.ownershipId).data;
+  const params = useParams({ from: ownershipIndexRoute.id });
+  const putOwnership = ownershipQueries.usePut({
+    callback: goToView,
+    tenantId: params.asId,
+  });
+  const ownership = ownershipQueries.useOne({
+    id: params.ownershipId,
+    tenantId: params.asId,
+  }).data;
   const {
     register,
     handleSubmit,

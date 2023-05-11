@@ -1,22 +1,22 @@
 import { Heading, HStack } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
-import {
-  useRoles,
-  useDeleteRole,
-  useUsers,
-  useTenantRoles,
-  useTenantUsers,
-} from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
 import { UserLink, roleRoute, rolesRoute, RoleLink } from '../../routes';
+import { useQuery, useMutation } from '@tanstack/react-query';
 import { useParams } from '@tanstack/router';
+import { roleQueries, userQueries } from '../../api';
+import { RoleType } from '@edanalytics/models';
 
 export const RolesPage = () => {
   const params = useParams({ from: rolesRoute.id });
-  const roles = useTenantRoles(params.asId);
-  const deleteRole = useDeleteRole();
-  const users = useTenantUsers(params.asId);
+  const roles = roleQueries.useAll({
+    tenantId: params.asId,
+  });
+  const deleteRole = roleQueries.useDelete({
+    tenantId: params.asId,
+  });
+  const users = userQueries.useAll({ tenantId: params.asId });
 
   return (
     <>
@@ -45,6 +45,11 @@ export const RolesPage = () => {
               </HStack>
             ),
             header: () => 'Name',
+          },
+          {
+            id: 'type',
+            accessorFn: (info) => RoleType[info.type],
+            header: () => 'Type',
           },
           {
             id: 'modifiedBy',
