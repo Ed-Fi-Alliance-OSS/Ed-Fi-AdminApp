@@ -1,4 +1,4 @@
-import { Box, Select, Text, chakra } from '@chakra-ui/react';
+import { Box, Select, Text, chakra, useBoolean } from '@chakra-ui/react';
 import { useNavigate, useParams, useRouter } from '@tanstack/router';
 import Cookies from 'js-cookie';
 import { Resizable } from 're-resizable';
@@ -44,6 +44,8 @@ export const Nav = () => {
     }
   }, [tenantId, tenants, navigate, params.asId]);
 
+  const [isResizing, setIsResizing] = useBoolean(false);
+
   return (
     <Box
       py={3}
@@ -55,6 +57,10 @@ export const Nav = () => {
       borderColor="gray.200"
       enable={{ right: true }}
       defaultSize={{ width: '15em', height: '100%' }}
+      onResizeStart={setIsResizing.on}
+      onResizeStop={setIsResizing.off}
+      borderRightWidth={isResizing ? '3px' : undefined}
+      borderRightColor={isResizing ? 'teal.500' : undefined}
       minWidth="5em"
       maxWidth="min(40em, 80%)"
       as={Resizable}

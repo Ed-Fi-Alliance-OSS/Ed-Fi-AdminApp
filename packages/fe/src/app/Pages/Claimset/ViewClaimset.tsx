@@ -1,19 +1,7 @@
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  Grid,
-  HStack,
-  Stack,
-  Text,
-  Tooltip,
-  VStack,
-} from '@chakra-ui/react';
+import { FormLabel, Text } from '@chakra-ui/react';
 import { useParams, useSearch } from '@tanstack/router';
 import { claimsetQueries } from '../../api';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { claimsetRoute, claimsetIndexRoute } from '../../routes';
+import { claimsetIndexRoute, claimsetRoute } from '../../routes';
 
 export const ViewClaimset = () => {
   const params = useParams({ from: claimsetRoute.id });
@@ -26,9 +14,10 @@ export const ViewClaimset = () => {
 
   return claimset ? (
     <>
-      {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
-      <Text>{claimset.id}</Text>
+      <FormLabel as="p">Is reserved</FormLabel>
+      <Text>{String(claimset.isSystemReserved ?? false)}</Text>
+      <FormLabel as="p">Applications</FormLabel>
+      <Text>{claimset.applicationsCount}</Text>
     </>
   ) : null;
 };

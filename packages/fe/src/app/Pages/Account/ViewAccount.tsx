@@ -1,5 +1,5 @@
-import { Text } from '@chakra-ui/react';
-import { useMe } from '../../api';
+import { FormLabel, Text } from '@chakra-ui/react';
+import { roleQueries, useMe } from '../../api';
 
 export const ViewAccount = () => {
   const me = useMe();
@@ -7,9 +7,10 @@ export const ViewAccount = () => {
 
   return user ? (
     <>
-      {/* TODO: replace this with real content */}
-      <Text as="strong">Id</Text>
-      <Text>{user.id}</Text>
+      <FormLabel as="strong">Username</FormLabel>
+      <Text>{user.username}</Text>
+      <FormLabel as="strong">Global role</FormLabel>
+      <Text>{user.roleId}</Text>
     </>
   ) : null;
 };

@@ -13,10 +13,15 @@ export const useMe = () =>
   useQuery({
     queryKey: [`me`],
     queryFn: () =>
-      methods.getOne<GetSessionDataDto>(
-        `${baseUrl}/auth/me`,
-        GetSessionDataDto
-      ),
+      methods
+        .getOne<GetSessionDataDto>(`${baseUrl}/auth/me`, GetSessionDataDto)
+        .catch((err) => {
+          if (err.statusCode === 403) {
+            return null;
+          } else {
+            throw err;
+          }
+        }),
   });
 export const useMyTenants = () =>
   useQuery({

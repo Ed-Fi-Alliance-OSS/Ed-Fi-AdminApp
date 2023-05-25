@@ -17,8 +17,11 @@ import {
   BsCloudRainFill,
   BsDatabase,
   BsDatabaseFill,
+  BsFolder,
+  BsFolderFill,
   BsGear,
   BsGearFill,
+  BsGlobe,
   BsKey,
   BsKeyFill,
   BsPerson,
@@ -69,14 +72,14 @@ export const TenantNav = (props: { tenantId: string }) => {
     {
       route: sbesRoute,
       params: { asId: props.tenantId },
-      icon: BsGear,
-      activeIcon: BsGearFill,
+      icon: BsFolder,
+      activeIcon: BsFolderFill,
       text: 'Environments',
       childItems: Object.values(sbes.data || {}).map((sbe) => ({
         route: sbeRoute,
         params: { asId: props.tenantId, sbeId: String(sbe.id) },
-        icon: BsPerson,
-        activeIcon: BsPersonFill,
+        icon: BsFolder,
+        activeIcon: BsFolderFill,
         text: sbe.displayName,
         childItems: [
           {

@@ -9,6 +9,7 @@ import { useNavToParent } from '../../helpers';
 import { EditApplication } from './EditApplication';
 import { ViewApplication } from './ViewApplication';
 import { ReactNode } from 'react';
+import { useResetCredentials } from './useResetCredentials';
 
 export const ApplicationPage = (): ReactNode => {
   const navigate = useNavigate();
@@ -29,6 +30,12 @@ export const ApplicationPage = (): ReactNode => {
   }).data;
   const { edit } = useSearch({ from: applicationIndexRoute.id });
 
+  const [ResetButton, ResetModal, ResetAlert] = useResetCredentials({
+    application: application,
+    sbeId: params.sbeId,
+    tenantId: params.asId,
+  });
+
   return (
     <>
       <Heading mb={4} fontSize="lg">
@@ -43,6 +50,7 @@ export const ApplicationPage = (): ReactNode => {
             variant="link"
             justifyContent="end"
           >
+            <ResetButton />
             <Button
               isDisabled={edit}
               iconSpacing={1}
@@ -67,7 +75,7 @@ export const ApplicationPage = (): ReactNode => {
               )}
             </ConfirmAction>
           </ButtonGroup>
-
+          <ResetAlert />
           {edit ? <EditApplication /> : <ViewApplication />}
         </Box>
       ) : null}

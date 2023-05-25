@@ -1,20 +1,7 @@
-import {
-  Box,
-  Button,
-  ButtonGroup,
-  Flex,
-  Grid,
-  HStack,
-  Stack,
-  Text,
-  Tooltip,
-  FormLabel,
-  VStack,
-} from '@chakra-ui/react';
-import { useParams, useSearch } from '@tanstack/router';
+import { FormLabel, Tag, Text, Tooltip } from '@chakra-ui/react';
+import { useParams } from '@tanstack/router';
 import { roleQueries } from '../../api';
-import { useQuery, useMutation } from '@tanstack/react-query';
-import { roleRoute, roleIndexRoute } from '../../routes';
+import { roleRoute } from '../../routes';
 
 export const ViewRole = () => {
   const params = useParams({ from: roleRoute.id });
@@ -25,9 +12,18 @@ export const ViewRole = () => {
 
   return role ? (
     <>
-      {/* TODO: replace this with real content */}
-      <FormLabel as="p">Id</FormLabel>
-      <Text>{role.id}</Text>
+      <FormLabel as="p">Description</FormLabel>
+      <Text>{role.description ?? '-'}</Text>
+      <FormLabel as="p">Type</FormLabel>
+      <Text>{role.type ?? '-'}</Text>
+      <FormLabel as="p">Privileges</FormLabel>
+      {role.privileges?.map((p) => (
+        <Tooltip label={p.name}>
+          <Tag colorScheme="orange" display="flex" w="max-content" mb={2}>
+            {p.code}
+          </Tag>
+        </Tooltip>
+      ))}
     </>
   ) : null;
 };

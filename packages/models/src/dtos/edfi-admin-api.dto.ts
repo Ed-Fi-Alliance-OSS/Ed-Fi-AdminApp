@@ -2,6 +2,114 @@ import { FakeMeUsing, generateFake } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 import { Expose } from 'class-transformer';
 import { makeSerializer } from '../utils/make-serializer';
+import {
+  IsDefined,
+  IsOptional,
+  Equals,
+  NotEquals,
+  IsEmpty,
+  IsNotEmpty,
+  IsIn,
+  IsNotIn,
+  IsBoolean,
+  IsDate,
+  IsString,
+  IsNumber,
+  IsInt,
+  IsArray,
+  IsEnum,
+  IsDivisibleBy,
+  IsPositive,
+  IsNegative,
+  Min,
+  Max,
+  MinDate,
+  MaxDate,
+  IsBooleanString,
+  IsDateString,
+  IsNumberString,
+  Contains,
+  NotContains,
+  IsAlpha,
+  IsAlphanumeric,
+  IsDecimal,
+  IsAscii,
+  IsBase32,
+  IsBase58,
+  IsBase64,
+  IsIBAN,
+  IsBIC,
+  IsByteLength,
+  IsCreditCard,
+  IsCurrency,
+  IsISO4217CurrencyCode,
+  IsEthereumAddress,
+  IsBtcAddress,
+  IsDataURI,
+  IsEmail,
+  IsFQDN,
+  IsFullWidth,
+  IsHalfWidth,
+  IsVariableWidth,
+  IsHexColor,
+  IsHSL,
+  IsRgbColor,
+  IsIdentityCard,
+  IsPassportNumber,
+  IsPostalCode,
+  IsHexadecimal,
+  IsOctal,
+  IsMACAddress,
+  IsIP,
+  IsPort,
+  IsISBN,
+  IsEAN,
+  IsISIN,
+  IsISO8601,
+  IsJSON,
+  IsJWT,
+  IsObject,
+  IsNotEmptyObject,
+  IsLowercase,
+  IsLatLong,
+  IsLatitude,
+  IsLongitude,
+  IsMobilePhone,
+  IsISO31661Alpha2,
+  IsISO31661Alpha3,
+  IsLocale,
+  IsPhoneNumber,
+  IsMongoId,
+  IsMultibyte,
+  IsSurrogatePair,
+  IsTaxId,
+  IsUrl,
+  IsMagnetURI,
+  IsUUID,
+  IsFirebasePushId,
+  IsUppercase,
+  Length,
+  MinLength,
+  MaxLength,
+  Matches,
+  IsMilitaryTime,
+  IsTimeZone,
+  IsHash,
+  IsMimeType,
+  IsSemVer,
+  IsISSN,
+  IsISRC,
+  IsRFC3339,
+  IsStrongPassword,
+  ArrayContains,
+  ArrayNotContains,
+  ArrayNotEmpty,
+  ArrayMinSize,
+  ArrayMaxSize,
+  ArrayUnique,
+  IsInstance,
+  Allow,
+} from 'class-validator';
 
 export class PostVendorDto {
   @Expose()
@@ -114,14 +222,35 @@ export const toGetClaimsetDto = makeSerializer(GetClaimsetDto);
 
 export class PostApplicationDto {
   @Expose()
+  @IsString()
+  @MinLength(3)
   applicationName: string;
+
   @Expose()
+  @IsNumber()
   vendorId: string;
+
   @Expose()
+  @IsString()
+  @MinLength(1)
   claimSetName: string;
+
   @Expose()
+  @IsOptional()
+  @IsNumber()
   profileId: number;
+
+  get educationOrganizationId() {
+    return this.educationOrganizationIds?.[0];
+  }
+  set educationOrganizationId(value: number) {
+    this.educationOrganizationIds = [value];
+  }
+
   @Expose()
+  @IsNumber(undefined, { each: true })
+  @ArrayMaxSize(1)
+  @ArrayMinSize(1)
   educationOrganizationIds: number[];
 }
 
@@ -133,6 +262,21 @@ export class PostApplicationResponseDto {
   @Expose()
   secret: string;
 }
+export const toPostApplicationResponseDto = makeSerializer(
+  PostApplicationResponseDto
+);
+
+export class ApplicationYopassResponseDto {
+  @Expose()
+  applicationId: number;
+
+  @Expose()
+  link: string;
+}
+
+export const toApplicationYopassResponseDto = makeSerializer(
+  ApplicationYopassResponseDto
+);
 
 export class PutApplicationDto extends PostApplicationDto {
   @Expose()

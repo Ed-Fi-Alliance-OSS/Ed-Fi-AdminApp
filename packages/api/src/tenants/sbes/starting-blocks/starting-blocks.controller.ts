@@ -6,9 +6,11 @@ import {
   PutApplicationDto,
   PutClaimsetDto,
   PutVendorDto,
+  toApplicationYopassResponseDto,
   toGetApplicationDto,
   toGetClaimsetDto,
   toGetVendorDto,
+  toPostApplicationResponseDto,
 } from '@edanalytics/models';
 import {
   Body,
@@ -20,6 +22,7 @@ import {
   ParseIntPipe,
   Post,
   Put,
+  Query,
   UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -27,7 +30,7 @@ import { StartingBlocksServiceMock } from './starting-blocks.service.mock';
 import { Ids } from '../../../auth/authorization/tenant-cache.interface';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { filterId } from '../../../auth/helpers/where-ids';
-import { throwNotFound } from '../../../utils';
+import { postYopassSecret, throwNotFound } from '../../../utils';
 import { Authorize } from '../../../auth/authorization';
 import { StartingBlocksService } from './starting-blocks.service';
 
@@ -178,7 +181,7 @@ export class StartingBlocksController {
     const allApplications = await this.sbService.getApplications(sbeId);
     return toGetApplicationDto(
       allApplications.filter((a) =>
-        filterId(a.educationOrganizationId, validIds)
+        filterId(String(a.educationOrganizationId), validIds)
       )
     );
   }
@@ -202,7 +205,7 @@ export class StartingBlocksController {
     const application = await this.sbService
       .getApplication(sbeId, applicationId)
       .catch(throwNotFound);
-    if (filterId(application.educationOrganizationId, validIds)) {
+    if (filterId(String(application.educationOrganizationId), validIds)) {
       return toGetApplicationDto(application);
     } else {
       throwNotFound();
@@ -249,9 +252,22 @@ export class StartingBlocksController {
   async postApplication(
     @Param('sbeId', new ParseIntPipe()) sbeId: number,
     @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    application: PostApplicationDto
+    @Query('returnRaw') returnRaw: boolean | undefined,
+    @Body() application: PostApplicationDto
   ) {
-    return this.sbService.postApplication(sbeId, application);
+    const adminApiResponse = await this.sbService.postApplication(
+      sbeId,
+      application
+    );
+    if (returnRaw) {
+      return toPostApplicationResponseDto(adminApiResponse);
+    } else {
+      const yopass = await postYopassSecret(adminApiResponse);
+      return toApplicationYopassResponseDto({
+        link: yopass.link,
+        applicationId: adminApiResponse.applicationId,
+      });
+    }
   }
 
   @Delete('applications/:applicationId')
@@ -295,8 +311,16 @@ export class StartingBlocksController {
       sbeId,
       applicationId
     );
-    if (filterId(application.educationOrganizationId, validIds)) {
-      return this.sbService.resetApplicationCredentials(sbeId, applicationId);
+    if (filterId(String(application.educationOrganizationId), validIds)) {
+      const adminApiResponse = await this.sbService.resetApplicationCredentials(
+        sbeId,
+        applicationId
+      );
+      const yopass = await postYopassSecret(adminApiResponse);
+      return toApplicationYopassResponseDto({
+        link: yopass.link,
+        applicationId: adminApiResponse.applicationId,
+      });
     } else {
       throw new UnauthorizedException();
     }

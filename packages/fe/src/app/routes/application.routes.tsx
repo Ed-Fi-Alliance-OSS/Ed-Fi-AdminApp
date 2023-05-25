@@ -9,6 +9,7 @@ import { applicationQueries } from '../api';
 import { ApplicationPage } from '../Pages/Application/ApplicationPage';
 import { ApplicationsPage } from '../Pages/Application/ApplicationsPage';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
+import { CreateApplicationPage } from '../Pages/Application/CreateApplicationPage';
 
 export const applicationsRoute = new Route({
   getParentRoute: () => sbeRoute,
@@ -44,6 +45,16 @@ export const applicationRoute = new Route({
       breadcrumb: () => ({ title: ApplicationBreadcrumb, params }),
     };
   },
+});
+export const applicationPostRoute = new Route({
+  getParentRoute: () => applicationsRoute,
+  path: 'create',
+  getContext: ({ params }) => {
+    return {
+      breadcrumb: () => ({ title: () => 'Create', params }),
+    };
+  },
+  component: CreateApplicationPage,
 });
 
 export const applicationIndexRoute = new Route({

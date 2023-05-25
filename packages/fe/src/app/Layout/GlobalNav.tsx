@@ -6,7 +6,14 @@ import {
   useRouter,
 } from '@tanstack/router';
 import _ from 'lodash';
-import { BsGear, BsGearFill, BsPerson, BsPersonFill } from 'react-icons/bs';
+import {
+  BsFolder,
+  BsFolderFill,
+  BsGear,
+  BsGearFill,
+  BsPerson,
+  BsPersonFill,
+} from 'react-icons/bs';
 import { sbeQueries } from '../api/queries/queries';
 import { sbeGlobalRoute, sbesGlobalRoute, sbesRoute } from '../routes';
 import { INavButtonProps, NavButton } from './NavButton';
@@ -40,14 +47,14 @@ export const GlobalNav = (props: object) => {
     {
       route: sbesGlobalRoute,
       params: {},
-      icon: BsGear,
-      activeIcon: BsGearFill,
+      icon: BsFolder,
+      activeIcon: BsFolderFill,
       text: 'Environments',
       childItems: Object.values(sbes.data || {}).map((sbe) => ({
         route: sbeGlobalRoute,
         params: { sbeId: String(sbe.id) },
-        icon: BsPerson,
-        activeIcon: BsPersonFill,
+        icon: BsFolder,
+        activeIcon: BsFolderFill,
         text: sbe.displayName,
         // TODO these come later. for now just the SBEs are built in the global version
         // childItems: [

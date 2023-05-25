@@ -11,7 +11,7 @@ export function whereIds(ids: Ids) {
   }
 }
 
-export function filterId(id: number, ids: Ids) {
+export function filterId(id: number | string, ids: Ids) {
   if (ids === true) {
     return true;
   } else {

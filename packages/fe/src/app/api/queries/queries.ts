@@ -1,4 +1,5 @@
 import {
+  ApplicationYopassResponseDto,
   GetApplicationDto,
   GetClaimsetDto,
   GetEdorgDto,
@@ -12,6 +13,7 @@ import {
   GetUserTenantMembershipDto,
   GetVendorDto,
   PostApplicationDto,
+  PostApplicationResponseDto,
   PostClaimsetDto,
   PostEdorgDto,
   PostOdsDto,
@@ -136,6 +138,12 @@ function makeQueries<
     } & SbeParams &
       TenantParams
   ) => UseMutationResult<GetType, unknown, PutType, unknown>;
+  usePost: (
+    args: {
+      callback?: (() => void) | undefined;
+    } & SbeParams &
+      TenantParams
+  ) => UseMutationResult<GetType, unknown, PostType, unknown>;
   useDelete: (
     args: {
       callback?: () => void;
@@ -235,6 +243,38 @@ function makeQueries<
               args.tenantId
             ),
             putDto,
+            getDto,
+            entity
+          ),
+        onSuccess: (newEntity) => {
+          queryClient.invalidateQueries({
+            queryKey: tenantKey(
+              [
+                ...(includeSbe ? ['sbes', args.sbeId] : []),
+                `${kebabCaseName}s`,
+                'list',
+              ],
+              args.tenantId
+            ),
+          });
+          args.callback && args.callback();
+        },
+      });
+    },
+    usePost: (args: {
+      tenantId?: number | string;
+      sbeId?: number | string;
+      callback?: () => void;
+    }) => {
+      const queryClient = useQueryClient();
+      return useMutation({
+        mutationFn: (entity: PostType) =>
+          methods.post(
+            tenantUrl(
+              `${includeSbe ? `sbes/${args.sbeId}` : ''}/${kebabCaseName}s`,
+              args.tenantId
+            ),
+            postDto,
             getDto,
             entity
           ),
@@ -429,6 +469,60 @@ export const useSbeRefreshResources = (callback?: () => void) => {
         queryKey: ['sbes', 'detail', String(data.id)],
       });
       callback && callback();
+    },
+  });
+};
+
+export const useApplicationPost = (args: {
+  tenantId?: number | string;
+  sbeId?: number | string;
+  callback?: (response: ApplicationYopassResponseDto) => void;
+}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entity: PostApplicationDto) =>
+      methods.post(
+        tenantUrl(`sbes/${args.sbeId}/applications`, args.tenantId),
+        PostApplicationDto,
+        ApplicationYopassResponseDto,
+        entity
+      ),
+    onSuccess: (newEntity) => {
+      queryClient.invalidateQueries({
+        queryKey: tenantKey(
+          ['sbes', args.sbeId, `applications`, 'list'],
+          args.tenantId
+        ),
+      });
+      args.callback && args.callback(newEntity);
+    },
+  });
+};
+export const useApplicationResetCredential = (args: {
+  tenantId?: number | string;
+  sbeId?: number | string;
+  callback?: (response: ApplicationYopassResponseDto) => void;
+}) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (entity: GetApplicationDto) =>
+      methods.put(
+        tenantUrl(
+          `sbes/${args.sbeId}/applications/${entity.applicationId}/reset-credential`,
+          args.tenantId
+        ),
+        class Nothing {},
+        ApplicationYopassResponseDto,
+        {}
+      ),
+    onSuccess: (newEntity) => {
+      queryClient.invalidateQueries({
+        queryKey: tenantKey(
+          ['sbes', args.sbeId, `applications`, 'list'],
+          args.tenantId
+        ),
+      });
+      args.callback && args.callback(newEntity);
     },
   });
 };

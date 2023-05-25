@@ -83,7 +83,7 @@ export const SbeGlobalPage = (): ReactNode => {
                 setRefreshLoading.off();
               }}
             >
-              Pull contents
+              Sync contents
             </Button>
             <Button
               title="Test connections and credentials to the Ed-Fi Admin API and Starting Blocks, but don't run a sync or change any data."
@@ -115,7 +115,7 @@ export const SbeGlobalPage = (): ReactNode => {
                 setCheckLoading.off();
               }}
             >
-              Ping test
+              Check connection
             </Button>
             <Button
               isDisabled={edit}

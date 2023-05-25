@@ -12,13 +12,9 @@ import {
 import { Link as RouterLink, useNavigate } from '@tanstack/router';
 import { RxCaretDown } from 'react-icons/rx';
 import { apiClient, useMe } from '../api';
-import { accountRouteGlobal, publicRoute } from '../routes';
+import { accountRouteGlobal, loginRoute, publicRoute } from '../routes';
 
-export const AppBar = () => {
-  const me = useMe();
-
-  const navigate = useNavigate();
-
+export const AppBarPublic = () => {
   return (
     <HStack
       as="header"
@@ -38,29 +34,18 @@ export const AppBar = () => {
       <Menu>
         <MenuButton as={Button} variant="unstyled">
           <HStack spacing={0}>
-            <Avatar name={me.data?.fullName || ''} size="sm" />
+            <Avatar size="sm" />
             <Icon as={RxCaretDown} />
           </HStack>
         </MenuButton>
         <MenuList>
           <MenuItem
-            onClick={() => {
-              apiClient.post('/auth/logout', {}).then(() => {
-                navigate({
-                  to: publicRoute.fullPath,
-                });
-              });
-            }}
-          >
-            Sign out
-          </MenuItem>
-          <MenuItem
-            to={accountRouteGlobal.fullPath}
+            to={loginRoute.fullPath}
             params={{}}
             search={{}}
             as={RouterLink}
           >
-            My profile
+            Log in
           </MenuItem>
         </MenuList>
       </Menu>

@@ -18,10 +18,12 @@ import { MouseEventHandler, useRef } from 'react';
 
 interface UseConfirmActionProps {
   skipConfirmation?: boolean;
+  isDisabled?: boolean;
   bodyText?: string;
   headerText: string;
   yesButtonText?: string;
-  action: () => Promise<void> | void;
+  noButtonText?: string;
+  action?: undefined | (() => Promise<void> | void);
 }
 
 export const useConfirmAction = (
@@ -30,8 +32,15 @@ export const useConfirmAction = (
     action: () => undefined,
   }
 ) => {
-  const { bodyText, headerText, yesButtonText, action, skipConfirmation } =
-    props;
+  const {
+    bodyText,
+    headerText,
+    yesButtonText,
+    noButtonText,
+    action,
+    skipConfirmation,
+    isDisabled,
+  } = props;
   const { isOpen, onOpen, onClose } = useDisclosure();
   const onClick = async () => {
     action && action();
@@ -45,7 +54,7 @@ export const useConfirmAction = (
     ModalProps &
       Pick<
         UseConfirmActionProps,
-        'bodyText' | 'action' | 'headerText' | 'yesButtonText'
+        'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText'
       >
   > = (props = {}, ref = null) => ({
     children: undefined,
@@ -54,6 +63,7 @@ export const useConfirmAction = (
     onClose,
     bodyText,
     headerText,
+    noButtonText,
     yesButtonText,
     action: onClick,
   });
@@ -61,7 +71,7 @@ export const useConfirmAction = (
   const getButtonProps: PropGetter = (props = {}, ref = null) => ({
     ...props,
     ref: mergeRefs(ref, buttonRef),
-    onClick: skipConfirmation ? action : onOpen,
+    onClick: isDisabled ? undefined : skipConfirmation ? action : onOpen,
   });
 
   return {
@@ -109,6 +119,7 @@ export const ConfirmActionModal = forwardRef<object, 'div'>(
       bodyText,
       action,
       yesButtonText,
+      noButtonText,
       onClose,
       ...modalProps
     } = getModalProps(props, ref);
@@ -131,7 +142,7 @@ export const ConfirmActionModal = forwardRef<object, 'div'>(
               {yesButtonText ?? 'Yes'}
             </Button>
             <Button size="md" variant="ghost" onClick={onClose}>
-              No
+              {noButtonText ?? 'No'}
             </Button>
           </ModalFooter>
         </ModalContent>

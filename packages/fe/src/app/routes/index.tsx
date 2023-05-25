@@ -9,6 +9,7 @@ import {
   applicationsRoute,
   applicationsIndexRoute,
   applicationIndexRoute,
+  applicationPostRoute,
 } from './application.routes';
 import { Heading } from '@chakra-ui/react';
 import {
@@ -84,6 +85,8 @@ import {
   sbesGlobalIndexRoute,
   sbesGlobalRoute,
 } from './sbe-global.routes';
+import { PublicAppLayout } from '../Layout/PublicAppLayout';
+import { secretRoute } from './secret.routes';
 export * from './claimset.routes';
 export * from './application.routes';
 export * from './account.routes';
@@ -128,7 +131,7 @@ export const mainLayoutRoute = new Route({
 
 export const indexRoute = new Route({
   getParentRoute: () => mainLayoutRoute,
-  path: '/',
+  path: '/home',
   component: () => (
     <Heading mb={4} fontSize="lg">
       Home
@@ -136,8 +139,28 @@ export const indexRoute = new Route({
   ),
 });
 
-export const publicRoute = new Route({
+export const publicAppLayoutRoute = new Route({
+  errorComponent: (props: {
+    error: { error: string; message: string; statusCode: number } | any;
+  }) => (
+    <ErrorFallback
+      message={
+        props.error?.statusCode
+          ? `${props.error.statusCode} - ${props.error.message}.`
+          : "Oops, there's been an error."
+      }
+    />
+  ),
   getParentRoute: () => rootRoute,
+  id: 'public-app-layout',
+  component: PublicAppLayout,
+  getContext: ({ params }) => ({
+    breadcrumb: () => ({ title: () => 'Home', params }),
+  }),
+});
+
+export const publicRoute = new Route({
+  getParentRoute: () => publicAppLayoutRoute,
   path: '/public',
   component: () => <a href="/login">Login</a>,
 });
@@ -168,8 +191,6 @@ export const asRoute = new Route({
 });
 
 const routeTree = rootRoute.addChildren([
-  publicRoute,
-  loginRoute,
   mainLayoutRoute.addChildren([
     indexRoute,
     sbesGlobalRoute.addChildren([
@@ -207,6 +228,7 @@ const routeTree = rootRoute.addChildren([
           ]),
           applicationsRoute.addChildren([
             applicationsIndexRoute,
+            applicationPostRoute,
             applicationRoute.addChildren([applicationIndexRoute]),
           ]),
           claimsetsRoute.addChildren([
@@ -226,6 +248,8 @@ const routeTree = rootRoute.addChildren([
       tenantRoute.addChildren([tenantIndexRoute]),
     ]),
   ]),
+  publicAppLayoutRoute.addChildren([publicRoute, secretRoute]),
+  loginRoute,
   fallback404Route,
 ]);
 

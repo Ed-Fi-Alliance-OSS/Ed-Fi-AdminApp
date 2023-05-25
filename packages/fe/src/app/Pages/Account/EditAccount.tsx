@@ -28,7 +28,7 @@ export const EditAccount = () => {
     register,
     handleSubmit,
     formState: { errors, isLoading },
-  } = useForm<PutUserDto>({ resolver, defaultValues: user });
+  } = useForm<PutUserDto>({ resolver, defaultValues: user ?? undefined });
 
   return user ? (
     <form onSubmit={handleSubmit((data) => putMe.mutate(data))}>

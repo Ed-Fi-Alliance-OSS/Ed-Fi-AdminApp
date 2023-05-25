@@ -1,6 +1,7 @@
 import {
   GetApplicationDto,
   PostApplicationDto,
+  PostApplicationResponseDto,
   PostClaimsetDto,
   PostVendorDto,
   PutApplicationDto,
@@ -149,7 +150,7 @@ export class StartingBlocksService implements IStartingBlocksService {
   }
   async postApplication(sbeId: Sbe['id'], application: PostApplicationDto) {
     const sbe = await this.sbesService.findOne(sbeId);
-    return this.getAdminApiClient(sbe).post<any, any>(
+    return this.getAdminApiClient(sbe).post<any, PostApplicationResponseDto>(
       `v1/applications`,
       application
     );

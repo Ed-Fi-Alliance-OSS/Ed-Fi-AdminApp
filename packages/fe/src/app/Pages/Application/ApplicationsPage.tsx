@@ -1,4 +1,4 @@
-import { Heading, HStack } from '@chakra-ui/react';
+import { Button, Heading, HStack, Link } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { StandardRowActions } from '../../helpers/getStandardActions';
@@ -9,9 +9,10 @@ import {
   ApplicationLink,
   EdorgLink,
   ClaimsetLink,
+  applicationPostRoute,
 } from '../../routes';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { useParams } from '@tanstack/router';
+import { useParams, Link as RouterLink } from '@tanstack/router';
 import {
   applicationQueries,
   claimsetQueries,
@@ -63,6 +64,17 @@ export const ApplicationsPage = () => {
       <Heading mb={4} fontSize="lg">
         Applications
       </Heading>
+      <Button as="div" variant="solid" colorScheme="teal" my={3}>
+        <RouterLink
+          title="Create new application registration"
+          to={applicationPostRoute.fullPath}
+          params={(previous: any) => ({
+            ...previous,
+          })}
+        >
+          Create new
+        </RouterLink>
+      </Button>
       <DataTable
         data={Object.values(applications?.data || {})}
         columns={[

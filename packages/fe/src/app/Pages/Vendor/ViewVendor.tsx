@@ -1,4 +1,4 @@
-import { Text } from '@chakra-ui/react';
+import { FormLabel, Text } from '@chakra-ui/react';
 import { useParams } from '@tanstack/router';
 import { vendorQueries } from '../../api';
 import { vendorRoute } from '../../routes';
@@ -13,9 +13,19 @@ export const ViewVendor = () => {
 
   return vendor ? (
     <>
-      {/* TODO: replace this with real content */}
-      <Text as="strong">Company</Text>
+      <FormLabel as="p">Company</FormLabel>
       <Text>{vendor.company}</Text>
+      <FormLabel as="p">Namespace</FormLabel>
+      <Text>
+        {vendor.namespacePrefixes === '' ? '-' : vendor.namespacePrefixes}
+      </Text>
+      <FormLabel as="p">Contact</FormLabel>
+      <Text>{vendor.contactName}</Text>
+      {vendor.contactEmailAddress ? (
+        <Text href={`mailto:${vendor.contactEmailAddress}`} as="a">
+          {vendor.contactEmailAddress}
+        </Text>
+      ) : null}
     </>
   ) : null;
 };

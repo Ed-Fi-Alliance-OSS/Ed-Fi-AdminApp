@@ -174,12 +174,12 @@ async function populate() {
     const tenantUserRoles = await dataSource.getRepository(Role).save([
       {
         name: 'Full access',
-        type: RoleType.ResourceOwnership,
+        type: RoleType.UserTenant,
         privileges: privileges.filter((p) => p.code.startsWith('tenant.')),
       },
       {
         name: 'Read-only',
-        type: RoleType.ResourceOwnership,
+        type: RoleType.UserTenant,
         privileges: [
           ...upwardInheritancePrivileges,
           privilegesMap.get('tenant.role:read'),
@@ -192,7 +192,7 @@ async function populate() {
       },
       {
         name: 'Credential management lite',
-        type: RoleType.ResourceOwnership,
+        type: RoleType.UserTenant,
         privileges: [
           ...upwardInheritancePrivileges,
           privilegesMap.get('tenant.role:read'),

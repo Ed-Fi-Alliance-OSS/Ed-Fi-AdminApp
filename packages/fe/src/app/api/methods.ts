@@ -13,11 +13,12 @@ export const apiClient = axios.create({
 apiClient.interceptors.response.use(
   (res) => res.data,
   (error) => {
-    if ([401, 403].includes(error?.response?.status)) {
-      window.location.href = `${window.location.origin
-        }/login?redirect=${encodeURIComponent(
-          window.location.href.replace(window.location.origin, '')
-        )}`;
+    if ([401].includes(error?.response?.status)) {
+      window.location.href = `${
+        window.location.origin
+      }/login?redirect=${encodeURIComponent(
+        window.location.href.replace(window.location.origin, '')
+      )}`;
       console.warn(error);
     } else {
       throw error?.response?.data ?? error;
@@ -30,12 +31,12 @@ async function getManyMap<R extends object>(
   dto: ClassConstructor<R>,
   params: object | undefined,
   key: keyof R
-): Promise<Record<string | number, R>>
+): Promise<Record<string | number, R>>;
 async function getManyMap<R extends { id: number }>(
   url: string,
   dto: ClassConstructor<R>,
   params?: object | undefined
-): Promise<Record<string | number, R>>
+): Promise<Record<string | number, R>>;
 async function getManyMap<R extends object>(
   url: string,
   dto: ClassConstructor<R>,
@@ -44,8 +45,8 @@ async function getManyMap<R extends object>(
 ): Promise<Record<string | number, R>> {
   const res = (await apiClient.get<R>(url, params)) as unknown as R[];
   return (res ?? []).reduce((map, o) => {
-    const instance = plainToInstance(dto, o)
-    map[instance[key ?? 'id' as keyof R] as string | number] = instance;
+    const instance = plainToInstance(dto, o);
+    map[instance[key ?? ('id' as keyof R)] as string | number] = instance;
     return map;
   }, {} as Record<string | number, R>);
 }
