@@ -20,6 +20,18 @@ export const tenantRoleAuthConfig = (
           id: roleId,
         },
       };
+export const globalRoleAuthConfig = (
+  roleId: number | '__filtered__' | undefined,
+  privilege: BasePrivilege
+): AuthorizeConfig | undefined =>
+  roleId === undefined
+    ? undefined
+    : {
+        privilege,
+        subject: {
+          id: roleId,
+        },
+      };
 export const globalOwnershipAuthConfig = (
   privilege: BasePrivilege
 ): AuthorizeConfig | undefined => ({

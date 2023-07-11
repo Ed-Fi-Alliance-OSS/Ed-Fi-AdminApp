@@ -6,6 +6,8 @@ import {
   BsClipboardFill,
   BsFolder,
   BsFolderFill,
+  BsPersonVcard,
+  BsPersonVcardFill,
 } from 'react-icons/bs';
 import { useMatches } from 'react-router-dom';
 import { sbeQueries } from '../api/queries/queries';
@@ -48,6 +50,12 @@ export const GlobalNav = (props: object) => {
       },
     },
     {
+      privilege: 'role:read',
+      subject: {
+        id: '__filtered__',
+      },
+    },
+    {
       privilege: 'sbe:read',
       subject: {
         id: '__filtered__',
@@ -68,6 +76,21 @@ export const GlobalNav = (props: object) => {
         icon: BsBuildings,
         activeIcon: BsBuildingsFill,
         text: 'Tenants',
+      }
+    ),
+    ...arrayElemIf(
+      authorize({
+        queryClient,
+        config: {
+          privilege: 'role:read',
+          subject: { id: '__filtered__' },
+        },
+      }),
+      {
+        route: `/roles`,
+        icon: BsPersonVcard,
+        activeIcon: BsPersonVcardFill,
+        text: 'Roles',
       }
     ),
     ...arrayElemIf(

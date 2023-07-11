@@ -41,7 +41,7 @@ export const RolePage = () => {
       title={role?.displayName || 'Role'}
       actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
     >
-      {role ? edit ? <EditRole /> : <ViewRole /> : null}
+      {role ? edit ? <EditRole /> : <ViewRole role={role} /> : null}
     </PageTemplate>
   );
 };

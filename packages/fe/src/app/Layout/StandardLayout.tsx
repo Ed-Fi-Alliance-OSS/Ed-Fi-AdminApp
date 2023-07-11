@@ -30,7 +30,7 @@ export const StandardLayout = () => {
         <Box p={3} px="calc(4vw + 0.5em)" maxH="100%" h="100%" overflow="auto" flexGrow="1">
           <Flex flexDir="column" minW="35em" h="100%">
             <Breadcrumbs mb={5} />
-            <Box flexGrow={1}>
+            <Box flexGrow={1} pb="2em">
               <Outlet />
             </Box>
           </Flex>

@@ -81,7 +81,7 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
           colorScheme="teal"
           variant="ghost"
           isLoading={isLoading}
-          type="submit"
+          type="reset"
           onClick={goToView}
         >
           Cancel

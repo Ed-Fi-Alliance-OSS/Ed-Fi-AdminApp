@@ -108,6 +108,7 @@ import {
   ArrayUnique,
   IsInstance,
   Allow,
+  isEnum,
 } from 'class-validator';
 import { Exclude, Expose, Type, Transform } from 'class-transformer';
 import { IRole } from '../interfaces/role.interface';
@@ -115,6 +116,7 @@ import { PostDto, DtoPostBase } from '../utils/post-base.dto';
 import { RoleType } from '../enums';
 import { ITenant, IPrivilege } from '../interfaces';
 import { GetPrivilegeDto } from './privilege.dto';
+import { privilegeCodes } from '../types';
 
 export class GetRoleDto extends DtoGetBase implements GetDto<IRole, 'tenant'> {
   @Expose()
@@ -138,27 +140,44 @@ export const toGetRoleDto = makeSerializer(GetRoleDto);
 
 export class PutRoleDto
   extends DtoPutBase
-  implements PutDto<IRole, 'tenant' | 'type' | 'tenantId'>
+  implements PutDto<IRole, 'tenant' | 'type' | 'tenantId' | 'privileges'>
 {
   @Expose()
+  @IsString()
+  @MinLength(3)
   name: string;
+
   @Expose()
+  @IsOptional()
+  @IsString()
   description?: string;
+
   @Expose()
-  @Type(() => GetPrivilegeDto)
-  privileges: IPrivilege[];
+  @IsIn(privilegeCodes, { each: true })
+  privileges: string[];
 }
 
-export class PostRoleDto extends DtoPostBase implements PostDto<IRole, 'tenant'> {
+export class PostRoleDto extends DtoPostBase implements PostDto<IRole, 'tenant' | 'privileges'> {
   @Expose()
-  name: string;
-  @Expose()
-  description?: string;
-  @Expose()
+  @IsOptional()
+  @IsNumber()
   tenantId?: ITenant['id'];
+
   @Expose()
+  @IsEnum(RoleType)
   type: RoleType;
+
   @Expose()
-  @Type(() => GetPrivilegeDto)
-  privileges: IPrivilege[];
+  @IsString()
+  @MinLength(3)
+  name: string;
+
+  @Expose()
+  @IsOptional()
+  @IsString()
+  description?: string;
+
+  @Expose()
+  @IsIn(privilegeCodes, { each: true })
+  privileges: string[];
 }

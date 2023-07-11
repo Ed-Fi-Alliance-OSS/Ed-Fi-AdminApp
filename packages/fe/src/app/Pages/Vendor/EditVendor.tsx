@@ -56,7 +56,7 @@ export const EditVendor = () => {
           colorScheme="teal"
           variant="ghost"
           isLoading={isLoading}
-          type="submit"
+          type="reset"
           onClick={goToView}
         >
           Cancel

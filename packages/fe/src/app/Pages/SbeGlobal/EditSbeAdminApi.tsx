@@ -64,7 +64,7 @@ export const EditSbeAdminApi = (props: { sbe: GetSbeDto }) => {
           colorScheme="teal"
           variant="ghost"
           isLoading={isLoading}
-          type="submit"
+          type="reset"
           onClick={goToView}
         >
           Cancel

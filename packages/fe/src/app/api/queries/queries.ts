@@ -341,7 +341,7 @@ export const privilegeQueries = makeQueries({
   putDto: GetPrivilegeDto,
   postDto: GetPrivilegeDto,
   includeSbe: false,
-  includeTenant: TenantOptions.Required,
+  includeTenant: TenantOptions.Never,
 });
 
 export const roleQueries = makeQueries({

@@ -1,18 +1,9 @@
 import { FormLabel, Grid, Tag, Text } from '@chakra-ui/react';
-import { useParams } from 'react-router-dom';
-import { roleQueries } from '../../api';
+import { GetRoleDto } from '@edanalytics/models';
 
-export const ViewRole = () => {
-  const params = useParams() as {
-    asId: string;
-    roleId: string;
-  };
-  const role = roleQueries.useOne({
-    id: params.roleId,
-    tenantId: params.asId,
-  }).data;
-
-  return role ? (
+export const ViewRole = (props: { role: GetRoleDto }) => {
+  const { role } = props;
+  return (
     <>
       <FormLabel as="p">Description</FormLabel>
       <Text>{role.description ?? '-'}</Text>
@@ -27,5 +18,5 @@ export const ViewRole = () => {
         ))}
       </Grid>
     </>
-  ) : null;
+  );
 };

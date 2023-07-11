@@ -1,19 +1,40 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { GetUserDto, PostRoleDto, PutRoleDto, RoleType } from '@edanalytics/models';
-import { IsNull, Not, Repository } from 'typeorm';
+import { In, IsNull, Not, Repository } from 'typeorm';
 import { throwNotFound } from '../../utils';
-import { Role } from '@edanalytics/models-server';
+import { Privilege, Role } from '@edanalytics/models-server';
+import _ from 'lodash';
 
 @Injectable()
 export class RolesService {
   constructor(
     @InjectRepository(Role)
-    private rolesRepository: Repository<Role>
+    private rolesRepository: Repository<Role>,
+    @InjectRepository(Privilege)
+    private privilegesRepository: Repository<Privilege>
   ) {}
 
-  create(createRoleDto: PostRoleDto) {
-    return this.rolesRepository.save(this.rolesRepository.create(createRoleDto));
+  async create(createRoleDto: PostRoleDto) {
+    const uniqueReqPrivileges = _.uniq(createRoleDto.privileges);
+    const privileges = await this.privilegesRepository.findBy({
+      code: In(createRoleDto.privileges),
+    });
+    if (privileges.length !== uniqueReqPrivileges.length) {
+      throw new BadRequestException('Invalid privileges');
+    }
+    if (createRoleDto.type !== RoleType.UserTenant) {
+      throw new BadRequestException(
+        `Attempting to update invalid role type (${createRoleDto.type})`
+      );
+    }
+    return this.rolesRepository.save({
+      tenantId: createRoleDto.tenantId,
+      type: createRoleDto.type,
+      name: createRoleDto.name,
+      description: createRoleDto.description,
+      privileges: privileges,
+    });
   }
 
   findAll(tenantId: number) {
@@ -48,7 +69,22 @@ export class RolesService {
 
   async update(tenantId: number, id: number, updateRoleDto: PutRoleDto) {
     const old = await this.findOne(tenantId, id);
-    return this.rolesRepository.save({ ...old, ...updateRoleDto });
+    const uniqueReqPrivileges = _.uniq(updateRoleDto.privileges);
+    const newPrivileges = await this.privilegesRepository.findBy({
+      code: In(updateRoleDto.privileges),
+    });
+    if (newPrivileges.length !== uniqueReqPrivileges.length) {
+      throw new BadRequestException('Invalid privileges');
+    }
+    if (old.type !== RoleType.UserTenant) {
+      throw new BadRequestException(`Attempting to update invalid role type (${old.type})`);
+    }
+    return this.rolesRepository.save({
+      ...old,
+      name: updateRoleDto.name,
+      description: updateRoleDto.description,
+      privileges: newPrivileges,
+    });
   }
 
   async remove(tenantId: number, id: number, user: GetUserDto) {

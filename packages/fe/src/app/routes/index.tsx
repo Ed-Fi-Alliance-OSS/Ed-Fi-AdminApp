@@ -53,6 +53,13 @@ import {
 } from './application.routes';
 import { secretRoute } from './secret.routes';
 import { PublicAppLayout } from '../Layout/PublicAppLayout';
+import {
+  rolesGlobalRoute,
+  rolesGlobalIndexRoute,
+  roleGlobalRoute,
+  roleGlobalIndexRoute,
+  roleGlobalCreateRoute,
+} from './role-global.routes';
 export * from './account.routes';
 export * from './application.routes';
 export * from './claimset.routes';
@@ -117,6 +124,12 @@ export const mainLayoutRoute: RouteObject = {
     sbeGlobalCreateRoute,
     sbeGlobalRoute,
     sbeGlobalIndexRoute,
+
+    rolesGlobalRoute,
+    rolesGlobalIndexRoute,
+    roleGlobalCreateRoute,
+    roleGlobalRoute,
+    roleGlobalIndexRoute,
 
     ownershipsGlobalRoute,
     ownershipsGlobalIndexRoute,
