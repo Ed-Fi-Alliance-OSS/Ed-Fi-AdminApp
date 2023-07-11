@@ -8,22 +8,16 @@ import {
 } from '@chakra-ui/react';
 import { GetSbeDto, PutSbeAdminApiRegister } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate } from 'react-router-dom';
-import _ from 'lodash';
 import { useForm } from 'react-hook-form';
+import { useNavigate } from 'react-router-dom';
 import { useSbeRegisterAdminApi } from '../../api';
-import { sbeGlobalRoute } from '../../routes';
 
 const resolver = classValidatorResolver(PutSbeAdminApiRegister);
 
 export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
   const navigate = useNavigate();
   const goToView = () => {
-    navigate({
-      to: sbeGlobalRoute.fullPath,
-      params: (old: any) => old,
-      search: (old: any) => _.omit(old, 'edit'),
-    });
+    navigate(`/sbes/${props.sbe.id}`);
   };
   const putSbe = useSbeRegisterAdminApi(goToView);
   const { sbe } = props;
@@ -41,35 +35,33 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
   });
 
   return sbe ? (
-    <>
-      <form
-        onSubmit={handleSubmit((data) =>
-          putSbe.mutate({
-            ...data,
-          })
-        )}
-      >
-        <FormControl isInvalid={!!errors.adminRegisterUrl}>
-          <FormLabel>Admin API URL</FormLabel>
-          <Input {...register('adminRegisterUrl')} placeholder="URL" />
-          <FormErrorMessage>{errors.adminRegisterUrl?.message}</FormErrorMessage>
-        </FormControl>
-        <ButtonGroup>
-          <Button mt={4} colorScheme="teal" isLoading={isLoading} type="submit">
-            Connect
-          </Button>
-          <Button
-            mt={4}
-            colorScheme="teal"
-            variant="ghost"
-            isLoading={isLoading}
-            type="reset"
-            onClick={goToView}
-          >
-            Cancel
-          </Button>
-        </ButtonGroup>
-      </form>
-    </>
+    <form
+      onSubmit={handleSubmit((data) =>
+        putSbe.mutate({
+          ...data,
+        })
+      )}
+    >
+      <FormControl isInvalid={!!errors.adminRegisterUrl}>
+        <FormLabel>Admin API URL</FormLabel>
+        <Input {...register('adminRegisterUrl')} placeholder="URL" />
+        <FormErrorMessage>{errors.adminRegisterUrl?.message}</FormErrorMessage>
+      </FormControl>
+      <ButtonGroup>
+        <Button mt={4} colorScheme="teal" isLoading={isLoading} type="submit">
+          Connect
+        </Button>
+        <Button
+          mt={4}
+          colorScheme="teal"
+          variant="ghost"
+          isLoading={isLoading}
+          type="reset"
+          onClick={goToView}
+        >
+          Cancel
+        </Button>
+      </ButtonGroup>
+    </form>
   ) : null;
 };

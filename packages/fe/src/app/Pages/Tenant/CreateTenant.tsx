@@ -58,7 +58,7 @@ export const CreateTenant = () => {
               colorScheme="teal"
               variant="ghost"
               isLoading={isLoading}
-              type="submit"
+              type="reset"
               onClick={() => navigate(parentPath)}
             >
               Cancel

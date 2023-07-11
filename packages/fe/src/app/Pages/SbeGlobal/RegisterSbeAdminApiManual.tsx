@@ -8,11 +8,9 @@ import {
 } from '@chakra-ui/react';
 import { GetSbeDto, PutSbeAdminApi } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useNavigate, useParams } from 'react-router-dom';
 import { useForm } from 'react-hook-form';
+import { useNavigate, useParams } from 'react-router-dom';
 import { useSbeEditAdminApi } from '../../api';
-import { sbeGlobalRoute } from '../../routes';
-import _ from 'lodash';
 
 const resolver = classValidatorResolver(PutSbeAdminApi);
 
