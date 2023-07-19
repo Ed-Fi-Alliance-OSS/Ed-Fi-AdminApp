@@ -251,7 +251,7 @@ Resources:
             Version: '2012-10-17'
             Statement:
               - Effect: Allow
-                Action: lambda:InvokeFunctionUrl
+                Action: lambda:InvokeFunction
                 Resource: '*'
   ElasticBeanstalkEC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
