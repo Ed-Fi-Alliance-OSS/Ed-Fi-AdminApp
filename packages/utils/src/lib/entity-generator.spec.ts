@@ -26,12 +26,12 @@ class TestChildOverride extends TestChild {
 describe('entity-generator', () => {
   it('should generate single and multiple', () => {
     const single = generateFake(TestParent);
-    expect(Array.isArray(single)).toEqual(false);
+    expect(Array.isArray(single)).toBe(false);
 
     const multiple = generateFake(TestParent, undefined, 2);
 
-    expect(Array.isArray(multiple)).toEqual(true);
-    expect(multiple.length).toEqual(2);
+    expect(Array.isArray(multiple)).toBe(true);
+    expect(multiple).toHaveLength(2);
   });
   it('should use runtime overrides correctly', () => {
     const single = generateFake(TestParent, () => ({

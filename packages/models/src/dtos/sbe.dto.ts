@@ -2,11 +2,10 @@ import { stdDetailed, stdShort } from '@edanalytics/utils';
 import { Expose, Type } from 'class-transformer';
 import { IsOptional, IsString, MinLength } from 'class-validator';
 import { ISbe, ISbeConfigPrivate, ISbeConfigPublic } from '../interfaces/sbe.interface';
+import { IsArn } from '../utils';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';
-import { IsEdanalyticsUrl } from '../utils/is-edanalytics-url';
 import { makeSerializer } from '../utils/make-serializer';
 import { DtoPostBase, PostDto } from '../utils/post-base.dto';
-import { IsArn } from '../utils';
 export class GetSbeConfigPublic implements ISbeConfigPublic {
   @Expose()
   edfiHostname?: string;
@@ -101,7 +100,6 @@ export class PutSbeAdminApiRegister {
   id: number;
 
   @IsString()
-  @IsEdanalyticsUrl()
   @Expose()
   adminRegisterUrl?: string;
 }

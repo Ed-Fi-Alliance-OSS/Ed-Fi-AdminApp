@@ -1,20 +1,10 @@
 import { FakeMeUsing, generateFake } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 import { Expose, Type } from 'class-transformer';
-import {
-  ArrayMaxSize,
-  ArrayMinSize,
-  IsNumber,
-  IsOptional,
-  IsString,
-  MaxLength,
-  MinLength,
-  ValidateIf,
-} from 'class-validator';
+import { IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
 import { makeSerializer } from '../utils/make-serializer';
-import { IsEdanalyticsUrl } from '../utils/is-edanalytics-url';
 import { GetEdorgDto } from './edorg.dto';
-import { GetSbeConfigPublic, GetSbeDto } from './sbe.dto';
+import { GetSbeConfigPublic } from './sbe.dto';
 
 export class PostVendorDto {
   @Expose()

@@ -1,7 +1,7 @@
 import { Spinner, useBoolean } from '@chakra-ui/react';
 import { useOperationResultDisclosure } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
-import { BiCog, BiData, BiDownload, BiKey, BiPlug, BiTrash } from 'react-icons/bi';
+import { BiCog, BiData, BiDownload, BiKey, BiPlug, BiShieldPlus, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 import { sbeQueries, useSbeCheckConnection, useSbeRefreshResources } from '../../api';
@@ -43,7 +43,7 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
               }}
             >
               <props.children
-                icon={BiKey}
+                icon={BiShieldPlus}
                 text="Grant ownership"
                 title={'Grant ownership of ' + sbe.displayName}
                 to={to}

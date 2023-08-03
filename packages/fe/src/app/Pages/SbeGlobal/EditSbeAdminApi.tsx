@@ -39,7 +39,6 @@ export const EditSbeAdminApi = (props: { sbe: GetSbeDto }) => {
         })
       )}
     >
-      {/* TODO: replace this with real content */}
       <FormControl isInvalid={!!errors.adminUrl}>
         <FormLabel>Admin API URL</FormLabel>
         <Input {...register('adminUrl')} placeholder="URL" />

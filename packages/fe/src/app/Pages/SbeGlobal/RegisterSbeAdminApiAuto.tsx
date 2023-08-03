@@ -11,6 +11,7 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useSbeRegisterAdminApi } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutSbeAdminApiRegister);
 
@@ -27,6 +28,7 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
   };
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors, isLoading },
   } = useForm<PutSbeAdminApiRegister>({
@@ -37,9 +39,12 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
   return sbe ? (
     <form
       onSubmit={handleSubmit((data) =>
-        putSbe.mutate({
-          ...data,
-        })
+        putSbe.mutate(
+          {
+            ...data,
+          },
+          mutationErrCallback(setError)
+        )
       )}
     >
       <FormControl isInvalid={!!errors.adminRegisterUrl}>

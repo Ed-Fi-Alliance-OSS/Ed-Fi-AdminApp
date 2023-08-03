@@ -1,5 +1,5 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
-import { validate, parse } from '@aws-sdk/util-arn-parser';
+import { parse, validate } from '@aws-sdk/util-arn-parser';
 import {
   GetApplicationDto,
   PostApplicationDto,
@@ -11,6 +11,7 @@ import {
   PutVendorDto,
 } from '@edanalytics/models';
 import { Sbe } from '@edanalytics/models-server';
+import { formErrFromValidator } from '@edanalytics/utils';
 import {
   BadRequestException,
   Injectable,
@@ -18,12 +19,14 @@ import {
   Logger,
 } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
+import { ValidationError } from 'class-validator';
 import ClientOAuth2 from 'client-oauth2';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import { throwNotFound } from '../../../utils';
 import { SbesService } from '../sbes.service';
 import { IStartingBlocksService } from './starting-blocks.service.interface';
+import { ValidationException } from '../../../utils/ValidationException';
 /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 
 @Injectable()
@@ -64,8 +67,8 @@ export class StartingBlocksService implements IStartingBlocksService {
   }
 
   async selfRegisterAdminApi(url: string) {
-    const ClientId = crypto.randomBytes(12).toString('base64');
-    const ClientSecret = crypto.randomBytes(36).toString('base64');
+    const ClientId = crypto.randomBytes(12).toString('hex');
+    const ClientSecret = crypto.randomBytes(36).toString('hex');
     const DisplayName = `SBAA ${Number(new Date())}ms`;
     const config = {
       ClientId,
@@ -73,13 +76,23 @@ export class StartingBlocksService implements IStartingBlocksService {
       DisplayName,
     };
 
-    await axios
+    const response = await axios
       .post(`${url.replace(/\/$/, '')}/connect/register`, config, {
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
       })
       .catch((err: AxiosError<any>) => {
         if (err.response?.data?.errors) {
           Logger.warn(JSON.stringify(err.response.data.errors));
+        } else if (err?.code === 'ENOTFOUND') {
+          Logger.warn('Attempted to register Admin API but ENOTFOUND: ' + url);
+          // TODO this should be replaced with a different error handling pattern eventually. Will return failure codes and avoid actual throws until the more outer context-aware scopes.
+          const err = new ValidationError();
+          err.property = 'adminRegisterUrl';
+          err.constraints = {
+            server: 'DNS lookup failed for URL provided.',
+          };
+          err.value = false;
+          throw new ValidationException(formErrFromValidator([err]));
         } else {
           Logger.warn(err);
         }

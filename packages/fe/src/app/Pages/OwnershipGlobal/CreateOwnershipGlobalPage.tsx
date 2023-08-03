@@ -1,5 +1,4 @@
 import {
-  Box,
   Button,
   ButtonGroup,
   FormControl,
@@ -12,8 +11,6 @@ import {
 import { PostOwnershipDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { plainToInstance } from 'class-transformer';
-import _ from 'lodash';
-import { useEffect, useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { ownershipQueries, sbeQueries, tenantQueries } from '../../api';
@@ -31,39 +28,31 @@ import { PageTemplate } from '../PageTemplate';
 
 const resolver = classValidatorResolver(PostOwnershipDto);
 
+const getDefaults = (dict: {
+  sbeId?: string;
+  tenantId?: string;
+  type?: 'ods' | 'edorg' | 'sbe';
+}) => {
+  return {
+    sbeId: 'sbeId' in dict ? Number(dict.sbeId) : undefined,
+    tenantId: 'tenantId' in dict ? Number(dict.tenantId) : undefined,
+    type: 'type' in dict ? dict.type : 'ods',
+  };
+};
+
 export const CreateOwnershipGlobalPage = () => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
   const goToView = (id: string | number) => navigate(`/ownerships/${id}`);
-  const search = useSearchParamsObject() as {
-    sbeId?: string;
-    tenantId?: string;
-    type?: 'ods' | 'edorg' | 'sbe';
-  };
+  const search = useSearchParamsObject(getDefaults);
 
   const tenants = tenantQueries.useAll({});
   const sbes = sbeQueries.useAll({});
 
-  const ownershipFormDefaults = useMemo(() => {
-    const dto = new PostOwnershipDto();
-
-    dto.sbeId =
-      search.sbeId !== undefined && search.sbeId in (sbes.data ?? {})
-        ? Number(search.sbeId)
-        : undefined;
-
-    dto.tenantId =
-      search.tenantId !== undefined && search.tenantId in (tenants.data ?? {})
-        ? Number(search.tenantId)
-        : undefined;
-
-    dto.type = search.type ?? 'ods';
-
-    return dto;
-  }, [
-    search.tenantId !== undefined && search.tenantId in (tenants.data ?? {}),
-    search.sbeId !== undefined && search.sbeId in (sbes.data ?? {}),
-  ]);
+  const ownershipFormDefaults: Partial<PostOwnershipDto> = Object.assign(
+    new PostOwnershipDto(),
+    search
+  );
 
   const postOwnership = ownershipQueries.usePost({
     callback: (result) => {
@@ -76,20 +65,11 @@ export const CreateOwnershipGlobalPage = () => {
     control,
     setValue,
     watch,
-    reset,
     setError,
   } = useForm({
     resolver,
     defaultValues: ownershipFormDefaults,
   });
-
-  useEffect(() => {
-    reset((values) => _.defaults(values, { tenantId: ownershipFormDefaults.tenantId }));
-  }, [ownershipFormDefaults.tenantId]);
-
-  useEffect(() => {
-    reset((values) => _.defaults(values, { sbeId: ownershipFormDefaults.sbeId }));
-  }, [ownershipFormDefaults.sbeId]);
 
   const [sbeId, type] = watch(['sbeId', 'type']);
 
