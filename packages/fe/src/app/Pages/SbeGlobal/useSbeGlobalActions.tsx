@@ -4,7 +4,12 @@ import { GetSbeDto } from '@edanalytics/models';
 import { BiCog, BiData, BiDownload, BiKey, BiPlug, BiShieldPlus, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
-import { sbeQueries, useSbeCheckConnection, useSbeRefreshResources } from '../../api';
+import {
+  sbeQueries,
+  useSbeCheckAdminAPI,
+  useSbeCheckSbMeta,
+  useSbeRefreshResources,
+} from '../../api';
 import { AuthorizeComponent } from '../../helpers';
 import {
   ActionProps,
@@ -13,9 +18,12 @@ import {
   LinkActionProps,
 } from '../../helpers/ActionsType';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => {
-  const checkConnection = useSbeCheckConnection();
+  const checkAdminApi = useSbeCheckAdminAPI();
+  const checkSbMeta = useSbeCheckSbMeta();
   const [checkLoading, setCheckLoading] = useBoolean(false);
 
   const refreshResources = useSbeRefreshResources();
@@ -26,6 +34,8 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
   const edit = 'edit' in searchParams ? searchParams.edit : undefined;
   const syncDisclosure = useOperationResultDisclosure();
   const connectionCheckDisclosure = useOperationResultDisclosure();
+
+  const popBanner = usePopBanner();
 
   const navigate = useNavigate();
   return sbe === undefined
@@ -91,9 +101,16 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                   title="Check connection to Starting Blocks and Ed-Fi Admin API"
                   onClick={async () => {
                     setCheckLoading.on();
-                    const result = await checkConnection.mutateAsync(sbe);
-                    connectionCheckDisclosure.disclose(result);
-                    setCheckLoading.off();
+                    Promise.all([
+                      checkAdminApi.mutateAsync(sbe, {
+                        onSuccess: (res) => popBanner(res),
+                        ...mutationErrCallback({ popBanner }),
+                      }),
+                      checkSbMeta.mutateAsync(sbe, {
+                        onSuccess: (res) => popBanner(res),
+                        ...mutationErrCallback({ popBanner }),
+                      }),
+                    ]).finally(() => setCheckLoading.off());
                   }}
                 />
               </AuthorizeComponent>
@@ -118,10 +135,7 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                   title="Sync ODSs and Ed-Orgs from Starting Blocks to SBAA."
                   onClick={async () => {
                     setRefreshLoading.on();
-                    const result = await refreshResources.mutateAsync(sbe);
-                    syncDisclosure.disclose(result);
-                    // TODO eventually improve things so it doesn't always return 200 even when refresh fails. Maybe. TBD.
-                    setRefreshLoading.off();
+                    await refreshResources.mutateAsync(sbe).finally(() => setRefreshLoading.off());
                   }}
                 />
               </AuthorizeComponent>

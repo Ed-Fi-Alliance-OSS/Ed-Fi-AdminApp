@@ -53,7 +53,9 @@ export const ApplicationPageContent = () => {
     sbeId: params.sbeId,
     tenantId: params.asId,
   }).data;
-  const { edit } = useSearchParamsObject();
+  const { edit } = useSearchParamsObject((value) => ({
+    edit: 'edit' in value && value.edit === 'true',
+  }));
 
   return application ? (
     edit ? (

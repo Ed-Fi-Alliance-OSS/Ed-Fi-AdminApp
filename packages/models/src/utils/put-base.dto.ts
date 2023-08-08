@@ -8,7 +8,8 @@ type DtoWriteOmit =
   | 'deletedById'
   | 'created'
   | 'modified'
-  | 'deleted';
+  | 'deleted'
+  | 'displayName';
 export type PutDto<EntityInterface extends object, ExcludeProperties extends string = never> = Omit<
   EntityInterface,
   DtoWriteOmit | ExcludeProperties

@@ -10,7 +10,8 @@ type DtoCreateOmit =
   | 'deletedById'
   | 'created'
   | 'modified'
-  | 'deleted';
+  | 'deleted'
+  | 'displayName';
 
 /**
  * Type helper to create an interface typing for a Post DTO by omitting specific properties from the main entity interface.

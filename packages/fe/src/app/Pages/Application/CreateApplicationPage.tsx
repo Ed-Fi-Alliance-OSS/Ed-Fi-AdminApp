@@ -67,12 +67,12 @@ export const CreateApplicationPage = () => {
         }}
       >
         <ModalOverlay />
-        <ModalContent>
-          <ModalHeader>Success!</ModalHeader>
+        <ModalContent borderTop="10px solid" borderColor="green.300">
+          <ModalHeader>Application registered</ModalHeader>
           <ModalCloseButton />
           <ModalBody>
             <Text as="b">Use this link to see your new credentials: </Text>
-            <Link href={clipboard.value} color="blue.600">
+            <Link href={clipboard.value} color="blue.500">
               {clipboard.value}
             </Link>
             <Text my={5} as="p" fontStyle="italic">

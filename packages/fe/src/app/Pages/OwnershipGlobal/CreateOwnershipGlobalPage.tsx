@@ -96,7 +96,7 @@ export const CreateOwnershipGlobalPage = () => {
           if (type !== 'sbe') {
             body.sbeId = undefined;
           }
-          postOwnership.mutate(body, mutationErrCallback(setError));
+          postOwnership.mutate(body, mutationErrCallback({ setError }));
         })}
       >
         <FormControl isInvalid={!!errors.hasResource && (sbeId === undefined || type === 'sbe')}>

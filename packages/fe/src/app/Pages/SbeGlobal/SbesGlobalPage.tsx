@@ -3,11 +3,11 @@ import { DataTable } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import _ from 'lodash';
-import { sbeQueries } from '../../api';
+import { sbeQueries, userQueries } from '../../api';
 import { ActionBarActions } from '../../helpers';
 import { TableRowActions } from '../../helpers/TableRowActions';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
-import { SbeGlobalLink, UserLink } from '../../routes';
+import { SbeGlobalLink, UserGlobalLink } from '../../routes';
 import { PageTemplate } from '../PageTemplate';
 import { useSbeGlobalActions } from './useSbeGlobalActions';
 import { useSbesGlobalActions } from './useSbesGlobalActions';
@@ -25,7 +25,7 @@ const SbesNameCell = (info: CellContext<GetSbeDto, unknown>) => {
 
 export const SbesGlobalPage = () => {
   const sbes = sbeQueries.useAll({});
-  const users = { data: undefined } as any; // userQueries.useAll({  }); //TODO add users into global scope as well
+  const users = userQueries.useAll({ optional: true });
   const actions = useSbesGlobalActions();
   return (
     <PageTemplate
@@ -44,7 +44,7 @@ export const SbesGlobalPage = () => {
             id: 'modifiedBy',
             accessorFn: (info) => getRelationDisplayName(info.modifiedById, users),
             header: () => 'Modified by',
-            cell: (info) => <UserLink query={users} id={info.row.original.modifiedById} />,
+            cell: (info) => <UserGlobalLink query={users} id={info.row.original.modifiedById} />,
           },
           {
             accessorKey: 'createdDetailed',
@@ -54,7 +54,7 @@ export const SbesGlobalPage = () => {
             id: 'createdBy',
             accessorFn: (info) => getRelationDisplayName(info.createdById, users),
             header: () => 'Created by',
-            cell: (info) => <UserLink query={users} id={info.row.original.createdById} />,
+            cell: (info) => <UserGlobalLink query={users} id={info.row.original.createdById} />,
           },
         ]}
       />

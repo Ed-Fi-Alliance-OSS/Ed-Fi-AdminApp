@@ -69,4 +69,8 @@ export class Sbe extends EntityBase implements ISbe {
     },
   })
   configPrivate: ISbeConfigPrivate | null;
+
+  get displayName() {
+    return this.envLabel;
+  }
 }

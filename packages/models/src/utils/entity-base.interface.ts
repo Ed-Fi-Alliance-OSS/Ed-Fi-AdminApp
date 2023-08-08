@@ -11,4 +11,6 @@ export interface IEntityBase {
   created: Date;
   modified?: Date;
   deleted?: Date;
+
+  displayName: string;
 }

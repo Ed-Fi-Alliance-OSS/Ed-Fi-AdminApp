@@ -36,4 +36,30 @@ export const formErrFromValidator = (
   }, parsedErrors);
 };
 
-export const VALIDATION_ERR_TYPE = 'ValidationError';
+export const VALIDATION_RESP_TYPE = 'ValidationError';
+export const WORKFLOW_FAILURE_RESP_TYPE = 'WorkflowFailure';
+
+export enum OperationResult {
+  success,
+  failure,
+}
+
+export enum StatusType {
+  success,
+  info,
+  warning,
+  error,
+}
+
+export interface IWorkflowStatus {
+  item: string;
+  message: string;
+  status: OperationResult;
+}
+
+export interface IWorkflowFailureErrors {
+  title: string;
+  status: StatusType;
+  message?: string;
+  regarding?: string;
+}

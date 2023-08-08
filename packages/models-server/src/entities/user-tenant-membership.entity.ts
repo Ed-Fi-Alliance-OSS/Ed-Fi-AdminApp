@@ -16,4 +16,8 @@ export class UserTenantMembership extends EntityBase implements IUserTenantMembe
   role?: IRole;
   @Column({ nullable: true })
   roleId?: IRole['id'];
+
+  get displayName() {
+    return String(this.id);
+  }
 }

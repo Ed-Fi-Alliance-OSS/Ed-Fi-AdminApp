@@ -12,7 +12,7 @@ import * as expressSession from 'express-session';
 import passport from 'passport';
 import { Client } from 'pg';
 import { AppModule } from './app/app.module';
-import { ValidationException } from './utils/ValidationException';
+import { ValidationException } from './utils/customExceptions';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);

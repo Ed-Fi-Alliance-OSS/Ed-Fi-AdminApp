@@ -10,12 +10,21 @@ import {
   SbMetaOds,
   toOperationResultDto,
 } from '@edanalytics/models';
-import { Edorg, Ods, Ownership, Sbe, addUserCreating } from '@edanalytics/models-server';
-import { Injectable, Logger } from '@nestjs/common';
+import { Edorg, Ods, Ownership, Sbe, addUserCreating, regarding } from '@edanalytics/models-server';
+import {
+  Injectable,
+  InternalServerErrorException,
+  Logger,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { DeepPartial, EntityManager, In, Repository } from 'typeorm';
 import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
+import { ValidationError } from 'class-validator';
+import { ValidationException, WorkflowFailureException } from '../utils/customExceptions';
+import { StatusType, formErrFromValidator } from '@edanalytics/utils';
+import { throwNotFound } from '../utils';
 
 @Injectable()
 export class SbesGlobalService {
@@ -70,24 +79,33 @@ export class SbesGlobalService {
     });
   }
 
-  async selfRegisterAdminApi(id: number, updateDto: PutSbeAdminApiRegister) {
-    const old = await this.findOne(id);
-    const creds = await this.sbService.selfRegisterAdminApi(updateDto.adminRegisterUrl);
+  async selfRegisterAdminApi(sbe: Sbe, updateDto: PutSbeAdminApiRegister) {
+    const registrationResult = await this.sbService.selfRegisterAdminApi(
+      updateDto.adminRegisterUrl
+    );
 
-    return this.sbesRepository.save({
-      ...old,
-      modifiedById: updateDto.modifiedById,
-      configPublic: {
-        ...old.configPublic,
-        adminApiKey: creds.ClientId,
-        adminApiUrl: updateDto.adminRegisterUrl,
-        adminApiClientDisplayName: creds.DisplayName,
-      },
-      configPrivate: {
-        ...old.configPrivate,
-        adminApiSecret: creds.ClientSecret,
-      },
-    });
+    if (registrationResult.status === 'SUCCESS') {
+      const { credentials } = registrationResult;
+      return {
+        status: registrationResult.status,
+        result: await this.sbesRepository.save({
+          ...sbe,
+          modifiedById: updateDto.modifiedById,
+          configPublic: {
+            ...sbe.configPublic,
+            adminApiKey: credentials.ClientId,
+            adminApiUrl: updateDto.adminRegisterUrl,
+            adminApiClientDisplayName: credentials.DisplayName,
+          },
+          configPrivate: {
+            ...sbe.configPrivate,
+            adminApiSecret: credentials.ClientSecret,
+          },
+        }),
+      };
+    } else {
+      return registrationResult;
+    }
   }
 
   async remove(id: number, user: GetUserDto) {
@@ -99,29 +117,52 @@ export class SbesGlobalService {
     return undefined;
   }
 
-  async checkConnections(sbeId: number) {
-    let adminApi = true;
-    let sbMeta = true;
+  async checkSbMeta(sbeId: number) {
+    const sbe = await this.findOne(sbeId).catch(throwNotFound);
+    const sbMetaResult = await this.sbService.getSbMeta(sbeId);
+    const sbMeta = sbMetaResult.status === 'SUCCESS';
 
-    const sbe = await this.findOne(sbeId);
-    const messages = [];
-    try {
-      await this.sbService.logIntoAdminApi(sbe);
-    } catch (err) {
-      if (err?.message) {
-        messages.push(`Admin API: ${err.message}`);
-      }
-      adminApi = false;
+    await this.sbesRepository.save({
+      ...sbe,
+      configPublic: {
+        ...sbe.configPublic,
+        ...(sbMeta
+          ? {
+              lastSuccessfulConnectionSbMeta: new Date(),
+            }
+          : {
+              lastFailedConnectionSbMeta: new Date(),
+            }),
+      },
+    });
+
+    if (sbMeta) {
+      return toOperationResultDto({
+        title: 'SB Metadata connection successful.',
+        status: StatusType.success,
+        regarding: regarding(sbe),
+      });
     }
 
-    try {
-      await this.sbService.getSbMeta(sbeId);
-    } catch (err) {
-      if (err?.message) {
-        messages.push(`SB Meta: ${err.message}`);
-      }
-      sbMeta = false;
-    }
+    const sbMetaMsg =
+      sbMetaResult.status === 'INVALID_ARN'
+        ? 'Invalid ARN provided for metadata function.'
+        : sbMetaResult.error
+        ? sbMetaResult.error
+        : undefined;
+
+    throw new WorkflowFailureException({
+      title: 'SB Metadata connection unsuccessful.',
+      status: StatusType.error,
+      message: sbMetaMsg,
+      regarding: regarding(sbe),
+    });
+  }
+
+  async checkAdminAPI(sbeId: number) {
+    const sbe = await this.findOne(sbeId).catch(throwNotFound);
+    const loginResult = await this.sbService.logIntoAdminApi(sbe);
+    const adminApi = loginResult.status === 'SUCCESS';
 
     await this.sbesRepository.save({
       ...sbe,
@@ -134,243 +175,249 @@ export class SbesGlobalService {
           : {
               lastFailedConnectionAdminApi: new Date(),
             }),
-        ...(sbMeta
-          ? {
-              lastSuccessfulConnectionSbMeta: new Date(),
-            }
-          : {
-              lastFailedConnectionSbMeta: new Date(),
-            }),
       },
     });
 
-    return toOperationResultDto({
-      title:
-        adminApi && sbMeta
-          ? 'Connections successsful'
-          : adminApi
-          ? 'SB Meta failed'
-          : sbMeta
-          ? 'Admin API failed'
-          : 'Connections unsuccessful',
-      id: sbeId,
-      statuses: [
-        { name: 'SB Meta', success: sbMeta },
-        { name: 'Admin API', success: adminApi },
-      ],
-      messages,
+    if (adminApi) {
+      return toOperationResultDto({
+        title: 'Admin API connection successful.',
+        status: StatusType.success,
+        regarding: regarding(sbe),
+      });
+    }
+
+    const adminApiMsg =
+      loginResult.status === 'INVALID_ADMIN_API_URL'
+        ? 'Invalid URL.'
+        : loginResult.status === 'NO_ADMIN_API_URL'
+        ? 'No URL provided.'
+        : loginResult.status === 'LOGIN_FAILED'
+        ? 'Unknown failure.'
+        : undefined;
+
+    throw new WorkflowFailureException({
+      title: 'Admin API connection unsuccessful.',
+      status: StatusType.error,
+      message: adminApiMsg,
+      regarding: regarding(sbe),
     });
   }
 
   async refreshResources(sbeId: number, user: GetUserDto): Promise<OperationResultDto> {
-    const messages = [];
-    let retrieved = false;
-    let synced = false;
+    type SbMetaEdorgFlat = SbMetaEdorg & {
+      dbname: SbMetaOds['dbname'];
+      parent?: SbMetaEdorg['educationorganizationid'];
+    };
+    const sbOdss: SbMetaOds[] = [];
+    const sbEdorgs: SbMetaEdorgFlat[] = [];
+    let sbe: Sbe;
 
     try {
-      type SbMetaEdorgFlat = SbMetaEdorg & {
-        dbname: SbMetaOds['dbname'];
-        parent?: SbMetaEdorg['educationorganizationid'];
-      };
-      const sbOdss: SbMetaOds[] = [];
-      const sbEdorgs: SbMetaEdorgFlat[] = [];
-      const sbe = await this.findOne(sbeId);
-
-      const sbMeta = await this.sbService.getSbMeta(sbeId);
-      retrieved = true;
-      try {
-        sbOdss.push(...(sbMeta.odss ?? []));
-        sbMeta.odss?.forEach((ods) => {
-          const pushEdOrgs = (
-            edorg: SbMetaEdorg,
-            parent?: SbMetaEdorg['educationorganizationid']
-          ) => {
-            const edorgFlat = {
-              ...edorg,
-              dbname: ods.dbname,
-              parent,
-            };
-            sbEdorgs.push(edorgFlat);
-            edorg.edorgs?.forEach((childEdorg) =>
-              pushEdOrgs(childEdorg, edorgFlat.educationorganizationid)
-            );
-          };
-          ods.edorgs?.forEach((edorg) => pushEdOrgs(edorg));
-        });
-
-        await this.entityManager
-          .transaction(async (em) => {
-            const odsRepo = em.getRepository(Ods);
-            const edorgRepo = em.getRepository(Edorg);
-
-            const existingOdss = await odsRepo.find({
-              where: {
-                sbeId,
-              },
-            });
-
-            const resourceIdsToDelete = new Set(existingOdss.map((o) => o.id));
-
-            /**
-             * get ods ID given ods dbname
-             */
-            const odsMap = Object.fromEntries(existingOdss.map((o) => [o.dbName, o]));
-            const newOdsResources = sbOdss.flatMap((sbOds) => {
-              if (sbOds.dbname in odsMap) {
-                resourceIdsToDelete.delete(odsMap[sbOds.dbname].id);
-                return [];
-              } else {
-                return [
-                  addUserCreating(
-                    odsRepo.create({
-                      sbeId,
-                      dbName: sbOds.dbname,
-                    }),
-                    user
-                  ),
-                ];
-              }
-            });
-
-            (await odsRepo.save(newOdsResources)).forEach((ods) => {
-              odsMap[ods.dbName] = ods;
-            });
-
-            // await resourceRepo.remove(
-            //   await resourceRepo.find({
-            //     where: {
-            //       id: In([...resourceIdsToDelete]),
-            //     },
-            //   })
-            // );
-
-            const existingEdorgs = await edorgRepo.find({
-              where: {
-                sbeId,
-              },
-            });
-
-            /**
-             * get edorg ID given ods ID and edorg educationorganizationid
-             */
-            const odsEdorgMap = Object.fromEntries(
-              Object.values(odsMap).map((ods) => [ods.id, new Map<number, Edorg>()])
-            );
-
-            existingEdorgs.forEach((edorg) => {
-              odsEdorgMap[edorg.odsId].set(edorg.educationOrganizationId, edorg);
-            });
-            const edorgsToSave: DeepPartial<Edorg>[] = [];
-
-            sbEdorgs.map((sbeEdorg) => {
-              const partialEdorgEntity: Partial<Edorg> = {
-                sbeId,
-                odsId: odsMap[sbeEdorg.dbname].id,
-                odsDbName: sbeEdorg.dbname,
-                // parentId: odsEdorgMap[odsMap[sbeEdorg.dbname]].get(String(sbeEdorg.educationorganizationid))?.id,
-                educationOrganizationId: sbeEdorg.educationorganizationid,
-                discriminator: sbeEdorg.discriminator,
-                nameOfInstitution: sbeEdorg.nameofinstitution,
-                shortNameOfInstitution: sbeEdorg.shortnameofinstitution,
-              };
-              if (
-                !odsEdorgMap[partialEdorgEntity.odsId]?.has(
-                  partialEdorgEntity.educationOrganizationId
-                )
-              ) {
-                edorgsToSave.push(addUserCreating(partialEdorgEntity, user));
-              }
-            });
-            const newEdorgs = await edorgRepo.save(
-              edorgsToSave.map((edorg) => addUserCreating(edorg, user))
-            );
-
-            newEdorgs.forEach((edorg) => {
-              odsEdorgMap[edorg.odsId].set(edorg.educationOrganizationId, edorg);
-            });
-
-            const edorgResourceIdsToDelete: Set<number> = new Set(existingEdorgs.map((e) => e.id));
-            const edorgsToUpdate: Edorg[] = [];
-
-            sbEdorgs.forEach((sbEdorg) => {
-              const existing = odsEdorgMap[odsMap[sbEdorg.dbname].id].get(
-                sbEdorg.educationorganizationid
-              );
-              const parent: Edorg | undefined = odsEdorgMap[odsMap[sbEdorg.dbname].id].get(
-                sbEdorg.parent
-              );
-              const correctValues: DeepPartial<Edorg> = {
-                ...(parent ? { parent } : {}),
-                discriminator: sbEdorg.discriminator,
-                nameOfInstitution: sbEdorg.nameofinstitution,
-                shortNameOfInstitution: sbEdorg.shortnameofinstitution,
-              };
-              if (!_.isMatch(existing, correctValues)) {
-                existing.discriminator = correctValues.discriminator;
-                existing.nameOfInstitution = correctValues.nameOfInstitution;
-                existing.shortNameOfInstitution = correctValues.shortNameOfInstitution;
-                if (correctValues.parent) {
-                  existing.parent = parent;
-                }
-                edorgsToUpdate.push(existing);
-              }
-              edorgResourceIdsToDelete.delete(existing.id);
-            });
-
-            await edorgRepo.save(edorgsToUpdate);
-            await edorgRepo.remove(
-              await edorgRepo.find({
-                where: {
-                  id: In([...edorgResourceIdsToDelete]),
-                },
-              })
-            );
-            await this.sbesRepository.save({
-              ...sbe,
-              envLabel: sbMeta.envlabel,
-              configPublic: {
-                ...sbe.configPublic,
-                lastSuccessfulPull: new Date(),
-                edfiHostname: sbMeta.domainName,
-              },
-            });
-            messages.push(`Edorgs: ${sbEdorgs.length}`);
-            messages.push(`ODS's: ${sbOdss.length}`);
-            synced = true;
-          })
-          .catch(async (err) => {
-            // Log the failure on the Sbe entity...
-            await this.sbesRepository.save({
-              ...sbe,
-              configPublic: {
-                ...sbe.configPublic,
-                lastFailedPull: new Date(),
-              },
-            });
-            // ...but then continue the Exception
-            throw err;
-          });
-      } catch (TransformationErr) {
-        Logger.log(TransformationErr);
-        if (TransformationErr.message) {
-          messages.push(`Sync operation: ${TransformationErr.message}`);
-        }
-      }
-    } catch (SbMetaErr) {
-      Logger.log(SbMetaErr);
-      if (SbMetaErr.message) {
-        messages.push(`SB Meta: ${SbMetaErr.message}`);
-      }
+      sbe = await this.findOne(sbeId);
+    } catch (notFound) {
+      throw new NotFoundException();
     }
 
-    return toOperationResultDto({
-      title: `Sync ${synced && retrieved ? 'succeded.' : 'failed.'}`,
-      id: sbeId,
-      messages,
-      statuses: [
-        { name: 'Sync', success: synced },
-        { name: 'Retrieval', success: retrieved },
-      ],
-    });
+    const sbMeta = await this.sbService.getSbMeta(sbeId);
+    if (sbMeta.status === 'INVALID_ARN') {
+      throw new WorkflowFailureException({
+        status: StatusType.error,
+        title: 'Metadata retrieval failed.',
+        message: 'Invalid ARN for metadata lambda function.',
+        regarding: regarding(sbe),
+      });
+    }
+    if (sbMeta.status === 'FAILURE') {
+      throw new WorkflowFailureException({
+        status: StatusType.error,
+        title: 'Matadata retrieval failed.',
+        message: sbMeta.error,
+        regarding: regarding(sbe),
+      });
+    }
+    const sbMetaValue = sbMeta.data;
+    try {
+      sbOdss.push(...(sbMetaValue.odss ?? []));
+      sbMetaValue.odss?.forEach((ods) => {
+        const pushEdOrgs = (
+          edorg: SbMetaEdorg,
+          parent?: SbMetaEdorg['educationorganizationid']
+        ) => {
+          const edorgFlat = {
+            ...edorg,
+            dbname: ods.dbname,
+            parent,
+          };
+          sbEdorgs.push(edorgFlat);
+          edorg.edorgs?.forEach((childEdorg) =>
+            pushEdOrgs(childEdorg, edorgFlat.educationorganizationid)
+          );
+        };
+        ods.edorgs?.forEach((edorg) => pushEdOrgs(edorg));
+      });
+
+      return await this.entityManager
+        .transaction(async (em) => {
+          const odsRepo = em.getRepository(Ods);
+          const edorgRepo = em.getRepository(Edorg);
+
+          const existingOdss = await odsRepo.find({
+            where: {
+              sbeId,
+            },
+          });
+
+          const resourceIdsToDelete = new Set(existingOdss.map((o) => o.id));
+
+          /**
+           * get ods ID given ods dbname
+           */
+          const odsMap = Object.fromEntries(existingOdss.map((o) => [o.dbName, o]));
+          const newOdsResources = sbOdss.flatMap((sbOds) => {
+            if (sbOds.dbname in odsMap) {
+              resourceIdsToDelete.delete(odsMap[sbOds.dbname].id);
+              return [];
+            } else {
+              return [
+                addUserCreating(
+                  odsRepo.create({
+                    sbeId,
+                    dbName: sbOds.dbname,
+                  }),
+                  user
+                ),
+              ];
+            }
+          });
+
+          (await odsRepo.save(newOdsResources)).forEach((ods) => {
+            odsMap[ods.dbName] = ods;
+          });
+
+          // await resourceRepo.remove(
+          //   await resourceRepo.find({
+          //     where: {
+          //       id: In([...resourceIdsToDelete]),
+          //     },
+          //   })
+          // );
+
+          const existingEdorgs = await edorgRepo.find({
+            where: {
+              sbeId,
+            },
+          });
+
+          /**
+           * get edorg ID given ods ID and edorg educationorganizationid
+           */
+          const odsEdorgMap = Object.fromEntries(
+            Object.values(odsMap).map((ods) => [ods.id, new Map<number, Edorg>()])
+          );
+
+          existingEdorgs.forEach((edorg) => {
+            odsEdorgMap[edorg.odsId].set(edorg.educationOrganizationId, edorg);
+          });
+          const edorgsToSave: DeepPartial<Edorg>[] = [];
+
+          sbEdorgs.map((sbeEdorg) => {
+            const partialEdorgEntity: Partial<Edorg> = {
+              sbeId,
+              odsId: odsMap[sbeEdorg.dbname].id,
+              odsDbName: sbeEdorg.dbname,
+              // parentId: odsEdorgMap[odsMap[sbeEdorg.dbname]].get(String(sbeEdorg.educationorganizationid))?.id,
+              educationOrganizationId: sbeEdorg.educationorganizationid,
+              discriminator: sbeEdorg.discriminator,
+              nameOfInstitution: sbeEdorg.nameofinstitution,
+              shortNameOfInstitution: sbeEdorg.shortnameofinstitution,
+            };
+            if (
+              !odsEdorgMap[partialEdorgEntity.odsId]?.has(
+                partialEdorgEntity.educationOrganizationId
+              )
+            ) {
+              edorgsToSave.push(addUserCreating(partialEdorgEntity, user));
+            }
+          });
+          const newEdorgs = await edorgRepo.save(
+            edorgsToSave.map((edorg) => addUserCreating(edorg, user))
+          );
+
+          newEdorgs.forEach((edorg) => {
+            odsEdorgMap[edorg.odsId].set(edorg.educationOrganizationId, edorg);
+          });
+
+          const edorgResourceIdsToDelete: Set<number> = new Set(existingEdorgs.map((e) => e.id));
+          const edorgsToUpdate: Edorg[] = [];
+
+          sbEdorgs.forEach((sbEdorg) => {
+            const existing = odsEdorgMap[odsMap[sbEdorg.dbname].id].get(
+              sbEdorg.educationorganizationid
+            );
+            const parent: Edorg | undefined = odsEdorgMap[odsMap[sbEdorg.dbname].id].get(
+              sbEdorg.parent
+            );
+            const correctValues: DeepPartial<Edorg> = {
+              ...(parent ? { parent } : {}),
+              discriminator: sbEdorg.discriminator,
+              nameOfInstitution: sbEdorg.nameofinstitution,
+              shortNameOfInstitution: sbEdorg.shortnameofinstitution,
+            };
+            if (!_.isMatch(existing, correctValues)) {
+              existing.discriminator = correctValues.discriminator;
+              existing.nameOfInstitution = correctValues.nameOfInstitution;
+              existing.shortNameOfInstitution = correctValues.shortNameOfInstitution;
+              if (correctValues.parent) {
+                existing.parent = parent;
+              }
+              edorgsToUpdate.push(existing);
+            }
+            edorgResourceIdsToDelete.delete(existing.id);
+          });
+
+          await edorgRepo.save(edorgsToUpdate);
+          await edorgRepo.remove(
+            await edorgRepo.find({
+              where: {
+                id: In([...edorgResourceIdsToDelete]),
+              },
+            })
+          );
+          await this.sbesRepository.save({
+            ...sbe,
+            envLabel: sbMetaValue.envlabel,
+            configPublic: {
+              ...sbe.configPublic,
+              lastSuccessfulPull: new Date(),
+              edfiHostname: sbMetaValue.domainName,
+            },
+          });
+          return toOperationResultDto({
+            title: `Sync succeeded`,
+            status: StatusType.success,
+            message: `${sbEdorgs.length} total Ed-Orgs, ${sbOdss.length} total ODS's.`,
+            regarding: regarding(sbe),
+          });
+        })
+        .catch(async (err) => {
+          // Log the failure on the Sbe entity...
+          await this.sbesRepository.save({
+            ...sbe,
+            configPublic: {
+              ...sbe.configPublic,
+              lastFailedPull: new Date(),
+            },
+          });
+          // ...but then continue the Exception
+          throw err;
+        });
+    } catch (TransformationErr) {
+      Logger.log(TransformationErr);
+      throw new WorkflowFailureException({
+        status: StatusType.error,
+        title: 'Unexpected error in transformation and sync.',
+        regarding: regarding(sbe),
+      });
+    }
   }
 }

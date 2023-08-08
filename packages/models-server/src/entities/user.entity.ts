@@ -60,10 +60,6 @@ export class User implements IUser {
   @Column({ nullable: true })
   familyName: string | null;
 
-  get fullName() {
-    return this.givenName + ' ' + this.familyName;
-  }
-
   @ManyToOne('Role', { nullable: true })
   role?: IRole;
 
@@ -82,4 +78,17 @@ export class User implements IUser {
 
   @Column({ type: 'simple-json', nullable: true })
   config?: IUserConfig;
+
+  get fullName() {
+    return typeof this.givenName === 'string' &&
+      typeof this.familyName === 'string' &&
+      this.givenName !== '' &&
+      this.familyName !== ''
+      ? this.givenName + ' ' + this.familyName
+      : this.username;
+  }
+
+  get displayName() {
+    return this.fullName;
+  }
 }

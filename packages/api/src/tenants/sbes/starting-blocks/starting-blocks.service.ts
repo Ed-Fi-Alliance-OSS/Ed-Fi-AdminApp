@@ -1,4 +1,4 @@
-import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
+import { InvokeCommand, LambdaClient, LambdaServiceException } from '@aws-sdk/client-lambda';
 import { parse, validate } from '@aws-sdk/util-arn-parser';
 import {
   GetApplicationDto,
@@ -9,28 +9,20 @@ import {
   PutApplicationDto,
   PutClaimsetDto,
   PutVendorDto,
+  SbMetaEnv,
 } from '@edanalytics/models';
 import { Sbe } from '@edanalytics/models-server';
-import { formErrFromValidator } from '@edanalytics/utils';
-import {
-  BadRequestException,
-  Injectable,
-  InternalServerErrorException,
-  Logger,
-} from '@nestjs/common';
+import { BadRequestException, Injectable, Logger } from '@nestjs/common';
 import axios, { AxiosError } from 'axios';
-import { ValidationError } from 'class-validator';
 import ClientOAuth2 from 'client-oauth2';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import { throwNotFound } from '../../../utils';
 import { SbesService } from '../sbes.service';
-import { IStartingBlocksService } from './starting-blocks.service.interface';
-import { ValidationException } from '../../../utils/ValidationException';
 /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 
 @Injectable()
-export class StartingBlocksService implements IStartingBlocksService {
+export class StartingBlocksService {
   adminApiTokens: NodeCache;
 
   constructor(private readonly sbesService: SbesService) {
@@ -39,14 +31,18 @@ export class StartingBlocksService implements IStartingBlocksService {
 
   async logIntoAdminApi(sbe: Sbe) {
     if (typeof sbe.configPublic.adminApiUrl !== 'string') {
-      throw new Error('No Admin API URL configured.');
+      return {
+        status: 'NO_ADMIN_API_URL' as const,
+      };
     }
     const url = `${sbe.configPublic.adminApiUrl.replace(/\/$/, '')}/connect/token`;
     try {
       new URL(url);
     } catch (InvalidUrl) {
       Logger.log(InvalidUrl);
-      throw new Error('Invalid URL');
+      return {
+        status: 'INVALID_ADMIN_API_URL' as const,
+      };
     }
     const AdminApiAuth = new ClientOAuth2({
       clientId: sbe.configPublic.adminApiKey,
@@ -55,50 +51,61 @@ export class StartingBlocksService implements IStartingBlocksService {
       scopes: ['edfi_admin_api/full_access'],
     });
 
-    await AdminApiAuth.credentials
-      .getToken()
-      .then((v) => {
+    try {
+      await AdminApiAuth.credentials.getToken().then((v) => {
         this.adminApiTokens.set(sbe.id, v.accessToken, Number(v.data.expires_in) - 60);
-      })
-      .catch((err) => {
-        Logger.log(err);
-        throw new Error(err.message);
       });
+      return {
+        status: 'SUCCESS' as const,
+      };
+    } catch (LoginFailed) {
+      if (LoginFailed?.code === 'ERR_HTTP2_GOAWAY_SESSION') {
+        return {
+          status: 'GOAWAY' as const, // TBD what this actually means
+        };
+      }
+      Logger.log(LoginFailed);
+      return {
+        status: 'LOGIN_FAILED' as const,
+      };
+    }
   }
 
   async selfRegisterAdminApi(url: string) {
     const ClientId = crypto.randomBytes(12).toString('hex');
     const ClientSecret = crypto.randomBytes(36).toString('hex');
     const DisplayName = `SBAA ${Number(new Date())}ms`;
-    const config = {
+    const credentials = {
       ClientId,
       ClientSecret,
       DisplayName,
     };
 
-    const response = await axios
-      .post(`${url.replace(/\/$/, '')}/connect/register`, config, {
+    return axios
+      .post(`${url.replace(/\/$/, '')}/connect/register`, credentials, {
         headers: { 'content-type': 'application/x-www-form-urlencoded' },
+      })
+      .then(() => {
+        return { credentials, status: 'SUCCESS' as const };
       })
       .catch((err: AxiosError<any>) => {
         if (err.response?.data?.errors) {
           Logger.warn(JSON.stringify(err.response.data.errors));
+          return {
+            status: 'ERROR' as const,
+          };
         } else if (err?.code === 'ENOTFOUND') {
           Logger.warn('Attempted to register Admin API but ENOTFOUND: ' + url);
-          // TODO this should be replaced with a different error handling pattern eventually. Will return failure codes and avoid actual throws until the more outer context-aware scopes.
-          const err = new ValidationError();
-          err.property = 'adminRegisterUrl';
-          err.constraints = {
-            server: 'DNS lookup failed for URL provided.',
+          return {
+            status: 'ENOTFOUND' as const,
           };
-          err.value = false;
-          throw new ValidationException(formErrFromValidator([err]));
         } else {
           Logger.warn(err);
+          return {
+            status: 'ERROR' as const,
+          };
         }
-        throw new InternalServerErrorException('Self-registration failed.');
       });
-    return config;
   }
 
   private getAdminApiClient(sbe: Sbe) {
@@ -111,46 +118,27 @@ export class StartingBlocksService implements IStartingBlocksService {
     client.interceptors.request.use(async (config) => {
       let token: undefined | string = this.adminApiTokens.get(sbe.id);
       if (token === undefined) {
-        try {
-          await this.logIntoAdminApi(sbe);
-          token = this.adminApiTokens.get(sbe.id);
-        } catch (ConnectionError) {
-          Logger.error(ConnectionError);
-          if (ConnectionError.message === 'No Admin API URL configured.') {
-            throw new BadRequestException(
-              'Unable to connect to Ed-Fi Admin API. Connection parameters may be misconfigured.'
-            );
-          }
+        const adminLogin = await this.logIntoAdminApi(sbe);
+
+        const adminApiLoginFailureMessages: Record<
+          Exclude<(typeof adminLogin)['status'], 'SUCCESS'>,
+          string
+        > = {
+          INVALID_ADMIN_API_URL: 'Invalid Admin API URL configured for environment.',
+          NO_ADMIN_API_URL: 'No Admin API URL configured for environment.',
+          GOAWAY: 'Admin API not accepting new connections.',
+          LOGIN_FAILED: 'Admin API login failed.',
+        };
+
+        if (adminApiLoginFailureMessages[adminLogin.status]) {
+          throw new BadRequestException(adminApiLoginFailureMessages[adminLogin.status]);
         }
+        token = this.adminApiTokens.get(sbe.id);
       }
       config.headers.Authorization = `Bearer ${token}`;
       return config;
     });
     return client;
-  }
-
-  private getSbeLambda(sbe: Sbe) {
-    const { configPrivate, configPublic } = sbe;
-    if (!validate(sbe.configPublic.sbeMetaArn ?? '')) {
-      throw new Error('Invalid ARN provided for Starting Blocks metadata function');
-    }
-    const arn = parse(sbe.configPublic.sbeMetaArn);
-    const client = new LambdaClient({
-      region: arn.region,
-      credentials:
-        configPublic.sbeMetaKey && configPrivate.sbeMetaSecret
-          ? {
-              accessKeyId: configPublic.sbeMetaKey,
-              secretAccessKey: configPrivate.sbeMetaSecret,
-            }
-          : undefined,
-    });
-    return client.send(
-      new InvokeCommand({
-        FunctionName: sbe.configPublic.sbeMetaArn,
-        InvocationType: 'RequestResponse',
-      })
-    );
   }
 
   async getVendors(sbeId: Sbe['id']) {
@@ -253,17 +241,41 @@ export class StartingBlocksService implements IStartingBlocksService {
   }
   async getSbMeta(sbeId: Sbe['id']) {
     const sbe = await this.sbesService.findOne(sbeId);
-    return this.getSbeLambda(sbe)
-      .then((response) => {
-        return JSON.parse(Buffer.from(response.Payload).toString('utf8'));
-      })
-      .catch((err) => {
-        Logger.log(err);
-        if (err?.Message) {
-          throw new Error(err.Message);
-        } else {
-          throw err;
-        }
-      });
+    const { configPrivate, configPublic } = sbe;
+    if (!validate(sbe.configPublic.sbeMetaArn ?? '')) {
+      return {
+        status: 'INVALID_ARN' as const,
+      };
+    }
+    const arn = parse(sbe.configPublic.sbeMetaArn);
+    const client = new LambdaClient({
+      region: arn.region,
+      credentials:
+        configPublic.sbeMetaKey && configPrivate.sbeMetaSecret
+          ? {
+              accessKeyId: configPublic.sbeMetaKey,
+              secretAccessKey: configPrivate.sbeMetaSecret,
+            }
+          : undefined,
+    });
+    try {
+      const result = await client.send(
+        new InvokeCommand({
+          FunctionName: sbe.configPublic.sbeMetaArn,
+          InvocationType: 'RequestResponse',
+        })
+      );
+      return {
+        status: 'SUCCESS' as const,
+        data: JSON.parse(Buffer.from(result.Payload).toString('utf8')) as SbMetaEnv,
+      };
+    } catch (LambdaError: LambdaServiceException | any) {
+      return {
+        status: 'FAILURE' as const,
+        error: LambdaError.message
+          ? (LambdaError.message as string)
+          : 'Failed to execute SB Lambda',
+      };
+    }
   }
 }

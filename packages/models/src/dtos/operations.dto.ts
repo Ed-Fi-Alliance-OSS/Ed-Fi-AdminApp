@@ -1,27 +1,19 @@
-import { Expose, Type } from 'class-transformer';
+import { IWorkflowFailureErrors, StatusType } from '@edanalytics/utils';
+import { Expose } from 'class-transformer';
 import { makeSerializer } from '../utils';
 
-export class OperationResultDto {
+export class OperationResultDto implements IWorkflowFailureErrors {
   @Expose()
   title: string;
 
   @Expose()
-  id: string | number;
+  status: StatusType;
 
   @Expose()
-  @Type(() => OperationStatusDto)
-  statuses: OperationStatusDto[];
+  message?: string;
 
   @Expose()
-  messages: string[];
+  regarding?: string;
 }
 
 export const toOperationResultDto = makeSerializer(OperationResultDto);
-
-export class OperationStatusDto {
-  @Expose()
-  name: string;
-
-  @Expose()
-  success: boolean;
-}

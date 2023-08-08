@@ -213,7 +213,6 @@ export function IsValidPrivileges() {
       propertyName: propertyName,
       options: {
         message: (args) => {
-          console.log(args);
           return validate(args.value) as any;
         },
       },

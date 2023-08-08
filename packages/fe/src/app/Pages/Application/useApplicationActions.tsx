@@ -23,6 +23,7 @@ import {
   useNavToParent,
 } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { memo, useMemo } from 'react';
 
 export const useApplicationActions = ({
   application,
@@ -49,13 +50,18 @@ export const useApplicationActions = ({
       clipboard.setValue(result.link);
     },
   });
-  const onClose = () => {
-    clipboard.setValue('');
-  };
+
+  const onClose = useMemo(
+    () => () => {
+      clipboard.setValue('');
+    },
+    []
+  );
+
   const search = useSearchParamsObject();
   const onApplicationPage =
     application && location.pathname.endsWith(`/applications/${application.id}`);
-  const inEdit = onApplicationPage && search?.edit === 'true';
+  const inEdit = onApplicationPage && 'edit' in search && search?.edit === 'true';
 
   const to = (id: number | string) => `/as/${tenantId}/sbes/${sbeId}/applications/${id}`;
   const parentPath = useNavToParent();
@@ -92,22 +98,7 @@ export const useApplicationActions = ({
         Reset: (props: { children: (props: ActionPropsConfirm) => JSX.Element }) => {
           return (
             <>
-              <Modal isOpen={clipboard.value !== ''} onClose={onClose}>
-                <ModalOverlay />
-                <ModalContent>
-                  <ModalHeader>Success!</ModalHeader>
-                  <ModalCloseButton />
-                  <ModalBody>
-                    <Text as="p">Use this one-time link to see your Key and Secret:</Text>
-                    <Link as={RouterLink} color="blue.500" to={clipboard.value}>
-                      {clipboard.value}
-                    </Link>
-                    <Text my={5} as="p" fontStyle="italic">
-                      Note: this link will work only once, and will expire after 7 days.
-                    </Text>
-                  </ModalBody>
-                </ModalContent>
-              </Modal>
+              <CredentialResetModal href={clipboard.value} onClose={onClose} />
               <AuthorizeComponent
                 config={{
                   privilege: 'tenant.sbe.edorg.application:reset-credentials',
@@ -233,3 +224,23 @@ export const useApplicationsActions = ({
     },
   };
 };
+const CredentialResetModal = memo((props: { href: string; onClose: () => void }) => {
+  return (
+    <Modal isOpen={props.href !== ''} onClose={props.onClose}>
+      <ModalOverlay />
+      <ModalContent borderTop="10px solid" borderColor="green.300">
+        <ModalHeader>Credentials have been reset</ModalHeader>
+        <ModalCloseButton />
+        <ModalBody>
+          <Text as="p">Use this one-time link to see your Key and Secret:</Text>
+          <Link as={RouterLink} color="blue.500" to={props.href}>
+            {props.href}
+          </Link>
+          <Text my={5} as="p" fontStyle="italic">
+            Note: this link will work only once, and will expire after 7 days.
+          </Text>
+        </ModalBody>
+      </ModalContent>
+    </Modal>
+  );
+});

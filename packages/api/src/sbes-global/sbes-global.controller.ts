@@ -7,8 +7,18 @@ import {
   toGetSbeDto,
   toOperationResultDto,
 } from '@edanalytics/models';
-import { Sbe, addUserCreating, addUserModifying } from '@edanalytics/models-server';
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import { Sbe, addUserCreating, addUserModifying, regarding } from '@edanalytics/models-server';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+  Response,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -17,6 +27,10 @@ import { ReqUser } from '../auth/helpers/user.decorator';
 import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { throwNotFound } from '../utils';
 import { SbesGlobalService } from './sbes-global.service';
+import { ValidationError } from 'class-validator';
+import { StatusType, OperationResult, formErrFromValidator } from '@edanalytics/utils';
+import { ValidationException, WorkflowFailureException } from '../utils/customExceptions';
+import { Response as Res } from 'express';
 
 @ApiTags('Sbe - Global')
 @Controller()
@@ -75,18 +89,25 @@ export class SbesGlobalController {
     return toOperationResultDto(await this.sbeService.refreshResources(sbeId, user));
   }
 
-  @Put(':sbeId/check-connection')
+  @Put(':sbeId/check-admin-api')
   @Authorize({
     privilege: 'sbe:read',
     subject: {
       id: '__filtered__',
     },
   })
-  async checkConnections(@Param('sbeId', new ParseIntPipe()) sbeId: number) {
-    return toOperationResultDto({
-      id: sbeId,
-      ...(await this.sbeService.checkConnections(sbeId)),
-    });
+  async checkAdminAPI(@Param('sbeId', new ParseIntPipe()) sbeId: number) {
+    return toOperationResultDto(await this.sbeService.checkAdminAPI(sbeId));
+  }
+  @Put(':sbeId/check-sb-meta')
+  @Authorize({
+    privilege: 'sbe:read',
+    subject: {
+      id: '__filtered__',
+    },
+  })
+  async checkSbMeta(@Param('sbeId', new ParseIntPipe()) sbeId: number) {
+    return toOperationResultDto(await this.sbeService.checkSbMeta(sbeId));
   }
 
   @Put(':sbeId/admin-api')
@@ -134,9 +155,29 @@ export class SbesGlobalController {
     @Body() updateDto: PutSbeAdminApiRegister,
     @ReqUser() user: GetSessionDataDto
   ) {
-    return toGetSbeDto(
-      await this.sbeService.selfRegisterAdminApi(sbeId, addUserModifying(updateDto, user))
+    const sbe = await this.sbeService.findOne(sbeId).catch(throwNotFound);
+    const result = await this.sbeService.selfRegisterAdminApi(
+      sbe,
+      addUserModifying(updateDto, user)
     );
+    if (result.status === 'ENOTFOUND') {
+      const err = new ValidationError();
+      err.property = 'adminRegisterUrl';
+      err.constraints = {
+        server: 'DNS lookup failed for URL provided.',
+      };
+      err.value = false;
+      throw new ValidationException(formErrFromValidator([err]));
+    } else if (result.status === 'ERROR') {
+      throw new WorkflowFailureException({
+        status: StatusType.warning,
+        title: 'Self-registration failed.',
+        message: 'I like to eat several pounds of cheese per fortnight.',
+        regarding: regarding(sbe),
+      });
+    } else if (result.status === 'SUCCESS') {
+      return toGetSbeDto(result.result);
+    }
   }
 
   @Delete(':sbeId')

@@ -1,12 +1,24 @@
-import { VALIDATION_ERR_TYPE } from '@edanalytics/utils';
+import {
+  IWorkflowFailureErrors,
+  VALIDATION_RESP_TYPE,
+  WORKFLOW_FAILURE_RESP_TYPE,
+} from '@edanalytics/utils';
 import { UseFormSetError } from 'react-hook-form';
 
-export const mutationErrCallback = (setError: UseFormSetError<any>) => ({
+export const mutationErrCallback = ({
+  setError,
+  popBanner,
+}: {
+  setError?: UseFormSetError<any>;
+  popBanner?: (banner: IWorkflowFailureErrors) => void;
+}) => ({
   onError: (err: any) => {
-    if (err?.type === VALIDATION_ERR_TYPE) {
+    if (setError && err?.type === VALIDATION_RESP_TYPE) {
       Object.entries(err?.errors ?? {}).forEach(([field, error]) => {
         setError(field as any, error as any);
       });
+    } else if (popBanner && err?.type === WORKFLOW_FAILURE_RESP_TYPE) {
+      popBanner(err.errors);
     } else {
       throw err;
     }

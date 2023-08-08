@@ -6,6 +6,7 @@ import { AppBar } from './AppBar';
 import { AppBarPublic } from './AppBarPublic';
 import { Breadcrumbs } from './Breadcrumbs';
 import { Nav } from './Nav';
+import { FeedbackBanners } from './FeedbackBanner';
 
 export const StandardLayout = () => {
   const queryClient = useQueryClient();
@@ -26,11 +27,14 @@ export const StandardLayout = () => {
         {hasRole ? (
           <>
             <Nav />
-            <Box p={3} px="calc(4vw + 0.5em)" maxH="100%" h="100%" overflow="auto" flexGrow="1">
+            <Box maxH="100%" h="100%" overflow="auto" flexGrow="1">
               <Flex flexDir="column" minW="35em" h="100%">
-                <Breadcrumbs mb={5} />
-                <Box flexGrow={1} pb="2em">
-                  <Outlet />
+                <FeedbackBanners />
+                <Box p={3} px="calc(4vw + 0.5em)">
+                  <Breadcrumbs mb={5} />
+                  <Box flexGrow={1} pb="2em">
+                    <Outlet />
+                  </Box>
                 </Box>
               </Flex>
             </Box>

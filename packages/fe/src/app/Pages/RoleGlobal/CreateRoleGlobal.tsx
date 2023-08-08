@@ -40,8 +40,6 @@ export const CreateRoleGlobalPage = () => {
   } = useForm<PostRoleDto>({
     resolver,
   });
-  console.log(watch('type'), RoleType);
-
   const [type, setType] = useState<RoleType | null>(null);
   const filteredPrivileges =
     privileges.data && type

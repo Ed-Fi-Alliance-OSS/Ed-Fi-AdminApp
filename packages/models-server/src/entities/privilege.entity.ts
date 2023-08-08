@@ -9,4 +9,8 @@ export class Privilege implements IPrivilege {
   description: string;
   @PrimaryColumn({ type: 'varchar' })
   code: PrivilegeCode;
+
+  get displayName() {
+    return this.name;
+  }
 }

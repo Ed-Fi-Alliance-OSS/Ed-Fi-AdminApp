@@ -53,6 +53,9 @@ import kebabCase from 'kebab-case';
 import path from 'path-browserify';
 import { apiClient, methods } from '../methods';
 import { useAuthorize, usePrivilegeCacheForConfig } from '../../helpers';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { StatusType } from '@edanalytics/utils';
 
 const baseUrl = '';
 
@@ -511,19 +514,38 @@ export const useSbeRegisterAdminApi = (callback?: () => void) => {
     },
   });
 };
-export const useSbeCheckConnection = (callback?: () => void) => {
+export const useSbeCheckAdminAPI = (callback?: () => void) => {
   const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (sbe: GetSbeDto) =>
       methods.put(
-        `${baseUrl}/sbes/${sbe.id}/check-connection`,
+        `${baseUrl}/sbes/${sbe.id}/check-admin-api`,
         class Nothing {},
         OperationResultDto,
         {}
       ),
-    onSuccess: (data) => {
+    onSuccess: (res, original) => {
       queryClient.invalidateQueries({
-        queryKey: ['sbes', 'detail', String(data.id)],
+        queryKey: ['sbes', 'detail', String(original.id)],
+      });
+      callback && callback();
+    },
+  });
+};
+
+export const useSbeCheckSbMeta = (callback?: () => void) => {
+  const queryClient = useQueryClient();
+  return useMutation({
+    mutationFn: (sbe: GetSbeDto) =>
+      methods.put(
+        `${baseUrl}/sbes/${sbe.id}/check-sb-meta`,
+        class Nothing {},
+        OperationResultDto,
+        {}
+      ),
+    onSuccess: (res, original) => {
+      queryClient.invalidateQueries({
+        queryKey: ['sbes', 'detail', String(original.id)],
       });
       callback && callback();
     },
@@ -532,6 +554,7 @@ export const useSbeCheckConnection = (callback?: () => void) => {
 
 export const useSbeRefreshResources = (callback?: () => void) => {
   const queryClient = useQueryClient();
+  const popBanner = usePopBanner();
   return useMutation({
     mutationFn: (sbe: GetSbeDto) =>
       methods.put(
@@ -540,12 +563,14 @@ export const useSbeRefreshResources = (callback?: () => void) => {
         OperationResultDto,
         {}
       ),
-    onSuccess: (data) => {
+    onSuccess: (resp, prior) => {
       queryClient.invalidateQueries({
-        queryKey: ['sbes', 'detail', String(data.id)],
+        queryKey: ['sbes', 'detail', String(prior.id)],
       });
+      popBanner(resp);
       callback && callback();
     },
+    ...mutationErrCallback({ popBanner }),
   });
 };
 
@@ -634,6 +659,7 @@ export function usePrivilegeCache<
     queries: config.map((c) => {
       return {
         staleTime: 15 * 1000,
+        notifyOnChangeProps: ['data' as const],
         queryKey: ['authorizations', c.tenantId, c.sbeId, c.privilege],
         queryFn: () =>
           apiClient

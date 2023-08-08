@@ -43,4 +43,8 @@ export class EntityBase implements IEntityBase {
 
   @Column({ nullable: true })
   deletedById?: IUser['id'];
+
+  get displayName() {
+    return String(this.id);
+  }
 }

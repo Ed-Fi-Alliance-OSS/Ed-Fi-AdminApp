@@ -5,7 +5,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { ValidationError } from 'class-validator';
 import { EntityManager, Repository } from 'typeorm';
-import { ValidationException } from '../utils/ValidationException';
+import { ValidationException } from '../utils/customExceptions';
 
 @Injectable()
 export class OwnershipsGlobalService {

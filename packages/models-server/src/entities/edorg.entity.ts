@@ -68,4 +68,8 @@ export class Edorg extends EntityBase implements IEdorg {
 
   @Column({ type: 'varchar' })
   discriminator: EdorgType;
+
+  get displayName() {
+    return this.nameOfInstitution;
+  }
 }

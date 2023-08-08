@@ -21,4 +21,8 @@ export class Tenant extends EntityBase implements ITenant {
 
   @OneToMany('Ownership', (ownership: IOwnership) => ownership.tenant)
   ownerships: IOwnership[];
+
+  get displayName() {
+    return this.name;
+  }
 }

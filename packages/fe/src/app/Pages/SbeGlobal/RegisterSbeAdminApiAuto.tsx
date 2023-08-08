@@ -12,6 +12,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useSbeRegisterAdminApi } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 const resolver = classValidatorResolver(PutSbeAdminApiRegister);
 
@@ -36,6 +37,8 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
     defaultValues: sbeFormDefaults,
   });
 
+  const popBanner = usePopBanner();
+
   return sbe ? (
     <form
       onSubmit={handleSubmit((data) =>
@@ -43,7 +46,7 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
           {
             ...data,
           },
-          mutationErrCallback(setError)
+          mutationErrCallback({ setError, popBanner })
         )
       )}
     >

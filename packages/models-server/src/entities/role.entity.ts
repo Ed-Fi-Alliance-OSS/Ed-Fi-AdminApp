@@ -44,4 +44,8 @@ export class Role extends EntityBase implements IRole {
   @ManyToMany('Privilege', { eager: true })
   @JoinTable()
   privileges: IPrivilege[];
+
+  get displayName() {
+    return this.name;
+  }
 }

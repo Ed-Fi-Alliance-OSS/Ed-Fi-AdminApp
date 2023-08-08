@@ -151,30 +151,3 @@ export class PostSbeDto
   @MinLength(3)
   envLabel: string;
 }
-
-export class SbeCheckConnectionDto {
-  @Expose()
-  id: number;
-
-  @Expose()
-  adminApi: boolean;
-
-  @Expose()
-  sbMeta: boolean;
-
-  @Expose()
-  messages: string[];
-}
-export const toSbeCCDto = makeSerializer(SbeCheckConnectionDto);
-
-export class SbeRefreshResourcesDto {
-  @Expose()
-  id: number;
-
-  @Expose()
-  odsCount: number;
-
-  @Expose()
-  edorgCount: number;
-}
-export const toSbeRRDto = makeSerializer(SbeRefreshResourcesDto);

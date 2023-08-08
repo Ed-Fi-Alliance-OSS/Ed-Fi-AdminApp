@@ -9,6 +9,7 @@ export class SbeConfigReorg1687190483472 implements MigrationInterface {
     const sbes = (await queryRunner.manager.getRepository(Sbe).find()).map(
       (sbe): Sbe => ({
         ...sbe,
+        displayName: sbe.displayName,
         configPrivate:
           sbe.configPrivate?.adminApiSecret && sbe.configPrivate?.sbeMetaSecret
             ? {

@@ -20,4 +20,8 @@ export class Ods extends EntityBase implements IOds {
   @Column()
   @FakeMeUsing(() => `EdFi_Ods_${faker.datatype.number(999999999)}`)
   dbName: string;
+
+  get displayName() {
+    return this.dbName;
+  }
 }
