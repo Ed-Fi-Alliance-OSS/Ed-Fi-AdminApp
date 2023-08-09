@@ -23,21 +23,11 @@ export class Sbe extends EntityBase implements ISbe {
   edorgs: IEdorg[];
 
   @Column()
-  @FakeMeUsing(() => `${deployEnv()}-${schoolYear()}-${faker.random.alpha(5)}`)
   envLabel: string;
 
-  @FakeMeUsing({ hasOdsRefresh: false })
   @Column({ type: 'jsonb', nullable: true })
   configPublic: ISbeConfigPublic | null;
 
-  @FakeMeUsing(() => ({
-    adminApiUrl: '<adminApiUrl>',
-    adminApiKey: '<adminApiKey>',
-    adminApiSecret: '<adminApiSecret>',
-    sbeMetaUrl: '<sbeMetaUrl>',
-    awsLambdaKey: '<awsLambdaKey>',
-    awsLambdaSecret: '<awsLambdaSecret>',
-  }))
   @Column({
     type: 'jsonb',
     nullable: true,

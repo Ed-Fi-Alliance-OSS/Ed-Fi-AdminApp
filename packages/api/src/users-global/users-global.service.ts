@@ -3,6 +3,7 @@ import { User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
 
 @Injectable()
 export class UsersGlobalService {
@@ -26,11 +27,8 @@ export class UsersGlobalService {
   }
 
   async remove(id: number, user: GetUserDto) {
-    const old = await this.findOne(id);
-    await this.usersRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(id).catch(throwNotFound);
+    await this.usersRepository.remove(old);
     return undefined;
   }
 }

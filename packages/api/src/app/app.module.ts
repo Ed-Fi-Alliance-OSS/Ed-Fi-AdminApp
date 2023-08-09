@@ -39,6 +39,7 @@ import { SeedModule } from '../database/seed.module';
         return {
           ...typeormConfig,
           url: await config.DB_CONNECTION_STRING,
+          logging: config.TYPEORM_LOGGING ? JSON.parse(config.TYPEORM_LOGGING) : undefined,
         };
       },
     }),

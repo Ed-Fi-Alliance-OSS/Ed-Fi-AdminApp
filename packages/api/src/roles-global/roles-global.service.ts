@@ -4,6 +4,7 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { EntityManager, In, Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
 
 @Injectable()
 export class RolesGlobalService {
@@ -54,11 +55,8 @@ export class RolesGlobalService {
   }
 
   async remove(id: number, user: GetUserDto) {
-    const old = await this.findOne(id);
-    await this.rolesRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(id).catch(throwNotFound);
+    await this.rolesRepository.remove(old);
     return undefined;
   }
 }

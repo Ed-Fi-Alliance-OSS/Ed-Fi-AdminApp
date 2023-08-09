@@ -12,13 +12,14 @@ import {
   UserTenantMembership,
 } from '@edanalytics/models-server';
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+import { Initial1688158300508 } from './migrations/1687190483471-initial';
 import { SbeConfigReorg1687190483472 } from './migrations/1687190483472-sbe-config-reorg';
 import { AdOdsNaturalKeyToEdorg1687466013005 } from './migrations/1687466013005-add-ods-natural-key-to-edorg';
 import { EducationOrganizationIdToNumber1687881668666 } from './migrations/1687881668666-educationOrganizationIdToNumber';
 import { UniqueOwnershipConstraints1687900131470 } from './migrations/1687900131470-uniqueOwnershipConstraints';
-import { Initial1688158300508 } from './migrations/1687190483471-initial';
 import { EdorgShortname1689282856860 } from './migrations/1689282856860-edorg-shortname';
 import { OwnershipUniquenessSoftdelete1691010443030 } from './migrations/1691010443030-ownershipUniquenessSoftdelete';
+import { AbandonSoftDeletion1691520653756 } from './migrations/1691520653756-abandonSoftDeletion';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -48,7 +49,7 @@ const config: Pick<
     UniqueOwnershipConstraints1687900131470,
     EdorgShortname1689282856860,
     OwnershipUniquenessSoftdelete1691010443030,
+    AbandonSoftDeletion1691520653756,
   ],
-  // logging: ['query'],
 };
 export default config;

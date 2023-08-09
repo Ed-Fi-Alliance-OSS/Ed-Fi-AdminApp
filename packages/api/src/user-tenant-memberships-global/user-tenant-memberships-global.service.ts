@@ -7,6 +7,7 @@ import { UserTenantMembership } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
+import { throwNotFound } from '../utils';
 
 @Injectable()
 export class UserTenantMembershipsGlobalService {
@@ -35,11 +36,8 @@ export class UserTenantMembershipsGlobalService {
   }
 
   async remove(id: number, user: GetUserDto) {
-    const old = await this.findOne(id);
-    await this.userTenantMembershipsRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(id).catch(throwNotFound);
+    await this.userTenantMembershipsRepository.remove(old);
     return undefined;
   }
 }

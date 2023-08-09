@@ -9,7 +9,7 @@ export class Ods extends EntityBase implements IOds {
   @OneToMany('Ownership', (ownership: IOwnership) => ownership.ods)
   ownerships: IOwnership[];
 
-  @ManyToOne('Sbe', (sbe: ISbe) => sbe.odss)
+  @ManyToOne('Sbe', (sbe: ISbe) => sbe.odss, { onDelete: 'CASCADE' })
   sbe: ISbe;
   @Column()
   sbeId: number;

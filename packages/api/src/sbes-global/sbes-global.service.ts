@@ -109,11 +109,8 @@ export class SbesGlobalService {
   }
 
   async remove(id: number, user: GetUserDto) {
-    const old = await this.findOne(id);
-    await this.sbesRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(id).catch(throwNotFound);
+    await this.sbesRepository.remove(old);
     return undefined;
   }
 

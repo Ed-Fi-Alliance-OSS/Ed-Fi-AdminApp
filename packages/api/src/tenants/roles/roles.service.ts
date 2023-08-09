@@ -88,11 +88,8 @@ export class RolesService {
   }
 
   async remove(tenantId: number, id: number, user: GetUserDto) {
-    const old = await this.findOne(tenantId, id);
-    await this.rolesRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(tenantId, id).catch(throwNotFound);
+    await this.rolesRepository.remove(old);
     return undefined;
   }
 }

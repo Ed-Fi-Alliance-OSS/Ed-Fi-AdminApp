@@ -13,6 +13,7 @@ module.exports = {
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
   API_PORT: 5000,
+  TYPEORM_LOGGING: undefined,
   DB_CONNECTION_STRING: defer(function () {
     const ssl = this.DB_SSL ? 'require' : 'disable';
     if (this.AWS_DB_SECRET) {

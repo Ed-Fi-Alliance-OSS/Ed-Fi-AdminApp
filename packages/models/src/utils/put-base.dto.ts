@@ -3,12 +3,9 @@ import { IEntityBase } from './entity-base.interface';
 type DtoWriteOmit =
   | 'createdBy'
   | 'modifiedBy'
-  | 'deletedBy'
   | 'createdById'
-  | 'deletedById'
   | 'created'
   | 'modified'
-  | 'deleted'
   | 'displayName';
 export type PutDto<EntityInterface extends object, ExcludeProperties extends string = never> = Omit<
   EntityInterface,

@@ -7,7 +7,6 @@ import { EntityBase } from '../utils/entity-base';
 @Entity()
 export class Tenant extends EntityBase implements ITenant {
   @Column()
-  @FakeMeUsing(() => faker.address.county() + ' ' + faker.address.cityName())
   name: string;
 
   @OneToMany(

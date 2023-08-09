@@ -17,6 +17,9 @@ declare module 'config' {
     DB_SECRET_VALUE: never;
     DB_CONNECTION_STRING: string | Promise<string>;
 
+    /** Serialized JSON array of "query" | "schema" | "error" | "warn" | "info" | "log" | "migration" */
+    TYPEORM_LOGGING: string | undefined;
+
     AWS_DB_ENCRYPTION_SECRET?: string | undefined;
     DB_ENCRYPTION_SECRET_VALUE: never;
     DB_ENCRYPTION_SECRET: IDbEncryptionSecret | Promise<IDbEncryptionSecret>;

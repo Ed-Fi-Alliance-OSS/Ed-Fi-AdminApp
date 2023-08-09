@@ -33,7 +33,7 @@ export class Edorg extends EntityBase implements IEdorg {
   @OneToMany('Ownership', (ownership: IOwnership) => ownership.edorg)
   ownerships: IOwnership[];
 
-  @ManyToOne('Ods', (ods: IOds) => ods.edorgs)
+  @ManyToOne('Ods', (ods: IOds) => ods.edorgs, { onDelete: 'CASCADE' })
   ods: IOds;
 
   @Column()
@@ -42,8 +42,9 @@ export class Edorg extends EntityBase implements IEdorg {
   @Column()
   odsDbName: string;
 
-  @ManyToOne('Sbe', (sbe: ISbe) => sbe.edorgs)
+  @ManyToOne('Sbe', (sbe: ISbe) => sbe.edorgs, { onDelete: 'CASCADE' })
   sbe: ISbe;
+
   @Column()
   sbeId: number;
 

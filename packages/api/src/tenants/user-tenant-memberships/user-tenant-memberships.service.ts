@@ -47,11 +47,8 @@ export class UserTenantMembershipsService {
   }
 
   async remove(tenantId: number, id: number, user: GetUserDto) {
-    const old = await this.findOne(tenantId, id);
-    await this.userTenantMembershipsRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(tenantId, id).catch(throwNotFound);
+    await this.userTenantMembershipsRepository.remove(old);
     return undefined;
   }
 }

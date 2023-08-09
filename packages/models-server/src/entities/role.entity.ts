@@ -7,32 +7,12 @@ import { EntityBase } from '../utils/entity-base';
 @Entity()
 export class Role extends EntityBase implements IRole {
   @Column()
-  @FakeMeUsing(
-    () =>
-      '' +
-      _.sample([
-        'Admin',
-        'User',
-        'Mgr',
-        'IT',
-        'Full admin',
-        'Superuser',
-        'Super big everything-user',
-        'Read-only',
-        'Full access',
-        'Test',
-        'Bjorn',
-        'Mark',
-        'Eshara',
-      ]) +
-      _.sample(['', '', '', '', '-copy', '-2', '-3'])
-  )
   name: string;
 
   @Column({ nullable: true })
   description?: string;
 
-  @ManyToOne('Tenant', (tenant: ITenant) => tenant.roles, { nullable: true })
+  @ManyToOne('Tenant', (tenant: ITenant) => tenant.roles, { nullable: true, onDelete: 'CASCADE' })
   tenant?: ITenant;
 
   @Column({ nullable: true })

@@ -3,14 +3,11 @@ import { IEntityBase } from './entity-base.interface';
 type DtoCreateOmit =
   | 'createdBy'
   | 'modifiedBy'
-  | 'deletedBy'
   | 'id'
   | 'createdById'
   | 'modifiedById'
-  | 'deletedById'
   | 'created'
   | 'modified'
-  | 'deleted'
   | 'displayName';
 
 /**

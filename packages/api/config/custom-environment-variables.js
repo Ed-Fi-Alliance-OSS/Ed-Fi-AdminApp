@@ -5,4 +5,5 @@ module.exports = {
   FE_URL: 'FE_URL',
   MY_URL: 'MY_URL',
   YOPASS_URL: 'YOPASS_URL',
+  TYPEORM_LOGGING: 'TYPEORM_LOGGING',
 };

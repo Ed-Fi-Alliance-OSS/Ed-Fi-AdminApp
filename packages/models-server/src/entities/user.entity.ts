@@ -1,11 +1,10 @@
-import { GlobalRole, IRole, IUser, IUserConfig, IUserTenantMembership } from '@edanalytics/models';
-import { enumValues, FakeMeUsing } from '@edanalytics/utils';
+import { IRole, IUser, IUserConfig, IUserTenantMembership } from '@edanalytics/models';
+import { FakeMeUsing } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 import { Type } from 'class-transformer';
 import {
   Column,
   CreateDateColumn,
-  DeleteDateColumn,
   Entity,
   ManyToOne,
   OneToMany,
@@ -26,10 +25,6 @@ export class User implements IUser {
   @UpdateDateColumn()
   modified?: Date | undefined;
 
-  @Type(() => Date)
-  @DeleteDateColumn()
-  deleted?: Date | undefined;
-
   @ManyToOne('User', { nullable: true })
   createdBy?: IUser | undefined;
 
@@ -42,21 +37,12 @@ export class User implements IUser {
   @Column({ nullable: true })
   modifiedById: IUser['id'];
 
-  @ManyToOne('User', { nullable: true })
-  deletedBy?: IUser | undefined;
-
-  @Column({ nullable: true })
-  deletedById: IUser['id'];
-
-  @FakeMeUsing(faker.internet.userName)
   @Column()
   username: string;
 
-  @FakeMeUsing(faker.name.firstName)
   @Column({ nullable: true })
   givenName: string | null;
 
-  @FakeMeUsing(faker.name.lastName)
   @Column({ nullable: true })
   familyName: string | null;
 
@@ -72,7 +58,6 @@ export class User implements IUser {
   )
   userTenantMemberships: IUserTenantMembership[];
 
-  @FakeMeUsing(() => faker.helpers.arrayElement([false, true, true]))
   @Column()
   isActive: boolean;
 

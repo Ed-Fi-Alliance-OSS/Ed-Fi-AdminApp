@@ -6,6 +6,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { ValidationError } from 'class-validator';
 import { EntityManager, Repository } from 'typeorm';
 import { ValidationException } from '../utils/customExceptions';
+import { throwNotFound } from '../utils';
 
 @Injectable()
 export class OwnershipsGlobalService {
@@ -44,16 +45,13 @@ export class OwnershipsGlobalService {
   }
 
   async update(id: number, updateOwnershipDto: PutOwnershipDto) {
-    const old = await this.findOne(id);
+    const old = await this.findOne(id).catch(throwNotFound);
     return this.ownershipsRepository.save({ ...old, ...updateOwnershipDto });
   }
 
   async remove(id: number, user: GetUserDto) {
-    const old = await this.findOne(id);
-    await this.ownershipsRepository.update(id, {
-      deleted: new Date(),
-      deletedById: user.id,
-    });
+    const old = await this.findOne(id).catch(throwNotFound);
+    await this.ownershipsRepository.remove(old);
     return undefined;
   }
 }
