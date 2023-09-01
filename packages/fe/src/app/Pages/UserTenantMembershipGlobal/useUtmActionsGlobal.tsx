@@ -1,15 +1,18 @@
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
-import { BiArch, BiEdit, BiTrash } from 'react-icons/bi';
+import { BiEdit, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 import { userTenantMembershipQueries } from '../../api';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionPropsConfirm, ActionsType, LinkActionProps } from '../../helpers/ActionsType';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 export const useUtmActionsGlobal = (
   userTenantMembership: GetUserTenantMembershipDto | undefined
 ): ActionsType => {
   const navigate = useNavigate();
+  const popBanner = usePopBanner();
   const to = (id: number | string) => `/user-tenant-memberships/${id}`;
   const deleteUtm = userTenantMembershipQueries.useDelete({});
   return userTenantMembership === undefined
@@ -69,11 +72,13 @@ export const useUtmActionsGlobal = (
             >
               <props.children
                 icon={BiTrash}
+                isLoading={deleteUtm.isLoading}
                 text="Delete"
                 title="Delete tenant membership"
                 confirmBody="This will permanently delete the tenant membership."
                 onClick={() =>
                   deleteUtm.mutateAsync(userTenantMembership.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/user-tenant-memberships`),
                   })
                 }

@@ -10,11 +10,16 @@ import { GetSbeDto, PutSbeMeta } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { useSbeEditSbMeta } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutSbeMeta);
 
 export const EditSbeMeta = (props: { sbe: GetSbeDto }) => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const goToView = () => navigate(`/sbes/${props.sbe.id}`);
   const putSbe = useSbeEditSbMeta(goToView);
@@ -26,6 +31,7 @@ export const EditSbeMeta = (props: { sbe: GetSbeDto }) => {
   };
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PutSbeMeta>({ resolver, defaultValues: sbeFormDefaults });
@@ -33,9 +39,12 @@ export const EditSbeMeta = (props: { sbe: GetSbeDto }) => {
   return sbe ? (
     <form
       onSubmit={handleSubmit((data) =>
-        putSbe.mutateAsync({
-          ...data,
-        })
+        putSbe.mutateAsync(
+          {
+            ...data,
+          },
+          mutationErrCallback({ popBanner, setError })
+        )
       )}
     >
       <FormControl isInvalid={!!errors.arn}>

@@ -24,6 +24,8 @@ import { AbandonSoftDeletion1691520653756 } from './migrations/1691520653756-aba
 import { GuaranteeMembershipUniqueness1691694310950 } from './migrations/1691694310950-guaranteeMembershipUniqueness';
 import { AddSeparateSbeNameField1692280869502 } from './migrations/1692280869502-AddSeparateSbeNameField';
 import { NewSbSyncQueue1692740626759 } from './migrations/1692740626759-NewSbSyncQueue';
+import { NullableEnvlabel1693335908870 } from './migrations/1693335908870-NullableEnvlabel';
+import { FkOnDeleteTweaks1693514948085 } from './migrations/1693514948085-fkOnDeleteTweaks';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -58,6 +60,8 @@ const config: Pick<
     GuaranteeMembershipUniqueness1691694310950,
     AddSeparateSbeNameField1692280869502,
     NewSbSyncQueue1692740626759,
+    NullableEnvlabel1693335908870,
+    FkOnDeleteTweaks1693514948085,
   ],
 };
 export default config;

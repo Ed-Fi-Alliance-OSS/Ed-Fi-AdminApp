@@ -13,10 +13,11 @@ import {
 import { GetSessionDataDtoUtm } from '@edanalytics/models';
 import { useAtomValue } from 'jotai';
 import { Link as RouterLink } from 'react-router-dom';
+import { LandingContent } from '../../Layout/Landing';
 import { asTenantIdAtom } from '../../Layout/Nav';
 import { useMe } from '../../api';
 import { TenantHome } from './TenantHome';
-import { LandingContent } from '../../Layout/Landing';
+import { PageTemplate } from '@edanalytics/common-ui';
 
 export const GlobalHome = () => {
   const asId = useAtomValue(asTenantIdAtom);
@@ -35,16 +36,13 @@ const GlobalHomeComponent = () => {
   const me = useMe();
   const utms = me.data?.userTenantMemberships ?? [];
   return utms.length ? (
-    <>
-      <Heading size="md" mb={5} mt={10}>
-        Your tenants
-      </Heading>
+    <PageTemplate customContentBox title="Your tenants">
       <SimpleGrid w="fit-content" columns={3} spacing={4}>
         {utms.map((utm) => (
           <UtmCard key={utm.id} utm={utm} />
         ))}
       </SimpleGrid>
-    </>
+    </PageTemplate>
   ) : (
     <EmptyState />
   );

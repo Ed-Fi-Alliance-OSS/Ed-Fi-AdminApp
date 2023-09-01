@@ -23,7 +23,6 @@ export interface INavButtonProps {
 }
 
 // TODO: The "resource explorer"-style tree component should probably be its own nice abstraction, with navigation links merely implementing the required interface. With the expectation of that eventually happening, not much effort has been put into making the existing setup very elegant.
-
 /**
  * Component which renders a navigation link, possibly with an
  * expandable nested list of indented sub-items.
@@ -43,7 +42,15 @@ export const NavButton = (props: INavButtonProps) => {
   const depthOffset = `${props.depth || 0}em`;
   const button = (
     <Button
+      color={isActive ? 'teal.900' : undefined}
+      borderLeft="2px solid"
+      borderRight="2px solid"
+      borderColor={isActive ? 'teal.600' : 'transparent'}
+      bg={isActive ? 'gray.100' : undefined}
       aria-current={isActive ? 'page' : 'false'}
+      _hover={{
+        bg: isActive ? 'gray.200' : 'gray.100',
+      }}
       fontWeight="normal"
       _activeLink={{
         fontWeight: '700',
@@ -62,15 +69,15 @@ export const NavButton = (props: INavButtonProps) => {
       w="100%"
       borderRadius="0px"
       px={`calc(0.25em + ${depthOffset})`}
-      pl={`calc(0.25em + ${depthOffset} + 20px)`}
-      h={8}
+      pl={`calc(0.25em + ${depthOffset} + 23px)`}
+      h={9}
       fontSize="1em"
       variant="ghost"
       justifyContent="space-between"
-      gap={1}
+      gap={3}
       title={props.text}
     >
-      <Icon as={isActive && props.activeIcon ? props.activeIcon : props.icon} />
+      <Icon fontSize="xl" as={isActive && props.activeIcon ? props.activeIcon : props.icon} />
       <Text
         flexGrow={1}
         textAlign="left"
@@ -93,7 +100,7 @@ export const NavButton = (props: INavButtonProps) => {
             <Box pos="relative" h="20px" zIndex={2}>
               <IconButton
                 onClick={toggleIsExpanded}
-                ml={`calc(0.25em + ${depthOffset})`}
+                ml={`calc(0.6em + ${depthOffset})`}
                 pos="absolute"
                 aria-label="open or close"
                 title="open or close"

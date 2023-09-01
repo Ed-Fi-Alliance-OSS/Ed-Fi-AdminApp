@@ -9,12 +9,17 @@ import {
 import { GetSbeDto, PutSbeAdminApi } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { useNavigate, useParams } from 'react-router-dom';
 import { useSbeEditAdminApi } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutSbeAdminApi);
 
 export const RegisterSbeAdminApiManual = (props: { sbe: GetSbeDto }) => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const params = useParams() as { sbeId: string };
   const goToView = () => navigate(`/sbes/${params.sbeId}`);
@@ -28,15 +33,19 @@ export const RegisterSbeAdminApiManual = (props: { sbe: GetSbeDto }) => {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<PutSbeAdminApi>({ resolver, defaultValues: sbeFormDefaults });
 
   return sbe ? (
     <form
       onSubmit={handleSubmit((data) =>
-        putSbe.mutateAsync({
-          ...data,
-        })
+        putSbe.mutateAsync(
+          {
+            ...data,
+          },
+          mutationErrCallback({ popBanner, setError })
+        )
       )}
     >
       <FormControl isInvalid={!!errors.adminUrl}>

@@ -1,4 +1,4 @@
-import { Attribute } from '@edanalytics/common-ui';
+import { Attribute, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { tenantQueries } from '../../api';
 
@@ -8,5 +8,11 @@ export const ViewTenant = () => {
     id: params.tenantId,
   }).data;
 
-  return tenant ? <Attribute label="Name" value={tenant.name} /> : null;
+  return tenant ? (
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute label="Name" value={tenant.name} />{' '}
+      </AttributesGrid>
+    </ContentSection>
+  ) : null;
 };

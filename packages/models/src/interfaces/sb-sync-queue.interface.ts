@@ -22,7 +22,7 @@ export interface ISbSyncQueue {
   singletonon: Date | null;
   expirein: Date;
   createdon: Date;
-  completedon: Date;
+  completedon: Date | null;
   keepuntil: Date;
   on_complete: boolean;
   output: object;

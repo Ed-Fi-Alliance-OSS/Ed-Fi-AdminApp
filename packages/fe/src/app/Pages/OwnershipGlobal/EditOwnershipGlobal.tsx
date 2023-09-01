@@ -13,12 +13,15 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { ownershipQueries, tenantQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers';
 import { SelectRole } from '../../helpers/FormPickers';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutOwnershipDto);
 
 export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
   const { ownership } = props;
   const tenants = tenantQueries.useAll({});
+  const popBanner = usePopBanner();
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -34,6 +37,7 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
   const {
     control,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver,
@@ -44,10 +48,13 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
     <form
       onSubmit={handleSubmit((data) => {
         const validatedData = data as PutOwnershipDto;
-        return putOwnership.mutateAsync({
-          id: validatedData.id,
-          roleId: validatedData.roleId,
-        });
+        return putOwnership.mutateAsync(
+          {
+            id: validatedData.id,
+            roleId: validatedData.roleId,
+          },
+          mutationErrCallback({ popBanner, setError })
+        );
       })}
     >
       <FormLabel as="p">Tenant</FormLabel>

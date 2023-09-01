@@ -1,8 +1,7 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
 import { useParams } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { sbSyncQueueQueries } from '../../api';
-import { ActionBarActions } from '../../helpers';
 import { ViewSbSyncQueue } from './ViewSbSyncQueue';
 import { useSbSyncQueueActions } from './useSbSyncQueueActions';
 

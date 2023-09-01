@@ -1,10 +1,9 @@
 import { Link, Text } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { Link as RouterLink, useParams } from 'react-router-dom';
 import { ownershipQueries, roleQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { RoleLink, UserLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 
 export const OwnershipsPage = () => {
   const params = useParams() as { asId: string };
@@ -16,13 +15,13 @@ export const OwnershipsPage = () => {
 
   return (
     <PageTemplate title="Ownerships">
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(ownerships?.data || {})}
         columns={[
           {
             id: 'role',
             accessorFn: (info) => getRelationDisplayName(info.roleId, roles),
-            header: () => 'Role',
+            header: 'Role',
             cell: (info) => <RoleLink query={roles} id={info.row.original.roleId} />,
           },
           {
@@ -33,7 +32,7 @@ export const OwnershipsPage = () => {
                 : info.ods
                 ? `Ods - ${info.ods.displayName}`
                 : `Environment - ${info.sbe?.displayName}`,
-            header: () => 'Resource',
+            header: 'Resource',
             cell: ({ row: { original } }) =>
               original.edorg ? (
                 <Link as="span">
@@ -68,17 +67,17 @@ export const OwnershipsPage = () => {
           {
             id: 'modifiedBy',
             accessorFn: (info) => getRelationDisplayName(info.modifiedById, users),
-            header: () => 'Modified by',
+            header: 'Modified by',
             cell: (info) => <UserLink query={users} id={info.row.original.modifiedById} />,
           },
           {
             accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            header: 'Created',
           },
           {
             id: 'createdBy',
             accessorFn: (info) => getRelationDisplayName(info.createdById, users),
-            header: () => 'Created by',
+            header: 'Created by',
             cell: (info) => <UserLink query={users} id={info.row.original.createdById} />,
           },
         ]}

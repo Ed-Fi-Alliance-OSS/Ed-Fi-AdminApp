@@ -8,29 +8,34 @@ import {
   FormLabel,
   Input,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { PostUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { userQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { SelectRole } from '../../helpers/FormPickers';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PostUserDto);
 
 export const CreateUser = () => {
+  const popBanner = usePopBanner();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const goToView = (id: string | number) => navigate(`/users/${id}`);
   const parentPath = useNavToParent();
-  const putUser = userQueries.usePost({
+  const postUser = userQueries.usePost({
     callback: (result) => goToView(result.id),
   });
   const {
     register,
     handleSubmit,
+    setError,
     control,
     formState: { errors, isSubmitting },
   } = useForm<PostUserDto>({ resolver, defaultValues: {} });
@@ -40,7 +45,8 @@ export const CreateUser = () => {
       <Box w="20em">
         <form
           onSubmit={handleSubmit((data) =>
-            putUser.mutateAsync(data, {
+            postUser.mutateAsync(data, {
+              ...mutationErrCallback({ popBanner, setError }),
               onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
               },

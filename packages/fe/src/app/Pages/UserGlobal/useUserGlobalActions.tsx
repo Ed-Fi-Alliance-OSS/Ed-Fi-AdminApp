@@ -1,11 +1,13 @@
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetUserDto } from '@edanalytics/models';
 import { BiEdit, BiIdCard, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useLocation, useNavigate, useParams } from 'react-router-dom';
 import { userQueries } from '../../api';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionPropsConfirm, ActionsType, LinkActionProps } from '../../helpers/ActionsType';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useUserGlobalActions = (user: GetUserDto | undefined): ActionsType => {
   const params = useParams() as {
@@ -15,6 +17,7 @@ export const useUserGlobalActions = (user: GetUserDto | undefined): ActionsType 
   const search = useSearchParamsObject();
   const onApplicationPage = user && location.pathname.endsWith(`/users/${user.id}`);
   const inEdit = onApplicationPage && 'edit' in search && search?.edit === 'true';
+  const popBanner = usePopBanner();
 
   const navigate = useNavigate();
   const to = (id: number | string) => `/users/${id}`;
@@ -98,11 +101,13 @@ export const useUserGlobalActions = (user: GetUserDto | undefined): ActionsType 
             >
               <props.children
                 icon={BiTrash}
+                isLoading={deleteUser.isLoading}
                 text="Delete"
                 title="Delete user"
                 confirmBody="This will permanently delete the user."
                 onClick={() =>
                   deleteUser.mutateAsync(user.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/users`),
                   })
                 }

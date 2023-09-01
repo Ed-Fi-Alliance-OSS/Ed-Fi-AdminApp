@@ -1,10 +1,23 @@
 import { GetSessionDataDto, PostRoleDto, PutRoleDto, toGetRoleDto } from '@edanalytics/models';
 import { Role, addUserCreating, addUserModifying } from '@edanalytics/models-server';
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  HttpException,
+  Param,
+  ParseBoolPipe,
+  ParseIntPipe,
+  Post,
+  Put,
+  Query,
+  UnauthorizedException,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Authorize } from '../auth/authorization';
+import { Authorize, CheckAbility, CheckAbilityType } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { throwNotFound } from '../utils';
 import { RolesGlobalService } from './roles-global.service';
@@ -77,8 +90,10 @@ export class RolesGlobalController {
   })
   async remove(
     @Param('roleId', new ParseIntPipe()) roleId: number,
-    @ReqUser() user: GetSessionDataDto
+    @Query('force', new ParseBoolPipe()) force: boolean,
+    @ReqUser() user: GetSessionDataDto,
+    @CheckAbility() checkAbility: CheckAbilityType
   ) {
-    return this.roleService.remove(roleId, user);
+    return this.roleService.remove(roleId, user, force, checkAbility);
   }
 }

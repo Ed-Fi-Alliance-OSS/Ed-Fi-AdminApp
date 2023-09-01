@@ -60,6 +60,17 @@ export interface IWorkflowStatus {
 export interface IWorkflowFailureErrors {
   title: string;
   status: StatusType;
-  message?: string;
+  message?: string | JSX.Element;
   regarding?: string;
 }
+export type ErrorCode = 'REQUIRES_FORCE_DELETE';
+
+export interface IWorkflowFailureResponse {
+  message: string;
+  type: typeof WORKFLOW_FAILURE_RESP_TYPE;
+  code?: ErrorCode;
+  errors: IWorkflowFailureErrors;
+}
+
+export const isWorkflowFailureResponse = (obj: any): obj is IWorkflowFailureResponse =>
+  obj?.type === WORKFLOW_FAILURE_RESP_TYPE;

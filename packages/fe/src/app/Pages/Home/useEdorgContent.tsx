@@ -75,18 +75,18 @@ export const useEdorgContent = (props: { sbe: GetSbeDto }) => {
                   {
                     accessorKey: 'displayName',
                     cell: NameCell,
-                    header: () => 'Name',
+                    header: 'Name',
                   },
                   {
                     id: 'parent',
                     accessorFn: (info) => getRelationDisplayName(info.parentId, edorgs),
-                    header: () => 'Parent Ed-Org',
+                    header: 'Parent Ed-Org',
                     cell: (info) => <EdorgLink query={edorgs} id={info.row.original.parentId} />,
                   },
                   ...arrayElemIf(canShowOds, {
                     id: 'ods',
                     accessorFn: (info: GetEdorgDto) => getRelationDisplayName(info.odsId, odss),
-                    header: () => 'ODS',
+                    header: 'ODS',
                     cell: (info: CellContext<GetEdorgDto, unknown>) => (
                       <OdsLink query={odss} id={info.row.original.odsId} />
                     ),
@@ -94,7 +94,7 @@ export const useEdorgContent = (props: { sbe: GetSbeDto }) => {
                   {
                     id: 'discriminator',
                     accessorFn: (info) => info.discriminator,
-                    header: () => 'Type',
+                    header: 'Type',
                   },
                 ]}
               />

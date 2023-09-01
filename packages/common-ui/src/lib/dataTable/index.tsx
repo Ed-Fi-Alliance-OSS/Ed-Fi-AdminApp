@@ -23,6 +23,7 @@ import {
 } from '@chakra-ui/react';
 import {
   ColumnDef,
+  ColumnFiltersState,
   FilterFn,
   RowSelectionState,
   SortingState,
@@ -41,7 +42,7 @@ import { useSearchParams } from 'react-router-dom';
 
 import { rankItem } from '@tanstack/match-sorter-utils';
 
-const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
+export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
   // Rank the item
   const itemRank = rankItem(row.getValue(columnId), value);
 
@@ -67,13 +68,13 @@ const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
  * @example <caption>column config for basic text value</caption>
  * ({
  *   accessorKey: 'name',
- *   header: () => 'Name',
+ *   header: 'Name',
  * })
  *
  * @example <caption>Column config for transformed value</caption>
  * ({
  *   accessorFn: (info) => shortDate(info.createdDate),
- *   header: () => 'Created Date',
+ *   header: 'Created Date',
  * })
  *
  * @example <caption>Column config for custom cell</caption>
@@ -83,13 +84,13 @@ const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
  *   cell: (info) => (
        <Text color="gray.500">{info.getValue()}</Text>
      ),
- *   header: () => 'Created Date',
+ *   header: 'Created Date',
  * })
  *
  * @example <caption>Column config for basic text value</caption>
  * ({
  *     accessorKey: 'name',
- *     header: () => 'Name',
+ *     header: 'Name',
  * })
  */
 export function DataTable<T extends object>(props: {
@@ -104,10 +105,10 @@ export function DataTable<T extends object>(props: {
   const pageSizes = props.pageSizes ?? [10, 25, 50, 100];
 
   const [searchParams, setSearchParams] = useSearchParams();
-  const globalFilter = getFilterParam(searchParams, props.queryKeyPrefix);
+  const globalFilter = getGlobalFilterParam(searchParams, props.queryKeyPrefix);
   const setGlobalFilter = (value: string | undefined) => {
     setSearchParams(
-      setFilterParam(value === '' ? undefined : value, searchParams, props.queryKeyPrefix)
+      setGlobalFilterParam(value === '' ? undefined : value, searchParams, props.queryKeyPrefix)
     );
   };
   const sortParams = getSortParams(searchParams, props.queryKeyPrefix);
@@ -302,7 +303,7 @@ export function DataTable<T extends object>(props: {
   );
 }
 
-const getSortParams = (
+export const getSortParams = (
   searchParams: URLSearchParams,
   prefix?: string | undefined
 ): SortingState => {
@@ -321,7 +322,7 @@ const getSortParams = (
     return [];
   }
 };
-const getFilterParam = (
+export const getGlobalFilterParam = (
   searchParams: URLSearchParams,
   prefix?: string | undefined
 ): string | undefined => {
@@ -330,7 +331,7 @@ const getFilterParam = (
   return searchParams.get(paramName) ?? undefined;
 };
 
-const setFilterParam = (
+export const setGlobalFilterParam = (
   state: string | undefined,
   searchParams: URLSearchParams,
   prefix?: string | undefined
@@ -340,8 +341,40 @@ const setFilterParam = (
   state && searchParams.set(paramName, state);
   return searchParams;
 };
+export const getColumnFilterParam = (
+  searchParams: URLSearchParams,
+  prefix?: string | undefined
+): ColumnFiltersState => {
+  const paramName = `${prefix ? prefix + '_' : ''}colfilter`;
+  const paramValue = searchParams.get(paramName);
+  try {
+    return paramValue
+      ? JSON.parse(atob(decodeURIComponent(paramValue))).map((item: { i: string; v: any }) => ({
+          id: item.i,
+          value: item.v,
+        }))
+      : [];
+  } catch (parsingError) {
+    return [];
+  }
+};
 
-const setSortParams = (
+export const setColumnFilterParam = (
+  state: ColumnFiltersState,
+  searchParams: URLSearchParams,
+  prefix?: string | undefined
+) => {
+  const paramName = `${prefix ? prefix + '_' : ''}colfilter`;
+  searchParams.delete(paramName);
+  state.length &&
+    searchParams.set(
+      paramName,
+      btoa(JSON.stringify(state.map((item) => ({ i: item.id, v: item.value }))))
+    );
+  return searchParams;
+};
+
+export const setSortParams = (
   state: SortingState,
   searchParams: URLSearchParams,
   prefix?: string | undefined
@@ -358,7 +391,7 @@ const setSortParams = (
   return searchParams;
 };
 
-const DebouncedInput = forwardRef<
+export const DebouncedInput = forwardRef<
   InputProps & {
     /** (ms) */
     debounce?: number;

@@ -1,29 +1,24 @@
-import { Spinner, useBoolean } from '@chakra-ui/react';
-import { useOperationResultDisclosure } from '@edanalytics/common-ui';
-import { GetSbeDto } from '@edanalytics/models';
-import { BiCog, BiData, BiDownload, BiPlug, BiRename, BiShieldPlus, BiTrash } from 'react-icons/bi';
-import { HiOutlineEye } from 'react-icons/hi';
-import { useNavigate } from 'react-router-dom';
-import { usePopBanner } from '../../Layout/FeedbackBanner';
-import {
-  sbeQueries,
-  useSbeCheckAdminAPI,
-  useSbeCheckSbMeta,
-  useSbeRefreshResources,
-} from '../../api';
-import { AuthorizeComponent } from '../../helpers';
+import { Link, Spinner, useBoolean } from '@chakra-ui/react';
 import {
   ActionProps,
   ActionPropsConfirm,
   ActionsType,
   LinkActionProps,
-} from '../../helpers/ActionsType';
+  useOperationResultDisclosure,
+} from '@edanalytics/common-ui';
+import { GetSbeDto, PgBossJobState } from '@edanalytics/models';
+import { StatusType } from '@edanalytics/utils';
+import { BiCog, BiData, BiDownload, BiPlug, BiRename, BiShieldPlus, BiTrash } from 'react-icons/bi';
+import { HiOutlineEye } from 'react-icons/hi';
+import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { sbeQueries, useSbeCheckAdminAPI, useSbeRefreshResources } from '../../api';
+import { AuthorizeComponent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 
 export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => {
   const checkAdminApi = useSbeCheckAdminAPI();
-  const checkSbMeta = useSbeCheckSbMeta();
   const [checkLoading, setCheckLoading] = useBoolean(false);
 
   const refreshResources = useSbeRefreshResources();
@@ -96,17 +91,15 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                 }}
               >
                 <props.children
-                  icon={() => (checkLoading ? <Spinner size="sm" /> : <BiPlug />)}
+                  icon={BiPlug}
+                  isLoading={checkAdminApi.isLoading}
                   text="Ping Admin API"
                   title="Check connection to Ed-Fi Admin API"
                   onClick={async () => {
-                    setCheckLoading.on();
-                    checkAdminApi
-                      .mutateAsync(sbe, {
-                        onSuccess: (res) => popBanner(res),
-                        ...mutationErrCallback({ popBanner }),
-                      })
-                      .finally(() => setCheckLoading.off());
+                    checkAdminApi.mutateAsync(sbe, {
+                      ...mutationErrCallback({ popBanner }),
+                      onSuccess: (res) => popBanner(res),
+                    });
                   }}
                 />
               </AuthorizeComponent>
@@ -126,12 +119,45 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                 }}
               >
                 <props.children
-                  icon={() => (refreshLoading ? <Spinner size="sm" /> : <BiDownload />)}
+                  icon={BiDownload}
+                  isLoading={refreshResources.isLoading}
                   text="Sync with SB"
                   title="Sync ODSs and Ed-Orgs from Starting Blocks to SBAA."
                   onClick={async () => {
-                    setRefreshLoading.on();
-                    await refreshResources.mutateAsync(sbe).finally(() => setRefreshLoading.off());
+                    await refreshResources.mutateAsync(sbe, {
+                      ...mutationErrCallback({ popBanner }),
+                      onSuccess(result, variables, context) {
+                        const failureStates: PgBossJobState[] = ['failed', 'cancelled', 'expired'];
+                        const pendingStates: PgBossJobState[] = ['created', 'retry', 'active'];
+                        popBanner({
+                          status:
+                            result.state === 'completed'
+                              ? StatusType.success
+                              : failureStates.includes(result.state)
+                              ? StatusType.error
+                              : StatusType.info,
+                          title: `Sync ${
+                            result.state === 'completed'
+                              ? 'completed'
+                              : failureStates.includes(result.state)
+                              ? 'failed'
+                              : 'queued'
+                          }`,
+                          message: (
+                            <>
+                              See the queue item for more details
+                              {pendingStates.includes(result.state)
+                                ? ' and updated status'
+                                : ''}:{' '}
+                              <Link as={RouterLink} to={`/sb-sync-queues/${result.id}`}>
+                                /sb-sync-queues/{result.id}
+                              </Link>
+                              .
+                            </>
+                          ),
+                        });
+                      },
+                    });
                   }}
                 />
               </AuthorizeComponent>
@@ -216,11 +242,13 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
             >
               <props.children
                 icon={BiTrash}
+                isLoading={deleteSbe.isLoading}
                 text="Delete"
                 title="Delete environment"
                 confirmBody="This will permanently delete the environment."
                 onClick={() =>
                   deleteSbe.mutateAsync(sbe.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/sbes`),
                   })
                 }

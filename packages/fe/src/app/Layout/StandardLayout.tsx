@@ -7,7 +7,7 @@ import { AppBar } from './AppBar';
 import { AppBarPublic } from './AppBarPublic';
 import { Breadcrumbs } from './Breadcrumbs';
 import { FeedbackBanners } from './FeedbackBanner';
-import { LandingLayoutRouteElement } from './LandingLayout';
+import { LandingLayout, LandingLayoutRouteElement } from './LandingLayout';
 import { Nav, asTenantIdAtom } from './Nav';
 
 export const StandardLayout = () => {
@@ -25,39 +25,45 @@ export const StandardLayout = () => {
           {hasRole ? (
             <>
               <Nav />
-              <Box maxH="100%" h="100%" overflow="auto" flexGrow="1">
+              <Box
+                boxShadow="inner-md"
+                border="1px solid"
+                borderColor="gray.200"
+                borderTopLeftRadius="md"
+                bg="background-bg"
+                maxH="100%"
+                h="100%"
+                overflow="auto"
+                flexGrow="1"
+              >
                 <Flex flexDir="column" minW="35em" h="100%">
                   <FeedbackBanners />
-                  <Box p={3} px="calc(4vw + 0.5em)">
+                  <Box p={3} display="flex" flexDir="column" flexGrow={1} px="calc(4vw + 0.5em)">
                     <Breadcrumbs mb={5} />
-                    <Box flexGrow={1} pb="2em">
+                    <Box flexGrow={1} pb="2em" w="fit-content" minW="100%">
                       {/* asId might be one render behind */}
                       {params.asId && asId === undefined ? null : <Outlet />}
+                    </Box>
+                    <Box fontSize="sm" color="gray.500" mt="auto" textAlign="center">
+                      ©2023 Education Analytics, Inc. All Rights Reserved
                     </Box>
                   </Box>
                 </Flex>
               </Box>
             </>
           ) : isLoggedIn ? (
-            <Box w="100%" pt="30vh" textAlign="center">
-              <VStack
-                borderRadius="4px"
-                border="1px solid"
-                borderColor="gray.400"
-                py="5em"
-                pb="6em"
-                px="6em"
-                maxW="70em"
-                display="inline-flex"
-                align="left"
-                textAlign="left"
-                spacing="4em"
+            <LandingLayout>
+              <Text
+                p="1em"
+                fontSize="2xl"
+                fontWeight={500}
+                color="gray.700"
+                textAlign="center"
+                maxW="30em"
               >
-                <Text w="auto" textAlign="center" fontWeight="bold" fontSize="5xl" color="gray.400">
-                  We found you in our database, but you don't have a role assigned yet.
-                </Text>
-              </VStack>
-            </Box>
+                We found you in our database, but you don't have a role assigned yet.
+              </Text>
+            </LandingLayout>
           ) : me.isLoading ? null : (
             <LandingLayoutRouteElement />
           )}

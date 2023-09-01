@@ -1,5 +1,5 @@
+import { PageTemplate } from '@edanalytics/common-ui';
 import { useMe } from '../../api';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { ViewAccount } from './ViewAccount';
 
 export const AccountPage = () => {

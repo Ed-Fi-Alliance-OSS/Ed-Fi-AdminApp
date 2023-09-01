@@ -1,7 +1,8 @@
-import { Button, Menu, MenuButton, MenuList } from '@chakra-ui/react';
+import { Button, Menu, MenuButton, MenuList, Portal } from '@chakra-ui/react';
 import { ActionBarButton, ActionMenuButton } from './getStandardActions';
 import { ChevronDownIcon } from '@chakra-ui/icons';
 import { ActionsType } from './ActionsType';
+import * as React from 'react';
 
 export const ActionBarActions = (props: {
   actions: ActionsType;
@@ -32,11 +33,13 @@ export const ActionBarActions = (props: {
           <MenuButton as={Button} rightIcon={<ChevronDownIcon />}>
             More
           </MenuButton>
-          <MenuList>
-            {hidden.map(([key, Action]) => (
-              <Action key={key}>{ActionMenuButton}</Action>
-            ))}
-          </MenuList>
+          <Portal>
+            <MenuList>
+              {hidden.map(([key, Action]) => (
+                <Action key={key}>{ActionMenuButton}</Action>
+              ))}
+            </MenuList>
+          </Portal>
         </Menu>
       )}
     </>

@@ -13,6 +13,7 @@ export type ActionProps = {
   text: string;
   title: string;
   isDisabled?: boolean;
+  isLoading?: boolean;
 };
 export type ActionPropsConfirm = ActionProps & {
   confirmBody: string;

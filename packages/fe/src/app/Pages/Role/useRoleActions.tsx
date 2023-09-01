@@ -1,16 +1,18 @@
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetRoleDto } from '@edanalytics/models';
-import { useNavigate, useParams } from 'react-router-dom';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
+import { useNavigate, useParams } from 'react-router-dom';
 import { roleQueries } from '../../api';
 import { AuthorizeComponent, tenantRoleAuthConfig } from '../../helpers';
-import { roleIndexRoute, rolesRoute } from '../../routes';
-import { ActionsType, LinkActionProps, ActionPropsConfirm } from '../../helpers/ActionsType';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useRoleActions = (role: GetRoleDto | undefined): ActionsType => {
   const navigate = useNavigate();
   const to = (id: number | string) => `/roles/${id}`;
   const deleteRole = roleQueries.useDelete({});
+  const popBanner = usePopBanner();
   const params = useParams() as {
     asId: string;
     roleId: string;
@@ -57,11 +59,13 @@ export const useRoleActions = (role: GetRoleDto | undefined): ActionsType => {
             >
               <props.children
                 icon={BiTrash}
+                isLoading={deleteRole.isLoading}
                 text="Delete"
                 title="Delete role"
                 confirmBody="This will permanently delete the role."
                 onClick={() =>
                   deleteRole.mutateAsync(role.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/as/${params.asId}/roles`),
                   })
                 }

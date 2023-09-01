@@ -10,11 +10,16 @@ import { PutUserDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { userQueries } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutUserDto);
 
 export const EditUser = () => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const params = useParams() as {
     asId: string;
@@ -31,12 +36,17 @@ export const EditUser = () => {
   }).data;
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PutUserDto>({ resolver, defaultValues: { ...user } });
 
   return user ? (
-    <form onSubmit={handleSubmit((data) => putUser.mutateAsync(data))}>
+    <form
+      onSubmit={handleSubmit((data) =>
+        putUser.mutateAsync(data, mutationErrCallback({ popBanner, setError }))
+      )}
+    >
       <FormControl isInvalid={!!errors.givenName}>
         <FormLabel>Given Name</FormLabel>
         <Input {...register('givenName')} placeholder="givenName" />

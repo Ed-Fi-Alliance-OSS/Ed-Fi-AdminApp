@@ -9,14 +9,31 @@ import {
 } from '@chakra-ui/react';
 import { GetUserDto, PutUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useForm } from 'react-hook-form';
+import { FieldErrors, Path, UseFormRegister, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { tenantQueries, userQueries } from '../../api';
 import { SelectRole } from '../../helpers/FormPickers';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
+const TextField = <T extends object>(props: {
+  errors: FieldErrors<Partial<T>>;
+  register: UseFormRegister<T>;
+  name: keyof T;
+  label: string;
+  placeholder?: string;
+}) => {
+  <FormControl isInvalid={!!props.errors[props.name]}>
+    <FormLabel>{props.label}</FormLabel>
+    <Input {...props.register(props.name as any)} placeholder={props.placeholder} />
+    <FormErrorMessage>{props.errors[props.name]?.message as any}</FormErrorMessage>
+  </FormControl>;
+};
 const resolver = classValidatorResolver(PutUserDto);
 
 export const EditUserGlobal = (props: { user: GetUserDto }) => {
+  const popBanner = usePopBanner();
+
   const { user } = props;
   const tenants = tenantQueries.useAll({});
 
@@ -39,6 +56,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
     control,
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm({
     resolver,
@@ -49,14 +67,17 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
     <form
       onSubmit={handleSubmit((data) => {
         const validatedData = data as PutUserDto;
-        return putUser.mutateAsync({
-          id: validatedData.id,
-          roleId: validatedData.roleId,
-          isActive: validatedData.isActive,
-          username: validatedData.username,
-          givenName: validatedData.givenName === '' ? null : validatedData.givenName,
-          familyName: validatedData.familyName === '' ? null : validatedData.familyName,
-        });
+        return putUser.mutateAsync(
+          {
+            id: validatedData.id,
+            roleId: validatedData.roleId,
+            isActive: validatedData.isActive,
+            username: validatedData.username,
+            givenName: validatedData.givenName === '' ? null : validatedData.givenName,
+            familyName: validatedData.familyName === '' ? null : validatedData.familyName,
+          },
+          mutationErrCallback({ popBanner, setError })
+        );
       })}
     >
       <FormControl isInvalid={!!errors.username}>

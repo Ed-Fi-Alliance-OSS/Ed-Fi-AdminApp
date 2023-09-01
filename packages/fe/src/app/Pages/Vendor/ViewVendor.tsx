@@ -1,4 +1,4 @@
-import { Attribute } from '@edanalytics/common-ui';
+import { Attribute, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { vendorQueries } from '../../api';
 
@@ -15,21 +15,23 @@ export const ViewVendor = () => {
   }).data;
 
   return vendor ? (
-    <>
-      <Attribute label="Company" value={vendor.company} />
-      <Attribute
-        label="Namespace"
-        value={vendor.namespacePrefixes === '' ? '-' : vendor.namespacePrefixes}
-      />
-      <Attribute label="Contact" value={vendor.contactName} />
-      {vendor.contactEmailAddress ? (
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute label="Company" value={vendor.company} />
         <Attribute
-          label="Contact email"
-          value={`mailto:${vendor.contactEmailAddress}`}
-          isUrl
-          isUrlExternal
+          label="Namespace"
+          value={vendor.namespacePrefixes === '' ? '-' : vendor.namespacePrefixes}
         />
-      ) : null}
-    </>
+        <Attribute label="Contact" value={vendor.contactName} />
+        {vendor.contactEmailAddress ? (
+          <Attribute
+            label="Contact email"
+            value={`mailto:${vendor.contactEmailAddress}`}
+            isUrl
+            isUrlExternal
+          />
+        ) : null}
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

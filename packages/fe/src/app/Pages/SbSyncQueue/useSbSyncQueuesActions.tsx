@@ -1,8 +1,8 @@
+import { ActionProps, ActionsType } from '@edanalytics/common-ui';
 import { HiInboxIn } from 'react-icons/hi';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { usePostSbSyncQueue } from '../../api';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionProps, ActionsType } from '../../helpers/ActionsType';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useSbSyncQueuesActions = (): ActionsType => {
@@ -22,12 +22,13 @@ export const useSbSyncQueuesActions = (): ActionsType => {
         >
           <props.children
             icon={HiInboxIn}
+            isLoading={postSyncQueue.isLoading}
             text="Sync all environments"
             title={'Trigger sync of all environments'}
             onClick={() =>
               postSyncQueue.mutateAsync(undefined, {
-                onSuccess: (res) => popBanner(res),
                 ...mutationErrCallback({ popBanner }),
+                onSuccess: (res) => popBanner(res),
               })
             }
           />

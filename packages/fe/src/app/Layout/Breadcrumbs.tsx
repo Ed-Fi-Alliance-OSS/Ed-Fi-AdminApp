@@ -7,9 +7,9 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
-import { Link as RouterLink, generatePath, useMatches, useParams } from 'react-router-dom';
-import { flatRoutes, routes } from '../routes';
 import { ErrorBoundary } from 'react-error-boundary';
+import { Link as RouterLink, generatePath, useMatches, useParams } from 'react-router-dom';
+import { flatRoutes } from '../routes';
 
 export const Breadcrumbs = (props: BreadcrumbProps & StyleProps) => {
   const matches = useMatches();
@@ -48,7 +48,7 @@ export const Breadcrumbs = (props: BreadcrumbProps & StyleProps) => {
       spacing={1}
       color="gray.500"
       separator={
-        <Text color="gray.200" pb="0.175em" fontSize="2xl" mx="0.3em" lineHeight={0}>
+        <Text color="gray.400" mx="0.2em" lineHeight={0}>
           /
         </Text>
       }

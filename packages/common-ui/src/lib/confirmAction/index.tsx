@@ -101,10 +101,15 @@ export const ConfirmAction = (props: ConfirmActionProps) => {
   );
 };
 
-export const ConfirmActionModal = (props: object) => {
-  const { getModalProps } = useConfirmActionContext();
+export const BasicConfirmationModal = (
+  props: ModalProps &
+    Pick<
+      UseConfirmActionProps,
+      'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText'
+    >
+) => {
   const { headerText, bodyText, action, yesButtonText, noButtonText, onClose, ...modalProps } =
-    getModalProps(props);
+    props;
 
   return (
     <Modal onClose={onClose} {...modalProps}>
@@ -124,4 +129,9 @@ export const ConfirmActionModal = (props: object) => {
       </ModalContent>
     </Modal>
   );
+};
+
+export const ConfirmActionModal = (props: object) => {
+  const { getModalProps } = useConfirmActionContext();
+  return <BasicConfirmationModal {...getModalProps(props)} />;
 };

@@ -1,15 +1,19 @@
 import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import {
+  SbaaTableAllInOne,
+  PageTemplate,
+  TableRowActions,
+  ValueAsDate,
+} from '@edanalytics/common-ui';
+
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { useParams } from 'react-router-dom';
 import { roleQueries, userQueries, userTenantMembershipQueries } from '../../api';
 import { getEntityFromQuery } from '../../helpers';
-import { TableRowActions } from '../../helpers/TableRowActions';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { useReadTenantEntity } from '../../helpers/useStandardRowActionsNew';
 import { UserLink, userRoute } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 
 const NameCell = (info: CellContext<GetUserTenantMembershipDto, unknown>) => {
   const params = useParams() as { asId: string };
@@ -47,30 +51,37 @@ export const UsersPage = () => {
 
   return (
     <PageTemplate title="Users">
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(userTenantMemberships?.data || {})}
         columns={[
           {
             id: 'displayName',
             accessorFn: (info) => getRelationDisplayName(info.userId, users),
             cell: NameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'username',
             accessorFn: (info) => getEntityFromQuery(info.userId, users)?.username,
             cell: (info) => getEntityFromQuery(info.row.original.userId, users)?.username,
-            header: () => 'Username',
+            header: 'Username',
           },
           {
             id: 'role',
             accessorFn: (info) => getRelationDisplayName(info.roleId, roles),
             cell: (info) => getRelationDisplayName(info.row.original.roleId, roles),
-            header: () => 'Tenant role',
+            header: 'Tenant role',
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
         ]}
       />

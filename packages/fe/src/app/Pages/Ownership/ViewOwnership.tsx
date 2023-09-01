@@ -1,4 +1,4 @@
-import { Attribute } from '@edanalytics/common-ui';
+import { Attribute, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { ownershipQueries } from '../../api';
 
@@ -13,5 +13,11 @@ export const ViewOwnership = () => {
     tenantId: params.asId,
   }).data;
 
-  return ownership ? <Attribute label="Id" value={ownership.id} /> : null;
+  return ownership ? (
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute label="Id" value={ownership.id} />{' '}
+      </AttributesGrid>
+    </ContentSection>
+  ) : null;
 };

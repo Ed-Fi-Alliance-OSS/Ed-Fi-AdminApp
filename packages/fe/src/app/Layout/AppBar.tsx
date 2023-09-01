@@ -32,9 +32,7 @@ export const AppBar = () => {
       w="100%"
       position="sticky"
       top="0px"
-      bg="rgb(248,248,248)"
-      borderBottom="1px solid"
-      borderColor="gray.200"
+      bg="foreground-bg"
       py={1}
       px={3}
     >
@@ -43,12 +41,12 @@ export const AppBar = () => {
           <Image h={7} src={logoUrl} />
         </RouterLink>
         <Text
-          lineHeight="1.7"
-          borderLeft="2px solid"
+          lineHeight="1.3"
+          borderLeft="1px solid"
           borderColor="gray.300"
           ml="0.9ch"
           pl="1.5ch"
-          fontWeight="medium"
+          fontWeight={600}
           fontSize="lg"
           color="gray.500"
         >

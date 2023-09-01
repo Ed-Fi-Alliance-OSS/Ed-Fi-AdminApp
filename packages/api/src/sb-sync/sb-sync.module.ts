@@ -1,11 +1,12 @@
-import { Injectable, Module } from '@nestjs/common';
-import { SbesGlobalModule } from '../sbes-global/sbes-global.module';
-import { TypeOrmModule } from '@nestjs/typeorm';
 import { SbSyncQueue, Sbe } from '@edanalytics/models-server';
+import { Injectable, Module } from '@nestjs/common';
+import { TypeOrmModule } from '@nestjs/typeorm';
 import { SbSyncConsumer } from './sb-sync.consumer';
 
 import config from 'config';
 import PgBoss from 'pg-boss';
+import { AuthModule } from '../auth/auth.module';
+import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { SbSyncController } from './sb-sync.controller';
 
 @Injectable()
@@ -15,10 +16,11 @@ export const SYNC_SCHEDULER_CHNL = 'sbe-sync-scheduler';
 export const SYNC_CHNL = 'sbe-sync';
 
 @Module({
-  imports: [SbesGlobalModule, TypeOrmModule.forFeature([Sbe, SbSyncQueue])],
+  imports: [TypeOrmModule.forFeature([Sbe, SbSyncQueue]), AuthModule],
   controllers: [SbSyncController],
   providers: [
     SbSyncConsumer,
+    StartingBlocksService,
     {
       provide: 'PgBossInstance',
       useFactory: async () => {
@@ -28,6 +30,12 @@ export const SYNC_CHNL = 'sbe-sync';
         await boss.start();
         return boss;
       },
+    },
+  ],
+  exports: [
+    {
+      provide: 'PgBossInstance',
+      useExisting: 'PgBossInstance',
     },
   ],
 })

@@ -1,9 +1,8 @@
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate, ValueAsDate } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { sbeQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { UserLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { NameCell } from './NameCell';
 
 export const SbesPage = () => {
@@ -15,29 +14,39 @@ export const SbesPage = () => {
 
   return (
     <PageTemplate title="Starting Blocks environments">
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(sbes?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: NameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'modifiedBy',
             accessorFn: (info) => getRelationDisplayName(info.modifiedById, users),
-            header: () => 'Modified by',
+            header: 'Modified by',
             cell: (info) => <UserLink query={users} id={info.row.original.modifiedById} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
           {
             id: 'createdBy',
             accessorFn: (info) => getRelationDisplayName(info.createdById, users),
-            header: () => 'Created by',
+            header: 'Created by',
             cell: (info) => <UserLink query={users} id={info.row.original.createdById} />,
+            meta: {
+              type: 'options',
+            },
           },
         ]}
       />

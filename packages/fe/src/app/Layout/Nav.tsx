@@ -25,6 +25,7 @@ export const asTenantIdAtom = atom<number | undefined>(undefined);
 
 export const Nav = () => {
   const params = useParams();
+
   const defaultTenant: any = params?.asId ?? Cookies.get('defaultTenant');
   const [tenantId, setTenantId] = useAtom(asTenantIdAtom);
 
@@ -95,25 +96,24 @@ export const Nav = () => {
 
   return (
     <Box
-      py={3}
+      pb={3}
+      pt={8}
       flex="0 0 20em"
       overflowX="hidden"
       overflowY="auto"
-      bg="rgb(248,248,248)"
-      borderRight="1px solid"
-      borderColor="gray.200"
+      bg="foreground-bg"
       enable={{ right: true }}
       defaultSize={{ width: '15em', height: '100%' }}
       onResizeStart={setIsResizing.on}
       onResizeStop={setIsResizing.off}
       borderRightWidth={isResizing ? '3px' : undefined}
       borderRightColor={isResizing ? 'teal.500' : undefined}
-      minWidth="5em"
+      minWidth="11em"
       maxWidth="min(40em, 80%)"
       as={Resizable}
     >
       {Object.keys(tenants.data ?? {}).length > 1 || hasGlobalPrivileges ? (
-        <Box mb={3} px={3}>
+        <Box mb={7} px={3}>
           <Select
             value={
               selectedTenant === undefined
@@ -121,9 +121,9 @@ export const Nav = () => {
                     label: 'No tenant (global)',
                     value: undefined,
                     styles: {
-                      fontStyle: 'italic',
-                      color: 'gray.500',
-                      fontSize: 'large',
+                      fontWeight: '600',
+                      color: 'gray.600',
+                      fontSize: 'md',
                     },
                   }
                 : {
@@ -150,9 +150,9 @@ export const Nav = () => {
                 label: 'No tenant (global)',
                 value: undefined,
                 styles: {
-                  fontStyle: 'italic',
-                  color: 'gray.500',
-                  fontSize: 'large',
+                  fontWeight: '600',
+                  color: 'gray.600',
+                  fontSize: 'md',
                 },
               },
               ...Object.values(tenants.data ?? ({} as Record<string, GetTenantDto>))
@@ -178,20 +178,23 @@ export const Nav = () => {
               },
               container: (styles) => ({
                 ...styles,
-                bg: 'white',
+                bg: 'transparent',
+                borderRadius: 'md',
                 zIndex: 3,
               }),
               dropdownIndicator: (styles) => ({
                 ...styles,
+                bg: 'none',
                 width: '1.5em',
+              }),
+              indicatorSeparator: (styles) => ({
+                ...styles,
+                borderColor: 'transparent',
               }),
             }}
           />
         </Box>
       ) : null}
-      <Text px={3} as="h3" color="gray.500" mb={2} fontWeight="600">
-        Pages
-      </Text>
       <NavButton
         {...{
           route: '/account',

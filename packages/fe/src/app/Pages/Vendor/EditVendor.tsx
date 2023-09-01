@@ -10,11 +10,15 @@ import { PutVendorDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { vendorQueries } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutVendorDto);
 
 export const EditVendor = () => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const params = useParams() as {
     asId: string;
@@ -35,12 +39,17 @@ export const EditVendor = () => {
   }).data;
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PutVendorDto>({ resolver, defaultValues: { ...vendor } });
 
   return vendor ? (
-    <form onSubmit={handleSubmit((data) => putVendor.mutateAsync(data))}>
+    <form
+      onSubmit={handleSubmit((data) =>
+        putVendor.mutateAsync(data, mutationErrCallback({ popBanner, setError }))
+      )}
+    >
       {/* TODO add the rest of the form */}
       <FormControl isInvalid={!!errors.company}>
         <FormLabel>Company</FormLabel>

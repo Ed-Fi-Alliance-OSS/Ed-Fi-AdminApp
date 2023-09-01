@@ -10,20 +10,18 @@ import {
   Text,
   useClipboard,
 } from '@chakra-ui/react';
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
+
 import { GetApplicationDto, createEdorgCompositeNaturalKey } from '@edanalytics/models';
 import { memo, useMemo } from 'react';
 import { BiEdit, BiPlus, BiShieldX, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { applicationQueries, useApplicationResetCredential } from '../../api';
-import {
-  ActionPropsConfirm,
-  ActionsType,
-  AuthorizeComponent,
-  LinkActionProps,
-  useNavToParent,
-} from '../../helpers';
+import { AuthorizeComponent, useNavToParent } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useApplicationActions = ({
   application,
@@ -36,6 +34,7 @@ export const useApplicationActions = ({
 }): ActionsType => {
   const navigate = useNavigate();
   const location = useLocation();
+  const popBanner = usePopBanner();
 
   const clipboard = useClipboard('');
   const deleteApplication = applicationQueries.useDelete({
@@ -113,12 +112,12 @@ export const useApplicationActions = ({
                 }}
               >
                 <props.children
-                  isDisabled={resetCreds.isLoading}
-                  icon={() => (resetCreds.isLoading ? <Spinner size="sm" /> : <BiShieldX />)}
+                  isLoading={resetCreds.isLoading}
+                  icon={BiShieldX}
                   text="Reset creds"
                   title="Reset application credentials."
                   onClick={() => {
-                    resetCreds.mutate(application);
+                    resetCreds.mutateAsync(application, mutationErrCallback({ popBanner }));
                   }}
                   confirm
                   confirmBody="Are you sure you want to reset the credentials? Anything using the current ones will stop working."
@@ -170,13 +169,14 @@ export const useApplicationActions = ({
               }}
             >
               <props.children
-                isDisabled={deleteApplication.isLoading}
+                isLoading={deleteApplication.isLoading}
                 icon={BiTrash}
                 text="Delete"
                 title="Delete application"
                 confirmBody="All systems using this application to access Ed-Fi will no longer be able to do so. This action cannot be undone, though you will be able to create a new application if you want."
                 onClick={() =>
                   deleteApplication.mutateAsync(application.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => {
                       if (onApplicationPage) {
                         navigate(parentPath);

@@ -1,8 +1,9 @@
 import { HStack } from '@chakra-ui/react';
+import { TableRowActions } from '@edanalytics/common-ui';
 import { GetApplicationDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
+
 import { applicationQueries } from '../../api';
-import { TableRowActions } from '../../helpers';
 import { ApplicationLink } from '../../routes';
 import { useApplicationActions } from './useApplicationActions';
 

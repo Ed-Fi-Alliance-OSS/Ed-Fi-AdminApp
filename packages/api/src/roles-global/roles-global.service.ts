@@ -7,13 +7,14 @@ import {
   UserTenantMembership,
   regarding,
 } from '@edanalytics/models-server';
-import { BadRequestException, Injectable } from '@nestjs/common';
+import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { EntityManager, In, Repository } from 'typeorm';
 import { throwNotFound } from '../utils';
 import { WorkflowFailureException } from '../utils/customExceptions';
-import { StatusType } from '@edanalytics/utils';
+import { StatusType, joinStrsNice } from '@edanalytics/utils';
+import { CheckAbilityType } from '../auth/authorization';
 
 @Injectable()
 export class RolesGlobalService {
@@ -69,21 +70,80 @@ export class RolesGlobalService {
     });
   }
 
-  async remove(id: number, user: GetUserDto) {
+  async remove(id: number, user: GetUserDto, force?: false): Promise<undefined>;
+  async remove(
+    id: number,
+    user: GetUserDto,
+    force: boolean,
+    checkAbility: CheckAbilityType
+  ): Promise<undefined>;
+  async remove(id: number, user: GetUserDto, force = false, checkAbility?: CheckAbilityType) {
     const old = await this.findOne(id).catch(throwNotFound);
     const memberships = await this.utmRepository.findBy({ roleId: id });
     const users = await this.usersRepository.findBy({ roleId: id });
     const ownerships = await this.ownershipsRepository.findBy({ roleId: id });
 
-    if (memberships.length || ownerships.length || users.length) {
-      throw new WorkflowFailureException({
-        status: StatusType.error,
-        title: 'Oops, it looks like this role is still being used.',
-        message: `Make sure it's not applied to any ${
-          ownerships.length ? 'memberships' : users.length ? 'users' : 'ownerships'
-        } before trying again.`,
-        regarding: regarding(old),
-      });
+    if (!force) {
+      if (memberships.length || ownerships.length || users.length) {
+        throw new WorkflowFailureException(
+          {
+            status: StatusType.error,
+            title: 'Oops, it looks like this role is still being used.',
+            message: `It's currently applied to one or more ${joinStrsNice([
+              ...(memberships.length ? ['memberships'] : []),
+              ...(users.length ? ['users'] : []),
+              ...(ownerships.length ? ['ownerships'] : []),
+            ])}.`,
+            regarding: regarding(old),
+          },
+          'REQUIRES_FORCE_DELETE'
+        );
+      }
+    } else {
+      const unauthorizedFks: string[] = [];
+      if (
+        users.length &&
+        !checkAbility({
+          privilege: 'user:update',
+          subject: {
+            id: '__filtered__',
+          },
+        })
+      ) {
+        unauthorizedFks.push('users');
+      }
+      if (
+        memberships.length &&
+        !checkAbility({
+          privilege: 'user-tenant-membership:update',
+          subject: {
+            id: '__filtered__',
+          },
+        })
+      ) {
+        unauthorizedFks.push('tenant memberships');
+      }
+      if (
+        ownerships.length &&
+        !checkAbility({
+          privilege: 'ownership:update',
+          subject: {
+            id: '__filtered__',
+          },
+        })
+      ) {
+        unauthorizedFks.push('resource ownerships');
+      }
+
+      if (unauthorizedFks.length) {
+        throw new WorkflowFailureException({
+          status: StatusType.error,
+          title: 'Insufficient privileges for force delete',
+          message: `You don't have permission to delete this role because it's still being used by ${joinStrsNice(
+            unauthorizedFks
+          )} and you lack the privileges necessary to modify those.`,
+        });
+      }
     }
     await this.rolesRepository.remove(old);
     return undefined;

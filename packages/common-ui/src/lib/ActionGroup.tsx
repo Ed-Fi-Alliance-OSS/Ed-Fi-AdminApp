@@ -1,10 +1,10 @@
-import { ButtonGroup, chakra } from '@chakra-ui/react';
+import { ButtonGroup } from '@chakra-ui/react';
 
 export const ActionGroup = (props: Parameters<typeof ButtonGroup>['0']) => (
   <ButtonGroup
     size="action-bar"
     variant="solid"
-    colorScheme="blue"
+    colorScheme="teal"
     display="flex"
     justifyContent="flex-end"
     spacing={2}

@@ -1,13 +1,16 @@
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetTenantDto } from '@edanalytics/models';
 import { BiArch, BiEdit, BiTrash, BiUserPlus } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 import { tenantQueries } from '../../api';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionPropsConfirm, ActionsType, LinkActionProps } from '../../helpers/ActionsType';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useTenantActions = (tenant: GetTenantDto | undefined): ActionsType => {
   const navigate = useNavigate();
+  const popBanner = usePopBanner();
   const to = (id: number | string) => `/tenants/${id}`;
   const deleteTenant = tenantQueries.useDelete({});
   return tenant === undefined
@@ -109,11 +112,13 @@ export const useTenantActions = (tenant: GetTenantDto | undefined): ActionsType 
             >
               <props.children
                 icon={BiTrash}
+                isLoading={deleteTenant.isLoading}
                 text="Delete"
                 title="Delete tenant"
                 confirmBody="This will permanently delete the tenant."
                 onClick={() =>
                   deleteTenant.mutateAsync(tenant.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/tenants`),
                   })
                 }

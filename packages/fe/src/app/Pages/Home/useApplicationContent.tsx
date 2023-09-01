@@ -35,7 +35,6 @@ import {
 import { ClaimsetLink, EdorgLink } from '../../routes';
 import { NameCell } from '../Application/NameCell';
 import { useApplicationsActions } from '../Application/useApplicationActions';
-import { AccordionHeaderActions } from '../../helpers/AccordionHeaderActions';
 
 export const useApplicationContent = (props: { sbe: GetSbeDto }) => {
   const asId = useNavContext().asId!;
@@ -166,7 +165,7 @@ export const ApplicationTable = (props: { sbe: GetSbeDto }) => {
         {
           accessorKey: 'displayName',
           cell: NameCell({ asId: asId, sbeId: props.sbe.id }),
-          header: () => 'Name',
+          header: 'Name',
         },
         {
           id: 'edorg',
@@ -178,7 +177,7 @@ export const ApplicationTable = (props: { sbe: GetSbeDto }) => {
               }),
               edorgsByEdorgId
             ),
-          header: () => 'Education organization',
+          header: 'Education organization',
           cell: (info) => (
             <EdorgLink
               query={edorgs}
@@ -196,7 +195,7 @@ export const ApplicationTable = (props: { sbe: GetSbeDto }) => {
         {
           id: 'claimest',
           accessorFn: (info) => getRelationDisplayName(info.claimSetName, claimsetsByName),
-          header: () => 'Claimset',
+          header: 'Claimset',
           cell: (info) => (
             <ClaimsetLink
               query={claimsets}

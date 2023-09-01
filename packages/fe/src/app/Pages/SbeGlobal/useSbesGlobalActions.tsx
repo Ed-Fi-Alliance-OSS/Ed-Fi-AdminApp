@@ -1,7 +1,7 @@
+import { ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { BiPlus } from 'react-icons/bi';
 import { useNavigate } from 'react-router-dom';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionsType, LinkActionProps } from '../../helpers/ActionsType';
 
 export const useSbesGlobalActions = (): ActionsType => {
   const navigate = useNavigate();

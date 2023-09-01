@@ -1,17 +1,16 @@
 import {
   Badge,
-  FormLabel,
   Link,
   Popover,
   PopoverBody,
   PopoverContent,
   PopoverTrigger,
-  Portal,
   Text,
   chakra,
 } from '@chakra-ui/react';
-import { AttributeContainer, DataTable } from '@edanalytics/common-ui';
+import { ContentSection, SbaaTableAllInOne, ValueAsDate } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
+import dayjs from 'dayjs';
 import { useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { sbSyncQueueQueries } from '../../api';
@@ -25,36 +24,53 @@ export const SbeSyncQueue = (props: { sbe: GetSbeDto }) => {
   );
 
   return (
-    <AttributeContainer label="Sync queue">
-      <DataTable
+    <ContentSection heading="Sync queue">
+      <SbaaTableAllInOne
         data={filteredQueues}
         columns={[
           {
             id: 'displayName',
-            accessorFn: (info) => info.createdDetailed,
+            accessorFn: (info) => info.createdon,
             cell: (info) => (
               <Link as={RouterLink} to={`/sb-sync-queues/${info.row.original.id}`}>
                 Created on {info.row.original.createdDetailed}
               </Link>
             ),
-            header: () => 'Item',
+            header: 'Item',
+            enableColumnFilter: false,
           },
           {
-            accessorKey: 'completedDetailed',
-            header: () => 'Completed',
+            id: 'completedon',
+            accessorFn: (info) => Number(info.completedon),
+            cell: ValueAsDate(),
+            header: 'Completed',
+            meta: {
+              type: 'date',
+            },
           },
           {
-            accessorKey: 'durationDetailed',
-            header: () => 'Duration',
+            id: 'duration',
+            accessorFn: (info) =>
+              info.completedon && info.createdon
+                ? dayjs(info.completedon).diff(info.createdon) / 1000
+                : null,
+            cell: (info) => info.row.original.durationDetailed,
+            header: 'Duration',
+            meta: {
+              type: 'duration',
+            },
           },
           {
             accessorKey: 'state',
-            header: () => 'State',
+            header: 'State',
             cell: (info) => (
               <Badge colorScheme={jobStateColorSchemes[info.row.original.state]}>
                 {info.row.original.state}
               </Badge>
             ),
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'output',
@@ -95,10 +111,11 @@ export const SbeSyncQueue = (props: { sbe: GetSbeDto }) => {
                   )}
                 </Popover>
               ) : null,
-            header: () => 'Output',
+            header: 'Output',
+            enableSorting: false,
           },
         ]}
       />
-    </AttributeContainer>
+    </ContentSection>
   );
 };

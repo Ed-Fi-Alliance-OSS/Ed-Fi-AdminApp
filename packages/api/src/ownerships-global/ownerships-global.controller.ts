@@ -5,24 +5,14 @@ import {
   toGetOwnershipDto,
 } from '@edanalytics/models';
 import { Ownership, addUserCreating, addUserModifying } from '@edanalytics/models-server';
-import {
-  Body,
-  Controller,
-  Delete,
-  Get,
-  NotFoundException,
-  Param,
-  ParseIntPipe,
-  Post,
-  Put,
-} from '@nestjs/common';
+import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
+import { throwNotFound } from '../utils';
 import { OwnershipsGlobalService } from './ownerships-global.service';
-import { ErrorResponse, throwNotFound } from '../utils';
 
 @ApiTags('Ownership - Global')
 @Controller()

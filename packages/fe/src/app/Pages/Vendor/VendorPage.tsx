@@ -1,10 +1,10 @@
+import { PageTemplate } from '@edanalytics/common-ui';
+import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
 import { vendorQueries } from '../../api';
 import { useSearchParamsObject } from '../../helpers/useSearch';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { EditVendor } from './EditVendor';
 import { ViewVendor } from './ViewVendor';
-import { ErrorBoundary } from 'react-error-boundary';
 
 export const VendorPageContent = () => {
   const params = useParams() as {

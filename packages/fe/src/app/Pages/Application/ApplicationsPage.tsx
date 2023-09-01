@@ -1,11 +1,11 @@
-import { DataTable } from '@edanalytics/common-ui';
+import { ActionBarActions, SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { GetClaimsetDto, GetEdorgDto, createEdorgCompositeNaturalKey } from '@edanalytics/models';
 import _ from 'lodash';
 import { applicationQueries, claimsetQueries, edorgQueries, vendorQueries } from '../../api';
-import { ActionBarActions, useNavContext } from '../../helpers';
+
+import { useNavContext } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLink, EdorgLink, VendorLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { NameCell } from './NameCell';
 import { useApplicationsActions } from './useApplicationActions';
 
@@ -74,13 +74,13 @@ export const ApplicationsPageContent = () => {
   };
 
   return (
-    <DataTable
+    <SbaaTableAllInOne
       data={Object.values(applications?.data || {})}
       columns={[
         {
           accessorKey: 'displayName',
           cell: NameCell({ asId: asId, sbeId: sbeId }),
-          header: () => 'Name',
+          header: 'Name',
         },
         {
           id: 'edorg',
@@ -92,7 +92,7 @@ export const ApplicationsPageContent = () => {
               }),
               edorgsByEdorgId
             ),
-          header: () => 'Education organization',
+          header: 'Education organization',
           cell: (info) => (
             <EdorgLink
               query={edorgs}
@@ -106,23 +106,32 @@ export const ApplicationsPageContent = () => {
               }
             />
           ),
+          meta: {
+            type: 'options',
+          },
         },
         {
           id: 'vendor',
-          accessorFn: (info) => getRelationDisplayName(info.claimSetName, claimsetsByName),
-          header: () => 'Vendor',
+          accessorFn: (info) => getRelationDisplayName(info.vendorId, vendors),
+          header: 'Vendor',
           cell: (info) => <VendorLink query={vendors} id={info.row.original.vendorId} />,
+          meta: {
+            type: 'options',
+          },
         },
         {
           id: 'claimest',
           accessorFn: (info) => getRelationDisplayName(info.claimSetName, claimsetsByName),
-          header: () => 'Claimset',
+          header: 'Claimset',
           cell: (info) => (
             <ClaimsetLink
               query={claimsets}
               id={claimsetsByName.data[info.row.original.claimSetName]?.id}
             />
           ),
+          meta: {
+            type: 'options',
+          },
         },
       ]}
     />

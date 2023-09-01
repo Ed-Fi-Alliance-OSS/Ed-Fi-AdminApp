@@ -1,7 +1,6 @@
-import { FormLabel, Text } from '@chakra-ui/react';
+import { Attribute, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { userQueries } from '../../api';
-import { Attribute } from '@edanalytics/common-ui';
 
 export const ViewUser = () => {
   const params = useParams() as {
@@ -14,10 +13,12 @@ export const ViewUser = () => {
   }).data;
 
   return user ? (
-    <>
-      <Attribute label="Given Name" value={user.givenName} />
-      <Attribute label="Family Name" value={user.familyName} />
-      <Attribute isCopyable label="Username" value={user.username} />
-    </>
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute label="Given Name" value={user.givenName} />
+        <Attribute label="Family Name" value={user.familyName} />
+        <Attribute isCopyable label="Username" value={user.username} />
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

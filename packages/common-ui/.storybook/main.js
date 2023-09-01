@@ -1,3 +1,7 @@
+import tsconfigPaths from 'vite-tsconfig-paths';
+import { mergeConfig } from 'vite';
+import path from 'path';
+
 const config = {
   stories: ['../src/lib/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
   addons: [
@@ -8,6 +12,15 @@ const config = {
   framework: {
     name: '@storybook/react-vite',
     options: {},
+  },
+  async viteFinal(config) {
+    return mergeConfig(config, {
+      resolve: {
+        alias: {
+          '@edanalytics/utils': path.resolve(__dirname, '../../utils/src/index.ts'),
+        },
+      },
+    });
   },
 };
 

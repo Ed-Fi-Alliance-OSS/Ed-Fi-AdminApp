@@ -1,12 +1,11 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
 import { useParams } from 'react-router-dom';
 import { roleQueries } from '../../api';
-import { ActionBarActions } from '../../helpers/ActionBarActions';
 import { useSearchParamsObject } from '../../helpers/useSearch';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { ViewRole } from '../Role/ViewRole';
 import { EditRoleGlobal } from './EditRoleGlobal';
 import { useRoleGlobalActions } from './useRoleGlobalActions';
-import { ViewRole } from '../Role/ViewRole';
 
 export const RoleGlobalPage = () => {
   const params = useParams() as {

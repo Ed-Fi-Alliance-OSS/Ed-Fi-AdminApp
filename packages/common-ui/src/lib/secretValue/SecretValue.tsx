@@ -1,4 +1,4 @@
-import { Attribute } from '../attribute/Attribute';
+import { Attribute } from '..';
 
 export type JsonSecret = { key: string; secret: string; url: string };
 

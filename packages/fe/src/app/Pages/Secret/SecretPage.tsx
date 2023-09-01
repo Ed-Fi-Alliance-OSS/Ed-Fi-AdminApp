@@ -89,7 +89,7 @@ export const SecretPage = () => {
               {...confirmRenderProps}
               p={5}
               minH="15em"
-              borderRadius="4px"
+              borderRadius="md"
               border="1px"
               borderColor="gray.200"
               boxShadow="lg"

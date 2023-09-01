@@ -13,7 +13,7 @@ export class UserTenantMembership extends EntityBase implements IUserTenantMembe
   user: IUser;
   @Column()
   userId: IUser['id'];
-  @ManyToOne('Role', { nullable: true, onDelete: 'CASCADE' })
+  @ManyToOne('Role', { nullable: true, onDelete: 'SET NULL' })
   role?: IRole;
   @Column({ nullable: true })
   roleId?: IRole['id'];

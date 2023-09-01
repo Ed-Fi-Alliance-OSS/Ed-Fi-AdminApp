@@ -1,8 +1,7 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
 import { useParams } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { odsQueries } from '../../api';
-import { ActionBarActions } from '../../helpers';
 import { ViewOds } from './ViewOds';
 
 export const OdsPage = () => {

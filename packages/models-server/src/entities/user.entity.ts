@@ -25,13 +25,13 @@ export class User implements IUser {
   @UpdateDateColumn()
   modified?: Date | undefined;
 
-  @ManyToOne('User', { nullable: true })
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
   createdBy?: IUser | undefined;
 
   @Column({ nullable: true })
   createdById?: IUser['id'] | undefined;
 
-  @ManyToOne('User', { nullable: true })
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
   modifiedBy?: IUser | undefined;
 
   @Column({ nullable: true })
@@ -46,7 +46,7 @@ export class User implements IUser {
   @Column({ nullable: true })
   familyName: string | null;
 
-  @ManyToOne('Role', { nullable: true })
+  @ManyToOne('Role', { nullable: true, onDelete: 'SET NULL' })
   role?: IRole;
 
   @Column({ nullable: true })

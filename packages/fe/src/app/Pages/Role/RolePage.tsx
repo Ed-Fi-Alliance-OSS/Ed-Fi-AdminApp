@@ -1,18 +1,12 @@
-import { Button } from '@chakra-ui/react';
-import { ConfirmAction } from '@edanalytics/common-ui';
-import { useNavigate, useParams, useSearchParams } from 'react-router-dom';
-import { ReactNode } from 'react';
-import { BiEdit, BiTrash } from 'react-icons/bi';
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
+import _ from 'lodash';
+import { useNavigate, useParams } from 'react-router-dom';
 import { roleQueries } from '../../api';
-import { AuthorizeComponent, tenantRoleAuthConfig, useNavToParent } from '../../helpers';
-import { roleIndexRoute } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { useNavToParent } from '../../helpers';
+import { useSearchParamsObject } from '../../helpers/useSearch';
 import { EditRole } from './EditRole';
 import { ViewRole } from './ViewRole';
 import { useRoleActions } from './useRoleActions';
-import { ActionBarActions } from '../../helpers/ActionBarActions';
-import _ from 'lodash';
-import { useSearchParamsObject } from '../../helpers/useSearch';
 
 export const RolePage = () => {
   const navigate = useNavigate();

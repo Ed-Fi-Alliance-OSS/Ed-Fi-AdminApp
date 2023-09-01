@@ -15,6 +15,7 @@ import {
   Text,
   useClipboard,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { ApplicationYopassResponseDto, PostApplicationForm } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useState } from 'react';
@@ -23,7 +24,8 @@ import { useNavigate } from 'react-router-dom';
 import { useApplicationPost } from '../../api';
 import { useNavContext, useNavToParent } from '../../helpers';
 import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers/FormPickers';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 const resolver = classValidatorResolver(PostApplicationForm);
 
 export const CreateApplicationPage = () => {
@@ -32,6 +34,7 @@ export const CreateApplicationPage = () => {
   const sbeId = navContext.sbeId!;
   const asId = navContext.asId!;
   const navToParentOptions = useNavToParent();
+  const popBanner = usePopBanner();
 
   const [result, setResult] = useState<ApplicationYopassResponseDto | null>(null);
   const clipboard = useClipboard('');
@@ -49,6 +52,7 @@ export const CreateApplicationPage = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
+    setError,
     control,
   } = useForm<PostApplicationForm>({
     resolver,
@@ -82,7 +86,7 @@ export const CreateApplicationPage = () => {
       </Modal>
       <form
         onSubmit={handleSubmit((data) => {
-          return postApplication.mutateAsync(data);
+          return postApplication.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
         })}
       >
         <FormControl isInvalid={!!errors.applicationName}>

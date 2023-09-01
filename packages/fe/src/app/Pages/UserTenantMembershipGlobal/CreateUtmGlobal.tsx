@@ -6,17 +6,18 @@ import {
   FormErrorMessage,
   FormLabel,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { PostUserTenantMembershipDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { userTenantMembershipQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
 import { SelectRole, SelectTenant, SelectUser } from '../../helpers/FormPickers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 const resolver = classValidatorResolver(PostUserTenantMembershipDto);
 
@@ -29,6 +30,7 @@ const getDefaults = (dict: { userId?: string; tenantId?: string; roleId?: string
 };
 
 export const CreateUtmGlobal = () => {
+  const popBanner = usePopBanner();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const goToView = (id: string | number) => navigate(`/user-tenant-memberships/${id}`);
@@ -61,7 +63,7 @@ export const CreateUtmGlobal = () => {
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['me', 'user-tenant-memberships'] });
                 },
-                ...mutationErrCallback({ setError }),
+                ...mutationErrCallback({ setError, popBanner }),
               }
             )
           )}

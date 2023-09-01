@@ -1,7 +1,7 @@
+import { PageTemplate } from '@edanalytics/common-ui';
 import { useNavigate, useParams } from 'react-router-dom';
 import { ownershipQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { ViewOwnership } from './ViewOwnership';
 
 export const OwnershipPage = () => {

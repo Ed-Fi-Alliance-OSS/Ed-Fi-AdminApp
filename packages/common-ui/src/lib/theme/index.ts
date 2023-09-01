@@ -2,6 +2,22 @@ import { defineStyle, extendTheme } from '@chakra-ui/react';
 import { transparentize } from '@chakra-ui/theme-tools';
 
 export const theme = extendTheme({
+  colors: {
+    'foreground-bg': '#fbfbfb',
+    'background-bg': '#f2f2f2',
+    teal: {
+      '900': '#004645',
+      '800': '#006060',
+      '700': '#007978',
+      '600': '#238D84',
+      '500': '#46A092',
+      '400': '#69B3A2',
+      '300': '#8CC6B4',
+      '200': '#AFD8C8',
+      '100': '#D2E9DE',
+      '50': '#F5FAF7',
+    },
+  },
   components: {
     Heading: {
       sizes: {
@@ -21,25 +37,67 @@ export const theme = extendTheme({
         },
       },
     },
+    Radio: {
+      baseStyle: {
+        container: {
+          w: 'fit-content',
+        },
+      },
+    },
     Table: {
       baseStyle: {
+        table: {
+          borderCollapse: 'separate',
+          borderSpacing: 0,
+        },
         thead: {
           tr: {
             bg: 'gray.100',
             th: {
-              borderColor: 'gray.300',
+              borderColor: 'gray.200',
               borderTopWidth: '1px',
               borderTopStyle: 'solid',
+            },
+            '& th:first-of-type': {
+              borderTopLeftRadius: 'md',
+              borderBottomLeftRadius: 'md',
+              borderLeftWidth: '1px',
+              borderLeftStyle: 'solid',
+            },
+            '& th:last-child': {
+              borderTopRightRadius: 'md',
+              borderBottomRightRadius: 'md',
+              borderRightWidth: '1px',
+              borderRightStyle: 'solid',
             },
           },
         },
         tbody: {
           tr: {
-            '&:hover': {
-              bg: 'gray.50',
+            td: {
+              borderTop: '1px solid',
+              borderBottom: '1x solid',
+              borderColor: 'transparent',
             },
-            _selected: {
+            '& td:first-of-type': {
+              borderTopLeftRadius: 'md',
+              borderBottomLeftRadius: 'md',
+              borderLeftWidth: '1px',
+              borderLeftStyle: 'solid',
+            },
+            '& td:last-child': {
+              borderTopRightRadius: 'md',
+              borderBottomRightRadius: 'md',
+              borderRightWidth: '1px',
+              borderRightStyle: 'solid',
+            },
+            '&:hover td': {
+              bg: 'gray.50',
+              borderColor: 'gray.100',
+            },
+            '&[aria-selected=true] td, &[data-selected] td': {
               bg: 'gray.100',
+              borderColor: 'gray.200',
             },
             '& .row-hover': {
               visibility: 'hidden',
@@ -83,8 +141,7 @@ export const theme = extendTheme({
         'action-bar': {
           fontSize: 'sm',
           px: '0.5em',
-          h: 6,
-          // boxShadow: 'base',
+          h: 7,
         },
       },
       variants: {
@@ -148,12 +205,15 @@ export const theme = extendTheme({
     },
     FormLabel: {
       baseStyle: {
-        marginTop: 5,
+        mt: 4,
+        mb: 1,
+        fontWeight: 'semibold',
       },
       variants: {
         view: {
           color: 'gray.500',
-          marginBottom: 1,
+          mb: 1,
+          mt: 0,
           fontWeight: 'normal',
         },
       },
@@ -176,7 +236,7 @@ export const theme = extendTheme({
           container: {
             borderWidth: '1px',
             borderColor: 'border',
-            boxShadow: 'md',
+            boxShadow: 'lg',
             _dark: {
               bg: 'gray.700',
             },
@@ -190,11 +250,12 @@ export const theme = extendTheme({
     sm: '0 1px 2px 0 rgba(0, 0, 0, 0.05)',
     base: '0 1px 3px 0 rgba(0, 0, 0, 0.07), 0 1px 2px 0 rgba(0, 0, 0, 0.05)',
     md: '0 4px 6px -1px rgba(0, 0, 0, 0.07), 0 2px 4px -1px rgba(0, 0, 0, 0.05)',
-    lg: '0 10px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
+    lg: '2px 4px 15px -3px rgba(0, 0, 0, 0.07), 0 4px 6px -2px rgba(0, 0, 0, 0.04)',
     xl: '0 20px 25px -5px rgba(0, 0, 0, 0.07), 0 10px 10px -5px rgba(0, 0, 0, 0.03)',
     '2xl': '0 25px 50px -12px rgba(0, 0, 0, 0.15)',
     outline: '0 0 0 3px rgba(66, 153, 225, 0.4)',
     inner: 'inset 0 2px 4px 0 rgba(0,0,0,0.05)',
+    'inner-md': 'inset 0 2px 7px 0 rgba(0,0,0,0.07)',
     none: 'none',
     'dark-lg':
       'rgba(0, 0, 0, 0.1) 0px 0px 0px 1px, rgba(0, 0, 0, 0.2) 0px 5px 10px, rgba(0, 0, 0, 0.4) 0px 15px 40px',

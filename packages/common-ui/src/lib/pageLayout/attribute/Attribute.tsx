@@ -1,4 +1,5 @@
 import {
+  Box,
   Button,
   FormLabel,
   Icon,
@@ -27,7 +28,7 @@ interface AttributeBaseProps {
   isCopyable?: boolean;
   isMasked?: boolean;
 }
-enum DateFormat {
+export enum DateFormat {
   Short = 0,
   Long = 1,
   Full = 2,
@@ -41,12 +42,12 @@ const dateFormatStrings: Record<number, string | undefined> = {
 };
 
 export const AttributeContainer = (props: { label: string; children: ReactNode }) => (
-  <div>
+  <Box p="var(--chakra-space-3)">
     <FormLabel variant="view" as="p">
       {props.label}
     </FormLabel>
     {props.children}
-  </div>
+  </Box>
 );
 
 export function Attribute(
@@ -94,7 +95,7 @@ export function Attribute(
   const maskedValue = showSecret.isOpen ? clipValue : '\u2022'.repeat(clipValue.length);
   return (
     <AttributeContainer label={props.label}>
-      <chakra.div display="inline-block" pl="0.1em" lineHeight={1}>
+      <chakra.div display="inline-block" lineHeight={1}>
         {props.isCopyable && value !== undefined ? (
           <Popover placement="top">
             <PopoverTrigger>
@@ -131,7 +132,7 @@ export function Attribute(
         ) : props.isUrl && showSecret.isOpen ? (
           <Link
             {...(props.isUrlExternal
-              ? { href: props.value as string }
+              ? { href: props.value as string, target: '_blank', rel: 'noopener noreferrer' }
               : { as: RouterLink, to: props.value as string })}
           >
             {maskedValue}

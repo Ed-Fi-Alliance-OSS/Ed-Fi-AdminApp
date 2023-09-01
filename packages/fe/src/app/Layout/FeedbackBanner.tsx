@@ -74,13 +74,12 @@ export const FeedbackBanners = () => {
 
   return (
     <Box>
-      {_.sortBy(Object.entries(banners), 0).map(([id, banner]) => (
+      {_.sortBy(Object.entries(banners), 0).map(([id, banner], i) => (
         <Alert
           key={id}
           title={`${stdDetailed(new Date(Number(id)))}${
             banner.regarding ? ` - ${banner.regarding}` : ''
           }`}
-          mb="-1px"
           py={1}
           borderColor={
             banner.status === StatusType.error
@@ -91,8 +90,8 @@ export const FeedbackBanners = () => {
               ? 'green.200'
               : 'blue.200'
           }
-          borderWidth="1px"
-          borderStyle="solid"
+          borderBottomWidth="1px"
+          borderBottomStyle="solid"
           status={
             banner.status === StatusType.error
               ? 'error'

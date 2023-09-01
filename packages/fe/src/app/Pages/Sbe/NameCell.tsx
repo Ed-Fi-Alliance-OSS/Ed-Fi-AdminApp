@@ -1,9 +1,9 @@
 import { HStack } from '@chakra-ui/react';
+import { TableRowActions } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { sbeQueries } from '../../api';
 import { useNavContext } from '../../helpers';
-import { TableRowActions } from '../../helpers/TableRowActions';
 import { useReadTenantEntity } from '../../helpers/useStandardRowActionsNew';
 import { SbeLink, sbeRoute } from '../../routes';
 

@@ -18,7 +18,13 @@
     "jsx": "react-jsx"
   },
   "files": [],
-  "include": ["src", "typings"],
+  "include": [
+    "src",
+    "typings",
+    "../common-ui/src/lib/ActionsType.tsx",
+    "../common-ui/src/lib/getStandardActions.tsx",
+    "../common-ui/src/lib/PageTemplate.tsx"
+  ],
   "references": [
     {
       "path": "./tsconfig.app.json"

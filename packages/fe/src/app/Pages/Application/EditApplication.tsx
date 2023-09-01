@@ -14,6 +14,8 @@ import { useNavigate } from 'react-router-dom';
 import { applicationQueries, claimsetQueries, edorgQueries } from '../../api';
 import { useNavContext } from '../../helpers';
 import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers/FormPickers';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 const resolver = classValidatorResolver(PutApplicationForm);
 
@@ -22,6 +24,8 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
   const navContext = useNavContext();
   const sbeId = navContext.sbeId!;
   const asId = navContext.asId!;
+
+  const popBanner = usePopBanner();
 
   const navigate = useNavigate();
   const goToView = () => {
@@ -57,6 +61,7 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
     control,
     watch,
     getValues,
+    setError,
   } = useForm<PutApplicationForm>({
     resolver,
     defaultValues,
@@ -64,7 +69,7 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
   return edorgs.data && claimsets.data ? (
     <form
       onSubmit={handleSubmit((data) => {
-        return putApplication.mutateAsync(data);
+        return putApplication.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
       })}
     >
       <Box width="20em">

@@ -8,13 +8,18 @@ import {
 } from '@chakra-ui/react';
 import { GetSbeDto, PutSbeDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { sbeQueries } from '../../api';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutSbeDto);
 
 export const EditSbe = (props: { sbe: GetSbeDto }) => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const goToView = () => navigate(`/sbes/${props.sbe.id}`);
   const putSbe = sbeQueries.usePut({ callback: goToView });
@@ -26,15 +31,19 @@ export const EditSbe = (props: { sbe: GetSbeDto }) => {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<PutSbeDto>({ resolver, defaultValues: sbeFormDefaults });
 
   return sbe ? (
     <form
       onSubmit={handleSubmit((data) =>
-        putSbe.mutateAsync({
-          ...data,
-        })
+        putSbe.mutateAsync(
+          {
+            ...data,
+          },
+          mutationErrCallback({ popBanner, setError })
+        )
       )}
     >
       <FormControl isInvalid={!!errors.name}>

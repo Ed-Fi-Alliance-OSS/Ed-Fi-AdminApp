@@ -1,6 +1,5 @@
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { odsQueries } from '../../api/queries/queries';
 import { NameCell } from './NameCell';
 
@@ -16,21 +15,23 @@ export const OdssPage = () => {
 
   return (
     <PageTemplate title="Operational Data Stores">
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(odss?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: NameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            header: 'Created',
+            meta: { type: 'date' },
           },
           {
             accessorKey: 'modifiedDetailed',
-            header: () => 'Modified',
+            header: 'Modified',
+            meta: { type: 'date' },
           },
         ]}
       />

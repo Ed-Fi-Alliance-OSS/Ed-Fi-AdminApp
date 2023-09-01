@@ -1,11 +1,10 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
+import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
 import { claimsetQueries } from '../../api';
-import { ActionBarActions } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { ViewClaimset } from './ViewClaimset';
 import { useClaimsetActions } from './useClaimsetActions';
-import { ErrorBoundary } from 'react-error-boundary';
 
 export const ClaimsetPage = () => {
   return (
@@ -69,8 +68,6 @@ export const ClaimsetPageActions = () => {
 
   const actions = useClaimsetActions({
     claimset,
-    sbeId: params.sbeId,
-    tenantId: params.asId,
   });
 
   return <ActionBarActions actions={_.omit(actions, 'View')} />;

@@ -1,11 +1,8 @@
-import { useParams } from 'react-router-dom';
-import { ReactNode } from 'react';
-import { sbeQueries } from '../../api';
-import { sbeIndexRoute } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
-import { ActionBarActions } from '../../helpers/ActionBarActions';
-import { ViewSbe } from './ViewSbe';
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
+import { useParams } from 'react-router-dom';
+import { sbeQueries } from '../../api';
+import { ViewSbe } from './ViewSbe';
 
 export const SbePage = () => {
   const params = useParams() as {

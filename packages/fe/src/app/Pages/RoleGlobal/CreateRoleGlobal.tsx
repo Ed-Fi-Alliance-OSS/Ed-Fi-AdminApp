@@ -10,19 +10,22 @@ import {
   RadioGroup,
   Stack,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { DependencyErrors, PostRoleDto, PrivilegeCode, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useState } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { privilegeQueries, roleQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { PrivilegesInput } from './PrivilegesInput';
 
 const resolver = classValidatorResolver(PostRoleDto);
 
 export const CreateRoleGlobalPage = () => {
+  const popBanner = usePopBanner();
   const navigate = useNavigate();
   const parentPath = useNavToParent();
   const postRole = roleQueries.usePost({
@@ -32,6 +35,7 @@ export const CreateRoleGlobalPage = () => {
   const {
     register,
     handleSubmit,
+    setError,
     setValue,
     watch,
     formState: { errors, isSubmitting },
@@ -58,11 +62,11 @@ export const CreateRoleGlobalPage = () => {
   }
 
   return (
-    <PageTemplate constrainWidth title={'Create role'} actions={undefined}>
-      <Box>
+    <PageTemplate title={'Create role'}>
+      <Box maxW="27em">
         <form
           onSubmit={handleSubmit((data) => {
-            return postRole.mutateAsync(data);
+            return postRole.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
           })}
         >
           <FormControl isInvalid={!!errors.name}>

@@ -1,4 +1,9 @@
-import { Attribute, AttributeContainer } from '@edanalytics/common-ui';
+import {
+  Attribute,
+  AttributeContainer,
+  AttributesGrid,
+  ContentSection,
+} from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { edorgQueries, odsQueries, sbeQueries } from '../../api';
 import { EdorgLink, OdsLink, SbeLink } from '../../routes';
@@ -24,19 +29,21 @@ export const ViewEdorg = () => {
   });
 
   return edorg ? (
-    <>
-      <Attribute isCopyable label="Type" value={edorg.discriminator} />
-      {edorg.parentId ? (
-        <AttributeContainer label="Parent">
-          <EdorgLink id={edorg.parentId} query={edorgs} />
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute isCopyable label="Type" value={edorg.discriminator} />
+        {edorg.parentId ? (
+          <AttributeContainer label="Parent">
+            <EdorgLink id={edorg.parentId} query={edorgs} />
+          </AttributeContainer>
+        ) : null}
+        <AttributeContainer label="ODS">
+          <OdsLink id={edorg.odsId} query={odss} />
         </AttributeContainer>
-      ) : null}
-      <AttributeContainer label="ODS">
-        <OdsLink id={edorg.odsId} query={odss} />
-      </AttributeContainer>
-      <AttributeContainer label="Environment">
-        <SbeLink id={edorg.sbeId} query={sbes} />
-      </AttributeContainer>
-    </>
+        <AttributeContainer label="Environment">
+          <SbeLink id={edorg.sbeId} query={sbes} />
+        </AttributeContainer>
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

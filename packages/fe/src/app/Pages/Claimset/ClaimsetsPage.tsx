@@ -1,7 +1,6 @@
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { claimsetQueries } from '../../api';
 import { useNavContext } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { NameCell } from './NameCell';
 
 export const ClaimsetsPage = () => {
@@ -23,17 +22,20 @@ export const ClaimsetsPageContent = () => {
   });
 
   return (
-    <DataTable
+    <SbaaTableAllInOne
       data={Object.values(claimsets?.data || {})}
       columns={[
         {
           accessorKey: 'displayName',
           cell: NameCell,
-          header: () => 'Name',
+          header: 'Name',
         },
         {
           accessorKey: 'applicationsCount',
-          header: () => 'Applications count',
+          header: 'Applications count',
+          meta: {
+            type: 'number',
+          },
         },
       ]}
     />

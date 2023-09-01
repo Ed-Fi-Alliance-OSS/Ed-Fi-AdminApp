@@ -8,14 +8,19 @@ import {
 } from '@chakra-ui/react';
 import { PutTenantDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { tenantQueries } from '../../api';
-import { useQueryClient } from '@tanstack/react-query';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutTenantDto);
 
 export const EditTenant = () => {
+  const popBanner = usePopBanner();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const params = useParams() as { tenantId: string };
@@ -29,6 +34,7 @@ export const EditTenant = () => {
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<PutTenantDto>({ resolver, defaultValues: { ...tenant } });
 
@@ -36,6 +42,7 @@ export const EditTenant = () => {
     <form
       onSubmit={handleSubmit((data) =>
         putTenant.mutateAsync(data, {
+          ...mutationErrCallback({ popBanner, setError }),
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['me', 'tenants'] });
           },

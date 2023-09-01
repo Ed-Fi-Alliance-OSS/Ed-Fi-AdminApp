@@ -193,7 +193,10 @@ const privilegeCodesSet = new Set(privilegeCodes);
 
 export type DependencyErrors = Partial<Record<PrivilegeCode, string>>;
 
-const validate = (value: string[]) => {
+const validate = (value: string[] | undefined) => {
+  if (!value) {
+    return 'Privileges are required.';
+  }
   const invalidPrivileges = value.filter((p) => !privilegeCodesSet.has(p));
   if (invalidPrivileges.length) {
     throw new Error('Invalid privileges should be caught by built-in validation decorator');

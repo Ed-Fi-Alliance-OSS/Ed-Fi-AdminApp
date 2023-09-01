@@ -4,9 +4,10 @@ import {
   FormControl,
   FormErrorMessage,
   FormLabel,
-  Text,
   Input,
+  Text,
 } from '@chakra-ui/react';
+import { ConfirmAction } from '@edanalytics/common-ui';
 import {
   DependencyErrors,
   GetRoleDto,
@@ -15,12 +16,13 @@ import {
   RoleType,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { privilegeQueries, roleQueries } from '../../api';
 import { PrivilegesInput } from './PrivilegesInput';
-import { ConfirmAction } from '@edanalytics/common-ui';
-import { useRef } from 'react';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutRoleDto);
 const hasTenantImpersonation = (form: PutRoleDto) =>
@@ -42,6 +44,8 @@ const hasNewGlobalPrivileges = (form: PutRoleDto, existing: GetRoleDto) =>
   !hasGlobalPrivileges({ ...existing, privileges: existing.privileges.map((p) => p.code) });
 
 export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
+  const popBanner = usePopBanner();
+
   const navigate = useNavigate();
   const params = useParams() as {
     roleId: string;
@@ -67,6 +71,7 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
     register,
     handleSubmit,
     watch,
+    setError,
     formState: { errors, isSubmitting },
     control,
   } = useForm<PutRoleDto>({
@@ -95,7 +100,12 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
 
   const formRef = useRef<HTMLFormElement>(null);
   return role ? (
-    <form ref={formRef} onSubmit={handleSubmit((data) => putRole.mutateAsync(data))}>
+    <form
+      ref={formRef}
+      onSubmit={handleSubmit((data) =>
+        putRole.mutateAsync(data, mutationErrCallback({ popBanner, setError }))
+      )}
+    >
       <FormControl isInvalid={!!errors.description}>
         <FormLabel>Description</FormLabel>
         <Input {...register('description')} placeholder="description" />

@@ -11,13 +11,17 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { roleQueries, tenantQueries, userQueries, userTenantMembershipQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers';
 import { SelectRole } from '../../helpers/FormPickers';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutUserTenantMembershipDto);
 
 export const EditUtmGlobal = () => {
+  const popBanner = usePopBanner();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const params = useParams() as { userTenantMembershipId: string };
@@ -36,6 +40,7 @@ export const EditUtmGlobal = () => {
     register,
     handleSubmit,
     control,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<PutUserTenantMembershipDto>({ resolver, defaultValues: { ...utm } });
 
@@ -43,6 +48,7 @@ export const EditUtmGlobal = () => {
     <form
       onSubmit={handleSubmit((data) =>
         putUserTenantMembership.mutateAsync(data, {
+          ...mutationErrCallback({ popBanner, setError }),
           onSuccess: () => {
             queryClient.invalidateQueries({ queryKey: ['me', 'userTenantMemberships'] });
           },

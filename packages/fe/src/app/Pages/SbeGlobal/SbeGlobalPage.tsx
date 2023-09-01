@@ -1,14 +1,13 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
 import { useParams } from 'react-router-dom';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { sbeQueries } from '../../api';
-import { ActionBarActions } from '../../helpers/ActionBarActions';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { EditSbe } from './EditSbe';
 import { EditSbeMeta } from './EditSbeMeta';
 import { RegisterSbeAdminApi } from './RegisterSbeAdminApi';
 import { ViewSbeGlobal } from './ViewSbeGlobal';
 import { useSbeGlobalActions } from './useSbeGlobalActions';
-import { EditSbe } from './EditSbe';
 
 export const SbeGlobalPage = () => {
   const params = useParams() as { sbeId: string };

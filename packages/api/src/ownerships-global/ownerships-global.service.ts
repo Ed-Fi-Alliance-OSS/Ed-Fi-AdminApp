@@ -39,9 +39,12 @@ export class OwnershipsGlobalService {
       err.value = false;
       throw new ValidationException(formErrFromValidator([err]));
     }
-    this.authService.reloadTenantOwnershipCache(createOwnershipDto.tenantId);
 
-    return this.ownershipsRepository.save(this.ownershipsRepository.create(createOwnershipDto));
+    const out = await this.ownershipsRepository.save(
+      this.ownershipsRepository.create(createOwnershipDto)
+    );
+    this.authService.reloadTenantOwnershipCache(createOwnershipDto.tenantId);
+    return out;
   }
 
   async findOne(id: number) {
@@ -50,8 +53,9 @@ export class OwnershipsGlobalService {
 
   async update(id: number, updateOwnershipDto: PutOwnershipDto) {
     const old = await this.findOne(id).catch(throwNotFound);
+    const out = await this.ownershipsRepository.save({ ...old, ...updateOwnershipDto });
     this.authService.reloadTenantOwnershipCache(old.tenantId);
-    return this.ownershipsRepository.save({ ...old, ...updateOwnershipDto });
+    return out;
   }
 
   async remove(id: number, user: GetUserDto) {

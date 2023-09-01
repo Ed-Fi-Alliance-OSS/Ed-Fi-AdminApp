@@ -1,13 +1,12 @@
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { GetEdorgDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { useParams } from 'react-router-dom';
-import { edorgQueries, odsQueries, userQueries } from '../../api';
+import { edorgQueries, odsQueries } from '../../api';
 import { queryClient } from '../../app';
 import { AuthorizeConfig, arrayElemIf, authorize } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
-import { EdorgLink, OdsLink, UserLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { EdorgLink, OdsLink } from '../../routes';
 import { NameCell } from './NameCell';
 
 export const EdorgsPage = () => {
@@ -31,46 +30,58 @@ export const EdorgsPage = () => {
 
   return (
     <PageTemplate title="Education Organizations">
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(edorgs?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: NameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'shortName',
             accessorFn: (info) => info.shortNameOfInstitution,
-            header: () => 'Short name',
+            header: 'Short name',
           },
           {
             id: 'parent',
             accessorFn: (info) => getRelationDisplayName(info.parentId, edorgs),
-            header: () => 'Parent Ed-Org',
+            header: 'Parent Ed-Org',
             cell: (info) => <EdorgLink query={edorgs} id={info.row.original.parentId} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'educationOrganizationId',
             accessorFn: (info) => info.educationOrganizationId,
-            header: () => 'Education Org ID',
+            header: 'Education Org ID',
           },
           ...arrayElemIf(authorize({ config: odsAuth, queryClient }), {
             id: 'ods',
             accessorFn: (info: GetEdorgDto) => getRelationDisplayName(info.odsId, odss),
-            header: () => 'ODS',
+            header: 'ODS',
             cell: (info: CellContext<GetEdorgDto, unknown>) => (
               <OdsLink query={odss} id={info.row.original.odsId} />
             ),
+            meta: {
+              type: 'options',
+            },
           }),
           {
             id: 'discriminator',
             accessorFn: (info) => info.discriminator,
-            header: () => 'Type',
+            header: 'Type',
+            meta: {
+              type: 'options',
+            },
           },
           {
             accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
         ]}
       />

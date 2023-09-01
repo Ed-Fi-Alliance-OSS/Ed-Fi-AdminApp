@@ -1,7 +1,8 @@
+import { ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetClaimsetDto } from '@edanalytics/models';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
-import { ActionsType, AuthorizeComponent, LinkActionProps, useNavContext } from '../../helpers';
+import { useNavContext, AuthorizeComponent } from '../../helpers';
 
 export const useClaimsetActions = ({
   claimset,

@@ -1,8 +1,10 @@
 import { HStack } from '@chakra-ui/react';
+import { TableRowActions } from '@edanalytics/common-ui';
 import { GetClaimsetDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { claimsetQueries } from '../../api';
-import { TableRowActions, useNavContext } from '../../helpers';
+
+import { useNavContext } from '../../helpers';
 import { ClaimsetLink } from '../../routes';
 import { useClaimsetActions } from './useClaimsetActions';
 

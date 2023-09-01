@@ -7,28 +7,34 @@ import {
   FormLabel,
   Input,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { PostTenantDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+
 import { tenantQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
-import { useQueryClient } from '@tanstack/react-query';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PostTenantDto);
 
 export const CreateTenant = () => {
+  const popBanner = usePopBanner();
+
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const goToView = (id: string | number) => navigate(`/tenants/${id}`);
   const parentPath = useNavToParent();
-  const putTenant = tenantQueries.usePost({
+  const postTenant = tenantQueries.usePost({
     callback: (result) => goToView(result.id),
   });
   const {
     register,
     handleSubmit,
+    setError,
     formState: { errors, isSubmitting },
   } = useForm<PostTenantDto>({ resolver, defaultValues: {} });
 
@@ -37,10 +43,11 @@ export const CreateTenant = () => {
       <Box w="20em">
         <form
           onSubmit={handleSubmit((data) =>
-            putTenant.mutateAsync(data, {
+            postTenant.mutateAsync(data, {
               onSuccess: () => {
                 queryClient.invalidateQueries({ queryKey: ['me', 'tenants'] });
               },
+              ...mutationErrCallback({ popBanner, setError }),
             })
           )}
         >

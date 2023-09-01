@@ -1,5 +1,6 @@
 import {
   GetSessionDataDto,
+  PgBossJobState,
   PostSbeDto,
   PutSbeAdminApi,
   PutSbeAdminApiRegister,
@@ -7,16 +8,34 @@ import {
   PutSbeMeta,
   toGetSbeDto,
   toOperationResultDto,
+  toSbSyncQueueDto,
 } from '@edanalytics/models';
-import { Sbe, addUserCreating, addUserModifying, regarding } from '@edanalytics/models-server';
+import {
+  SbSyncQueue,
+  Sbe,
+  addUserCreating,
+  addUserModifying,
+  regarding,
+} from '@edanalytics/models-server';
 import { StatusType, formErrFromValidator } from '@edanalytics/utils';
-import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Inject,
+  Param,
+  ParseIntPipe,
+  Post,
+  Put,
+} from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { ValidationError } from 'class-validator';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
+import { PgBossInstance, SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { throwNotFound } from '../utils';
 import { ValidationException, WorkflowFailureException } from '../utils/customExceptions';
@@ -29,7 +48,10 @@ export class SbesGlobalController {
     private readonly sbeService: SbesGlobalService,
     @InjectRepository(Sbe)
     private sbesRepository: Repository<Sbe>,
-    private readonly sbService: StartingBlocksService
+    private readonly sbService: StartingBlocksService,
+    @Inject('PgBossInstance')
+    private readonly boss: PgBossInstance,
+    @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
   @Post()
@@ -76,7 +98,22 @@ export class SbesGlobalController {
     @Param('sbeId', new ParseIntPipe()) sbeId: number,
     @ReqUser() user: GetSessionDataDto
   ) {
-    return toOperationResultDto(await this.sbeService.refreshResources(sbeId, user));
+    const id = await this.boss.send(SYNC_CHNL, { sbeId: sbeId }, { expireInHours: 1 });
+    const repo = this.queueRepository;
+    return new Promise((r) => {
+      let queueItem: SbSyncQueue;
+      const timer = setInterval(poll, 500);
+      const pendingState: PgBossJobState[] = ['created', 'retry', 'active'];
+      let i = 0;
+      async function poll() {
+        queueItem = await repo.findOneBy({ id });
+        if (i === 10 || !pendingState.includes(queueItem.state)) {
+          clearInterval(timer);
+          r(toSbSyncQueueDto(queueItem));
+        }
+        i++;
+      }
+    });
   }
 
   @Put(':sbeId/check-admin-api')

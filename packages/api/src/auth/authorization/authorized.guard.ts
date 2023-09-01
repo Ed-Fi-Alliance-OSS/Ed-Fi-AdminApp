@@ -49,50 +49,56 @@ export class AuthorizedGuard implements CanActivate {
         } else if (authorizeRule === null) {
           Logger.verbose('Authorization explicitly skipped for route' + request.url);
         } else {
-          const privilege = authorizeRule.privilege;
-          const subjectTemplate = authorizeRule.subject;
+          /* eslint-disable-next-line */
+          function checkAbility(authorizeRule: AuthorizeMetadata) {
+            const privilege = authorizeRule.privilege;
+            const subjectTemplate = authorizeRule.subject;
 
-          let subjectTenant = {};
-          if ('tenantId' in subjectTemplate) {
-            const value = request.params[subjectTemplate.tenantId];
-            if (value === undefined) {
-              throw new Error(
-                'Attempting to authorize by tenant but no tenantId found in request.'
-              );
+            let subjectTenant = {};
+            if ('tenantId' in subjectTemplate) {
+              const value = request.params[subjectTemplate.tenantId];
+              if (value === undefined) {
+                throw new Error(
+                  'Attempting to authorize by tenant but no tenantId found in request.'
+                );
+              }
+              subjectTenant = {
+                tenantId: value,
+              };
             }
-            subjectTenant = {
-              tenantId: value,
+
+            let subjectSbe = {};
+            if ('sbeId' in subjectTemplate) {
+              const value = request.params[subjectTemplate.sbeId];
+              if (value === undefined) {
+                throw new Error('Attempting to authorize by sbe but no sbeId found in request.');
+              }
+              subjectSbe = {
+                sbeId: value,
+              };
+            }
+
+            let subjectId = undefined;
+            if (subjectTemplate.id === '__filtered__') {
+              subjectId = '__filtered__';
+            } else {
+              const value = request.params[subjectTemplate.id];
+              if (value === undefined) {
+                throw new Error('Attempting to authorize by Id but no Id found in request.');
+              }
+              subjectId = value;
+            }
+            const subjectObject: AuthorizeMetadata['subject'] = {
+              ...subjectTenant,
+              ...subjectSbe,
+              id: subjectId,
             };
+            subject(privilege, subjectObject);
+            const authorizationResult = ability.can(privilege, subjectObject);
+            return authorizationResult;
           }
-
-          let subjectSbe = {};
-          if ('sbeId' in subjectTemplate) {
-            const value = request.params[subjectTemplate.sbeId];
-            if (value === undefined) {
-              throw new Error('Attempting to authorize by sbe but no sbeId found in request.');
-            }
-            subjectSbe = {
-              sbeId: value,
-            };
-          }
-
-          let subjectId = undefined;
-          if (subjectTemplate.id === '__filtered__') {
-            subjectId = '__filtered__';
-          } else {
-            const value = request.params[subjectTemplate.id];
-            if (value === undefined) {
-              throw new Error('Attempting to authorize by Id but no Id found in request.');
-            }
-            subjectId = value;
-          }
-          const subjectObject: AuthorizeMetadata['subject'] = {
-            ...subjectTenant,
-            ...subjectSbe,
-            id: subjectId,
-          };
-          subject(privilege, subjectObject);
-          const authorizationResult = ability.can(privilege, subjectObject);
+          request['checkAbility'] = checkAbility;
+          const authorizationResult = checkAbility(authorizeRule);
           if (!authorizationResult) {
             throw new HttpException('Unauthorized', 403);
           }

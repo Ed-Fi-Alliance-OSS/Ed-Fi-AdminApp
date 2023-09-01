@@ -11,9 +11,10 @@ export const AppBarPublic = () => {
       w="100%"
       position="sticky"
       top="0px"
-      bg="rgb(248,248,248)"
+      bg="white"
       borderBottom="1px solid"
       borderColor="gray.200"
+      boxShadow="md"
       py={1}
       px={3}
     >

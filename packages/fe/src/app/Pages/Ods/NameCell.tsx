@@ -1,8 +1,9 @@
 import { HStack } from '@chakra-ui/react';
+import { TableRowActions } from '@edanalytics/common-ui';
 import { GetOdsDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { odsQueries } from '../../api/queries/queries';
-import { TableRowActions, useNavContext } from '../../helpers';
+import { useNavContext } from '../../helpers';
 import { useReadTenantEntity } from '../../helpers/useStandardRowActionsNew';
 import { OdsLink, odsRoute } from '../../routes';
 
@@ -14,7 +15,6 @@ export const NameCell = (info: CellContext<GetOdsDto, unknown>) => {
     sbeId: sbeId,
     tenantId: asId,
   });
-
   const View = useReadTenantEntity({
     entity: info.row.original,
     params: { asId, sbeId, odsId: info.row.original.id },

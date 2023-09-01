@@ -1,16 +1,26 @@
-import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import { Box, HStack } from '@chakra-ui/react';
+import {
+  ActionBarActions,
+  PageTemplate,
+  SbaaTable,
+  SbaaTableAdvancedButton,
+  SbaaTableAllInOne,
+  SbaaTableFilters,
+  SbaaTablePagination,
+  SbaaTableProvider,
+  SbaaTableSearch,
+  TableRowActions,
+  ValueAsDate,
+} from '@edanalytics/common-ui';
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import _ from 'lodash';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { roleQueries, tenantQueries, userQueries, userTenantMembershipQueries } from '../../api';
-import { ActionBarActions, TableRowActions } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
-import { TenantLink, UserGlobalLink, UserLink, UtmGlobalLink } from '../../routes';
+import { TenantLink, UserGlobalLink, UtmGlobalLink } from '../../routes';
+import { RoleGlobalLink } from '../../routes/role-global.routes';
 import { useUtmActionsGlobal } from './useUtmActionsGlobal';
 import { useUtmsActionsGlobal } from './useUtmsActionsGlobal';
-import { RoleGlobalLink } from '../../routes/role-global.routes';
 
 const UtmGlobalNameCell = (info: CellContext<GetUserTenantMembershipDto, unknown>) => {
   const userTenantMemberships = userTenantMembershipQueries.useAll({});
@@ -35,35 +45,50 @@ export const UtmsGlobalPage = () => {
       title="Tenant memberships"
       actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
     >
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(userTenantMemberships?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: UtmGlobalNameCell,
-            header: () => '',
+            header: '',
+            enableSorting: false,
           },
           {
             id: 'tenant',
             accessorFn: (info) => getRelationDisplayName(info.tenantId, tenants),
-            header: () => 'Tenant',
+            header: 'Tenant',
             cell: (info) => <TenantLink id={info.row.original.tenantId} query={tenants} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'user',
             accessorFn: (info) => getRelationDisplayName(info.userId, users),
-            header: () => 'User',
+            header: 'User',
             cell: (info) => <UserGlobalLink id={info.row.original.userId} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'role',
             accessorFn: (info) => getRelationDisplayName(info.roleId, roles),
-            header: () => 'Role',
+            header: 'Role',
             cell: (info) => <RoleGlobalLink id={info.row.original.roleId} query={roles} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            id: 'createdDetailed',
+            accessorFn: (info) => Number(info.created),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
         ]}
       />

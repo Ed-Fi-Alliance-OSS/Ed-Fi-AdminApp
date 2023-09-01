@@ -1,8 +1,10 @@
 import { HStack } from '@chakra-ui/react';
+import { TableRowActions } from '@edanalytics/common-ui';
 import { GetEdorgDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { edorgQueries } from '../../api';
-import { TableRowActions, useNavContext } from '../../helpers';
+
+import { useNavContext } from '../../helpers';
 import { useReadTenantEntity } from '../../helpers/useStandardRowActionsNew';
 import { EdorgLink, edorgIndexRoute } from '../../routes';
 

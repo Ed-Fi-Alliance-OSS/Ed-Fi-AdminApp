@@ -1,4 +1,4 @@
-import { AttributeContainer } from '@edanalytics/common-ui';
+import { AttributeContainer, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { roleQueries, tenantQueries, userTenantMembershipQueries } from '../../api';
 import { TenantLink, UserGlobalLink } from '../../routes';
@@ -13,16 +13,22 @@ export const ViewUtmGlobal = () => {
   const roles = roleQueries.useAll({});
 
   return userTenantMembership ? (
-    <>
-      <AttributeContainer label="Tenant">
-        <TenantLink query={tenants} id={userTenantMembership.tenantId} />
-      </AttributeContainer>
-      <AttributeContainer label="User">
-        <UserGlobalLink id={userTenantMembership.userId} />
-      </AttributeContainer>
-      <AttributeContainer label="Role">
-        <RoleGlobalLink query={roles} id={userTenantMembership.roleId} />
-      </AttributeContainer>
-    </>
+    <ContentSection>
+      <AttributesGrid>
+        <AttributeContainer label="Tenant">
+          <TenantLink query={tenants} id={userTenantMembership.tenantId} />
+        </AttributeContainer>
+        <AttributeContainer label="User">
+          <UserGlobalLink id={userTenantMembership.userId} />
+        </AttributeContainer>
+        <AttributeContainer label="Role">
+          {userTenantMembership.roleId === null ? (
+            <>&nbsp;-&nbsp;</>
+          ) : (
+            <RoleGlobalLink query={roles} id={userTenantMembership.roleId} />
+          )}
+        </AttributeContainer>
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

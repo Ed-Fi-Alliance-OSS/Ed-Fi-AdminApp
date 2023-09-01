@@ -7,22 +7,26 @@ import {
   FormLabel,
   Input,
 } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
 import { PostSbeDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { sbeQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
-import { PageTemplate } from '../../Layout/PageTemplate';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 const resolver = classValidatorResolver(PostSbeDto);
 
 export const CreateSbeGlobalPage = () => {
+  const popBanner = usePopBanner();
   const navToParentOptions = useNavToParent();
   const navigate = useNavigate();
   const postSbe = sbeQueries.usePost({});
   const {
     register,
+    setError,
     handleSubmit,
     formState: { errors, isSubmitting },
   } = useForm<PostSbeDto>({ resolver });
@@ -40,6 +44,7 @@ export const CreateSbeGlobalPage = () => {
                 onSuccess: (result) => {
                   navigate(`/sbes/${result.id}`);
                 },
+                ...mutationErrCallback({ setError, popBanner }),
               }
             )
           )}

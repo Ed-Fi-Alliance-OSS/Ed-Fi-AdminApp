@@ -1,8 +1,8 @@
+import { ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { SbSyncQueueDto } from '@edanalytics/models';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate } from 'react-router-dom';
 import { AuthorizeComponent } from '../../helpers';
-import { ActionsType, LinkActionProps } from '../../helpers/ActionsType';
 
 export const useSbSyncQueueActions = (sbSyncQueue: SbSyncQueueDto | undefined): ActionsType => {
   const navigate = useNavigate();

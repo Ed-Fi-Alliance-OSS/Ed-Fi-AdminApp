@@ -133,19 +133,13 @@ const SinglePrivilege = (props: {
   const isChecked = props.value.has(props.code);
   return (
     <FormControl isInvalid={!!errMsg}>
-      <HStack spacing={1} my={1}>
-        <Checkbox
-          display="flex"
-          isChecked={isChecked}
-          onChange={(e) => props.set([props.code], e.target.checked)}
-        >
+      <Checkbox isChecked={isChecked} onChange={(e) => props.set([props.code], e.target.checked)}>
+        <HStack my={1} alignContent="baseline" display="flex" flexDir="row" flexWrap="wrap">
           <Tag key={props.code} colorScheme="orange" display="flex" w="max-content">
             {props.code}
           </Tag>
-        </Checkbox>
-        {dependencies?.length && isChecked ? (
-          <>
-            <HStack align="baseline">
+          {dependencies?.length && isChecked ? (
+            <>
               <Text lineHeight={1} opacity="0.7" fontSize="sm" fontWeight="medium" ml={8}>
                 requires:
               </Text>
@@ -167,7 +161,8 @@ const SinglePrivilege = (props: {
                           as: 'button',
                           _hover: { opacity: '1' },
                           title: 'Add missing dependency',
-                          onClick: () => {
+                          onClick: (e) => {
+                            e.preventDefault();
                             props.set([p], true);
                           },
                         })}
@@ -176,14 +171,14 @@ const SinglePrivilege = (props: {
                   </Tag>
                 );
               })}
-            </HStack>
-            <Icon
-              as={allDepsIncluded ? BsCheckAll : BsXLg}
-              color={allDepsIncluded ? 'green' : 'red'}
-            />
-          </>
-        ) : null}
-      </HStack>
+              <Icon
+                as={allDepsIncluded ? BsCheckAll : BsXLg}
+                color={allDepsIncluded ? 'green' : 'red'}
+              />
+            </>
+          ) : null}
+        </HStack>
+      </Checkbox>
       <FormErrorMessage mb={4}>{errMsg}</FormErrorMessage>
     </FormControl>
   );

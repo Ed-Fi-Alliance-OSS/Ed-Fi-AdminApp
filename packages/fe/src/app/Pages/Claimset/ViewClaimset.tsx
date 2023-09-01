@@ -1,4 +1,4 @@
-import { Attribute } from '@edanalytics/common-ui';
+import { Attribute, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { claimsetQueries } from '../../api';
 
@@ -15,9 +15,11 @@ export const ViewClaimset = () => {
   }).data;
 
   return claimset ? (
-    <>
-      <Attribute label="Is reserved" value={claimset.isSystemReserved ?? false} />
-      <Attribute label="Applications" value={claimset.applicationsCount} />
-    </>
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute label="Is reserved" value={claimset.isSystemReserved ?? false} />
+        <Attribute label="Applications" value={claimset.applicationsCount} />
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

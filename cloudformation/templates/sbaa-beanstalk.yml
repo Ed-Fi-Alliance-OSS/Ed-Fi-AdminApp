@@ -429,7 +429,7 @@ Resources:
           Value: !Ref EnvLabel
         - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: NODE_EXTRA_CA_CERTS
-          Value: rds-combined-ca-bundle.pem
+          Value: global-bundle.pem
         - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: STWK_REJECT_UNAUTHORIZED
           Value: 'true'

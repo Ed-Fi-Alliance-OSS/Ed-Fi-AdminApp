@@ -1,14 +1,17 @@
 import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import {
+  ActionBarActions,
+  SbaaTableAllInOne,
+  PageTemplate,
+  TableRowActions,
+  ValueAsDate,
+} from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import _ from 'lodash';
 import { sbeQueries, userQueries } from '../../api';
-import { ActionBarActions } from '../../helpers';
-import { TableRowActions } from '../../helpers/TableRowActions';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { SbeGlobalLink, UserGlobalLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { useSbeGlobalActions } from './useSbeGlobalActions';
 import { useSbesGlobalActions } from './useSbesGlobalActions';
 
@@ -32,29 +35,39 @@ export const SbesGlobalPage = () => {
       actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
       title="Starting Blocks environments"
     >
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(sbes?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: SbesNameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'modifiedBy',
             accessorFn: (info) => getRelationDisplayName(info.modifiedById, users),
-            header: () => 'Modified by',
+            header: 'Modified by',
             cell: (info) => <UserGlobalLink query={users} id={info.row.original.modifiedById} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
           {
             id: 'createdBy',
             accessorFn: (info) => getRelationDisplayName(info.createdById, users),
-            header: () => 'Created by',
+            header: 'Created by',
             cell: (info) => <UserGlobalLink query={users} id={info.row.original.createdById} />,
+            meta: {
+              type: 'options',
+            },
           },
         ]}
       />

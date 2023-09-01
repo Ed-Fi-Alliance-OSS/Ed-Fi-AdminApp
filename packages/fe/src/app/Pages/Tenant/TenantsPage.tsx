@@ -1,11 +1,16 @@
 import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import {
+  ActionBarActions,
+  SbaaTableAllInOne,
+  PageTemplate,
+  TableRowActions,
+  ValueAsDate,
+} from '@edanalytics/common-ui';
 import { GetTenantDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
+
 import _ from 'lodash';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { tenantQueries, userQueries } from '../../api';
-import { ActionBarActions, TableRowActions } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { TenantLink, UserGlobalLink } from '../../routes';
 import { useTenantActions } from './useTenantActions';
@@ -29,29 +34,39 @@ export const TenantsPage = () => {
 
   return (
     <PageTemplate title="Tenants" actions={<ActionBarActions actions={_.omit(actions, 'View')} />}>
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(tenants?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: TenantNameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'modifiedBy',
             accessorFn: (info) => getRelationDisplayName(info.modifiedById, users),
-            header: () => 'Modified by',
+            header: 'Modified by',
             cell: (info) => <UserGlobalLink id={info.row.original.modifiedById} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
           {
             id: 'createdBy',
             accessorFn: (info) => getRelationDisplayName(info.createdById, users),
-            header: () => 'Created by',
+            header: 'Created by',
             cell: (info) => <UserGlobalLink id={info.row.original.createdById} />,
+            meta: {
+              type: 'options',
+            },
           },
         ]}
       />

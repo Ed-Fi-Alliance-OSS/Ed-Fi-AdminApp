@@ -38,7 +38,6 @@ import {
   PutVendorDto,
   SbSyncQueueDto,
   SpecificIds,
-  toOperationResultDto,
 } from '@edanalytics/models';
 import {
   QueryKey,
@@ -57,7 +56,6 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useAuthorize } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { apiClient, methods } from '../methods';
-import { StatusType } from '@edanalytics/utils';
 
 const baseUrl = '';
 
@@ -89,7 +87,7 @@ const baseUrl = '';
 export const tenantKey = (key: QueryKey, tenantId?: number | string) =>
   tenantId === undefined ? key : [...key, 'tenant', Number(tenantId)];
 
-export const tenantUrl = (url: string, tenantId?: number | string) =>
+export const tenantUrl = (url: string, tenantId?: number | string | undefined) =>
   tenantId === undefined
     ? path.join(baseUrl, url)
     : path.join(baseUrl, 'tenants', String(tenantId), url);
@@ -159,7 +157,12 @@ function makeQueries<
       callback?: () => void;
     } & SbeParams &
       TenantParams
-  ) => UseMutationResult<AxiosResponse<unknown, any>, unknown, string | number, unknown>;
+  ) => UseMutationResult<
+    AxiosResponse<unknown, any>,
+    unknown,
+    string | number | { id: string | number; force?: boolean },
+    unknown
+  >;
 };
 
 function makeQueries<
@@ -225,14 +228,6 @@ function makeQueries<
       enabled?: boolean;
       optional?: boolean | undefined;
     }) => {
-      kebabCaseName === 'sb-sync-queue' &&
-        console.log(
-          tenantKey(
-            [...(includeSbe ? ['sbes', String(args.sbeId)] : []), `${kebabCaseName}s`, 'list'],
-            Number(args.tenantId)
-          )
-        );
-
       const privilegeCode = `${args.tenantId === undefined ? '' : 'tenant.'}${
         args.sbeId === undefined ? '' : 'sbe.'
       }${kebabCaseName === 'application' ? 'edorg.' : ''}${kebabCaseName}:read` as PrivilegeCode;
@@ -343,13 +338,18 @@ function makeQueries<
     }) => {
       const queryClient = useQueryClient();
       return useMutation({
-        mutationFn: (id: string | number) =>
-          methods.delete(
+        mutationFn: (arg: string | number | { id: string | number; force?: boolean }) => {
+          const id = typeof arg === 'object' ? arg.id : arg;
+          const force = typeof arg === 'object' ? arg.force : false;
+          return methods.delete(
             tenantUrl(
-              `${includeSbe ? `sbes/${args.sbeId}` : ''}/${kebabCaseName}s/${id}`,
+              `${includeSbe ? `sbes/${args.sbeId}` : ''}/${kebabCaseName}s/${id}${
+                force ? '?force=true' : ''
+              }`,
               args.tenantId
             )
-          ),
+          );
+        },
         onSuccess: () => {
           queryClient.invalidateQueries({
             queryKey: tenantKey(
@@ -496,7 +496,6 @@ export const sbSyncQueueQueries = makeQueries({
 
 export const usePostSbSyncQueue = () => {
   const queryClient = useQueryClient();
-  console.log('blah', tenantKey(['sb-sync-queues', 'list'], NaN));
 
   return useMutation({
     mutationFn: () =>
@@ -602,14 +601,16 @@ export const useSbeRefreshResources = (callback?: () => void) => {
       methods.put(
         `${baseUrl}/sbes/${sbe.id}/refresh-resources`,
         class Nothing {},
-        OperationResultDto,
+        SbSyncQueueDto,
         {}
       ),
     onSuccess: (resp, prior) => {
       queryClient.invalidateQueries({
         queryKey: ['sbes', 'detail', String(prior.id)],
       });
-      popBanner(resp);
+      queryClient.invalidateQueries({
+        queryKey: ['sb-sync-queues', 'list'],
+      });
       callback && callback();
     },
     ...mutationErrCallback({ popBanner }),
@@ -669,7 +670,6 @@ export const useApplicationResetCredential = (args: {
   sbeId?: number | string;
   callback?: (response: ApplicationYopassResponseDto) => void;
 }) => {
-  const queryClient = useQueryClient();
   return useMutation({
     mutationFn: (entity: GetApplicationDto) =>
       methods.put(
@@ -682,9 +682,6 @@ export const useApplicationResetCredential = (args: {
         {}
       ),
     onSuccess: (newEntity) => {
-      queryClient.invalidateQueries({
-        queryKey: tenantKey(['sbes', args.sbeId, `applications`, 'list'], args.tenantId),
-      });
       args.callback && args.callback(newEntity);
     },
   });

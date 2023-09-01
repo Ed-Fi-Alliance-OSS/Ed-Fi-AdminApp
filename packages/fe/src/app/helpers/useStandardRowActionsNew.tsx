@@ -1,8 +1,8 @@
 import { TenantBasePrivilege, TenantSbePrivilege, isSbePrivilege } from '@edanalytics/models';
 import { HiOutlineEye } from 'react-icons/hi';
 import { RouteObject, generatePath, useNavigate } from 'react-router-dom';
-import { LinkActionProps } from './ActionsType';
 import { AuthorizeComponent } from './Authorize';
+import { LinkActionProps } from '@edanalytics/common-ui';
 
 export type BaseRow = { id: number; displayName: string };
 

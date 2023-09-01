@@ -1,7 +1,8 @@
-import { stdDetailed, stdDiffSeconds } from '@edanalytics/utils';
+import { stdDetailed, stdDiffSeconds, stdDuration } from '@edanalytics/utils';
 import { Expose, Type } from 'class-transformer';
 import { ISbSyncQueue, PgBossJobState } from '../interfaces';
 import { makeSerializer } from '../utils/make-serializer';
+import dayjs from 'dayjs';
 
 export class SbSyncQueueDto implements ISbSyncQueue {
   @Expose()
@@ -55,7 +56,7 @@ export class SbSyncQueueDto implements ISbSyncQueue {
 
   @Expose()
   @Type(() => Date)
-  completedon: Date;
+  completedon: Date | null;
 
   @Expose()
   @Type(() => Date)
@@ -81,7 +82,7 @@ export class SbSyncQueueDto implements ISbSyncQueue {
 
   get durationDetailed() {
     return this.createdon && this.completedon
-      ? stdDiffSeconds(this.createdon, this.completedon)
+      ? stdDuration(dayjs(this.completedon).diff(this.createdon, 'second'))
       : undefined;
   }
 

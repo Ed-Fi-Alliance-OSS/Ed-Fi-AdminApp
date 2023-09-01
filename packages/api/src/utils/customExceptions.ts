@@ -1,4 +1,5 @@
 import {
+  ErrorCode,
   IWorkflowFailureErrors,
   VALIDATION_RESP_TYPE,
   WORKFLOW_FAILURE_RESP_TYPE,
@@ -17,10 +18,11 @@ export class ValidationException extends BadRequestException {
 }
 
 export class WorkflowFailureException extends InternalServerErrorException {
-  constructor(errors: IWorkflowFailureErrors) {
+  constructor(errors: IWorkflowFailureErrors, code?: ErrorCode) {
     super({
       message: 'Operation failure',
       type: WORKFLOW_FAILURE_RESP_TYPE,
+      ...(code ? { code } : {}),
       errors,
     });
   }

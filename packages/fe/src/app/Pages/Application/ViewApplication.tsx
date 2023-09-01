@@ -1,4 +1,9 @@
-import { Attribute, AttributeContainer } from '@edanalytics/common-ui';
+import {
+  Attribute,
+  AttributeContainer,
+  AttributesGrid,
+  ContentSection,
+} from '@edanalytics/common-ui';
 import { GetApplicationDto } from '@edanalytics/models';
 import { useParams } from 'react-router-dom';
 import {
@@ -60,18 +65,20 @@ export const ViewApplication = () => {
       : undefined;
 
   return application ? (
-    <>
-      <Attribute label="Application name" value={application.displayName} />
-      <AttributeContainer label="Ed-org">
-        <EdorgLink id={edorgByEdorgId?.id} query={edorgs} />
-      </AttributeContainer>
-      <AttributeContainer label="Vendor">
-        <VendorLink id={application?.vendorId} query={vendors} />
-      </AttributeContainer>
-      <AttributeContainer label="Claimset">
-        <ClaimsetLink id={claimsetByName?.id} query={claimsets} />
-      </AttributeContainer>
-      <Attribute label="URL" value={url} isUrl isUrlExternal isCopyable />
-    </>
+    <ContentSection>
+      <AttributesGrid>
+        <Attribute isCopyable label="Application name" value={application.displayName} />
+        <AttributeContainer label="Ed-org">
+          <EdorgLink id={edorgByEdorgId?.id} query={edorgs} />
+        </AttributeContainer>
+        <AttributeContainer label="Vendor">
+          <VendorLink id={application?.vendorId} query={vendors} />
+        </AttributeContainer>
+        <AttributeContainer label="Claimset">
+          <ClaimsetLink id={claimsetByName?.id} query={claimsets} />
+        </AttributeContainer>
+        <Attribute label="URL" value={url} isUrl isUrlExternal isCopyable />
+      </AttributesGrid>
+    </ContentSection>
   ) : null;
 };

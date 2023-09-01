@@ -1,9 +1,5 @@
 import {
   Accordion,
-  AccordionButton,
-  AccordionIcon,
-  AccordionItem,
-  AccordionPanel,
   Box,
   Card,
   CardBody,
@@ -11,16 +7,13 @@ import {
   HStack,
   Heading,
   StackDivider,
-  TabList,
-  TabPanels,
-  Tabs,
   Text,
 } from '@chakra-ui/react';
 import { GetSbeDto } from '@edanalytics/models';
+import { NavContextProvider } from '../../helpers';
 import { useApplicationContent } from './useApplicationContent';
 import { useEdorgContent } from './useEdorgContent';
 import { useOdsContent } from './useOdsContent';
-import { NavContextProvider } from '../../helpers';
 
 export const SbeCard = (props: { sbe: GetSbeDto }) => {
   const OdsContent = useOdsContent({ sbe: props.sbe });
@@ -29,7 +22,7 @@ export const SbeCard = (props: { sbe: GetSbeDto }) => {
 
   return (
     <NavContextProvider sbeId={props.sbe.id}>
-      <Card mb={4} w="fit-content" minWidth="55em" variant="elevated">
+      <Card mb={8} w="fit-content" minWidth="55em" variant="elevated">
         <CardHeader pb={0}>
           <Heading color="gray.600" size="md">
             {props.sbe.displayName}

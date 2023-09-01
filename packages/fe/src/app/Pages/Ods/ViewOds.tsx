@@ -1,4 +1,9 @@
-import { AttributeContainer, DataTable } from '@edanalytics/common-ui';
+import {
+  AttributeContainer,
+  AttributesGrid,
+  ContentSection,
+  DataTable,
+} from '@edanalytics/common-ui';
 import { useMemo } from 'react';
 import { useParams } from 'react-router-dom';
 import { edorgQueries, odsQueries, sbeQueries } from '../../api';
@@ -33,9 +38,13 @@ export const ViewOds = () => {
 
   return ods ? (
     <>
-      <AttributeContainer label="Environment">
-        <SbeLink id={ods.sbeId} query={sbes} />
-      </AttributeContainer>
+      <ContentSection>
+        <AttributesGrid>
+          <AttributeContainer label="Environment">
+            <SbeLink id={ods.sbeId} query={sbes} />
+          </AttributeContainer>
+        </AttributesGrid>
+      </ContentSection>
       <AuthorizeComponent
         config={{
           privilege: 'tenant.sbe.edorg:read',
@@ -46,7 +55,7 @@ export const ViewOds = () => {
           },
         }}
       >
-        <AttributeContainer label="Ed-Orgs">
+        <ContentSection heading="Ed-Orgs">
           <DataTable
             queryKeyPrefix={`edorg`}
             data={filteredEdorgs}
@@ -54,22 +63,22 @@ export const ViewOds = () => {
               {
                 accessorKey: 'displayName',
                 cell: NameCell,
-                header: () => 'Name',
+                header: 'Name',
               },
               {
                 id: 'parent',
                 accessorFn: (info) => getRelationDisplayName(info.parentId, edorgs),
-                header: () => 'Parent Ed-Org',
+                header: 'Parent Ed-Org',
                 cell: (info) => <EdorgLink query={edorgs} id={info.row.original.parentId} />,
               },
               {
                 id: 'discriminator',
                 accessorFn: (info) => info.discriminator,
-                header: () => 'Type',
+                header: 'Type',
               },
             ]}
           />
-        </AttributeContainer>
+        </ContentSection>
       </AuthorizeComponent>
     </>
   ) : null;

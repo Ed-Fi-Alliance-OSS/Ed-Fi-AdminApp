@@ -20,8 +20,8 @@ export class Sbe extends EntityBase implements ISbe {
   @OneToMany('Edorg', (edorg: IEdorg) => edorg.sbe)
   edorgs: IEdorg[];
 
-  @Column()
-  envLabel: string;
+  @Column({ nullable: true })
+  envLabel: string | null;
 
   @Column()
   name: string;
@@ -62,6 +62,6 @@ export class Sbe extends EntityBase implements ISbe {
   configPrivate: ISbeConfigPrivate | null;
 
   get displayName() {
-    return this.envLabel;
+    return this.name ?? this.envLabel;
   }
 }

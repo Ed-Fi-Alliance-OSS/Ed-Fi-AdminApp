@@ -1,16 +1,18 @@
+import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
 import { GetOwnershipDto } from '@edanalytics/models';
-import { useNavigate, useParams } from 'react-router-dom';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
+import { useNavigate, useParams } from 'react-router-dom';
 import { ownershipQueries } from '../../api';
 import { AuthorizeComponent } from '../../helpers';
-import { ownershipGlobalIndexRoute, ownershipsGlobalRoute } from '../../routes';
-import { ActionPropsConfirm, ActionsType, LinkActionProps } from '../../helpers/ActionsType';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useOwnershipGlobalActions = (ownership: GetOwnershipDto | undefined): ActionsType => {
   const params = useParams() as {
     ownershipId: string;
   };
+  const popBanner = usePopBanner();
   const navigate = useNavigate();
   const to = (id: number | string) => `/ownerships/${id}`;
   const deleteOwnership = ownershipQueries.useDelete({});
@@ -71,12 +73,13 @@ export const useOwnershipGlobalActions = (ownership: GetOwnershipDto | undefined
             >
               <props.children
                 icon={BiTrash}
-                isDisabled={deleteOwnership.isLoading}
+                isLoading={deleteOwnership.isLoading}
                 text="Delete"
                 title="Delete ownership"
                 confirmBody="This will permanently delete the ownership."
                 onClick={() =>
                   deleteOwnership.mutateAsync(ownership.id, {
+                    ...mutationErrCallback({ popBanner }),
                     onSuccess: () => navigate(`/ownerships`),
                   })
                 }

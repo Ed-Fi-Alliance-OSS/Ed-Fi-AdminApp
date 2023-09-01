@@ -1,9 +1,8 @@
 import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { vendorQueries } from '../../api';
 import { VendorLink } from '../../routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 
 export const VendorsPageContent = () => {
   const params = useParams() as { asId: string; sbeId: string };
@@ -13,7 +12,7 @@ export const VendorsPageContent = () => {
   });
 
   return (
-    <DataTable
+    <SbaaTableAllInOne
       data={Object.values(vendors?.data || {})}
       columns={[
         {
@@ -24,15 +23,15 @@ export const VendorsPageContent = () => {
               <HStack className="row-hover" color="gray.600" align="middle"></HStack>
             </HStack>
           ),
-          header: () => 'Company',
+          header: 'Company',
         },
         {
           accessorKey: 'namespacePrefixes',
-          header: () => 'Namespace',
+          header: 'Namespace',
         },
         {
           accessorKey: 'contactName',
-          header: () => 'Contact',
+          header: 'Contact',
         },
       ]}
     />

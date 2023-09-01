@@ -6,7 +6,7 @@ export const ErrorFallback = () => {
   return (
     <Box pt="30vh" textAlign="center" px="5em">
       <VStack
-        borderRadius="4px"
+        borderRadius="md"
         border="1px solid"
         borderColor="gray.400"
         py="4em"

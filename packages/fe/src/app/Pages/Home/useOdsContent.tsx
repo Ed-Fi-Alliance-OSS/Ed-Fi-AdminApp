@@ -7,8 +7,6 @@ import {
   Stat,
   StatLabel,
   StatNumber,
-  Tab,
-  TabPanel,
 } from '@chakra-ui/react';
 import { DataTable } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
@@ -61,11 +59,11 @@ export const useOdsContent = (props: { sbe: GetSbeDto }) => {
                   {
                     accessorKey: 'displayName',
                     cell: NameCell,
-                    header: () => 'Name',
+                    header: 'Name',
                   },
                   {
                     accessorKey: 'createdDetailed',
-                    header: () => 'Created',
+                    header: 'Created',
                   },
                 ]}
               />

@@ -1,13 +1,14 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
+import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
 import { applicationQueries } from '../../api';
-import { ActionBarActions, useNavContext } from '../../helpers';
+
+import { useNavContext } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { EditApplication } from './EditApplication';
 import { ViewApplication } from './ViewApplication';
 import { useApplicationActions } from './useApplicationActions';
-import { ErrorBoundary } from 'react-error-boundary';
 
 export const ApplicationPage = () => {
   return (

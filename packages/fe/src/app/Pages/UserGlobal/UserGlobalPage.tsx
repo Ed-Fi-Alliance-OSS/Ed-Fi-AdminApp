@@ -1,9 +1,8 @@
+import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
 import _ from 'lodash';
 import { useParams } from 'react-router-dom';
 import { userQueries } from '../../api';
-import { ActionBarActions } from '../../helpers/ActionBarActions';
 import { useSearchParamsObject } from '../../helpers/useSearch';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { EditUserGlobal } from './EditUserGlobal';
 import { ViewUserGlobal } from './ViewUserGlobal';
 import { useUserGlobalActions } from './useUserGlobalActions';

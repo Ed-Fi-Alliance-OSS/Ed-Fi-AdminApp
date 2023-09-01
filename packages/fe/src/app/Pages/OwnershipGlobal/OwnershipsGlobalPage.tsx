@@ -1,14 +1,23 @@
-import { HStack } from '@chakra-ui/react';
-import { DataTable } from '@edanalytics/common-ui';
+import { Box, HStack } from '@chakra-ui/react';
+import {
+  ActionBarActions,
+  SbaaTableAllInOne,
+  PageTemplate,
+  SbaaTable,
+  SbaaTableAdvancedButton,
+  SbaaTableFilters,
+  SbaaTablePagination,
+  SbaaTableProvider,
+  SbaaTableSearch,
+  TableRowActions,
+  ValueAsDate,
+} from '@edanalytics/common-ui';
 import { GetOwnershipDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { ownershipQueries, roleQueries, tenantQueries } from '../../api';
-import { ActionBarActions } from '../../helpers';
-import { TableRowActions } from '../../helpers/TableRowActions';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { OwnershipGlobalLink, TenantLink } from '../../routes';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
-import { PageTemplate } from '../../Layout/PageTemplate';
 import { useMultipleOwnershipGlobalActions } from './useMultipleOwnershipGlobalActions';
 import { useOwnershipGlobalActions } from './useOwnershipGlobalActions';
 
@@ -30,25 +39,31 @@ export const OwnershipsGlobalPage = () => {
   const actions = useMultipleOwnershipGlobalActions();
   return (
     <PageTemplate title="Resource ownerships" actions={<ActionBarActions actions={actions} />}>
-      <DataTable
+      <SbaaTableAllInOne
         data={Object.values(ownerships?.data || {})}
         columns={[
           {
             accessorKey: 'displayName',
             cell: OwnershipsNameCell,
-            header: () => 'Name',
+            header: 'Name',
           },
           {
             id: 'tenant',
             accessorFn: (info) => getRelationDisplayName(info.tenantId, tenants),
-            header: () => 'Tenant',
+            header: 'Tenant',
             cell: (info) => <TenantLink id={info.row.original.tenantId} query={tenants} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'role',
             accessorFn: (info) => getRelationDisplayName(info.roleId, roles),
-            header: () => 'Role',
+            header: 'Role',
             cell: (info) => <RoleGlobalLink id={info.row.original.roleId} query={roles} />,
+            meta: {
+              type: 'options',
+            },
           },
           {
             id: 'resource',
@@ -58,7 +73,7 @@ export const OwnershipsGlobalPage = () => {
                 : info.ods
                 ? `Ods - ${info.ods.displayName}`
                 : `Environment - ${info.sbe?.displayName}`,
-            header: () => 'Resource',
+            header: 'Resource',
             cell: ({ row: { original } }) =>
               original.edorg
                 ? original.edorg.displayName
@@ -67,10 +82,17 @@ export const OwnershipsGlobalPage = () => {
                 : original.sbe
                 ? original.sbe.displayName
                 : '-',
+            meta: {
+              type: 'options',
+            },
           },
           {
-            accessorKey: 'createdDetailed',
-            header: () => 'Created',
+            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            cell: ValueAsDate(),
+            header: 'Created',
+            meta: {
+              type: 'date',
+            },
           },
         ]}
       />

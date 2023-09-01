@@ -20,13 +20,13 @@ export class EntityBase implements IEntityBase {
   @UpdateDateColumn()
   modified?: Date | undefined;
 
-  @ManyToOne('User')
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
   createdBy?: IUser;
 
   @Column({ nullable: true })
   createdById?: IUser['id'];
 
-  @ManyToOne('User', { nullable: true })
+  @ManyToOne('User', { nullable: true, onDelete: 'SET NULL' })
   modifiedBy?: IUser | undefined;
 
   @Column({ nullable: true })

@@ -11,7 +11,7 @@ RUN apk add --no-cache --virtual .build-deps python3 make g++ \
 
 COPY . .
 
-RUN wget https://s3.amazonaws.com/rds-downloads/rds-combined-ca-bundle.pem
+RUN wget https://truststore.pki.rds.amazonaws.com/global/global-bundle.pem
 
 ARG GIT_HASH=${GIT_HASH:-undefined_hash}
 
