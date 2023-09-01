@@ -13,6 +13,7 @@ import {
   ModalHeader,
   ModalOverlay,
   Text,
+  chakra,
   useClipboard,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
@@ -84,7 +85,8 @@ export const CreateApplicationPage = () => {
           </ModalBody>
         </ModalContent>
       </Modal>
-      <form
+      <chakra.form
+        w="form-width"
         onSubmit={handleSubmit((data) => {
           return postApplication.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
         })}
@@ -136,7 +138,7 @@ export const CreateApplicationPage = () => {
             Cancel
           </Button>
         </ButtonGroup>
-      </form>
+      </chakra.form>
     </PageTemplate>
   );
 };

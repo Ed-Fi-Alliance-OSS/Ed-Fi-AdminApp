@@ -78,7 +78,7 @@ export const CreateOwnershipGlobalPage = () => {
 
   return tenants.data && sbes.data ? (
     <PageTemplate title={'Grant new resource ownership'} actions={undefined}>
-      <Box maxW="30em">
+      <Box maxW="form-width">
         <FormLabel>Resource type</FormLabel>
         <RadioGroup
           onChange={(value: any) => {

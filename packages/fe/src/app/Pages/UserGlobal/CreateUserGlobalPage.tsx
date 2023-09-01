@@ -42,7 +42,7 @@ export const CreateUser = () => {
 
   return (
     <PageTemplate constrainWidth title={'Create new user'} actions={undefined}>
-      <Box w="20em">
+      <Box w="form-width">
         <form
           onSubmit={handleSubmit((data) =>
             postUser.mutateAsync(data, {
@@ -73,7 +73,7 @@ export const CreateUser = () => {
             <Checkbox {...register('isActive')}>Is active</Checkbox>
             <FormErrorMessage>{errors.isActive?.message}</FormErrorMessage>
           </FormControl>
-          <FormControl w="20em" isInvalid={!!errors.roleId}>
+          <FormControl w="form-width" isInvalid={!!errors.roleId}>
             <FormLabel>Role</FormLabel>
             <SelectRole
               types={[RoleType.UserGlobal]}

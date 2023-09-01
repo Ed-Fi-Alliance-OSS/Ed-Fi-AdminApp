@@ -59,7 +59,7 @@ export const EditUtmGlobal = () => {
       <Text>{getRelationDisplayName(utm.tenantId, tenants)}</Text>
       <FormLabel as="p">User</FormLabel>
       <Text>{getRelationDisplayName(utm.userId, users)}</Text>
-      <FormControl w="20em" isInvalid={!!errors.roleId}>
+      <FormControl w="form-width" isInvalid={!!errors.roleId}>
         <FormLabel>Role</FormLabel>
         <SelectRole
           types={[RoleType.UserTenant]}

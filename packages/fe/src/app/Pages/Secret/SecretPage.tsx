@@ -69,7 +69,7 @@ export const SecretPage = () => {
     func();
   }, [uuid, key, show]);
   return (
-    <VStack p={10}>
+    <VStack p={10} bg="background-bg">
       <Box w="100%" maxW="50em">
         <Heading mb={4} fontSize="xl">
           Retrieve credentials

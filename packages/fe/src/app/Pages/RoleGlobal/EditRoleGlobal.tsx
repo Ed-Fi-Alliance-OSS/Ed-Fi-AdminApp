@@ -106,7 +106,7 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
         putRole.mutateAsync(data, mutationErrCallback({ popBanner, setError }))
       )}
     >
-      <FormControl isInvalid={!!errors.description}>
+      <FormControl maxW="form-width" isInvalid={!!errors.description}>
         <FormLabel>Description</FormLabel>
         <Input {...register('description')} placeholder="description" />
         <FormErrorMessage>{errors.description?.message}</FormErrorMessage>

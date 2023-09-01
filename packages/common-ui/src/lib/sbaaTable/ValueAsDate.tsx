@@ -6,6 +6,8 @@ export function ValueAsDate(param?: { default?: DateFormat }) {
     const value = info.getValue();
     return typeof value === 'number' ? (
       <DateValue value={new Date(value)} defaultDateFmt={param?.default} />
+    ) : value instanceof Date ? (
+      <DateValue value={value} defaultDateFmt={param?.default} />
     ) : null;
   };
 }

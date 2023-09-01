@@ -54,7 +54,7 @@ export const CreateUtmGlobal = () => {
 
   return (
     <PageTemplate constrainWidth title={'Create new tenant membership'} actions={undefined}>
-      <Box w="20em">
+      <Box w="form-width">
         <form
           onSubmit={handleSubmit((data) =>
             postUtm.mutateAsync(
@@ -68,17 +68,17 @@ export const CreateUtmGlobal = () => {
             )
           )}
         >
-          <FormControl w="20em" isInvalid={!!errors.tenantId}>
+          <FormControl w="form-width" isInvalid={!!errors.tenantId}>
             <FormLabel>Tenant</FormLabel>
             <SelectTenant name={'tenantId'} control={control} />
             <FormErrorMessage>{errors.tenantId?.message}</FormErrorMessage>
           </FormControl>
-          <FormControl w="20em" isInvalid={!!errors.userId}>
+          <FormControl w="form-width" isInvalid={!!errors.userId}>
             <FormLabel>User</FormLabel>
             <SelectUser tenantId={undefined} name={'userId'} control={control} />
             <FormErrorMessage>{errors.userId?.message}</FormErrorMessage>
           </FormControl>
-          <FormControl w="20em" isInvalid={!!errors.roleId}>
+          <FormControl w="form-width" isInvalid={!!errors.roleId}>
             <FormLabel>Role</FormLabel>
             <SelectRole
               types={[RoleType.UserTenant]}

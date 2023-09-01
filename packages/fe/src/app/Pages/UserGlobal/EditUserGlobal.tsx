@@ -6,6 +6,7 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  chakra,
 } from '@chakra-ui/react';
 import { GetUserDto, PutUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
@@ -64,7 +65,8 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
   });
 
   return (
-    <form
+    <chakra.form
+      maxW="form-width"
       onSubmit={handleSubmit((data) => {
         const validatedData = data as PutUserDto;
         return putUser.mutateAsync(
@@ -100,7 +102,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
         <Checkbox {...register('isActive')}>Is active</Checkbox>
         <FormErrorMessage>{errors.isActive?.message}</FormErrorMessage>
       </FormControl>
-      <FormControl w="20em" isInvalid={!!errors.roleId}>
+      <FormControl w="form-width" isInvalid={!!errors.roleId}>
         <FormLabel>Role</FormLabel>
         <SelectRole
           types={[RoleType.UserGlobal]}
@@ -125,6 +127,6 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
           Cancel
         </Button>
       </ButtonGroup>
-    </form>
+    </chakra.form>
   );
 };

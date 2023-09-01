@@ -83,7 +83,7 @@ export const UtmsGlobalPage = () => {
           },
           {
             id: 'createdDetailed',
-            accessorFn: (info) => Number(info.created),
+            accessorKey: 'createdNumber',
             cell: ValueAsDate(),
             header: 'Created',
             meta: {

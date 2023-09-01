@@ -53,7 +53,7 @@ export const SbesGlobalPage = () => {
             },
           },
           {
-            accessorFn: (info) => (info.created ? Number(info.created) : null),
+            accessorKey: 'createdNumber',
             cell: ValueAsDate(),
             header: 'Created',
             meta: {

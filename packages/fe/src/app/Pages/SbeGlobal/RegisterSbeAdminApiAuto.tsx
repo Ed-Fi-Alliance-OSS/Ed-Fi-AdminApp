@@ -5,6 +5,7 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  chakra,
 } from '@chakra-ui/react';
 import { GetSbeDto, PutSbeAdminApiRegister } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
@@ -40,7 +41,8 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
   const popBanner = usePopBanner();
 
   return sbe ? (
-    <form
+    <chakra.form
+      w="form-width"
       onSubmit={handleSubmit((data) =>
         putSbe.mutateAsync(
           {
@@ -70,6 +72,6 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
           Cancel
         </Button>
       </ButtonGroup>
-    </form>
+    </chakra.form>
   ) : null;
 };

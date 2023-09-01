@@ -5,6 +5,7 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  chakra,
 } from '@chakra-ui/react';
 import { GetSbeDto, PutSbeMeta } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
@@ -37,7 +38,8 @@ export const EditSbeMeta = (props: { sbe: GetSbeDto }) => {
   } = useForm<PutSbeMeta>({ resolver, defaultValues: sbeFormDefaults });
 
   return sbe ? (
-    <form
+    <chakra.form
+      w="form-width"
       onSubmit={handleSubmit((data) =>
         putSbe.mutateAsync(
           {
@@ -81,6 +83,6 @@ export const EditSbeMeta = (props: { sbe: GetSbeDto }) => {
           Cancel
         </Button>
       </ButtonGroup>
-    </form>
+    </chakra.form>
   ) : null;
 };

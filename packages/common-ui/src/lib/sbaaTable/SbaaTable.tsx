@@ -38,7 +38,7 @@ export const SbaaTable: TableComponent = (props) => {
                       {header.column.getIsFiltered() ? (
                         <>
                           &nbsp;
-                          <Icon size="xs" mb="-2px" as={BsFunnel} />
+                          <Icon fontSize="xs" mb="-2px" as={BsFunnel} />
                         </>
                       ) : (
                         <chakra.span visibility="hidden">&nbsp;&#9660;</chakra.span>

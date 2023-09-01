@@ -129,7 +129,7 @@ export const SbSyncQueuesPage = () => {
           },
           {
             id: 'createdon',
-            accessorFn: (info) => (info.createdon ? Number(info.createdon) : null),
+            accessorKey: 'createdNumber',
             cell: ValueAsDate({ default: DateFormat.Long }),
             header: 'Created',
             meta: {

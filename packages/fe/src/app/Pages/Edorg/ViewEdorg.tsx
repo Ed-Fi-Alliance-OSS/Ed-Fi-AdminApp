@@ -31,6 +31,7 @@ export const ViewEdorg = () => {
   return edorg ? (
     <ContentSection>
       <AttributesGrid>
+        <Attribute isCopyable label="Ed-Org ID" value={edorg.educationOrganizationId} />
         <Attribute isCopyable label="Type" value={edorg.discriminator} />
         {edorg.parentId ? (
           <AttributeContainer label="Parent">

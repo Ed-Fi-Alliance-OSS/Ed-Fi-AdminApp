@@ -63,84 +63,82 @@ export const CreateRoleGlobalPage = () => {
 
   return (
     <PageTemplate title={'Create role'}>
-      <Box maxW="27em">
-        <form
-          onSubmit={handleSubmit((data) => {
-            return postRole.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
-          })}
-        >
-          <FormControl isInvalid={!!errors.name}>
-            <FormLabel>Name</FormLabel>
-            <Input {...register('name')} placeholder="name" />
-            <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
-          </FormControl>
-          <FormControl isInvalid={!!errors.description}>
-            <FormLabel>Description</FormLabel>
-            <Input {...register('description')} placeholder="description" />
-            <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
-          </FormControl>
-          <FormControl isInvalid={!!errors.type}>
-            <FormLabel>Type</FormLabel>
-            <Controller
-              control={control}
-              name="type"
-              render={(field) => (
-                <RadioGroup
-                  {...field.field}
-                  onChange={(value: RoleType) => {
-                    field.field.onChange({ target: { value } });
-                    setType(value);
-                  }}
-                >
-                  <Stack direction="column" pl="1em" spacing={1}>
-                    <Radio value={RoleType.UserTenant}>User tenant</Radio>
-                    <Radio value={RoleType.UserGlobal}>User global</Radio>
-                    <Radio value={RoleType.ResourceOwnership}>Resource ownership</Radio>
-                  </Stack>
-                </RadioGroup>
-              )}
-            />
-            <FormErrorMessage>{errors.type?.message}</FormErrorMessage>
-          </FormControl>
-          <FormControl isInvalid={typeof privilegesError === 'string'}>
-            <FormLabel>Privileges</FormLabel>
-            <Controller
-              control={control}
-              name="privileges"
-              render={(field) =>
-                filteredPrivileges === undefined ? (
-                  <></>
-                ) : (
-                  <PrivilegesInput
-                    error={typeof privilegesError === 'string' ? undefined : privilegesError}
-                    onChange={field.field.onChange}
-                    value={field.field.value as PrivilegeCode[]}
-                    privileges={filteredPrivileges}
-                  />
-                )
-              }
-            />
-            <FormErrorMessage>
-              {typeof privilegesError === 'string' ? privilegesError : undefined}
-            </FormErrorMessage>
-          </FormControl>
-          <ButtonGroup>
-            <Button mt={4} colorScheme="teal" isLoading={isSubmitting} type="submit">
-              Save
-            </Button>
-            <Button
-              mt={4}
-              colorScheme="teal"
-              variant="ghost"
-              isLoading={isSubmitting}
-              type="reset"
-              onClick={() => navigate(parentPath)}
-            >
-              Cancel
-            </Button>
-          </ButtonGroup>
-        </form>
-      </Box>
+      <form
+        onSubmit={handleSubmit((data) => {
+          return postRole.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
+        })}
+      >
+        <FormControl w="form-width" isInvalid={!!errors.name}>
+          <FormLabel>Name</FormLabel>
+          <Input {...register('name')} placeholder="name" />
+          <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
+        </FormControl>
+        <FormControl w="form-width" isInvalid={!!errors.description}>
+          <FormLabel>Description</FormLabel>
+          <Input {...register('description')} placeholder="description" />
+          <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
+        </FormControl>
+        <FormControl w="form-width" isInvalid={!!errors.type}>
+          <FormLabel>Type</FormLabel>
+          <Controller
+            control={control}
+            name="type"
+            render={(field) => (
+              <RadioGroup
+                {...field.field}
+                onChange={(value: RoleType) => {
+                  field.field.onChange({ target: { value } });
+                  setType(value);
+                }}
+              >
+                <Stack direction="column" pl="1em" spacing={1}>
+                  <Radio value={RoleType.UserTenant}>User tenant</Radio>
+                  <Radio value={RoleType.UserGlobal}>User global</Radio>
+                  <Radio value={RoleType.ResourceOwnership}>Resource ownership</Radio>
+                </Stack>
+              </RadioGroup>
+            )}
+          />
+          <FormErrorMessage>{errors.type?.message}</FormErrorMessage>
+        </FormControl>
+        <FormControl isInvalid={typeof privilegesError === 'string'}>
+          <FormLabel>Privileges</FormLabel>
+          <Controller
+            control={control}
+            name="privileges"
+            render={(field) =>
+              filteredPrivileges === undefined ? (
+                <></>
+              ) : (
+                <PrivilegesInput
+                  error={typeof privilegesError === 'string' ? undefined : privilegesError}
+                  onChange={field.field.onChange}
+                  value={field.field.value as PrivilegeCode[]}
+                  privileges={filteredPrivileges}
+                />
+              )
+            }
+          />
+          <FormErrorMessage>
+            {typeof privilegesError === 'string' ? privilegesError : undefined}
+          </FormErrorMessage>
+        </FormControl>
+        <ButtonGroup>
+          <Button mt={4} colorScheme="teal" isLoading={isSubmitting} type="submit">
+            Save
+          </Button>
+          <Button
+            mt={4}
+            colorScheme="teal"
+            variant="ghost"
+            isLoading={isSubmitting}
+            type="reset"
+            onClick={() => navigate(parentPath)}
+          >
+            Cancel
+          </Button>
+        </ButtonGroup>
+      </form>
     </PageTemplate>
   );
 };

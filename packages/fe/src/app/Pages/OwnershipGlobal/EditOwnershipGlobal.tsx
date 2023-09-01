@@ -69,7 +69,7 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
           ? ownership.sbe.displayName
           : '-'}
       </Text>
-      <FormControl w="20em" isInvalid={!!errors.roleId}>
+      <FormControl w="form-width" isInvalid={!!errors.roleId}>
         <FormLabel>Role</FormLabel>
         <SelectRole
           types={[RoleType.ResourceOwnership]}

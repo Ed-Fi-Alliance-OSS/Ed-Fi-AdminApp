@@ -40,7 +40,7 @@ export const CreateTenant = () => {
 
   return (
     <PageTemplate constrainWidth title={'Create new tenant'} actions={undefined}>
-      <Box w="20em">
+      <Box w="form-width">
         <form
           onSubmit={handleSubmit((data) =>
             postTenant.mutateAsync(data, {

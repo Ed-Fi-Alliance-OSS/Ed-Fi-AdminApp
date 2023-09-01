@@ -263,4 +263,7 @@ export const theme = extendTheme({
   fonts: {
     body: `'IBM Plex Sans', sans-serif`,
   },
+  sizes: {
+    'form-width': '25em',
+  },
 });

@@ -156,9 +156,14 @@ const Filters = () => {
 
   return (
     <HStack gap={0}>
-      {columnFilters.map((columnFilter) => (
-        <ColumnFilter column={table.getColumn(columnFilter.id)!} key={columnFilter.id} />
-      ))}
+      {columnFilters.map((columnFilter) => {
+        const column = table.getColumn(columnFilter.id);
+        if (column) {
+          return <ColumnFilter column={column} key={columnFilter.id} />;
+        } else {
+          return null;
+        }
+      })}
       <Popover
         returnFocusOnClose={false}
         isOpen={isOpen}

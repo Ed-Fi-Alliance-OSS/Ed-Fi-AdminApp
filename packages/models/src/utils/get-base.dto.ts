@@ -11,7 +11,9 @@ import { IEntityBase } from './entity-base.interface';
  */
 export type GettersOmit =
   | 'createdShort'
+  | 'createdNumber'
   | 'modifiedShort'
+  | 'modifiedNumber'
   | 'createdDetailed'
   | 'modifiedDetailed'
   | 'displayName';
@@ -42,6 +44,14 @@ export class DtoGetBase__User {
 
   @Expose()
   modifiedById?: IUser['id'];
+
+  get createdNumber() {
+    return this.created ? this.created.getTime() : undefined;
+  }
+
+  get modifiedNumber() {
+    return this.modified ? this.modified.getTime() : undefined;
+  }
 
   get createdShort() {
     return this.created ? stdShort(this.created) : undefined;

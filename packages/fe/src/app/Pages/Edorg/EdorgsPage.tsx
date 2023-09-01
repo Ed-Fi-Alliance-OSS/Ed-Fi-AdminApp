@@ -1,4 +1,4 @@
-import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
+import { SbaaTableAllInOne, PageTemplate, ValueAsDate } from '@edanalytics/common-ui';
 import { GetEdorgDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import { useParams } from 'react-router-dom';
@@ -54,8 +54,9 @@ export const EdorgsPage = () => {
           },
           {
             id: 'educationOrganizationId',
-            accessorFn: (info) => info.educationOrganizationId,
+            accessorFn: (info) => String(info.educationOrganizationId),
             header: 'Education Org ID',
+            meta: { type: 'options' },
           },
           ...arrayElemIf(authorize({ config: odsAuth, queryClient }), {
             id: 'ods',
@@ -77,7 +78,8 @@ export const EdorgsPage = () => {
             },
           },
           {
-            accessorKey: 'createdDetailed',
+            accessorKey: 'createdNumber',
+            cell: ValueAsDate(),
             header: 'Created',
             meta: {
               type: 'date',

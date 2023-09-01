@@ -33,7 +33,7 @@ export const CreateSbeGlobalPage = () => {
 
   return (
     <PageTemplate constrainWidth title={'Create Environment'} actions={undefined}>
-      <Box w="20em">
+      <Box w="form-width">
         <form
           onSubmit={handleSubmit((data) =>
             postSbe.mutateAsync(
