@@ -54,11 +54,7 @@ export const SbaaTable: TableComponent = (props) => {
       <Tbody>
         {table.getRowModel().rows.map((row) => {
           return (
-            <Tr
-              key={row.id}
-              aria-selected={row.getIsSelected()}
-              onClick={row.getToggleSelectedHandler()}
-            >
+            <Tr key={row.id}>
               {row.getVisibleCells().map((cell) => {
                 return (
                   <Td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</Td>

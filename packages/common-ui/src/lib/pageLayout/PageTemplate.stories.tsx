@@ -2,45 +2,37 @@ import { BiEdit, BiTrash } from 'react-icons/bi';
 import { PageTemplate } from './PageTemplate';
 import { Box } from '@chakra-ui/react';
 import { Meta } from '@storybook/react';
-import { ActionBarActions, Attribute, AttributesGrid, ContentSection } from '..';
+import { PageActions, Attribute, AttributesGrid, ContentSection } from '..';
 import { faker } from '@faker-js/faker';
 import { Standard } from '../dataTable/index.stories';
 const ExampleActions = () => (
-  <ActionBarActions
+  <PageActions
     show={2}
     actions={{
-      0: (props) => (
-        <props.children
-          icon={BiEdit}
-          text="Edit"
-          title={'Edit the thingy'}
-          onClick={() => undefined}
-        />
-      ),
-      1: (props) => (
-        <props.children
-          icon={BiTrash}
-          text="Delete"
-          title={'Delete the thingy'}
-          onClick={() => undefined}
-        />
-      ),
-      2: (props) => (
-        <props.children
-          icon={BiTrash}
-          text="Delete"
-          title={'Delete the thingy'}
-          onClick={() => undefined}
-        />
-      ),
-      3: (props) => (
-        <props.children
-          icon={BiTrash}
-          text="Delete"
-          title={'Delete the thingy'}
-          onClick={() => undefined}
-        />
-      ),
+      0: {
+        icon: BiEdit,
+        text: 'Edit',
+        title: 'Edit the thingy',
+        onClick: () => undefined,
+      },
+      1: {
+        icon: BiTrash,
+        text: 'Delete',
+        title: 'Delete the thingy',
+        onClick: () => undefined,
+      },
+      2: {
+        icon: BiTrash,
+        text: 'Delete',
+        title: 'Delete the thingy',
+        onClick: () => undefined,
+      },
+      3: {
+        icon: BiTrash,
+        text: 'Delete',
+        title: 'Delete the thingy',
+        onClick: () => undefined,
+      },
     }}
   />
 );

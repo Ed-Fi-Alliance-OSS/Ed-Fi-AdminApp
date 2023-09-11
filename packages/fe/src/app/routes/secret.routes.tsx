@@ -1,7 +1,12 @@
+import { Suspense, lazy } from 'react';
 import { RouteObject } from 'react-router-dom';
-import { SecretPage } from '../Pages/Secret/SecretPage';
+const SecretPage = lazy(() => import('../Pages/Secret/SecretPage'));
 
 export const secretRoute: RouteObject = {
   path: '/secret/',
-  element: <SecretPage />,
+  element: (
+    <Suspense fallback={<div>Loading...</div>}>
+      <SecretPage />
+    </Suspense>
+  ),
 };

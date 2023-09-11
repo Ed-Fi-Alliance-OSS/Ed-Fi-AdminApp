@@ -44,7 +44,7 @@ export const StandardLayout = () => {
                       {/* asId might be one render behind */}
                       {params.asId && asId === undefined ? null : <Outlet />}
                     </Box>
-                    <Box fontSize="sm" color="gray.500" mt="auto" textAlign="center">
+                    <Box fontSize="sm" color="gray.600" mt="auto" textAlign="center">
                       ©2023 Education Analytics, Inc. All Rights Reserved
                     </Box>
                   </Box>

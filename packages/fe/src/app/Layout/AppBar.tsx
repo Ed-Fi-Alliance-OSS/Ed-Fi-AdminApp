@@ -38,7 +38,7 @@ export const AppBar = () => {
     >
       <HStack>
         <RouterLink to={asId ? `/as/${asId}` : '/'}>
-          <Image h={7} src={logoUrl} />
+          <Image alt="logo" h="28px" w="238px" src={logoUrl} />
         </RouterLink>
         <Text
           lineHeight="1.3"
@@ -48,7 +48,7 @@ export const AppBar = () => {
           pl="1.5ch"
           fontWeight={600}
           fontSize="lg"
-          color="gray.500"
+          color="gray.600"
         >
           {tenant?.displayName ?? 'Global scope'}
         </Text>

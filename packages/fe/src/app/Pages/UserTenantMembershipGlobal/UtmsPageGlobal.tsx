@@ -1,6 +1,6 @@
 import { Box, HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   PageTemplate,
   SbaaTable,
   SbaaTableAdvancedButton,
@@ -14,7 +14,7 @@ import {
 } from '@edanalytics/common-ui';
 import { GetUserTenantMembershipDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
-import _ from 'lodash';
+import omit from 'lodash/omit';
 import { roleQueries, tenantQueries, userQueries, userTenantMembershipQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { TenantLink, UserGlobalLink, UtmGlobalLink } from '../../routes';
@@ -43,7 +43,7 @@ export const UtmsGlobalPage = () => {
   return (
     <PageTemplate
       title="Tenant memberships"
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       <SbaaTableAllInOne
         data={Object.values(userTenantMemberships?.data || {})}

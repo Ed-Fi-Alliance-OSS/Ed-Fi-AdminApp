@@ -6,8 +6,8 @@ import {
   Tenant,
   User,
   UserTenantMembership,
+  generateFake,
 } from '@edanalytics/models-server';
-import { generateFake } from '@edanalytics/utils';
 import { faker } from '@faker-js/faker';
 import { Logger } from '@nestjs/common';
 import colors from 'colors/safe';

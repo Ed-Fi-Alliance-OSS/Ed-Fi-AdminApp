@@ -46,9 +46,9 @@ export const Breadcrumbs = (props: BreadcrumbProps & StyleProps) => {
     <Breadcrumb
       size="sm"
       spacing={1}
-      color="gray.500"
+      color="gray.600"
       separator={
-        <Text color="gray.400" mx="0.2em" lineHeight={0}>
+        <Text color="gray.600" mx="0.2em" lineHeight={0}>
           /
         </Text>
       }

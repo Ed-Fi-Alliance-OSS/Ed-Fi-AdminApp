@@ -1,13 +1,9 @@
 import { EdorgType, IEdorg, IOds, IOwnership, ISbe } from '@edanalytics/models';
-import { FakeMeUsing, districtName, schoolType } from '@edanalytics/utils';
-import { faker } from '@faker-js/faker';
 import {
   Column,
   Entity,
-  JoinColumn,
   ManyToOne,
   OneToMany,
-  OneToOne,
   Tree,
   TreeChildren,
   TreeParent,
@@ -16,17 +12,6 @@ import {
 import { EntityBase } from '../utils/entity-base';
 
 @Entity()
-@FakeMeUsing(() =>
-  Math.random() > 0.2
-    ? {
-        discriminator: EdorgType['edfi.School'],
-        nameOfInstitution: `${faker.address.street()} ${schoolType()}`,
-      }
-    : {
-        discriminator: EdorgType['edfi.LocalEducationAgency'],
-        nameOfInstitution: districtName(),
-      }
-)
 @Tree('closure-table')
 @Unique(['sbeId', 'odsId', 'educationOrganizationId'])
 export class Edorg extends EntityBase implements IEdorg {
@@ -58,7 +43,6 @@ export class Edorg extends EntityBase implements IEdorg {
   parentId?: number | undefined;
 
   @Column()
-  @FakeMeUsing(() => faker.datatype.number(999999999))
   educationOrganizationId: number;
 
   @Column()

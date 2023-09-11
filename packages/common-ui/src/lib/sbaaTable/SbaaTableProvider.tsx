@@ -86,7 +86,6 @@ export function SbaaTableProvider<T extends object>(props: {
 
   const showSettings = useBoolean(sortParams.length > 1 || columnFilters.length > 0);
 
-  const [rowSelection, setRowSelection] = React.useState<RowSelectionState>({});
   const table = useReactTable({
     data,
     columns,
@@ -95,11 +94,9 @@ export function SbaaTableProvider<T extends object>(props: {
     },
     state: {
       sorting: sortParams,
-      rowSelection,
       globalFilter,
       columnFilters,
     },
-    onRowSelectionChange: setRowSelection,
     onSortingChange: (updater) =>
       setSearchParams(
         setSortParams(

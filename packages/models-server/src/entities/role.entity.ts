@@ -1,5 +1,4 @@
 import { IPrivilege, IRole, ITenant, RoleType } from '@edanalytics/models';
-import { FakeMeUsing } from '@edanalytics/utils';
 import _ from 'lodash';
 import { Column, Entity, JoinTable, ManyToMany, ManyToOne } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';

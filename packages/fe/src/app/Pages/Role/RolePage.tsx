@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useNavigate, useParams } from 'react-router-dom';
 import { roleQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
@@ -33,7 +33,7 @@ export const RolePage = () => {
     <PageTemplate
       constrainWidth
       title={role?.displayName || 'Role'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {role ? edit ? <EditRole role={role} /> : <ViewRole role={role} /> : null}
     </PageTemplate>

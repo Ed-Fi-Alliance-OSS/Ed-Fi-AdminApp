@@ -5,27 +5,17 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
-  Link,
-  Modal,
-  ModalBody,
-  ModalCloseButton,
-  ModalContent,
-  ModalHeader,
-  ModalOverlay,
-  Text,
   chakra,
-  useClipboard,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { ApplicationYopassResponseDto, PostApplicationForm } from '@edanalytics/models';
+import { PostApplicationForm } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useApplicationPost } from '../../api';
 import { useNavContext, useNavToParent } from '../../helpers';
 import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers/FormPickers';
-import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 const resolver = classValidatorResolver(PostApplicationForm);
 
@@ -37,16 +27,9 @@ export const CreateApplicationPage = () => {
   const navToParentOptions = useNavToParent();
   const popBanner = usePopBanner();
 
-  const [result, setResult] = useState<ApplicationYopassResponseDto | null>(null);
-  const clipboard = useClipboard('');
-
   const postApplication = useApplicationPost({
     sbeId: sbeId,
     tenantId: asId,
-    callback: (result) => {
-      setResult(result);
-      clipboard.setValue(result.link);
-    },
   });
 
   const {
@@ -61,34 +44,18 @@ export const CreateApplicationPage = () => {
   });
 
   return (
-    <PageTemplate title="New application" constrainWidth>
-      <Modal
-        isOpen={!!result}
-        onClose={() => {
-          setResult(null);
-          clipboard.setValue('');
-          result && navigate(`/as/${asId}/sbes/${sbeId}/applications/${result.applicationId}`);
-        }}
-      >
-        <ModalOverlay />
-        <ModalContent borderTop="10px solid" borderColor="green.300">
-          <ModalHeader>Application registered</ModalHeader>
-          <ModalCloseButton />
-          <ModalBody>
-            <Text as="b">Use this link to see your new credentials: </Text>
-            <Link href={clipboard.value} color="blue.500">
-              {clipboard.value}
-            </Link>
-            <Text my={5} as="p" fontStyle="italic">
-              Note: this link will work only once, and will expire after 7 days.
-            </Text>
-          </ModalBody>
-        </ModalContent>
-      </Modal>
+    <PageTemplate title="New application">
       <chakra.form
         w="form-width"
         onSubmit={handleSubmit((data) => {
-          return postApplication.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
+          return postApplication.mutateAsync(data, {
+            onSuccess(data, variables, context) {
+              navigate(`/as/${asId}/sbes/${sbeId}/applications/${data.applicationId}`, {
+                state: data.link,
+              });
+            },
+            ...mutationErrCallback({ popBanner, setError }),
+          });
         })}
       >
         <FormControl isInvalid={!!errors.applicationName}>

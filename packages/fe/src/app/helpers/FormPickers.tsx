@@ -17,7 +17,8 @@ import {
 import { VirtualizedSelect } from '@edanalytics/common-ui';
 import { EdorgType, EdorgTypeShort, RoleType } from '@edanalytics/models';
 import { enumValues } from '@edanalytics/utils';
-import _ from 'lodash';
+import sortBy from 'lodash/sortBy';
+import uniq from 'lodash/uniq';
 import { ReactNode, useEffect, useMemo, useState } from 'react';
 import {
   Control,
@@ -56,7 +57,7 @@ const InnerSelect = (
   }
 ) => {
   const optionsArray = useMemo(
-    () => _.sortBy(Object.values(props.options), 'label'),
+    () => sortBy(Object.values(props.options), 'label'),
     [props.options]
   );
 
@@ -210,7 +211,7 @@ export const SelectSbe = <
     ])
   );
   return (
-    <SelectWrapper control={control} name={name} options={options} isLoading={sbes.isLoading} />
+    <SelectWrapper control={control} name={name} options={options} isLoading={sbes.isFetching} />
   );
 };
 export const SelectTenant = <
@@ -231,7 +232,7 @@ export const SelectTenant = <
     ])
   );
   return (
-    <SelectWrapper control={control} name={name} options={options} isLoading={tenants.isLoading} />
+    <SelectWrapper control={control} name={name} options={options} isLoading={tenants.isFetching} />
   );
 };
 export const SelectUser = <
@@ -252,7 +253,7 @@ export const SelectUser = <
     ])
   );
   return (
-    <SelectWrapper control={control} name={name} options={options} isLoading={users.isLoading} />
+    <SelectWrapper control={control} name={name} options={options} isLoading={users.isFetching} />
   );
 };
 
@@ -284,7 +285,7 @@ export const SelectClaimset = <
       control={control}
       name={name}
       options={options}
-      isLoading={claimsets.isLoading}
+      isLoading={claimsets.isFetching}
     />
   );
 };
@@ -307,7 +308,7 @@ export const SelectVendor = <
     ])
   );
   return (
-    <SelectWrapper control={control} name={name} options={options} isLoading={vendors.isLoading} />
+    <SelectWrapper control={control} name={name} options={options} isLoading={vendors.isFetching} />
   );
 };
 
@@ -333,7 +334,7 @@ export const SelectApplication = <
       control={control}
       name={name}
       options={options}
-      isLoading={applications.isLoading}
+      isLoading={applications.isFetching}
     />
   );
 };
@@ -362,7 +363,7 @@ export const SelectOds = <
     ])
   );
   return (
-    <SelectWrapper control={control} name={name} options={options} isLoading={odss.isLoading} />
+    <SelectWrapper control={control} name={name} options={options} isLoading={odss.isFetching} />
   );
 };
 
@@ -381,7 +382,7 @@ export const SelectEdorg = <
   const { control, name, tenantId, sbeId } = props;
   const edorgs = edorgQueries.useAll({ tenantId, sbeId });
   const discriminators = useMemo(
-    () => _.uniq(Object.values(edorgs.data ?? {}).map((edorg) => edorg.discriminator)),
+    () => uniq(Object.values(edorgs.data ?? {}).map((edorg) => edorg.discriminator)),
     [edorgs]
   );
   const [include, setInclude] = useState<string[]>(enumValues(EdorgType));
@@ -416,7 +417,7 @@ export const SelectEdorg = <
       control={control}
       name={name}
       options={options}
-      isLoading={edorgs.isLoading}
+      isLoading={edorgs.isFetching}
       filterApplied={filterApplied}
       onFilterDoubleClick={() => setInclude(enumValues(EdorgType))}
       filterPane={

@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
 import { claimsetQueries } from '../../api';
@@ -70,5 +70,5 @@ export const ClaimsetPageActions = () => {
     claimset,
   });
 
-  return <ActionBarActions actions={_.omit(actions, 'View')} />;
+  return <PageActions actions={omit(actions, 'View')} />;
 };

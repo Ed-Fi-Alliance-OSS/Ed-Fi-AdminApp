@@ -1,13 +1,12 @@
-import { ActionBarActions, SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
+import { PageActions, PageTemplate, SbaaTableAllInOne } from '@edanalytics/common-ui';
 import { GetClaimsetDto, GetEdorgDto, createEdorgCompositeNaturalKey } from '@edanalytics/models';
-import _ from 'lodash';
 import { applicationQueries, claimsetQueries, edorgQueries, vendorQueries } from '../../api';
 
 import { useNavContext } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLink, EdorgLink, VendorLink } from '../../routes';
 import { NameCell } from './NameCell';
-import { useApplicationsActions } from './useApplicationActions';
+import { useMultiApplicationActions } from './useApplicationActions';
 
 export const ApplicationsPage = () => {
   return (
@@ -22,11 +21,11 @@ export const ApplicationsPageActions = () => {
   const sbeId = navContext.sbeId!;
   const asId = navContext.asId!;
 
-  const actions = useApplicationsActions({
+  const actions = useMultiApplicationActions({
     sbeId: sbeId,
     tenantId: asId,
   });
-  return <ActionBarActions actions={_.omit(actions, 'View')} />;
+  return <PageActions actions={actions} />;
 };
 
 export const ApplicationsPageContent = () => {
@@ -79,7 +78,7 @@ export const ApplicationsPageContent = () => {
       columns={[
         {
           accessorKey: 'displayName',
-          cell: NameCell({ asId: asId, sbeId: sbeId }),
+          cell: NameCell,
           header: 'Name',
         },
         {

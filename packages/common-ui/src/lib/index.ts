@@ -7,7 +7,7 @@ export * from './SuccessFailureBadge';
 export * from './operationResult';
 export * from './VirtualizedSelect';
 export * from './secretValue';
-export * from './ActionBarActions';
+export * from './PageActions';
 export * from './ActionsType';
 export * from './TableRowActions';
 export * from './pageLayout';

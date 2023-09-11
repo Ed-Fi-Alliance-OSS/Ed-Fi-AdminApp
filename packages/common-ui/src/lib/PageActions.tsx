@@ -1,13 +1,9 @@
-import { Button, Menu, MenuButton, MenuList, Portal } from '@chakra-ui/react';
-import { ActionBarButton, ActionMenuButton } from './getStandardActions';
 import { ChevronDownIcon } from '@chakra-ui/icons';
+import { Button, Menu, MenuButton, MenuList, Portal } from '@chakra-ui/react';
 import { ActionsType } from './ActionsType';
-import * as React from 'react';
+import { ActionBarButton, ActionMenuButton } from './getStandardActions';
 
-export const ActionBarActions = (props: {
-  actions: ActionsType;
-  show?: number | undefined | true;
-}) => {
+export const PageActions = (props: { actions: ActionsType; show?: number | undefined | true }) => {
   const { show, actions } = props;
   const hidden = Object.entries(actions);
   const visible = hidden.splice(
@@ -25,8 +21,8 @@ export const ActionBarActions = (props: {
   );
   return (
     <>
-      {visible.map(([key, Action]) => (
-        <Action key={key}>{ActionBarButton}</Action>
+      {visible.map(([key, actionProps]) => (
+        <ActionBarButton key={key} {...actionProps} />
       ))}
       {hidden.length > 0 && (
         <Menu>
@@ -35,8 +31,8 @@ export const ActionBarActions = (props: {
           </MenuButton>
           <Portal>
             <MenuList>
-              {hidden.map(([key, Action]) => (
-                <Action key={key}>{ActionMenuButton}</Action>
+              {hidden.map(([key, actionProps]) => (
+                <ActionMenuButton key={key} {...actionProps} />
               ))}
             </MenuList>
           </Portal>

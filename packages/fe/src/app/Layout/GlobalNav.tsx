@@ -1,4 +1,5 @@
 import { useQueryClient } from '@tanstack/react-query';
+import sortBy from 'lodash/sortBy';
 import {
   BsBuildings,
   BsBuildingsFill,
@@ -19,7 +20,6 @@ import { useMatches } from 'react-router-dom';
 import { sbeQueries } from '../api';
 import { arrayElemIf, authorize, usePrivilegeCacheForConfig } from '../helpers';
 import { INavButtonProps, NavButton } from './NavButton';
-import _ from 'lodash';
 
 export const isMatch = (activeRoute: string, item: INavButtonProps) => {
   const nextChar = activeRoute.charAt(item.route.length);
@@ -187,7 +187,7 @@ export const GlobalNav = (props: object) => {
         icon: BsFolder,
         activeIcon: BsFolderFill,
         text: 'Environments',
-        childItems: _.sortBy(Object.values(sbes.data || {}), (sbe) =>
+        childItems: sortBy(Object.values(sbes.data || {}), (sbe) =>
           sbe.displayName.toLocaleLowerCase()
         )
           .map((sbe) =>

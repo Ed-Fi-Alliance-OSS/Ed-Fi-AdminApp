@@ -11,17 +11,17 @@ import {
 import { ContentSection, DateFormat, SbaaTableAllInOne, ValueAsDate } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
 import dayjs from 'dayjs';
+import sortBy from 'lodash/sortBy';
 import { useMemo } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { sbSyncQueueQueries } from '../../api';
 import { jobStateColorSchemes } from '../SbSyncQueue/SbSyncQueuesPage';
-import _ from 'lodash';
 
 export const SbeSyncQueue = (props: { sbe: GetSbeDto }) => {
   const sbSyncQueues = sbSyncQueueQueries.useAll({});
   const filteredQueues = useMemo(
     () =>
-      _.sortBy(
+      sortBy(
         Object.values(sbSyncQueues.data ?? {}).filter((q) => q.sbeId === props.sbe.id),
         ['createdOnNumber']
       ).reverse(),

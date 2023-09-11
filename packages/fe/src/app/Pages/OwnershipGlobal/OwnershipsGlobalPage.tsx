@@ -1,6 +1,6 @@
 import { Box, HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   SbaaTableAllInOne,
   PageTemplate,
   SbaaTable,
@@ -38,7 +38,7 @@ export const OwnershipsGlobalPage = () => {
   const tenants = tenantQueries.useAll({});
   const actions = useMultipleOwnershipGlobalActions();
   return (
-    <PageTemplate title="Resource ownerships" actions={<ActionBarActions actions={actions} />}>
+    <PageTemplate title="Resource ownerships" actions={<PageActions actions={actions} />}>
       <SbaaTableAllInOne
         data={Object.values(ownerships?.data || {})}
         columns={[

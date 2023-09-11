@@ -1,25 +1,32 @@
-import { GetSessionDataDto, PostRoleDto, PutRoleDto, toGetRoleDto } from '@edanalytics/models';
+import {
+  GetSessionDataDto,
+  PostRoleDto,
+  PutRoleDto,
+  RoleType,
+  toGetRoleDto,
+} from '@edanalytics/models';
 import { Role, addUserCreating, addUserModifying } from '@edanalytics/models-server';
+import { formErrFromValidator } from '@edanalytics/utils';
 import {
   Body,
   Controller,
   Delete,
   Get,
-  HttpException,
   Param,
   ParseBoolPipe,
   ParseIntPipe,
   Post,
   Put,
   Query,
-  UnauthorizedException,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
+import { ValidationError } from 'class-validator';
 import { Repository } from 'typeorm';
 import { Authorize, CheckAbility, CheckAbilityType } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { throwNotFound } from '../utils';
+import { ValidationException } from '../utils/customExceptions';
 import { RolesGlobalService } from './roles-global.service';
 
 @ApiTags('Role - Global')
@@ -39,6 +46,19 @@ export class RolesGlobalController {
     },
   })
   async create(@Body() createRoleDto: PostRoleDto, @ReqUser() user: GetSessionDataDto) {
+    if (
+      createRoleDto.type === RoleType.UserGlobal &&
+      (!createRoleDto.privileges.includes('me:read') ||
+        !createRoleDto.privileges.includes('privilege:read'))
+    ) {
+      const err = new ValidationError();
+      err.property = 'privileges';
+      err.constraints = {
+        server: 'Minimum privileges not present (me:read or privilege:read).',
+      };
+      err.value = false;
+      throw new ValidationException(formErrFromValidator([err]));
+    }
     return toGetRoleDto(await this.roleService.create(addUserCreating(createRoleDto, user)));
   }
 
@@ -76,6 +96,23 @@ export class RolesGlobalController {
     @Body() updateRoleDto: PutRoleDto,
     @ReqUser() user: GetSessionDataDto
   ) {
+    const existing = await this.rolesRepository
+      .findOneByOrFail({ id: roleId })
+      .catch(throwNotFound);
+    if (
+      existing.type === RoleType.UserGlobal &&
+      (!updateRoleDto.privileges.includes('me:read') ||
+        !updateRoleDto.privileges.includes('privilege:read'))
+    ) {
+      const err = new ValidationError();
+      err.property = 'privileges';
+      err.constraints = {
+        server: 'Minimum privileges not present (me:read or privilege:read).',
+      };
+      err.value = false;
+      throw new ValidationException(formErrFromValidator([err]));
+    }
+
     return toGetRoleDto(
       await this.roleService.update(roleId, addUserModifying(updateRoleDto, user))
     );

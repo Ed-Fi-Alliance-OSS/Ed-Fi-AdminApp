@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { sbeQueries } from '../../api';
 import { ViewSbe } from './ViewSbe';
@@ -20,7 +20,7 @@ export const SbePage = () => {
     <PageTemplate
       constrainWidth
       title={sbe?.displayName || 'Sbe'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {sbe ? <ViewSbe /> : null}
     </PageTemplate>

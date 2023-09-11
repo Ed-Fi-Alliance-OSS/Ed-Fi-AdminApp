@@ -2,7 +2,7 @@ import { ITenantCache, PrivilegeCode, upwardInheritancePrivileges } from '@edana
 import { Edorg, Ods, Ownership, Sbe, User, UserTenantMembership } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
-import { EntityManager, In, Repository, TreeRepository } from 'typeorm';
+import { EntityManager, In, IsNull, Not, Repository, TreeRepository } from 'typeorm';
 import { CacheService } from '../app/cache.module';
 import {
   cacheAccordingToPrivileges,
@@ -67,16 +67,25 @@ export class AuthService {
 
   private async getUser(username: string) {
     const user = await this.usersRepo.findOne({
-      where: { username },
-      relations: [
-        'userTenantMemberships',
-        'userTenantMemberships.role',
-        'userTenantMemberships.tenant',
-        'role',
-      ],
+      where: {
+        username,
+        userTenantMemberships: {},
+      },
+      relations: ['role'],
+    });
+    if (user === null) return null;
+
+    const tenantMemberships = await this.utmRepo.find({
+      where: {
+        userId: user.id,
+        roleId: Not(IsNull()),
+      },
+      relations: ['role', 'tenant'],
     });
 
-    if (user === null) return null;
+    if (tenantMemberships.length) {
+      user.userTenantMemberships = tenantMemberships;
+    }
 
     return user;
   }

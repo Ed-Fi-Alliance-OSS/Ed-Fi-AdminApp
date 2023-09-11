@@ -1,6 +1,6 @@
 import { generatePath, useMatches, useParams } from 'react-router-dom';
 import { flatRoutes } from '../routes';
-import _ from 'lodash';
+import uniq from 'lodash/uniq';
 
 /**
  * Navigate up one level in the route tree. Useful for redirecting after deletion of a resource whose page you were on.
@@ -10,7 +10,7 @@ export const useNavToParent = () => {
   const matches = useMatches();
   const params = useParams();
   const lastMatch = matches[matches.length - 1];
-  const breadcrumbs = _.uniq(
+  const breadcrumbs = uniq(
     flatRoutes
       .filter((m) => m.path && lastMatch?.handle?.path?.startsWith(m.path))
       .map((r) => r.path?.replace(/\/$/, ''))

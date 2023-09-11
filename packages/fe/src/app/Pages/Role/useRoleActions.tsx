@@ -1,11 +1,11 @@
-import { ActionPropsConfirm, ActionsType, LinkActionProps } from '@edanalytics/common-ui';
+import { ActionsType } from '@edanalytics/common-ui';
 import { GetRoleDto } from '@edanalytics/models';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useNavigate, useParams } from 'react-router-dom';
-import { roleQueries } from '../../api';
-import { AuthorizeComponent, tenantRoleAuthConfig } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { roleQueries } from '../../api';
+import { tenantRoleAuthConfig, useAuthorize } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useRoleActions = (role: GetRoleDto | undefined): ActionsType => {
@@ -17,62 +17,60 @@ export const useRoleActions = (role: GetRoleDto | undefined): ActionsType => {
     asId: string;
     roleId: string;
   };
+
+  const canView = useAuthorize(
+    tenantRoleAuthConfig(role?.id, Number(params.asId), 'tenant.role:read')
+  );
+
+  const canEdit = useAuthorize(
+    tenantRoleAuthConfig(role?.id, Number(params.asId), 'tenant.role:update')
+  );
+
+  const canDelete = useAuthorize(
+    tenantRoleAuthConfig(role?.id, Number(params.asId), 'tenant.role:delete')
+  );
+
   return role === undefined
     ? {}
     : {
-        View: (props: { children: (props: LinkActionProps) => JSX.Element }) => {
-          const path = to(role.id);
-          return (
-            <AuthorizeComponent
-              config={tenantRoleAuthConfig(role.id, Number(params.asId), 'tenant.role:read')}
-            >
-              <props.children
-                icon={HiOutlineEye}
-                text="View"
-                title={'View ' + role.displayName}
-                to={path}
-                onClick={() => navigate(path)}
-              />
-            </AuthorizeComponent>
-          );
-        },
-        Edit: (props: { children: (props: LinkActionProps) => JSX.Element }) => {
-          const path = to(role.id);
-          return (
-            <AuthorizeComponent
-              config={tenantRoleAuthConfig(role.id, role.tenantId, 'tenant.role:update')}
-            >
-              <props.children
-                icon={BiEdit}
-                text="Edit"
-                title={'Edit ' + role.displayName}
-                to={to + '?edit=true'}
-                onClick={() => navigate(to + '?edit=true')}
-              />
-            </AuthorizeComponent>
-          );
-        },
-        Delete: (props: { children: (props: ActionPropsConfirm) => JSX.Element }) => {
-          return (
-            <AuthorizeComponent
-              config={tenantRoleAuthConfig(role.id, role.tenantId, 'tenant.role:delete')}
-            >
-              <props.children
-                icon={BiTrash}
-                isLoading={deleteRole.isLoading}
-                text="Delete"
-                title="Delete role"
-                confirmBody="This will permanently delete the role."
-                onClick={() =>
+        ...(canView
+          ? {
+              View: {
+                icon: HiOutlineEye,
+                text: 'View',
+                title: 'View ' + role.displayName,
+                to: to(role.id),
+                onClick: () => navigate(to(role.id)),
+              },
+            }
+          : {}),
+        ...(canEdit
+          ? {
+              Edit: {
+                icon: BiEdit,
+                text: 'Edit',
+                title: 'Edit ' + role.displayName,
+                to: to(role.id) + '?edit=true',
+                onClick: () => navigate(to(role.id) + '?edit=true'),
+              },
+            }
+          : {}),
+        ...(canDelete
+          ? {
+              Delete: {
+                icon: BiTrash,
+                isLoading: deleteRole.isLoading,
+                text: 'Delete',
+                title: 'Delete role',
+                confirmBody: 'This will permanently delete the role.',
+                onClick: () =>
                   deleteRole.mutateAsync(role.id, {
                     ...mutationErrCallback({ popBanner }),
-                    onSuccess: () => navigate(`/as/${params.asId}/roles`),
-                  })
-                }
-                confirm={true}
-              />
-            </AuthorizeComponent>
-          );
-        },
+                    onSuccess: () => navigate(`/roles`),
+                  }),
+                confirm: true,
+              },
+            }
+          : {}),
       };
 };

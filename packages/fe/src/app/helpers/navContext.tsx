@@ -1,4 +1,4 @@
-import _ from 'lodash';
+import pick from 'lodash/pick';
 import { ReactNode, createContext, useContext } from 'react';
 
 const NavContext = createContext<{ asId: number | undefined; sbeId: number | undefined }>({
@@ -21,7 +21,7 @@ export const NavContextProvider = (props: {
 }) => {
   const existingContext = useNavContext();
   return (
-    <NavContext.Provider value={{ ...existingContext, ..._.pick(props, ['sbeId', 'asId']) }}>
+    <NavContext.Provider value={{ ...existingContext, ...pick(props, ['sbeId', 'asId']) }}>
       {props.children}
     </NavContext.Provider>
   );

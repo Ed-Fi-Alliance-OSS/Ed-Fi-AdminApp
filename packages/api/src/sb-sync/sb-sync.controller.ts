@@ -7,6 +7,7 @@ import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { PgBossInstance, SYNC_SCHEDULER_CHNL } from './sb-sync.module';
 import { StatusType } from '@edanalytics/utils';
+import PgBoss from 'pg-boss';
 
 @ApiTags('SB Sync Queue')
 @Controller()
@@ -47,10 +48,25 @@ export class SbSyncController {
     },
   })
   async triggerSync() {
-    await this.boss.send({ name: SYNC_SCHEDULER_CHNL });
-    return toOperationResultDto({
-      status: StatusType.success,
-      title: 'Sync queued',
+    const boss = this.boss;
+    const id = await boss.send({ name: SYNC_SCHEDULER_CHNL });
+    return new Promise((r) => {
+      let job: PgBoss.JobWithMetadata<object>;
+      const timer = setInterval(poll, 500);
+      let i = 0;
+      async function poll() {
+        job = await boss.getJobById(id);
+        if (i === 10 || job.completedon !== null) {
+          clearInterval(timer);
+          r(
+            toOperationResultDto({
+              status: StatusType.success,
+              title: 'Sync queued',
+            })
+          );
+        }
+        i++;
+      }
     });
   }
 }

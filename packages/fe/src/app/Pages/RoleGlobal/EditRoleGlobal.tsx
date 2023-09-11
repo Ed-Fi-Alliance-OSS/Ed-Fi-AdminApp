@@ -23,6 +23,7 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { privilegeQueries, roleQueries } from '../../api';
 import { PrivilegesInput } from './PrivilegesInput';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import uniq from 'lodash/uniq';
 
 const resolver = classValidatorResolver(PutRoleDto);
 const hasTenantImpersonation = (form: PutRoleDto) =>
@@ -76,7 +77,14 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
     control,
   } = useForm<PutRoleDto>({
     resolver,
-    defaultValues: { ...role, privileges: role?.privileges.map((p) => p.code) },
+    defaultValues: {
+      ...role,
+      privileges: uniq([
+        ...(role?.privileges.map((p) => p.code) ?? []),
+        'me:read',
+        'privilege:read',
+      ]),
+    },
   });
 
   let privilegesError: undefined | string | DependencyErrors = undefined;

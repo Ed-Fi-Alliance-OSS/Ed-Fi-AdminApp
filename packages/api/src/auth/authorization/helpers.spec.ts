@@ -1,15 +1,12 @@
+import 'reflect-metadata';
 import { Edorg } from '@edanalytics/models-server';
-import {
-  ITenantCache,
-  PrivilegeCode,
-  createEdorgCompositeNaturalKey,
-} from '../../../../models/src';
 import {
   addIdTo,
   cacheAccordingToPrivileges,
   cacheEdorgPrivilegesDownward,
   cacheEdorgPrivilegesUpward,
 } from './helpers';
+import { ITenantCache, PrivilegeCode, createEdorgCompositeNaturalKey } from '@edanalytics/models';
 describe('helper: addIdTo', () => {
   const cache: ITenantCache = {};
 

@@ -9,13 +9,14 @@ import {
 } from '@chakra-ui/react';
 import { GetApplicationDto, PutApplicationForm } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { applicationQueries, claimsetQueries, edorgQueries } from '../../api';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { applicationQueries, claimsetQueries, edorgQueries, queryKey } from '../../api';
 import { useNavContext } from '../../helpers';
 import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers/FormPickers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 const resolver = classValidatorResolver(PutApplicationForm);
 
@@ -24,7 +25,7 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
   const navContext = useNavContext();
   const sbeId = navContext.sbeId!;
   const asId = navContext.asId!;
-
+  const queryClient = useQueryClient();
   const popBanner = usePopBanner();
 
   const navigate = useNavigate();
@@ -57,10 +58,7 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    formState,
     control,
-    watch,
-    getValues,
     setError,
   } = useForm<PutApplicationForm>({
     resolver,
@@ -69,7 +67,18 @@ export const EditApplication = (props: { application: GetApplicationDto }) => {
   return edorgs.data && claimsets.data ? (
     <form
       onSubmit={handleSubmit((data) => {
-        return putApplication.mutateAsync(data, mutationErrCallback({ popBanner, setError }));
+        return putApplication.mutateAsync(data, {
+          onSuccess() {
+            queryClient.invalidateQueries({
+              queryKey: queryKey({
+                resourceName: 'Claimset',
+                tenantId: asId,
+                sbeId: sbeId,
+              }),
+            });
+          },
+          ...mutationErrCallback({ popBanner, setError }),
+        });
       })}
     >
       <Box width="20em">

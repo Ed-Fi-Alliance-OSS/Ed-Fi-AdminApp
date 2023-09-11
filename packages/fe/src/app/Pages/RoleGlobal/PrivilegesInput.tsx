@@ -15,7 +15,7 @@ import {
   privilegeCodes,
   privilegeDependencies,
 } from '@edanalytics/models';
-import _ from 'lodash';
+import set from 'lodash/set';
 import { BsCheckAll, BsXLg } from 'react-icons/bs';
 
 type PrivilegeNest = Partial<{ [code: string]: PrivilegeNest }>;
@@ -132,7 +132,10 @@ const SinglePrivilege = (props: {
   const errMsg = props.error?.[props.code];
   const isChecked = props.value.has(props.code);
   return (
-    <FormControl isInvalid={!!errMsg}>
+    <FormControl
+      isDisabled={props.code === 'me:read' || props.code === 'privilege:read'}
+      isInvalid={!!errMsg}
+    >
       <Checkbox isChecked={isChecked} onChange={(e) => props.set([props.code], e.target.checked)}>
         <HStack my={1} alignContent="baseline" display="flex" flexDir="row" flexWrap="wrap">
           <Tag key={props.code} colorScheme="orange" display="flex" w="max-content">
@@ -194,20 +197,28 @@ export const PrivilegesInput = (props: {
   const nested = privileges.reduce<PrivilegeNest>((acc, { code }) => {
     const [path, action] = code.split(':');
     const pathArr = path.split('.');
-    _.set(acc, [...pathArr, code], {});
+    set(acc, [...pathArr, code], {});
     return acc;
   }, {});
 
-  const set = (privileges: PrivilegeCode[], val: boolean) => {
+  const setPrivileges = (privileges: PrivilegeCode[], val: boolean) => {
     const newValue = new Set(props.value);
     if (val) {
       privileges.forEach((p) => newValue.add(p));
     } else {
       privileges.forEach((p) => newValue.delete(p));
     }
+    newValue.add('me:read');
+    newValue.add('privilege:read');
     props.onChange([...newValue.values()]);
   };
   return (
-    <PrivilegeGroup error={props.error} header="All" children={nested} set={set} value={valueSet} />
+    <PrivilegeGroup
+      error={props.error}
+      header="All"
+      children={nested}
+      set={setPrivileges}
+      value={valueSet}
+    />
   );
 };

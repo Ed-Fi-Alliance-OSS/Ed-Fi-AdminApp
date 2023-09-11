@@ -3,6 +3,11 @@ import { ReactNode } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { ActionGroup } from '..';
 
+/**
+ * Standard page template
+ *
+ * There is a CSS class to de-radius the upper right corner of any children with the `.content-card` class whenever the page actions are not empty.
+ */
 export const PageTemplate = (props: {
   title?: ReactNode;
   children?: ReactNode;

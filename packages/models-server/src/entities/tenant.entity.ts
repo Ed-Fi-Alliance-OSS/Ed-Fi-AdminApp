@@ -1,6 +1,4 @@
 import { IOwnership, IRole, ITenant, IUserTenantMembership } from '@edanalytics/models';
-import { FakeMeUsing } from '@edanalytics/utils';
-import { faker } from '@faker-js/faker';
 import { Column, Entity, OneToMany } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';
 

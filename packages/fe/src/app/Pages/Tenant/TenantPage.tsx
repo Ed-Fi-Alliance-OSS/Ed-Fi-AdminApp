@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { tenantQueries } from '../../api';
 
@@ -18,7 +18,7 @@ export const TenantPage = () => {
   return (
     <PageTemplate
       title={tenant?.displayName || 'Tenant'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
       constrainWidth
     >
       {tenant ? edit ? <EditTenant /> : <ViewTenant /> : null}

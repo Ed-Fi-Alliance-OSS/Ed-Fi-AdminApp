@@ -10,24 +10,26 @@ import {
   PopoverBody,
   PopoverContent,
   PopoverTrigger,
+  StyleProps,
   chakra,
   useClipboard,
   useDisclosure,
 } from '@chakra-ui/react';
 import dayjs from 'dayjs';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
-import { ReactNode, useState } from 'react';
+import { ReactNode, useEffect, useState } from 'react';
 import { BiCopy } from 'react-icons/bi';
 import { BsCheckCircle } from 'react-icons/bs';
 import { Link as RouterLink } from 'react-router-dom';
 
 dayjs.extend(localizedFormat);
 
-interface AttributeBaseProps {
+type AttributeBaseProps = {
   label: string;
   isCopyable?: boolean;
   isMasked?: boolean;
-}
+} & StyleProps;
+
 export enum DateFormat {
   Short = 0,
   Long = 1,
@@ -41,14 +43,17 @@ const dateFormatStrings: Record<number, string | undefined> = {
   3: undefined,
 };
 
-export const AttributeContainer = (props: { label: string; children: ReactNode }) => (
-  <Box p="var(--chakra-space-3)">
-    <FormLabel variant="view" as="p">
-      {props.label}
-    </FormLabel>
-    {props.children}
-  </Box>
-);
+export const AttributeContainer = (props: { label: string; children: ReactNode } & StyleProps) => {
+  const { label, children, ...styles } = props;
+  return (
+    <Box p="var(--chakra-space-3)" {...styles}>
+      <FormLabel variant="view" as="p">
+        {label}
+      </FormLabel>
+      {children}
+    </Box>
+  );
+};
 
 export function Attribute(
   props: AttributeBaseProps & {
@@ -81,22 +86,49 @@ export function Attribute(
     value: string | Date | undefined | null | boolean | number;
   }
 ) {
-  const value =
-    props.value === '' || props.value === undefined || props.value === null
+  const {
+    isUrl,
+    isUrlExternal,
+    isDate,
+    defaultDateFmt,
+    value,
+    label,
+    isCopyable,
+    isMasked,
+    ...styles
+  } = props;
+
+  const resultValue =
+    value === '' || value === undefined || value === null
       ? undefined
-      : typeof props.value === 'object'
-      ? props.value
-      : String(props.value);
+      : typeof value === 'object'
+      ? value
+      : String(value);
   const clipValue =
-    value === undefined ? '' : typeof value === 'string' ? value : value.toISOString();
+    resultValue === undefined
+      ? ''
+      : typeof resultValue === 'string'
+      ? resultValue
+      : resultValue.toISOString();
 
   const clip = useClipboard(clipValue);
-  const showSecret = useDisclosure({ defaultIsOpen: !props.isMasked });
+  const showSecret = useDisclosure({ defaultIsOpen: !isMasked });
   const maskedValue = showSecret.isOpen ? clipValue : '\u2022'.repeat(clipValue.length);
+
+  useEffect(() => {
+    function handleWindowBlur() {
+      showSecret.onClose();
+    }
+    if (isMasked) {
+      window.addEventListener('blur', handleWindowBlur);
+      return () => window.removeEventListener('blur', handleWindowBlur);
+    }
+  }, []);
+
   return (
-    <AttributeContainer label={props.label}>
+    <AttributeContainer {...styles} label={label}>
       <chakra.div display="inline-block" lineHeight={1}>
-        {props.isCopyable && value !== undefined ? (
+        {isCopyable && resultValue !== undefined ? (
           <Popover placement="top">
             <PopoverTrigger>
               <IconButton
@@ -125,15 +157,16 @@ export function Attribute(
             </PopoverContent>
           </Popover>
         ) : null}
-        {value === undefined ? (
+        {resultValue === undefined ? (
           <span>&nbsp;-&nbsp;</span>
-        ) : props.isDate && showSecret.isOpen ? (
-          <DateValue value={props.value as Date} defaultDateFmt={props.defaultDateFmt} />
-        ) : props.isUrl && showSecret.isOpen ? (
+        ) : isDate && showSecret.isOpen ? (
+          <DateValue value={value as Date} defaultDateFmt={defaultDateFmt} />
+        ) : isUrl && showSecret.isOpen ? (
           <Link
-            {...(props.isUrlExternal
-              ? { href: props.value as string, target: '_blank', rel: 'noopener noreferrer' }
-              : { as: RouterLink, to: props.value as string })}
+            color="blue.500"
+            {...(isUrlExternal
+              ? { href: value as string, target: '_blank', rel: 'noopener noreferrer' }
+              : { as: RouterLink, to: value as string })}
           >
             {maskedValue}
           </Link>
@@ -142,7 +175,7 @@ export function Attribute(
             {maskedValue}
           </chakra.span>
         )}
-        {props.isMasked && value !== undefined ? (
+        {isMasked && resultValue !== undefined ? (
           <Button
             fontWeight="medium"
             onClick={() => {

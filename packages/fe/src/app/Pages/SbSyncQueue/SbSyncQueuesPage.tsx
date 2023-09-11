@@ -9,7 +9,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   DateFormat,
   PageTemplate,
   SbaaTableAllInOne,
@@ -19,13 +19,13 @@ import {
 import { PgBossJobState, SbSyncQueueDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import dayjs from 'dayjs';
+import sortBy from 'lodash/sortBy';
+import { useMemo } from 'react';
 import { sbSyncQueueQueries, sbeQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { SbSyncQueueLink, SbeGlobalLink } from '../../routes';
 import { useSbSyncQueueActions } from './useSbSyncQueueActions';
 import { useSbSyncQueuesActions } from './useSbSyncQueuesActions';
-import _ from 'lodash';
-import { useMemo } from 'react';
 
 export const jobStateColorSchemes: Record<PgBossJobState, string> = {
   active: 'purple',
@@ -51,14 +51,14 @@ const SbSyncQueueNameCell = (info: CellContext<SbSyncQueueDto, unknown>) => {
 export const SbSyncQueuesPage = () => {
   const sbSyncQueues = sbSyncQueueQueries.useAll({});
   const data = useMemo(
-    () => _.sortBy(Object.values(sbSyncQueues?.data || {}), ['createdOnNumber']).reverse(),
+    () => sortBy(Object.values(sbSyncQueues?.data || {}), ['createdOnNumber']).reverse(),
     [sbSyncQueues.data]
   );
   const actions = useSbSyncQueuesActions();
   const sbes = sbeQueries.useAll({});
 
   return (
-    <PageTemplate title="SB Environment Sync" actions={<ActionBarActions actions={actions} />}>
+    <PageTemplate title="SB Environment Sync" actions={<PageActions actions={actions} />}>
       <SbaaTableAllInOne
         data={data}
         columns={[
@@ -143,7 +143,7 @@ export const SbSyncQueuesPage = () => {
           },
           {
             id: 'completedon',
-            accessorFn: (info) => Number(info.completedon),
+            accessorKey: 'completedOnNumber',
             cell: ValueAsDate({ default: DateFormat.Long }),
             header: 'Completed',
             meta: {

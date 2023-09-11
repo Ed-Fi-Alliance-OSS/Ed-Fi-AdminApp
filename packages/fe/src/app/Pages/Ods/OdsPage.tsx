@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { odsQueries } from '../../api';
 import { ViewOds } from './ViewOds';
@@ -20,7 +20,7 @@ export const OdsPage = () => {
   return (
     <PageTemplate
       title={ods?.displayName || 'Ods'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {ods ? <ViewOds /> : null}
     </PageTemplate>

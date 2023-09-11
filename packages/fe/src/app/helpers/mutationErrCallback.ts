@@ -6,6 +6,7 @@ import {
 } from '@edanalytics/utils';
 import { UseFormSetError } from 'react-hook-form';
 
+/** Populate `onError` with standard error surfacing behavior */
 export const mutationErrCallback = ({
   setError,
   popBanner,

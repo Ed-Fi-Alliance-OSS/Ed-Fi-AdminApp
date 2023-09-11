@@ -7,7 +7,7 @@ import {
 } from '@edanalytics/models';
 import { QueryClient, useQueryClient } from '@tanstack/react-query';
 import { ReactElement } from 'react';
-import { usePrivilegeCache } from '../api';
+import { privilegeSelector, usePrivilegeCache } from '../api';
 
 export type AuthorizeConfig<
   PrivilegeType extends BasePrivilege | TenantBasePrivilege | TenantSbePrivilege = PrivilegeCode
@@ -51,21 +51,32 @@ export const authorize = <
   configArray.forEach((config, i) => {
     const thisPrivilegeCache = props.queryClient.getQueryData<boolean | SpecificIds>([
       'authorizations',
-      'tenantId' in config.subject ? config.subject.tenantId : undefined,
-      'sbeId' in config.subject ? config.subject.sbeId : undefined,
+      'tenantId' in config.subject && config.subject?.tenantId !== undefined
+        ? String(config.subject.tenantId)
+        : undefined,
+      'sbeId' in config.subject && config.subject?.sbeId !== undefined
+        ? String(config.subject.sbeId)
+        : undefined,
       config.privilege,
     ]);
 
-    if (thisPrivilegeCache === false || thisPrivilegeCache === undefined) {
+    /**
+    This query data gets stored in its native format which allows react-query's diffing to work
+    but should be transformed (Array to Set) for more efficient usage.
+    */
+    const transformedCache =
+      thisPrivilegeCache === undefined ? undefined : privilegeSelector(thisPrivilegeCache);
+
+    if (transformedCache === false || transformedCache === undefined) {
       isAuthorized = false;
-    } else if (thisPrivilegeCache === true) {
+    } else if (transformedCache === true) {
       // no change
     } else if (config.subject.id === '__filtered__') {
       // no change
     } else if (
-      thisPrivilegeCache?.has(config.subject.id) ||
-      thisPrivilegeCache?.has(String(config.subject.id)) ||
-      thisPrivilegeCache?.has(Number(config.subject.id))
+      transformedCache?.has(config.subject.id) ||
+      transformedCache?.has(String(config.subject.id)) ||
+      transformedCache?.has(Number(config.subject.id))
     ) {
       // no change
     } else {

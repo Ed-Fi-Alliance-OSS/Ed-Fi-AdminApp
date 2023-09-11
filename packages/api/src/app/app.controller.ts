@@ -1,16 +1,17 @@
 import {
   Controller,
   Get,
+  Header,
   ImATeapotException,
   Logger,
   NotFoundException,
   Param,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { Public } from '../auth/authorization/public.decorator';
-import { ErrorResponse } from '../utils/DefaultRouteError';
 import axios from 'axios';
 import config from 'config';
+import { Public } from '../auth/authorization/public.decorator';
+import { ErrorResponse } from '../utils/DefaultRouteError';
 
 @ApiTags('App')
 @Controller()
@@ -22,6 +23,7 @@ export class AppController {
     return "Feelin' great!";
   }
   @Public()
+  @Header('Cache-Control', 'no-store')
   @Get('secret/:secretId')
   @ErrorResponse(new NotFoundException())
   secret(@Param('secretId') secretId: string) {

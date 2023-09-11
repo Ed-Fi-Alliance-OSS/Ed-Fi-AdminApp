@@ -26,6 +26,7 @@ import { AddSeparateSbeNameField1692280869502 } from './migrations/1692280869502
 import { NewSbSyncQueue1692740626759 } from './migrations/1692740626759-NewSbSyncQueue';
 import { NullableEnvlabel1693335908870 } from './migrations/1693335908870-NullableEnvlabel';
 import { FkOnDeleteTweaks1693514948085 } from './migrations/1693514948085-fkOnDeleteTweaks';
+import { FkOnDeleteFix1694446892889 } from './migrations/1694446892889-FkOnDeleteFix';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -62,6 +63,7 @@ const config: Pick<
     NewSbSyncQueue1692740626759,
     NullableEnvlabel1693335908870,
     FkOnDeleteTweaks1693514948085,
+    FkOnDeleteFix1694446892889,
   ],
 };
 export default config;

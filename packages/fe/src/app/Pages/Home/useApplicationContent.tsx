@@ -34,7 +34,7 @@ import {
 } from '../../helpers';
 import { ClaimsetLink, EdorgLink } from '../../routes';
 import { NameCell } from '../Application/NameCell';
-import { useApplicationsActions } from '../Application/useApplicationActions';
+import { useMultiApplicationActions } from '../Application/useApplicationActions';
 
 export const useApplicationContent = (props: { sbe: GetSbeDto }) => {
   const asId = useNavContext().asId!;
@@ -53,7 +53,7 @@ export const useApplicationContent = (props: { sbe: GetSbeDto }) => {
     privilege: 'tenant.sbe.ods:read',
   };
   usePrivilegeCacheForConfig([appAuth, odsAuth]);
-  const actions = useApplicationsActions({ sbeId: props.sbe.id, tenantId: asId });
+  const actions = useMultiApplicationActions({ sbeId: props.sbe.id, tenantId: asId });
 
   return authorize({ queryClient, config: appAuth })
     ? {
@@ -164,7 +164,7 @@ export const ApplicationTable = (props: { sbe: GetSbeDto }) => {
       columns={[
         {
           accessorKey: 'displayName',
-          cell: NameCell({ asId: asId, sbeId: props.sbe.id }),
+          cell: NameCell,
           header: 'Name',
         },
         {

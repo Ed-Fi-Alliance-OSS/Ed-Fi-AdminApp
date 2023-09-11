@@ -1,6 +1,6 @@
 import { HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   SbaaTableAllInOne,
   PageTemplate,
   TableRowActions,
@@ -9,7 +9,7 @@ import {
 import { GetTenantDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 
-import _ from 'lodash';
+import omit from 'lodash/omit';
 import { tenantQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { TenantLink, UserGlobalLink } from '../../routes';
@@ -33,7 +33,7 @@ export const TenantsPage = () => {
   const actions = useTenantsActions();
 
   return (
-    <PageTemplate title="Tenants" actions={<ActionBarActions actions={_.omit(actions, 'View')} />}>
+    <PageTemplate title="Tenants" actions={<PageActions actions={omit(actions, 'View')} />}>
       <SbaaTableAllInOne
         data={Object.values(tenants?.data || {})}
         columns={[

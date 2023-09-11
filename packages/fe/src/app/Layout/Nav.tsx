@@ -115,6 +115,7 @@ export const Nav = () => {
       {Object.keys(tenants.data ?? {}).length > 1 || hasGlobalPrivileges ? (
         <Box mb={7} px={3}>
           <Select
+            aria-label="Select a tenant (or global) context"
             value={
               selectedTenant === undefined
                 ? {

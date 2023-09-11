@@ -1,6 +1,4 @@
 import { IRole, IUser, IUserConfig, IUserTenantMembership } from '@edanalytics/models';
-import { FakeMeUsing } from '@edanalytics/utils';
-import { faker } from '@faker-js/faker';
 import { Type } from 'class-transformer';
 import {
   Column,

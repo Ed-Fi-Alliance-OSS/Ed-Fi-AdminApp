@@ -42,6 +42,7 @@ export const CreateRoleGlobalPage = () => {
     control,
   } = useForm<PostRoleDto>({
     resolver,
+    defaultValues: Object.assign(new PostRoleDto(), { privileges: ['me:read', 'privilege:read'] }),
   });
   const [type, setType] = useState<RoleType | null>(null);
   const filteredPrivileges =

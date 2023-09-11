@@ -52,7 +52,7 @@ export const LandingLayout = (props: { children: ReactNode }) => {
       </Box>
       <Divider borderColor="gray.500" w="40%" />
       <Box flex="0.6 1 0%">{props.children}</Box>
-      <Box fontSize="sm" color="gray.500" textAlign="center">
+      <Box fontSize="sm" color="gray.600" textAlign="center">
         ©2023 Education Analytics, Inc. All Rights Reserved
       </Box>
     </VStack>

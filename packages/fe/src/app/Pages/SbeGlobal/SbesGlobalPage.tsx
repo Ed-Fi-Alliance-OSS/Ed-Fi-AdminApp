@@ -1,6 +1,6 @@
 import { HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   SbaaTableAllInOne,
   PageTemplate,
   TableRowActions,
@@ -8,7 +8,7 @@ import {
 } from '@edanalytics/common-ui';
 import { GetSbeDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
-import _ from 'lodash';
+import omit from 'lodash/omit';
 import { sbeQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { SbeGlobalLink, UserGlobalLink } from '../../routes';
@@ -32,7 +32,7 @@ export const SbesGlobalPage = () => {
   const actions = useSbesGlobalActions();
   return (
     <PageTemplate
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
       title="Starting Blocks environments"
     >
       <SbaaTableAllInOne

@@ -1,6 +1,6 @@
 import { HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   SbaaTableAllInOne,
   PageTemplate,
   TableRowActions,
@@ -32,7 +32,7 @@ export const UsersGlobalPage = () => {
   const tenants = tenantQueries.useAll({});
   const actions = useMultipleUserGlobalActions();
   return (
-    <PageTemplate title="Users" actions={<ActionBarActions actions={actions} />}>
+    <PageTemplate title="Users" actions={<PageActions actions={actions} />}>
       <SbaaTableAllInOne
         data={Object.values(users?.data || {})}
         columns={[

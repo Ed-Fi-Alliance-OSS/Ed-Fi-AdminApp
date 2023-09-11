@@ -39,18 +39,18 @@ export const CreateUtmGlobal = () => {
     callback: (result) => goToView(result.id),
   });
 
-  const search = useSearchParamsObject(getDefaults);
-  const formDefaults: Partial<PostUserTenantMembershipDto> = Object.assign(
-    new PostUserTenantMembershipDto(),
-    search
-  );
-
   const {
     control,
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm<PostUserTenantMembershipDto>({ resolver, defaultValues: formDefaults });
+  } = useForm<PostUserTenantMembershipDto>({
+    resolver,
+    defaultValues: Object.assign(
+      new PostUserTenantMembershipDto(),
+      useSearchParamsObject(getDefaults)
+    ),
+  });
 
   return (
     <PageTemplate constrainWidth title={'Create new tenant membership'} actions={undefined}>

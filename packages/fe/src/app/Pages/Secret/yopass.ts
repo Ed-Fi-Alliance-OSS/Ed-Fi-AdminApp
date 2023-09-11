@@ -1,9 +1,9 @@
-import * as openpgp from 'openpgp/lightweight';
+import { decrypt, readMessage, DecryptMessageResult } from 'openpgp/lightweight';
 import urlJoin from 'url-join';
 
-const decryptMessage = async (data: string, pwd: string): Promise<openpgp.DecryptMessageResult> => {
-  return openpgp.decrypt({
-    message: await openpgp.readMessage({ armoredMessage: data }),
+const decryptMessage = async (data: string, pwd: string): Promise<DecryptMessageResult> => {
+  return decrypt({
+    message: await readMessage({ armoredMessage: data }),
     passwords: pwd,
     format: 'utf8',
   });

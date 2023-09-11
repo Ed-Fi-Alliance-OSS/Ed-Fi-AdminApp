@@ -19,7 +19,7 @@ export const AppBarPublic = () => {
       px={3}
     >
       <RouterLink to="/">
-        <Image h={7} src={logoUrl} />
+        <Image alt="logo" h="28px" w="238px" src={logoUrl} />
       </RouterLink>
       <Button variant="solid" colorScheme="blue" as={RouterLink} to="/login">
         Log in

@@ -1,6 +1,6 @@
 import { HStack } from '@chakra-ui/react';
 import {
-  ActionBarActions,
+  PageActions,
   SbaaTableAllInOne,
   PageTemplate,
   TableRowActions,
@@ -39,7 +39,7 @@ export const RolesGlobalPage = () => {
   const tenants = useMyTenants();
   const actions = useMultipleRoleGlobalActions();
   return (
-    <PageTemplate title="Roles" justifyActionsLeft actions={<ActionBarActions actions={actions} />}>
+    <PageTemplate title="Roles" justifyActionsLeft actions={<PageActions actions={actions} />}>
       <SbaaTableAllInOne
         data={Object.values(roles?.data || {})}
         columns={[

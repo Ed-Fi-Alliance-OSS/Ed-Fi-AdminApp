@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { edorgQueries } from '../../api';
 import { ViewEdorg } from './ViewEdorg';
@@ -21,7 +21,7 @@ export const EdorgPage = () => {
     <PageTemplate
       constrainWidth
       title={edorg?.displayName || 'Edorg'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {edorg ? <ViewEdorg /> : null}
     </PageTemplate>

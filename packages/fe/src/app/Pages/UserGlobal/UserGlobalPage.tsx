@@ -1,5 +1,5 @@
-import { ActionBarActions, PageTemplate } from '@edanalytics/common-ui';
-import _ from 'lodash';
+import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { userQueries } from '../../api';
 import { useSearchParamsObject } from '../../helpers/useSearch';
@@ -21,7 +21,7 @@ export const UserGlobalPage = () => {
     <PageTemplate
       constrainWidth
       title={user?.displayName || 'User'}
-      actions={<ActionBarActions actions={_.omit(actions, 'View')} />}
+      actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {user ? edit ? <EditUserGlobal user={user} /> : <ViewUserGlobal /> : null}
     </PageTemplate>

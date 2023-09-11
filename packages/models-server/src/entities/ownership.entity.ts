@@ -12,8 +12,9 @@ export class Ownership extends EntityBase implements IOwnership {
   @Column()
   tenantId: ITenant['id'];
 
-  @ManyToOne('Role', { nullable: true })
+  @ManyToOne('Role', { nullable: true, onDelete: 'SET NULL' })
   role: IRole | null;
+
   @Column({ nullable: true })
   roleId: IRole['id'] | null;
 

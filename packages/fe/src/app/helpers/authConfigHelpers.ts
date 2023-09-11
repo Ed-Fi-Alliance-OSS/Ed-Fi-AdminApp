@@ -173,6 +173,12 @@ export const globalUserAuthConfig = (privilege: BasePrivilege): AuthorizeConfig 
     id: '__filtered__',
   },
 });
+export const globalUtmAuthConfig = (privilege: BasePrivilege): AuthorizeConfig | undefined => ({
+  privilege,
+  subject: {
+    id: '__filtered__',
+  },
+});
 export const tenantUserAuthConfig = (
   userId: number | '__filtered__' | undefined,
   tenantId: number | undefined,

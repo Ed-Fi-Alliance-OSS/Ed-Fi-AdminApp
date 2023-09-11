@@ -1,7 +1,7 @@
 import { ButtonGroup, Icon, IconButton, Menu, MenuButton, MenuList } from '@chakra-ui/react';
-import { ActionMenuButton, TdIconButton } from './getStandardActions';
 import { BiDotsVerticalRounded } from 'react-icons/bi';
 import { ActionsType } from './ActionsType';
+import { ActionMenuButton, TdIconButton } from './getStandardActions';
 
 export const TableRowActions = (props: {
   actions: ActionsType;
@@ -33,8 +33,8 @@ export const TableRowActions = (props: {
       spacing={0}
       colorScheme="gray"
     >
-      {visible.map(([key, Action]) => (
-        <Action key={key}>{TdIconButton}</Action>
+      {visible.map(([key, actionProps]) => (
+        <TdIconButton key={key} {...actionProps} />
       ))}
       {hidden.length > 0 && (
         <Menu>
@@ -45,8 +45,8 @@ export const TableRowActions = (props: {
             icon={<Icon as={BiDotsVerticalRounded} />}
           />
           <MenuList>
-            {hidden.map(([key, Action]) => (
-              <Action key={key}>{ActionMenuButton}</Action>
+            {hidden.map(([key, actionProps]) => (
+              <ActionMenuButton key={key} {...actionProps} />
             ))}
           </MenuList>
         </Menu>

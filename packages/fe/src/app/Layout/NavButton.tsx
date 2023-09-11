@@ -42,10 +42,10 @@ export const NavButton = (props: INavButtonProps) => {
   const depthOffset = `${props.depth || 0}em`;
   const button = (
     <Button
-      color={isActive ? 'teal.900' : undefined}
+      color={isActive ? 'teal.800' : undefined}
       borderLeft="2px solid"
       borderRight="2px solid"
-      borderColor={isActive ? 'teal.600' : 'transparent'}
+      borderColor={isActive ? 'teal.500' : 'transparent'}
       bg={isActive ? 'gray.100' : undefined}
       aria-current={isActive ? 'page' : 'false'}
       _hover={{

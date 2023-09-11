@@ -83,7 +83,7 @@ export const SbaaTableAdvancedButton: ChakraComponent<'button'> = (props) => {
       aria-label="show settings"
       variant="link"
       borderRadius="99em"
-      size="xs"
+      size="sm"
       colorScheme="blue"
       onClick={setShowSettings.toggle}
       {...rest}

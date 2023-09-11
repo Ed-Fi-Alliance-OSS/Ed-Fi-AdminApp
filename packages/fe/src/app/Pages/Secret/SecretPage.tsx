@@ -16,7 +16,7 @@ import { ConfirmAction, JsonSecret, SecretValue } from '@edanalytics/common-ui';
 import { useEffect, useState } from 'react';
 import { BsInfoCircle } from 'react-icons/bs';
 import { useLocation } from 'react-router-dom';
-import { getMessage } from '../../helpers';
+import { getMessage } from './yopass';
 
 const placeholder = `KEY:
 123abc123abc
@@ -28,7 +28,7 @@ URL:
 https://gbes-infinite-campus.mth-dev-61a.eaedfi.edanalytics.org/
 `;
 
-export const SecretPage = () => {
+const SecretPage = () => {
   const { hash } = useLocation();
   const [hashMark, uuid, key] = hash.split('/');
   const [secret, setSecret] = useState<string | null>(null);
@@ -172,3 +172,4 @@ export const SecretPage = () => {
     </VStack>
   );
 };
+export default SecretPage;
