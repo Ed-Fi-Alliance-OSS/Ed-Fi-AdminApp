@@ -1,8 +1,8 @@
-import { Box, Divider, Image, Text, VStack } from '@chakra-ui/react';
+import { Box, Divider, Image, Link, Text, VStack } from '@chakra-ui/react';
 import { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
-import logoUrl from '../../assets/starting-blocks.svg';
 import bgUrl from '../../assets/starting-blocks-no-text.svg';
+import logoUrl from '../../assets/starting-blocks.svg';
 
 export const LandingLayoutRouteElement = () => (
   <LandingLayout>
@@ -54,6 +54,14 @@ export const LandingLayout = (props: { children: ReactNode }) => {
       <Box flex="0.6 1 0%">{props.children}</Box>
       <Box fontSize="sm" color="gray.600" textAlign="center">
         ©2023 Education Analytics, Inc. All Rights Reserved
+        <br />
+        <Link
+          href="https://support.startingblocks.org/support/tickets/new"
+          target="_blank"
+          rel="noopener noreferrer"
+        >
+          Report an issue
+        </Link>
       </Box>
     </VStack>
   );

@@ -75,6 +75,14 @@ export const AppBar = () => {
               My profile
             </MenuItem>
           ) : null}
+          <MenuItem
+            href="https://support.startingblocks.org/support/tickets/new"
+            as="a"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Report an issue
+          </MenuItem>
         </MenuList>
       </Menu>
     </HStack>
