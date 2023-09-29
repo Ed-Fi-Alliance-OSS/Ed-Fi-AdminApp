@@ -1,8 +1,8 @@
-import { HStack } from '@chakra-ui/react';
-import { SbaaTableAllInOne, PageTemplate } from '@edanalytics/common-ui';
+import { PageActions, PageTemplate, SbaaTableAllInOne } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
 import { vendorQueries } from '../../api';
-import { VendorLink } from '../../routes';
+import { NameCell } from './NameCell';
+import { useManyVendorActions } from './useVendorActions';
 
 export const VendorsPageContent = () => {
   const params = useParams() as { asId: string; sbeId: string };
@@ -10,19 +10,13 @@ export const VendorsPageContent = () => {
     sbeId: params.sbeId,
     tenantId: params.asId,
   });
-
   return (
     <SbaaTableAllInOne
       data={Object.values(vendors?.data || {})}
       columns={[
         {
           accessorKey: 'company',
-          cell: (info) => (
-            <HStack justify="space-between">
-              <VendorLink id={info.row.original.vendorId} query={vendors} />
-              <HStack className="row-hover" color="gray.600" align="middle"></HStack>
-            </HStack>
-          ),
+          cell: NameCell,
           header: 'Company',
         },
         {
@@ -37,8 +31,12 @@ export const VendorsPageContent = () => {
     />
   );
 };
-export const VendorsPage = () => (
-  <PageTemplate title="Vendors">
-    <VendorsPageContent />
-  </PageTemplate>
-);
+
+export const VendorsPage = () => {
+  const actions = useManyVendorActions();
+  return (
+    <PageTemplate title="Vendors" actions={<PageActions actions={actions} />}>
+      <VendorsPageContent />
+    </PageTemplate>
+  );
+};

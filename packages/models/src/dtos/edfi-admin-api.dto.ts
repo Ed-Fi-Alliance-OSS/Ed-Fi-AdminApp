@@ -1,22 +1,39 @@
 import { Expose, Type } from 'class-transformer';
-import { IsNumber, IsOptional, IsString, MaxLength, MinLength } from 'class-validator';
+import {
+  IsBoolean,
+  IsEmail,
+  IsNotEmpty,
+  IsNumber,
+  IsOptional,
+  IsString,
+  MaxLength,
+  MinLength,
+} from 'class-validator';
 import { makeSerializer } from '../utils/make-serializer';
 import { GetEdorgDto } from './edorg.dto';
 import { GetSbeConfigPublic } from './sbe.dto';
 
 export class PostVendorDto {
   @Expose()
+  @IsString()
+  @IsNotEmpty()
   company: string;
   @Expose()
+  @IsOptional()
+  @IsString()
   namespacePrefixes: string;
   @Expose()
+  @IsString()
+  @IsNotEmpty()
   contactName: string;
   @Expose()
+  @IsEmail()
   contactEmailAddress: string;
 }
 
 export class GetVendorDto extends PostVendorDto {
   @Expose()
+  @IsNumber()
   vendorId: number;
 
   get id() {
@@ -37,39 +54,52 @@ class ApplicationProfileDto {
 
 class AuthStrategyDto {
   @Expose()
+  @IsString()
   authStrategyName: string;
   @Expose()
+  @IsBoolean()
   isInheritedFromParent: boolean;
 }
 
 class ResourceClaimDto {
   @Expose()
+  @IsString()
   name: string;
   @Expose()
+  @IsBoolean()
   read: boolean;
   @Expose()
+  @IsBoolean()
   create: boolean;
   @Expose()
+  @IsBoolean()
   update: boolean;
   @Expose()
+  @IsBoolean()
   delete: boolean;
   @Expose()
+  @Type(() => AuthStrategyDto)
   defaultAuthStrategiesForCRUD: AuthStrategyDto[];
   @Expose()
+  @Type(() => AuthStrategyDto)
   authStrategyOverridesForCRUD: AuthStrategyDto[];
   @Expose()
+  @Type(() => ResourceClaimDto)
   children: ResourceClaimDto[];
 }
 
 export class PostClaimsetDto {
   @Expose()
+  @IsString()
   name: string;
   @Expose()
+  @Type(() => ResourceClaimDto)
   resourceClaims: ResourceClaimDto[];
 }
 
 export class PutClaimsetDto extends PostClaimsetDto {
   @Expose()
+  @IsNumber()
   id: number;
 }
 export class GetClaimsetDto extends PutClaimsetDto {

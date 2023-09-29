@@ -7,6 +7,7 @@ import { VendorsPage } from '../Pages/Vendor/VendorsPage';
 import { vendorQueries } from '../api';
 import { getRelationDisplayName, useNavContext } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
+import { CreateVendor } from '../Pages/Vendor/CreateVendorPage';
 
 const VendorBreadcrumb = () => {
   const params = useParams() as {
@@ -20,6 +21,11 @@ const VendorBreadcrumb = () => {
     sbeId: params.sbeId,
   });
   return vendor.data?.displayName ?? params.vendorId;
+};
+export const vendorCreateRoute: RouteObject = {
+  path: '/as/:asId/sbes/:sbeId/vendors/create',
+  element: <CreateVendor />,
+  handle: { crumb: () => 'Create Vendor' },
 };
 export const vendorIndexRoute: RouteObject = {
   path: '/as/:asId/sbes/:sbeId/vendors/:vendorId/',

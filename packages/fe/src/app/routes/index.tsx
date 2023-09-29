@@ -60,7 +60,13 @@ import {
   tenantsRoute,
 } from './tenant.routes';
 import { userIndexRoute, userRoute, usersIndexRoute, usersRoute } from './user.routes';
-import { vendorIndexRoute, vendorRoute, vendorsIndexRoute, vendorsRoute } from './vendor.routes';
+import {
+  vendorIndexRoute,
+  vendorCreateRoute,
+  vendorRoute,
+  vendorsIndexRoute,
+  vendorsRoute,
+} from './vendor.routes';
 import {
   usersGlobalRoute,
   usersGlobalIndexRoute,
@@ -248,6 +254,7 @@ export const authenticatedRoutes: RouteObject = {
     vendorsIndexRoute,
     vendorRoute,
     vendorIndexRoute,
+    vendorCreateRoute,
 
     asRoute,
     accountRouteGlobal,

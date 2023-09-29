@@ -4,10 +4,13 @@ import {
   FormControl,
   FormErrorMessage,
   FormLabel,
+  Icon,
   Input,
   Text,
+  Tooltip,
+  chakra,
 } from '@chakra-ui/react';
-import { PutVendorDto } from '@edanalytics/models';
+import { GetVendorDto, PutVendorDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
@@ -15,10 +18,11 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { vendorQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { BsInfoCircle } from 'react-icons/bs';
 
 const resolver = classValidatorResolver(PutVendorDto);
 
-export const EditVendor = () => {
+export const EditVendor = (props: { vendor: GetVendorDto }) => {
   const popBanner = usePopBanner();
 
   const navigate = useNavigate();
@@ -34,29 +38,52 @@ export const EditVendor = () => {
     sbeId: params.sbeId,
     tenantId: params.asId,
   });
-  const vendor = vendorQueries.useOne({
-    id: params.vendorId,
-    sbeId: params.sbeId,
-    tenantId: params.asId,
-  }).data;
   const {
     register,
     setError,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<PutVendorDto>({ resolver, defaultValues: { ...vendor } });
+  } = useForm<PutVendorDto>({
+    resolver,
+    defaultValues: Object.assign(new PutVendorDto(), props.vendor),
+  });
 
-  return vendor ? (
-    <form
+  return props.vendor ? (
+    <chakra.form
+      w="form-width"
       onSubmit={handleSubmit((data) =>
         putVendor.mutateAsync(data, mutationErrCallback({ popBanner, setError })).catch(noop)
       )}
     >
-      {/* TODO add the rest of the form */}
       <FormControl isInvalid={!!errors.company}>
         <FormLabel>Company</FormLabel>
-        <Input {...register('company')} placeholder="company" />
+        <Input {...register('company')} />
         <FormErrorMessage>{errors.company?.message}</FormErrorMessage>
+      </FormControl>
+      <FormControl isInvalid={!!errors.namespacePrefixes}>
+        <FormLabel>
+          Namespace prefixes{' '}
+          <Tooltip
+            label="Vendors can be associated with multiple namespaces. Please enter all possible namespace associations for this vendor, separated by commas."
+            hasArrow
+          >
+            <chakra.span>
+              <Icon as={BsInfoCircle} />
+            </chakra.span>
+          </Tooltip>
+        </FormLabel>
+        <Input {...register('namespacePrefixes')} placeholder="uri://ed-fi.org, uri://..." />
+        <FormErrorMessage>{errors.namespacePrefixes?.message}</FormErrorMessage>
+      </FormControl>
+      <FormControl isInvalid={!!errors.contactName}>
+        <FormLabel>Contact name</FormLabel>
+        <Input {...register('contactName')} />
+        <FormErrorMessage>{errors.contactName?.message}</FormErrorMessage>
+      </FormControl>
+      <FormControl isInvalid={!!errors.contactEmailAddress}>
+        <FormLabel>Contact email address</FormLabel>
+        <Input {...register('contactEmailAddress')} />
+        <FormErrorMessage>{errors.contactEmailAddress?.message}</FormErrorMessage>
       </FormControl>
       <ButtonGroup>
         <Button mt={4} colorScheme="teal" isLoading={isSubmitting} type="submit">
@@ -78,6 +105,6 @@ export const EditVendor = () => {
           {errors.root?.message}
         </Text>
       ) : null}
-    </form>
+    </chakra.form>
   ) : null;
 };

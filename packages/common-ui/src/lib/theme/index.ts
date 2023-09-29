@@ -277,4 +277,11 @@ export const theme = extendTheme({
   sizes: {
     'form-width': '25em',
   },
+  styles: {
+    global: {
+      '*::placeholder': {
+        fontStyle: 'italic',
+      },
+    },
+  },
 });
