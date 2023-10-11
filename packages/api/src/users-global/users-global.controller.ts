@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
-import { throwNotFound } from '../utils';
+import { FormValidationException, throwNotFound } from '../utils';
 import { UsersGlobalService } from './users-global.service';
 
 @ApiTags('User - Global')
@@ -26,7 +26,17 @@ export class UsersGlobalController {
     },
   })
   async create(@Body() createUserDto: PostUserDto, @ReqUser() user: GetSessionDataDto) {
-    return toGetUserDto(await this.userService.create(addUserCreating(createUserDto, user)));
+    try {
+      return toGetUserDto(await this.userService.create(addUserCreating(createUserDto, user)));
+    } catch (error) {
+      if (error?.code === '23505') {
+        throw new FormValidationException({
+          field: 'username',
+          message: 'Username already exists',
+        });
+      }
+      throw error;
+    }
   }
 
   @Get()
@@ -63,9 +73,19 @@ export class UsersGlobalController {
     @Body() updateUserDto: PutUserDto,
     @ReqUser() user: GetSessionDataDto
   ) {
-    return toGetUserDto(
-      await this.userService.update(userId, addUserModifying(updateUserDto, user))
-    );
+    try {
+      return toGetUserDto(
+        await this.userService.update(userId, addUserModifying(updateUserDto, user))
+      );
+    } catch (error) {
+      if (error?.code === '23505') {
+        throw new FormValidationException({
+          field: 'username',
+          message: 'Username already exists',
+        });
+      }
+      throw error;
+    }
   }
 
   @Delete(':userId')

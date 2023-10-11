@@ -27,6 +27,7 @@ import { NewSbSyncQueue1692740626759 } from './migrations/1692740626759-NewSbSyn
 import { NullableEnvlabel1693335908870 } from './migrations/1693335908870-NullableEnvlabel';
 import { FkOnDeleteTweaks1693514948085 } from './migrations/1693514948085-fkOnDeleteTweaks';
 import { FkOnDeleteFix1694446892889 } from './migrations/1694446892889-FkOnDeleteFix';
+import { LowercaseUniqueUsernames1697054661848 } from './migrations/1697054661848-LowercaseUniqueUsernames';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -64,6 +65,7 @@ const config: Pick<
     NullableEnvlabel1693335908870,
     FkOnDeleteTweaks1693514948085,
     FkOnDeleteFix1694446892889,
+    LowercaseUniqueUsernames1697054661848,
   ],
 };
 export default config;

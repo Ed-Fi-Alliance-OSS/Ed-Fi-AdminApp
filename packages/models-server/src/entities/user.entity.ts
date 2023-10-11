@@ -4,12 +4,14 @@ import {
   Column,
   CreateDateColumn,
   Entity,
+  Index,
   ManyToOne,
   OneToMany,
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
 
+@Index(['username'], { unique: true })
 @Entity()
 export class User implements IUser {
   @PrimaryGeneratedColumn()
