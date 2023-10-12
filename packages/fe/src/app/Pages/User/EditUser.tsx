@@ -47,7 +47,12 @@ export const EditUser = () => {
     <chakra.form
       maxW="form-width"
       onSubmit={handleSubmit((data) =>
-        putUser.mutateAsync(data, mutationErrCallback({ popBanner, setError })).catch(noop)
+        putUser
+          .mutateAsync(
+            data,
+            mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
+          )
+          .catch(noop)
       )}
     >
       <FormControl isInvalid={!!errors.givenName}>

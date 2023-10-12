@@ -50,7 +50,7 @@ export const EditUtmGlobal = () => {
       onSubmit={handleSubmit((data) =>
         putUserTenantMembership
           .mutateAsync(data, {
-            ...mutationErrCallback({ popBanner, setError }),
+            ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
             onSuccess: () => {
               queryClient.invalidateQueries({ queryKey: ['me', 'userTenantMemberships'] });
             },

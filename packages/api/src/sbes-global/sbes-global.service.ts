@@ -5,24 +5,27 @@ import {
   PutSbeAdminApiRegister,
   PutSbeDto,
   PutSbeMeta,
-  toOperationResultDto,
 } from '@edanalytics/models';
 import { Sbe, regarding } from '@edanalytics/models-server';
-import { StatusType } from '@edanalytics/utils';
+import { StatusResponse } from '@edanalytics/utils';
 import { Inject, Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { CacheService } from '../app/cache.module';
 import { AuthService } from '../auth/auth.service';
-import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
+import {
+  AdminApiService,
+  StartingBlocksService,
+} from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { throwNotFound } from '../utils';
-import { WorkflowFailureException } from '../utils/customExceptions';
+import { CustomHttpException } from '../utils/customExceptions';
 
 @Injectable()
 export class SbesGlobalService {
   constructor(
     @InjectRepository(Sbe)
     private sbesRepository: Repository<Sbe>,
+    private readonly adminApiService: AdminApiService,
     private readonly sbService: StartingBlocksService,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
@@ -73,7 +76,7 @@ export class SbesGlobalService {
   }
 
   async selfRegisterAdminApi(sbe: Sbe, updateDto: PutSbeAdminApiRegister) {
-    const registrationResult = await this.sbService.selfRegisterAdminApi(
+    const registrationResult = await this.adminApiService.selfRegisterAdminApi(
       updateDto.adminRegisterUrl
     );
 
@@ -107,9 +110,9 @@ export class SbesGlobalService {
     return undefined;
   }
 
-  async checkSbMeta(sbeId: number) {
+  async checkSbMeta(sbeId: number): Promise<StatusResponse> {
     const sbe = await this.findOne(sbeId).catch(throwNotFound);
-    const sbMetaResult = await this.sbService.getSbMeta(sbeId);
+    const sbMetaResult = await this.sbService.getSbMeta(sbe);
     const sbMeta = sbMetaResult.status === 'SUCCESS';
 
     await this.sbesRepository.save({
@@ -127,11 +130,11 @@ export class SbesGlobalService {
     });
 
     if (sbMeta) {
-      return toOperationResultDto({
+      return {
         title: 'SB Metadata connection successful.',
-        status: StatusType.success,
+        type: 'Success',
         regarding: regarding(sbe),
-      });
+      };
     }
 
     const sbMetaMsg =
@@ -141,17 +144,20 @@ export class SbesGlobalService {
         ? sbMetaResult.error
         : undefined;
 
-    throw new WorkflowFailureException({
-      title: 'SB Metadata connection unsuccessful.',
-      status: StatusType.error,
-      message: sbMetaMsg,
-      regarding: regarding(sbe),
-    });
+    throw new CustomHttpException(
+      {
+        title: 'SB Metadata connection unsuccessful.',
+        type: 'Error',
+        message: sbMetaMsg,
+        regarding: regarding(sbe),
+      },
+      500
+    );
   }
 
-  async checkAdminAPI(sbeId: number) {
+  async checkAdminAPI(sbeId: number): Promise<StatusResponse> {
     const sbe = await this.findOne(sbeId).catch(throwNotFound);
-    const loginResult = await this.sbService.logIntoAdminApi(sbe);
+    const loginResult = await this.adminApiService.logIntoAdminApi(sbe);
     const adminApi = loginResult.status === 'SUCCESS';
 
     await this.sbesRepository.save({
@@ -169,11 +175,11 @@ export class SbesGlobalService {
     });
 
     if (adminApi) {
-      return toOperationResultDto({
+      return {
         title: 'Admin API connection successful.',
-        status: StatusType.success,
+        type: 'Success',
         regarding: regarding(sbe),
-      });
+      };
     }
 
     const adminApiMsg =
@@ -185,12 +191,15 @@ export class SbesGlobalService {
         ? 'Unknown failure.'
         : undefined;
 
-    throw new WorkflowFailureException({
-      title: 'Admin API connection unsuccessful.',
-      status: StatusType.error,
-      message: adminApiMsg,
-      regarding: regarding(sbe),
-    });
+    throw new CustomHttpException(
+      {
+        title: 'Admin API connection unsuccessful.',
+        type: 'Error',
+        message: adminApiMsg,
+        regarding: regarding(sbe),
+      },
+      500
+    );
   }
   async update(id: number, updateSbeDto: PutSbeDto) {
     const old = await this.findOne(id);

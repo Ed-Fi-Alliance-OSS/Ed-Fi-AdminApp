@@ -74,7 +74,7 @@ export const useUserGlobalActions = (user: GetUserDto | undefined): ActionsType 
                 confirmBody: 'This will permanently delete the user.',
                 onClick: () =>
                   deleteUser.mutateAsync(user.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => {
                       queryClient.invalidateQueries(
                         queryKey({

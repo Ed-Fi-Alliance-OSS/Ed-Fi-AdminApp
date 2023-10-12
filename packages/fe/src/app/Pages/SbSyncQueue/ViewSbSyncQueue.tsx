@@ -39,12 +39,16 @@ export const ViewSbSyncQueue = () => {
       </ContentSection>
       <ContentSection heading="Output">
         {output ? (
-          <chakra.pre whiteSpace="break-spaces">{JSON.stringify(output, null, 2)}</chakra.pre>
+          <chakra.pre fontSize="sm" whiteSpace="break-spaces">
+            {JSON.stringify(output, null, 2)}
+          </chakra.pre>
         ) : null}
       </ContentSection>
       {stack ? (
         <ContentSection heading="Stack trace">
-          <chakra.pre whiteSpace="break-spaces">{stack as string}</chakra.pre>
+          <chakra.pre fontSize="sm" whiteSpace="break-spaces">
+            {stack as string}
+          </chakra.pre>
         </ContentSection>
       ) : null}
     </>

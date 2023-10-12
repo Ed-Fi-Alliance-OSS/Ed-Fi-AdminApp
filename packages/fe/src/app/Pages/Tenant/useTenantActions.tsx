@@ -91,7 +91,7 @@ export const useTenantActions = (tenant: GetTenantDto | undefined): ActionsType 
                 confirmBody: 'This will permanently delete the tenant.',
                 onClick: () =>
                   deleteTenant.mutateAsync(tenant.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => {
                       queryClient.invalidateQueries([]);
                       navigate(`/tenants`);

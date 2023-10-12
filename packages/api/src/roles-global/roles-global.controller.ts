@@ -24,7 +24,7 @@ import { Repository } from 'typeorm';
 import { Authorize, CheckAbility, CheckAbilityType } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { throwNotFound } from '../utils';
-import { FormValidationException } from '../utils/customExceptions';
+import { ValidationHttpException } from '../utils/customExceptions';
 import { RolesGlobalService } from './roles-global.service';
 
 @ApiTags('Role - Global')
@@ -49,7 +49,7 @@ export class RolesGlobalController {
       (!createRoleDto.privileges.includes('me:read') ||
         !createRoleDto.privileges.includes('privilege:read'))
     ) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'privileges',
         message: 'Minimum privileges not present (me:read or privilege:read).',
       });
@@ -99,7 +99,7 @@ export class RolesGlobalController {
       (!updateRoleDto.privileges.includes('me:read') ||
         !updateRoleDto.privileges.includes('privilege:read'))
     ) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'privileges',
         message: 'Minimum privileges not present (me:read or privilege:read).',
       });

@@ -47,7 +47,7 @@ export const CreateSbeGlobalPage = () => {
                   onSuccess: (result) => {
                     navigate(`/sbes/${result.id}`);
                   },
-                  ...mutationErrCallback({ setError, popBanner }),
+                  ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
                 }
               )
               .catch(noop)

@@ -12,9 +12,7 @@ import {
   PutVendorDto,
   createEdorgCompositeNaturalKey,
   toApplicationYopassResponseDto,
-  toGetApplicationDto,
   toGetClaimsetDto,
-  toGetVendorDto,
   toPostApplicationResponseDto,
 } from '@edanalytics/models';
 import { Edorg, Sbe } from '@edanalytics/models-server';
@@ -32,23 +30,54 @@ import {
   Post,
   Put,
   Query,
+  Res,
   UnauthorizedException,
+  UseFilters,
+  UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
+import axios from 'axios';
 import { instanceToPlain, plainToInstance } from 'class-transformer';
-import { Repository } from 'typeorm';
+import { Response } from 'express';
+import { Admin, Repository } from 'typeorm';
 import { Authorize } from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { checkId } from '../../../auth/helpers/where-ids';
-import { FormValidationException, postYopassSecret, throwNotFound } from '../../../utils';
-import { StartingBlocksService } from './starting-blocks.service';
+import {
+  CustomHttpException,
+  ValidationHttpException,
+  isIAdminApiV1xValidationError,
+  postYopassSecret,
+  throwNotFound,
+} from '../../../utils';
+import { ReqSbe, TenantSbeInterceptor } from '../tenant-sbe.interceptor';
+import { AdminApiService } from './starting-blocks.service';
+import { AdminApiV1xExceptionFilter } from './admin-api-v1x-exception.filter';
 
+const uppercaseFirstLetterOfKeys = (input: any): any => {
+  if (typeof input !== 'object' || input === null) {
+    return input;
+  }
+
+  if (Array.isArray(input)) {
+    return input.map(uppercaseFirstLetterOfKeys);
+  }
+
+  return Object.keys(input).reduce((acc, key) => {
+    const newKey = key.charAt(0).toUpperCase() + key.slice(1);
+    acc[newKey] = uppercaseFirstLetterOfKeys(input[key]);
+    return acc;
+  }, {} as { [key: string]: any });
+};
+
+@UseFilters(new AdminApiV1xExceptionFilter())
+@UseInterceptors(TenantSbeInterceptor)
 @ApiTags('Ed-Fi Resources')
 @Controller()
 export class StartingBlocksController {
   constructor(
-    private readonly sbService: StartingBlocksService,
+    private readonly sbService: AdminApiService,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Sbe) private readonly sbeRepository: Repository<Sbe>
   ) {}
@@ -62,13 +91,9 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async getVendors(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    @InjectFilter('tenant.sbe.vendor:read') validIds: Ids
-  ) {
-    const allVendors = await this.sbService.getVendors(sbeId);
-    return toGetVendorDto(allVendors.filter((v) => checkId(v.id, validIds)));
+  async getVendors(@ReqSbe() sbe: Sbe, @InjectFilter('tenant.sbe.vendor:read') validIds: Ids) {
+    const allVendors = await this.sbService.getVendors(sbe);
+    return allVendors.filter((v) => checkId(v.id, validIds));
   }
 
   @Get('vendors/:vendorId')
@@ -80,16 +105,8 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async getVendor(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    @Param('vendorId', new ParseIntPipe()) vendorId: number
-  ) {
-    return toGetVendorDto(
-      await this.sbService.getVendor(sbeId, vendorId).catch((err) => {
-        throw new NotFoundException();
-      })
-    );
+  async getVendor(@ReqSbe() sbe: Sbe, @Param('vendorId', new ParseIntPipe()) vendorId: number) {
+    return this.sbService.getVendor(sbe, vendorId);
   }
 
   @Put('vendors/:vendorId')
@@ -102,14 +119,11 @@ export class StartingBlocksController {
     },
   })
   async putVendor(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
     @Body() vendor: PutVendorDto
   ) {
-    return toGetVendorDto(
-      await this.sbService.putVendor(sbeId, vendorId, vendor).catch(throwNotFound)
-    );
+    return this.sbService.putVendor(sbe, vendorId, vendor);
   }
 
   @Post('vendors')
@@ -121,12 +135,8 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async postVendor(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    @Body() vendor: PostVendorDto
-  ) {
-    return toGetVendorDto(await this.sbService.postVendor(sbeId, vendor));
+  async postVendor(@ReqSbe() sbe: Sbe, @Body() vendor: PostVendorDto) {
+    return this.sbService.postVendor(sbe, vendor);
   }
 
   @Delete('vendors/:vendorId')
@@ -138,12 +148,8 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async deleteVendor(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    @Param('vendorId', new ParseIntPipe()) vendorId: number
-  ) {
-    return this.sbService.deleteVendor(sbeId, vendorId).catch(throwNotFound);
+  async deleteVendor(@ReqSbe() sbe: Sbe, @Param('vendorId', new ParseIntPipe()) vendorId: number) {
+    return this.sbService.deleteVendor(sbe, vendorId);
   }
 
   @Get('vendors/:vendorId/applications')
@@ -156,22 +162,19 @@ export class StartingBlocksController {
     },
   })
   async getVendorApplications(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
     @InjectFilter('tenant.sbe.edorg.application:read')
     validIds: Ids
   ) {
-    const allApplications = await this.sbService.getVendorApplications(sbeId, vendorId);
-    return toGetApplicationDto(
-      allApplications.filter((a) =>
-        checkId(
-          createEdorgCompositeNaturalKey({
-            educationOrganizationId: a.educationOrganizationId,
-            odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
-          }),
-          validIds
-        )
+    const allApplications = await this.sbService.getVendorApplications(sbe, vendorId);
+    return allApplications.filter((a) =>
+      checkId(
+        createEdorgCompositeNaturalKey({
+          educationOrganizationId: a.educationOrganizationId,
+          odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
+        }),
+        validIds
       )
     );
   }
@@ -186,21 +189,18 @@ export class StartingBlocksController {
     },
   })
   async getApplications(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @InjectFilter('tenant.sbe.edorg.application:read')
     validIds: Ids
   ) {
-    const allApplications = await this.sbService.getApplications(sbeId);
-    return toGetApplicationDto(
-      allApplications.filter((a) =>
-        checkId(
-          createEdorgCompositeNaturalKey({
-            educationOrganizationId: a.educationOrganizationId,
-            odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
-          }),
-          validIds
-        )
+    const allApplications = await this.sbService.getApplications(sbe);
+    return allApplications.filter((a) =>
+      checkId(
+        createEdorgCompositeNaturalKey({
+          educationOrganizationId: a.educationOrganizationId,
+          odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
+        }),
+        validIds
       )
     );
   }
@@ -215,15 +215,13 @@ export class StartingBlocksController {
     },
   })
   async getApplication(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:read')
     validIds: Ids
   ) {
-    const application = await this.sbService
-      .getApplication(sbeId, applicationId)
-      .catch(throwNotFound);
+    const application = await this.sbService.getApplication(sbe, applicationId);
+
     if (
       checkId(
         createEdorgCompositeNaturalKey({
@@ -233,7 +231,7 @@ export class StartingBlocksController {
         validIds
       )
     ) {
-      return toGetApplicationDto(application);
+      return application;
     } else {
       throw new NotFoundException();
     }
@@ -249,8 +247,7 @@ export class StartingBlocksController {
     },
   })
   async putApplication(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @Body() application: PutApplicationForm,
     @InjectFilter('tenant.sbe.edorg.application:update')
@@ -258,13 +255,13 @@ export class StartingBlocksController {
   ) {
     let claimset: GetClaimsetDto;
     try {
-      claimset = await this.sbService.getClaimset(sbeId, application.claimsetId);
+      claimset = await this.sbService.getClaimset(sbe, application.claimsetId);
     } catch (claimsetNotFound) {
       Logger.error(claimsetNotFound);
       throw new BadRequestException('Error trying to use claimset');
     }
     if (claimset.isSystemReserved) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot use system-reserved claimset',
       });
@@ -287,9 +284,9 @@ export class StartingBlocksController {
         validIds
       )
     ) {
-      return toGetApplicationDto(await this.sbService.putApplication(sbeId, applicationId, dto));
+      return this.sbService.putApplication(sbe, applicationId, dto);
     } else {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'educationOrganizationId',
         message: 'Invalid education organization ID',
       });
@@ -306,8 +303,7 @@ export class StartingBlocksController {
     },
   })
   async postApplication(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Query('returnRaw') returnRaw: boolean | undefined,
     @Body() application: PostApplicationForm,
     @InjectFilter('tenant.sbe.edorg.application:create')
@@ -315,13 +311,13 @@ export class StartingBlocksController {
   ) {
     let claimset: GetClaimsetDto;
     try {
-      claimset = await this.sbService.getClaimset(sbeId, application.claimsetId);
+      claimset = await this.sbService.getClaimset(sbe, application.claimsetId);
     } catch (claimsetNotFound) {
       Logger.error(claimsetNotFound);
       throw new BadRequestException('Error trying to use claimset');
     }
     if (claimset.isSystemReserved) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot use system-reserved claimset',
       });
@@ -333,9 +329,8 @@ export class StartingBlocksController {
     });
     const edorg = await this.edorgRepository.findOneByOrFail({
       educationOrganizationId: application.educationOrganizationId,
-      sbeId,
+      sbeId: sbe.id,
     });
-    const sbe = await this.sbeRepository.findOneByOrFail({ id: sbeId });
     if (!sbe.configPublic?.edfiHostname)
       throw new InternalServerErrorException('Environment config lacks an Ed-Fi hostname.');
     if (
@@ -347,7 +342,7 @@ export class StartingBlocksController {
         validIds
       )
     ) {
-      const adminApiResponse = await this.sbService.postApplication(sbeId, dto);
+      const adminApiResponse = await this.sbService.postApplication(sbe, dto);
       if (returnRaw) {
         return toPostApplicationResponseDto(adminApiResponse);
       } else {
@@ -365,7 +360,7 @@ export class StartingBlocksController {
         });
       }
     } else {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'educationOrganizationId',
         message: 'Invalid education organization ID',
       });
@@ -382,13 +377,12 @@ export class StartingBlocksController {
     },
   })
   async deleteApplication(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:delete')
     validIds: Ids
   ) {
-    const application = await this.sbService.getApplication(sbeId, applicationId);
+    const application = await this.sbService.getApplication(sbe, applicationId);
     if (
       checkId(
         createEdorgCompositeNaturalKey({
@@ -398,7 +392,7 @@ export class StartingBlocksController {
         validIds
       )
     ) {
-      return this.sbService.deleteApplication(sbeId, applicationId).catch(throwNotFound);
+      return this.sbService.deleteApplication(sbe, applicationId);
     } else {
       throw new NotFoundException();
     }
@@ -414,18 +408,16 @@ export class StartingBlocksController {
     },
   })
   async resetApplicationCredentials(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:reset-credentials')
     validIds: Ids
   ) {
-    const application = await this.sbService.getApplication(sbeId, applicationId);
+    const application = await this.sbService.getApplication(sbe, applicationId);
     const edorg = await this.edorgRepository.findOneByOrFail({
       educationOrganizationId: application.educationOrganizationId,
-      sbeId,
+      sbeId: sbe.id,
     });
-    const sbe = await this.sbeRepository.findOneByOrFail({ id: sbeId });
     if (!sbe.configPublic?.edfiHostname)
       throw new InternalServerErrorException('Environment config lacks an Ed-Fi hostname.');
     if (
@@ -437,10 +429,7 @@ export class StartingBlocksController {
         validIds
       )
     ) {
-      const adminApiResponse = await this.sbService.resetApplicationCredentials(
-        sbeId,
-        applicationId
-      );
+      const adminApiResponse = await this.sbService.resetApplicationCredentials(sbe, applicationId);
       const yopass = await postYopassSecret({
         ...adminApiResponse,
         url: GetApplicationDto.apiUrl(
@@ -468,13 +457,47 @@ export class StartingBlocksController {
     },
   })
   async getClaimsets(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @InjectFilter('tenant.sbe.claimset:read')
     validIds: Ids
   ) {
-    const allClaimsets = await this.sbService.getClaimsets(sbeId);
-    return toGetClaimsetDto(allClaimsets.filter((c) => checkId(c.id, validIds)));
+    const allClaimsets = await this.sbService.getClaimsets(sbe);
+    return allClaimsets.filter((c) => checkId(c.id, validIds));
+  }
+  @Get('claimsets/export')
+  @Authorize({
+    privilege: 'tenant.sbe.claimset:read',
+    subject: {
+      id: '__filtered__',
+      sbeId: 'sbeId',
+      tenantId: 'tenantId',
+    },
+  })
+  async exportClaimset(
+    @ReqSbe() sbe: Sbe,
+    @Query('id') _ids: string[] | string,
+    @Res() res: Response
+  ) {
+    const ids = Array.isArray(_ids) ? _ids : [_ids];
+    const claimsets = toGetClaimsetDto(
+      await Promise.all(ids.map((id) => this.sbService.getClaimset(sbe, Number(id))))
+    );
+    const title = claimsets.length === 1 ? claimsets[0].name : `${sbe.envLabel} claimsets`;
+    const document = {
+      title,
+      template: {
+        claimSets: claimsets.map((c) => ({
+          name: c.name,
+          resourceClaims: uppercaseFirstLetterOfKeys(c.resourceClaims),
+        })),
+      },
+    };
+    res.setHeader(
+      'Content-Disposition',
+      `attachment; filename=${title.replace(/[/\\:*?"<>|]+/g, '_')}_${Number(new Date())}.json`
+    );
+    res.setHeader('Content-Type', 'application/json');
+    res.send(JSON.stringify(document, null, 2));
   }
 
   @Get('claimsets/:claimsetId')
@@ -487,11 +510,10 @@ export class StartingBlocksController {
     },
   })
   async getClaimset(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number
   ) {
-    return toGetClaimsetDto(await this.sbService.getClaimset(sbeId, claimsetId));
+    return this.sbService.getClaimset(sbe, claimsetId);
   }
 
   @Put('claimsets/:claimsetId')
@@ -504,12 +526,41 @@ export class StartingBlocksController {
     },
   })
   async putClaimset(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
     @Body() claimset: PutClaimsetDto
   ) {
-    return toGetClaimsetDto(await this.sbService.putClaimset(sbeId, claimsetId, claimset));
+    try {
+      return await this.sbService.putClaimset(sbe, claimsetId, claimset);
+    } catch (PutError: unknown) {
+      Logger.error(PutError);
+      // intercept some particular kinds of errors but rethrow the rest to the general exception filter
+      if (axios.isAxiosError(PutError)) {
+        if (isIAdminApiV1xValidationError(PutError.response?.data)) {
+          if (PutError.response.data.errors?.id?.[0]?.includes('is system reserved')) {
+            throw new CustomHttpException(
+              {
+                title: 'Cannot update system-reserved claimset',
+                type: 'Error',
+                data: PutError.response.data,
+              },
+              400
+            );
+          } else {
+            // TODO eventually map Admin API validation errors to SBAA react-hook-form
+            throw new CustomHttpException(
+              {
+                title: 'Validation error',
+                type: 'Error',
+                data: PutError.response.data,
+              },
+              400
+            );
+          }
+        }
+      }
+      throw PutError;
+    }
   }
 
   @Post('claimsets')
@@ -521,12 +572,37 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async postClaimset(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
-    @Body() claimset: PostClaimsetDto
-  ) {
-    return toGetClaimsetDto(await this.sbService.postClaimset(sbeId, claimset));
+  async postClaimset(@ReqSbe() sbe: Sbe, @Body() claimset: PostClaimsetDto) {
+    try {
+      return await this.sbService.postClaimset(sbe, claimset);
+    } catch (PostError: unknown) {
+      Logger.error(PostError);
+      if (axios.isAxiosError(PostError)) {
+        if (isIAdminApiV1xValidationError(PostError.response?.data)) {
+          if (PostError.response.data.errors?.Name?.[0]?.includes('this name already exists')) {
+            throw new CustomHttpException(
+              {
+                title: 'A claim set with this name already exists',
+                type: 'Error',
+                data: PostError.response.data,
+              },
+              400
+            );
+          } else {
+            // TODO eventually map Admin API validation errors to SBAA react-hook-form
+            throw new CustomHttpException(
+              {
+                title: 'Validation error',
+                type: 'Error',
+                data: PostError.response.data,
+              },
+              400
+            );
+          }
+        }
+      }
+      throw PostError;
+    }
   }
 
   @Delete('claimsets/:claimsetId')
@@ -539,10 +615,10 @@ export class StartingBlocksController {
     },
   })
   async deleteClaimset(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number
   ) {
-    return this.sbService.deleteClaimset(sbeId, claimsetId).catch(throwNotFound);
+    await this.sbService.deleteClaimset(sbe, claimsetId);
+    return undefined;
   }
 }

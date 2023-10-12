@@ -55,7 +55,7 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
               id: validatedData.id,
               roleId: validatedData.roleId,
             },
-            mutationErrCallback({ popBanner, setError })
+            mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
           )
           .catch(noop);
       })}

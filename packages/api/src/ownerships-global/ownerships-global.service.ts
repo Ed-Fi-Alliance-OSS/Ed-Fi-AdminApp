@@ -5,7 +5,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { AuthService } from '../auth/auth.service';
 import { throwNotFound } from '../utils';
-import { FormValidationException } from '../utils/customExceptions';
+import { ValidationHttpException } from '../utils/customExceptions';
 
 @Injectable()
 export class OwnershipsGlobalService {
@@ -28,7 +28,7 @@ export class OwnershipsGlobalService {
     ).length;
 
     if (isRedundant) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'tenantId',
         message:
           'An ownership already exists for this tenant\u2013resource combination. To minimize confusion we disallow duplication.',

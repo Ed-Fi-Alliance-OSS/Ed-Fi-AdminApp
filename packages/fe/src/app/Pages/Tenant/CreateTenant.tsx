@@ -50,7 +50,7 @@ export const CreateTenant = () => {
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['me', 'tenants'] });
                 },
-                ...mutationErrCallback({ popBanner, setError }),
+                ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
               })
               .catch(noop)
           )}

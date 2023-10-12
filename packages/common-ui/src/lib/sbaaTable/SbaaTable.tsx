@@ -1,4 +1,15 @@
-import { ChakraComponent, Icon, Table, Tbody, Td, Th, Thead, Tr, chakra } from '@chakra-ui/react';
+import {
+  ChakraComponent,
+  Checkbox,
+  Icon,
+  Table,
+  Tbody,
+  Td,
+  Th,
+  Thead,
+  Tr,
+  chakra,
+} from '@chakra-ui/react';
 import { flexRender } from '@tanstack/react-table';
 import { BsFunnel } from 'react-icons/bs';
 import { useSbaaTableContext } from './SbaaTableProvider';
@@ -7,7 +18,7 @@ type TableComponent = ChakraComponent<'table'>;
 
 export const SbaaTable: TableComponent = (props) => {
   const { children, ...rest } = props;
-  const { table } = useSbaaTableContext();
+  const { table, isRowSelectionEnabled } = useSbaaTableContext();
   if (!table) {
     return null as any;
   }
@@ -17,6 +28,16 @@ export const SbaaTable: TableComponent = (props) => {
       <Thead>
         {table.getHeaderGroups().map((headerGroup) => (
           <Tr key={headerGroup.id}>
+            {isRowSelectionEnabled ? (
+              <Th w="1rem">
+                <Checkbox
+                  borderColor="gray.300"
+                  isChecked={table.getIsAllRowsSelected()}
+                  onChange={() => table.toggleAllRowsSelected()}
+                  isIndeterminate={table.getIsSomeRowsSelected()}
+                />
+              </Th>
+            ) : null}
             {headerGroup.headers.map((header) => {
               return (
                 <Th
@@ -55,6 +76,11 @@ export const SbaaTable: TableComponent = (props) => {
         {table.getRowModel().rows.map((row) => {
           return (
             <Tr key={row.id}>
+              {isRowSelectionEnabled ? (
+                <Td>
+                  <Checkbox isChecked={row.getIsSelected()} onChange={() => row.toggleSelected()} />
+                </Td>
+              ) : null}
               {row.getVisibleCells().map((cell) => {
                 return (
                   <Td key={cell.id}>{flexRender(cell.column.columnDef.cell, cell.getContext())}</Td>

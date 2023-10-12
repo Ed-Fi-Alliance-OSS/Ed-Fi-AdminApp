@@ -17,7 +17,6 @@ import {
   addUserModifying,
   regarding,
 } from '@edanalytics/models-server';
-import { StatusType } from '@edanalytics/utils';
 import {
   Body,
   Controller,
@@ -35,9 +34,9 @@ import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { PgBossInstance, SYNC_CHNL } from '../sb-sync/sb-sync.module';
-import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
+import { AdminApiService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { throwNotFound } from '../utils';
-import { FormValidationException, WorkflowFailureException } from '../utils/customExceptions';
+import { CustomHttpException, ValidationHttpException } from '../utils/customExceptions';
 import { SbesGlobalService } from './sbes-global.service';
 
 @ApiTags('Sbe - Global')
@@ -47,7 +46,7 @@ export class SbesGlobalController {
     private readonly sbeService: SbesGlobalService,
     @InjectRepository(Sbe)
     private sbesRepository: Repository<Sbe>,
-    private readonly sbService: StartingBlocksService,
+    private readonly sbService: AdminApiService,
     @Inject('PgBossInstance')
     private readonly boss: PgBossInstance,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
@@ -93,10 +92,7 @@ export class SbesGlobalController {
       id: '__filtered__',
     },
   })
-  async refreshResources(
-    @Param('sbeId', new ParseIntPipe()) sbeId: number,
-    @ReqUser() user: GetSessionDataDto
-  ) {
+  async refreshResources(@Param('sbeId', new ParseIntPipe()) sbeId: number) {
     const id = await this.boss.send(SYNC_CHNL, { sbeId: sbeId }, { expireInHours: 1 });
     const repo = this.queueRepository;
     return new Promise((r) => {
@@ -106,7 +102,7 @@ export class SbesGlobalController {
       let i = 0;
       async function poll() {
         queueItem = await repo.findOneBy({ id });
-        if (i === 10 || !pendingState.includes(queueItem.state)) {
+        if (i === 20 || !pendingState.includes(queueItem.state)) {
           clearInterval(timer);
           r(toSbSyncQueueDto(queueItem));
         }
@@ -201,17 +197,20 @@ export class SbesGlobalController {
       addUserModifying(updateDto, user)
     );
     if (result.status === 'ENOTFOUND') {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'adminRegisterUrl',
         message: 'DNS lookup failed for URL provided.',
       });
     } else if (result.status === 'ERROR') {
-      throw new WorkflowFailureException({
-        status: StatusType.warning,
-        title: 'Self-registration failed.',
-        message: 'I like to eat several pounds of cheese per fortnight.',
-        regarding: regarding(sbe),
-      });
+      throw new CustomHttpException(
+        {
+          type: 'Error',
+          title: 'Self-registration failed.',
+          regarding: regarding(sbe),
+          data: result.data,
+        },
+        400
+      );
     } else if (result.status === 'SUCCESS') {
       return toGetSbeDto(result.result);
     }

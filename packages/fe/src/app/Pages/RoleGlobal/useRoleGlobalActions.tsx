@@ -1,7 +1,7 @@
 import { Button } from '@chakra-ui/react';
 import { ActionsType } from '@edanalytics/common-ui';
 import { GetRoleDto } from '@edanalytics/models';
-import { IWorkflowFailureErrors, StatusType, isWorkflowFailureResponse } from '@edanalytics/utils';
+import { isExplicitStatusResponse } from '@edanalytics/utils';
 import { useQueryClient } from '@tanstack/react-query';
 import { BiEdit, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
@@ -57,13 +57,13 @@ export const useRoleGlobalActions = (role: GetRoleDto | undefined): ActionsType 
                 confirmBody: 'This will permanently delete the role.',
                 onClick: () =>
                   deleteRole.mutateAsync(role.id, {
-                    onError: (err: IWorkflowFailureErrors | any) => {
-                      if (isWorkflowFailureResponse(err) && err.code === 'REQUIRES_FORCE_DELETE') {
+                    onError: (err: unknown) => {
+                      if (isExplicitStatusResponse(err) && err.type === 'RequiresForceDelete') {
                         popBanner((props) => ({
-                          status: StatusType.error,
+                          type: err.type,
                           message: (
                             <>
-                              {err.errors.message?.toString() ??
+                              {err.message?.toString() ??
                                 'This role is referenced by other entities.'}
                               <Button
                                 ml={4}
@@ -95,9 +95,13 @@ export const useRoleGlobalActions = (role: GetRoleDto | undefined): ActionsType 
                                             id: false,
                                           }),
                                         });
+                                        popBanner({
+                                          type: 'Success',
+                                          title: 'Role deleted',
+                                        });
                                         navigate(`/roles`);
                                       },
-                                      ...mutationErrCallback({ popBanner }),
+                                      ...mutationErrCallback({ popGlobalBanner: popBanner }),
                                       onSettled: props.onDelete,
                                     }
                                   );
@@ -111,7 +115,7 @@ export const useRoleGlobalActions = (role: GetRoleDto | undefined): ActionsType 
                         }));
                         return undefined;
                       }
-                      mutationErrCallback({ popBanner }).onError(err);
+                      mutationErrCallback({ popGlobalBanner: popBanner }).onError(err);
                     },
                     onSuccess: () => navigate(`/roles`),
                   }),

@@ -5,9 +5,11 @@ import {
   IsNotEmpty,
   IsNumber,
   IsOptional,
+  IsArray,
   IsString,
   MaxLength,
   MinLength,
+  ValidateNested,
 } from 'class-validator';
 import { makeSerializer } from '../utils/make-serializer';
 import { GetEdorgDto } from './edorg.dto';
@@ -79,22 +81,60 @@ class ResourceClaimDto {
   delete: boolean;
   @Expose()
   @Type(() => AuthStrategyDto)
+  @IsArray()
   defaultAuthStrategiesForCRUD: AuthStrategyDto[];
   @Expose()
   @Type(() => AuthStrategyDto)
+  @IsArray()
   authStrategyOverridesForCRUD: AuthStrategyDto[];
+
   @Expose()
   @Type(() => ResourceClaimDto)
+  @ValidateNested({ each: true })
   children: ResourceClaimDto[];
+
+  /*
+  These are originally arrays of null or object. We want to validate
+  the objects but let the nulls through. These filtered getters let us
+  do that easily with class-transformer.
+  */
+  @ValidateNested({ each: true })
+  get _defaultAuthStrategiesForCRUD() {
+    return this.defaultAuthStrategiesForCRUD?.filter((v) => v !== null);
+  }
+
+  @ValidateNested({ each: true })
+  get _authStrategyOverridesForCRUD() {
+    return this.authStrategyOverridesForCRUD?.filter((v) => v !== null);
+  }
 }
 
 export class PostClaimsetDto {
   @Expose()
   @IsString()
+  @IsNotEmpty()
   name: string;
+
   @Expose()
   @Type(() => ResourceClaimDto)
+  @IsNotEmpty({ message: 'Valid JSON for Resource Claims is required' })
+  @ValidateNested({ each: true })
   resourceClaims: ResourceClaimDto[];
+
+  /*
+  These are used to power the plain text JSON editor in the UI.
+  */
+  get resourceClaimsJson() {
+    return JSON.stringify(this.resourceClaims, null, 2);
+  }
+
+  set resourceClaimsJson(value: string) {
+    try {
+      this.resourceClaims = JSON.parse(value);
+    } catch (invalidJsonError) {
+      this.resourceClaims = undefined as any;
+    }
+  }
 }
 
 export class PutClaimsetDto extends PostClaimsetDto {

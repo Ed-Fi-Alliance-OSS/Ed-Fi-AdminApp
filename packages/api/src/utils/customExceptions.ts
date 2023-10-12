@@ -1,68 +1,60 @@
 import {
-  ErrorCode,
-  IWorkflowFailureErrors,
-  VALIDATION_RESP_TYPE,
-  WORKFLOW_FAILURE_RESP_TYPE,
-  formErrFromValidator,
+  StatusResponse,
+  StatusResponseForceDelete,
+  StatusResponseFormValidation,
+  StatusResponseGeneral,
+  formValidationResult,
 } from '@edanalytics/utils';
-import { BadRequestException, InternalServerErrorException } from '@nestjs/common';
-import { ValidationError } from 'class-validator';
-import { FieldErrors } from 'react-hook-form';
+import { HttpException } from '@nestjs/common';
 
-export class ValidationException extends BadRequestException {
-  constructor(errors: FieldErrors) {
-    super({
-      message: 'Invalid submission.',
-      type: VALIDATION_RESP_TYPE,
-      errors,
-    });
+export interface IAdminApiV1xValidationError {
+  title: 'Validation failed';
+  status: 400;
+  /**
+   * Field names are in upper camel case.
+   *
+   * @example { "Name": [ "A claim set with this name already exists in the database." ] }
+   */
+  errors: {
+    [FieldName: string]: [string];
+  };
+}
+
+export interface IAdminApiV1xGenericError {
+  message: 'The server encountered an unexpected condition that prevented it from fulfilling the request.';
+}
+
+export const isIAdminApiV1xValidationError = (error: any): error is IAdminApiV1xValidationError => {
+  return (
+    error &&
+    error?.title === 'Validation failed' &&
+    error.status === 400 &&
+    typeof error.errors === 'object' &&
+    Object.values(error.errors).every(
+      (v) => Array.isArray(v) && v.every((v) => typeof v === 'string')
+    )
+  );
+};
+export class CustomHttpException extends HttpException {
+  constructor(info: StatusResponseForceDelete);
+  constructor(info: StatusResponseFormValidation);
+  constructor(info: StatusResponseGeneral, status: number);
+  constructor(info: StatusResponse, status?: number) {
+    super(
+      info.type === 'ValidationError' ? { ...info, title: 'Invalid submission.' } : info,
+      info.type === 'ValidationError' ? 400 : info.type === 'RequiresForceDelete' ? 409 : status
+    );
   }
 }
 
-/**
- * Exception to surface a validation message using react-hook-form state. See [the front-end's handler](../../../../packages/fe/src/app/helpers/mutationErrCallback.ts) for them.
- *
- * @example throw new FormValidationException('Some error message for the root');
- *
- * @example throw new FormValidationException({field: 'fieldOne', message: 'Some message for a field'});
- */
-export class FormValidationException extends BadRequestException {
-  constructor(error: { field: string; message: string });
+export class ValidationHttpException extends CustomHttpException {
+  constructor(...errors: { field: string; message: string }[]);
   constructor(error: string);
-  constructor(error: string | { field: string; message: string }) {
-    if (typeof error === 'string') {
-      super({
-        message: 'Invalid submission.',
-        type: VALIDATION_RESP_TYPE,
-        errors: {
-          root: {
-            message: error,
-          },
-        },
-      });
-    } else {
-      const err = new ValidationError();
-      err.property = error.field;
-      err.constraints = {
-        server: error.message,
-      };
-      err.value = false;
-      super({
-        message: 'Invalid submission.',
-        type: VALIDATION_RESP_TYPE,
-        errors: formErrFromValidator([err]),
-      });
-    }
-  }
-}
-
-export class WorkflowFailureException extends InternalServerErrorException {
-  constructor(errors: IWorkflowFailureErrors, code?: ErrorCode) {
+  constructor(...errors: [string] | { field: string; message: string }[]) {
     super({
-      message: 'Operation failure',
-      type: WORKFLOW_FAILURE_RESP_TYPE,
-      ...(code ? { code } : {}),
-      errors,
+      type: 'ValidationError',
+      title: 'Invalid submission.',
+      data: { errors: formValidationResult(...(errors as any)) },
     });
   }
 }

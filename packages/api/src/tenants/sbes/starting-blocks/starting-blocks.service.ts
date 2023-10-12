@@ -1,7 +1,6 @@
 import { InvokeCommand, LambdaClient, LambdaServiceException } from '@aws-sdk/client-lambda';
 import { parse, validate } from '@aws-sdk/util-arn-parser';
 import {
-  GetApplicationDto,
   PostApplicationDto,
   PostApplicationResponseDto,
   PostClaimsetDto,
@@ -10,26 +9,81 @@ import {
   PutClaimsetDto,
   PutVendorDto,
   SbMetaEnv,
+  toGetApplicationDto,
+  toGetClaimsetDto,
+  toGetVendorDto,
 } from '@edanalytics/models';
 import { Sbe } from '@edanalytics/models-server';
-import { BadRequestException, Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import axios, { AxiosError } from 'axios';
 import ClientOAuth2 from 'client-oauth2';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
+import { CustomHttpException } from '../../../utils';
 import { Repository } from 'typeorm';
-import { throwNotFound } from '../../../utils';
 /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 
 @Injectable()
 export class StartingBlocksService {
-  adminApiTokens: NodeCache;
-
   constructor(
     @InjectRepository(Sbe)
     private sbesRepository: Repository<Sbe>
-  ) {
+  ) {}
+
+  async getSbMeta(sbe: Sbe) {
+    const { configPrivate, configPublic } = sbe;
+    if (!validate(sbe.configPublic.sbeMetaArn ?? '')) {
+      return {
+        status: 'INVALID_ARN' as const,
+      };
+    }
+    const arn = parse(sbe.configPublic.sbeMetaArn);
+    const client = new LambdaClient({
+      region: arn.region,
+      credentials:
+        configPublic.sbeMetaKey && configPrivate.sbeMetaSecret
+          ? {
+              accessKeyId: configPublic.sbeMetaKey,
+              secretAccessKey: configPrivate.sbeMetaSecret,
+            }
+          : undefined,
+    });
+    try {
+      const result = await client.send(
+        new InvokeCommand({
+          FunctionName: sbe.configPublic.sbeMetaArn,
+          InvocationType: 'RequestResponse',
+        })
+      );
+      return {
+        status: 'SUCCESS' as const,
+        data: JSON.parse(Buffer.from(result.Payload).toString('utf8')) as SbMetaEnv,
+      };
+    } catch (LambdaError: unknown) {
+      const err = LambdaError as LambdaServiceException;
+      Logger.error(LambdaError);
+      return {
+        status: 'FAILURE' as const,
+        error: err.message ? (err.message as string) : 'Failed to execute SB Lambda',
+      };
+    }
+  }
+}
+/**
+ * This service is used to interact with the Admin API. Each method is a single
+ * API call (plus login if token is expired).
+ *
+ * Each call uses the `getAdminApiClient` method, which throws explicit HTTP 500s
+ * and doesn't leak any internal exceptions. So any Axios errors (e.g. 404) or
+ * other non-Nest exceptions encountered externally can be assumed to have arisen
+ * in the actual call of interest.
+ */
+@Injectable()
+export class AdminApiService {
+  adminApiTokens: NodeCache;
+
+  constructor() {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
@@ -102,6 +156,7 @@ export class StartingBlocksService {
           Logger.warn(JSON.stringify(err.response.data.errors));
           return {
             status: 'ERROR' as const,
+            data: err.response.data as object,
           };
         } else if (err?.code === 'ENOTFOUND') {
           Logger.warn('Attempted to register Admin API but ENOTFOUND: ' + url);
@@ -121,9 +176,15 @@ export class StartingBlocksService {
     const client = axios.create({
       baseURL: sbe.configPublic.adminApiUrl,
     });
-    client.interceptors.response.use((value) => {
-      return value.data.result;
-    });
+    client.interceptors.response.use(
+      (value) => {
+        return value.data.result;
+      },
+      (err) => {
+        Logger.error(err);
+        throw err;
+      }
+    );
     client.interceptors.request.use(async (config) => {
       let token: undefined | string = this.adminApiTokens.get(sbe.id);
       if (token === undefined) {
@@ -140,7 +201,13 @@ export class StartingBlocksService {
         };
 
         if (adminApiLoginFailureMessages[adminLogin.status]) {
-          throw new BadRequestException(adminApiLoginFailureMessages[adminLogin.status]);
+          throw new CustomHttpException(
+            {
+              title: adminApiLoginFailureMessages[adminLogin.status],
+              type: 'Error',
+            },
+            500
+          );
         }
         token = this.adminApiTokens.get(sbe.id);
       }
@@ -150,142 +217,89 @@ export class StartingBlocksService {
     return client;
   }
 
-  async getVendors(sbeId: Sbe['id']) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).get<any, any>(`v1/vendors`);
+  async getVendors(sbe: Sbe) {
+    return toGetVendorDto(await this.getAdminApiClient(sbe).get<any, any[]>(`v1/vendors`));
   }
-  async getVendor(sbeId: Sbe['id'], vendorId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).get<any, any>(`v1/vendors/${vendorId}`);
+  async getVendor(sbe: Sbe, vendorId: number) {
+    return toGetVendorDto(
+      await this.getAdminApiClient(sbe).get<any, any>(`v1/vendors/${vendorId}`)
+    );
   }
-  async putVendor(sbeId: Sbe['id'], vendorId: number, vendor: PutVendorDto) {
+  async putVendor(sbe: Sbe, vendorId: number, vendor: PutVendorDto) {
     vendor.vendorId = vendorId;
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).put<any, any>(`v1/vendors/${vendorId}`, vendor);
+    return toGetVendorDto(
+      await this.getAdminApiClient(sbe).put<any, any>(`v1/vendors/${vendorId}`, vendor)
+    );
   }
-  async postVendor(sbeId: Sbe['id'], vendor: PostVendorDto) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).post<any, any>(`v1/vendors`, vendor);
+  async postVendor(sbe: Sbe, vendor: PostVendorDto) {
+    return toGetVendorDto(await this.getAdminApiClient(sbe).post<any, any>(`v1/vendors`, vendor));
   }
-  async deleteVendor(sbeId: Sbe['id'], vendorId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
+  async deleteVendor(sbe: Sbe, vendorId: number) {
     await this.getAdminApiClient(sbe).delete<any, any>(`v1/vendors/${vendorId}`);
     return undefined;
   }
-  async getVendorApplications(sbeId: Sbe['id'], vendorId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return await this.getAdminApiClient(sbe).get<any, GetApplicationDto[]>(
-      `v1/vendors/${vendorId}/applications`
+  async getVendorApplications(sbe: Sbe, vendorId: number) {
+    return toGetApplicationDto(
+      await this.getAdminApiClient(sbe).get<any, any[]>(`v1/vendors/${vendorId}/applications`)
     );
   }
 
-  async getApplications(sbeId: Sbe['id']) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return await this.getAdminApiClient(sbe).get<any, GetApplicationDto[]>(`v1/applications`);
-  }
-  async getApplication(sbeId: Sbe['id'], applicationId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return await this.getAdminApiClient(sbe).get<any, GetApplicationDto>(
-      `v1/applications/${applicationId}`
+  async getApplications(sbe: Sbe) {
+    return toGetApplicationDto(
+      await this.getAdminApiClient(sbe).get<any, any[]>(`v1/applications`)
     );
   }
-  async putApplication(sbeId: Sbe['id'], applicationId: number, application: PutApplicationDto) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    await this.getAdminApiClient(sbe)
-      .get<any, GetApplicationDto>(`v1/applications/${applicationId}`)
-      .catch(throwNotFound);
-
-    return this.getAdminApiClient(sbe).put<any, any>(
-      `v1/applications/${applicationId}`,
-      application
+  async getApplication(sbe: Sbe, applicationId: number) {
+    return toGetApplicationDto(
+      await this.getAdminApiClient(sbe).get<any, any>(`v1/applications/${applicationId}`)
     );
   }
-  async postApplication(sbeId: Sbe['id'], application: PostApplicationDto) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
+  async putApplication(sbe: Sbe, applicationId: number, application: PutApplicationDto) {
+    return toGetApplicationDto(
+      await this.getAdminApiClient(sbe).put<any, any>(
+        `v1/applications/${applicationId}`,
+        application
+      )
+    );
+  }
+  async postApplication(sbe: Sbe, application: PostApplicationDto) {
     return this.getAdminApiClient(sbe).post<any, PostApplicationResponseDto>(
       `v1/applications`,
       application
     );
   }
-  async deleteApplication(sbeId: Sbe['id'], applicationId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    await this.getAdminApiClient(sbe)
-      .get<any, GetApplicationDto>(`v1/applications/${applicationId}`)
-      .catch(throwNotFound);
-
-    await this.getAdminApiClient(sbe).delete<any, any>(`v1/applications/${applicationId}`);
-    return undefined;
+  async deleteApplication(sbe: Sbe, applicationId: number) {
+    return this.getAdminApiClient(sbe)
+      .delete<any, any>(`v1/applications/${applicationId}`)
+      .then(() => undefined);
   }
-  async resetApplicationCredentials(sbeId: Sbe['id'], applicationId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    await this.getAdminApiClient(sbe)
-      .get<any, GetApplicationDto>(`v1/applications/${applicationId}`)
-      .catch(throwNotFound);
-
+  async resetApplicationCredentials(sbe: Sbe, applicationId: number) {
     return this.getAdminApiClient(sbe).put<any, any>(
       `v1/applications/${applicationId}/reset-credential`
     );
   }
 
-  async getClaimsets(sbeId: Sbe['id']) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).get<any, any>(`v1/claimsets`);
+  async getClaimsets(sbe: Sbe) {
+    return toGetClaimsetDto(await this.getAdminApiClient(sbe).get<any, any[]>(`v1/claimsets`));
   }
-  async getClaimset(sbeId: Sbe['id'], claimsetId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).get<any, any>(`v1/claimsets/${claimsetId}`);
+  async getClaimset(sbe: Sbe, claimsetId: number) {
+    return toGetClaimsetDto(
+      await this.getAdminApiClient(sbe).get<any, any>(`v1/claimsets/${claimsetId}`)
+    );
   }
-  async putClaimset(sbeId: Sbe['id'], claimsetId: number, claimset: PutClaimsetDto) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).put<any, any>(`v1/claimsets/${claimsetId}`, claimset);
+  async putClaimset(sbe: Sbe, claimsetId: number, claimset: PutClaimsetDto) {
+    return toGetClaimsetDto(
+      await this.getAdminApiClient(sbe).put<any, any>(`v1/claimsets/${claimsetId}`, claimset)
+    );
   }
-  async postClaimset(sbeId: Sbe['id'], claimset: PostClaimsetDto) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    return this.getAdminApiClient(sbe).post<any, any>(`v1/claimsets`, claimset);
+  async postClaimset(sbe: Sbe, claimset: PostClaimsetDto) {
+    return toGetClaimsetDto(
+      await this.getAdminApiClient(sbe).post<any, any>(`v1/claimsets`, claimset)
+    );
   }
-  async deleteClaimset(sbeId: Sbe['id'], claimsetId: number) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    await this.getAdminApiClient(sbe).delete<any, any>(`v1/claimsets/${claimsetId}`);
-    return undefined;
-  }
-  async getSbMeta(sbeId: Sbe['id']) {
-    const sbe = await this.sbesRepository.findOneBy({ id: sbeId });
-    const { configPrivate, configPublic } = sbe;
-    if (!validate(sbe.configPublic.sbeMetaArn ?? '')) {
-      return {
-        status: 'INVALID_ARN' as const,
-      };
-    }
-    const arn = parse(sbe.configPublic.sbeMetaArn);
-    const client = new LambdaClient({
-      region: arn.region,
-      credentials:
-        configPublic.sbeMetaKey && configPrivate.sbeMetaSecret
-          ? {
-              accessKeyId: configPublic.sbeMetaKey,
-              secretAccessKey: configPrivate.sbeMetaSecret,
-            }
-          : undefined,
-    });
-    try {
-      const result = await client.send(
-        new InvokeCommand({
-          FunctionName: sbe.configPublic.sbeMetaArn,
-          InvocationType: 'RequestResponse',
-        })
-      );
-      return {
-        status: 'SUCCESS' as const,
-        data: JSON.parse(Buffer.from(result.Payload).toString('utf8')) as SbMetaEnv,
-      };
-    } catch (LambdaError: LambdaServiceException | any) {
-      Logger.error(LambdaError);
-      return {
-        status: 'FAILURE' as const,
-        error: LambdaError.message
-          ? (LambdaError.message as string)
-          : 'Failed to execute SB Lambda',
-      };
-    }
+  async deleteClaimset(sbe: Sbe, claimsetId: number) {
+    return this.getAdminApiClient(sbe)
+      .delete<any, any>(`v1/claimsets/${claimsetId}`)
+      .then(() => undefined);
   }
 }

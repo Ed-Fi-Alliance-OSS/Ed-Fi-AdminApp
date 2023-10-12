@@ -2,25 +2,26 @@ import {
   Alert,
   AlertDescription,
   AlertIcon,
+  AlertProps,
   AlertTitle,
-  Badge,
   Box,
   CloseButton,
   HStack,
+  Link,
+  Popover,
+  PopoverArrow,
+  PopoverBody,
+  PopoverContent,
+  PopoverTrigger,
+  chakra,
 } from '@chakra-ui/react';
-import {
-  IWorkflowFailureErrors,
-  OperationResult,
-  StatusType,
-  stdDetailed,
-} from '@edanalytics/utils';
+import { StatusResponse, stdDetailed } from '@edanalytics/utils';
 import omit from 'lodash/omit';
 import sortBy from 'lodash/sortBy';
 import { ReactNode, createContext, useContext, useMemo, useState } from 'react';
 
-type BannerItem =
-  | IWorkflowFailureErrors
-  | ((props: { onDelete: () => void }) => IWorkflowFailureErrors);
+type BannerItemData = Omit<StatusResponse, 'message'> & { message?: ReactNode | string };
+type BannerItem = BannerItemData | ((props: { onDelete: () => void }) => BannerItemData);
 
 type BannerState = Record<number, BannerItem>;
 
@@ -58,24 +59,6 @@ export const usePopBanner = () => {
   return popBanner;
 };
 
-export const StatusBadge = ({
-  status,
-  pastTense,
-}: {
-  status: OperationResult;
-  pastTense?: boolean;
-}) => (
-  <Badge colorScheme={status === OperationResult.success ? 'green' : 'red'}>
-    {status === OperationResult.success
-      ? pastTense
-        ? 'Succeeded'
-        : 'Success'
-      : pastTense
-      ? 'Failed'
-      : 'Failure'}
-  </Badge>
-);
-
 export const FeedbackBanners = () => {
   const { banners, setBanners } = useBannerContext();
 
@@ -86,38 +69,84 @@ export const FeedbackBanners = () => {
       {sortBy(Object.entries(banners), 0).map(([id, banner], i) => {
         const bannerValue =
           typeof banner === 'function' ? banner({ onDelete: onRemove(id) }) : banner;
+        const alertProps: Partial<AlertProps> =
+          bannerValue.type === 'Error' || bannerValue.type === 'ValidationError'
+            ? {
+                borderColor: 'red.200',
+                bg: 'red.100',
+                status: 'error',
+              }
+            : bannerValue.type === 'RequiresForceDelete' || bannerValue.type === 'Warning'
+            ? {
+                borderColor: 'orange.200',
+                bg: 'orange.100',
+                status: 'warning',
+              }
+            : bannerValue.type === 'Success'
+            ? {
+                borderColor: 'green.200',
+                bg: 'green.100',
+                status: 'success',
+              }
+            : {
+                borderColor: 'blue.200',
+                bg: 'blue.100',
+                status: 'info',
+              };
         return (
           <Alert
+            pos="initial"
             key={id}
             title={`${stdDetailed(new Date(Number(id)))}${
               bannerValue.regarding ? ` - ${bannerValue.regarding}` : ''
             }`}
             py={1}
-            borderColor={
-              bannerValue.status === StatusType.error
-                ? 'red.200'
-                : bannerValue.status === StatusType.warning
-                ? 'orange.200'
-                : bannerValue.status === StatusType.success
-                ? 'green.200'
-                : 'blue.200'
-            }
             borderBottomWidth="1px"
             borderBottomStyle="solid"
-            status={
-              bannerValue.status === StatusType.error
-                ? 'error'
-                : bannerValue.status === StatusType.warning
-                ? 'warning'
-                : bannerValue.status === StatusType.success
-                ? 'success'
-                : 'info'
-            }
+            {...alertProps}
           >
             <AlertIcon />
             <HStack flexGrow={1} alignItems="baseline">
               <AlertTitle>{bannerValue.title}</AlertTitle>
-              <AlertDescription>{bannerValue.message || null}</AlertDescription>
+              <AlertDescription>
+                {bannerValue.message || null}
+                {typeof bannerValue.data === 'object' ? (
+                  <Popover trigger="hover">
+                    {({ isOpen }) => (
+                      <>
+                        {' '}
+                        <PopoverTrigger>
+                          <Link lineHeight="0.7" as="button">
+                            (see more)
+                          </Link>
+                        </PopoverTrigger>
+                        <PopoverContent
+                          w="auto"
+                          boxShadow="lg"
+                          display={!isOpen ? 'none' : undefined}
+                        >
+                          <PopoverArrow />
+                          <PopoverBody borderRadius="md" p="unset" overflow="clip">
+                            <Box
+                              overflow="auto"
+                              minH="7rem"
+                              maxH="30rem"
+                              minW="20rem"
+                              maxW="50rem"
+                              w="auto"
+                              p={2}
+                            >
+                              <chakra.pre fontSize="sm" whiteSpace="break-spaces">
+                                {JSON.stringify(bannerValue.data, null, 2)}
+                              </chakra.pre>
+                            </Box>
+                          </PopoverBody>
+                        </PopoverContent>
+                      </>
+                    )}
+                  </Popover>
+                ) : null}
+              </AlertDescription>
             </HStack>
             <CloseButton onClick={onRemove(id)} />
           </Alert>

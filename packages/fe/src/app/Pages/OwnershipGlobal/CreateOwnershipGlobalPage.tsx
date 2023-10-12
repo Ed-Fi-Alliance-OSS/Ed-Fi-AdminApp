@@ -103,7 +103,10 @@ export const CreateOwnershipGlobalPage = () => {
               body.sbeId = undefined;
             }
             return postOwnership
-              .mutateAsync(body, mutationErrCallback({ setError, popBanner }))
+              .mutateAsync(
+                body,
+                mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner })
+              )
               .catch(noop);
           })}
         >

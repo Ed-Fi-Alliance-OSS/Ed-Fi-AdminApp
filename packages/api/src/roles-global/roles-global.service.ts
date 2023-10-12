@@ -1,4 +1,4 @@
-import { GetUserDto, PostRoleDto, PutRoleDto, RoleType } from '@edanalytics/models';
+import { GetUserDto, PostRoleDto, PutRoleDto } from '@edanalytics/models';
 import {
   Ownership,
   Privilege,
@@ -7,14 +7,14 @@ import {
   UserTenantMembership,
   regarding,
 } from '@edanalytics/models-server';
-import { BadRequestException, Injectable, UnauthorizedException } from '@nestjs/common';
+import { joinStrsNice } from '@edanalytics/utils';
+import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { EntityManager, In, Repository } from 'typeorm';
-import { throwNotFound } from '../utils';
-import { WorkflowFailureException } from '../utils/customExceptions';
-import { StatusType, joinStrsNice } from '@edanalytics/utils';
 import { CheckAbilityType } from '../auth/authorization';
+import { throwNotFound } from '../utils';
+import { CustomHttpException } from '../utils/customExceptions';
 
 @Injectable()
 export class RolesGlobalService {
@@ -85,19 +85,16 @@ export class RolesGlobalService {
 
     if (!force) {
       if (memberships.length || ownerships.length || users.length) {
-        throw new WorkflowFailureException(
-          {
-            status: StatusType.error,
-            title: 'Oops, it looks like this role is still being used.',
-            message: `It's currently applied to one or more ${joinStrsNice([
-              ...(memberships.length ? ['memberships'] : []),
-              ...(users.length ? ['users'] : []),
-              ...(ownerships.length ? ['ownerships'] : []),
-            ])}.`,
-            regarding: regarding(old),
-          },
-          'REQUIRES_FORCE_DELETE'
-        );
+        throw new CustomHttpException({
+          type: 'RequiresForceDelete',
+          title: 'Oops, it looks like this role is still being used.',
+          message: `It's currently applied to one or more ${joinStrsNice([
+            ...(memberships.length ? ['memberships'] : []),
+            ...(users.length ? ['users'] : []),
+            ...(ownerships.length ? ['ownerships'] : []),
+          ])}.`,
+          regarding: regarding(old),
+        });
       }
     } else {
       const unauthorizedFks: string[] = [];
@@ -136,13 +133,16 @@ export class RolesGlobalService {
       }
 
       if (unauthorizedFks.length) {
-        throw new WorkflowFailureException({
-          status: StatusType.error,
-          title: 'Insufficient privileges for force delete',
-          message: `You don't have permission to delete this role because it's still being used by ${joinStrsNice(
-            unauthorizedFks
-          )} and you lack the privileges necessary to modify those.`,
-        });
+        throw new CustomHttpException(
+          {
+            type: 'Error',
+            title: 'Insufficient privileges for force delete',
+            message: `You don't have permission to delete this role because it's still being used by ${joinStrsNice(
+              unauthorizedFks
+            )} and you lack the privileges necessary to modify those.`,
+          },
+          403
+        );
       }
     }
     await this.rolesRepository.remove(old);

@@ -85,7 +85,7 @@ export const useEdorgContent = (props: { sbe: GetSbeDto }) => {
               <AccordionIcon />
             </AccordionButton>
             <AccordionPanel pb={10}>
-              <SbeSyncDateValue mb={2} display="block" />
+              <SbeSyncDateValue mb={2} display="block" w="fit-content" />
               <SbaaTableProvider
                 queryKeyPrefix={`${props.sbe.id}_edorg`}
                 pageSizes={[5, 10, 15]}

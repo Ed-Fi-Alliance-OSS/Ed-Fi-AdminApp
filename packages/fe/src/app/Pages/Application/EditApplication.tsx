@@ -88,7 +88,7 @@ export const EditApplication = (props: {
                 }),
               });
             },
-            ...mutationErrCallback({ popBanner, setError }),
+            ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
           })
           .catch(noop)
       )}

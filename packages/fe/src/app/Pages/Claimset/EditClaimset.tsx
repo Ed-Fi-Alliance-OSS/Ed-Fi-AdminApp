@@ -7,33 +7,35 @@ import {
   Icon,
   Input,
   Text,
+  Textarea,
   Tooltip,
   chakra,
 } from '@chakra-ui/react';
-import { GetVendorDto, PutVendorDto } from '@edanalytics/models';
+import { GetClaimsetDto, PutClaimsetDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { vendorQueries } from '../../api';
+import { claimsetQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { BsInfoCircle } from 'react-icons/bs';
+import { flattenFieldErrors } from '@edanalytics/utils';
 
-const resolver = classValidatorResolver(PutVendorDto);
+const resolver = classValidatorResolver(PutClaimsetDto);
 
-export const EditVendor = (props: { vendor: GetVendorDto }) => {
+export const EditClaimset = (props: { claimset: GetClaimsetDto }) => {
   const popBanner = usePopBanner();
 
   const navigate = useNavigate();
   const params = useParams() as {
     asId: string;
     sbeId: string;
-    vendorId: string;
+    claimsetId: string;
   };
   const goToView = () =>
-    navigate(`/as/${params.asId}/sbes/${params.sbeId}/vendors/${params.vendorId}`);
-  const putVendor = vendorQueries.usePut({
+    navigate(`/as/${params.asId}/sbes/${params.sbeId}/claimsets/${params.claimsetId}`);
+  const putClaimset = claimsetQueries.usePut({
     callback: goToView,
     sbeId: params.sbeId,
     tenantId: params.asId,
@@ -43,16 +45,15 @@ export const EditVendor = (props: { vendor: GetVendorDto }) => {
     setError,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<PutVendorDto>({
+  } = useForm<PutClaimsetDto>({
     resolver,
-    defaultValues: Object.assign(new PutVendorDto(), props.vendor),
+    defaultValues: Object.assign(new PutClaimsetDto(), props.claimset),
   });
 
-  return props.vendor ? (
+  return props.claimset ? (
     <chakra.form
-      w="form-width"
       onSubmit={handleSubmit((data) =>
-        putVendor
+        putClaimset
           .mutateAsync(
             data,
             mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
@@ -60,35 +61,32 @@ export const EditVendor = (props: { vendor: GetVendorDto }) => {
           .catch(noop)
       )}
     >
-      <FormControl isInvalid={!!errors.company}>
-        <FormLabel>Company</FormLabel>
-        <Input {...register('company')} />
-        <FormErrorMessage>{errors.company?.message}</FormErrorMessage>
+      <FormControl w="form-width" isInvalid={!!errors.name}>
+        <FormLabel>Name</FormLabel>
+        <Input {...register('name')} />
+        <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
       </FormControl>
-      <FormControl isInvalid={!!errors.namespacePrefixes}>
+      <FormControl w="90%" isInvalid={!!errors.resourceClaims}>
         <FormLabel>
-          Namespace prefixes{' '}
-          <Tooltip
-            label="Vendors can be associated with multiple namespaces. Please enter all possible namespace associations for this vendor, separated by commas."
-            hasArrow
-          >
+          Resource claims{' '}
+          <Tooltip label="Paste resource claims JSON here." hasArrow>
             <chakra.span>
               <Icon as={BsInfoCircle} />
             </chakra.span>
           </Tooltip>
         </FormLabel>
-        <Input {...register('namespacePrefixes')} placeholder="uri://ed-fi.org, uri://..." />
-        <FormErrorMessage>{errors.namespacePrefixes?.message}</FormErrorMessage>
-      </FormControl>
-      <FormControl isInvalid={!!errors.contactName}>
-        <FormLabel>Contact name</FormLabel>
-        <Input {...register('contactName')} />
-        <FormErrorMessage>{errors.contactName?.message}</FormErrorMessage>
-      </FormControl>
-      <FormControl isInvalid={!!errors.contactEmailAddress}>
-        <FormLabel>Contact email address</FormLabel>
-        <Input {...register('contactEmailAddress')} />
-        <FormErrorMessage>{errors.contactEmailAddress?.message}</FormErrorMessage>
+        <Textarea
+          fontFamily="mono"
+          minH="20em"
+          {...register('resourceClaimsJson')}
+          css={{
+            '&::placeholder': {
+              whiteSpace: 'pre',
+            },
+          }}
+          placeholder='[&#10;  {&#10;    "name": "types",&#10;    "read": true,&#10;    "create": true,&#10;    "update": true,&#10;    "delete": true,&#10;    "defaultAuthStrategiesForCRUD": ...'
+        />
+        <FormErrorMessage>{flattenFieldErrors(errors, 'resourceClaims')}</FormErrorMessage>
       </FormControl>
       <ButtonGroup>
         <Button mt={4} colorScheme="teal" isLoading={isSubmitting} type="submit">

@@ -81,7 +81,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
               givenName: validatedData.givenName === '' ? null : validatedData.givenName,
               familyName: validatedData.familyName === '' ? null : validatedData.familyName,
             },
-            mutationErrCallback({ popBanner, setError })
+            mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
           )
           .catch(noop);
       })}

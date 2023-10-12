@@ -66,7 +66,7 @@ export const CreateUtmGlobal = () => {
                   onSuccess: () => {
                     queryClient.invalidateQueries({ queryKey: ['me', 'user-tenant-memberships'] });
                   },
-                  ...mutationErrCallback({ setError, popBanner }),
+                  ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
                 }
               )
               .catch(noop)

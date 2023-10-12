@@ -64,6 +64,7 @@ const OwnershipsTable = (props: { tenant: GetTenantDto }) => {
   return (
     <ContentSection heading="Ownerships">
       <SbaaTableAllInOne
+        queryKeyPrefix="own"
         data={Object.values(ownerships?.data || {}).filter((o) => o.tenantId === props.tenant.id)}
         columns={[
           {
@@ -125,6 +126,7 @@ const MembershipsTable = (props: { tenant: GetTenantDto }) => {
   return (
     <ContentSection heading="User memberships">
       <SbaaTableAllInOne
+        queryKeyPrefix="utm"
         data={Object.values(userTenantMemberships?.data || {}).filter(
           (m) => m.tenantId === props.tenant.id
         )}

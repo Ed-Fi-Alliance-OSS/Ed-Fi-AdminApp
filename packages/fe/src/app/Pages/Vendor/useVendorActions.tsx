@@ -59,7 +59,7 @@ export const useVendorActions = (vendor: GetVendorDto | undefined): ActionsType 
                 confirmBody: 'This will permanently delete the vendor.',
                 onClick: () =>
                   deleteVendor.mutateAsync(vendor.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => navigate(`/as/${asId}/sbes/${sbeId}/vendors`),
                   }),
                 confirm: true,

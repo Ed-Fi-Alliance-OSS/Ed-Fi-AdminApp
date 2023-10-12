@@ -1,6 +1,5 @@
 import { GetUserDto, SbMetaEdorg, SbMetaOds, toOperationResultDto } from '@edanalytics/models';
 import { Edorg, Ods, Sbe, addUserCreating, regarding } from '@edanalytics/models-server';
-import { StatusType } from '@edanalytics/utils';
 import { Inject, Injectable, Logger, NotFoundException, OnModuleInit } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
@@ -10,7 +9,7 @@ import { DeepPartial, EntityManager, In, Repository } from 'typeorm';
 import { CacheService } from '../app/cache.module';
 import { AuthService } from '../auth/auth.service';
 import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
-import { WorkflowFailureException } from '../utils/customExceptions';
+import { CustomHttpException } from '../utils/customExceptions';
 import { PgBossInstance, SYNC_CHNL, SYNC_SCHEDULER_CHNL } from './sb-sync.module';
 
 @Injectable()
@@ -72,21 +71,27 @@ export class SbSyncConsumer implements OnModuleInit {
       throw new NotFoundException(`SBE ${sbeId} not found`);
     }
 
-    const sbMeta = await this.sbService.getSbMeta(sbeId);
+    const sbMeta = await this.sbService.getSbMeta(sbe);
     if (sbMeta.status === 'INVALID_ARN') {
-      throw new WorkflowFailureException({
-        status: StatusType.error,
-        title: 'Metadata retrieval failed.',
-        message: 'Invalid ARN for metadata lambda function.',
-        regarding: regarding(sbe),
-      });
+      throw new CustomHttpException(
+        {
+          type: 'Error',
+          title: 'Metadata retrieval failed.',
+          message: 'Invalid ARN for metadata lambda function.',
+          regarding: regarding(sbe),
+        },
+        500
+      );
     } else if (sbMeta.status === 'FAILURE') {
-      throw new WorkflowFailureException({
-        status: StatusType.error,
-        title: 'Matadata retrieval failed.',
-        message: sbMeta.error,
-        regarding: regarding(sbe),
-      });
+      throw new CustomHttpException(
+        {
+          type: 'Error',
+          title: 'Matadata retrieval failed.',
+          message: sbMeta.error,
+          regarding: regarding(sbe),
+        },
+        500
+      );
     } else if (sbMeta.status === 'SUCCESS') {
       Logger.verbose('Metadata retrieval succeeded.');
       const sbMetaValue = sbMeta.data;
@@ -257,7 +262,7 @@ export class SbSyncConsumer implements OnModuleInit {
 
             return toOperationResultDto({
               title: `Sync succeeded`,
-              status: StatusType.success,
+              type: 'Success',
               message: `${sbEdorgs.length} total Ed-Orgs (${newEdorgs.length} added, ${edorgsToDelete.size} deleted), ${sbOdss.length} total ODS's. (${newOdss.length} added, ${odssToDelete.size} deleted).`,
               regarding: regarding(sbe),
             });
@@ -276,11 +281,14 @@ export class SbSyncConsumer implements OnModuleInit {
           });
       } catch (TransformationErr) {
         Logger.log(TransformationErr);
-        throw new WorkflowFailureException({
-          status: StatusType.error,
-          title: 'Unexpected error in transformation and sync.',
-          regarding: regarding(sbe),
-        });
+        throw new CustomHttpException(
+          {
+            type: 'Error',
+            title: 'Unexpected error in transformation and sync.',
+            regarding: regarding(sbe),
+          },
+          500
+        );
       }
     }
   }

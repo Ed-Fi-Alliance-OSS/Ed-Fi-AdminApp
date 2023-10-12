@@ -60,7 +60,7 @@ export const CreateApplicationPage = () => {
                   state: data.link,
                 });
               },
-              ...mutationErrCallback({ popBanner, setError }),
+              ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
             })
             .catch(noop)
         )}

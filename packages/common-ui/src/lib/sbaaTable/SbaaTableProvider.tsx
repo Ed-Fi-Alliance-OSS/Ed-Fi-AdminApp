@@ -4,6 +4,7 @@ import {
   ColumnFiltersState,
   RowSelectionState,
   Table as TrtTable,
+  OnChangeFn,
   getCoreRowModel,
   getFacetedMinMaxValues,
   getFacetedRowModel,
@@ -13,7 +14,7 @@ import {
   getSortedRowModel,
   useReactTable,
 } from '@tanstack/react-table';
-import React, { createContext, useMemo } from 'react';
+import React, { createContext, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import {
   fuzzyFilter,
@@ -30,6 +31,7 @@ export const SbaaTableContext = createContext<{
   pageSizes: number[];
   pendingFilterColumn: string | boolean;
   setPendingFilterColumn: (colId: string | boolean) => void;
+  isRowSelectionEnabled?: boolean;
   showSettings: readonly [
     boolean,
     {
@@ -42,6 +44,7 @@ export const SbaaTableContext = createContext<{
   table: null,
   pageSizes: [10, 25, 50, 100],
   pendingFilterColumn: false,
+  isRowSelectionEnabled: false,
   setPendingFilterColumn: () => false,
   showSettings: [false, { on: () => undefined, off: () => undefined, toggle: () => undefined }],
 });
@@ -49,11 +52,13 @@ export const SbaaTableContext = createContext<{
 export const useSbaaTableContext = () => React.useContext(SbaaTableContext);
 export type DivComponent = ChakraComponent<'div'>;
 
-export function SbaaTableProvider<T extends object>(props: {
+export function SbaaTableProvider<T extends { id: any }>(props: {
   children?: React.ReactNode;
   data: T[] | IterableIterator<T>;
   columns: ColumnDef<T>[];
   enableRowSelection?: boolean;
+  rowSelectionState?: RowSelectionState;
+  onRowSelectionChange?: OnChangeFn<RowSelectionState> | undefined;
   pageSizes?: number[];
   queryKeyPrefix?: string | undefined;
 }) {
@@ -96,6 +101,7 @@ export function SbaaTableProvider<T extends object>(props: {
       sorting: sortParams,
       globalFilter,
       columnFilters,
+      ...(props.rowSelectionState ? { rowSelection: props.rowSelectionState } : {}),
     },
     onSortingChange: (updater) =>
       setSearchParams(
@@ -106,6 +112,7 @@ export function SbaaTableProvider<T extends object>(props: {
         )
       ),
     globalFilterFn: fuzzyFilter,
+    ...(props.onRowSelectionChange ? { onRowSelectionChange: props.onRowSelectionChange } : {}),
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
     getFilteredRowModel: getFilteredRowModel(),
@@ -115,7 +122,8 @@ export function SbaaTableProvider<T extends object>(props: {
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
-    enableMultiRowSelection: false,
+    enableMultiRowSelection: props.enableRowSelection,
+    getRowId: (row) => row.id,
     enableMultiSort: true,
     debugTable: false,
     autoResetPageIndex: false,
@@ -126,6 +134,12 @@ export function SbaaTableProvider<T extends object>(props: {
     },
   });
 
+  useEffect(() => {
+    if (table.getState().pagination.pageIndex > table.getPageCount() - 1) {
+      table.setPageIndex(table.getPageCount() - 1);
+    }
+  });
+
   return (
     <SbaaTableContext.Provider
       value={{
@@ -133,6 +147,7 @@ export function SbaaTableProvider<T extends object>(props: {
         pageSizes,
         pendingFilterColumn,
         setPendingFilterColumn,
+        isRowSelectionEnabled: props.enableRowSelection,
         showSettings,
       }}
     >

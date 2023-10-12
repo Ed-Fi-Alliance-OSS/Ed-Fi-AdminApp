@@ -12,7 +12,8 @@ import * as expressSession from 'express-session';
 import passport from 'passport';
 import { Client } from 'pg';
 import { AppModule } from './app/app.module';
-import { ValidationException } from './utils/customExceptions';
+import { CustomHttpException } from './utils/customExceptions';
+import { writeFileSync } from 'fs';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -52,7 +53,11 @@ async function bootstrap() {
       transform: true,
       stopAtFirstError: false,
       exceptionFactory: (validationErrors = []) => {
-        return new ValidationException(formErrFromValidator(validationErrors));
+        return new CustomHttpException({
+          type: 'ValidationError',
+          title: 'Invalid submission.',
+          data: { errors: formErrFromValidator(validationErrors) },
+        });
       },
     })
   );
@@ -90,6 +95,7 @@ async function bootstrap() {
     .build();
   const document = SwaggerModule.createDocument(app, swaggerConfig);
   SwaggerModule.setup('api', app, document);
+  writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
 
   await app.listen(port);
 

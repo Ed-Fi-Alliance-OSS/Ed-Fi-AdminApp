@@ -50,7 +50,7 @@ export const RegisterSbeAdminApiAuto = (props: { sbe: GetSbeDto }) => {
             {
               ...data,
             },
-            mutationErrCallback({ setError, popBanner })
+            mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner })
           )
           .catch(noop)
       )}

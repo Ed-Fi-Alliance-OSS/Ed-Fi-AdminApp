@@ -68,7 +68,10 @@ export const CreateRoleGlobalPage = () => {
       <form
         onSubmit={handleSubmit((data) => {
           return postRole
-            .mutateAsync(data, mutationErrCallback({ popBanner, setError }))
+            .mutateAsync(
+              data,
+              mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
+            )
             .catch(noop);
         })}
       >

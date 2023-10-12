@@ -4,6 +4,7 @@
 dist
 tmp
 /out-tsc
+sbaa-swagger.json
 
 # dependencies
 node_modules

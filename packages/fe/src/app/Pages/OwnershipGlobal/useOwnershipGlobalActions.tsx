@@ -79,7 +79,7 @@ export const useOwnershipGlobalActions = (ownership: GetOwnershipDto | undefined
                 confirmBody: 'This will permanently delete the ownership.',
                 onClick: () =>
                   deleteOwnership.mutateAsync(ownership.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => navigate(`/ownerships`),
                   }),
                 confirm: true,

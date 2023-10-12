@@ -1,7 +1,9 @@
 import {
   Badge,
+  Box,
   HStack,
   Popover,
+  PopoverArrow,
   PopoverBody,
   PopoverContent,
   PopoverTrigger,
@@ -9,8 +11,8 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import {
-  PageActions,
   DateFormat,
+  PageActions,
   PageTemplate,
   SbaaTableAllInOne,
   TableRowActions,
@@ -114,18 +116,23 @@ export const SbSyncQueuesPage = () => {
                         </Text>
                       </PopoverTrigger>
                       <PopoverContent
-                        boxShadow="lg"
-                        minH="10em"
-                        minW="30em"
-                        maxW="50em"
                         w="auto"
-                        overflow="auto"
+                        boxShadow="lg"
                         display={!isOpen ? 'none' : undefined}
                       >
-                        <PopoverBody>
-                          <chakra.pre whiteSpace="break-spaces">
-                            {info.getValue() as string}
-                          </chakra.pre>
+                        <PopoverArrow />
+                        <PopoverBody borderRadius="md" p="unset" overflow="clip">
+                          <Box
+                            overflow="auto"
+                            minH="7rem"
+                            maxH="30rem"
+                            minW="30rem"
+                            maxW="50rem"
+                            w="auto"
+                            p={2}
+                          >
+                            <chakra.pre fontSize="sm">{info.getValue() as string}</chakra.pre>
+                          </Box>
                         </PopoverBody>
                       </PopoverContent>
                     </>

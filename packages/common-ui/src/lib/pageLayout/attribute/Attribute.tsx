@@ -44,7 +44,7 @@ const dateFormatStrings: Record<number, string | undefined> = {
   3: undefined,
 };
 
-export const AttributeContainer = chakraForwardRef<{ label: string }, 'div'>(
+export const AttributeContainer = chakraForwardRef<{ label: string } & StyleProps, 'div'>(
   (props, ref): ReactElement => {
     const { label, children, ...styles } = props;
     return (

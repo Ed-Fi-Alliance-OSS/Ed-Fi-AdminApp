@@ -1,6 +1,5 @@
 import { FormControl, FormLabel, Switch, useBoolean } from '@chakra-ui/react';
 import { GetSbeDto, regarding } from '@edanalytics/models';
-import { StatusType } from '@edanalytics/utils';
 import { useEffect } from 'react';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useSbeCheckAdminAPI } from '../../api';
@@ -16,7 +15,7 @@ export const RegisterSbeAdminApi = (props: { sbe: GetSbeDto }) => {
       onSuccess: (res) => {
         popBanner({
           title: 'Admin API already connected.',
-          status: StatusType.warning,
+          type: 'Warning',
           regarding: regarding(sbe),
         });
       },

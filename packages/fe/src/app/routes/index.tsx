@@ -15,6 +15,8 @@ import {
   applicationsRoute,
 } from './application.routes';
 import {
+  claimsetCreateRoute,
+  claimsetImportRoute,
   claimsetIndexRoute,
   claimsetRoute,
   claimsetsIndexRoute,
@@ -243,6 +245,8 @@ export const authenticatedRoutes: RouteObject = {
     claimsetsIndexRoute,
     claimsetRoute,
     claimsetIndexRoute,
+    claimsetCreateRoute,
+    claimsetImportRoute,
 
     applicationsRoute,
     applicationsIndexRoute,

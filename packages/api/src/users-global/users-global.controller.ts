@@ -6,7 +6,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
-import { FormValidationException, throwNotFound } from '../utils';
+import { ValidationHttpException, throwNotFound } from '../utils';
 import { UsersGlobalService } from './users-global.service';
 
 @ApiTags('User - Global')
@@ -30,7 +30,7 @@ export class UsersGlobalController {
       return toGetUserDto(await this.userService.create(addUserCreating(createUserDto, user)));
     } catch (error) {
       if (error?.code === '23505') {
-        throw new FormValidationException({
+        throw new ValidationHttpException({
           field: 'username',
           message: 'Username already exists',
         });
@@ -79,7 +79,7 @@ export class UsersGlobalController {
       );
     } catch (error) {
       if (error?.code === '23505') {
-        throw new FormValidationException({
+        throw new ValidationHttpException({
           field: 'username',
           message: 'Username already exists',
         });

@@ -1,7 +1,9 @@
 import {
   Badge,
+  Box,
   Link,
   Popover,
+  PopoverArrow,
   PopoverBody,
   PopoverContent,
   PopoverTrigger,
@@ -106,17 +108,24 @@ export const SbeSyncQueue = (props: { sbe: GetSbeDto }) => {
                       </PopoverTrigger>
                       <PopoverContent
                         boxShadow="lg"
-                        minH="10em"
-                        minW="30em"
-                        maxW="50em"
                         w="auto"
-                        overflow="auto"
                         display={!isOpen ? 'none' : undefined}
                       >
-                        <PopoverBody>
-                          <chakra.pre whiteSpace="break-spaces">
-                            {info.getValue() as string}
-                          </chakra.pre>
+                        <PopoverArrow />
+                        <PopoverBody borderRadius="md" p="unset" overflow="clip">
+                          <Box
+                            overflow="auto"
+                            minH="7rem"
+                            maxH="30rem"
+                            minW="30rem"
+                            maxW="50rem"
+                            w="auto"
+                            p={2}
+                          >
+                            <chakra.pre fontSize="sm" whiteSpace="break-spaces">
+                              {info.getValue() as string}
+                            </chakra.pre>
+                          </Box>
                         </PopoverBody>
                       </PopoverContent>
                     </>

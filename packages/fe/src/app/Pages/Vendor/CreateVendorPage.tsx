@@ -55,7 +55,7 @@ export const CreateVendor = () => {
           onSubmit={handleSubmit((data) =>
             postVendor
               .mutateAsync(data, {
-                ...mutationErrCallback({ popBanner, setError }),
+                ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['me', 'vendors'] });
                 },

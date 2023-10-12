@@ -2,11 +2,11 @@ import { Edorg, Ods, Ownership, Sbe } from '@edanalytics/models-server';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { StartingBlocksController } from './starting-blocks.controller';
-import { StartingBlocksService } from './starting-blocks.service';
+import { AdminApiService } from './starting-blocks.service';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Sbe, Ods, Edorg, Ownership])],
   controllers: [StartingBlocksController],
-  providers: [StartingBlocksService],
+  providers: [AdminApiService],
 })
 export class StartingBlocksModule {}

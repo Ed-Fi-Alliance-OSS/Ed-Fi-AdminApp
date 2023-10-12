@@ -112,7 +112,12 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
     <form
       ref={formRef}
       onSubmit={handleSubmit((data) =>
-        putRole.mutateAsync(data, mutationErrCallback({ popBanner, setError })).catch(noop)
+        putRole
+          .mutateAsync(
+            data,
+            mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
+          )
+          .catch(noop)
       )}
     >
       <FormControl maxW="form-width" isInvalid={!!errors.description}>

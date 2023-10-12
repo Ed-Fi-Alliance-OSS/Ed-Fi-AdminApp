@@ -65,7 +65,7 @@ export const useRoleActions = (role: GetRoleDto | undefined): ActionsType => {
                 confirmBody: 'This will permanently delete the role.',
                 onClick: () =>
                   deleteRole.mutateAsync(role.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => navigate(`/roles`),
                   }),
                 confirm: true,

@@ -1,7 +1,6 @@
 import { Link } from '@chakra-ui/react';
 import { ActionsType } from '@edanalytics/common-ui';
 import { GetSbeDto, PgBossJobState } from '@edanalytics/models';
-import { StatusType } from '@edanalytics/utils';
 import { BiCog, BiData, BiDownload, BiPlug, BiRename, BiShieldPlus, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
@@ -67,7 +66,7 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                 title: 'Check connection to Ed-Fi Admin API',
                 onClick: async () => {
                   checkAdminApi.mutateAsync(sbe, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: (res) => popBanner(res),
                   });
                 },
@@ -83,17 +82,17 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                 title: 'Sync ODSs and Ed-Orgs from Starting Blocks to SBAA.',
                 onClick: async () => {
                   await refreshResources.mutateAsync(sbe, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess(result, variables, context) {
                       const failureStates: PgBossJobState[] = ['failed', 'cancelled', 'expired'];
                       const pendingStates: PgBossJobState[] = ['created', 'retry', 'active'];
                       popBanner({
-                        status:
+                        type:
                           result.state === 'completed'
-                            ? StatusType.success
+                            ? 'Success'
                             : failureStates.includes(result.state)
-                            ? StatusType.error
-                            : StatusType.info,
+                            ? 'Error'
+                            : 'Info',
                         title: `Sync ${
                           result.state === 'completed'
                             ? 'completed'
@@ -166,7 +165,7 @@ export const useSbeGlobalActions = (sbe: GetSbeDto | undefined): ActionsType => 
                 confirmBody: 'This will permanently delete the environment.',
                 onClick: () =>
                   deleteSbe.mutateAsync(sbe.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => navigate(`/sbes`),
                   }),
                 confirm: true,

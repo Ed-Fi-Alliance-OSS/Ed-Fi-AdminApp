@@ -233,6 +233,7 @@ export const theme = extendTheme({
       baseStyle: {
         text: {
           marginTop: 1,
+          whiteSpace: 'pre-line',
         },
       },
     },

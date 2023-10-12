@@ -7,6 +7,8 @@ import { ClaimsetsPage } from '../Pages/Claimset/ClaimsetsPage';
 import { claimsetQueries } from '../api';
 import { getRelationDisplayName, useNavContext } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
+import { CreateClaimset } from '../Pages/Claimset/CreateClaimsetPage';
+import { ImportClaimsetsPage } from '../Pages/Claimset/ImportClaimsetsPage';
 
 const ClaimsetBreadcrumb = () => {
   const params = useParams() as {
@@ -20,6 +22,16 @@ const ClaimsetBreadcrumb = () => {
     sbeId: params.sbeId,
   });
   return claimset.data?.displayName ?? params.claimsetId;
+};
+export const claimsetCreateRoute: RouteObject = {
+  path: '/as/:asId/sbes/:sbeId/claimsets/create',
+  element: <CreateClaimset />,
+  handle: { crumb: () => 'Create Claimset' },
+};
+export const claimsetImportRoute: RouteObject = {
+  path: '/as/:asId/sbes/:sbeId/claimsets/import',
+  element: <ImportClaimsetsPage />,
+  handle: { crumb: () => 'Import Claimsets' },
 };
 export const claimsetIndexRoute: RouteObject = {
   path: '/as/:asId/sbes/:sbeId/claimsets/:claimsetId/',

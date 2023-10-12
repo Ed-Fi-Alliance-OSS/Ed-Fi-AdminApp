@@ -47,7 +47,7 @@ export const EditTenant = () => {
       onSubmit={handleSubmit((data) =>
         putTenant
           .mutateAsync(data, {
-            ...mutationErrCallback({ popBanner, setError }),
+            ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
             onSuccess: () => {
               queryClient.invalidateQueries({ queryKey: ['me', 'tenants'] });
             },

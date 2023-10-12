@@ -625,7 +625,7 @@ export const useSbeRefreshResources = (callback?: () => void) => {
       });
       callback && callback();
     },
-    ...mutationErrCallback({ popBanner }),
+    ...mutationErrCallback({ popGlobalBanner: popBanner }),
   });
 };
 

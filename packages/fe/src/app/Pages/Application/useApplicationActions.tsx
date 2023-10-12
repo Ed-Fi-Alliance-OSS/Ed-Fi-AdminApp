@@ -124,7 +124,10 @@ export const useSingleApplicationActions = ({
                 text: 'Reset creds',
                 title: 'Reset application credentials.',
                 onClick: () => {
-                  resetCreds.mutateAsync(application, mutationErrCallback({ popBanner }));
+                  resetCreds.mutateAsync(
+                    application,
+                    mutationErrCallback({ popGlobalBanner: popBanner })
+                  );
                 },
                 confirm: true,
                 confirmBody:
@@ -158,7 +161,7 @@ export const useSingleApplicationActions = ({
                   'All systems using this application to access Ed-Fi will no longer be able to do so. This action cannot be undone, though you will be able to create a new application if you want.',
                 onClick: () =>
                   deleteApplication.mutate(application.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => {
                       if (onApplicationPage) {
                         navigate(parentPath);

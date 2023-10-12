@@ -49,7 +49,7 @@ export const CreateUser = () => {
           onSubmit={handleSubmit((data) =>
             postUser
               .mutateAsync(data, {
-                ...mutationErrCallback({ popBanner, setError }),
+                ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                 onSuccess: () => {
                   queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
                 },

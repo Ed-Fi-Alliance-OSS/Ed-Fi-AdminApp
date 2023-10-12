@@ -44,7 +44,12 @@ export const EditRole = (props: { role: GetRoleDto }) => {
   return (
     <form
       onSubmit={handleSubmit((data) =>
-        putRole.mutateAsync(data, mutationErrCallback({ popBanner, setError })).catch(noop)
+        putRole
+          .mutateAsync(
+            data,
+            mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError })
+          )
+          .catch(noop)
       )}
     >
       <FormControl isInvalid={!!errors.id}>

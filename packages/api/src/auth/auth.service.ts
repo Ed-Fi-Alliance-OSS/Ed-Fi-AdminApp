@@ -279,7 +279,7 @@ export class AuthService {
       cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe.claimset', true, sbeId);
 
       // apply downward-inheriting privileges to ODS's within this SBE
-      odssPerSbe[sbeId].forEach((ods) => {
+      odssPerSbe[sbeId]?.forEach((ods) => {
         if (!odsPrivileges.has(ods.id)) {
           odsPrivileges.set(ods.id, new Set());
         }
@@ -294,7 +294,7 @@ export class AuthService {
       cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe.ods', ods.id, ods.sbeId);
 
       // apply downward-inheriting privileges to root Ed-Orgs within this ODS
-      rootEdorgsPerOds[odsId].forEach((edorg) => {
+      rootEdorgsPerOds[odsId]?.forEach((edorg) => {
         if (!edorgPrivileges.has(edorg.id)) {
           edorgPrivileges.set(edorg.id, new Set());
         }

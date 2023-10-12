@@ -25,7 +25,7 @@ export const useSbSyncQueuesActions = (): ActionsType => {
           title: 'Trigger sync of all environments',
           onClick: () =>
             postSyncQueue.mutateAsync(undefined, {
-              ...mutationErrCallback({ popBanner }),
+              ...mutationErrCallback({ popGlobalBanner: popBanner }),
               onSuccess: (res) => popBanner(res),
             }),
         },

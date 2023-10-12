@@ -54,7 +54,7 @@ export const useUtmActionsGlobal = (
                 confirmBody: 'This will permanently delete the tenant membership.',
                 onClick: () =>
                   deleteUtm.mutateAsync(userTenantMembership.id, {
-                    ...mutationErrCallback({ popBanner }),
+                    ...mutationErrCallback({ popGlobalBanner: popBanner }),
                     onSuccess: () => navigate(`/user-tenant-memberships`),
                   }),
                 confirm: true,

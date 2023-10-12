@@ -6,7 +6,10 @@ import { SbSyncConsumer } from './sb-sync.consumer';
 import config from 'config';
 import PgBoss from 'pg-boss';
 import { AuthModule } from '../auth/auth.module';
-import { StartingBlocksService } from '../tenants/sbes/starting-blocks/starting-blocks.service';
+import {
+  AdminApiService,
+  StartingBlocksService,
+} from '../tenants/sbes/starting-blocks/starting-blocks.service';
 import { SbSyncController } from './sb-sync.controller';
 
 @Injectable()
@@ -20,6 +23,7 @@ export const SYNC_CHNL = 'sbe-sync';
   controllers: [SbSyncController],
   providers: [
     SbSyncConsumer,
+    AdminApiService,
     StartingBlocksService,
     {
       provide: 'PgBossInstance',

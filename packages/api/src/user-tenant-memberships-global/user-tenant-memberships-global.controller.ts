@@ -15,8 +15,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
-import { throwNotFound } from '../utils';
-import { FormValidationException } from '../utils/customExceptions';
+import { ValidationHttpException, throwNotFound } from '../utils';
 import { UserTenantMembershipsGlobalService } from './user-tenant-memberships-global.service';
 
 @ApiTags('UserTenantMembership - Global')
@@ -47,7 +46,7 @@ export class UserTenantMembershipsGlobalController {
     ).length;
 
     if (isRedundant) {
-      throw new FormValidationException({
+      throw new ValidationHttpException({
         field: 'tenantId',
         message:
           'A membership already exists for this tenant\u2013user combination. To minimize confusion we disallow duplication.',

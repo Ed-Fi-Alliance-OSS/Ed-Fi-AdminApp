@@ -8,7 +8,7 @@ export const ContentSection: ContentSectionComponent = (props) => {
   return (
     <Box className={mergedClassName} {...rest}>
       {heading ? (
-        <Heading mb={4} fontSize="xl" fontWeight="medium">
+        <Heading mb={4} fontSize="md" fontWeight="medium">
           {heading}
         </Heading>
       ) : null}
