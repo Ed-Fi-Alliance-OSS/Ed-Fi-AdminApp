@@ -22,7 +22,7 @@ import {
   Request,
   Res,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiParam, ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import { randomUUID } from 'crypto';
@@ -44,27 +44,6 @@ export class AuthController {
     private readonly tenantsRepository: Repository<Tenant>,
     private readonly idpService: IdpService
   ) {}
-
-  @Public()
-  @Get('/applauncher/:appLauncherId/login')
-  async applauncherLogin(@Param('appLauncherId') appLauncherId: number, @Res() res: Response) {
-    const alConfig = await this.idpService.getAppLauncherConnection(appLauncherId);
-    res.redirect(alConfig.url);
-  }
-
-  @Public()
-  @Get('/applauncher/:appLauncherId/callback/:authResult')
-  applauncherLoginCallback(
-    @Param('appLauncherId') appLauncherId: number,
-    @Res() res: Response,
-    @Request() req,
-    @Next() next
-  ) {
-    passport.authenticate(`al-${appLauncherId}`, {
-      successRedirect: `${config.FE_URL}`,
-      failWithError: true,
-    })(req, res, next);
-  }
 
   @Public()
   @Get('/oidc/:oidcId/login')

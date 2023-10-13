@@ -10,6 +10,10 @@ const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client
 const makeConnectionString = (port, db, username, password, host, ssl) =>
   `postgres://${username}@${host}:${port}/${db}?password=${password}&sslmode=${ssl}`;
 module.exports = {
+  get OPEN_API() {
+    return this._OPEN_API === true || this._OPEN_API === 'true';
+  },
+  _OPEN_API: false,
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
   API_PORT: 5000,
@@ -19,6 +23,7 @@ module.exports = {
   DB_CONNECTION_STRING: defer(function () {
     const ssl = this.DB_SSL ? 'require' : 'disable';
     if (this.AWS_DB_SECRET) {
+      // eslint-disable-next-line no-async-promise-executor
       return new Promise(async (r) => {
         const secretsClient = new SecretsManagerClient({
           region: this.AWS_REGION,
@@ -38,6 +43,7 @@ module.exports = {
         r(makeConnectionString(port, dbname, username, password, host, ssl));
       });
     } else {
+      // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
       const { DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE } = this.DB_SECRET_VALUE;
       return makeConnectionString(DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_HOST, ssl);
     }
@@ -45,6 +51,7 @@ module.exports = {
   DB_ENCRYPTION_SECRET: defer(function () {
     let out;
     if (this.AWS_DB_ENCRYPTION_SECRET) {
+      // eslint-disable-next-line no-async-promise-executor
       out = new Promise(async (r) => {
         const secretsClient = new SecretsManagerClient({
           region: this.AWS_REGION,
@@ -69,6 +76,7 @@ module.exports = {
         global.DB_SECRETS_ENCRYPTION = value;
       });
     } else {
+      // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
       out = { ...this.DB_ENCRYPTION_SECRET_VALUE };
       global.DB_SECRETS_ENCRYPTION = out;
     }

@@ -61,26 +61,6 @@ async function bootstrap() {
       },
     })
   );
-  if (config.FE_URL.includes('localhost')) {
-    wait(1000).then(() => {
-      console.log('');
-      Logger.warn(
-        `Setting up cors for requests from ${colors.cyan(config.FE_URL)}${colors.yellow(
-          '. Requests from 127.0.0.1 will fail.'
-        )}`
-      );
-    });
-  }
-  if (config.FE_URL.includes('127.0.0.1')) {
-    wait(1000).then(() => {
-      console.log('');
-      Logger.warn(
-        `Setting up cors for requests from ${colors.cyan(config.FE_URL)}${colors.yellow(
-          '. Requests from localhost will fail.'
-        )}`
-      );
-    });
-  }
   app.enableCors({ origin: config.FE_URL, credentials: true });
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector), {
@@ -88,16 +68,33 @@ async function bootstrap() {
     })
   );
   const port = config.API_PORT;
-  const swaggerConfig = new DocumentBuilder()
-    .setTitle('Starting Blocks Admin App')
-    .setDescription('OpenAPI spec for the EA Starting Blocks admin console application.')
-    .setVersion('1.0')
-    .build();
-  const document = SwaggerModule.createDocument(app, swaggerConfig);
-  SwaggerModule.setup('api', app, document);
-  writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
 
+  if (config.OPEN_API) {
+    const swaggerConfig = new DocumentBuilder()
+      .setTitle('Starting Blocks Admin App')
+      .setDescription('OpenAPI spec for the EA Starting Blocks admin application.')
+      .setVersion('1.0')
+      .build();
+    const document = SwaggerModule.createDocument(app, swaggerConfig);
+    SwaggerModule.setup('api', app, document);
+    writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
+    Logger.verbose(`OpenAPI spec available at ${config.MY_URL}/api or file:./sbaa-swagger.json`);
+  }
   await app.listen(port);
+  if (config.FE_URL.includes('localhost')) {
+    Logger.warn(
+      `Setting up cors for requests from ${colors.cyan(config.FE_URL)}${colors.yellow(
+        '. Requests from'
+      )} ${colors.cyan('http://127.0.0.1')} ${colors.yellow('will fail.')}`
+    );
+  }
+  if (config.FE_URL.includes('127.0.0.1')) {
+    Logger.warn(
+      `Setting up cors for requests from ${colors.cyan(config.FE_URL)}${colors.yellow(
+        '. Requests from'
+      )} ${colors.cyan('http://localhost')} ${colors.yellow('will fail.')}`
+    );
+  }
 
   Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
 }

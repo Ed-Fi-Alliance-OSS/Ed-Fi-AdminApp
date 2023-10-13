@@ -40,7 +40,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { instanceToPlain, plainToInstance } from 'class-transformer';
 import { Response } from 'express';
-import { Admin, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { Authorize } from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { checkId } from '../../../auth/helpers/where-ids';
@@ -49,11 +49,10 @@ import {
   ValidationHttpException,
   isIAdminApiV1xValidationError,
   postYopassSecret,
-  throwNotFound,
 } from '../../../utils';
 import { ReqSbe, TenantSbeInterceptor } from '../tenant-sbe.interceptor';
-import { AdminApiService } from './starting-blocks.service';
 import { AdminApiV1xExceptionFilter } from './admin-api-v1x-exception.filter';
+import { AdminApiService } from './starting-blocks.service';
 
 const uppercaseFirstLetterOfKeys = (input: any): any => {
   if (typeof input !== 'object' || input === null) {
@@ -91,7 +90,12 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async getVendors(@ReqSbe() sbe: Sbe, @InjectFilter('tenant.sbe.vendor:read') validIds: Ids) {
+  async getVendors(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
+    @InjectFilter('tenant.sbe.vendor:read') validIds: Ids
+  ) {
     const allVendors = await this.sbService.getVendors(sbe);
     return allVendors.filter((v) => checkId(v.id, validIds));
   }
@@ -105,7 +109,12 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async getVendor(@ReqSbe() sbe: Sbe, @Param('vendorId', new ParseIntPipe()) vendorId: number) {
+  async getVendor(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
+    @Param('vendorId', new ParseIntPipe()) vendorId: number
+  ) {
     return this.sbService.getVendor(sbe, vendorId);
   }
 
@@ -119,6 +128,8 @@ export class StartingBlocksController {
     },
   })
   async putVendor(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
     @Body() vendor: PutVendorDto
@@ -135,7 +146,12 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async postVendor(@ReqSbe() sbe: Sbe, @Body() vendor: PostVendorDto) {
+  async postVendor(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
+    @Body() vendor: PostVendorDto
+  ) {
     return this.sbService.postVendor(sbe, vendor);
   }
 
@@ -148,7 +164,12 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async deleteVendor(@ReqSbe() sbe: Sbe, @Param('vendorId', new ParseIntPipe()) vendorId: number) {
+  async deleteVendor(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
+    @Param('vendorId', new ParseIntPipe()) vendorId: number
+  ) {
     return this.sbService.deleteVendor(sbe, vendorId);
   }
 
@@ -162,6 +183,8 @@ export class StartingBlocksController {
     },
   })
   async getVendorApplications(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
     @InjectFilter('tenant.sbe.edorg.application:read')
@@ -189,6 +212,8 @@ export class StartingBlocksController {
     },
   })
   async getApplications(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @InjectFilter('tenant.sbe.edorg.application:read')
     validIds: Ids
@@ -215,6 +240,8 @@ export class StartingBlocksController {
     },
   })
   async getApplication(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:read')
@@ -247,6 +274,8 @@ export class StartingBlocksController {
     },
   })
   async putApplication(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @Body() application: PutApplicationForm,
@@ -303,6 +332,8 @@ export class StartingBlocksController {
     },
   })
   async postApplication(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Query('returnRaw') returnRaw: boolean | undefined,
     @Body() application: PostApplicationForm,
@@ -377,6 +408,8 @@ export class StartingBlocksController {
     },
   })
   async deleteApplication(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:delete')
@@ -408,6 +441,8 @@ export class StartingBlocksController {
     },
   })
   async resetApplicationCredentials(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('tenant.sbe.edorg.application:reset-credentials')
@@ -457,6 +492,8 @@ export class StartingBlocksController {
     },
   })
   async getClaimsets(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @InjectFilter('tenant.sbe.claimset:read')
     validIds: Ids
@@ -474,6 +511,8 @@ export class StartingBlocksController {
     },
   })
   async exportClaimset(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Query('id') _ids: string[] | string,
     @Res() res: Response
@@ -510,6 +549,8 @@ export class StartingBlocksController {
     },
   })
   async getClaimset(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number
   ) {
@@ -526,6 +567,8 @@ export class StartingBlocksController {
     },
   })
   async putClaimset(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
     @Body() claimset: PutClaimsetDto
@@ -572,7 +615,12 @@ export class StartingBlocksController {
       tenantId: 'tenantId',
     },
   })
-  async postClaimset(@ReqSbe() sbe: Sbe, @Body() claimset: PostClaimsetDto) {
+  async postClaimset(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
+    @ReqSbe() sbe: Sbe,
+    @Body() claimset: PostClaimsetDto
+  ) {
     try {
       return await this.sbService.postClaimset(sbe, claimset);
     } catch (PostError: unknown) {
@@ -615,6 +663,8 @@ export class StartingBlocksController {
     },
   })
   async deleteClaimset(
+    @Param('sbeId', new ParseIntPipe()) sbeId: number,
+    @Param('tenantId', new ParseIntPipe()) tenantId: number,
     @ReqSbe() sbe: Sbe,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number
   ) {
