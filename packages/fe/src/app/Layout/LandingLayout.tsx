@@ -1,8 +1,8 @@
-import { Box, Divider, Image, Link, Text, VStack } from '@chakra-ui/react';
+import { Box, Divider, Image, Link, VStack } from '@chakra-ui/react';
 import { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
+import logoUrl from '../../assets/logo-sbaa.svg';
 import bgUrl from '../../assets/starting-blocks-no-text.svg';
-import logoUrl from '../../assets/sbaa-logo-full.svg';
 
 export const LandingLayoutRouteElement = () => (
   <LandingLayout>
@@ -36,11 +36,11 @@ export const LandingLayout = (props: { children: ReactNode }) => {
       h="100%"
     >
       <Image
+        w="60rem"
         filter={'drop-shadow(13px 13px 15px rgba(0,0,0,0.15))'}
         display="inline"
         src={logoUrl}
       />
-
       <Divider borderColor="gray.500" w="40%" />
       <Box flex="0.6 1 0%">{props.children}</Box>
       <Box fontSize="sm" color="gray.600" textAlign="center">

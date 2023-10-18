@@ -13,7 +13,7 @@ import {
 import { useAtomValue } from 'jotai';
 import { RxCaretDown } from 'react-icons/rx';
 import { Link as RouterLink } from 'react-router-dom';
-import logoUrl from '../../assets/starting-blocks.svg';
+import logoUrl from '../../assets/logo-sb.svg';
 import { apiClient, useMe, useMyTenants } from '../api';
 import { asTenantIdAtom } from './Nav';
 
