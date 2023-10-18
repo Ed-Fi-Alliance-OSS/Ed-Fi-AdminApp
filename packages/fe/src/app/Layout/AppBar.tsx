@@ -3,11 +3,13 @@ import {
   Button,
   HStack,
   Icon,
+  IconButton,
   Image,
   Menu,
   MenuButton,
   MenuItem,
   MenuList,
+  StackDivider,
   Text,
 } from '@chakra-ui/react';
 import { useAtomValue } from 'jotai';
@@ -16,6 +18,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import logoUrl from '../../assets/logo-sb.svg';
 import { apiClient, useMe, useMyTenants } from '../api';
 import { asTenantIdAtom } from './Nav';
+import { BsQuestionLg } from 'react-icons/bs';
 
 export const AppBar = () => {
   const me = useMe();
@@ -53,39 +56,63 @@ export const AppBar = () => {
           {tenant?.displayName ?? 'Global scope'}
         </Text>
       </HStack>
-      <Menu>
-        <MenuButton as={Button} variant="unstyled">
-          <HStack spacing={0}>
-            <Avatar name={me.data?.fullName} size="sm" />
-            <Icon as={RxCaretDown} />
-          </HStack>
-        </MenuButton>
-        <MenuList>
-          <MenuItem
-            onClick={() => {
-              apiClient.post('/auth/logout', {}).then(() => {
-                window.location.href = window.location.origin;
-              });
-            }}
-          >
-            Sign out
-          </MenuItem>
-          {me.data?.role ? (
-            <MenuItem to="/account" as={RouterLink}>
-              My profile
+      <HStack>
+        <IconButton
+          // TODO EA-specific support link
+          href="https://docs.startingblocks.org/"
+          as="a"
+          target="_blank"
+          rel="noopener noreferrer"
+          aria-label="Help"
+          icon={<Icon fontSize="lg" as={BsQuestionLg} />}
+          borderRadius="99em"
+          variant="ghost"
+          size="sm"
+          title="Help guide"
+        />
+        <Menu>
+          <MenuButton as={Button} variant="unstyled">
+            <HStack spacing={0}>
+              <Avatar name={me.data?.fullName} size="sm" />
+              <Icon as={RxCaretDown} />
+            </HStack>
+          </MenuButton>
+          <MenuList>
+            <MenuItem
+              onClick={() => {
+                apiClient.post('/auth/logout', {}).then(() => {
+                  window.location.href = window.location.origin;
+                });
+              }}
+            >
+              Sign out
             </MenuItem>
-          ) : null}
-          <MenuItem
-            // TODO EA-specific support link
-            href="https://support.startingblocks.org/support/tickets/new"
-            as="a"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Report an issue
-          </MenuItem>
-        </MenuList>
-      </Menu>
+            {me.data?.role ? (
+              <MenuItem to="/account" as={RouterLink}>
+                My profile
+              </MenuItem>
+            ) : null}
+            <MenuItem
+              // TODO EA-specific support link
+              href="https://support.startingblocks.org/support/tickets/new"
+              as="a"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Report an issue
+            </MenuItem>
+            <MenuItem
+              // TODO EA-specific support link
+              href="https://docs.startingblocks.org/"
+              as="a"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Help guide
+            </MenuItem>
+          </MenuList>
+        </Menu>
+      </HStack>
     </HStack>
   );
 };
