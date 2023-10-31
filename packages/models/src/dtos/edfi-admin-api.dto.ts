@@ -57,13 +57,14 @@ class ApplicationProfileDto {
 class AuthStrategyDto {
   @Expose()
   @IsString()
-  authStrategyName: string;
+  @IsOptional()
+  authStrategyName: string | null;
   @Expose()
   @IsBoolean()
   isInheritedFromParent: boolean;
 }
 
-class ResourceClaimDto {
+export class ResourceClaimDto {
   @Expose()
   @IsString()
   name: string;
@@ -82,11 +83,11 @@ class ResourceClaimDto {
   @Expose()
   @Type(() => AuthStrategyDto)
   @IsArray()
-  defaultAuthStrategiesForCRUD: AuthStrategyDto[];
+  defaultAuthStrategiesForCRUD: (AuthStrategyDto | null)[];
   @Expose()
   @Type(() => AuthStrategyDto)
   @IsArray()
-  authStrategyOverridesForCRUD: AuthStrategyDto[];
+  authStrategyOverridesForCRUD: (AuthStrategyDto | null)[];
 
   @Expose()
   @Type(() => ResourceClaimDto)

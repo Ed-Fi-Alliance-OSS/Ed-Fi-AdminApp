@@ -18,6 +18,7 @@ const config = {
       resolve: {
         alias: {
           '@edanalytics/utils': path.resolve(__dirname, '../../utils/src/index.ts'),
+          '@edanalytics/models': path.resolve(__dirname, '../../models/src/index.ts'),
         },
       },
     });

@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { theme } from '../src/lib/theme';
 import { reactRouterParameters, withRouter } from 'storybook-addon-react-router-v6';
 

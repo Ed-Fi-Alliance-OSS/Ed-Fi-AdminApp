@@ -11,3 +11,4 @@ export * from './PageActions';
 export * from './ActionsType';
 export * from './TableRowActions';
 export * from './pageLayout';
+export * from './resourceClaimsTable';

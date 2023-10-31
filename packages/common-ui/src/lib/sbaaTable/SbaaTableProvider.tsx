@@ -13,6 +13,8 @@ import {
   getPaginationRowModel,
   getSortedRowModel,
   useReactTable,
+  ExpandedState,
+  getExpandedRowModel,
 } from '@tanstack/react-table';
 import React, { createContext, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -52,7 +54,11 @@ export const SbaaTableContext = createContext<{
 export const useSbaaTableContext = () => React.useContext(SbaaTableContext);
 export type DivComponent = ChakraComponent<'div'>;
 
-export function SbaaTableProvider<T extends { id: any }>(props: {
+export function SbaaTableProvider<
+  UseSubRows extends boolean,
+  T extends UseSubRows extends true ? { id: any; subRows: T[] } : { id: any }
+>(props: {
+  useSubRows?: UseSubRows;
   children?: React.ReactNode;
   data: T[] | IterableIterator<T>;
   columns: ColumnDef<T>[];
@@ -91,6 +97,8 @@ export function SbaaTableProvider<T extends { id: any }>(props: {
 
   const showSettings = useBoolean(sortParams.length > 1 || columnFilters.length > 0);
 
+  const [expanded, setExpanded] = React.useState<ExpandedState>({});
+
   const table = useReactTable({
     data,
     columns,
@@ -102,7 +110,11 @@ export function SbaaTableProvider<T extends { id: any }>(props: {
       globalFilter,
       columnFilters,
       ...(props.rowSelectionState ? { rowSelection: props.rowSelectionState } : {}),
+      expanded,
     },
+    getSubRows: props.useSubRows ? (row) => row.subRows : undefined,
+    filterFromLeafRows: true,
+    onExpandedChange: setExpanded,
     onSortingChange: (updater) =>
       setSearchParams(
         setSortParams(
@@ -122,6 +134,7 @@ export function SbaaTableProvider<T extends { id: any }>(props: {
     getFacetedRowModel: getFacetedRowModel(),
     getFacetedUniqueValues: getFacetedUniqueValues(),
     getFacetedMinMaxValues: getFacetedMinMaxValues(),
+    getExpandedRowModel: props.useSubRows ? getExpandedRowModel() : undefined,
     enableMultiRowSelection: props.enableRowSelection,
     getRowId: (row) => row.id,
     enableMultiSort: true,
