@@ -5,6 +5,8 @@ import {
   cacheAccordingToPrivileges,
   cacheEdorgPrivilegesDownward,
   cacheEdorgPrivilegesUpward,
+  initializeOdsPrivilegeCache,
+  initializeSbePrivilegeCache,
 } from './helpers';
 import { ITenantCache, PrivilegeCode, createEdorgCompositeNaturalKey } from '@edanalytics/models';
 describe('helper: addIdTo', () => {
@@ -39,6 +41,89 @@ describe('helper: addIdTo', () => {
         '1': new Set([2, 3]),
       },
     });
+  });
+});
+
+describe('initializeSbePrivilegeCache', () => {
+  it('should apply privilege sbe-wide', () => {
+    const sbeId = 3;
+    const ods = { id: 15, sbeId: 1 };
+    const correctCurrentCacheValue: ITenantCache = {
+      'tenant.sbe.ods:read': {
+        /** Wholly owned SBE `sbeId` */
+        [sbeId]: true,
+        /** Individual ODS owned in SBE `ods.sbeId` */
+        [ods.sbeId]: new Set([ods.id]),
+      },
+    };
+    const cache: ITenantCache = {};
+    initializeSbePrivilegeCache(cache, new Set(['tenant.sbe.ods:read']), sbeId);
+    cacheAccordingToPrivileges(
+      cache,
+      new Set(['tenant.sbe.ods:read']),
+      'tenant.sbe.ods',
+      ods.id,
+      ods.sbeId
+    );
+    expect(cache).toEqual(correctCurrentCacheValue);
+  });
+  it('should overwrite existing lesser privileges', () => {
+    const sbeId = 3;
+    const ods = { id: 15, sbeId: 1 };
+    const correctCurrentCacheValue: ITenantCache = {
+      'tenant.sbe.ods:read': {
+        /** Wholly owned SBE `sbeId` */
+        [sbeId]: true,
+        /** Individual ODS owned in SBE `ods.sbeId` */
+        [ods.sbeId]: new Set([ods.id]),
+      },
+    };
+    const cache: ITenantCache = {
+      'tenant.sbe.ods:read': {
+        [sbeId]: new Set(),
+      },
+    };
+    initializeSbePrivilegeCache(cache, new Set(['tenant.sbe.ods:read']), sbeId);
+    cacheAccordingToPrivileges(
+      cache,
+      new Set(['tenant.sbe.ods:read']),
+      'tenant.sbe.ods',
+      ods.id,
+      ods.sbeId
+    );
+    expect(cache).toEqual(correctCurrentCacheValue);
+  });
+});
+describe('initializeOdsPrivilegeCache', () => {
+  it('should add empty set', () => {
+    const sbeId = 3;
+    const ods = { sbeId: 1 };
+    const correctCurrentCacheValue: ITenantCache = {
+      'tenant.sbe.edorg:read': {
+        /** Wholly owned SBE `sbeId` */
+        [sbeId]: true,
+        /** Individual ODS owned in SBE `ods.sbeId` */
+        [ods.sbeId]: new Set([]),
+      },
+    };
+    const cache: ITenantCache = {};
+    initializeSbePrivilegeCache(cache, new Set(['tenant.sbe.edorg:read']), sbeId);
+    initializeOdsPrivilegeCache(cache, new Set(['tenant.sbe.edorg:read']), ods.sbeId);
+    expect(cache).toEqual(correctCurrentCacheValue);
+  });
+  it('should not overwrite greater existing privilege', () => {
+    const sbeId = 1;
+    const ods = { sbeId: 1 };
+    const correctCurrentCacheValue: ITenantCache = {
+      'tenant.sbe.edorg:read': {
+        /** Wholly owned SBE `sbeId` */
+        [sbeId]: true,
+      },
+    };
+    const cache: ITenantCache = {};
+    initializeSbePrivilegeCache(cache, new Set(['tenant.sbe.edorg:read']), sbeId);
+    initializeOdsPrivilegeCache(cache, new Set(['tenant.sbe.edorg:read']), ods.sbeId);
+    expect(cache).toEqual(correctCurrentCacheValue);
   });
 });
 

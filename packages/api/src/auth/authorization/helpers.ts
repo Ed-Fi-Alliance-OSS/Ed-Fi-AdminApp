@@ -145,7 +145,10 @@ export function cacheAccordingToPrivileges(
   }
 }
 
-/** Initialize empty-but-present privilege caches for a tenant's Sbe */
+/**
+ * Initialize all relevant sbe-level privilege caches to a blanket `true`
+ *
+ * */
 export function initializeSbePrivilegeCache(
   cache: ITenantCache,
   privileges: Set<PrivilegeCode>,
@@ -156,8 +159,50 @@ export function initializeSbePrivilegeCache(
       if (!(sbeTenantPrivilege in cache)) {
         cache[sbeTenantPrivilege] = {};
       }
-      if (!(String(sbeId) in cache[sbeTenantPrivilege])) {
-        cache[sbeTenantPrivilege][sbeId] = new Set();
+      cache[sbeTenantPrivilege][sbeId] = true;
+    }
+  });
+}
+/**
+ * Initialize all relevant ods-inherited privilege caches to an empty set
+ *
+ * This uses an empty set whereas the sbe version uses a
+ * blanket `true`. The difference is that the sbe-level ones
+ * are actually executed at the sbe level, so the cache value
+ * can just go straight there. The ods-level ones are
+ * executed at the individual resource level though, so while
+ * we do have the privilege "in theory", it will only get
+ * cached when we encounter the actual resource in question,
+ * which might be an ed-org for example. The empty set is the
+ * cache's representation of having a privilege "in theory",
+ * and it's important for the edge case where you own an ODS
+ * with the ability to read its edorgs, but there are none.
+ * Without the empty set you wouldn't see the ed-org page
+ * as a nav option.
+ *
+ * */
+export function initializeOdsPrivilegeCache(
+  cache: ITenantCache,
+  privileges: Set<PrivilegeCode>,
+  sbeId: number
+) {
+  // these are the privileges that are inherited from ODS ownership
+  const allOdsPrivileges: PrivilegeCode[] = [
+    'tenant.sbe.edorg.application:create',
+    'tenant.sbe.edorg.application:read',
+    'tenant.sbe.edorg.application:update',
+    'tenant.sbe.edorg.application:delete',
+    'tenant.sbe.edorg.application:reset-credentials',
+    'tenant.sbe.edorg:read',
+  ];
+
+  allOdsPrivileges.forEach((odsTenantPrivilege: PrivilegeCode) => {
+    if (privileges.has(odsTenantPrivilege)) {
+      if (!(odsTenantPrivilege in cache)) {
+        cache[odsTenantPrivilege] = {};
+      }
+      if (!(String(sbeId) in cache[odsTenantPrivilege])) {
+        cache[odsTenantPrivilege][sbeId] = new Set();
       }
     }
   });

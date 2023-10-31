@@ -135,7 +135,7 @@ export const ApplicationPageContent = () => {
     edit && claimset ? (
       <EditApplication application={application} claimset={claimset} />
     ) : (
-      <ViewApplication />
+      <ViewApplication application={application} />
     )
   ) : null;
 };

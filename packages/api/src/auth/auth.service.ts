@@ -8,6 +8,7 @@ import {
   cacheAccordingToPrivileges,
   cacheEdorgPrivilegesDownward,
   cacheEdorgPrivilegesUpward,
+  initializeOdsPrivilegeCache,
   initializeSbePrivilegeCache,
 } from './authorization/helpers';
 
@@ -231,14 +232,35 @@ export class AuthService {
 
     const sbePrivilegesEntries = [...sbePrivileges.entries()];
     const [allEdorgsRaw, allOdssRaw] = await Promise.all([
-      this.edorgsRepository.findBy([
-        {
-          sbeId: In(sbePrivilegesEntries.map(([sbeId, privileges]) => sbeId)),
-        },
-        {
-          odsId: In(ownedOdss.map((o) => o.ods.id).filter((id) => typeof id === 'number')),
-        },
-      ]),
+      this.edorgsRepository
+        .createQueryBuilder('edorg')
+        .leftJoin(
+          'edorg_closure',
+          'descendants',
+          'descendants.id_ancestor = ANY (:edorgs) AND descendants.id_descendant = edorg.id',
+          {
+            edorgs: [...edorgPrivileges.keys()],
+          }
+        )
+        .leftJoin(
+          'edorg_closure',
+          'ancestors',
+          'ancestors.id_descendant = ANY (:edorgs) AND ancestors.id_ancestor = edorg.id',
+          {
+            edorgs: [...edorgPrivileges.keys()],
+          }
+        )
+        .where(
+          `descendants.id_ancestor IS NOT NULL OR
+           ancestors.id_descendant IS NOT NULL OR
+           edorg.sbeId = ANY (:sbes) OR
+           edorg.odsId = ANY (:odss)`,
+          {
+            sbes: sbePrivilegesEntries.map(([sbeId, privileges]) => sbeId),
+            odss: ownedOdss.map((o) => o.ods.id).filter((id) => typeof id === 'number'),
+          }
+        )
+        .getMany(),
       this.odssRepository.findBy([
         {
           sbeId: In(sbePrivilegesEntries.map(([sbeId, privileges]) => sbeId)),
@@ -274,16 +296,6 @@ export class AuthService {
     sbePrivilegesEntries.forEach(([sbeId, myPrivileges]) => {
       cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe', sbeId);
       initializeSbePrivilegeCache(cache, myPrivileges, sbeId);
-      cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe.vendor', true, sbeId);
-      cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe.claimset', true, sbeId);
-
-      // apply downward-inheriting privileges to ODS's within this SBE
-      odssPerSbe[sbeId]?.forEach((ods) => {
-        if (!odsPrivileges.has(ods.id)) {
-          odsPrivileges.set(ods.id, new Set());
-        }
-        myPrivileges.forEach((p) => odsPrivileges.get(ods.id).add(p));
-      });
     });
 
     const odsPrivilegesEntries = [...odsPrivileges.entries()];
@@ -291,8 +303,14 @@ export class AuthService {
       const ods = allOdss.get(odsId);
 
       cacheAccordingToPrivileges(cache, myPrivileges, 'tenant.sbe.ods', ods.id, ods.sbeId);
+      initializeOdsPrivilegeCache(cache, myPrivileges, ods.sbeId);
 
-      // apply downward-inheriting privileges to root Ed-Orgs within this ODS
+      /*
+        Apply downward-inheriting privileges to root Ed-Orgs within this ODS. SBE-level privileges
+        don't need to be applied downward like these ODS ones because they're already reflected in
+        the blanket `true` privilege cache. But ODS-level ones must be applied downward so they can
+        be reflected in individual Ed-org or ODS IDs showing up in the cache.
+      */
       rootEdorgsPerOds[odsId]?.forEach((edorg) => {
         if (!edorgPrivileges.has(edorg.id)) {
           edorgPrivileges.set(edorg.id, new Set());
@@ -305,7 +323,7 @@ export class AuthService {
 
     const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId, privileges]) => edorgId));
     const edorgClosureRaw = await this.entityManager.query(
-      'SELECT "id_ancestor", "id_descendant" from "edorg_closure" WHERE "id_ancestor" <> "id_descendant" and "id_ancestor" = ANY ($1)',
+      'SELECT "id_ancestor", "id_descendant" from "edorg_closure" WHERE "id_ancestor" <> "id_descendant" and ("id_ancestor" = ANY ($1) OR "id_descendant" = ANY ($1))',
       [[...edorgIds.values()]]
     );
 
@@ -316,7 +334,7 @@ export class AuthService {
       if (!ancestorMap.has(row.id_descendant)) {
         ancestorMap.set(row.id_descendant, new Set());
       }
-      ancestorMap.get(row.id_descendant).add(row.id_ancestor);
+      ancestorMap.get(row.id_descendant).add(allEdorgs.get(row.id_ancestor));
     });
 
     const descendantMap = new Map<number, Edorg[]>();

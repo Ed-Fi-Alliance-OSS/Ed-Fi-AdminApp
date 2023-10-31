@@ -4,28 +4,22 @@ import {
   AttributesGrid,
   ContentSection,
 } from '@edanalytics/common-ui';
-import { GetApplicationDto } from '@edanalytics/models';
-import { useParams } from 'react-router-dom';
 import {
-  applicationQueries,
-  claimsetQueries,
-  edorgQueries,
-  sbeQueries,
-  vendorQueries,
-} from '../../api';
+  GetApplicationDto,
+  GetEdorgDto,
+  createEdorgCompositeNaturalKey,
+} from '@edanalytics/models';
+import { useParams } from 'react-router-dom';
+import { claimsetQueries, edorgQueries, sbeQueries, vendorQueries } from '../../api';
+import { getEntityFromQuery } from '../../helpers';
 import { ClaimsetLink, EdorgLink, VendorLink } from '../../routes';
 
-export const ViewApplication = () => {
+export const ViewApplication = ({ application }: { application: GetApplicationDto }) => {
   const params = useParams() as {
     asId: string;
     sbeId: string;
     applicationId: string;
   };
-  const application = applicationQueries.useOne({
-    id: params.applicationId,
-    sbeId: params.sbeId,
-    tenantId: params.asId,
-  }).data;
 
   const sbe = sbeQueries.useOne({
     tenantId: params.asId,
@@ -44,12 +38,25 @@ export const ViewApplication = () => {
     tenantId: params.asId,
     sbeId: params.sbeId,
   });
+  const edorgsByEdorgId = {
+    ...edorgs,
+    data: Object.values(edorgs.data ?? {}).reduce<Record<string, GetEdorgDto>>((map, edorg) => {
+      map[
+        createEdorgCompositeNaturalKey({
+          educationOrganizationId: edorg.educationOrganizationId,
+          odsDbName: edorg.odsDbName,
+        })
+      ] = edorg;
+      return map;
+    }, {}),
+  };
 
-  const edorgByEdorgId = Object.values(edorgs.data ?? {}).find(
-    (e) =>
-      e.educationOrganizationId === application?.educationOrganizationId &&
-      (application?.odsInstanceName === null ||
-        e.odsDbName === 'EdFi_Ods_' + application?.odsInstanceName)
+  const edorgByEdorgId = getEntityFromQuery(
+    createEdorgCompositeNaturalKey({
+      educationOrganizationId: application.educationOrganizationId,
+      odsDbName: 'EdFi_Ods_' + application.odsInstanceName,
+    }),
+    edorgsByEdorgId
   );
   const claimsetByName = Object.values(claimsets.data ?? {}).find(
     (e) => e.name === application?.claimSetName
