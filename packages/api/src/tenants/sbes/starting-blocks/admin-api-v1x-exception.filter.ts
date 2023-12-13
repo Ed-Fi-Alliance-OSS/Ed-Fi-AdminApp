@@ -22,6 +22,10 @@ export class AdminApiV1xExceptionFilter implements ExceptionFilter {
   catch(exception: AxiosError, host: ArgumentsHost) {
     const ctx = host.switchToHttp();
     const response = ctx.getResponse<Response>();
+
+    // If it's not a failed Admin API response, we don't do anything here.
+    if (!exception.response) throw exception;
+
     const status = exception.response.status;
     const body = exception.response.data;
 
