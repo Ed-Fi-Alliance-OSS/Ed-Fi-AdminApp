@@ -47,6 +47,7 @@ export class PutOwnershipDto
     >
 {
   @Expose()
+  @IsOptional()
   @IsNumber()
   roleId: IRole['id'];
 }
@@ -77,6 +78,7 @@ export class PostOwnershipDto
 
   @Expose()
   @IsNumber()
+  @IsOptional()
   roleId?: IRole['id'] | undefined;
 
   @Expose()

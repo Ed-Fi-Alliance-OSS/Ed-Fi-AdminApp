@@ -20,13 +20,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { ownershipQueries, sbeQueries, tenantQueries } from '../../api';
 import { useNavToParent } from '../../helpers';
-import {
-  SelectEdorg,
-  SelectOds,
-  SelectRole,
-  SelectSbe,
-  SelectTenant,
-} from '../../helpers/FormPickers';
+import { SelectEdorg, SelectOds, SelectRole, SelectSbe, SelectTenant } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 
@@ -112,32 +106,20 @@ export const CreateOwnershipGlobalPage = () => {
         >
           <FormControl isInvalid={!!errors.hasResource && (sbeId === undefined || type === 'sbe')}>
             <FormLabel>Starting Blocks environment</FormLabel>
-            <SelectSbe name="sbeId" control={control} tenantId={undefined} />
+            <SelectSbe name="sbeId" control={control} />
             <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
           </FormControl>
           {type === 'ods' && sbeId !== undefined ? (
             <FormControl isDisabled={sbeId === undefined} isInvalid={!!errors.hasResource}>
               <FormLabel>ODS</FormLabel>
-              <SelectOds
-                sbeId={sbeId}
-                control={control}
-                name="odsId"
-                useDbName={false}
-                tenantId={undefined}
-              />
+              <SelectOds control={control} name="odsId" useDbName={false} />
               <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
             </FormControl>
           ) : null}
           {type === 'edorg' && sbeId !== undefined ? (
             <FormControl isDisabled={sbeId === undefined} isInvalid={!!errors.hasResource}>
               <FormLabel>Ed-Org</FormLabel>
-              <SelectEdorg
-                sbeId={sbeId}
-                control={control}
-                name="edorgId"
-                useEdorgId={false}
-                tenantId={undefined}
-              />
+              <SelectEdorg control={control} name="edorgId" useEdorgId={false} />
               <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
             </FormControl>
           ) : null}
@@ -152,7 +134,7 @@ export const CreateOwnershipGlobalPage = () => {
               name="roleId"
               types={[RoleType.ResourceOwnership]}
               control={control}
-              tenantId={undefined}
+              isClearable
             />
             <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
           </FormControl>

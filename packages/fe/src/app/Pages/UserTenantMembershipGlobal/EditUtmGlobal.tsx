@@ -15,7 +15,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { roleQueries, tenantQueries, userQueries, userTenantMembershipQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers';
-import { SelectRole } from '../../helpers/FormPickers';
+import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutUserTenantMembershipDto);
@@ -64,12 +64,7 @@ export const EditUtmGlobal = () => {
       <Text>{getRelationDisplayName(utm.userId, users)}</Text>
       <FormControl w="form-width" isInvalid={!!errors.roleId}>
         <FormLabel>Role</FormLabel>
-        <SelectRole
-          types={[RoleType.UserTenant]}
-          tenantId={undefined}
-          name={'roleId'}
-          control={control}
-        />
+        <SelectRole types={[RoleType.UserTenant]} name={'roleId'} control={control} isClearable />
         <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
       </FormControl>
       <ButtonGroup>

@@ -1,5 +1,5 @@
 import { Expose } from 'class-transformer';
-import { IsNumber } from 'class-validator';
+import { IsNumber, IsOptional } from 'class-validator';
 import { IRole, ITenant, IUser } from '../interfaces';
 import { IUserTenantMembership } from '../interfaces/user-tenant-membership.interface';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';
@@ -29,6 +29,7 @@ export class PutUserTenantMembershipDto
   implements PutDto<IUserTenantMembership, 'tenant' | 'user' | 'role' | 'tenantId' | 'userId'>
 {
   @IsNumber()
+  @IsOptional()
   @Expose()
   roleId: IRole['id'];
 }
@@ -44,6 +45,7 @@ export class PostUserTenantMembershipDto
   @Expose()
   userId: IUser['id'];
   @IsNumber()
+  @IsOptional()
   @Expose()
   roleId: IRole['id'];
 }

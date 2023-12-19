@@ -11,27 +11,14 @@ import {
 } from '@chakra-ui/react';
 import { GetUserDto, PutUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { FieldErrors, Path, UseFormRegister, useForm } from 'react-hook-form';
+import { noop } from '@tanstack/react-table';
+import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { tenantQueries, userQueries } from '../../api';
-import { SelectRole } from '../../helpers/FormPickers';
+import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { noop } from '@tanstack/react-table';
 
-const TextField = <T extends object>(props: {
-  errors: FieldErrors<Partial<T>>;
-  register: UseFormRegister<T>;
-  name: keyof T;
-  label: string;
-  placeholder?: string;
-}) => {
-  <FormControl isInvalid={!!props.errors[props.name]}>
-    <FormLabel>{props.label}</FormLabel>
-    <Input {...props.register(props.name as any)} placeholder={props.placeholder} />
-    <FormErrorMessage>{props.errors[props.name]?.message as any}</FormErrorMessage>
-  </FormControl>;
-};
 const resolver = classValidatorResolver(PutUserDto);
 
 export const EditUserGlobal = (props: { user: GetUserDto }) => {
@@ -108,12 +95,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
       </FormControl>
       <FormControl w="form-width" isInvalid={!!errors.roleId}>
         <FormLabel>Role</FormLabel>
-        <SelectRole
-          types={[RoleType.UserGlobal]}
-          tenantId={undefined}
-          name={'roleId'}
-          control={control}
-        />
+        <SelectRole types={[RoleType.UserGlobal]} name={'roleId'} control={control} isClearable />
         <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
       </FormControl>
       <ButtonGroup>

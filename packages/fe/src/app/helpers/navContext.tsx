@@ -34,4 +34,19 @@ export const NavContextProvider = (props: {
  * Many components are built to be used within a Tenant- and/or SBE-specific
  * setting. Most typically this will come from the URL, but it shouldn't have to.
  */
-export const useNavContext = () => useContext(NavContext);
+export const useNavContext = () => {
+  const navContext = useContext(NavContext);
+  return { ...navContext, tenantId: navContext.asId };
+};
+
+export const useTenantNavContext = () => {
+  const navContext = useNavContext();
+  if (navContext.asId === undefined) throw new Error('No tenant context');
+  return { asId: navContext.asId, tenantId: navContext.asId };
+};
+export const useTenantSbeNavContext = () => {
+  const navContext = useNavContext();
+  if (navContext.asId === undefined || navContext.sbeId === undefined)
+    throw new Error('No tenant or sbe context');
+  return { asId: navContext.asId, tenantId: navContext.asId, sbeId: navContext.sbeId };
+};

@@ -16,8 +16,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { userTenantMembershipQueries } from '../../api';
-import { useNavToParent } from '../../helpers';
-import { SelectRole, SelectTenant, SelectUser } from '../../helpers/FormPickers';
+import { SelectRole, SelectTenant, SelectUser, useNavToParent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 
@@ -53,7 +52,6 @@ export const CreateUtmGlobal = () => {
       useSearchParamsObject(getDefaults)
     ),
   });
-
   return (
     <PageTemplate constrainWidth title={'Create new tenant membership'} actions={undefined}>
       <Box w="form-width">
@@ -79,16 +77,17 @@ export const CreateUtmGlobal = () => {
           </FormControl>
           <FormControl w="form-width" isInvalid={!!errors.userId}>
             <FormLabel>User</FormLabel>
-            <SelectUser tenantId={undefined} name={'userId'} control={control} />
+            <SelectUser name={'userId'} control={control} />
             <FormErrorMessage>{errors.userId?.message}</FormErrorMessage>
           </FormControl>
           <FormControl w="form-width" isInvalid={!!errors.roleId}>
             <FormLabel>Role</FormLabel>
             <SelectRole
+              autoSelectOnly
               types={[RoleType.UserTenant]}
-              tenantId={undefined}
               name={'roleId'}
               control={control}
+              isClearable
             />
             <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
           </FormControl>

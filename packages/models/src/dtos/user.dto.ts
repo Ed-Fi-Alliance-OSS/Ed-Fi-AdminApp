@@ -48,6 +48,7 @@ export class PutUserDto
 
   @Expose()
   @IsNumber()
+  @IsOptional()
   roleId?: number;
 
   @Expose()
@@ -76,6 +77,7 @@ export class PostUserDto
 
   @Expose()
   @IsNumber()
+  @IsOptional()
   roleId?: number;
 
   @Expose()

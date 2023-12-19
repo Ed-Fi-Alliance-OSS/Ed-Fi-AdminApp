@@ -14,7 +14,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { ownershipQueries, tenantQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers';
-import { SelectRole } from '../../helpers/FormPickers';
+import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutOwnershipDto);
@@ -76,9 +76,9 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
         <FormLabel>Role</FormLabel>
         <SelectRole
           types={[RoleType.ResourceOwnership]}
-          tenantId={undefined}
           name={'roleId'}
           control={control}
+          isClearable
         />
         <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
       </FormControl>

@@ -21,7 +21,7 @@ import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { applicationQueries, claimsetQueries, edorgQueries, queryKey } from '../../api';
 import { useNavContext } from '../../helpers';
-import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers/FormPickers';
+import { SelectClaimset, SelectEdorg, SelectVendor } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const resolver = classValidatorResolver(PutApplicationForm);
@@ -93,7 +93,7 @@ export const EditApplication = (props: {
           .catch(noop)
       )}
     >
-      <Box width="20em">
+      <Box width="30em">
         <FormControl isInvalid={!!errors.applicationName}>
           <FormLabel>Application name</FormLabel>
           <Input {...register('applicationName')} placeholder="name" />
@@ -101,18 +101,12 @@ export const EditApplication = (props: {
         </FormControl>
         <FormControl isInvalid={!!errors.educationOrganizationId}>
           <FormLabel>Ed-org</FormLabel>
-          <SelectEdorg
-            tenantId={asId}
-            name="educationOrganizationId"
-            useEdorgId
-            sbeId={sbeId}
-            control={control}
-          />
+          <SelectEdorg name="educationOrganizationId" useEdorgId control={control} />
           <FormErrorMessage>{errors.educationOrganizationId?.message}</FormErrorMessage>
         </FormControl>
         <FormControl isInvalid={!!errors.vendorId}>
           <FormLabel>Vendor</FormLabel>
-          <SelectVendor tenantId={asId} name="vendorId" sbeId={sbeId} control={control} />
+          <SelectVendor name="vendorId" control={control} />
           <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
         </FormControl>
         <FormControl isInvalid={!!errors.claimsetId}>
@@ -124,13 +118,7 @@ export const EditApplication = (props: {
               </chakra.span>
             </Tooltip>
           </FormLabel>
-          <SelectClaimset
-            noReserved
-            tenantId={asId}
-            name="claimsetId"
-            sbeId={sbeId}
-            control={control}
-          />
+          <SelectClaimset noReserved name="claimsetId" control={control} />
           <FormErrorMessage>{errors.claimsetId?.message}</FormErrorMessage>
         </FormControl>
         <ButtonGroup mt={4} colorScheme="teal">
