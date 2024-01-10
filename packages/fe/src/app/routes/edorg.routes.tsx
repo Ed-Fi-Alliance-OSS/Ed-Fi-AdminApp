@@ -40,8 +40,8 @@ export const edorgsRoute: RouteObject = {
 };
 
 export const EdorgLink = (props: {
-  id: number | undefined;
-  query: UseQueryResult<Record<string | number, GetEdorgDto>, unknown>;
+  id: number | string | undefined;
+  query: Pick<UseQueryResult<Record<string | number, GetEdorgDto>, unknown>, 'data'>;
 }) => {
   const edorg = getEntityFromQuery(props.id, props.query);
   const navContext = useNavContext();
@@ -51,10 +51,10 @@ export const EdorgLink = (props: {
   return edorg ? (
     <Link as="span">
       <RouterLink title="Go to edorg" to={`/as/${asId}/sbes/${sbeId}/edorgs/${edorg.id}`}>
-        {getRelationDisplayName(edorg.id, props.query)}
+        {getRelationDisplayName(props.id, props.query)}
       </RouterLink>
     </Link>
-  ) : typeof props.id === 'number' ? (
+  ) : props.id !== null && props.id !== undefined ? (
     <Text title="Ed-Org may have been deleted." as="i" color="gray.500">
       not found
     </Text>

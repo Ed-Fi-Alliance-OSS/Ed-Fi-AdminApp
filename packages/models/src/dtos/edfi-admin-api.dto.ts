@@ -275,12 +275,18 @@ export class GetApplicationDto {
   @Expose()
   educationOrganizationId: number;
   @Expose()
+  educationOrganizationIds: number[];
+  @Expose()
   odsInstanceName: string;
   @Expose()
   vendorId: number;
   @Expose()
   @Type(() => ApplicationProfileDto)
   profiles: ApplicationProfileDto[];
+
+  get _educationOrganizationIds() {
+    return this.educationOrganizationIds ?? [this.educationOrganizationId];
+  }
 
   get displayName() {
     return this.applicationName;
@@ -291,7 +297,6 @@ export class GetApplicationDto {
   }
 
   static apiUrl(
-    edorg: Pick<GetEdorgDto, 'educationOrganizationId' | 'shortNameOfInstitution'>,
     hostname: GetSbeConfigPublic['edfiHostname'],
     applicationName: GetApplicationDto['applicationName']
   ) {
@@ -301,13 +306,9 @@ export class GetApplicationDto {
         .replace(/\s/g, '-')
         .replace(/[^a-z0-9-]/g, '');
 
-    const edorgName = safe(
-      edorg.shortNameOfInstitution ?? String(edorg.educationOrganizationId)
-    ).slice(0, 22);
     const appName = safe(applicationName).slice(0, 40);
-    const slug = `${edorgName}-${appName}`;
 
-    return `https://${slug}.${hostname?.replace(/\/$/, '')}/`;
+    return `https://${appName}.${hostname?.replace(/\/$/, '')}/`;
   }
 }
 

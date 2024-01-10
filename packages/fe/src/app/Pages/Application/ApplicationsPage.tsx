@@ -83,27 +83,34 @@ export const ApplicationsPageContent = () => {
         },
         {
           id: 'edorg',
-          accessorFn: (info) =>
-            getRelationDisplayName(
-              createEdorgCompositeNaturalKey({
-                educationOrganizationId: info.educationOrganizationId,
-                odsDbName: 'EdFi_Ods_' + info.odsInstanceName,
-              }),
-              edorgsByEdorgId
-            ),
+          accessorFn: (application) =>
+            application._educationOrganizationIds
+              .map((edorgId) =>
+                getRelationDisplayName(
+                  createEdorgCompositeNaturalKey({
+                    educationOrganizationId: edorgId,
+                    odsDbName: 'EdFi_Ods_' + application.odsInstanceName,
+                  }),
+                  edorgsByEdorgId
+                )
+              )
+              .join(', '),
           header: 'Education organization',
           cell: (info) => (
-            <EdorgLink
-              query={edorgs}
-              id={
-                edorgsByEdorgId.data[
-                  createEdorgCompositeNaturalKey({
-                    educationOrganizationId: info.row.original.educationOrganizationId,
-                    odsDbName: 'EdFi_Ods_' + info.row.original.odsInstanceName,
-                  })
-                ]?.id
-              }
-            />
+            <>
+              {info.row.original._educationOrganizationIds
+                .map((edorgId) => (
+                  <EdorgLink
+                    key={edorgId}
+                    id={createEdorgCompositeNaturalKey({
+                      educationOrganizationId: edorgId,
+                      odsDbName: 'EdFi_Ods_' + info.row.original.odsInstanceName,
+                    })}
+                    query={edorgsByEdorgId}
+                  />
+                ))
+                .reduce((prev, curr) => [prev, ', ', curr] as any)}
+            </>
           ),
           meta: {
             type: 'options',

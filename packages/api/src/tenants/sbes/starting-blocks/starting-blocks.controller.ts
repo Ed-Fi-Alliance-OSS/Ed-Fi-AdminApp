@@ -381,7 +381,6 @@ export class StartingBlocksController {
         const yopass = await postYopassSecret({
           ...adminApiResponse,
           url: GetApplicationDto.apiUrl(
-            edorg,
             sbe.configPublic?.edfiHostname,
             application.applicationName
           ),
@@ -468,11 +467,7 @@ export class StartingBlocksController {
       const adminApiResponse = await this.sbService.resetApplicationCredentials(sbe, applicationId);
       const yopass = await postYopassSecret({
         ...adminApiResponse,
-        url: GetApplicationDto.apiUrl(
-          edorg,
-          sbe.configPublic?.edfiHostname,
-          application.applicationName
-        ),
+        url: GetApplicationDto.apiUrl(sbe.configPublic?.edfiHostname, application.applicationName),
       });
       return toApplicationYopassResponseDto({
         link: yopass.link,

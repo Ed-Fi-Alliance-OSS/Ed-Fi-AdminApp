@@ -58,7 +58,7 @@ const mapRc = (rc: ResourceClaimDto131): ResourceClaimRow => {
   // Sometimes the length is other than 4, which is a bug. We need to just return 'unknown' in that case.
   const correctLength = rc.readChanges === undefined ? 4 : 5;
   const defaults =
-    rc.defaultAuthStrategiesForCRUD.length === correctLength
+    rc.defaultAuthStrategiesForCRUD.length >= correctLength
       ? rc.defaultAuthStrategiesForCRUD
       : undefined;
   return {

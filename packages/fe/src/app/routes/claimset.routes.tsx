@@ -4,11 +4,11 @@ import { UseQueryResult } from '@tanstack/react-query';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
 import { ClaimsetPage } from '../Pages/Claimset/ClaimsetPage';
 import { ClaimsetsPage } from '../Pages/Claimset/ClaimsetsPage';
+import { CreateClaimset } from '../Pages/Claimset/CreateClaimsetPage';
+import { ImportClaimsetsPage } from '../Pages/Claimset/ImportClaimsetsPage';
 import { claimsetQueries } from '../api';
 import { getRelationDisplayName, useNavContext } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
-import { CreateClaimset } from '../Pages/Claimset/CreateClaimsetPage';
-import { ImportClaimsetsPage } from '../Pages/Claimset/ImportClaimsetsPage';
 
 const ClaimsetBreadcrumb = () => {
   const params = useParams() as {
@@ -52,8 +52,8 @@ export const claimsetsRoute: RouteObject = {
 };
 
 export const ClaimsetLink = (props: {
-  id: number | undefined;
-  query: UseQueryResult<Record<string | number, GetClaimsetDto>, unknown>;
+  id: number | string | undefined;
+  query: Pick<UseQueryResult<Record<string | number, GetClaimsetDto>, unknown>, 'data'>;
 }) => {
   const claimset = getEntityFromQuery(props.id, props.query);
   const navContext = useNavContext();
@@ -63,10 +63,10 @@ export const ClaimsetLink = (props: {
   return claimset ? (
     <Link as="span">
       <RouterLink title="Go to claimset" to={`/as/${asId}/sbes/${sbeId}/claimsets/${claimset.id}`}>
-        {getRelationDisplayName(claimset.id, props.query)}
+        {getRelationDisplayName(props.id, props.query)}
       </RouterLink>
     </Link>
-  ) : typeof props.id === 'number' ? (
+  ) : props.id !== null && props.id !== undefined ? (
     <Text title="Claimset may have been deleted." as="i" color="gray.500">
       not found
     </Text>
