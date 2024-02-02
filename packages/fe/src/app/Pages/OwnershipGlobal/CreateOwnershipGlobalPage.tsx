@@ -19,7 +19,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { ownershipQueries, sbeQueries, tenantQueries } from '../../api';
-import { useNavToParent } from '../../helpers';
+import { NavContextProvider, useNavToParent } from '../../helpers';
 import { SelectEdorg, SelectOds, SelectRole, SelectSbe, SelectTenant } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
@@ -109,19 +109,23 @@ export const CreateOwnershipGlobalPage = () => {
             <SelectSbe name="sbeId" control={control} />
             <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
           </FormControl>
-          {type === 'ods' && sbeId !== undefined ? (
-            <FormControl isDisabled={sbeId === undefined} isInvalid={!!errors.hasResource}>
-              <FormLabel>ODS</FormLabel>
-              <SelectOds control={control} name="odsId" useDbName={false} />
-              <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
-            </FormControl>
-          ) : null}
-          {type === 'edorg' && sbeId !== undefined ? (
-            <FormControl isDisabled={sbeId === undefined} isInvalid={!!errors.hasResource}>
-              <FormLabel>Ed-Org</FormLabel>
-              <SelectEdorg control={control} name="edorgId" useEdorgId={false} />
-              <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
-            </FormControl>
+          {(type === 'ods' || type === 'edorg') && sbeId !== undefined ? (
+            <NavContextProvider sbeId={sbeId}>
+              {type === 'ods' && sbeId !== undefined ? (
+                <FormControl isInvalid={!!errors.hasResource}>
+                  <FormLabel>ODS</FormLabel>
+                  <SelectOds control={control} name="odsId" useDbName={false} />
+                  <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
+                </FormControl>
+              ) : null}
+              {type === 'edorg' && sbeId !== undefined ? (
+                <FormControl isInvalid={!!errors.hasResource}>
+                  <FormLabel>Ed-Org</FormLabel>
+                  <SelectEdorg control={control} name="edorgId" useEdorgId={false} />
+                  <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
+                </FormControl>
+              ) : null}
+            </NavContextProvider>
           ) : null}
           <FormControl isInvalid={!!errors.tenantId}>
             <FormLabel>Tenant</FormLabel>

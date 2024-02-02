@@ -15,7 +15,7 @@ import {
   vendorQueries,
 } from '../api';
 import { SelectWrapper, StandardSelector } from './StandardSelector';
-import { useNavContext, useTenantSbeNavContext } from './navContext';
+import { useNavContext, useSbeNavContext, useTenantSbeNavContext } from './navContext';
 
 export const SelectRole: StandardSelector<{ types: RoleType[] }> = (props) => {
   const { types, ...others } = props;
@@ -136,7 +136,7 @@ export const SelectApplication: StandardSelector = (props) => {
 
 export const SelectOds: StandardSelector<{ useDbName?: boolean }> = (props) => {
   const { useDbName, ...others } = props;
-  const { tenantId, sbeId } = useTenantSbeNavContext();
+  const { tenantId, sbeId } = useSbeNavContext();
   const odss = odsQueries.useAll({ tenantId, sbeId });
   const options = Object.fromEntries(
     Object.values(odss.data ?? {}).map((ods) => [
@@ -152,7 +152,7 @@ export const SelectOds: StandardSelector<{ useDbName?: boolean }> = (props) => {
 
 export const SelectEdorg: StandardSelector<{ useEdorgId?: boolean }> = (props) => {
   const { useEdorgId, ...others } = props;
-  const { tenantId, sbeId } = useTenantSbeNavContext();
+  const { tenantId, sbeId } = useSbeNavContext();
   const edorgs = edorgQueries.useAll({ tenantId, sbeId });
   const discriminators = useMemo(
     () => uniq(Object.values(edorgs.data ?? {}).map((edorg) => edorg.discriminator)),
