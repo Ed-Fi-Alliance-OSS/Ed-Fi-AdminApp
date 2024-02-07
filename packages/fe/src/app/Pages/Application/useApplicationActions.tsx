@@ -36,17 +36,18 @@ export const useSingleApplicationActions = ({
   const parentPath = useNavToParent();
 
   const canEdit = useAuthorize(
-    application && {
-      privilege: 'tenant.sbe.edorg.application:update',
-      subject: {
-        sbeId: Number(sbeId),
-        tenantId: Number(tenantId),
-        id: createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: '',
-        }),
-      },
-    }
+    application &&
+      application._educationOrganizationIds.map((edorgId) => ({
+        privilege: 'tenant.sbe.edorg.application:update',
+        subject: {
+          sbeId: Number(sbeId),
+          tenantId: Number(tenantId),
+          id: createEdorgCompositeNaturalKey({
+            educationOrganizationId: edorgId,
+            odsDbName: '',
+          }),
+        },
+      }))
   );
 
   const resetCreds = useApplicationResetCredential({
@@ -60,17 +61,18 @@ export const useSingleApplicationActions = ({
   });
 
   const canReset = useAuthorize(
-    application && {
-      privilege: 'tenant.sbe.edorg.application:reset-credentials',
-      subject: {
-        sbeId: Number(sbeId),
-        tenantId: Number(tenantId),
-        id: createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: '',
-        }),
-      },
-    }
+    application &&
+      application._educationOrganizationIds.map((edorgId) => ({
+        privilege: 'tenant.sbe.edorg.application:reset-credentials',
+        subject: {
+          sbeId: Number(sbeId),
+          tenantId: Number(tenantId),
+          id: createEdorgCompositeNaturalKey({
+            educationOrganizationId: edorgId,
+            odsDbName: '',
+          }),
+        },
+      }))
   );
 
   const canView = useAuthorize(
@@ -88,17 +90,18 @@ export const useSingleApplicationActions = ({
   );
 
   const canDelete = useAuthorize(
-    application && {
-      privilege: 'tenant.sbe.edorg.application:delete',
-      subject: {
-        sbeId: Number(sbeId),
-        tenantId: Number(tenantId),
-        id: createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: '',
-        }),
-      },
-    }
+    application &&
+      application._educationOrganizationIds.map((edorgId) => ({
+        privilege: 'tenant.sbe.edorg.application:delete',
+        subject: {
+          sbeId: Number(sbeId),
+          tenantId: Number(tenantId),
+          id: createEdorgCompositeNaturalKey({
+            educationOrganizationId: edorgId,
+            odsDbName: '',
+          }),
+        },
+      }))
   );
 
   return application === undefined

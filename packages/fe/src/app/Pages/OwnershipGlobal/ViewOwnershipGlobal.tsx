@@ -5,7 +5,7 @@ import {
   ContentSection,
 } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
-import { ownershipQueries, roleQueries, tenantQueries } from '../../api';
+import { ownershipQueries, roleQueries, sbeQueries, tenantQueries } from '../../api';
 import { TenantLink } from '../../routes';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
 
@@ -18,6 +18,15 @@ export const ViewOwnershipGlobal = () => {
   }).data;
   const tenants = tenantQueries.useAll({});
   const roles = roleQueries.useAll({});
+  const sbes = sbeQueries.useAll({});
+
+  const getSbeDisplayName = (sbeId: number) => {
+    if (sbes.isSuccess && sbes.data) {
+      return `(${sbes.data?.[sbeId]?.displayName ?? 'Environment not found'})`;
+    } else {
+      return '(loading environment...)';
+    }
+  };
 
   return ownership ? (
     <ContentSection>
@@ -29,9 +38,9 @@ export const ViewOwnershipGlobal = () => {
           label="Resource"
           value={
             ownership.edorg
-              ? ownership.edorg.displayName
+              ? `${ownership.edorg.displayName} ${getSbeDisplayName(ownership.edorg.sbeId)}`
               : ownership.ods
-              ? ownership.ods.displayName
+              ? `${ownership.ods.displayName} ${getSbeDisplayName(ownership.ods.sbeId)}`
               : ownership.sbe
               ? ownership.sbe.displayName
               : '-'

@@ -212,7 +212,7 @@ export class PostApplicationForm {
 
   @Expose()
   @IsNumber()
-  educationOrganizationId: number | undefined;
+  educationOrganizationId: number;
 }
 
 export class PostApplicationResponseDto {

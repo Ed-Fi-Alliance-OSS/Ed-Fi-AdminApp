@@ -28,7 +28,7 @@ const resolver = classValidatorResolver(PutApplicationForm);
 
 export const EditApplication = (props: {
   application: GetApplicationDto;
-  claimset: GetClaimsetDto;
+  claimset: GetClaimsetDto | undefined;
 }) => {
   const { application, claimset } = props;
   const navContext = useNavContext();
@@ -59,8 +59,8 @@ export const EditApplication = (props: {
   const defaultValues = new PutApplicationForm();
   defaultValues.applicationId = application.applicationId;
   defaultValues.applicationName = application.displayName;
-  defaultValues.claimsetId = claimset.id;
-  defaultValues.educationOrganizationId = application.educationOrganizationId;
+  defaultValues.claimsetId = claimset?.id as number;
+  defaultValues.educationOrganizationId = application._educationOrganizationIds[0];
   defaultValues.vendorId = application.vendorId;
 
   const {

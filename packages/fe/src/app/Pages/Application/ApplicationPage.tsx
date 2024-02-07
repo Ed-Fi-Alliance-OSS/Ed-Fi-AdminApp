@@ -132,7 +132,7 @@ export const ApplicationPageContent = () => {
   }));
 
   return application ? (
-    edit && claimset ? (
+    edit && claimsets.isSuccess ? (
       <EditApplication application={application} claimset={claimset} />
     ) : (
       <ViewApplication application={application} />

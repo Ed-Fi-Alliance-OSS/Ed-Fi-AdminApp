@@ -147,7 +147,6 @@ export interface ITenantCache
 export const trueOnlyPrivileges = new Set<TenantBasePrivilege | TenantSbePrivilege>([
   'tenant.role:create',
   'tenant.sbe.claimset:create',
-  'tenant.sbe.edorg.application:create',
   'tenant.sbe.vendor:create',
 ]);
 export const isBaseTenantPrivilege = (str: string): str is TenantBasePrivilege =>

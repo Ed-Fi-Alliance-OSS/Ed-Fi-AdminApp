@@ -31,41 +31,6 @@ export type BasePrivilege =
   | 'user-tenant-membership:delete'
   | 'user-tenant-membership:create';
 
-// // Global versions of the above, to be implemented post-MVP:
-
-// |'ownership:read'
-
-// |'sbe:read'
-// |'sbe:update'
-// |'sbe:delete'
-// |'sbe:create'
-
-// |'sbe.vendor:read'
-// |'sbe.vendor:update'
-// |'sbe.vendor:delete'
-// |'sbe.vendor:create'
-
-// |'sbe.claimset:read'
-// |'sbe.claimset:update'
-// |'sbe.claimset:delete'
-// |'sbe.claimset:create'
-
-// |'sbe.ods:read'
-// |'sbe.ods:update'
-// |'sbe.ods:delete'
-// |'sbe.ods:create'
-
-// |'sbe.edorg:read'
-// |'sbe.edorg:update'
-// |'sbe.edorg:delete'
-// |'sbe.edorg:create'
-
-// |'sbe.edorg.application:read'
-// |'sbe.edorg.application:update'
-// |'sbe.edorg.application:delete'
-// |'sbe.edorg.application:create'
-// |'sbe.edorg.application:reset-credentials'
-
 export type TenantBasePrivilege =
   | 'tenant.ownership:read'
   | 'tenant.role:read'

@@ -20,6 +20,7 @@ import {
   Body,
   Controller,
   Delete,
+  ForbiddenException,
   Get,
   InternalServerErrorException,
   Logger,
@@ -30,7 +31,6 @@ import {
   Put,
   Query,
   Res,
-  UnauthorizedException,
   UseFilters,
   UseInterceptors,
 } from '@nestjs/common';
@@ -39,7 +39,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import axios from 'axios';
 import { instanceToPlain, plainToInstance } from 'class-transformer';
 import { Response } from 'express';
-import { Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { Authorize } from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { checkId } from '../../../auth/helpers/where-ids';
@@ -79,6 +79,38 @@ export class StartingBlocksController {
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Sbe) private readonly sbeRepository: Repository<Sbe>
   ) {}
+
+  /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
+  private checkApplicationSafe(
+    application: Pick<GetApplicationDto, '_educationOrganizationIds'>,
+    validIds: Ids
+  ) {
+    return application._educationOrganizationIds.some((educationOrganizationId) =>
+      checkId(
+        createEdorgCompositeNaturalKey({
+          educationOrganizationId,
+          odsDbName: '',
+        }),
+        validIds
+      )
+    );
+  }
+
+  /** Check application edorg IDs against auth cache for _unsafe_ operations (POST/PUT/DELETE/Other). Requires `every` ID to be authorized. */
+  private checkApplicationUnsafe(
+    application: Pick<GetApplicationDto, '_educationOrganizationIds'>,
+    validIds: Ids
+  ) {
+    return application._educationOrganizationIds.every((educationOrganizationId) =>
+      checkId(
+        createEdorgCompositeNaturalKey({
+          educationOrganizationId,
+          odsDbName: '',
+        }),
+        validIds
+      )
+    );
+  }
 
   @Get('vendors')
   @Authorize({
@@ -191,15 +223,7 @@ export class StartingBlocksController {
     validIds: Ids
   ) {
     const allApplications = await this.sbService.getVendorApplications(sbe, vendorId);
-    return allApplications.filter((a) =>
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: a.educationOrganizationId,
-          odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
-        }),
-        validIds
-      )
-    );
+    return allApplications.filter((a) => this.checkApplicationSafe(a, validIds));
   }
 
   @Get('applications')
@@ -219,16 +243,7 @@ export class StartingBlocksController {
     validIds: Ids
   ) {
     const allApplications = await this.sbService.getApplications(sbe);
-    return allApplications.filter((a) =>
-      // TODO once Admin API is fixed so the application includes an array of edorg ids, the desired logic is to do safe operations if _any_ edorg is allowed, and unsafe ones if _all_ are allowed.
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: a.educationOrganizationId,
-          odsDbName: 'EdFi_Ods_' + a.odsInstanceName,
-        }),
-        validIds
-      )
-    );
+    return allApplications.filter((a) => this.checkApplicationSafe(a, validIds));
   }
 
   @Get('applications/:applicationId')
@@ -250,15 +265,7 @@ export class StartingBlocksController {
   ) {
     const application = await this.sbService.getApplication(sbe, applicationId);
 
-    if (
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: 'EdFi_Ods_' + application.odsInstanceName,
-        }),
-        validIds
-      )
-    ) {
+    if (this.checkApplicationSafe(application, validIds)) {
       return application;
     } else {
       throw new NotFoundException();
@@ -296,30 +303,38 @@ export class StartingBlocksController {
         message: 'Cannot use system-reserved claimset',
       });
     }
+    let existingApplication: GetApplicationDto;
+    try {
+      existingApplication = await this.sbService.getApplication(sbe, applicationId);
+    } catch (applicationNotFound) {
+      throw new NotFoundException();
+    }
 
     const dto = plainToInstance(PutApplicationDto, {
       ...instanceToPlain(application),
       claimSetName: claimset.name,
       educationOrganizationIds: [application.educationOrganizationId],
     });
-    const edorg = await this.edorgRepository.findOneByOrFail({
-      educationOrganizationId: application.educationOrganizationId,
-    });
-    if (
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: edorg.odsDbName,
-        }),
-        validIds
-      )
-    ) {
-      return this.sbService.putApplication(sbe, applicationId, dto);
+    if (this.checkApplicationSafe(existingApplication, validIds)) {
+      if (this.checkApplicationUnsafe(existingApplication, validIds)) {
+        if (
+          this.checkApplicationUnsafe(
+            { _educationOrganizationIds: dto.educationOrganizationIds },
+            validIds
+          )
+        ) {
+          return this.sbService.putApplication(sbe, applicationId, dto);
+        } else {
+          throw new ValidationHttpException({
+            field: 'educationOrganizationId',
+            message: 'Invalid education organization ID or insufficient permissions',
+          });
+        }
+      } else {
+        throw new ForbiddenException();
+      }
     } else {
-      throw new ValidationHttpException({
-        field: 'educationOrganizationId',
-        message: 'Invalid education organization ID',
-      });
+      throw new NotFoundException();
     }
   }
 
@@ -359,18 +374,21 @@ export class StartingBlocksController {
       claimSetName: claimset.name,
       educationOrganizationIds: [application.educationOrganizationId],
     });
-    const edorg = await this.edorgRepository.findOneByOrFail({
-      educationOrganizationId: application.educationOrganizationId,
+    const edorgs = await this.edorgRepository.findBy({
+      educationOrganizationId: In([application.educationOrganizationId]),
       sbeId: sbe.id,
     });
+    if (!edorgs.length || !edorgs.every((edorg) => edorg.odsDbName === edorgs[0].odsDbName)) {
+      throw new ValidationHttpException({
+        field: 'educationOrganizationId',
+        message: 'Education organizations not all valid and from same ODS',
+      });
+    }
     if (!sbe.configPublic?.edfiHostname)
       throw new InternalServerErrorException('Environment config lacks an Ed-Fi hostname.');
     if (
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: edorg.odsDbName,
-        }),
+      this.checkApplicationUnsafe(
+        { _educationOrganizationIds: dto.educationOrganizationIds },
         validIds
       )
     ) {
@@ -393,7 +411,7 @@ export class StartingBlocksController {
     } else {
       throw new ValidationHttpException({
         field: 'educationOrganizationId',
-        message: 'Invalid education organization ID',
+        message: 'Invalid education organization ID or insufficient permissions',
       });
     }
   }
@@ -416,16 +434,13 @@ export class StartingBlocksController {
     validIds: Ids
   ) {
     const application = await this.sbService.getApplication(sbe, applicationId);
-    if (
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: 'EdFi_Ods_' + application.odsInstanceName,
-        }),
-        validIds
-      )
-    ) {
-      return this.sbService.deleteApplication(sbe, applicationId);
+
+    if (this.checkApplicationSafe(application, validIds)) {
+      if (this.checkApplicationUnsafe(application, validIds)) {
+        return this.sbService.deleteApplication(sbe, applicationId);
+      } else {
+        throw new ForbiddenException();
+      }
     } else {
       throw new NotFoundException();
     }
@@ -449,32 +464,31 @@ export class StartingBlocksController {
     validIds: Ids
   ) {
     const application = await this.sbService.getApplication(sbe, applicationId);
-    const edorg = await this.edorgRepository.findOneByOrFail({
-      educationOrganizationId: application.educationOrganizationId,
-      sbeId: sbe.id,
-    });
+
     if (!sbe.configPublic?.edfiHostname)
       throw new InternalServerErrorException('Environment config lacks an Ed-Fi hostname.');
-    if (
-      checkId(
-        createEdorgCompositeNaturalKey({
-          educationOrganizationId: application.educationOrganizationId,
-          odsDbName: 'EdFi_Ods_' + application.odsInstanceName,
-        }),
-        validIds
-      )
-    ) {
-      const adminApiResponse = await this.sbService.resetApplicationCredentials(sbe, applicationId);
-      const yopass = await postYopassSecret({
-        ...adminApiResponse,
-        url: GetApplicationDto.apiUrl(sbe.configPublic?.edfiHostname, application.applicationName),
-      });
-      return toApplicationYopassResponseDto({
-        link: yopass.link,
-        applicationId: adminApiResponse.applicationId,
-      });
+    if (this.checkApplicationSafe(application, validIds)) {
+      if (this.checkApplicationUnsafe(application, validIds)) {
+        const adminApiResponse = await this.sbService.resetApplicationCredentials(
+          sbe,
+          applicationId
+        );
+        const yopass = await postYopassSecret({
+          ...adminApiResponse,
+          url: GetApplicationDto.apiUrl(
+            sbe.configPublic?.edfiHostname,
+            application.applicationName
+          ),
+        });
+        return toApplicationYopassResponseDto({
+          link: yopass.link,
+          applicationId: adminApiResponse.applicationId,
+        });
+      } else {
+        throw new ForbiddenException();
+      }
     } else {
-      throw new UnauthorizedException();
+      throw new NotFoundException();
     }
   }
 

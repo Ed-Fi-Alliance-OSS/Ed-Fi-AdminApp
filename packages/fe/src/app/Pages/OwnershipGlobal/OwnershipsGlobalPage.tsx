@@ -11,7 +11,7 @@ import {
   SbaaTableSearch,
   ValueAsDate,
 } from '@edanalytics/common-ui';
-import { ownershipQueries, roleQueries, tenantQueries } from '../../api';
+import { ownershipQueries, roleQueries, sbeQueries, tenantQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { TenantLink } from '../../routes';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
@@ -23,6 +23,15 @@ export const OwnershipsGlobalPage = () => {
   const roles = roleQueries.useAll({});
   const tenants = tenantQueries.useAll({});
   const actions = useMultipleOwnershipGlobalActions();
+  const sbes = sbeQueries.useAll({});
+  const getSbeDisplayName = (sbeId: number) => {
+    if (sbes.isSuccess && sbes.data) {
+      return `(${sbes.data?.[sbeId]?.displayName ?? 'Environment not found'})`;
+    } else {
+      return '(loading environment...)';
+    }
+  };
+
   return (
     <PageTemplate title="Resource ownerships" actions={<PageActions actions={actions} />}>
       <SbaaTableAllInOne
@@ -64,9 +73,9 @@ export const OwnershipsGlobalPage = () => {
             header: 'Resource',
             cell: ({ row: { original } }) =>
               original.edorg
-                ? original.edorg.displayName
+                ? `${original.edorg.displayName} ${getSbeDisplayName(original.edorg.sbeId)}`
                 : original.ods
-                ? original.ods.displayName
+                ? `${original.ods.displayName} ${getSbeDisplayName(original.ods.sbeId)}`
                 : original.sbe
                 ? original.sbe.displayName
                 : '-',
