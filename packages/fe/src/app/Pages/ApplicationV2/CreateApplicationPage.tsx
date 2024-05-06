@@ -16,7 +16,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { GetEdorgDto, PostApplicationFormDtoV2 } from '@edanalytics/models';
+import { GetEdorgDto, PostApplicationFormDtoV2, edorgKeyV2 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useEffect, useMemo } from 'react';
@@ -58,7 +58,7 @@ export const CreateApplicationPageV2 = () => {
   const edorgsByEdorgId = useMemo(() => {
     return {
       data: Object.values(edorgs.data ?? {}).reduce<Record<string, GetEdorgDto>>((map, edorg) => {
-        map[edorg.educationOrganizationId] = edorg;
+        map[edorgKeyV2({ edorg: edorg.educationOrganizationId, ods: edorg.odsInstanceId })] = edorg;
         return map;
       }, {}),
     };
@@ -89,19 +89,24 @@ export const CreateApplicationPageV2 = () => {
     const selectedEdorgsSet = new Set(selectedEdorgs);
 
     Object.values(filteredEdorgs || {}).forEach((edorg) => {
+      const compositeKey = edorgKeyV2({
+        edorg: edorg.educationOrganizationId,
+        ods: edorg.odsInstanceId,
+      });
       if (
+        // selectedEdorgs is relative to selected ODS so don't use composite key redundantly
         selectedEdorgsSet.has(edorg.educationOrganizationId) ||
         selectedOds === undefined ||
-        filteredEdorgs[edorg.educationOrganizationId].odsInstanceId !== selectedOds
+        edorg.odsInstanceId !== selectedOds
       ) {
-        delete filteredEdorgs[edorg.educationOrganizationId];
+        delete filteredEdorgs[compositeKey];
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredEdorgs).map(([k, v]) => [
-        k,
+      Object.entries(filteredEdorgs).map(([compositeKey, v]) => [
+        v.educationOrganizationId,
         {
-          value: k,
+          value: v.educationOrganizationId,
           label: v.displayName,
           subLabel: `${v.educationOrganizationId} ${v.discriminatorShort}`,
           discriminator: v.discriminator,
@@ -109,18 +114,6 @@ export const CreateApplicationPageV2 = () => {
       ])
     );
   }, [edorgsByEdorgId, selectedEdorgs, selectedOds]);
-
-  useEffect(() => {
-    if (
-      typeof selectedOds === 'number' &&
-      selectedEdorgs.length &&
-      edorgsByEdorgId.data &&
-      edorgsByEdorgId.data[selectedEdorgs[0]] &&
-      edorgsByEdorgId.data[selectedEdorgs[0]]?.odsInstanceId !== selectedOds
-    ) {
-      setValue('educationOrganizationIds', []);
-    }
-  }, [selectedOds, edorgsByEdorgId.data, selectedEdorgs, setValue]);
 
   return (
     <PageTemplate title="New application">
@@ -152,7 +145,19 @@ export const CreateApplicationPageV2 = () => {
         </FormControl>
         <FormControl isInvalid={!!errors.odsInstanceId}>
           <FormLabel>ODS</FormLabel>
-          <SelectOds name="odsInstanceId" useInstanceId control={control} />
+          <SelectOds
+            useInstanceId
+            value={selectedOds}
+            onChange={(value) => {
+              setValue('odsInstanceId', value);
+              setValue(
+                'educationOrganizationIds',
+                selectedEdorgs.filter(
+                  (edorg) => !!edorgsByEdorgId.data[edorgKeyV2({ edorg, ods: value })]
+                )
+              );
+            }}
+          />
           <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
         </FormControl>
         <FormControl isInvalid={!!errors.educationOrganizationIds}>
@@ -164,7 +169,10 @@ export const CreateApplicationPageV2 = () => {
                   {selectedEdorgs.map((edorgId, i) => (
                     <ListItem key={edorgId}>
                       <Text as="span">
-                        {getRelationDisplayName(String(edorgId), edorgsByEdorgId)}
+                        {getRelationDisplayName(
+                          edorgKeyV2({ edorg: edorgId, ods: selectedOds }),
+                          edorgsByEdorgId
+                        )}
                       </Text>
                       &nbsp;&nbsp;
                       <IconButton
