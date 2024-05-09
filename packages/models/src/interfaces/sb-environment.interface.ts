@@ -49,6 +49,8 @@ export type SbEnvironmentConfigPublic = {
 
 export interface ISbEnvironmentConfigPublicV2 {
   meta: SbV2MetaSaved;
+  /** UUID to ensure different SBAA instances don't overwrite each others' creds in SB */
+  adminApiUuid?: string;
   tenants?: Record<string, { adminApiKey?: string; allowedEdorgs?: number[] }>;
 }
 export interface ISbEnvironmentConfigPublicV1 {

@@ -1,6 +1,6 @@
 import { SbEnvironment } from '@edanalytics/models-server';
 import { BaseMgmtServiceV2 } from './base-mgmt-service';
-import { PostEdfiTenantDto } from '@edanalytics/models';
+import { ISbEnvironmentConfigPublicV2, PostEdfiTenantDto } from '@edanalytics/models';
 
 export class TenantMgmtServiceV2 extends BaseMgmtServiceV2 {
   constructor() {
@@ -59,7 +59,10 @@ export class TenantMgmtServiceV2 extends BaseMgmtServiceV2 {
     >(sbEnvironment, {
       Action: 'Keygen',
       TenantName: name,
-      DisplayName: `SBAA`,
+      DisplayName: `SBAA-${
+        // the lambda overwrites creds if DisplayName is already taken, so need it to be unique per deployment/sb-environment
+        (sbEnvironment.configPublic?.values as ISbEnvironmentConfigPublicV2)?.adminApiUuid
+      }`,
     });
     if (result.status === 'SUCCESS') {
       return {

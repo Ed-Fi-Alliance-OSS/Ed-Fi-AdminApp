@@ -2,6 +2,7 @@ import { InvokeCommand, LambdaClient, LambdaServiceException } from '@aws-sdk/cl
 import { parse, validate } from '@aws-sdk/util-arn-parser';
 import {
   AddEdorgDtoV2,
+  ISbEnvironmentConfigPublicV2,
   PostEdfiTenantDto,
   SbV2MetaEnv,
   SbV2TenantResourceTree,
@@ -23,6 +24,7 @@ import {
 import { EdorgMgmtServiceV2 } from './edorg-mgmt.v2.service';
 import { OdsMgmtServiceV2 } from './ods-mgmt.v2.service';
 import { TenantMgmtServiceV2 } from './tenant-mgmt.v2.service';
+import { randomUUID } from 'crypto';
 
 // TODO eventually need to limit concurrency per-environment (to 1) but across envs we can run in parallel
 const limit = pLimit(1);
@@ -99,7 +101,12 @@ export class StartingBlocksServiceV2 {
   async saveSbEnvironmentMeta(sbEnvironment: SbEnvironment, meta: SbV2MetaEnv) {
     const configPublic = sbEnvironment.configPublic;
     configPublic.version = 'v2';
-    configPublic.values = { ...configPublic.values, meta };
+    const oldConfigValues = configPublic.values as ISbEnvironmentConfigPublicV2;
+    configPublic.values = {
+      ...oldConfigValues,
+      meta,
+      adminApiUuid: oldConfigValues?.adminApiUuid ?? randomUUID(),
+    };
 
     const protocol = !meta.adminApiUrl.startsWith('htt') ? 'https://' : '';
     const url = new URL(protocol + meta.adminApiUrl);
