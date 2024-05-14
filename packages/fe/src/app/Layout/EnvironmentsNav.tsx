@@ -7,13 +7,16 @@ import {
 } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
-import lunr from 'lunr';
+import lunr, { Query, tokenizer } from 'lunr';
 import { LegacyRef, useMemo, useRef, useState } from 'react';
 import { BsBuilding, BsDatabase, BsKey, BsMortarboard, BsShieldLock } from 'react-icons/bs';
 import { IconType } from 'react-icons/lib';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { teamQueries } from '../api';
 import { AuthorizeConfig, useAuthorize, useTeamNavContext } from '../helpers';
+
+// by default this includes dashes, which we don't want because they're part of names
+lunr.tokenizer.separator = /[\s]+/;
 
 export const EnvironmentsNav = () => {
   const { teamId } = useTeamNavContext();
@@ -35,7 +38,7 @@ export const EnvironmentsNav = () => {
   );
   const searchIndex = useMemo(() => {
     const items = Object.entries(envItems.data || {}).map(([key, value]) => {
-      // add in searchable strings for entity types that are available
+      // add in searchable strings for entity types that are available. e.g. "edorgs" string.
       const resourceTrueValues = Object.entries(value)
         .filter(([key, value]) => value === true)
         .map(([key]) => key)
@@ -47,9 +50,12 @@ export const EnvironmentsNav = () => {
         resources: resourceTrueValues,
       };
     });
+    // overall we're not making a ton of use of the lunr features but its still better than something built from scratch
     const searchIndex = lunr(function () {
+      // searchable text is all names not words. wildcards > stemmer for that.
+      this.pipeline.remove(lunr.stemmer);
       this.ref('key');
-      // boost numbers mostly abitrary rn, feel free to adjust
+      // boost numbers (for sort) mostly abitrary rn, feel free to adjust
       this.field('env', { boost: 5 });
       this.field('tenant', { boost: 10 });
       this.field('resources', { boost: 2 });
@@ -62,9 +68,16 @@ export const EnvironmentsNav = () => {
 
   const [searchText, setSearchText] = useState('');
   const searchResults = useMemo(() => {
-    let fuzzySearchTerm = searchText.trim().replaceAll(/\s+/g, ' ').replaceAll(' ', '* ');
-    if (fuzzySearchTerm !== '') fuzzySearchTerm = fuzzySearchTerm + '*';
-    return searchIndex.search(fuzzySearchTerm).map((result) => envItems.data![result.ref]);
+    return searchIndex
+      .query((query) =>
+        tokenizer(searchText).forEach((token) =>
+          query.term(token, {
+            wildcard: Query.wildcard.TRAILING | Query.wildcard.LEADING,
+            presence: Query.presence.REQUIRED,
+          })
+        )
+      )
+      .map((result) => envItems.data![result.ref]);
   }, [searchText, searchIndex, envItems.data]);
 
   const navigate = useNavigate();
