@@ -252,7 +252,15 @@ export const sbEnvironmentQueriesGlobal = new EntityQueryBuilder({
     (base) => `${baseUrl}/sb-environments/${base.entity.id}/meta-arn`
   )
   .post('post', { ReqDto: PostSbEnvironmentDto, ResDto: PostSbEnvironmentResponseDto })
-  .delete('delete')
+  .delete('delete', {
+    keysToInvalidate: (params) => [
+      params.standard,
+      queryKeyNew({
+        kebabCaseName: 'ownership',
+        id: false,
+      }),
+    ],
+  })
   .put(
     'refreshResources',
     {

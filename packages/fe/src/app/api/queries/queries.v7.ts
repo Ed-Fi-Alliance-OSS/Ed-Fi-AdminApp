@@ -86,7 +86,6 @@ export const claimsetQueriesV2 = new EntityQueryBuilder({
         queryKeyNew({
           kebabCaseName: 'claimset',
           edfiTenant: params.edfiTenant,
-          sbEnvironmentId: params.edfiTenant.sbEnvironmentId,
           id: false,
         }),
       ],
