@@ -232,8 +232,8 @@ export const TeamNav = (props: { teamId: string }) => {
         authorize({
           queryClient,
           config: {
-            privilege: 'sb-environment:read',
-            subject: { id: sbEnvironment.id },
+            privilege: 'team.sb-environment:read',
+            subject: { id: sbEnvironment.id, teamId },
           },
         }),
         {
