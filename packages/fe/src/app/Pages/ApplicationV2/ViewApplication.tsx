@@ -99,6 +99,10 @@ export const ViewApplication = ({ application }: { application: GetApplicationDt
         <AttributeContainer label="Vendor">
           <VendorLinkV2 id={application.vendorId} query={vendors} />
         </AttributeContainer>
+        <Attribute
+          label="Profile IDs"
+          value={application.profileIds ? application.profileIds.join(', ') : undefined}
+        />
         <AttributeContainer label="Claimset">
           <ClaimsetLinkV2 id={application.claimSetName} query={claimsetsByName} />
         </AttributeContainer>

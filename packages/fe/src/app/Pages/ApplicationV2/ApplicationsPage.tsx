@@ -179,6 +179,11 @@ export const ApplicationsPageContent = () => {
           },
         },
         {
+          id: 'profiles',
+          accessorFn: (info) => info.profileIds?.join(', ') ?? undefined,
+          header: 'Profile IDs',
+        },
+        {
           id: 'claimest',
           accessorFn: (info) => getRelationDisplayName(info.claimSetName, claimsetsByName),
           header: 'Claimset',

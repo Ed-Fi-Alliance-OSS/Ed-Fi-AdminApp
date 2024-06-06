@@ -116,9 +116,14 @@ const mapRows = (rc: GetResourceClaimDtoV2) => {
 
   return output;
 };
+const actionSortOrder = ['Read', 'Create', 'Update', 'Delete', 'ReadChanges'];
+
 export const ResourceClaimsTableV2 = ({ claimset }: { claimset: GetClaimsetSingleDtoV2 }) => {
   const { data, columns } = useMemo(() => {
-    const uniqueActions = uniq(claimset.resourceClaims.flatMap(extractActions));
+    // TODO this dynamic-ness is to accommodate buggy Admin API (want to include even unexpected actions). It probably ought to be hardcoded. Revisit eventually.
+    const uniqueActions = uniq(claimset.resourceClaims.flatMap(extractActions)).sort(
+      (actionA, actionB) => actionSortOrder.indexOf(actionA) - actionSortOrder.indexOf(actionB)
+    );
     const columns: ColumnDef<ResourceClaimRow>[] = [
       {
         accessorKey: 'name',

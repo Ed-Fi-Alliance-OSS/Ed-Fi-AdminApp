@@ -39,6 +39,7 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { Attribute } from '@edanalytics/common-ui';
 
 const resolver = classValidatorResolver(PutApplicationFormDtoV2);
 
@@ -87,6 +88,7 @@ export const EditApplication = (props: {
   defaultValues.id = application.id;
   defaultValues.applicationName = application.displayName;
   defaultValues.claimsetId = claimset?.id as any;
+  defaultValues.profileIds = application.profileIds;
   defaultValues.vendorId = application.vendorId;
   defaultValues.educationOrganizationIds = application.educationOrganizationIds;
   defaultValues.odsInstanceId = application.odsInstanceIds[0];
@@ -248,6 +250,10 @@ export const EditApplication = (props: {
           <FormLabel>Vendor</FormLabel>
           <SelectVendorV2 name="vendorId" control={control} />
           <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
+        </FormControl>
+        <FormControl>
+          <FormLabel>Profile IDs</FormLabel>
+          {application.profileIds?.length ? application.profileIds.join(', ') : '-'}
         </FormControl>
         <FormControl isInvalid={!!errors.claimsetId}>
           <FormLabel>

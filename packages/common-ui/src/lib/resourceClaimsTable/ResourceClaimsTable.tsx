@@ -169,6 +169,22 @@ export const ResourceClaimsTable = ({ claimset }: { claimset: GetClaimsetDto }) 
             cell: NameCell,
           },
           {
+            id: 'read',
+            header: 'Read',
+            accessorFn: (rc) =>
+              rc.read ? rc.readOverride ?? rc.readDefault ?? 'Auth strategy unknown' : 'Denied',
+            cell: ({ row: { original } }) => (
+              <AuthStrategyBadge
+                authOverride={original.readOverride}
+                authDefault={original.readDefault}
+                hasAtAll={original.read}
+              />
+            ),
+            meta: {
+              type: 'options',
+            },
+          },
+          {
             id: 'create',
             header: 'Create',
             accessorFn: (rc) =>
@@ -180,22 +196,6 @@ export const ResourceClaimsTable = ({ claimset }: { claimset: GetClaimsetDto }) 
                 authOverride={original.createOverride}
                 authDefault={original.createDefault}
                 hasAtAll={original.create}
-              />
-            ),
-            meta: {
-              type: 'options',
-            },
-          },
-          {
-            id: 'read',
-            header: 'Read',
-            accessorFn: (rc) =>
-              rc.read ? rc.readOverride ?? rc.readDefault ?? 'Auth strategy unknown' : 'Denied',
-            cell: ({ row: { original } }) => (
-              <AuthStrategyBadge
-                authOverride={original.readOverride}
-                authDefault={original.readDefault}
-                hasAtAll={original.read}
               />
             ),
             meta: {
