@@ -35,6 +35,7 @@ import { V7Changes1709328882890 } from './migrations/1709328882890-v7-changes';
 import { EnvNav1710178189458 } from './migrations/1710178189458-EnvNav';
 import { OdsInstanceName1710454017707 } from './migrations/1710454017707-OdsInstanceName';
 import { RemoveImpliedPrivilege1714074225483 } from './migrations/1714074225483-RemoveImpliedPrivilege';
+import { BigIntEdOrg1717166915117 } from './migrations/1717166915117-BigIntEdOrgId';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -80,6 +81,7 @@ const config: Pick<
     EnvNav1710178189458,
     OdsInstanceName1710454017707,
     RemoveImpliedPrivilege1714074225483,
+    BigIntEdOrg1717166915117,
   ],
 };
 export default config;

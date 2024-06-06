@@ -12,6 +12,10 @@ export class EdorgMgmtServiceV2 extends BaseMgmtServiceV2 {
     edfiTenant: Pick<EdfiTenant, 'name'>,
     dto: AddEdorgDtoV2
   ) {
+    //throw error before sending to lambda function
+    if (Number(dto.EdOrgId) > Number.MAX_SAFE_INTEGER) {
+      throw new Error('Too-big educationOrganizationId encountered');
+    }
     const result = await this.executeMgmtFunction<string>(sbEnvironment, {
       Action: 'Add',
       TenantName: edfiTenant.name,

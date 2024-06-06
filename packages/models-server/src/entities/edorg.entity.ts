@@ -64,7 +64,24 @@ export class Edorg extends EntityBase implements IEdorg {
   @Column({ nullable: true })
   parentId?: number | undefined;
 
+  // TODO: bigint can handle bigger numbers than JS number & will eventually need to accomodate bigger numbers for edOrgIds
   @Column({
+    type: 'bigint',
+    transformer: {
+      to: (value: number) => {
+        if (value > Number.MAX_SAFE_INTEGER) {
+          throw new Error('Too-big educationOrganizationId encountered from sync');
+        }
+        return value;
+      },
+      from: (value: string) => {
+        if (Number(value) > Number.MAX_SAFE_INTEGER) {
+          throw new Error('Too-big educationOrganizationId encountered from sync');
+        }
+        // TypeORM is smart and unmarshals SQL bigint as a JS string for safety
+        return Number(value);
+      },
+    },
     comment:
       'Pre-v7/v2, this reliably included the Ods name. In v7/v2 it is no longer alone sufficient as a natural key, and must be combined with an ODS identifier.',
   })
