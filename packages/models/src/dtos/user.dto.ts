@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import type { IUser, IUserConfig } from '../interfaces/user.interface';
 import { DtoGetBase__User, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
@@ -44,6 +45,7 @@ export class PutUserDto
 {
   @Expose()
   @MinLength(2)
+  @TrimWhitespace()
   username: string;
 
   @Expose()
@@ -58,11 +60,13 @@ export class PutUserDto
   @Expose()
   @IsOptional()
   @IsString()
+  @TrimWhitespace()
   givenName?: string | null;
 
   @Expose()
   @IsOptional()
   @IsString()
+  @TrimWhitespace()
   familyName?: string | null;
 }
 
@@ -73,6 +77,7 @@ export class PostUserDto
 {
   @Expose()
   @MinLength(2)
+  @TrimWhitespace()
   username: string;
 
   @Expose()
@@ -87,10 +92,12 @@ export class PostUserDto
   @Expose()
   @IsOptional()
   @MinLength(2)
+  @TrimWhitespace()
   givenName?: string | null;
 
   @Expose()
   @IsOptional()
   @MinLength(2)
+  @TrimWhitespace()
   familyName?: string | null;
 }

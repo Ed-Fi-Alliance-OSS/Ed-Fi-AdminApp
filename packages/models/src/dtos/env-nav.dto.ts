@@ -1,7 +1,8 @@
 import { Expose } from 'class-transformer';
 import { IEnvNav } from '../interfaces';
-import { makeSerializer } from '../utils';
+import { TrimWhitespace, makeSerializer } from '../utils';
 
+// This is a Get DTO that should not have whitespace trimmed
 export class EnvNavDto implements IEnvNav {
   @Expose()
   sbEnvironmentId: number;

@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
 import { IsString, MinLength } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { ITeam } from '../interfaces/team.interface';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
@@ -26,6 +27,7 @@ export class PutTeamDto
   @Expose()
   @IsString()
   @MinLength(3)
+  @TrimWhitespace()
   name: string;
 }
 
@@ -36,5 +38,6 @@ export class PostTeamDto
   @Expose()
   @IsString()
   @MinLength(3)
+  @TrimWhitespace()
   name: string;
 }

@@ -1,7 +1,7 @@
 import { Expose } from 'class-transformer';
 import { SbV1MetaEdorg, SbV1MetaEnv } from './starting-blocks.v1.dto';
 import { IsIn, IsNumberString, IsString } from 'class-validator';
-
+import { TrimWhitespace } from '../utils';
 export type SbV2MetaEdorg = SbV1MetaEdorg;
 
 export interface SbV2MetaOds {
@@ -43,6 +43,7 @@ export const isSbV2MetaEnv = (obj: SbV2MetaEnv | SbV1MetaEnv): obj is SbV2MetaEn
 export class RemoveEdorgDtoV2 {
   @Expose()
   @IsString()
+  @TrimWhitespace()
   ODSName: string;
 
   @Expose()
@@ -54,11 +55,13 @@ export const edorgCategories = ['School', 'Local Education Agency', 'State Educa
 export class AddEdorgDtoV2 {
   @Expose()
   @IsString()
+  @TrimWhitespace()
   ODSName: string;
 
   @Expose()
   @IsString()
   @IsIn(edorgCategories)
+  @TrimWhitespace()
   EdOrgCategory: string;
 
   @Expose()
@@ -67,5 +70,6 @@ export class AddEdorgDtoV2 {
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   NameOfInstitution: string;
 }

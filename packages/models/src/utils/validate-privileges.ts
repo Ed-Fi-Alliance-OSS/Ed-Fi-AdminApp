@@ -1,4 +1,5 @@
 import { registerDecorator } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { PRIVILEGE_CODES } from '../types/privilege.type';
 import { PrivilegeCode } from '../types';
 

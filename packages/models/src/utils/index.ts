@@ -9,3 +9,4 @@ export * from './validate-privileges';
 export * from './is-arn';
 export * from './regarding';
 export * from './id.dto';
+export { default as TrimWhitespace } from './TrimWhitespace';

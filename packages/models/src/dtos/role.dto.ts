@@ -1,5 +1,6 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { IsEnum, IsIn, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { RoleType } from '../enums';
 import { ITeam } from '../interfaces';
 import { IRole } from '../interfaces/role.interface';
@@ -40,11 +41,13 @@ export class PutRoleDto
   @Expose()
   @IsString()
   @MinLength(3)
+  @TrimWhitespace()
   name: string;
 
   @Expose()
   @IsOptional()
   @IsString()
+  @TrimWhitespace()
   description?: string;
 
   @Expose()
@@ -66,11 +69,13 @@ export class PostRoleDto extends DtoPostBase implements PostDto<IRole, 'team' | 
   @Expose()
   @IsString()
   @MinLength(3)
+  @TrimWhitespace()
   name: string;
 
   @Expose()
   @IsOptional()
   @IsString()
+  @TrimWhitespace()
   description?: string;
 
   @Expose()

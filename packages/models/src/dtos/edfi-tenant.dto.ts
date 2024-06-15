@@ -1,5 +1,6 @@
 import { Expose } from 'class-transformer';
 import { IsNotIn, IsOptional, IsString, Matches, MaxLength, MinLength } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { IEdfiTenant } from '../interfaces/edfi-tenant.interface';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
@@ -46,6 +47,7 @@ export class PostEdfiTenantDto
   @MaxLength(29)
   @Matches(/^[a-z0-9]+$/, { message: 'Name must only contain numbers and lowercase letters.' })
   @IsNotIn(['default', 'template'], { message: 'Name cannot be "default" or "template".' })
+  @TrimWhitespace()
   name: string;
 
   @Expose()
@@ -62,6 +64,7 @@ export class PutEdfiTenantAdminApiRegister {
 
   @IsString()
   @Expose()
+  @TrimWhitespace()
   adminRegisterUrl?: string;
 }
 export class PutEdfiTenantAdminApi {
@@ -71,15 +74,18 @@ export class PutEdfiTenantAdminApi {
   @IsString()
   @IsOptional()
   @Expose()
+  @TrimWhitespace()
   url?: string;
 
   @IsString()
   @IsOptional()
   @Expose()
+  @TrimWhitespace()
   adminKey?: string;
 
   @IsString()
   @IsOptional()
   @Expose()
+  @TrimWhitespace()
   adminSecret?: string;
 }

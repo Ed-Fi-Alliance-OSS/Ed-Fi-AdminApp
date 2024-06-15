@@ -7,6 +7,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
   PostApplicationDtoBase,
@@ -42,10 +43,12 @@ export class GetProfileDtoV2 {
 
 export class PostProfileDtoV2 {
   @Expose()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   definition: string;
 }
 
@@ -195,6 +198,7 @@ export const toGetClaimsetSingleDtoV2 = makeSerializer(GetClaimsetSingleDtoV2);
 
 export class ImportClaimsetSingleDtoV2 {
   @Expose()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
@@ -208,6 +212,7 @@ export class ResourceClaimDtoV2 {
   id: string;
 
   @Expose()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
@@ -302,6 +307,7 @@ export class CopyClaimsetDtoV2 {
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   name: string;
 }
 
@@ -324,14 +330,17 @@ export const toGetOdsInstanceSummaryDtoV2 = makeSerializer(GetOdsInstanceSummary
 export class PostCreateOdsInstanceDtoV2 {
   @Expose()
   @IsString()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   instanceType: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   connectionString: string;
 }
 
@@ -360,10 +369,12 @@ export class PostOdsInstanceContextDtoV2 {
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   contextKey: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   contextValue: string;
 }
 
@@ -395,6 +406,7 @@ export const toGetOdsInstanceDerivativeDtoV2 = makeSerializer(GetOdsInstanceDeri
 export class PutOdsInstanceDerivativeDtoV2 extends OdsInstanceDerivativeDtoBase {
   @Expose()
   @IsString()
+  @TrimWhitespace()
   connectionString: string;
 }
 export class PostOdsInstanceDerivativeDtoV2 extends PutOdsInstanceDerivativeDtoV2 {}
@@ -406,14 +418,17 @@ export const toGetOdsInstanceDetailDtoV2 = makeSerializer(GetOdsInstanceDetailDt
 export class PutUpdateOdsInstanceDtoV2 {
   @Expose()
   @IsString()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   instanceType: string;
 
   @Expose()
   @IsString()
+  @TrimWhitespace()
   connectionString: string;
 }
 

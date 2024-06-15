@@ -1,4 +1,5 @@
 import { registerDecorator } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { validate as validateArn } from '@aws-sdk/util-arn-parser';
 
 const validate = (value: any) => {

@@ -11,6 +11,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import { GetEdorgDto } from './edorg.dto';
 import { SbaaAdminApiVersion } from '../interfaces';
@@ -19,17 +20,21 @@ export class PostVendorDto {
   @Expose()
   @IsString()
   @IsNotEmpty()
+  @TrimWhitespace()
   company: string;
   @Expose()
   @IsOptional()
   @IsString()
+  @TrimWhitespace()
   namespacePrefixes: string;
   @Expose()
   @IsString()
   @IsNotEmpty()
+  @TrimWhitespace()
   contactName: string;
   @Expose()
   @IsEmail()
+  @TrimWhitespace()
   contactEmailAddress: string;
 }
 
@@ -124,6 +129,7 @@ export class PostClaimsetDto {
   @Expose()
   @IsString()
   @IsNotEmpty()
+  @TrimWhitespace()
   name: string;
 
   @Expose()
@@ -170,6 +176,7 @@ export class PostApplicationDtoBase {
   @IsString()
   @MinLength(3)
   @MaxLength(40)
+  @TrimWhitespace()
   applicationName: string;
 
   @Expose()
@@ -217,6 +224,8 @@ export class PostApplicationForm extends PostApplicationFormBase {
   educationOrganizationId: number;
 }
 
+// This is a response to a Post and is really a Get DTO
+// Therefore whitespace should not be trimmed
 export class PostApplicationResponseDtoBase {
   @Expose()
   key: string;
@@ -231,6 +240,7 @@ export class PostApplicationResponseDto extends PostApplicationResponseDtoBase {
 
 export const toPostApplicationResponseDto = makeSerializer(PostApplicationResponseDto);
 
+// This is a Get DTO that should not have whitespace trimmed
 export class ApplicationYopassResponseDto {
   @Expose()
   applicationId: number;
@@ -266,6 +276,7 @@ export class PutApplicationForm extends PostApplicationForm {
   }
 }
 
+// This is a Get DTO that should not have whitespace trimmed
 export class ApplicationResetCredentialResponseDto {
   @Expose()
   applicationId: number;
