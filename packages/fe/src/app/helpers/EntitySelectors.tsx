@@ -215,7 +215,7 @@ export const SelectUser: StandardSelector = (props) => {
         user.id,
         {
           value: user.id,
-          label: user.displayName,
+          label: user.displayName + ' (' + user.username + ')',
         },
       ])
     );
