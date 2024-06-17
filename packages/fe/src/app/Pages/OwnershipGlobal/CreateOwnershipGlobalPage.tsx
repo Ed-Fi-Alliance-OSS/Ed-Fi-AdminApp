@@ -11,14 +11,28 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { PostOwnershipDto, RoleType } from '@edanalytics/models';
+import {
+  GetEdfiTenantDto,
+  GetEdorgDto,
+  PostOwnershipDto,
+  RoleType,
+  edorgKeyV2,
+} from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQuery } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { plainToInstance } from 'class-transformer';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { ownershipQueries } from '../../api';
+import {
+  edfiTenantQueriesGlobal,
+  edorgQueries,
+  ownershipQueries,
+  sbEnvironmentQueries,
+  teamQueries,
+} from '../../api';
 import {
   EdfiTenantNavContextLoader,
   NavContextLoader,
@@ -55,6 +69,9 @@ export const CreateOwnershipGlobalPage = () => {
   const navToParentOptions = useNavToParent();
   const goToView = (id: string | number) => navigate(`/ownerships/${id}`);
 
+  const teams = useQuery(teamQueries.getAll({}));
+  const sbEnvironments = useQuery(sbEnvironmentQueries.getAll({}));
+
   const search = useSearchParamsObject(getDefaults);
   const popBanner = usePopBanner();
 
@@ -68,12 +85,45 @@ export const CreateOwnershipGlobalPage = () => {
     setError,
   } = useForm({
     resolver,
-    defaultValues: { ...search } as PostOwnershipDto,
+    defaultValues: useMemo(() => Object.assign(new PostOwnershipDto(), search), [search]),
   });
 
-  const [sbEnvironmentId, edfiTenantId, type] = watch(['sbEnvironmentId', 'edfiTenantId', 'type']);
-
-  return (
+  const [sbEnvironmentId, edfiTenantId, type, selectedOdsId] = watch([
+    'sbEnvironmentId',
+    'edfiTenantId',
+    'type',
+    'odsId',
+  ]);
+  const { data: edfiTenant } = useQuery(
+    edfiTenantQueriesGlobal.getOne({
+      id: edfiTenantId,
+      sbEnvironmentId: sbEnvironmentId,
+      enabled: !!edfiTenantId,
+    })
+  );
+  const edorgs = useQuery(
+    edorgQueries.getAll({
+      edfiTenant: edfiTenant || ({} as GetEdfiTenantDto),
+      enabled: !!edfiTenant?.id,
+    })
+  );
+  const filteredEdorgOptions = useMemo(() => {
+    const filteredEdorgs = { ...edorgs.data };
+    return Object.fromEntries(
+      Object.entries(filteredEdorgs)
+        .filter(([key, v]) => v.odsId === Number(selectedOdsId))
+        .map(([key, v]) => [
+          v.id,
+          {
+            value: v.id,
+            label: v.displayName,
+            subLabel: `${v.educationOrganizationId} ${v.discriminatorShort}`,
+            discriminator: v.discriminator,
+          },
+        ])
+    );
+  }, [edorgs, selectedOdsId]);
+  return teams.data && sbEnvironments.data ? (
     <PageTemplate title={'Grant new resource ownership'} actions={undefined}>
       <Box maxW="form-width">
         <FormLabel>Resource type</FormLabel>
@@ -110,6 +160,12 @@ export const CreateOwnershipGlobalPage = () => {
             const body = plainToInstance(PostOwnershipDto, data);
             if (type !== 'edfiTenant') {
               body.edfiTenantId = undefined;
+            }
+            if (type !== 'ods') {
+              body.odsId = undefined;
+            }
+            if (type !== 'environment') {
+              body.sbEnvironmentId = undefined;
             }
             return postOwnership
               .mutateAsync(
@@ -157,11 +213,24 @@ export const CreateOwnershipGlobalPage = () => {
                         </FormControl>
                       ) : null}
                       {type === 'edorg' ? (
-                        <FormControl isInvalid={!!errors.hasResource}>
-                          <FormLabel>Ed-Org</FormLabel>
-                          <SelectEdorg control={control} name="edorgId" useEdorgId={false} />
-                          <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
-                        </FormControl>
+                        <>
+                          <FormControl isInvalid={!!errors.hasResource}>
+                            <FormLabel>ODS</FormLabel>
+                            <SelectOds control={control} name="odsId" useDbName={false} />
+                            <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
+                          </FormControl>
+                          <FormControl isInvalid={!!errors.hasResource}>
+                            <FormLabel>Ed-Org</FormLabel>
+                            <SelectEdorg
+                              isDisabled={!selectedOdsId}
+                              options={filteredEdorgOptions}
+                              control={control}
+                              name="edorgId"
+                              useEdorgId={false}
+                            />
+                            <FormErrorMessage>{errors.hasResource?.message}</FormErrorMessage>
+                          </FormControl>
+                        </>
                       ) : null}
                     </EdfiTenantNavContextLoader>
                   </NavContextProvider>
@@ -207,5 +276,5 @@ export const CreateOwnershipGlobalPage = () => {
         </form>
       </Box>
     </PageTemplate>
-  );
+  ) : null;
 };
