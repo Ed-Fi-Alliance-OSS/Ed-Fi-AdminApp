@@ -1,19 +1,23 @@
 import './modes/dev';
+
 process.env['NODE_CONFIG_DIR'] = './packages/api/config';
+
 import './utils/checkEnv';
-import { formErrFromValidator, wait } from '@edanalytics/utils';
+
+import { formErrFromValidator } from '@edanalytics/utils';
 import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import colors from 'colors/safe';
 import * as config from 'config';
 import * as pgSession from 'connect-pg-simple';
+import { json } from 'express';
 import * as expressSession from 'express-session';
+import { writeFileSync } from 'fs';
 import passport from 'passport';
 import { Client } from 'pg';
 import { AppModule } from './app/app.module';
 import { CustomHttpException } from './utils/customExceptions';
-import { writeFileSync } from 'fs';
 
 async function bootstrap() {
   const app = await NestFactory.create(AppModule);
@@ -27,6 +31,7 @@ async function bootstrap() {
   );
   if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
 
+  app.use(json({ limit: '512kb' }));
   app.use(
     expressSession.default({
       store: new (pgSession.default(expressSession.default))({
