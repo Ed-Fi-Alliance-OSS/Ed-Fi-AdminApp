@@ -17,6 +17,7 @@ import {
   GetVendorDto,
   Id,
   Ids,
+  OdsRowCountsDto,
   OdsTemplateOptionDto,
   OperationResultDto,
   PostApplicationForm,
@@ -175,6 +176,14 @@ export const odsQueries = new EntityQueryBuilder({
       }),
     ],
   })
+  .getAll('rowCounts', { ResDto: OdsRowCountsDto }, (base, { odsId }: { odsId: string }) =>
+    standardPath({
+      edfiTenant: base.edfiTenant,
+      teamId: base.teamId,
+      kebabCaseName: 'ods',
+      id: `${odsId}/row-count`,
+    })
+  )
   .build();
 
 export const ownershipQueries = new EntityQueryBuilder({

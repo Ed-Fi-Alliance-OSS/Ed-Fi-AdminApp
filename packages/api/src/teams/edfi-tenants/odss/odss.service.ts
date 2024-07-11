@@ -69,4 +69,32 @@ export class OdssService {
       500
     );
   }
+
+  async getOdsRowCount(
+    sbEnvironment: SbEnvironment,
+    edfiTenant: Pick<EdfiTenant, 'name'>,
+    ods: Ods
+  ) {
+    if (sbEnvironment.version === 'v2') {
+      const rowCount = await this.startingBlocksServiceV2.odsRowCountService.rowCount({
+        sbEnvironment,
+        edfiTenant,
+        ods,
+      });
+      if (rowCount.status !== 'SUCCESS') {
+        throw new CustomHttpException(
+          {
+            title: 'Ods-row-count unsuccessful.',
+            type: 'Error',
+            message: rowCount.status + '. ' + (rowCount?.data?.errorMessage ?? 'Unknown error.'),
+            regarding: regarding(sbEnvironment),
+          },
+          500
+        );
+      }
+      return rowCount.data;
+    } else {
+      throw new NotFoundException('Only v2 environments support row counting.');
+    }
+  }
 }

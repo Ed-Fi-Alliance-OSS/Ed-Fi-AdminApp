@@ -44,6 +44,7 @@ export type EdfiTenantSubEntityPrivilege =
   | 'claimset:delete'
   | 'claimset:create'
   | 'ods:read'
+  | 'ods:read-row-counts'
   | 'edorg:read'
   | 'edorg.application:read'
   | 'edorg.application:update'
@@ -59,6 +60,7 @@ export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'ownership:delete': true,
   'ownership:create': true,
   'ods:read': true,
+  'ods:read-row-counts': true,
   'edorg:read': true,
   'sb-environment.edfi-tenant:read': true,
   'sb-environment.edfi-tenant:update': true,
@@ -133,6 +135,7 @@ export interface ITeamCache
   'team.sb-environment.edfi-tenant.claimset:delete'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.claimset:create'?: Record<IEdfiTenant['id'], TrueValue>;
   'team.sb-environment.edfi-tenant.ods:read'?: Record<IEdfiTenant['id'], Ids>;
+  'team.sb-environment.edfi-tenant.ods:read-row-counts'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg:read'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg.application:read'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg.application:update'?: Record<IEdfiTenant['id'], Ids>;
@@ -201,6 +204,7 @@ export const edfiTenantResourcePrivilegesMap: Partial<Record<string, TeamEdfiTen
   ],
   'team.sb-environment.edfi-tenant.ods': [
     'team.sb-environment.edfi-tenant.ods:read',
+    'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
   ],

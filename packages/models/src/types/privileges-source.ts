@@ -22,6 +22,7 @@ export const privileges = {
   'sb-environment:refresh-resources':
     "Sync Ed-Orgs and ODS's for environments in the global scope.",
   'ods:read': "Read ODS's in the global scope.",
+  'ods:read-row-counts': "Read row counts of ODS's in the global scope.",
   'edorg:read': 'Read Ed-Orgs in the global scope.',
   'user:read': 'Read users in the global scope.',
   'user:update': 'Update users in the global scope.',
@@ -72,6 +73,7 @@ export const privileges = {
   'team.sb-environment.edfi-tenant.claimset:delete': "Delete your team's claim-sets.",
   'team.sb-environment.edfi-tenant.claimset:create': "Create your team's claim-sets.",
   'team.sb-environment.edfi-tenant.ods:read': "Read your team's ODS's.",
+  'team.sb-environment.edfi-tenant.ods:read-row-counts': "Read row counts of your team's ODS's.",
   'team.sb-environment.edfi-tenant.ods:create-edorg': "Create edorgs in your team's ODS's.",
   'team.sb-environment.edfi-tenant.ods:delete-edorg': "Delete edorgs in your team's ODS's.",
   'team.sb-environment.edfi-tenant.ods.edorg:read': "Read your team's Ed-Orgs.",

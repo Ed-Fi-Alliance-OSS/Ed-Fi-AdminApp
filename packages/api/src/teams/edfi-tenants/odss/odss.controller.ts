@@ -1,10 +1,11 @@
-import { Ids, PostOdsDto, toGetOdsDto } from '@edanalytics/models';
+import { Ids, PostOdsDto, toGetOdsDto, toOdsRowCountsDto } from '@edanalytics/models';
 import { EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
   Controller,
   Delete,
   Get,
+  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
@@ -109,5 +110,35 @@ export class OdssController {
     @ReqEdfiTenant() edfiTenant: EdfiTenant
   ) {
     return this.odsService.delete(sbEnvironment, edfiTenant, odsId);
+  }
+
+  @Get(':odsId/row-count')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods:read-row-counts',
+    subject: {
+      id: 'odsId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getOdsRowCounts(
+    @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @ReqEdfiTenant() edfiTenant: Pick<EdfiTenant, 'name'>,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment
+  ) {
+    const ods = await this.odsService.findOne(odsId);
+    if (!ods) {
+      throw new NotFoundException('ods not found (odss.controller/getOdsRowCount)');
+    }
+
+    const result = await this.odsService.getOdsRowCount(sbEnvironment, edfiTenant, ods);
+    // TODO remove conditional once Lambda is updated
+    if (typeof result === 'string') {
+      const parsedResult = JSON.parse(result);
+      return toOdsRowCountsDto(parsedResult);
+    }
+    return toOdsRowCountsDto(result);
   }
 }

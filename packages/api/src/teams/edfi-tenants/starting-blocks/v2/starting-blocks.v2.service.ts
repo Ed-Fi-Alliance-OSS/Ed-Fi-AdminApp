@@ -25,6 +25,7 @@ import { EdorgMgmtServiceV2 } from './edorg-mgmt.v2.service';
 import { OdsMgmtServiceV2 } from './ods-mgmt.v2.service';
 import { TenantMgmtServiceV2 } from './tenant-mgmt.v2.service';
 import { randomUUID } from 'crypto';
+import { OdsRowCountService } from './ods-rowcount.service';
 
 // TODO eventually need to limit concurrency per-environment (to 1) but across envs we can run in parallel
 const limit = pLimit(1);
@@ -35,6 +36,7 @@ export class StartingBlocksServiceV2 {
   private readonly logger = new Logger(StartingBlocksServiceV2.name);
   readonly tenantMgmtService = new TenantMgmtServiceV2();
   readonly odsMgmtService = new OdsMgmtServiceV2();
+  readonly odsRowCountService = new OdsRowCountService();
   readonly edorgMgmtService = new EdorgMgmtServiceV2();
   constructor(
     @InjectRepository(EdfiTenant)

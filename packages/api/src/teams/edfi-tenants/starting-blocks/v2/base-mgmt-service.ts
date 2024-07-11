@@ -6,7 +6,10 @@ import { Logger } from '@nestjs/common';
 
 type MgmtArnKey = keyof Pick<
   ISbEnvironmentConfigPublicV2['meta'],
-  'odsManagementFunctionArn' | 'tenantManagementFunctionArn' | 'edorgManagementFunctionArn'
+  | 'odsManagementFunctionArn'
+  | 'tenantManagementFunctionArn'
+  | 'edorgManagementFunctionArn'
+  | 'dataFreshnessFunctionArn'
 >;
 
 export class BaseMgmtServiceV2 {

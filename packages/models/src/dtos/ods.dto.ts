@@ -16,6 +16,27 @@ export class OdsTemplateOptionDto {
 }
 export const toOdsTemplateOptionDto = makeSerializer(OdsTemplateOptionDto);
 
+export class OdsRowCountsDto {
+  @Expose()
+  Schema: string;
+  @Expose()
+  Table: string;
+  @Expose()
+  RecordCount: number;
+  @Expose()
+  FirstCreated: Date;
+  @Expose()
+  LastCreated: Date;
+  @Expose()
+  LastUpdated: Date;
+
+  @Expose()
+  get id() {
+    return `${this.Schema}.${this.Table}`;
+  }
+}
+export const toOdsRowCountsDto = makeSerializer(OdsRowCountsDto);
+
 export class GetOdsDto
   extends DtoGetBase
   implements GetDto<IOds, 'ownerships' | 'edfiTenant' | 'edorgs'>

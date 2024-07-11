@@ -5,6 +5,7 @@ import { edfiTenantQueries, odsQueries } from '../../api';
 import { queryFromEntity } from '../../api/queries/builder';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { EdfiTenantLink, SbEnvironmentLink } from '../../routes';
+import { OdsRowCountsTable } from './OdsRowCountsTable';
 
 export const ViewOds = () => {
   const params = useParams() as {

@@ -39,6 +39,7 @@ export type TeamPrivileges =
   | 'team.sb-environment.edfi-tenant.claimset:delete'
   | 'team.sb-environment.edfi-tenant.claimset:create'
   | 'team.sb-environment.edfi-tenant.ods:read'
+  | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
@@ -61,6 +62,7 @@ export type TeamSbEnvironmentPrivileges =
   | 'team.sb-environment.edfi-tenant.claimset:delete'
   | 'team.sb-environment.edfi-tenant.claimset:create'
   | 'team.sb-environment.edfi-tenant.ods:read'
+  | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
@@ -80,6 +82,7 @@ export type TeamSbEnvironmentEdfiTenantPrivileges =
   | 'team.sb-environment.edfi-tenant.claimset:delete'
   | 'team.sb-environment.edfi-tenant.claimset:create'
   | 'team.sb-environment.edfi-tenant.ods:read'
+  | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
@@ -148,6 +151,7 @@ export const TeamResourcePrivileges = {
   ],
   'team.sb-environment.edfi-tenant.ods': [
     'team.sb-environment.edfi-tenant.ods:read',
+    'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
   ],
@@ -181,6 +185,7 @@ export const TeamSbEnvironmentResourcePrivileges = {
   ],
   'team.sb-environment.edfi-tenant.ods': [
     'team.sb-environment.edfi-tenant.ods:read',
+    'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
   ],
@@ -209,6 +214,7 @@ export const TeamSbEnvironmentEdfiTenantResourcePrivileges = {
   ],
   'team.sb-environment.edfi-tenant.ods': [
     'team.sb-environment.edfi-tenant.ods:read',
+    'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
   ],

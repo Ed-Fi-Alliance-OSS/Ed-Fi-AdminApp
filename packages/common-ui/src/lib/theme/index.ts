@@ -285,6 +285,9 @@ export const theme = extendTheme({
       '*::placeholder': {
         fontStyle: 'italic',
       },
+      '.chakra-collapse[style*="height: auto"] { overflow: initial !important }': {
+        overflow: 'initial',
+      },
     },
   },
 });

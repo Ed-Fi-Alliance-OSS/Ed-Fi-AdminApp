@@ -82,13 +82,13 @@ const generateResourcePrivilegeMaps = () => {
   };
   _generateResourcePrivilegeMaps(1);
   Object.keys(entityPrivileges).forEach((entityName) => {
-    output += `export const ${entityName}ResourcePrivileges = {\n ${Object.entries(
+    output += `export const ${entityName}ResourcePrivileges = {\n  ${Object.entries(
       entityPrivileges[entityName]
     )
       .map(
-        ([resource, privileges]) => `'${resource}': [\n    '${privileges.join("',\n    '")}'\n  ]`
+        ([resource, privileges]) => `'${resource}': [\n    '${privileges.join("',\n    '")}',\n  ]`
       )
-      .join(',\n  ')}\n};\n\n`;
+      .join(',\n  ')},\n};\n\n`;
   });
 };
 

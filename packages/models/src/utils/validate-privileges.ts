@@ -10,6 +10,10 @@ export const privilegeDependencies: Partial<
     dependencies: ['sb-environment.edfi-tenant:read'],
     message: 'All ODS features require the ability to also access EdfiTenants.',
   },
+  'ods:read-row-counts': {
+    dependencies: ['ods:read'],
+    message: 'All ODS features require the ability to also access ODSs.',
+  },
   'edorg:read': {
     dependencies: ['sb-environment.edfi-tenant:read', 'ods:read'],
     message: 'All Ed-Org features require the ability to also access EdfiTenants and ODSs.',
@@ -103,6 +107,10 @@ export const privilegeDependencies: Partial<
   'team.sb-environment.edfi-tenant.ods:read': {
     dependencies: ['team.sb-environment.edfi-tenant:read'],
     message: 'All ODS features require the ability to also access EdfiTenants.',
+  },
+  'team.sb-environment.edfi-tenant.ods:read-row-counts': {
+    dependencies: ['team.sb-environment.edfi-tenant.ods:read'],
+    message: 'All ODS features require the ability to also access ODSs.',
   },
   'team.sb-environment.edfi-tenant.ods.edorg:read': {
     dependencies: [

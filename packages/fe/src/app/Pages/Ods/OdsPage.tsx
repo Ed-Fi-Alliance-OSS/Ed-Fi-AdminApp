@@ -9,11 +9,16 @@ import { useQuery } from '@tanstack/react-query';
 import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { odsQueries } from '../../api';
-import { AuthorizeComponent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import {
+  AuthorizeComponent,
+  useTeamEdfiTenantNavContextLoaded,
+  VersioningHoc,
+} from '../../helpers';
 import { useEdorgsActions } from '../Edorg/useEdorgsActions';
 import { OdsEdorgsTable } from './OdsEdorgsTable';
 import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
+import { OdsRowCountsTable } from './OdsRowCountsTable';
 
 export const OdsPage = () => {
   const params = useParams() as {
@@ -58,6 +63,26 @@ export const OdsPage = () => {
               </ContentSection>
             </PageContentCard>
           </AuthorizeComponent>
+          <VersioningHoc
+            v2={
+              <AuthorizeComponent
+                config={{
+                  privilege: 'team.sb-environment.edfi-tenant.ods:read-row-counts',
+                  subject: {
+                    id: params.odsId,
+                    edfiTenantId: edfiTenant.id,
+                    teamId,
+                  },
+                }}
+              >
+                <PageContentCard>
+                  <ContentSection heading="ODS Row Counts">
+                    <OdsRowCountsTable />
+                  </ContentSection>
+                </PageContentCard>
+              </AuthorizeComponent>
+            }
+          />
         </>
       ) : null}
     </PageTemplate>
