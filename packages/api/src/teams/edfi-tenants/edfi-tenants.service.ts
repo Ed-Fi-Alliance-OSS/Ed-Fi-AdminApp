@@ -25,8 +25,6 @@ export class EdfiTenantsService {
   async create(sbEnvironment: SbEnvironment, tenant: PostEdfiTenantDto) {
     const result = await this.startingBlocksServiceV2.createTenant(sbEnvironment, tenant);
     switch (result.status) {
-      case 'NOT_V2':
-        throw new BadRequestException('Only v2 environments support adding tenants.');
       case 'INVALID_NAME':
         throw new ValidationHttpException({
           field: 'name',
@@ -92,26 +90,23 @@ export class EdfiTenantsService {
   }
 
   async delete(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant) {
-    if (sbEnvironment.configPublic.version === 'v2') {
-      const removeResult = await this.startingBlocksServiceV2.deleteTenant(
-        sbEnvironment,
-        edfiTenant.name
+    const removeResult = await this.startingBlocksServiceV2.deleteTenant(
+      sbEnvironment,
+      edfiTenant.name
+    );
+    if (removeResult.status !== 'SUCCESS') {
+      throw new CustomHttpException(
+        {
+          title: 'Failed to remove tenant.',
+          message:
+            ('data' in removeResult && removeResult.data?.errorMessage) ?? removeResult.status,
+          type: 'Error',
+          regarding: regarding(edfiTenant),
+        },
+        500
       );
-      if (removeResult.status !== 'SUCCESS') {
-        throw new CustomHttpException(
-          {
-            title: 'Failed to remove tenant.',
-            message:
-              ('data' in removeResult && removeResult.data?.errorMessage) ?? removeResult.status,
-            type: 'Error',
-            regarding: regarding(edfiTenant),
-          },
-          500
-        );
-      }
-    } else {
-      throw new BadRequestException('Only v2 environments support deleting tenants.');
     }
+
     return undefined;
   }
 

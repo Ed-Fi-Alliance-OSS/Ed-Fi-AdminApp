@@ -49,6 +49,7 @@ import {
 } from '../teams/edfi-tenants/starting-blocks';
 import { throwNotFound } from '../utils';
 import { CustomHttpException, ValidationHttpException } from '../utils/customExceptions';
+import { Operation, SbVersion } from '../auth/authorization/sbVersion.decorator';
 
 @ApiTags('EdfiTenant - Global')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
@@ -66,6 +67,8 @@ export class EdfiTenantsGlobalController {
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
+  @SbVersion('v2')
+  @Operation('Creating tenants')
   @Post()
   @Authorize({
     privilege: 'sb-environment.edfi-tenant:create',
@@ -105,6 +108,8 @@ export class EdfiTenantsGlobalController {
     );
   }
 
+  @SbVersion('v2')
+  @Operation('Deleting tenants')
   @Delete(':edfiTenantId')
   @Authorize({
     privilege: 'sb-environment.edfi-tenant:delete',
@@ -200,34 +205,30 @@ export class EdfiTenantsGlobalController {
     @Body() updateDto: Id,
     @ReqUser() user: GetSessionDataDto
   ) {
-    if (sbEnvironment.version === 'v2') {
-      const result = await this.startingBlocksServiceV2.regenerateAdminApiCredentials(edfiTenant);
-      switch (result.status) {
-        case 'FAILURE':
-          throw new CustomHttpException(
-            {
-              title: 'Failed to generate Admin API key for new tenant.',
-              type: 'Error',
-            },
-            500
-          );
-        case 'NO_CONFIG':
-          throw new CustomHttpException(
-            {
-              title: 'No ARN configured for tenant management.',
-              type: 'Error',
-            },
-            500
-          );
-        case 'SUCCESS':
-          return toOperationResultDto({
-            title: 'Key generated successfully.',
-            type: 'Success',
-            regarding: regarding(edfiTenant),
-          });
-      }
-    } else {
-      throw new BadRequestException('Only v2 environments support this operation.');
+    const result = await this.startingBlocksServiceV2.regenerateAdminApiCredentials(edfiTenant);
+    switch (result.status) {
+      case 'FAILURE':
+        throw new CustomHttpException(
+          {
+            title: 'Failed to generate Admin API key for new tenant.',
+            type: 'Error',
+          },
+          500
+        );
+      case 'NO_CONFIG':
+        throw new CustomHttpException(
+          {
+            title: 'No ARN configured for tenant management.',
+            type: 'Error',
+          },
+          500
+        );
+      case 'SUCCESS':
+        return toOperationResultDto({
+          title: 'Key generated successfully.',
+          type: 'Success',
+          regarding: regarding(edfiTenant),
+        });
     }
   }
   @Put(':edfiTenantId/register-admin-api')

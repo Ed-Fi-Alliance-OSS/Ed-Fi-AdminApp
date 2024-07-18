@@ -374,48 +374,42 @@ export class StartingBlocksServiceV2 {
   }
 
   async createTenant(sbEnvironment: SbEnvironment, tenant: PostEdfiTenantDto) {
-    if (sbEnvironment.configPublic.version === 'v2') {
-      const addTenantResult = await this.tenantMgmtService.add(sbEnvironment, tenant);
-      if (addTenantResult.status !== 'SUCCESS') {
-        return addTenantResult;
-      }
-      const syncTenantsResult = await this.syncTenants(sbEnvironment);
-      if (syncTenantsResult.status !== 'SUCCESS') {
-        return {
-          status: 'SYNC_FAILED' as const,
-          data: syncTenantsResult.data,
-        };
-      }
-      const newTenant = await this.edfiTenantsRepository.findOneBy({
-        name: tenant.name,
-        sbEnvironmentId: sbEnvironment.id,
-      });
-      // TODO it's possible this is unnecessary because it's impossible for there to be any resources initially. Not sure.
-      const syncResourceTreeResult = await this.syncTenantResourceTree(newTenant);
-      if (syncResourceTreeResult.status !== 'SUCCESS') {
-        return {
-          status: 'SYNC_RESOURCE_TREE_FAILED' as const,
-        };
-      }
-      const reloadTenantsResult = await this.tenantMgmtService.reload(sbEnvironment);
-      if (reloadTenantsResult.status !== 'SUCCESS') {
-        return {
-          status: 'TENANT_RELOAD_FAILED' as const,
-        };
-      } else {
-        // reload returns on successful initiation of reload, not on completion. Just give it a sec.
-        await wait(2000);
-      }
-
+    const addTenantResult = await this.tenantMgmtService.add(sbEnvironment, tenant);
+    if (addTenantResult.status !== 'SUCCESS') {
+      return addTenantResult;
+    }
+    const syncTenantsResult = await this.syncTenants(sbEnvironment);
+    if (syncTenantsResult.status !== 'SUCCESS') {
       return {
-        status: 'SUCCESS' as const,
-        edfiTenant: newTenant,
-      };
-    } else {
-      return {
-        status: 'NOT_V2' as const,
+        status: 'SYNC_FAILED' as const,
+        data: syncTenantsResult.data,
       };
     }
+    const newTenant = await this.edfiTenantsRepository.findOneBy({
+      name: tenant.name,
+      sbEnvironmentId: sbEnvironment.id,
+    });
+    // TODO it's possible this is unnecessary because it's impossible for there to be any resources initially. Not sure.
+    const syncResourceTreeResult = await this.syncTenantResourceTree(newTenant);
+    if (syncResourceTreeResult.status !== 'SUCCESS') {
+      return {
+        status: 'SYNC_RESOURCE_TREE_FAILED' as const,
+      };
+    }
+    const reloadTenantsResult = await this.tenantMgmtService.reload(sbEnvironment);
+    if (reloadTenantsResult.status !== 'SUCCESS') {
+      return {
+        status: 'TENANT_RELOAD_FAILED' as const,
+      };
+    } else {
+      // reload returns on successful initiation of reload, not on completion. Just give it a sec.
+      await wait(2000);
+    }
+
+    return {
+      status: 'SUCCESS' as const,
+      edfiTenant: newTenant,
+    };
   }
   async deleteTenant(sbEnvironment: SbEnvironment, name: string) {
     const removeResult = await this.tenantMgmtService.remove(sbEnvironment, name);

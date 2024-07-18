@@ -20,7 +20,13 @@ import {
   ReqSbEnvironment,
   SbEnvironmentEdfiTenantInterceptor,
 } from '../../../app/sb-environment-edfi-tenant.interceptor';
-import { Authorize, CheckAbility, CheckAbilityType } from '../../../auth/authorization';
+import {
+  Authorize,
+  CheckAbility,
+  CheckAbilityType,
+  Operation,
+  SbVersion,
+} from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { whereIds } from '../../../auth/helpers/where-ids';
 import { ValidationHttpException } from '../../../utils';
@@ -91,9 +97,6 @@ export class EdorgsController {
     @CheckAbility() checkAbility: CheckAbilityType,
     @Req() request: any
   ) {
-    if (sbEnvironment.configPublic.version !== `v2`) {
-      throw new NotFoundException('Only v2 is supported for this endpoint');
-    }
     const ods = await this.odsRepository.findOneBy({ edfiTenantId, odsInstanceName: dto.ODSName });
     if (ods === null) {
       throw new ValidationHttpException({
@@ -118,6 +121,7 @@ export class EdorgsController {
     }
 
     const allowedEdorgs =
+      'tenants' in sbEnvironment.configPublic.values &&
       sbEnvironment.configPublic.values?.tenants?.[edfiTenant.name].allowedEdorgs;
     if (allowedEdorgs && !allowedEdorgs.includes(Number(dto.EdOrgId))) {
       throw new ValidationHttpException({
@@ -127,6 +131,9 @@ export class EdorgsController {
     }
     return this.edorgService.add(sbEnvironment, edfiTenant, dto);
   }
+
+  @SbVersion('v2')
+  @Operation('Deleting edorgs')
   @Delete(':edorgId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods:delete-edorg',
@@ -145,9 +152,6 @@ export class EdorgsController {
     @CheckAbility() checkAbility: CheckAbilityType,
     @Req() request: any
   ) {
-    if (sbEnvironment.configPublic.version !== `v2`) {
-      throw new NotFoundException('Only v2 is supported for this endpoint');
-    }
     if (
       // check for edorg read privilege which is required as a dependency of delete
       !checkAbility({
@@ -187,6 +191,7 @@ export class EdorgsController {
     }
 
     const allowedEdorgs =
+      'tenants' in sbEnvironment.configPublic.values &&
       sbEnvironment.configPublic.values?.tenants?.[edfiTenant.name].allowedEdorgs;
     if (allowedEdorgs && !allowedEdorgs.includes(edorg.educationOrganizationId)) {
       throw new NotFoundException();

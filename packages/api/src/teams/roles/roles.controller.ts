@@ -122,7 +122,7 @@ export class RolesController {
       } else if (result.status === 'NOT_TEAM_USER_ROLE') {
         throw new CustomHttpException(
           {
-            title: 'Unknown error',
+            title: 'Not team user role',
             type: 'Error',
           },
           400

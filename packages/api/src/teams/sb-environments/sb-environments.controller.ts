@@ -4,7 +4,7 @@ import { Controller, Get, Param, ParseIntPipe, UseInterceptors } from '@nestjs/c
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
-import { Authorize } from '../../auth/authorization';
+import { Authorize, Operation, SbVersion } from '../../auth/authorization';
 import { InjectFilter } from '../../auth/helpers/inject-filter';
 import { whereIds } from '../../auth/helpers/where-ids';
 import { throwNotFound } from '../../utils';
@@ -60,6 +60,9 @@ export class SbEnvironmentsController {
       await this.sbEnvironmentService.findOne(sbEnvironmentId).catch(throwNotFound)
     );
   }
+
+  @SbVersion('v2')
+  @Operation('Loading ODS templates')
   @Get(':sbEnvironmentId/ods-templates')
   @Authorize({
     privilege: 'team.sb-environment:read',

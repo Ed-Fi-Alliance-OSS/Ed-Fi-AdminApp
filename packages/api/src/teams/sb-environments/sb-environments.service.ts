@@ -45,24 +45,20 @@ export class SbEnvironmentsService {
   }
 
   async getOdsTemplates(sbEnvironment: SbEnvironment) {
-    if (sbEnvironment.version === 'v2') {
-      const templates = await this.startingBlocksServiceV2.odsMgmtService.listTemplates(
-        sbEnvironment
+    const templates = await this.startingBlocksServiceV2.odsMgmtService.listTemplates(
+      sbEnvironment
+    );
+    if (templates.status !== 'SUCCESS') {
+      throw new CustomHttpException(
+        {
+          title: 'List-templates unsuccessful.',
+          type: 'Error',
+          message: templates.status + '. ' + (templates?.data?.errorMessage ?? 'Unknown error.'),
+          regarding: regarding(sbEnvironment),
+        },
+        500
       );
-      if (templates.status !== 'SUCCESS') {
-        throw new CustomHttpException(
-          {
-            title: 'List-templates unsuccessful.',
-            type: 'Error',
-            message: templates.status + '. ' + (templates?.data?.errorMessage ?? 'Unknown error.'),
-            regarding: regarding(sbEnvironment),
-          },
-          500
-        );
-      }
-      return toOdsTemplateOptionDto(templates.data.map((t) => ({ id: t, displayName: t })));
-    } else {
-      throw new NotFoundException('Only v2 environments support reloading tenants.');
     }
+    return toOdsTemplateOptionDto(templates.data.map((t) => ({ id: t, displayName: t })));
   }
 }

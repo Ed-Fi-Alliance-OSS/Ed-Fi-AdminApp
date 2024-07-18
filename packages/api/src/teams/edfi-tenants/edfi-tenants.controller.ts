@@ -24,6 +24,7 @@ import { whereIds } from '../../auth/helpers/where-ids';
 import { EdfiTenantsService } from './edfi-tenants.service';
 import { StartingBlocksServiceV2 } from './starting-blocks';
 import { AuthService } from '../../auth/auth.service';
+import { Operation, SbVersion } from '../../auth/authorization';
 
 @ApiTags('EdfiTenant')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
@@ -81,6 +82,8 @@ export class EdfiTenantsController {
     );
   }
 
+  @SbVersion('v2')
+  @Operation('Creating tenants')
   @Post()
   @Authorize({
     privilege: 'team.sb-environment:create-tenant',
@@ -101,6 +104,8 @@ export class EdfiTenantsController {
     return result;
   }
 
+  @SbVersion('v2')
+  @Operation('Deleting tenants')
   @Delete(':edfiTenantId')
   @Authorize({
     privilege: 'team.sb-environment:delete-tenant',

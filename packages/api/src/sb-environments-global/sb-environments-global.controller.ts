@@ -45,6 +45,7 @@ import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
 import { CustomHttpException, ValidationHttpException, throwNotFound } from '../utils';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
 import { StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
+import { Operation, SbVersion } from '../auth/authorization/sbVersion.decorator';
 
 @ApiTags('SbEnvironment - Global')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
@@ -210,6 +211,9 @@ export class SbEnvironmentsGlobalController {
       )
     );
   }
+
+  @SbVersion('v2')
+  @Operation('Reloading tenants')
   @Put(':sbEnvironmentId/reload-tenants')
   @Authorize({
     privilege: 'sb-environment.edfi-tenant:update',
@@ -223,26 +227,22 @@ export class SbEnvironmentsGlobalController {
     @ReqUser() user: GetSessionDataDto,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment
   ) {
-    if (sbEnvironment.version === 'v2') {
-      const result = await this.startingBlocksServiceV2.tenantMgmtService.reload(sbEnvironment);
-      if (result.status !== 'SUCCESS') {
-        throw new CustomHttpException(
-          {
-            title: 'Failed to reload tenants in Starting Blocks',
-            type: 'Error',
-            message: result.status,
-          },
-          500
-        );
-      }
-      return toOperationResultDto({
-        title: 'Reload triggered successfully',
-        message: typeof result?.data === 'string' ? result.data : undefined,
-        type: 'Success',
-      });
-    } else {
-      throw new NotFoundException('Only v2 environments support reloading tenants.');
+    const result = await this.startingBlocksServiceV2.tenantMgmtService.reload(sbEnvironment);
+    if (result.status !== 'SUCCESS') {
+      throw new CustomHttpException(
+        {
+          title: 'Failed to reload tenants in Starting Blocks',
+          type: 'Error',
+          message: result.status,
+        },
+        500
+      );
     }
+    return toOperationResultDto({
+      title: 'Reload triggered successfully',
+      message: typeof result?.data === 'string' ? result.data : undefined,
+      type: 'Success',
+    });
   }
   @Put(':sbEnvironmentId/refresh-resources')
   @Authorize({
