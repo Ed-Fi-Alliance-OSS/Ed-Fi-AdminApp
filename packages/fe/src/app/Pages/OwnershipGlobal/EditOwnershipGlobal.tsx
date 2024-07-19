@@ -75,6 +75,8 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
           ? ownership.ods.displayName
           : ownership.edfiTenant
           ? ownership.edfiTenant.displayName
+          : ownership.sbEnvironment
+          ? ownership.sbEnvironment.displayName
           : '-'}
       </Text>
       <FormControl w="form-width" isInvalid={!!errors.roleId}>
