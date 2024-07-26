@@ -125,9 +125,15 @@ export class StartingBlocksServiceV2 {
   }
 
   /** Reload app database tenants. Starting Blocks is the source of truth. */
-  async syncTenants(sbEnvironment: SbEnvironment) {
+  async syncTenants(sbEnvironment: SbEnvironment, mode?: 'MultiTenant' | 'SingleTenant') {
     if ('adminApiKey' in sbEnvironment.configPublic.values)
       throw new Error('Type narrowing - v1 check handled upstream');
+    /** No support for SingleTenant mode currently. If tenants.data is not an array, line 142 will error.*/
+    if (mode === 'SingleTenant') {
+      throw new Error(
+        'The SBE you are attempting to sync is in Single Tenant Mode. This Mode is currently not supported by SBAA. Please delete the current environment, switch the SBE mode to Multi-Tenant and resync the SBE in SBAA'
+      );
+    }
     const tenants = await this.tenantMgmtService.list(sbEnvironment);
 
     if (tenants.status !== 'SUCCESS') {
@@ -246,7 +252,6 @@ export class StartingBlocksServiceV2 {
 
   async syncEnvironmentEverything(sbEnvironment: SbEnvironment, meta: SbV2MetaEnv) {
     await this.saveSbEnvironmentMeta(sbEnvironment, meta);
-
     const resultsByTenant: Record<
       string,
       {
@@ -256,7 +261,8 @@ export class StartingBlocksServiceV2 {
         edorg?: DeltaCounts;
       }
     > = {};
-    const tenantResults = await this.syncTenants(sbEnvironment);
+    const mode = meta.mode;
+    const tenantResults = await this.syncTenants(sbEnvironment, mode);
     if (tenantResults.status !== 'SUCCESS') {
       return tenantResults;
     }
