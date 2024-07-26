@@ -90,10 +90,17 @@ Parameters:
       - SecurityHeadersPolicy
       - CORS-and-SecurityHeadersPolicy
       - CORS-with-preflight-and-SecurityHeadersPolicy
+  SNSTopicArn:
+    Description: ARN of SNS topic to publish Route53 HealthCheck Alarms
+    Type: String
+  East1AlarmLambdaArn:
+    Type: String
+    Description: ARN of the East1 Alarm Lambda Function
 Conditions:
   DoCreateS3Bucket: !Equals [!Ref CreateS3Bucket, 'Create the S3 Bucket']
   DoWildcardDomain: !Equals [!Ref WildcardDomain, 'Yes']
   DoRedirectErrors: !Equals [!Ref RedirectErrors, 'Yes']
+  EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
 Mappings:
   CachePolicyMap:
     CachingOptimized:
@@ -403,6 +410,33 @@ Resources:
       Name: !Ref DomainName
       HostedZoneId: !Ref HostedZoneId
       Type: A
+  Route53HealthCheck:
+    Condition: EnableHealthCheck
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Port: 443
+        Type: HTTPS
+        FullyQualifiedDomainName: !Ref 'DomainName'
+        RequestInterval: 30
+        FailureThreshold: 3
+        Regions:
+          - us-east-1
+          - us-west-1
+          - us-west-2
+      HealthCheckTags:
+        - Key: Name
+          Value: !Sub '${EnvLabel}-FrontEnd-Route53-HealthCheck'
+  East1Route53HealthCheckAlarm:
+    Condition: EnableHealthCheck
+    Type: Custom::East1Alarm
+    DeletionPolicy: Delete
+    Properties:
+      ServiceToken: !Ref 'East1AlarmLambdaArn'
+      EnvLabel: !Ref 'EnvLabel'
+      SNSTopicArn: !Ref 'SNSTopicArn'
+      Route53HealthCheck: !Ref 'Route53HealthCheck'
+      AlarmLabel: 'FrontEnd'
 
 Outputs:
   DistributionId:

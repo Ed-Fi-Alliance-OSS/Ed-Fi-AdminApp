@@ -68,10 +68,17 @@ Parameters:
   CRHelperLambdaArn:
     Type: String
     Description: ARN of the CRHelper Lambda Layer
+  SNSTopicArn:
+    Description: ARN of SNS topic to publish Route53 HealthCheck Alarms
+    Type: String
+  East1AlarmLambdaArn:
+    Type: String
+    Description: ARN of the East1 Alarm Lambda Function
 Conditions:
   AllowSshToBeanstalk: !Equals
     - !Ref 'SshToBeanstalk'
     - 'yes'
+  EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
 Resources:
   DbEncryptionSecretRole:
     Type: AWS::IAM::Role
@@ -361,6 +368,15 @@ Resources:
         - Namespace: aws:autoscaling:updatepolicy:rollingupdate
           OptionName: Timeout
           Value: PT30M
+        - Namespace: aws:elasticbeanstalk:command
+          OptionName: DeploymentPolicy
+          Value: RollingWithAdditionalBatch
+        - Namespace: aws:elasticbeanstalk:command
+          OptionName: BatchSizeType
+          Value: Fixed
+        - Namespace: aws:elasticbeanstalk:command
+          OptionName: BatchSize
+          Value: 1
         - Namespace: aws:autoscaling:asg
           OptionName: MinSize
           Value: !Ref 'BeanstalkMinInstances'
@@ -379,6 +395,9 @@ Resources:
         - Namespace: aws:ec2:instances
           OptionName: InstanceTypes
           Value: !Ref InstanceTypes
+        - Namespace: aws:autoscaling:launchconfiguration
+          OptionName: DisableIMDSv1
+          Value: true
         - Namespace: aws:autoscaling:launchconfiguration
           OptionName: IamInstanceProfile
           Value: !Ref ElasticBeanstalkEC2InstanceProfile
@@ -443,6 +462,9 @@ Resources:
           OptionName: YOPASS_URL
           Value: !Ref YopassUrl
         - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: NO_COLOR
+          Value: 'True'
+        - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: DB_ENCRYPTION_SECRET
           Value: !Sub '${EnvLabel}-DBEncryptionSecret'
         - Namespace: aws:elasticbeanstalk:application:environment
@@ -504,6 +526,34 @@ Resources:
       TTL: 900
       ResourceRecords:
         - !GetAtt 'BeanstalkEnvironment.EndpointURL'
+  Route53HealthCheck:
+    Condition: EnableHealthCheck
+    Type: AWS::Route53::HealthCheck
+    Properties:
+      HealthCheckConfig:
+        Port: 443
+        Type: HTTPS
+        FullyQualifiedDomainName: !Ref 'DomainName'
+        RequestInterval: 30
+        FailureThreshold: 3
+        ResourcePath: !Ref HealthCheckPath
+        Regions:
+          - us-east-1
+          - us-west-1
+          - us-west-2
+      HealthCheckTags:
+        - Key: Name
+          Value: !Sub '${EnvLabel}-BackEnd-Route53-HealthCheck'
+  East1Route53HealthCheckAlarm:
+    Condition: EnableHealthCheck
+    Type: Custom::East1Alarm
+    DeletionPolicy: Delete
+    Properties:
+      ServiceToken: !Ref 'East1AlarmLambdaArn'
+      EnvLabel: !Ref 'EnvLabel'
+      SNSTopicArn: !Ref 'SNSTopicArn'
+      Route53HealthCheck: !Ref 'Route53HealthCheck'
+      AlarmLabel: 'BackEnd'
 Outputs:
   EndpointURL:
     Description: The DNS name of the ELB

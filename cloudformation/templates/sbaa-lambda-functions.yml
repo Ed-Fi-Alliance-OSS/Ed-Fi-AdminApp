@@ -1,0 +1,295 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  Deploys Lambda Functions used as Custom Resources and environment management.
+Parameters:
+  EnvLabel:
+    Default: ''
+    Description: Provide a label for your environment to identify resources easier.
+    Type: String
+  ParentVPCStack:
+    Description: 'Stack name of the VPC stack.'
+    Type: String
+  S3BucketSourceCode:
+    Type: String
+    Default: ''
+    Description: This provides the name of the S3 bucket where the Lambda source code
+      resides. In this case, lambda source code is in the same S3 bucket.
+  S3KeySourceCode:
+    Type: String
+    Default: lambdas
+    Description: This provides the folder name inside the S3 bucket where the Lambda
+      source code resides.
+  SNSTopicArn:
+    Description: ARN of SNS topic to publish Route53 HealthCheck Alarms
+    Type: String
+
+Conditions:
+  EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
+
+Resources:
+  CRHelperLambdaLayer:
+    Type: AWS::Lambda::LayerVersion
+    Properties:
+      CompatibleRuntimes:
+        - python3.9
+        - python3.11
+      Content:
+        S3Bucket: !Ref 'S3BucketSourceCode'
+        S3Key: !Sub '${S3KeySourceCode}/crhelper-lambda-layer-python3-9.zip'
+      Description: AWS CloudFormation helper lambda layer
+      LayerName: !Sub '${EnvLabel}-CRHelper-python3-9'
+  LambdaDefaultSG:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: !Sub 'Lambda Function default Security Group for the ${ParentVPCStack} vpc'
+      GroupName: !Sub '${EnvLabel}-LambdaDefault'
+      VpcId: { 'Fn::ImportValue': !Sub '${ParentVPCStack}-VpcId' }
+  East1AlarmRole:
+    Condition: EnableHealthCheck
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub '${EnvLabel}-East1Alarm-Role'
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      Policies:
+        - PolicyName: 'AllowActions'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - cloudwatch:PutMetricAlarm
+                  - cloudwatch:DescribeAlarms
+                  - cloudwatch:DeleteAlarms
+                Resource: '*'
+  East1AlarmFunction:
+    Condition: EnableHealthCheck
+    Type: AWS::Lambda::Function
+    Properties:
+      Handler: index.lambda_handler
+      Layers:
+        - !Ref 'CRHelperLambdaLayer'
+      Description: Creates a Route53 Healthcheck Alarm in us-east-1
+      FunctionName: !Sub '${EnvLabel}-East1Alarm'
+      Role: !GetAtt 'East1AlarmRole.Arn'
+      Runtime: python3.11
+      Timeout: 120
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref 'LambdaDefaultSG'
+        SubnetIds: !Split [',', { 'Fn::ImportValue': !Sub '${ParentVPCStack}-PrivateSubnets' }]
+      Code:
+        ZipFile: |
+          import boto3
+          import time
+          import signal
+          from botocore.config import Config
+          from crhelper import CfnResource
+
+          helper = CfnResource()
+          us_east_1 = Config(
+                  region_name = 'us-east-1'
+              )
+
+          def lambda_handler(event, context):
+              signal.alarm(int((context.get_remaining_time_in_millis() / 1000) - 1))
+              helper(event, context)
+
+          @helper.create
+          def create(event, _):   
+              env_label = event['ResourceProperties']['EnvLabel']
+              sns_arn = event['ResourceProperties']['SNSTopicArn']
+              health_check = event['ResourceProperties']['Route53HealthCheck']
+              alarm_label = event['ResourceProperties']['AlarmLabel']
+              alarm_name = f"{env_label}-{alarm_label}-HealthCheck-Alarm"
+
+              if check_for_alarm(alarm_name):
+                print("Alarm already exists")
+              else:
+                create_alarm(sns_arn, health_check, alarm_name)
+
+          @helper.update
+          def update(event, context):
+              env_label = event['ResourceProperties']['EnvLabel']
+              sns_arn = event['ResourceProperties']['SNSTopicArn']
+              health_check = event['ResourceProperties']['Route53HealthCheck']
+              alarm_label = event['ResourceProperties']['AlarmLabel']
+              alarm_name = f"{env_label}-{alarm_label}-HealthCheck-Alarm"
+
+              create_alarm(sns_arn, health_check, alarm_name)
+
+          @helper.delete
+          def delete(event, _):
+              env_label = event['ResourceProperties']['EnvLabel']
+              alarm_label = event['ResourceProperties']['AlarmLabel']
+              alarm_name = f"{env_label}-{alarm_label}-HealthCheck-Alarm"
+
+              if check_for_alarm(alarm_name):
+                client = boto3.client('cloudwatch', config=us_east_1)
+                client.delete_alarms(AlarmNames=[alarm_name])
+
+          def create_alarm(sns_arn, health_check, alarm_name):
+              client = boto3.client('cloudwatch', config=us_east_1)
+              client.put_metric_alarm(
+                  AlarmName=alarm_name,
+                  ActionsEnabled=True,
+                  AlarmActions=[sns_arn],
+                  AlarmDescription='Route53_HealthCheck',
+                  Dimensions=[
+                      {
+                        'Name': 'HealthCheckId',
+                        'Value': health_check
+                      },
+                  ],
+                  MetricName='HealthCheckStatus',
+                  Statistic='Minimum',
+                  Namespace='AWS/Route53',
+                  Threshold=1,
+                  ComparisonOperator='LessThanThreshold',
+                  Period=60,
+                  DatapointsToAlarm=1,
+                  EvaluationPeriods=1
+              )
+
+          def check_for_alarm(alarm_name):
+              client = boto3.client('cloudwatch', config=us_east_1)
+              response=client.describe_alarms(AlarmNames=[alarm_name])
+              if response['MetricAlarms']:
+                  print(response['MetricAlarms'])
+                  return True
+              return False
+  East1AlarmFunctionVersion:
+    Condition: EnableHealthCheck
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref 'East1AlarmFunction'
+  East1AlarmRetention:
+    Condition: EnableHealthCheck
+    DependsOn: SetCloudWatchRetentionVersion
+    Type: Custom::CloudWatchRetention
+    Properties:
+      ServiceToken: !GetAtt 'SetCloudWatchRetentionLambdaFunction.Arn'
+      logGroupName: !Sub '/aws/lambda/${East1AlarmFunction}'
+      retentionInDays: 365
+  SetCloudWatchRetentionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AllowedActionsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - logs:DescribeLogGroups
+                  - logs:PutRetentionPolicy
+                  - logs:CreateLogGroup
+                Resource:
+                  - '*'
+  SetCloudWatchRetentionLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    DeletionPolicy: Delete
+    Properties:
+      FunctionName: !Sub '${EnvLabel}-SetCloudWatchRetention'
+      Layers:
+        - !Ref 'CRHelperLambdaLayer'
+      Handler: index.lambda_handler
+      Description: CloudFormation Custom Resource provider.  Sets retention on CloudWatch Log Groups.
+      Runtime: python3.11
+      MemorySize: 128
+      Role: !GetAtt SetCloudWatchRetentionRole.Arn
+      ReservedConcurrentExecutions: 10
+      Timeout: 20
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref 'LambdaDefaultSG'
+        SubnetIds: !Split [',', { 'Fn::ImportValue': !Sub '${ParentVPCStack}-PrivateSubnets' }]
+      Code:
+        ZipFile: |
+          import json
+          import botocore
+          import boto3
+          import signal
+          from crhelper import CfnResource
+
+          helper = CfnResource()
+
+          def lambda_handler(event, context):
+              signal.alarm(int((context.get_remaining_time_in_millis() / 1000) - 1))
+              helper(event, context)
+              
+
+          @helper.create    
+          def create(event, _):
+              client = boto3.client('logs')
+              log_group_name = event['ResourceProperties']['logGroupName']
+
+              try:
+                  response = client.create_log_group(
+                      logGroupName=log_group_name
+                  )
+                  print('log group created')
+              
+              except botocore.exceptions.ClientError as error:
+                  if 'ResourceAlreadyExistsException' in str(error):
+                      print('log group already exists')
+                  
+              response = client.put_retention_policy(
+                  logGroupName=log_group_name,
+                  retentionInDays=int(event['ResourceProperties']['retentionInDays'])
+              )
+
+              
+          @helper.update
+          @helper.delete
+          def no_op(_, __):
+              pass
+
+
+          def timeout_handler(_signal, _frame):
+              '''Handle SIGALRM'''
+              raise Exception('lambda function timeout exceeded')
+
+
+          signal.signal(signal.SIGALRM, timeout_handler)
+  SetCloudWatchRetentionVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref 'SetCloudWatchRetentionLambdaFunction'
+  SetCloudWatchRetentionRetention:
+    DependsOn: SetCloudWatchRetentionVersion
+    Type: Custom::CloudWatchRetention
+    Properties:
+      ServiceToken: !GetAtt 'SetCloudWatchRetentionLambdaFunction.Arn'
+      logGroupName: !Sub '/aws/lambda/${SetCloudWatchRetentionLambdaFunction}'
+      retentionInDays: 365
+
+Outputs:
+  East1AlarmLambdaArn:
+    Condition: EnableHealthCheck
+    Description: ARN for the East1 Alarm Function
+    Value: !GetAtt 'East1AlarmFunction.Arn'

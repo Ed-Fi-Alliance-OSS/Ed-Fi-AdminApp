@@ -13,6 +13,7 @@ Metadata:
           - HostedZoneId
           - WildcardDomain
           - ParentVPCStack
+          - SNSTopicArn
       - Label:
           default: Front end information
         Parameters:
@@ -174,8 +175,8 @@ Parameters:
   EngineVersion:
     Description: 'PostgreSQL version.'
     Type: String
-    Default: '14.8'
-    AllowedValues: ['12.15', '13.11', '14.8'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
+    Default: '14.12'
+    AllowedValues: ['12.19', '13.15', '14.12'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
   EnableIAMDatabaseAuthentication:
     Description: 'Enable mapping of AWS Identity and Access Management (IAM) accounts to database accounts (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html).'
     Type: String
@@ -308,6 +309,13 @@ Parameters:
     Type: String
     Description: Cognito client Id for App Launcher
     Default: '26gf6ua3iholfru7is2tr1ecs4'
+  SNSTopicArn:
+    Description: ARN of SNS topic in us-east-1 to publish Route53 HealthCheck Alarms (optional)
+    Type: String
+    Default: arn:aws:sns:us-east-1:675563382695:cloud-alerts-sns-topic
+
+Conditions:
+  EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
 
 Resources:
   RdsPostgresStack:
@@ -353,6 +361,9 @@ Resources:
         YopassUrl: !Ref YopassUrl
         FrontEndUrl: !Sub 'https://${DomainName}'
         CRHelperLambdaArn: !GetAtt 'FrontEndS3CloudFrontStack.Outputs.CRHelperLayer'
+        SNSTopicArn: !Ref SNSTopicArn
+        East1AlarmLambdaArn:
+          !If [EnableHealthCheck, !GetAtt 'LambdaCoreStack.Outputs.East1AlarmLambdaArn', '']
   FrontEndS3CloudFrontStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -373,6 +384,9 @@ Resources:
         CachePolicy: !Ref CachePolicy
         Compress: !Ref Compress
         ResponseHeadersPolicy: !Ref ResponseHeadersPolicy
+        SNSTopicArn: !Ref SNSTopicArn
+        East1AlarmLambdaArn:
+          !If [EnableHealthCheck, !GetAtt 'LambdaCoreStack.Outputs.East1AlarmLambdaArn', '']
   FrontEndCodePipelineStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -401,3 +415,13 @@ Resources:
         AuthAppLauncherLoginUrl: !Ref AuthAppLauncherLoginUrl
         AuthCognitoPoolId: !Ref AuthCognitoPoolId
         AuthCognitoClientId: !Ref AuthCognitoClientId
+  LambdaCoreStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${S3SourceBucket}.s3.amazonaws.com/templates/sbaa-lambda-functions.yml'
+      Parameters:
+        EnvLabel: !Ref 'EnvLabel'
+        ParentVPCStack: !Ref ParentVPCStack
+        S3BucketSourceCode: !Ref 'S3SourceBucket'
+        S3KeySourceCode: lambdas
+        SNSTopicArn: !Ref SNSTopicArn
