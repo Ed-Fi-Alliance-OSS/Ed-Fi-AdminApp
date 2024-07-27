@@ -143,52 +143,55 @@ export class AdminApiServiceV1 {
       DisplayName,
     };
 
-    return axios
-      .post(`${url.replace(/\/$/, '')}/connect/register`, credentials, {
-        headers: { 'content-type': 'application/x-www-form-urlencoded' },
-      })
-      .then((res) => {
-        if (_.isEqual(res.data, failureBut200Response)) {
-          // This may be the failure mode when the environment does not allow self-registration. Unclear.
-          Logger.warn('Attempted to register Admin API but got 200 with failure response.');
-          return {
-            status: 'ERROR' as const,
-            message:
-              'Unspecified error registering Admin API (status code 200 but request body indicates failure).' as const,
-          };
-        }
-        return { credentials, status: 'SUCCESS' as const };
-      })
-      .catch((err: AxiosError<any>) => {
-        if (err.response?.data?.errors) {
-          Logger.warn(JSON.stringify(err.response.data.errors));
-          return {
-            status: 'ERROR' as const,
-            data: err.response.data as object,
-          };
-        } else if (err?.code === 'ENOTFOUND') {
-          Logger.warn('Attempted to register Admin API but ENOTFOUND: ' + url);
-          return {
-            status: 'ENOTFOUND' as const,
-          };
-        } else if (isAxiosError(err) && err.response?.status === 404) {
-          Logger.warn(err);
-          return {
-            status: 'NOT_FOUND' as const,
-          };
-        } else if (isAxiosError(err) && err.response?.status === 403) {
-          Logger.warn(err);
-          return {
-            status: 'SELF_REGISTRATION_NOT_ALLOWED' as const,
-          };
-        } else {
-          Logger.warn(err);
-          return {
-            status: 'ERROR' as const,
-            message: err.message,
-          };
-        }
-      });
+    return (
+      axios
+        .post(`${url.replace(/\/$/, '')}/connect/register`, credentials, {
+          headers: { 'content-type': 'application/x-www-form-urlencoded' },
+        })
+        .then((res) => {
+          if (_.isEqual(res.data, failureBut200Response)) {
+            // This may be the failure mode when the environment does not allow self-registration. Unclear.
+            Logger.warn('Attempted to register Admin API but got 200 with failure response.');
+            return {
+              status: 'ERROR' as const,
+              message:
+                'Unspecified error registering Admin API (status code 200 but request body indicates failure).' as const,
+            };
+          }
+          return { credentials, status: 'SUCCESS' as const };
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .catch((err: AxiosError<any>) => {
+          if (err.response?.data?.errors) {
+            Logger.warn(JSON.stringify(err.response.data.errors));
+            return {
+              status: 'ERROR' as const,
+              data: err.response.data as object,
+            };
+          } else if (err?.code === 'ENOTFOUND') {
+            Logger.warn('Attempted to register Admin API but ENOTFOUND: ' + url);
+            return {
+              status: 'ENOTFOUND' as const,
+            };
+          } else if (isAxiosError(err) && err.response?.status === 404) {
+            Logger.warn(err);
+            return {
+              status: 'NOT_FOUND' as const,
+            };
+          } else if (isAxiosError(err) && err.response?.status === 403) {
+            Logger.warn(err);
+            return {
+              status: 'SELF_REGISTRATION_NOT_ALLOWED' as const,
+            };
+          } else {
+            Logger.warn(err);
+            return {
+              status: 'ERROR' as const,
+              message: err.message,
+            };
+          }
+        })
+    );
   }
 
   private getAdminApiClient(edfiTenant: EdfiTenant) {
@@ -240,30 +243,36 @@ export class AdminApiServiceV1 {
   }
 
   async getVendors(edfiTenant: EdfiTenant) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return toGetVendorDto(await this.getAdminApiClient(edfiTenant).get<any, any[]>(`v1/vendors`));
   }
   async getVendor(edfiTenant: EdfiTenant, vendorId: number) {
     return toGetVendorDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any>(`v1/vendors/${vendorId}`)
     );
   }
   async putVendor(edfiTenant: EdfiTenant, vendorId: number, vendor: PutVendorDto) {
     vendor.vendorId = vendorId;
     return toGetVendorDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).put<any, any>(`v1/vendors/${vendorId}`, vendor)
     );
   }
   async postVendor(edfiTenant: EdfiTenant, vendor: PostVendorDto) {
     return toGetVendorDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).post<any, any>(`v1/vendors`, vendor)
     );
   }
   async deleteVendor(edfiTenant: EdfiTenant, vendorId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     await this.getAdminApiClient(edfiTenant).delete<any, any>(`v1/vendors/${vendorId}`);
     return undefined;
   }
   async getVendorApplications(edfiTenant: EdfiTenant, vendorId: number) {
     return toGetApplicationDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `v1/vendors/${vendorId}/applications`
       )
@@ -272,11 +281,13 @@ export class AdminApiServiceV1 {
 
   async getApplications(edfiTenant: EdfiTenant) {
     return toGetApplicationDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`v1/applications`)
     );
   }
   async getApplication(edfiTenant: EdfiTenant, applicationId: number) {
     return toGetApplicationDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any>(`v1/applications/${applicationId}`)
     );
   }
@@ -286,6 +297,7 @@ export class AdminApiServiceV1 {
     application: PutApplicationDto
   ) {
     return toGetApplicationDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).put<any, any>(
         `v1/applications/${applicationId}`,
         application
@@ -293,17 +305,22 @@ export class AdminApiServiceV1 {
     );
   }
   async postApplication(edfiTenant: EdfiTenant, application: PostApplicationDto) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.getAdminApiClient(edfiTenant).post<any, PostApplicationResponseDto>(
       `v1/applications`,
       application
     );
   }
   async deleteApplication(edfiTenant: EdfiTenant, applicationId: number) {
-    return this.getAdminApiClient(edfiTenant)
-      .delete<any, any>(`v1/applications/${applicationId}`)
-      .then(() => undefined);
+    return (
+      this.getAdminApiClient(edfiTenant)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .delete<any, any>(`v1/applications/${applicationId}`)
+        .then(() => undefined)
+    );
   }
   async resetApplicationCredentials(edfiTenant: EdfiTenant, applicationId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.getAdminApiClient(edfiTenant).put<any, any>(
       `v1/applications/${applicationId}/reset-credential`
     );
@@ -311,10 +328,12 @@ export class AdminApiServiceV1 {
 
   async getClaimsets(edfiTenant: EdfiTenant) {
     return toGetClaimsetDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`v1/claimsets`)
     );
   }
   async getClaimset(edfiTenant: EdfiTenant, claimsetId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const value: GetClaimsetDto = await this.getAdminApiClient(edfiTenant).get<any, any>(
       `v1/claimsets/${claimsetId}`
     );
@@ -336,21 +355,27 @@ export class AdminApiServiceV1 {
     return toGetClaimsetDto(value);
   }
   async getClaimsetRaw(edfiTenant: EdfiTenant, claimsetId: number) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this.getAdminApiClient(edfiTenant).get<any, any>(`v1/claimsets/${claimsetId}`);
   }
   async putClaimset(edfiTenant: EdfiTenant, claimsetId: number, claimset: PutClaimsetDto) {
     return toGetClaimsetDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).put<any, any>(`v1/claimsets/${claimsetId}`, claimset)
     );
   }
   async postClaimset(edfiTenant: EdfiTenant, claimset: PostClaimsetDto) {
     return toGetClaimsetDto(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).post<any, any>(`v1/claimsets`, claimset)
     );
   }
   async deleteClaimset(edfiTenant: EdfiTenant, claimsetId: number) {
-    return this.getAdminApiClient(edfiTenant)
-      .delete<any, any>(`v1/claimsets/${claimsetId}`)
-      .then(() => undefined);
+    return (
+      this.getAdminApiClient(edfiTenant)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .delete<any, any>(`v1/claimsets/${claimsetId}`)
+        .then(() => undefined)
+    );
   }
 }

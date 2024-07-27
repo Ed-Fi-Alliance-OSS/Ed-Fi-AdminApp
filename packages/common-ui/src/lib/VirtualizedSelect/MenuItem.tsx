@@ -4,6 +4,7 @@ import React, { ReactNode } from 'react';
 
 export const MenuItem = (props: {
   virtualItem: VirtualItem;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   measureElement: any;
   children: ReactNode;
 }) => {

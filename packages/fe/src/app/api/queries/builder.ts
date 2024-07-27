@@ -236,6 +236,7 @@ export class EntityQueryBuilder<
       >,
     ConfigType
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getOne(key: any, extraConfig: any, pathConfig?: any) {
     const { ResDto } = extraConfig;
     const { adminApi, name } = this.baseConfig;
@@ -250,6 +251,7 @@ export class EntityQueryBuilder<
         ConfigType['includeEdfiTenant'],
         ConfigType['includeSbEnvironment']
       >,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathParams?: any
     ) => {
       const teamId = 'teamId' in queryParams ? queryParams.teamId : undefined;
@@ -288,6 +290,7 @@ export class EntityQueryBuilder<
       [key]: queryFactory,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this as any;
   }
 
@@ -352,6 +355,7 @@ export class EntityQueryBuilder<
       >,
     ConfigType
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getAll(key: any, extraConfig: any, pathConfig?: any) {
     const { ResDto } = extraConfig;
     const { adminApi, name } = this.baseConfig;
@@ -365,6 +369,7 @@ export class EntityQueryBuilder<
         ConfigType['includeEdfiTenant'],
         ConfigType['includeSbEnvironment']
       >,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       pathParams?: any
     ) => {
       const teamId = 'teamId' in queryParams ? queryParams.teamId : undefined;
@@ -400,6 +405,7 @@ export class EntityQueryBuilder<
       [key]: queryFactory,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this as any;
   }
 
@@ -488,6 +494,7 @@ export class EntityQueryBuilder<
       >,
     ConfigType
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   put(key: any, extraConfig: any, pathConfig?: any) {
     const { ResDto, ReqDto, keysToInvalidate } = extraConfig;
     const { adminApi, name } = this.baseConfig;
@@ -556,6 +563,7 @@ export class EntityQueryBuilder<
       [key]: useMutationFactory,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this as any;
   }
 
@@ -644,6 +652,7 @@ export class EntityQueryBuilder<
       >,
     ConfigType
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   post(key: any, extraConfig: any, pathConfig?: any) {
     const { ResDto, ReqDto, keysToInvalidate } = extraConfig;
     const { adminApi, name } = this.baseConfig;
@@ -662,6 +671,7 @@ export class EntityQueryBuilder<
         'sbEnvironmentId' in queryParams ? queryParams.sbEnvironmentId : undefined;
       const edfiTenant = 'edfiTenant' in queryParams ? queryParams.edfiTenant : undefined;
       return useMutation({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mutationFn: ({ entity, pathParams }: any) => {
           const pathOverride = path ? path({ ...queryParams, entity }, pathParams) : undefined;
           return methods.post(
@@ -678,6 +688,7 @@ export class EntityQueryBuilder<
             entity
           );
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onSuccess: (data, { entity, pathParams }: any) => {
           const pathOverride = path ? path({ ...queryParams, entity }, pathParams) : undefined;
           // TODO: optionally configure cache update instead of invalidation
@@ -710,6 +721,7 @@ export class EntityQueryBuilder<
       [key]: useMutationFactory,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this as any;
   }
 
@@ -739,6 +751,7 @@ export class EntityQueryBuilder<
             ConfigType['includeSbEnvironment']
           >
         ) => UseMutationResult<
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           AxiosResponse<unknown, any>,
           unknown,
           { id: string | number },
@@ -791,6 +804,7 @@ export class EntityQueryBuilder<
             ConfigType['includeSbEnvironment']
           >
         ) => UseMutationResult<
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           AxiosResponse<unknown, any>,
           unknown,
           { id: string | number; pathParams: PathExtraParamsType },
@@ -799,6 +813,7 @@ export class EntityQueryBuilder<
       >,
     ConfigType
   >;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   delete(key: any, extraConfig?: any, pathConfig?: any) {
     const { name, adminApi } = this.baseConfig;
     const { keysToInvalidate } = extraConfig || {};
@@ -817,6 +832,7 @@ export class EntityQueryBuilder<
         'sbEnvironmentId' in queryParams ? queryParams.sbEnvironmentId : undefined;
       const edfiTenant = 'edfiTenant' in queryParams ? queryParams.edfiTenant : undefined;
       return useMutation({
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         mutationFn: ({ id, pathParams }: any) => {
           const pathOverride = path ? path({ queryParams, id }, pathParams) : undefined;
           return methods.delete(
@@ -831,6 +847,7 @@ export class EntityQueryBuilder<
             })
           );
         },
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         onSuccess: (data, { id, pathParams }: any) => {
           const pathOverride = path ? path({ ...queryParams, id }, pathParams) : undefined;
           // TODO: optionally configure cache update instead of invalidation
@@ -863,6 +880,7 @@ export class EntityQueryBuilder<
       [key]: useMutationFactory,
     });
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return this as any;
   }
 

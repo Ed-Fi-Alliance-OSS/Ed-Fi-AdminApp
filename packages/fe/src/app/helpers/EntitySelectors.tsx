@@ -376,7 +376,9 @@ export const SelectEdorg: StandardSelector<{ useEdorgId?: boolean }, true> = (pr
                 discriminator: edorg.discriminator,
               },
             ])
-        ).filter(([key, value]) => include.includes((value as any).discriminator))
+        )
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+          .filter(([key, value]) => include.includes((value as any).discriminator))
       ),
     [edorgs, externalOptions, include, useEdorgId]
   );

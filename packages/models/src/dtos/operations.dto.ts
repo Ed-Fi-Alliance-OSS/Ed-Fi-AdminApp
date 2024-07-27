@@ -1,7 +1,7 @@
 import { StatusResponse, statusResponseTypes } from '@edanalytics/utils';
 import { Expose } from 'class-transformer';
 import { makeSerializer } from '../utils';
-import { IsEnum, IsIn, IsOptional, IsString } from 'class-validator';
+import { IsIn, IsOptional, IsString } from 'class-validator';
 // should implement StatusResponse even though there's no TS mechanism to ensure that here. It _is_ ensured on the mapper below.
 export class OperationResultDto {
   @Expose()

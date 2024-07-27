@@ -8,8 +8,6 @@ import { vendorQueriesV1, vendorQueriesV2 } from '../api';
 import {
   VersioningHoc,
   getRelationDisplayName,
-  useNavContext,
-  useTeamEdfiTenantNavContext,
   useTeamEdfiTenantNavContextLoaded,
   withLoader,
 } from '../helpers';
@@ -31,6 +29,7 @@ const VendorBreadcrumbV1 = () => {
       edfiTenant,
     })
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (vendor.data?.displayName ?? params.vendorId) as any;
 };
 const VendorBreadcrumbV2 = () => {
@@ -45,6 +44,7 @@ const VendorBreadcrumbV2 = () => {
       edfiTenant,
     })
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (vendor.data?.displayName ?? params.vendorId) as any;
 };
 export const vendorCreateRoute: RouteObject = {

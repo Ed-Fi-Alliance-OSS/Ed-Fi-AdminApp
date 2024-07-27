@@ -1,6 +1,6 @@
 import { Expose } from 'class-transformer';
 import { IEnvNav } from '../interfaces';
-import { TrimWhitespace, makeSerializer } from '../utils';
+import { makeSerializer } from '../utils';
 
 // This is a Get DTO that should not have whitespace trimmed
 export class EnvNavDto implements IEnvNav {

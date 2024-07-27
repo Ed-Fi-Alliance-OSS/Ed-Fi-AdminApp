@@ -29,6 +29,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import { claimsetQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 function lowercaseFirstLetterOfKeys(input: any): any {
   if (typeof input !== 'object' || input === null) {
     return input;
@@ -42,6 +43,7 @@ function lowercaseFirstLetterOfKeys(input: any): any {
     const newKey = key.charAt(0).toLowerCase() + key.slice(1);
     acc[newKey] = lowercaseFirstLetterOfKeys(input[key]);
     return acc;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }, {} as { [key: string]: any });
 }
 
@@ -188,6 +190,7 @@ const ClaimsetItem = ({
                 { entity: claimset, pathParams: {} },
                 {
                   onError: (err) => {
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     setError(err as any);
                   },
                   onSuccess: () => {

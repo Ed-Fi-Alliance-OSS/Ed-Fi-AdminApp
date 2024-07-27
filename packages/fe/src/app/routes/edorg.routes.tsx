@@ -8,7 +8,6 @@ import { edorgQueries } from '../api';
 import {
   VersioningHoc,
   getRelationDisplayName,
-  useNavContext,
   useTeamEdfiTenantNavContextLoaded,
 } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';

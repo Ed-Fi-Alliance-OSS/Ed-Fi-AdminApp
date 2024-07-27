@@ -29,6 +29,7 @@ export const SbaaTableFilters: DivComponent = (props) => {
   } = useSbaaTableContext();
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
 
@@ -54,6 +55,7 @@ export const Sorting = () => {
   const { table } = useSbaaTableContext();
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
   const sortableColumns = table
@@ -81,7 +83,8 @@ export const Sorting = () => {
           {sortableColumns.map((column) => (
             <MenuItem onClick={() => column.toggleSorting(false, true)} key={column.id}>
               {typeof column.columnDef.header === 'function'
-                ? column.columnDef.header({ table, column, header: null as any })
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  column.columnDef.header({ table, column, header: null as any })
                 : column.columnDef.header}
             </MenuItem>
           ))}
@@ -106,7 +109,8 @@ export const Sorting = () => {
               key={sort.id}
             >
               {typeof column.columnDef.header === 'function'
-                ? column.columnDef.header({ table, column, header: null as any })
+                ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                  column.columnDef.header({ table, column, header: null as any })
                 : column.columnDef.header}
               {sort.desc ? <>&darr;</> : <>&uarr;</>}
             </Link>
@@ -141,6 +145,7 @@ const Filters = () => {
   };
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
   const filterableColumns = table
@@ -195,7 +200,8 @@ const Filters = () => {
                     key={column.id}
                   >
                     {typeof column.columnDef.header === 'function'
-                      ? column.columnDef.header({ table, column, header: null as any })
+                      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        column.columnDef.header({ table, column, header: null as any })
                       : column.columnDef.header}
                   </Button>
                 ))}

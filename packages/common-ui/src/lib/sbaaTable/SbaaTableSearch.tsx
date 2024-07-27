@@ -19,6 +19,7 @@ export const SbaaTableSearch: DivComponent = (props) => {
   } = useSbaaTableContext();
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
   const { globalFilter } = table.getState();
@@ -74,6 +75,7 @@ export const SbaaTableAdvancedButton: ChakraComponent<'button'> = (props) => {
   } = useSbaaTableContext();
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
 

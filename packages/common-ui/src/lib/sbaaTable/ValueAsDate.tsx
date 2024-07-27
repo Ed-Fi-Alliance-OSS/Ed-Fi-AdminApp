@@ -2,6 +2,7 @@ import { CellContext } from '@tanstack/react-table';
 import { DateFormat, DateValue } from '..';
 
 export function ValueAsDate(param?: { default?: DateFormat }) {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (info: CellContext<any, unknown>) => {
     const value = info.getValue();
     return typeof value === 'number' ? (

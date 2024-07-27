@@ -7,7 +7,6 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
-  Link,
   Text,
   chakra,
 } from '@chakra-ui/react';
@@ -15,7 +14,7 @@ import { GetUserDto, PutUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
-import { Link as RouterLink, useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { roleQueries, teamQueries, userQueries } from '../../api';
 import { SelectRole } from '../../helpers';
@@ -24,7 +23,6 @@ import { useRef } from 'react';
 import { hasNewTeamImpersonation, hasNewGlobalPrivileges } from '../RoleGlobal/EditRoleGlobal';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
-import { queryFromEntity } from '../../api/queries/builder';
 
 const resolver = classValidatorResolver(PutUserDto);
 

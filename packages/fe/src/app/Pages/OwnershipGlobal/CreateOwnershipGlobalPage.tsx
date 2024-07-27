@@ -128,6 +128,7 @@ export const CreateOwnershipGlobalPage = () => {
       <Box maxW="form-width">
         <FormLabel>Resource type</FormLabel>
         <RadioGroup
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           onChange={(value: any) => {
             setValue('type', value);
             if (value === 'environment') {

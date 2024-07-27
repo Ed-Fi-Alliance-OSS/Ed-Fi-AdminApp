@@ -21,14 +21,17 @@ export const mutationErrCallback = ({
   setFormError,
   popGlobalBanner,
 }: {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   setFormError?: UseFormSetError<any>;
   popGlobalBanner?: (banner: StatusResponse) => void;
 }) => ({
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   onError: (err: any) => {
     console.log(err);
 
     if (setFormError && isFormValidationError(err)) {
       Object.entries(err.data.errors).forEach(([field, error]) => {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         setFormError(field, error as any);
       });
     } else if (popGlobalBanner) {

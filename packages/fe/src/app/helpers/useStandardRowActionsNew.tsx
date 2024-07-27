@@ -11,6 +11,7 @@ export const useReadTeamEntity = (props: {
     asId: string | number;
     edfiTenantId?: string | number | undefined;
     sbEnvironmentId?: string | number | undefined;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } & Record<any, string | number>;
   privilege: TeamBasePrivilege | TeamEdfiTenantPrivilege;
 }) => {

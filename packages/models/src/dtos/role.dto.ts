@@ -1,4 +1,4 @@
-import { Expose, Transform, Type } from 'class-transformer';
+import { Expose, Transform } from 'class-transformer';
 import { IsEnum, IsIn, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 import { RoleType } from '../enums';

@@ -29,13 +29,17 @@ export const ViewSbSyncQueue = () => {
       ? (edfiTenantQueriesGlobal.getOne({
           id: sbSyncQueue.edfiTenantId,
           sbEnvironmentId: sbSyncQueue.sbEnvironmentId,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any)
       : (sbEnvironmentQueriesGlobal.getOne({
           id: sbSyncQueue?.sbEnvironmentId as number,
           enabled:
             sbSyncQueue?.sbEnvironmentId !== undefined && sbSyncQueue?.sbEnvironmentId !== null,
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
         }) as any)
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) as any;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const syntheticQuery = entity.data ? { data: { [entity.data.id]: entity.data } } : ({} as any);
 
   const output = sbSyncQueue?.output ?? null;

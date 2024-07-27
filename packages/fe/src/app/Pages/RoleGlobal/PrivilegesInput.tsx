@@ -33,6 +33,7 @@ const _isDeepTrue = (
   acc: boolean | null | undefined
 ) => {
   if (privilegeCodesSet.has(p as PrivilegeCode)) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const thisPrivilege = value.has(p as any);
     if (acc === undefined) {
       acc = thisPrivilege;

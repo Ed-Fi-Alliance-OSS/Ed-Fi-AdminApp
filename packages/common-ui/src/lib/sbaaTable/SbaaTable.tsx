@@ -20,6 +20,7 @@ export const SbaaTable: TableComponent = (props) => {
   const { children, ...rest } = props;
   const { table, isRowSelectionEnabled } = useSbaaTableContext();
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
 

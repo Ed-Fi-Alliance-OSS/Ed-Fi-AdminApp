@@ -44,8 +44,11 @@ export const SingleValue = <Option, IsMulti extends boolean, Group extends Group
       {...innerProps}
     >
       {children}
+
+      {/*  eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {(props.data as any).subLabel ? (
         <Text ml="1em" fontSize="sm" color="gray.400">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(props.data as any).subLabel}
         </Text>
       ) : null}

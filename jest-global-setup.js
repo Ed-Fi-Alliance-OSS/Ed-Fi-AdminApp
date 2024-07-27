@@ -1,3 +1,4 @@
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
 module.exports = async function (globalConfig, projectConfig) {
   /* edfi docker setup can only easily be run with mandatory
   tls, but we want to be able to use self-signed certs for

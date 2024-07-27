@@ -2,7 +2,6 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-import crypto from 'crypto';
 import { Issuer, Strategy, TokenSet } from 'openid-client';
 import passport from 'passport';
 import { Repository } from 'typeorm';

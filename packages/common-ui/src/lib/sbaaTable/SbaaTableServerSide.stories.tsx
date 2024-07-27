@@ -93,6 +93,7 @@ export const Standard = ({ enableRowSelection }: { enableRowSelection: boolean }
   function getFacetedUniqueValues<TData extends RowData = Person>(): (
     table: Table<TData>,
     columnId: string
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ) => () => Map<any, number> {
     return (table, columnId) => {
       if (['firstName', 'lastName'].includes(columnId)) {

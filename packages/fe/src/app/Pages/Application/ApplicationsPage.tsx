@@ -130,6 +130,7 @@ export const ApplicationsPageContent = () => {
                     query={edorgsByEdorgId}
                   />
                 ))
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 .reduce((prev, curr) => [prev, ', ', curr] as any)}
             </CappedLinesText>
           ),

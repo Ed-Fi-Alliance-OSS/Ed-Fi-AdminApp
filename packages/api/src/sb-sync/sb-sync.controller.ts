@@ -82,8 +82,10 @@ const constructWhereClause = (filter: PossibleFilterValue[]): FindOptionsWhere<S
 
 @Injectable()
 export class ParseFilterQueryParamPipe implements PipeTransform {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   transform(value: any) {
     if (value === undefined) return [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     let parseResult: any;
     try {
       parseResult = JSON.parse(Buffer.from(value, 'base64').toString('utf-8'));
@@ -98,6 +100,7 @@ export class ParseFilterQueryParamPipe implements PipeTransform {
       );
     }
     try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       parseResult = parseResult.map((item: { i: string; v: any }) => {
         if (!(item.i && 'v' in item))
           throw new BadRequestException(
@@ -146,6 +149,7 @@ export class SbSyncController {
             .select([`"${column}"`])
             .where(_.omit(whereClause, [column]));
           const result = await query.getRawMany();
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return [column, result.map((r) => r[column]) as any];
         }),
         ...dateFilterColumns.map(async (column) => {

@@ -26,6 +26,7 @@ import {
 
 export function SbaaTableProviderServerSide<
   UseSubRows extends boolean,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends UseSubRows extends true ? { id: any; subRows: T[] } : { id: any }
 >(props: {
   useSubRows?: UseSubRows;
@@ -38,6 +39,7 @@ export function SbaaTableProviderServerSide<
   pageSizes?: number[];
   rowCount: number;
   getFacetedMinMaxValues: (table: Table<T>, columnId: string) => () => undefined | [number, number];
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   getFacetedUniqueValues: (table: Table<T>, columnId: string) => () => Map<any, number>;
   queryKeyPrefix?: string | undefined;
 }) {

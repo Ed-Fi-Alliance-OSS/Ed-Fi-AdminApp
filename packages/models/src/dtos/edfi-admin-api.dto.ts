@@ -13,7 +13,6 @@ import {
 } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
-import { GetEdorgDto } from './edorg.dto';
 import { SbaaAdminApiVersion } from '../interfaces';
 
 export class PostVendorDto {
@@ -149,6 +148,7 @@ export class PostClaimsetDto {
     try {
       this.resourceClaims = JSON.parse(value);
     } catch (invalidJsonError) {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       this.resourceClaims = undefined as any;
     }
   }

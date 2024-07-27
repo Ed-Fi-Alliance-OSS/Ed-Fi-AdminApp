@@ -1,6 +1,5 @@
 import { Expose } from 'class-transformer';
 import { IsNumber, IsOptional } from 'class-validator';
-import { TrimWhitespace } from '../utils';
 import { IRole, ITeam, IUser, IUserTeamMembership } from '../interfaces';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';

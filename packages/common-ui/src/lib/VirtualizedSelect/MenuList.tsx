@@ -8,6 +8,7 @@ import { useSize } from './utils';
 import { MenuItem } from './MenuItem';
 
 export const MenuList = <Option, IsMulti extends boolean, Group extends GroupBase<Option>>(
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   props: MenuListProps<Option, IsMulti, Group> & any
 ) => {
   const {
@@ -50,6 +51,7 @@ export const MenuList = <Option, IsMulti extends boolean, Group extends GroupBas
   const sx = chakraStyles?.menuList ? chakraStyles.menuList(initialSx, props) : initialSx;
 
   const childrenArr = React.Children.toArray(children);
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const scrollRef: any = useRef<HTMLDivElement>();
 
   const virtualizer = useVirtualizer({

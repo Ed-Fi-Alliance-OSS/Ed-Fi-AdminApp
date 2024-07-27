@@ -153,6 +153,7 @@ export const unauthenticatedRoute: RouteObject = {
   element: <UnauthenticatedPage />,
 };
 const Login = memo(() => {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const { redirect } = useSearchParamsObject() as any;
   useEffect(() => {
     // TODO the backend supports multiple (trusted) IdPs, so maybe we should support that here with some kind of login screen

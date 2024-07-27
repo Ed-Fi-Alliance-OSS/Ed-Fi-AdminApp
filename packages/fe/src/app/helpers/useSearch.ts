@@ -6,6 +6,7 @@ export const useSearchParamsObject = <OutputType extends object>(
 ) => {
   const [urlSearchParams] = useSearchParams();
   return useMemo(() => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const dict = [...urlSearchParams.entries()].reduce<Record<string, any>>((obj, entry) => {
       const [key, value] = entry;
       if (key in obj) {

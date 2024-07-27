@@ -158,6 +158,7 @@ export const trueOnlyPrivileges = new Set<
   'team.sb-environment.edfi-tenant.vendor:create',
 ]);
 export const isBaseTeamPrivilege = (str: string): str is TeamBasePrivilege =>
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   new Set(Object.values(baseTeamResourcePrivilegesMap).flat()).has(str as any);
 // TODO eventually this can be a dynamic version of the above: /^team\.[a-z-]+:/.test(str);
 /** @deprecated to be replaced with codegen */

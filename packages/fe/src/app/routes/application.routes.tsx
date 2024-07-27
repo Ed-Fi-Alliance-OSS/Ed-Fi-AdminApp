@@ -12,8 +12,6 @@ import { applicationQueriesV1, applicationQueriesV2 } from '../api';
 import {
   VersioningHoc,
   getRelationDisplayName,
-  useNavContext,
-  useTeamEdfiTenantNavContext,
   useTeamEdfiTenantNavContextLoaded,
   withLoader,
 } from '../helpers';
@@ -29,6 +27,7 @@ const ApplicationBreadcrumbV1 = () => {
       edfiTenant,
     })
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (application.data?.displayName ?? params.applicationId) as any;
 };
 const ApplicationBreadcrumbV2 = () => {
@@ -43,6 +42,7 @@ const ApplicationBreadcrumbV2 = () => {
       teamId,
     })
   );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (application.data?.displayName ?? params.applicationId) as any;
 };
 export const applicationIndexRoute: RouteObject = {

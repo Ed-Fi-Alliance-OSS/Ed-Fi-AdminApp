@@ -1,7 +1,6 @@
 import {
   AuthorizationCache,
   GetSessionDataDto,
-  Ids,
   PrivilegeCode,
   isBaseTeamPrivilege,
   isGlobalPrivilege,
@@ -17,20 +16,18 @@ import {
   Header,
   InternalServerErrorException,
   Logger,
-  Next,
   NotFoundException,
   Param,
   Post,
   Query,
-  Req,
-  Request,
+  Request as Req, // TODO: can Req just be used here?
   Res,
 } from '@nestjs/common';
-import { ApiParam, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import { randomUUID } from 'crypto';
-import { Response } from 'express';
+import type { Response, Request } from 'express';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { Authorize, NoAuthorization } from './authorization';
@@ -49,13 +46,14 @@ export class AuthController {
 
   @Public()
   @Get('/login/:oidcId')
-  oidcLogin(@Param('oidcId') oidcId: number, @Res() res: Response, @Request() req, @Next() next) {
+  oidcLogin(@Param('oidcId') oidcId: number, @Res() res: Response, @Req() req: Request) {
     passport.authenticate(`oidc-${oidcId}`, {
       state: JSON.stringify({
         redirect: req.query?.redirect ?? '/',
         random: randomUUID(),
       }),
-    })(req, res, (err) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    })(req, res, (err: any) => {
       if (err?.message.includes('Unknown authentication strategy')) {
         throw new NotFoundException();
       } else {
@@ -66,15 +64,10 @@ export class AuthController {
 
   @Public()
   @Get('/callback/:oidcId')
-  oidcLoginCallback(
-    @Param('oidcId') oidcId: number,
-    @Res() res: Response,
-    @Request() req,
-    @Next() next
-  ) {
+  oidcLoginCallback(@Param('oidcId') oidcId: number, @Res() res: Response, @Req() req: Request) {
     let redirect = '/';
     try {
-      redirect = JSON.parse(req.query.state).redirect;
+      redirect = JSON.parse(req.query.state as string).redirect;
     } catch (error) {
       // no redirect
     }
@@ -113,7 +106,7 @@ export class AuthController {
   @Get('me')
   @NoAuthorization()
   @Header('Cache-Control', 'no-store')
-  async me(@ReqUser() session: GetSessionDataDto, @Req() req) {
+  async me(@ReqUser() session: GetSessionDataDto) {
     return toGetSessionDataDto(session);
   }
   @Get('my-teams')
@@ -121,8 +114,7 @@ export class AuthController {
   @Header('Cache-Control', 'no-store')
   async myTeams(
     @ReqUser() session: GetSessionDataDto,
-    @AuthCache() privileges: AuthorizationCache,
-    @Req() req
+    @AuthCache() privileges: AuthorizationCache
   ) {
     if (privileges['team:read'] === true) {
       return toGetTeamDto(await this.teamsRepository.find());
@@ -154,6 +146,7 @@ export class AuthController {
     if (teamId !== undefined && sbEnvironmentId === undefined && edfiTenantId === undefined) {
       Object.keys(cache).forEach((privilege: PrivilegeCode) => {
         if (isBaseTeamPrivilege(privilege)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           result[privilege] = cache[privilege] as any;
         }
       });
@@ -177,7 +170,7 @@ export class AuthController {
 
   @Post('/logout')
   @Public()
-  async logout(@Request() req /* @Res() res: Response */) {
+  async logout(@Req() req: Request /* @Res() res: Response */) {
     return req.session.destroy(async () => {
       return undefined;
     });

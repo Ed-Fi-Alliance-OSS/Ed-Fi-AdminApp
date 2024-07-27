@@ -50,6 +50,7 @@ export function formValidationResult(
       },
     };
   } else {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const errs = errors.map((error) => validationErrorFromConfig(error as any));
     return formErrFromValidator(errs);
   }
@@ -94,6 +95,7 @@ export const flattenFieldErrors = (
 };
 
 /** FieldError (singular) is the actual error value type. FieldErrors (plural) is the object of property names, possibly more nested property names, and eventually the singular FieldError. */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 const isFieldError = (obj: any): obj is FieldError =>
   typeof obj === 'object' && 'message' in obj && 'type' in obj;
 
@@ -159,6 +161,7 @@ export type StatusResponse =
   | StatusResponseFormValidation
   | StatusResponseForceDelete;
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isExplicitStatusResponse = (obj: any): obj is StatusResponse =>
   statusResponseTypes.includes(obj?.type);
 

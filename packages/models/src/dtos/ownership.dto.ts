@@ -1,6 +1,5 @@
 import { Expose, Transform, Type } from 'class-transformer';
 import { IsIn, IsNumber, IsOptional } from 'class-validator';
-import { TrimWhitespace } from '../utils';
 import { IRole, ITeam } from '../interfaces';
 import { IOwnership, IOwnershipView } from '../interfaces/ownership.interface';
 import { DtoGetBase, GetDto } from '../utils/get-base.dto';

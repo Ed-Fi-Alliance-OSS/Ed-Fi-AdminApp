@@ -24,6 +24,7 @@ export interface IAdminApiV1xGenericError {
   message: 'The server encountered an unexpected condition that prevented it from fulfilling the request.';
 }
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const isIAdminApiValidationError = (error: any): error is IAdminApiValidationError => {
   return (
     error &&
@@ -53,6 +54,7 @@ export class ValidationHttpException extends CustomHttpException {
     super({
       type: 'ValidationError',
       title: 'Invalid submission.',
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       data: { errors: formValidationResult(...(errors as any)) },
     });
   }

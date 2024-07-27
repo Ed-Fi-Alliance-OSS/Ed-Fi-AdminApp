@@ -61,6 +61,7 @@ export const Breadcrumbs = (props: BreadcrumbProps & StyleProps) => {
       </BreadcrumbItem>
       {breadcrumbs.map((route, i) => {
         const Breadcrumb = route.handle.crumb!;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const FallbackBreadcrumb = route.handle.fallbackCrumb ?? ((() => '(error ocurred)') as any);
         const path = route.path!;
         const to = generatePath(path, lastMatch.params);

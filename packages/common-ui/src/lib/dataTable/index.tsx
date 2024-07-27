@@ -4,6 +4,7 @@ import React from 'react';
 
 import { rankItem } from '@tanstack/match-sorter-utils';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const fuzzyFilter: FilterFn<any> = (row, columnId, value, addMeta) => {
   // Rank the item
   const itemRank = rankItem(row.getValue(columnId), value);
@@ -71,7 +72,8 @@ export const getColumnFilterParam = (
   const paramValue = searchParams.get(paramName);
   try {
     return paramValue
-      ? JSON.parse(atob(decodeURIComponent(paramValue))).map((item: { i: string; v: any }) => ({
+      ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        JSON.parse(atob(decodeURIComponent(paramValue))).map((item: { i: string; v: any }) => ({
           id: item.i,
           value: item.v,
         }))
@@ -143,6 +145,7 @@ export const DebouncedInput = forwardRef<
   InputProps & {
     /** (ms) */
     debounce?: number;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     onChange: (value: any) => void;
   },
   'input'

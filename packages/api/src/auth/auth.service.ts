@@ -406,7 +406,7 @@ export class AuthService {
 
     const edorgPrivilegesEntries = [...edorgPrivileges.entries()];
 
-    const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId, privileges]) => edorgId));
+    const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId]) => edorgId));
     const edorgClosureRaw = await this.entityManager.query(
       'SELECT "id_ancestor", "id_descendant" from "edorg_closure" WHERE "id_ancestor" <> "id_descendant" and ("id_ancestor" = ANY ($1) OR "id_descendant" = ANY ($1))',
       [[...edorgIds.values()]]

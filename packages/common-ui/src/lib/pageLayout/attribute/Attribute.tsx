@@ -64,6 +64,7 @@ function _Attribute(
     isUrlExternal?: boolean;
     value: string | undefined;
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
 ): JSX.Element;
 
@@ -73,6 +74,7 @@ function _Attribute(
     defaultDateFmt?: DateFormat;
     value: Date | undefined | null;
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
 ): JSX.Element;
 
@@ -80,6 +82,7 @@ function _Attribute(
   props: AttributeBaseProps & {
     value: string | undefined | null | boolean | number;
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
 ): JSX.Element;
 
@@ -91,6 +94,7 @@ function _Attribute(
     defaultDateFmt?: DateFormat;
     value: string | Date | undefined | null | boolean | number;
   },
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
 ) {
   const {
@@ -118,6 +122,7 @@ function _Attribute(
       ? resultValue
       : resultValue.toISOString();
 
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   const clip = useClipboard(clipValue);
   const showSecret = useDisclosure({ defaultIsOpen: !isMasked });
   const maskedValue = showSecret.isOpen ? clipValue : '\u2022'.repeat(clipValue.length);

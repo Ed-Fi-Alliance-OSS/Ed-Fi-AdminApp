@@ -1,5 +1,4 @@
 import { IconButton, ButtonGroup, HStack, Icon, Select, Text } from '@chakra-ui/react';
-import React from 'react';
 import { FiChevronLeft, FiChevronRight, FiChevronsLeft, FiChevronsRight } from 'react-icons/fi';
 import { DivComponent, useSbaaTableContext } from './SbaaTableProvider';
 
@@ -8,6 +7,7 @@ export const SbaaTablePagination: DivComponent = (props) => {
   const { table, pageSizes } = useSbaaTableContext();
 
   if (!table) {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
   return table.getPageCount() > 1 ||
@@ -70,6 +70,7 @@ export const SbaaTablePagination: DivComponent = (props) => {
       </Select>
     </HStack>
   ) : (
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     (null as any)
   );
 };

@@ -87,6 +87,7 @@ export const EditApplication = (props: {
   const defaultValues = new PutApplicationFormDtoV2();
   defaultValues.id = application.id;
   defaultValues.applicationName = application.displayName;
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   defaultValues.claimsetId = claimset?.id as any;
   defaultValues.profileIds = application.profileIds;
   defaultValues.vendorId = application.vendorId;

@@ -31,6 +31,7 @@ import {
 } from '../dataTable';
 
 export const SbaaTableContext = createContext<{
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   table: TrtTable<any> | null;
   pageSizes: number[];
   pendingFilterColumn: string | boolean;
@@ -77,6 +78,7 @@ export const diffSearchParams = (oldParams: URLSearchParams, newParams: URLSearc
 
 export function SbaaTableProvider<
   UseSubRows extends boolean,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   T extends UseSubRows extends true ? { id: any; subRows: T[] } : { id: any }
 >(props: {
   useSubRows?: UseSubRows;

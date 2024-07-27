@@ -1,4 +1,4 @@
-import { IOwnership, ISbEnvironment, SbaaAdminApiVersion } from '.';
+import { IOwnership, ISbEnvironment } from '.';
 import { IEntityBase } from '../utils/entity-base.interface';
 import { IEdorg } from './edorg.interface';
 import { IOds } from './ods.interface';

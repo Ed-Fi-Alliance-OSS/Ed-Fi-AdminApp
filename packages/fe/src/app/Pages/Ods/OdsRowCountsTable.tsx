@@ -6,11 +6,6 @@ import { useParams } from 'react-router-dom';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { SbaaTableAllInOne } from '@edanalytics/common-ui';
 
-type OdsRowCountsTable = {
-  edfiTenant: any;
-  teamId: any;
-};
-
 export const OdsRowCountsTable = () => {
   const params = useParams() as { odsId: string };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();

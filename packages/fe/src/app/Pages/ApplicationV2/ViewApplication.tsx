@@ -94,6 +94,7 @@ export const ViewApplication = ({ application }: { application: GetApplicationDt
             .map((odsInstanceId) => (
               <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
             ))
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             .reduce((prev, curr) => [prev, ', ', curr] as any)}
         </AttributeContainer>{' '}
         <AttributeContainer label="Vendor">

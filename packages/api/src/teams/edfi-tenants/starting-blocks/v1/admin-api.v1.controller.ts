@@ -61,6 +61,7 @@ import {
   SbEnvironmentEdfiTenantInterceptor,
 } from '../../../../app/sb-environment-edfi-tenant.interceptor';
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export const uppercaseFirstLetterOfKeys = (input: any): any => {
   if (typeof input !== 'object' || input === null) {
     return input;
@@ -74,6 +75,7 @@ export const uppercaseFirstLetterOfKeys = (input: any): any => {
     const newKey = key.charAt(0).toUpperCase() + key.slice(1);
     acc[newKey] = uppercaseFirstLetterOfKeys(input[key]);
     return acc;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
   }, {} as { [key: string]: any });
 };
 

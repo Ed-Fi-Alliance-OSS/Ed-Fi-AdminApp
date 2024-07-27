@@ -38,6 +38,7 @@ export const postYopassSecret = async (body: PostApplicationResponseDtoBase & { 
     message: await encryptMessage(JSON.stringify(body), pwd),
     one_time: true,
   };
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
   const yopassResponse = await axios.post<any, AxiosResponse<Response>>(
     [backendDomain, 'secret'].join('/'),
     yopassBody

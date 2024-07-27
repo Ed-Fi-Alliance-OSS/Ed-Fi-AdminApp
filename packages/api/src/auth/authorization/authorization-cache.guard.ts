@@ -47,6 +47,7 @@ export class AuthCacheGuard implements CanActivate {
       const teamCache = await this.authService.getTeamOwnershipCache(teamId);
       Object.keys(teamCache).forEach((k: keyof ITeamCache) => {
         if (userPrivileges.has(k)) {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           authorizationCache[k] = teamCache[k] as any;
         }
       });

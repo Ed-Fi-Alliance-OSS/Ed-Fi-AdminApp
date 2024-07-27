@@ -1,5 +1,4 @@
 import { registerDecorator } from 'class-validator';
-import { TrimWhitespace } from '../utils';
 import { PRIVILEGE_CODES } from '../types/privilege.type';
 import { PrivilegeCode } from '../types';
 
@@ -300,6 +299,7 @@ export function IsValidPrivileges() {
       propertyName: propertyName,
       options: {
         message: (args) => {
+          // eslint-disable-next-line @typescript-eslint/no-explicit-any
           return validate(args.value) as any;
         },
       },

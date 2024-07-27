@@ -95,6 +95,7 @@ export class EdorgsController {
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @Body() dto: AddEdorgDtoV2,
     @CheckAbility() checkAbility: CheckAbilityType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Req() request: any
   ) {
     const ods = await this.odsRepository.findOneBy({ edfiTenantId, odsInstanceName: dto.ODSName });
@@ -150,6 +151,7 @@ export class EdorgsController {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @CheckAbility() checkAbility: CheckAbilityType,
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     @Req() request: any
   ) {
     if (

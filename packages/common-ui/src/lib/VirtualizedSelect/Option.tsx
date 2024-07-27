@@ -103,8 +103,10 @@ export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<
         </MenuIcon>
       )}
       {children}
+      {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
       {(props.data as any).subLabel ? (
         <Text flexGrow={1} textAlign="right" ml="1em" fontSize="sm" color="gray.400">
+          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
           {(props.data as any).subLabel}
         </Text>
       ) : null}

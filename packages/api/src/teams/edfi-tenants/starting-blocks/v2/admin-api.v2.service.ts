@@ -199,37 +199,40 @@ export class AdminApiServiceV2 {
       DisplayName,
     };
 
-    return axios
-      .post(registrationUri, credentials, {
-        headers: { 'content-type': 'application/x-www-form-urlencoded', tenant: edfiTenant.name },
-      })
-      .then(async () => {
-        await this.startingBlocksService.saveAdminApiCredentials(
-          edfiTenant,
-          edfiTenant.sbEnvironment,
-          credentials
-        );
-        return { status: 'SUCCESS' as const };
-      })
-      .catch((err: AxiosError<any>) => {
-        if (err.response?.data?.errors) {
-          this.logger.warn(JSON.stringify(err.response.data.errors));
-          return {
-            status: 'ERROR' as const,
-            data: err.response.data as object,
-          };
-        } else if (err?.code === 'ENOTFOUND') {
-          this.logger.warn('Attempted to register Admin API but ENOTFOUND: ' + registrationUri);
-          return {
-            status: 'ENOTFOUND' as const,
-          };
-        } else {
-          this.logger.warn(err);
-          return {
-            status: 'ERROR' as const,
-          };
-        }
-      });
+    return (
+      axios
+        .post(registrationUri, credentials, {
+          headers: { 'content-type': 'application/x-www-form-urlencoded', tenant: edfiTenant.name },
+        })
+        .then(async () => {
+          await this.startingBlocksService.saveAdminApiCredentials(
+            edfiTenant,
+            edfiTenant.sbEnvironment,
+            credentials
+          );
+          return { status: 'SUCCESS' as const };
+        })
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        .catch((err: AxiosError<any>) => {
+          if (err.response?.data?.errors) {
+            this.logger.warn(JSON.stringify(err.response.data.errors));
+            return {
+              status: 'ERROR' as const,
+              data: err.response.data as object,
+            };
+          } else if (err?.code === 'ENOTFOUND') {
+            this.logger.warn('Attempted to register Admin API but ENOTFOUND: ' + registrationUri);
+            return {
+              status: 'ENOTFOUND' as const,
+            };
+          } else {
+            this.logger.warn(err);
+            return {
+              status: 'ERROR' as const,
+            };
+          }
+        })
+    );
   }
 
   private getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
@@ -275,12 +278,14 @@ export class AdminApiServiceV2 {
 
   async getActions(edfiTenant: EdfiTenant) {
     return toGetActionDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`actions?offset=0&limit=10000`)
     );
   }
 
   async getApplications(edfiTenant: EdfiTenant) {
     return toGetApplicationDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`applications?offset=0&limit=10000`)
     );
   }
@@ -320,6 +325,7 @@ export class AdminApiServiceV2 {
 
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {
     return toGetAuthStrategyDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `authorizationStrategies?offset=0&limit=10000`
       )
@@ -328,6 +334,7 @@ export class AdminApiServiceV2 {
 
   async getClaimsets(edfiTenant: EdfiTenant) {
     return toGetClaimsetMultipleDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`claimSets?offset=0&limit=10000`)
     );
   }
@@ -444,6 +451,7 @@ export class AdminApiServiceV2 {
 
   async getOdsInstances(edfiTenant: EdfiTenant) {
     return toGetOdsInstanceSummaryDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`odsInstances?offset=0&limit=10000`)
     );
   }
@@ -477,6 +485,7 @@ export class AdminApiServiceV2 {
 
   async getOdsInstanceApplications(edfiTenant: EdfiTenant, odsInstanceId: number) {
     return toGetApplicationDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `odsInstances/${odsInstanceId}/applications?offset=0&limit=10000`
       )
@@ -485,6 +494,7 @@ export class AdminApiServiceV2 {
 
   async getOdsInstanceContexts(edfiTenant: EdfiTenant) {
     return toGetOdsInstanceContextDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `odsInstanceContexts?offset=0&limit=10000`
       )
@@ -526,6 +536,7 @@ export class AdminApiServiceV2 {
 
   async getOdsInstanceDerivatives(edfiTenant: EdfiTenant) {
     return toGetOdsInstanceDerivativeDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `odsInstanceDerivatives?offset=0&limit=10000`
       )
@@ -571,6 +582,7 @@ export class AdminApiServiceV2 {
 
   async getProfiles(edfiTenant: EdfiTenant) {
     return toGetProfileDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`profiles?offset=0&limit=10000`)
     );
   }
@@ -596,6 +608,7 @@ export class AdminApiServiceV2 {
 
   async getResourceClaims(edfiTenant: EdfiTenant) {
     return toGetResourceClaimDetailDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `resourceClaims?offset=0&limit=10000`
       )
@@ -610,6 +623,7 @@ export class AdminApiServiceV2 {
 
   async getVendors(edfiTenant: EdfiTenant) {
     return toGetVendorDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(`vendors?offset=0&limit=10000`)
     );
   }
@@ -636,6 +650,7 @@ export class AdminApiServiceV2 {
 
   async getVendorApplications(edfiTenant: EdfiTenant, vendorId: number) {
     return toGetApplicationDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant).get<any, any[]>(
         `vendors/${vendorId}/applications?offset=0&limit=10000`
       )

@@ -15,7 +15,7 @@ import {
   userQueries,
   userTeamMembershipQueries,
 } from '../../api';
-import { AuthorizeComponent, getRelationDisplayName } from '../../helpers';
+import { getRelationDisplayName } from '../../helpers';
 import { UserGlobalLink } from '../../routes';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
 import { OwnershipsNameCell } from '../OwnershipGlobal/OwnershipsNameCell';

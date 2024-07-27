@@ -5,7 +5,6 @@ import uniq from 'lodash/uniq';
 import { useMemo } from 'react';
 import { BsCaretRightFill } from 'react-icons/bs';
 import { SbaaTableAllInOne, useSbaaTableContext } from '../sbaaTable';
-import { log } from 'console';
 
 const AuthStrategyBadge = (props: {
   authDefault: string | null;

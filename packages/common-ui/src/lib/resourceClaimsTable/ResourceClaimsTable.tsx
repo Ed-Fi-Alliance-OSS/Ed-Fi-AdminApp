@@ -243,10 +243,12 @@ export const ResourceClaimsTable = ({ claimset }: { claimset: GetClaimsetDto }) 
                 {
                   id: 'readChanges',
                   header: 'Read Changes',
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   accessorFn: (rc: any) =>
                     rc.readChanges
                       ? rc.readChangesOverride ?? rc.readChangesDefault ?? 'Auth strategy unknown'
                       : 'Denied',
+                  // eslint-disable-next-line @typescript-eslint/no-explicit-any
                   cell: ({ row: { original } }: any) => (
                     <AuthStrategyBadge
                       authOverride={original.readChangesOverride}
