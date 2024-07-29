@@ -269,12 +269,25 @@ Resources:
   CodePipeline:
     Type: AWS::CodePipeline::Pipeline
     Properties:
+      PipelineType: V2
       ArtifactStore:
         Location: !Sub 'codepipeline-artifact-store-${AWS::Region}-${AWS::AccountId}'
         Type: S3
       Name: !Sub '${EnvLabel}-BE-pipeline'
       RestartExecutionOnUpdate: True
       RoleArn: !GetAtt 'PipelineRole.Arn'
+      Triggers:
+        - GitConfiguration:
+            SourceActionName: Source
+            Push:
+              - Branches:
+                  Includes:
+                    - !Ref GitHubBranch
+                FilePaths:
+                  Excludes:
+                    - ".github/**"
+                    - "cloudformation/**"
+          ProviderType: CodeStarSourceConnection
       Stages:
         - Name: SourceStage
           Actions:
