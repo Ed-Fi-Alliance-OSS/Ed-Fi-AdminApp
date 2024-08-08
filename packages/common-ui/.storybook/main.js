@@ -3,16 +3,19 @@ import { mergeConfig } from 'vite';
 import path from 'path';
 
 const config = {
-  stories: ['../src/lib/**/*.stories.@(js|jsx|ts|tsx|mdx)'],
+  stories: ['../src/lib/**/*.@(mdx|stories.@(js|jsx|ts|tsx))'],
+
   addons: [
     '@storybook/addon-essentials',
     '@chakra-ui/storybook-addon',
     'storybook-addon-react-router-v6',
   ],
+
   framework: {
     name: '@storybook/react-vite',
     options: {},
   },
+
   async viteFinal(config) {
     return mergeConfig(config, {
       resolve: {
@@ -22,6 +25,12 @@ const config = {
         },
       },
     });
+  },
+
+  docs: {},
+
+  typescript: {
+    reactDocgen: 'react-docgen-typescript',
   },
 };
 

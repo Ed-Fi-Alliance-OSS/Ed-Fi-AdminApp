@@ -306,6 +306,7 @@ export class EntityQueryBuilder<
         (
           queryParams: {
             enabled?: boolean;
+            optional?: boolean;
           } & BaseParams<
             ConfigType['includeTeam'],
             ConfigType['includeEdfiTenant'],

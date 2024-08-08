@@ -11,9 +11,16 @@ import {
   UnorderedList,
   useToast,
 } from '@chakra-ui/react';
-import { OperationResultDto, OperationStatusDto } from '@edanalytics/models';
+// import { OperationResultDto, OperationStatusDto } from '@edanalytics/models';
+import { OperationResultDto } from '@edanalytics/models';
 import { useState } from 'react';
 import { SuccessFailureBadge } from '../SuccessFailureBadge';
+
+// TODO: remove TempResultDto
+// TODO: fix OperationResultDto
+// TODO: add OperationStatusDto
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+type TempResultDto = OperationResultDto & { messages: any; statuses: any };
 
 /**
  * Display standard operation status DTO. Make sure to put the
@@ -27,15 +34,20 @@ export const useOperationResultDisclosure = () => {
   const modalIsOpen = modalResultState !== null;
 
   const buildResult = (result: OperationResultDto) => {
-    let { messages } = result;
-    const { succeeded, failed } = result.statuses.reduce(
-      (totals, status) => {
+    let { messages } = result as TempResultDto;
+    const { succeeded, failed } = (result as TempResultDto).statuses.reduce(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      (totals: any, status: any) => {
         totals[status.success ? 'succeeded' : 'failed'].push(status);
         return totals;
       },
       {
-        succeeded: [] as OperationStatusDto[],
-        failed: [] as OperationStatusDto[],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        succeeded: [] as any[],
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        failed: [] as any[],
+        // succeeded: [] as OperationStatusDto[],
+        // failed: [] as OperationStatusDto[],
       }
     );
     if (succeeded.length && !failed.length) {
@@ -76,9 +88,10 @@ export const useOperationResultDisclosure = () => {
             <>
               {succeeded.length || failed.length ? <Text>Messages:</Text> : null}
               <UnorderedList styleType="circle">
-                {messages.map((msg) => (
-                  <ListItem my={1} display="list-item" key={msg}>
-                    {msg}
+                {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
+                {messages.map((message: any) => (
+                  <ListItem my={1} display="list-item" key={message}>
+                    {message}
                   </ListItem>
                 ))}
               </UnorderedList>

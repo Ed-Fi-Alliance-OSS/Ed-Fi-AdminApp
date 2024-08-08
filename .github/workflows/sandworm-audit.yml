@@ -1,0 +1,25 @@
+name: Sandworm Audit
+
+on:
+  pull_request:
+    branches: [main, develop]
+
+jobs:
+  audit:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out Git repository
+        uses: actions/checkout@v2
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v2
+        with:
+          node-version: 18
+          cache: 'npm'
+
+      - name: Install Node.js dependencies
+        run: npm ci
+
+      - name: Sandworm Audit
+        run: NODE_OPTIONS="--max-old-space-size=16384" npx @sandworm/audit@latest --skip-all

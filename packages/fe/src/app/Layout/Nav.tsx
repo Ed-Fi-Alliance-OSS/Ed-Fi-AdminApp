@@ -1,4 +1,4 @@
-import { Box, Text, useBoolean } from '@chakra-ui/react';
+import { Box, Menu, Text, useBoolean } from '@chakra-ui/react';
 import { GetTeamDto } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
 import { Select } from 'chakra-react-select';
@@ -178,7 +178,7 @@ const NavContent = ({
   }, [teamsCount, firstteamId, hasGlobalPrivileges, teamId, setteamId]);
 
   return (
-    <>
+    <Menu>
       {Object.keys(teams).length > 1 || hasGlobalPrivileges ? (
         <Box mb={7} px={3}>
           <Select
@@ -261,6 +261,6 @@ const NavContent = ({
           <TeamNav teamId={String(teamId)} />
         </NavContextProvider>
       )}
-    </>
+    </Menu>
   );
 };

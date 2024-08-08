@@ -25,13 +25,17 @@ import {
   Text,
 } from '@chakra-ui/react';
 import { stdDuration, stdShort } from '@edanalytics/utils';
-import { Column } from '@tanstack/react-table';
+import type { Column } from '@tanstack/react-table';
 import React, { useState } from 'react';
 import { BsX } from 'react-icons/bs';
 import { VirtualizedSelect } from '../VirtualizedSelect';
 
+export type WithMetaType = {
+  columnDef: { meta?: { type?: 'date' | 'duration' | 'number' | 'options' } };
+};
+
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-const FilterValueLabel = ({ column }: { column: Column<any, unknown> }) => {
+const FilterValueLabel = ({ column }: { column: Column<any, unknown> & WithMetaType }) => {
   const value = column.getFilterValue();
 
   if (value === undefined) {
@@ -157,7 +161,7 @@ export const ColumnFilterContent = ({
   cancel,
 }: {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  column: Column<any, unknown>;
+  column: Column<any, unknown> & WithMetaType;
   cancel: () => void;
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   apply: React.Dispatch<React.SetStateAction<any>>;
@@ -415,9 +419,8 @@ export const NumberFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [value, old?.[1]]);
                     }}
-                    placeholder="Minimum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Minimum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -434,9 +437,8 @@ export const NumberFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [old?.[0], value]);
                     }}
-                    placeholder="Maximum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Maximum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -459,9 +461,8 @@ export const NumberFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [old?.[0], value]);
                     }}
-                    placeholder="Maximum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Maximum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -484,9 +485,8 @@ export const NumberFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [value, old?.[1]]);
                     }}
-                    placeholder="Minimum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Minimum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -626,9 +626,8 @@ export const DurationFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [inputToSeconds(value, unit), old?.[1]]);
                     }}
-                    placeholder="Minimum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Minimum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -645,9 +644,8 @@ export const DurationFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [old?.[0], inputToSeconds(value, unit)]);
                     }}
-                    placeholder="Maximum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Maximum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -670,9 +668,8 @@ export const DurationFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [old?.[0], inputToSeconds(value, unit)]);
                     }}
-                    placeholder="Maximum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Maximum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />
@@ -695,9 +692,8 @@ export const DurationFilter = ({
                     onChange={(str, value) => {
                       setFilter((old) => [inputToSeconds(value, unit), old?.[1]]);
                     }}
-                    placeholder="Minimum value"
                   >
-                    <NumberInputField />
+                    <NumberInputField placeholder="Minimum value" />
                     <NumberInputStepper>
                       <NumberIncrementStepper />
                       <NumberDecrementStepper />

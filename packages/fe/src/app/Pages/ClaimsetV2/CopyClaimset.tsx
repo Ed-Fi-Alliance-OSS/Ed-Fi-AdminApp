@@ -107,7 +107,7 @@ export const CopyClaimsetPage = () => {
     claimsetQueriesV2.getOne({ id: Number(claimsetId), edfiTenant, teamId })
   );
   return (
-    <PageTemplate title={'Copy ' + claimset.data?.name ?? 'claimset'} actions={undefined}>
+    <PageTemplate title={'Copy ' + (claimset.data?.name ?? 'claimset')} actions={undefined}>
       {claimset.data ? <CopyClaimsetForm claimset={claimset.data} /> : null}
     </PageTemplate>
   );

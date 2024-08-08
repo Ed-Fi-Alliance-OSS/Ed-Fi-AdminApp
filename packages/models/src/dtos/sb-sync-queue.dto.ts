@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { ISbSyncQueue, PgBossJobState } from '../interfaces';
+import type { ISbSyncQueue, PgBossJobState } from '../interfaces';
 import { makeSerializer } from '../utils/make-serializer';
 
 // This is a Get DTO that should not have whitespace trimmed

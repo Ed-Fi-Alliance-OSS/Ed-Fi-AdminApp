@@ -4,3 +4,7 @@ dist
 tmp
 .vscode
 stats.html
+
+/.nx/cache
+/.nx/workspace-data
+/packages/fe/src/fonts

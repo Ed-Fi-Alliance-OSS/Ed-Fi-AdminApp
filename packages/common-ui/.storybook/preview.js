@@ -4,10 +4,13 @@ import { reactRouterParameters, withRouter } from 'storybook-addon-react-router-
 
 export default {
   decorators: [withRouter],
+
   parameters: {
     reactRouter: reactRouterParameters({}),
     chakra: {
       theme,
     },
   },
+
+  tags: ['autodocs'],
 };

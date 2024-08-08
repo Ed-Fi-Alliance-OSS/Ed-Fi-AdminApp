@@ -18,8 +18,9 @@ import {
 } from '@chakra-ui/react';
 import { BiPlus } from 'react-icons/bi';
 import { BsX } from 'react-icons/bs';
-import { ColumnFilter, ColumnFilterContent } from './ColumnFilter';
+import { ColumnFilter, ColumnFilterContent, type WithMetaType } from './ColumnFilter';
 import { DivComponent, useSbaaTableContext } from './SbaaTableProvider';
+import { Column } from '@tanstack/react-table';
 
 export const SbaaTableFilters: DivComponent = (props) => {
   const { children, ...rest } = props;
@@ -148,11 +149,11 @@ const Filters = () => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
-  const filterableColumns = table
-    .getAllFlatColumns()
-    .filter(
-      (column) => column.getCanFilter() && !column.getIsFiltered() && column.columnDef.meta?.type
-    );
+  const filterableColumns = table.getAllFlatColumns().filter(
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    (column: Column<any, unknown> & WithMetaType) =>
+      column.getCanFilter() && !column.getIsFiltered() && column.columnDef.meta?.type
+  );
 
   const { columnFilters } = table.getState();
   const pendingFilterColumnDef =

@@ -4,6 +4,7 @@ import {
   HStack,
   Icon,
   IconButton,
+  Menu,
   Popover,
   PopoverArrow,
   PopoverBody,
@@ -123,30 +124,32 @@ function _InnerSelect(
   const isClearable = props.isClearable && value !== null;
 
   return (
-    <VirtualizedSelect
-      {...others}
-      ref={ref}
-      isClearable={isClearable}
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      options={optionsArray as any}
-      name={name}
-      onBlur={onBlur}
-      selectedOptionStyle="check"
-      value={
-        value === null
-          ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            { label: 'Select an option', value: '' as any }
-          : {
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              label: isLoading ? '...loading' : options?.[value as any]?.label ?? '',
-              // eslint-disable-next-line @typescript-eslint/no-explicit-any
-              subLabel: isLoading ? undefined : options?.[value as any]?.subLabel,
-              value: value,
-            }
-      }
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      onChange={(value: any) => onChange(value?.value ?? null)}
-    />
+    <Menu>
+      <VirtualizedSelect
+        {...others}
+        ref={ref}
+        isClearable={isClearable}
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        options={optionsArray as any}
+        name={name}
+        onBlur={onBlur}
+        selectedOptionStyle="check"
+        value={
+          value === null
+            ? // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              { label: 'Select an option', value: '' as any }
+            : {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                label: isLoading ? '...loading' : options?.[value as any]?.label ?? '',
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                subLabel: isLoading ? undefined : options?.[value as any]?.subLabel,
+                value: value,
+              }
+        }
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        onChange={(value: any) => onChange(value?.value ?? null)}
+      />
+    </Menu>
   );
 }
 

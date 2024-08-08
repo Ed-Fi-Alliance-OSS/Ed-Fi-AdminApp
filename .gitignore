@@ -41,6 +41,7 @@ stats.html
 Thumbs.db
 db.sqlite
 .nx/cache
+.nx/workspace-data
 
 # environment variables
 *.local.*
@@ -49,3 +50,5 @@ db.sqlite
 
 packages/api/config/local*
 !*.copyme*
+
+sandworm/

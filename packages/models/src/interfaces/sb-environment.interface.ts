@@ -32,6 +32,7 @@ export type SbEnvironmentConfigPublic = {
   sbEnvironmentMetaArn: string;
   odsApiMeta?: OdsApiMeta;
   adminApiUrl: string;
+  lastSuccessfulPull?: Date;
 } & (
   | {
       version: 'v1';
