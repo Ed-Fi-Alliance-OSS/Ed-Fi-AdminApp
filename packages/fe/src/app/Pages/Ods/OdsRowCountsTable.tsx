@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { odsQueries } from '../../api';
 import { useParams } from 'react-router-dom';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { SbaaTableAllInOne } from '@edanalytics/common-ui';
+import { DateFormat, SbaaTableAllInOne, ValueAsDate } from '@edanalytics/common-ui';
 
 export const OdsRowCountsTable = () => {
   const params = useParams() as { odsId: string };
@@ -12,16 +12,19 @@ export const OdsRowCountsTable = () => {
 
   const [hasQueriedData, setHasQueriedData] = useState(false);
 
-  const { data, isFetching, isFetched, refetch, isRefetching } = useQuery(
-    odsQueries.rowCounts(
+  const { data, isFetching, isFetched, refetch, isRefetching } = useQuery({
+    ...odsQueries.rowCounts(
       {
         edfiTenant,
         teamId,
         enabled: hasQueriedData,
       },
       params
-    )
-  );
+    ),
+    // Set staleTime to 0 to never refetch data unless explicitly requested
+    staleTime: 0,
+    refetchOnWindowFocus: false,
+  });
   const hasData = !!data;
   const isLoading = isFetching || isRefetching;
 
@@ -50,6 +53,7 @@ export const OdsRowCountsTable = () => {
         <SbaaTableAllInOne
           queryKeyPrefix="odsRowCounts"
           data={rowCountsData}
+          state={{ sorting: [{ id: 'lastUpdated', desc: true }] }}
           columns={[
             {
               accessorFn: (row) => `${row.Schema}.${row.Table}`,
@@ -60,15 +64,21 @@ export const OdsRowCountsTable = () => {
               header: 'Number of Rows',
             },
             {
-              accessorKey: 'FirstCreated',
+              id: 'firstCreated',
+              accessorFn: (row) => (row.FirstCreated ? new Date(row.FirstCreated) : null),
+              cell: ValueAsDate({ default: DateFormat.Full }),
               header: 'Earliest Record',
             },
             {
-              accessorKey: 'LastCreated',
+              id: 'lastCreated',
+              accessorFn: (row) => (row.LastCreated ? new Date(row.LastCreated) : null),
+              cell: ValueAsDate({ default: DateFormat.Full }),
               header: 'Newest Record',
             },
             {
-              accessorKey: 'LastUpdated',
+              id: 'lastUpdated',
+              accessorFn: (row) => (row.LastUpdated ? new Date(row.LastUpdated) : null),
+              cell: ValueAsDate({ default: DateFormat.Full }),
               header: 'Most Recent Update',
             },
           ]}

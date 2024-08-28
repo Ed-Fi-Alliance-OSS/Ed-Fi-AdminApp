@@ -2,6 +2,13 @@
 
 ## Running locally
 
+Once you've followed the setup instructions below, you can do the following in two different terminal windows
+
+1. Run `./run-docker.sh`
+   1. This currently assumes that you have repo folders named `startingblocks_admin_app` and `keycloak_local_idp_se` in the same folder named `code`. I am working on making this configurable.
+2. Run `npm start`
+   1. This will run both `api` and `fe` in the same terminal window. If you wish to keep the output separate, run `npm run start:api:dev` and `npm run start:fe:dev` in separate terminals instead.
+
 ### Environment
 
 Duplicate the `.copyme` files at the following locations, removing that part of the name:

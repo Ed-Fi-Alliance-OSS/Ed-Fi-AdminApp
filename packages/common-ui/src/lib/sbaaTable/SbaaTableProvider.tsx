@@ -15,6 +15,7 @@ import {
   useReactTable,
   ExpandedState,
   getExpandedRowModel,
+  TableState,
 } from '@tanstack/react-table';
 import React, { createContext, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router-dom';
@@ -90,6 +91,7 @@ export function SbaaTableProvider<
   onRowSelectionChange?: OnChangeFn<RowSelectionState> | undefined;
   pageSizes?: number[];
   queryKeyPrefix?: string | undefined;
+  state?: Partial<TableState>;
 }) {
   const data = useMemo(() => [...props.data], [props.data]);
   const columns = props.columns;
@@ -139,7 +141,7 @@ export function SbaaTableProvider<
       fuzzy: fuzzyFilter,
     },
     state: {
-      sorting: sortParams,
+      sorting: sortParams.length > 0 ? sortParams : props.state?.sorting ?? [],
       globalFilter,
       columnFilters,
       ...(props.rowSelectionState ? { rowSelection: props.rowSelectionState } : {}),
