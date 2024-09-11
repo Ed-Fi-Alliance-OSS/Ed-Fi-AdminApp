@@ -464,7 +464,7 @@ export class AuthService {
       const edfiTenant = allEdfiTenants.get(edorg.edfiTenantId);
       const ancestors = [...(ancestorMap.get(edorg.id) ?? [])];
 
-      const ownedPrivileges = new Set(ownership.role.privileges.map((p) => p.code) ?? []);
+      const ownedPrivileges = new Set(ownership.role.privileges.map((p) => p?.code) ?? []);
 
       cacheEdorgPrivilegesUpward({ cache, edorg, edfiTenant, ownedPrivileges, ancestors });
     }

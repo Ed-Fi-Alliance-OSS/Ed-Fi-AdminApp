@@ -15,6 +15,7 @@ CASE WHEN edfi_tenant."name" IS NOT NULL THEN ' / ' || edfi_tenant."name" ELSE '
 CASE WHEN ods."dbName" IS NOT NULL THEN ' / ' || ods."dbName" ELSE '' END ||
 CASE
     WHEN edorg."shortNameOfInstitution" IS NOT NULL THEN ' / ' || edorg."shortNameOfInstitution"
+    WHEN edorg."nameOfInstitution" IS NOT NULL THEN ' / ' || edorg."nameOfInstitution"
     ELSE '' END              "resourceText"
 FROM ownership
   LEFT JOIN edorg ON ownership."edorgId" = edorg.id
