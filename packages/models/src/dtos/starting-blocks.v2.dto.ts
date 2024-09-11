@@ -51,7 +51,7 @@ export class RemoveEdorgDtoV2 {
   EdOrgId: string;
 }
 
-export const edorgCategories = ['School', 'Local Education Agency', 'State Education Agency'];
+export const edorgCategories = ['Local Education Agency', 'State Education Agency'];
 export class AddEdorgDtoV2 {
   @Expose()
   @IsString()
