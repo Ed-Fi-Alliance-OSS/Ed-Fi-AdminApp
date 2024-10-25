@@ -141,12 +141,14 @@ const mapEnvNav = (authCache: AuthorizationCache) => (env: EnvNav) => {
   } else {
     return {
       ...env,
-      odss: !!authCache['team.sb-environment.edfi-tenant.ods:read'][env.edfiTenantId],
-      edorgs: !!authCache['team.sb-environment.edfi-tenant.ods.edorg:read'][env.edfiTenantId],
-      vendors: !!authCache['team.sb-environment.edfi-tenant.vendor:read'][env.edfiTenantId],
-      claimsets: !!authCache['team.sb-environment.edfi-tenant.claimset:read'][env.edfiTenantId],
+      odss: !!authCache['team.sb-environment.edfi-tenant.ods:read']?.[env.edfiTenantId],
+      edorgs: !!authCache['team.sb-environment.edfi-tenant.ods.edorg:read']?.[env.edfiTenantId],
+      vendors: !!authCache['team.sb-environment.edfi-tenant.vendor:read']?.[env.edfiTenantId],
+      claimsets: !!authCache['team.sb-environment.edfi-tenant.claimset:read']?.[env.edfiTenantId],
       applications:
-        !!authCache['team.sb-environment.edfi-tenant.ods.edorg.application:read'][env.edfiTenantId],
+        !!authCache['team.sb-environment.edfi-tenant.ods.edorg.application:read']?.[
+          env.edfiTenantId
+        ],
       profiles: !!authCache['team.sb-environment.edfi-tenant.profile:read']?.[env.edfiTenantId],
     };
   }
