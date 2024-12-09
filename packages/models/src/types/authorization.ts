@@ -230,6 +230,9 @@ export const edfiTenantResourcePrivilegesMap: Partial<Record<string, TeamEdfiTen
     'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
     'team.sb-environment.edfi-tenant.ods.edorg.application:create',
     'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
+    'team.sb-environment.edfi-tenant.vendor:read',
+    'team.sb-environment.edfi-tenant.profile:read',
+    'team.sb-environment.edfi-tenant.claimset:read',
   ],
 };
 

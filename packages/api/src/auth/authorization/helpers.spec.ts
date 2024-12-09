@@ -276,6 +276,42 @@ describe('helpers', () => {
         }),
       ]),
     },
+    'team.sb-environment.edfi-tenant.claimset:read': {
+      '0': new Set([
+        edorgCompositeKey({
+          edorg: 102,
+          ods: 'ods_db',
+        }),
+        edorgCompositeKey({
+          edorg: 103,
+          ods: 'ods_db',
+        }),
+      ]),
+    },
+    'team.sb-environment.edfi-tenant.profile:read': {
+      '0': new Set([
+        edorgCompositeKey({
+          edorg: 102,
+          ods: 'ods_db',
+        }),
+        edorgCompositeKey({
+          edorg: 103,
+          ods: 'ods_db',
+        }),
+      ]),
+    },
+    'team.sb-environment.edfi-tenant.vendor:read': {
+      '0': new Set([
+        edorgCompositeKey({
+          edorg: 102,
+          ods: 'ods_db',
+        }),
+        edorgCompositeKey({
+          edorg: 103,
+          ods: 'ods_db',
+        }),
+      ]),
+    },
   };
   it('cacheEdorgPrivilegesDownward - should cache downward but not upward', () => {
     cacheEdorgPrivilegesDownward(

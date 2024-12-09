@@ -113,6 +113,7 @@ export const privilegeDependencies: Partial<
   },
   'team.sb-environment.edfi-tenant.ods.edorg:read': {
     dependencies: [
+      'team.sb-environment:read',
       'team.sb-environment.edfi-tenant:read',
       'team.sb-environment.edfi-tenant.ods:read',
     ],

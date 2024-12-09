@@ -23,6 +23,7 @@ import {
   isCachedBySbEnvironment,
   sbEnvironmentResourcePrivilegesMap,
   edorgKeyV2,
+  minimumPrivileges,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, SbEnvironment } from '@edanalytics/models-server';
 
@@ -426,15 +427,18 @@ export const cacheEdorgPrivilegesUpward = ({
   ownedPrivileges: Set<PrivilegeCode>;
   ancestors: Edorg[];
 }) => {
-  [...upwardInheritancePrivileges].forEach((mp) => {
+  [...minimumPrivileges].forEach((mp) => {
     if (!ownedPrivileges.has(mp)) {
       throw new Error(`Resource ownership lacks required permission ${mp}.`);
     }
   });
+  const ownedUpwardPrivileges = new Set(
+    [...ownedPrivileges].filter((element) => upwardInheritancePrivileges.has(element))
+  );
   ancestors.forEach((ancestorEdorg) => {
     cacheAccordingToPrivileges({
       cache,
-      privileges: upwardInheritancePrivileges,
+      privileges: ownedUpwardPrivileges,
       resource: 'team.sb-environment.edfi-tenant.ods.edorg',
       id: ancestorEdorg.id,
       edfiTenantId: ancestorEdorg.edfiTenantId,
@@ -442,42 +446,42 @@ export const cacheEdorgPrivilegesUpward = ({
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment.edfi-tenant.ods',
     id: edorg.odsId,
     edfiTenantId: edorg.edfiTenantId,
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment.edfi-tenant.claimset',
     id: true,
     edfiTenantId: edorg.edfiTenantId,
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment.edfi-tenant.vendor',
     id: true,
     edfiTenantId: edorg.edfiTenantId,
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment.edfi-tenant.profile',
     id: true,
     edfiTenantId: edorg.edfiTenantId,
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment.edfi-tenant',
     id: edorg.edfiTenantId,
     sbEnvironmentId: edfiTenant.sbEnvironmentId,
   });
   cacheAccordingToPrivileges({
     cache,
-    privileges: upwardInheritancePrivileges,
+    privileges: ownedUpwardPrivileges,
     resource: 'team.sb-environment',
     id: edfiTenant.sbEnvironmentId,
   });
