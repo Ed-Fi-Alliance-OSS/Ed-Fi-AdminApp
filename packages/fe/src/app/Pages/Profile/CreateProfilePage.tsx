@@ -5,7 +5,6 @@ import {
   FormControl,
   FormErrorMessage,
   FormLabel,
-  Input,
   Text,
   chakra,
 } from '@chakra-ui/react';
@@ -54,7 +53,8 @@ export const CreateProfile = () => {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const text = event.target?.result || '';
+        //@ts-expect-error result is always string
+        const text = event.target?.result?.replace(/\\"/g, '"') || '';
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(text as string, 'application/xml');
         const profileElement = xmlDoc.querySelector('Profile');

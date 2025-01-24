@@ -59,6 +59,7 @@
     "colors": "^1.4.0",
     "config": "^3.3.9",
     "connect-pg-simple": "^9.0.0",
+    "cross-spawn": "^7.0.6",
     "dayjs": "^1.11.7",
     "express-session": "^1.17.3",
     "framer-motion": "^11.3.17",
