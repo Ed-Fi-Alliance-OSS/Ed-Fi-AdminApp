@@ -1,5 +1,15 @@
 [
   {
+    "id": "GHSA-rhx6-c78j-4q9w",
+    "paths": [
+      "@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
+      "@nestjs/platform-express>express>path-to-regexp",
+      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
+      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>path-to-regexp"
+    ],
+    "notes": "path-to-regexp: Waiting on the same PR as body-parser"
+  },
+  {
     "id": "GHSA-qwcr-r2fm-qrc7",
     "paths": [
       "@nestjs/core>@nestjs/platform-express>body-parser",

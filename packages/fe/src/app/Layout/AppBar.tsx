@@ -17,6 +17,7 @@ import { Link as RouterLink } from 'react-router-dom';
 import logoUrl from '../../assets/logo-sb.svg';
 import { apiClient, useMe, useMyTeams } from '../api';
 import { useAsId } from './Nav';
+import { emailUrls } from '../routes/pathConstants';
 
 export const AppBar = () => {
   const me = useMe();
@@ -91,8 +92,9 @@ export const AppBar = () => {
               </MenuItem>
             ) : null}
             <MenuItem
-              // TODO EA-specific support link
-              href="https://support.startingblocks.org/support/tickets/new"
+              href={emailUrls.reportIssue(
+                team?.displayName ? `Team ${team.displayName}` : undefined
+              )}
               as="a"
               target="_blank"
               rel="noopener noreferrer"

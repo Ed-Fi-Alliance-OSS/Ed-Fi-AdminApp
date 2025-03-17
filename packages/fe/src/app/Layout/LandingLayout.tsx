@@ -3,6 +3,7 @@ import { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
 import logoUrl from '../../assets/logo-sbaa.svg';
 import bgUrl from '../../assets/starting-blocks-no-text.svg';
+import { emailUrls } from '../routes/pathConstants';
 
 export const LandingLayoutRouteElement = () => (
   <LandingLayout>
@@ -46,11 +47,7 @@ export const LandingLayout = (props: { children: ReactNode }) => {
       <Box fontSize="sm" color="gray.600" textAlign="center">
         ©2023-{new Date().getFullYear()} Education Analytics, Inc. All Rights Reserved
         <br />
-        <Link
-          href="https://support.startingblocks.org/support/tickets/new"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
+        <Link href={emailUrls.reportIssue()} target="_blank" rel="noopener noreferrer">
           Report an issue
         </Link>
       </Box>
