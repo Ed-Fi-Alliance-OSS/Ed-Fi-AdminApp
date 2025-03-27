@@ -74,6 +74,9 @@ Parameters:
   East1AlarmLambdaArn:
     Type: String
     Description: ARN of the East1 Alarm Lambda Function
+  Auth0ConfigSecret:
+    Type: String
+    Description: Name of Auth0 Config Secret in Secrets Manager
 Conditions:
   AllowSshToBeanstalk: !Equals
     - !Ref 'SshToBeanstalk'
@@ -473,6 +476,9 @@ Resources:
         - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: FE_URL
           Value: !Ref FrontEndUrl
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: AUTH0_CONFIG_SECRET
+          Value: !Ref Auth0ConfigSecret
         - Namespace: aws:elasticbeanstalk:environment:process:https
           OptionName: Port
           Value: 443

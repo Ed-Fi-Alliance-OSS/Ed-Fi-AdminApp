@@ -42,6 +42,7 @@ Metadata:
           - CodeEnv
           - AppLauncherUrl
           - YopassUrl
+          - Auth0ConfigSecret
       - Label:
           default: Database (RDS Postgres) information
         Parameters:
@@ -175,8 +176,8 @@ Parameters:
   EngineVersion:
     Description: 'PostgreSQL version.'
     Type: String
-    Default: '14.12'
-    AllowedValues: ['12.19', '13.15', '14.12'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
+    Default: '14.13'
+    AllowedValues: ['12.19', '13.15', '14.13'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
   EnableIAMDatabaseAuthentication:
     Description: 'Enable mapping of AWS Identity and Access Management (IAM) accounts to database accounts (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html).'
     Type: String
@@ -313,6 +314,9 @@ Parameters:
     Description: ARN of SNS topic in us-east-1 to publish Route53 HealthCheck Alarms (optional)
     Type: String
     Default: arn:aws:sns:us-east-1:675563382695:cloud-alerts-sns-topic
+  Auth0ConfigSecret:
+    Type: String
+    Description: Name of Auth0 Config Secret in Secrets Manager
 
 Conditions:
   EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
@@ -364,6 +368,7 @@ Resources:
         SNSTopicArn: !Ref SNSTopicArn
         East1AlarmLambdaArn:
           !If [EnableHealthCheck, !GetAtt 'LambdaCoreStack.Outputs.East1AlarmLambdaArn', '']
+        Auth0ConfigSecret: !Ref Auth0ConfigSecret
   FrontEndS3CloudFrontStack:
     Type: AWS::CloudFormation::Stack
     Properties:

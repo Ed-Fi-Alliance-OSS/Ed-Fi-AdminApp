@@ -80,8 +80,7 @@ Parameters:
   EngineVersion:
     Description: 'PostgreSQL version.'
     Type: String
-    Default: '14.12'
-    AllowedValues: ['12.19', '13.15', '14.12'] # aws rds describe-db-engine-versions --engine postgres --query "DBEngineVersions[].EngineVersion"
+    Default: '14.13'
   EnableIAMDatabaseAuthentication:
     Description: 'Enable mapping of AWS Identity and Access Management (IAM) accounts to database accounts (https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/UsingWithRDS.IAMDBAuth.html).'
     Type: String
@@ -92,14 +91,6 @@ Conditions:
   HasAlertTopic: !Equals [!Ref DeployAlerts, 'Yes']
   HasDBSnapshotIdentifier: !Not [!Equals [!Ref DBSnapshotIdentifier, '']]
   NotDBSnapshotIdentifier: !Not [!Condition HasDBSnapshotIdentifier]
-Mappings:
-  DBFamilyMap:
-    '12.19':
-      'family': 'postgres12'
-    '13.15':
-      'family': 'postgres13'
-    '14.12':
-      'family': 'postgres14'
 Resources:
   KmsKey:
     DeletionPolicy: Retain
@@ -205,7 +196,9 @@ Resources:
     Type: AWS::RDS::DBParameterGroup
     Properties:
       Description: !Sub '${EnvLabel}-ParameterGroup'
-      Family: !FindInMap [DBFamilyMap, !Ref EngineVersion, 'family']
+      Family: !Sub
+        - 'postgres${MajorVersion}'
+        - MajorVersion: !Select [0, !Split ['.', !Ref EngineVersion]]
       Parameters:
         rds.force_ssl: 1
   DBInstance:
