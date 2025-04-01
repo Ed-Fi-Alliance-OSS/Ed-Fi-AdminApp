@@ -47,6 +47,7 @@ export const TeamOwnershipsTable = (props: { team: GetTeamDto }) => {
       <SbaaTableAllInOne
         queryKeyPrefix="own"
         data={Object.values(ownerships?.data || {}).filter((o) => o.teamId === props.team.id)}
+        isFixedHeightForPagination
         columns={[
           {
             accessorKey: 'displayName',

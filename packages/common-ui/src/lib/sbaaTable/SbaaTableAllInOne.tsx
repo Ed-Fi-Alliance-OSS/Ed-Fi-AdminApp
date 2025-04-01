@@ -14,7 +14,7 @@ export const SbaaTableAllInOne: typeof SbaaTableProvider = (props) => (
       </HStack>
       <SbaaTableFilters mb={4} />
     </Box>
-    <SbaaTable />
+    <SbaaTable isFixedHeightForPagination={props.isFixedHeightForPagination} />
     <SbaaTablePagination />
   </SbaaTableProvider>
 );

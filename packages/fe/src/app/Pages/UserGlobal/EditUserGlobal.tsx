@@ -21,7 +21,7 @@ import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useRef } from 'react';
 import { hasNewTeamImpersonation, hasNewGlobalPrivileges } from '../RoleGlobal/EditRoleGlobal';
-import { ConfirmAction } from '@edanalytics/common-ui';
+import { Attribute, AttributesGrid, ConfirmAction } from '@edanalytics/common-ui';
 import { RoleGlobalLink } from '../../routes/role-global.routes';
 
 const resolver = classValidatorResolver(PutUserDto);
@@ -42,10 +42,12 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
   const userFormDefaults: Partial<PutUserDto> = new PutUserDto();
   userFormDefaults.id = user.id;
   userFormDefaults.roleId = user.roleId;
+  userFormDefaults.description = user.description;
   userFormDefaults.givenName = user.givenName;
   userFormDefaults.familyName = user.familyName;
-  userFormDefaults.username = user.username;
   userFormDefaults.isActive = user.isActive;
+  userFormDefaults.username = user.username;
+
   const {
     control,
     register,
@@ -90,11 +92,13 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
 
   const formRef = useRef<HTMLFormElement>(null);
 
+  const isHuman = user?.userType === 'human';
+
   return (
     <chakra.form
       maxW="form-width"
       ref={formRef}
-      onSubmit={handleSubmit((data) => {
+      onSubmit={handleSubmit(async (data) => {
         const validatedData = data as PutUserDto;
         return putUser
           .mutateAsync(
@@ -106,6 +110,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
                 username: validatedData.username,
                 givenName: validatedData.givenName === '' ? null : validatedData.givenName,
                 familyName: validatedData.familyName === '' ? null : validatedData.familyName,
+                description: validatedData.description,
               },
             },
             {
@@ -116,21 +121,37 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
           .catch(noop);
       })}
     >
+      <AttributesGrid>
+        <Attribute label="User Type" value={user.userType} />
+      </AttributesGrid>
+
       <FormControl isInvalid={!!errors.username}>
         <FormLabel>Username</FormLabel>
         <Input {...register('username')} placeholder="username" />
         <FormErrorMessage>{errors.username?.message}</FormErrorMessage>
       </FormControl>
-      <FormControl isInvalid={!!errors.givenName}>
-        <FormLabel>Given name</FormLabel>
-        <Input {...register('givenName')} placeholder="givenName" />
-        <FormErrorMessage>{errors.givenName?.message}</FormErrorMessage>
-      </FormControl>
-      <FormControl isInvalid={!!errors.familyName}>
-        <FormLabel>Family name</FormLabel>
-        <Input {...register('familyName')} placeholder="familyName" />
-        <FormErrorMessage>{errors.familyName?.message}</FormErrorMessage>
-      </FormControl>
+
+      {isHuman ? (
+        <>
+          <FormControl isInvalid={!!errors.givenName}>
+            <FormLabel>Given Name</FormLabel>
+            <Input {...register('givenName')} placeholder="Given name" />
+            <FormErrorMessage>{errors.givenName?.message}</FormErrorMessage>
+          </FormControl>
+          <FormControl isInvalid={!!errors.familyName}>
+            <FormLabel>Family name</FormLabel>
+            <Input {...register('familyName')} placeholder="Family name" />
+            <FormErrorMessage>{errors.familyName?.message}</FormErrorMessage>
+          </FormControl>
+        </>
+      ) : (
+        <FormControl isInvalid={!!errors.description}>
+          <FormLabel>Description</FormLabel>
+          <Input {...register('description')} placeholder="description" />
+          <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
+        </FormControl>
+      )}
+
       <FormControl isInvalid={!!errors.isActive}>
         <FormLabel>Status</FormLabel>
         <Checkbox {...register('isActive')}>Is active</Checkbox>

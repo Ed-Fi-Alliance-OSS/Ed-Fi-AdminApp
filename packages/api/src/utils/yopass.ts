@@ -1,12 +1,8 @@
-import { PostApplicationResponseDto, PostApplicationResponseDtoBase } from '@edanalytics/models';
+import { PostApplicationResponseDtoBase } from '@edanalytics/models';
 import axios, { AxiosResponse } from 'axios';
 import config from 'config';
 import { webcrypto } from 'crypto';
 import { createMessage, encrypt } from 'openpgp';
-
-type Response = {
-  message: string;
-};
 
 const randomString = (): string => {
   let text = '';
@@ -31,23 +27,55 @@ const randomInt = (min: number, max: number): number => {
 
 const backendDomain = config.YOPASS_URL;
 
-export const postYopassSecret = async (body: PostApplicationResponseDtoBase & { url: string }) => {
-  const pwd = randomString();
+const getYopassResponse = async (body: object): Promise<{ uuid: string; password: string }> => {
+  const password = randomString();
   const yopassBody = {
     expiration: 7 * 24 * 60 * 60,
-    message: await encryptMessage(JSON.stringify(body), pwd),
+    message: await encryptMessage(JSON.stringify(body), password),
     one_time: true,
   };
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const yopassResponse = await axios.post<any, AxiosResponse<Response>>(
+
+  const yopassResponse = (await axios.post(
     [backendDomain, 'secret'].join('/'),
     yopassBody
-  );
-
-  const uuid = yopassResponse.data.message;
+  )) as AxiosResponse<{ message: string }>;
 
   return {
-    link: [config.FE_URL, 'secret/#', uuid, pwd].join('/'),
+    uuid: yopassResponse.data.message,
+    password,
+  };
+};
+
+export const postYopassSecret = async (body: PostApplicationResponseDtoBase & { url: string }) => {
+  const { uuid, password } = await getYopassResponse(body);
+
+  return {
+    link: [config.FE_URL, 'secret/#', uuid, password].join('/'),
+  };
+};
+
+export const postYopassAuth0Secret = async ({
+  clientId,
+  clientSecret,
+}: {
+  clientId: string;
+  clientSecret: string;
+}) => {
+  const AUTH0_CONFIG_SECRET = await config.AUTH0_CONFIG_SECRET;
+  // It is not needed to add a guard if these are undefined, since this step happens after auth0 is initialized
+  // And the checks are done in the auth0 service
+  const { ISSUER: issuer, MACHINE_AUDIENCE: audience } = AUTH0_CONFIG_SECRET;
+  const { uuid, password } = await getYopassResponse({ clientId, clientSecret, issuer, audience });
+
+  // This is used in conjunction with getFieldsFromSearchParams and the SecretPage component
+  const searchParams = `?${new URLSearchParams({
+    fields:
+      'issuer,Issuer;clientId,Client ID;clientSecret,Client Secret,isMasked;audience,Audience',
+  })}`;
+
+  // searchParams must go before the hash due to browser spec
+  return {
+    link: [config.FE_URL, `secret/${searchParams}#`, uuid, password].join('/'),
   };
 };
 

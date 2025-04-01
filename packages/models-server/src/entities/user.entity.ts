@@ -1,4 +1,4 @@
-import { IRole, IUser, IUserConfig, IUserTeamMembership } from '@edanalytics/models';
+import { IRole, IUser, IUserConfig, IUserTeamMembership, UserType } from '@edanalytics/models';
 import { Type } from 'class-transformer';
 import {
   Column,
@@ -46,6 +46,18 @@ export class User implements IUser {
   @Column({ nullable: true })
   familyName: string | null;
 
+  /**
+   * @description clientId is used for machines
+   */
+  @Column({ nullable: true })
+  clientId: string | null;
+
+  /**
+   * @description description is used for machines
+   */
+  @Column({ nullable: true })
+  description: string | null;
+
   @ManyToOne('Role', { nullable: true, onDelete: 'SET NULL' })
   role?: IRole;
 
@@ -63,6 +75,9 @@ export class User implements IUser {
 
   @Column({ type: 'simple-json', nullable: true })
   config?: IUserConfig;
+
+  @Column({ type: 'enum', enum: ['human', 'machine'], default: 'human' })
+  userType: UserType;
 
   get fullName() {
     return typeof this.givenName === 'string' &&

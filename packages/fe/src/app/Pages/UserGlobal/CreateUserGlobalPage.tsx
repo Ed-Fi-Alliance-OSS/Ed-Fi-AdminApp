@@ -7,78 +7,155 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  Radio,
+  RadioGroup,
+  Stack,
   Text,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { PostUserDto, RoleType } from '@edanalytics/models';
+import { GetUserDto, PostUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
-import { useForm } from 'react-hook-form';
+import { Controller, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { userQueries } from '../../api';
-import { SelectRole, useNavToParent } from '../../helpers';
+import { userQueries, userTeamMembershipQueries } from '../../api';
+import { AuthorizeComponent, SelectRole, SelectTeam, useNavToParent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { useState } from 'react';
 
 const resolver = classValidatorResolver(PostUserDto);
 
+type TeamFields = {
+  teamId: number;
+  teamRoleId: number;
+};
+
 export const CreateUser = () => {
-  const popBanner = usePopBanner();
+  const popGlobalBanner = usePopBanner();
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
-  const goToView = (id: string | number) => navigate(`/users/${id}`);
   const parentPath = useNavToParent();
   const postUser = userQueries.post({});
+  const postUtm = userTeamMembershipQueries.post({});
+  const [isAddingToTeam, setIsAddingToTeam] = useState(false);
+
+  const onAddToTeamChange = (value: string) => {
+    setIsAddingToTeam(value === 'yes');
+  };
 
   const {
     register,
+    unregister,
     handleSubmit,
-    setError,
+    setError: setFormError,
     control,
+    watch,
     formState: { errors, isSubmitting },
-  } = useForm<PostUserDto>({ resolver, defaultValues: {} });
+  } = useForm<PostUserDto & TeamFields>({ resolver, defaultValues: { userType: 'human' } });
 
-  return (
-    <PageTemplate constrainWidth title={'Create new user'} actions={undefined}>
-      <Box w="form-width">
-        <form
-          onSubmit={handleSubmit((data) =>
-            postUser
+  const [userType] = watch(['userType']);
+  const isHuman = userType === 'human';
+
+  const createUserSubmit = ({ teamId, teamRoleId, ...data }: PostUserDto & TeamFields) =>
+    postUser
+      .mutateAsync(
+        { entity: data },
+        {
+          ...mutationErrCallback({ popGlobalBanner, setFormError }),
+          onSuccess: async (result) => {
+            const { yopassLink } = result;
+
+            queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
+            if (!isAddingToTeam) {
+              navigate(`/users/${result.id}`, { state: yopassLink });
+              return;
+            }
+
+            // if adding to a team, create a user-team-membership
+            const userTeamEntity = { userId: result.id, teamId, roleId: teamRoleId };
+            postUtm
               .mutateAsync(
-                { entity: data },
+                { entity: userTeamEntity },
                 {
-                  ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-                  onSuccess: (result) => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
-                    goToView(result.id);
+                  onSuccess: () => {
+                    queryClient.invalidateQueries({ queryKey: ['me', 'user-team-memberships'] });
+                    navigate(`/users/${result.id}`, { state: yopassLink });
                   },
+                  ...mutationErrCallback({ popGlobalBanner, setFormError }),
                 }
               )
-              .catch(noop)
-          )}
-        >
+              .catch(noop);
+          },
+        }
+      )
+      .catch(noop);
+
+  return (
+    <PageTemplate title="Create new user">
+      <Box w="form-width">
+        <form onSubmit={handleSubmit(createUserSubmit)}>
           <FormControl isInvalid={!!errors.username}>
             <FormLabel>Username</FormLabel>
             <Input {...register('username')} placeholder="username" />
             <FormErrorMessage>{errors.username?.message}</FormErrorMessage>
           </FormControl>
-          <FormControl isInvalid={!!errors.givenName}>
-            <FormLabel>Given name</FormLabel>
-            <Input {...register('givenName')} placeholder="givenName" />
-            <FormErrorMessage>{errors.givenName?.message}</FormErrorMessage>
+
+          <FormControl isInvalid={!!errors.userType}>
+            <FormLabel>User Type</FormLabel>
+            <Controller
+              control={control}
+              name="userType"
+              render={({ field }) => (
+                <RadioGroup
+                  {...field}
+                  defaultValue="human"
+                  onChange={(value) => {
+                    unregister('givenName');
+                    unregister('familyName');
+                    unregister('description');
+                    field.onChange(value);
+                  }}
+                >
+                  <Stack direction="row" spacing={4}>
+                    <Radio value="human">Human</Radio>
+                    <Radio value="machine">Machine</Radio>
+                  </Stack>
+                </RadioGroup>
+              )}
+            />
+            <FormErrorMessage>{errors.userType?.message}</FormErrorMessage>
           </FormControl>
-          <FormControl isInvalid={!!errors.familyName}>
-            <FormLabel>Family name</FormLabel>
-            <Input {...register('familyName')} placeholder="familyName" />
-            <FormErrorMessage>{errors.familyName?.message}</FormErrorMessage>
-          </FormControl>
+
+          {isHuman ? (
+            <>
+              <FormControl isInvalid={!!errors.givenName}>
+                <FormLabel>Given Name</FormLabel>
+                <Input {...register('givenName')} placeholder="Given name" />
+                <FormErrorMessage>{errors.givenName?.message}</FormErrorMessage>
+              </FormControl>
+              <FormControl isInvalid={!!errors.familyName}>
+                <FormLabel>Family name</FormLabel>
+                <Input {...register('familyName')} placeholder="Family name" />
+                <FormErrorMessage>{errors.familyName?.message}</FormErrorMessage>
+              </FormControl>
+            </>
+          ) : (
+            <FormControl isInvalid={!!errors.description}>
+              <FormLabel>Description</FormLabel>
+              <Input {...register('description')} placeholder="description" />
+              <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
+            </FormControl>
+          )}
+
           <FormControl isInvalid={!!errors.isActive}>
             <FormLabel>Status</FormLabel>
             <Checkbox {...register('isActive')}>Is active</Checkbox>
             <FormErrorMessage>{errors.isActive?.message}</FormErrorMessage>
           </FormControl>
+
           <FormControl w="form-width" isInvalid={!!errors.roleId}>
             <FormLabel>Role</FormLabel>
             <SelectRole
@@ -89,6 +166,48 @@ export const CreateUser = () => {
             />
             <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
           </FormControl>
+
+          <AuthorizeComponent
+            config={{
+              privilege: 'user-team-membership:create',
+              subject: {
+                id: '__filtered__',
+              },
+            }}
+          >
+            <>
+              <FormControl>
+                <FormLabel>Add to a Team?</FormLabel>
+                <RadioGroup defaultValue="no" onChange={onAddToTeamChange}>
+                  <Stack direction="row" spacing={4}>
+                    <Radio value="yes">Yes</Radio>
+                    <Radio value="no">No</Radio>
+                  </Stack>
+                </RadioGroup>
+              </FormControl>
+              {isAddingToTeam && (
+                <>
+                  <FormControl w="form-width" isInvalid={!!errors.teamId}>
+                    <FormLabel>Team</FormLabel>
+                    <SelectTeam name={'teamId'} control={control} />
+                    <FormErrorMessage>{errors.teamId?.message}</FormErrorMessage>
+                  </FormControl>
+                  <FormControl w="form-width" isInvalid={!!errors.roleId}>
+                    <FormLabel>Role</FormLabel>
+                    <SelectRole
+                      autoSelectOnly
+                      types={[RoleType.UserTeam]}
+                      name={'teamRoleId'}
+                      control={control}
+                      isClearable
+                    />
+                    <FormErrorMessage>{errors.roleId?.message}</FormErrorMessage>
+                  </FormControl>
+                </>
+              )}
+            </>
+          </AuthorizeComponent>
+
           <ButtonGroup>
             <Button mt={4} colorScheme="primary" isLoading={isSubmitting} type="submit">
               Save

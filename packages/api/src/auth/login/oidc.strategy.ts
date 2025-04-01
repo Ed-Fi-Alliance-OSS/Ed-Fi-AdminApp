@@ -40,7 +40,7 @@ export class RegisterOidcIdpsService {
             } else {
               username = userinfo.email;
             }
-            const user: User = await this.authService.validateUser(username).catch((err) => {
+            const user: User = await this.authService.validateUser({ username }).catch((err) => {
               Logger.error(err);
               return done(err, false);
             });

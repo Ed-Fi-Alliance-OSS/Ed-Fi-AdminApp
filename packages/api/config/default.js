@@ -20,6 +20,36 @@ module.exports = {
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
   TYPEORM_LOGGING: undefined,
+  AUTH0_CONFIG_SECRET: defer(function () {
+    if (this.AWS_AUTH0_CONFIG_SECRET) {
+      return new Promise(async (r) => {
+        const secretsClient = new SecretsManagerClient({
+          region: this.AWS_REGION,
+        });
+        const secretValueRaw = await secretsClient.send(
+          new GetSecretValueCommand({
+            SecretId: this.AWS_AUTH0_CONFIG_SECRET,
+          })
+        );
+        if (secretValueRaw.SecretString === undefined) {
+          throw new Error('No client config values defined for auth0 when requesting secrets');
+        }
+
+        const secret = JSON.parse(secretValueRaw.SecretString);
+        r({
+          ISSUER: secret.ISSUER,
+          CLIENT_ID: secret.CLIENT_ID,
+          CLIENT_SECRET: secret.CLIENT_SECRET,
+          MACHINE_AUDIENCE: secret.MACHINE_AUDIENCE,
+          MANAGEMENT_DOMAIN: secret.MANAGEMENT_DOMAIN,
+          MANAGEMENT_CLIENT_ID: secret.MANAGEMENT_CLIENT_ID,
+          MANAGEMENT_CLIENT_SECRET: secret.MANAGEMENT_CLIENT_SECRET,
+        });
+      });
+    } else {
+      return { ...this.AUTH0_CONFIG_SECRET_VALUE };
+    }
+  }),
   DB_CONNECTION_STRING: defer(function () {
     const ssl = this.DB_SSL ? 'require' : 'disable';
     if (this.AWS_DB_SECRET) {

@@ -1,5 +1,14 @@
 [
   {
+    "id": "SWRM-104-package-json-from-dist-1.0.1",
+    "paths": [
+      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
+      "typeorm>glob>package-json-from-dist",
+      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
+    ],
+    "notes": "License acceptable"
+  },
+  {
     "id": "GHSA-rhx6-c78j-4q9w",
     "paths": [
       "@nestjs/core>@nestjs/platform-express>express>path-to-regexp",

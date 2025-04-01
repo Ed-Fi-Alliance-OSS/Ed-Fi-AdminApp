@@ -21,6 +21,10 @@ export class UsersGlobalService {
     return this.usersRepository.findOneByOrFail({ id });
   }
 
+  async findByUsername(username: string) {
+    return this.usersRepository.findOneByOrFail({ username });
+  }
+
   async update(id: number, updateUserDto: PutUserDto) {
     const old = await this.findOne(id);
     return this.usersRepository.save({ ...old, ...updateUserDto });

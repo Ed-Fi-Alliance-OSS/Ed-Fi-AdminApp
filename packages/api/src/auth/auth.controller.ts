@@ -8,9 +8,11 @@ import {
   toGetSessionDataDto,
   toGetTeamDto,
   isCachedBySbEnvironment,
+  GetUserDto,
 } from '@edanalytics/models';
 import { Team } from '@edanalytics/models-server';
 import {
+  BadRequestException,
   Controller,
   Get,
   Header,
@@ -44,17 +46,26 @@ export class AuthController {
     private readonly teamsRepository: Repository<Team>
   ) {}
 
+  throwOnBearerToken({ request, route }: { request: Request; route: string }) {
+    const [type] = request.headers['authorization']?.split(' ') ?? [];
+    if (type === 'Bearer') {
+      throw new BadRequestException(`Bearer token authentication is not supported for ${route}.`);
+    }
+  }
+
   @Public()
   @Get('/login/:oidcId')
-  oidcLogin(@Param('oidcId') oidcId: number, @Res() res: Response, @Req() req: Request) {
+  oidcLogin(@Param('oidcId') oidcId: number, @Req() request: Request, @Res() response: Response) {
+    this.throwOnBearerToken({ request, route: 'oidc login' });
+
     passport.authenticate(`oidc-${oidcId}`, {
       state: JSON.stringify({
-        redirect: req.query?.redirect ?? '/',
+        redirect: request.query?.redirect ?? '/',
         random: randomUUID(),
       }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    })(req, res, (err: any) => {
-      if (err?.message.includes('Unknown authentication strategy')) {
+    })(request, response, (error: any) => {
+      if (error?.message.includes('Unknown authentication strategy')) {
         throw new NotFoundException();
       } else {
         throw new InternalServerErrorException();
@@ -64,39 +75,45 @@ export class AuthController {
 
   @Public()
   @Get('/callback/:oidcId')
-  oidcLoginCallback(@Param('oidcId') oidcId: number, @Res() res: Response, @Req() req: Request) {
+  oidcLoginCallback(
+    @Param('oidcId') oidcId: number,
+    @Req() request: Request,
+    @Res() response: Response
+  ) {
+    this.throwOnBearerToken({ request, route: 'oidc callback' });
+
     let redirect = '/';
     try {
-      redirect = JSON.parse(req.query.state as string).redirect;
+      redirect = JSON.parse(request.query.state as string).redirect;
     } catch (error) {
       // no redirect
     }
     passport.authenticate(`oidc-${oidcId}`, {
       successRedirect: `${config.FE_URL}${redirect}`,
       failureRedirect: `${config.FE_URL}/unauthenticated`,
-    })(req, res, (err: Error) => {
-      Logger.error(err);
+    })(request, response, (error: Error) => {
+      Logger.error(error);
 
-      if (err.message === USER_NOT_FOUND) {
-        res.redirect(
+      if (error.message === USER_NOT_FOUND) {
+        response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Oops, it looks like your user hasn't been created yet. We'll let you know when you can log in.`
         );
-      } else if (err.message === NO_ROLE) {
-        res.redirect(
+      } else if (error.message === NO_ROLE) {
+        response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Your login worked, but it looks like your setup isn't quite complete. We'll let you know when everything's ready.`
         );
       } else if (
-        err.message?.startsWith('did not find expected authorization request details in session')
+        error.message?.startsWith('did not find expected authorization request details in session')
       ) {
-        res.redirect(
+        response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Login failed. There may be an issue, but please try again.`
         );
-      } else if (err.message?.startsWith('invalid_grant (Code not valid)')) {
-        res.redirect(
+      } else if (error.message?.startsWith('invalid_grant (Code not valid)')) {
+        response.redirect(
           `${config.FE_URL}/unauthenticated?msg=It looks like there was a hiccup during login. Please try again.`
         );
       } else {
-        res.redirect(
+        response.redirect(
           `${config.FE_URL}/unauthenticated?msg=It looks like your login was not successful. Please try again and contact us if the issue persists.`
         );
       }
@@ -170,9 +187,8 @@ export class AuthController {
 
   @Post('/logout')
   @Public()
-  async logout(@Req() req: Request /* @Res() res: Response */) {
-    return req.session.destroy(async () => {
-      return undefined;
-    });
+  async logout(@Req() request: Request) {
+    this.throwOnBearerToken({ request, route: 'logout' });
+    return request.session.destroy(async () => undefined);
   }
 }

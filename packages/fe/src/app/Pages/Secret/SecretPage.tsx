@@ -1,56 +1,49 @@
 import {
-  Alert,
-  AlertDescription,
-  AlertIcon,
-  AlertTitle,
   Box,
   Heading,
-  Icon,
   Text,
-  Tooltip,
   VStack,
   chakra,
   useBoolean,
+  type Interpolation,
 } from '@chakra-ui/react';
-import { ConfirmAction, JsonSecret, SecretValue } from '@edanalytics/common-ui';
+import { ConfirmAction, SecretValue } from '@edanalytics/common-ui';
 import { useState } from 'react';
-import { BsInfoCircle } from 'react-icons/bs';
 import { useLocation } from 'react-router-dom';
 import { getMessage } from './yopass';
+import { UnretrievableError } from './UnretrievableError';
+import { getFieldsFromSearchParams } from './getFieldsFromSearchParams';
+import { getSecretJson } from './getSecretJson';
 
-const placeholder = `KEY:
+const placeholder = `
+KEY:
 123abc123abc
 
 SECRET:
 123abc123abc123abc123abc
 
 URL:
-https://gbes-infinite-campus.mth-dev-61a.eaedfi.edanalytics.org/
-`;
+https://placeholder-url.edanalytics.org/
+`.trim();
+
+const outerBoxCss = {
+  css: { cursor: 'pointer' },
+  _hover: { background: 'gray.50' },
+};
+const placeholderCss: Interpolation = {
+  userSelect: 'none',
+  opacity: '0.7',
+  filter: 'blur(0.5rem)',
+};
 
 const SecretPage = () => {
-  const { hash } = useLocation();
+  const { search, hash } = useLocation();
   const [_hashMark, uuid, key] = hash.split('/');
   const [secret, setSecret] = useState<string | null>(null);
-  let secretJson: null | JsonSecret = null;
-  if (secret !== null) {
-    try {
-      secretJson = JSON.parse(secret);
-      if (
-        !(
-          secretJson &&
-          typeof secretJson.key === 'string' &&
-          typeof secretJson.secret === 'string' &&
-          typeof secretJson.url === 'string'
-        )
-      ) {
-        throw new Error('Retrieved secret not valid');
-      }
-    } catch (NotJson) {
-      // that's fine, it's just old format pre-JSON.
-    }
-  }
-  const [isError, setIsError] = useBoolean(false);
+
+  const fields = getFieldsFromSearchParams(search);
+  let secretJson = getSecretJson(secret, fields);
+  const [isUnretrievable, setIsUnretrievable] = useBoolean(false);
 
   return (
     <VStack p={10} bg="background-bg">
@@ -63,7 +56,7 @@ const SecretPage = () => {
           bodyText="The link will only work once. After that, the credentials are deleted and you will have to reset them in order to get another link. This is for extra security."
           yesButtonText="Yes, retrieve them."
           noButtonText="No, not right now."
-          isDisabled={!!secret || isError}
+          isDisabled={!!secret || isUnretrievable}
           action={async () => {
             if (uuid && key && !secret) {
               try {
@@ -71,7 +64,7 @@ const SecretPage = () => {
                 setSecret(secret.data.toString());
               } catch (error) {
                 if (error === 404) {
-                  setIsError.on();
+                  setIsUnretrievable.on();
                 }
               }
             }
@@ -87,20 +80,7 @@ const SecretPage = () => {
               borderColor="gray.200"
               boxShadow="lg"
               bg="foreground-bg"
-              css={
-                secret
-                  ? {}
-                  : {
-                      cursor: 'pointer',
-                    }
-              }
-              _hover={
-                secret
-                  ? undefined
-                  : {
-                      background: 'gray.50',
-                    }
-              }
+              {...(secret ? {} : outerBoxCss)}
               pos="relative"
             >
               {secret ? null : (
@@ -116,45 +96,12 @@ const SecretPage = () => {
                   </Text>
                 </Box>
               )}
-              {isError ? (
-                <Alert
-                  status="error"
-                  variant="subtle"
-                  flexDirection="column"
-                  alignItems="center"
-                  justifyContent="center"
-                  textAlign="center"
-                  height="200px"
-                >
-                  <AlertIcon boxSize="40px" mr={0} />
-                  <AlertTitle mt={4} mb={1} fontSize="lg">
-                    Credentials not found
-                  </AlertTitle>
-                  <AlertDescription maxWidth="sm">
-                    Each link can only be used once. You can reset the credentials to get a new
-                    link.
-                    <Tooltip label="We delete the credentials after you retrieve them. This way, even if your link gets stolen it will be of no use. Please note that if you or your contact resets the credentials to get a new link, the current ones will no longer work.">
-                      <chakra.span>
-                        <Icon as={BsInfoCircle} />
-                      </chakra.span>
-                    </Tooltip>{' '}
-                  </AlertDescription>
-                </Alert>
+              {isUnretrievable ? (
+                <UnretrievableError />
               ) : secret && secretJson ? (
-                <SecretValue secret={secretJson} />
+                <SecretValue value={secretJson} fields={fields} />
               ) : (
-                <chakra.pre
-                  fontSize="lg"
-                  css={
-                    secret
-                      ? {}
-                      : {
-                          userSelect: 'none',
-                          opacity: '0.7',
-                          filter: 'blur(0.5rem)',
-                        }
-                  }
-                >
+                <chakra.pre fontSize="lg" css={secret ? {} : placeholderCss}>
                   {secret ? secret : placeholder}
                 </chakra.pre>
               )}
@@ -165,4 +112,5 @@ const SecretPage = () => {
     </VStack>
   );
 };
+
 export default SecretPage;

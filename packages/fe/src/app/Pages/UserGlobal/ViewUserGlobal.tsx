@@ -21,11 +21,22 @@ export const ViewUserGlobal = () => {
   ).data;
   const roles = useQuery(roleQueries.getAll({}));
 
+  const isHuman = user?.userType === 'human';
+
   return user ? (
     <ContentSection>
       <AttributesGrid>
-        <Attribute label="Given Name" value={user.givenName} />
-        <Attribute label="Family Name" value={user.familyName} />
+        {isHuman ? (
+          <>
+            <Attribute label="Given Name" value={user.givenName} />
+            <Attribute label="Family Name" value={user.familyName} />
+          </>
+        ) : (
+          <>
+            <Attribute label="Machine Description" value={user.description} />
+            <Attribute label="Client ID" value={user.clientId} />
+          </>
+        )}
         <Attribute isCopyable label="Username" value={user.username} />
         <AttributeContainer label="Status">
           {user.isActive ? (

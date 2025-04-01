@@ -38,6 +38,7 @@ import { RemoveImpliedPrivilege1714074225483 } from './migrations/1714074225483-
 import { BigIntEdOrg1717166915117 } from './migrations/1717166915117-BigIntEdOrgId';
 import { AddProfilePrivileges1719427712090 } from './migrations/1719427712090-AddProfilePrivileges';
 import { AddNameOfInstitutionToOwnershipView1725479500715 } from './migrations/1725479500715-AddNameOfInstitutionToOwnershipView';
+import { AddMachineUserColumns1742186909224 } from './migrations/1742891918530-AddMachineUserColumns';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -86,6 +87,7 @@ const config: Pick<
     BigIntEdOrg1717166915117,
     AddProfilePrivileges1719427712090,
     AddNameOfInstitutionToOwnershipView1725479500715,
+    AddMachineUserColumns1742186909224,
   ],
 };
 export default config;

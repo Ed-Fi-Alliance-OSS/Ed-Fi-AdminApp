@@ -1,13 +1,27 @@
 import { Attribute } from '..';
 
-export type JsonSecret = { key: string; secret: string; url: string };
+type BooleanProps = { isMasked?: boolean; isUrl?: boolean; isUrlExternal?: boolean };
+export type SecretFields = { key: string; label: string; booleans: BooleanProps }[];
 
-export const SecretValue = (props: { secret: JsonSecret }) => {
+type GenericSecret = Record<string, string>;
+export type JsonSecret = { key: string; secret: string; url: string } & GenericSecret;
+
+type Props = {
+  value: JsonSecret;
+  fields: SecretFields;
+};
+export const SecretValue = ({ value, fields }: Props) => {
   return (
     <>
-      <Attribute label="Key" value={props.secret.key} isCopyable />
-      <Attribute label="Secret" value={props.secret.secret} isMasked isCopyable />
-      <Attribute label="URL" value={props.secret.url} isUrl isUrlExternal isCopyable />
+      {fields.map(({ key, label, booleans }) => (
+        <Attribute label={label} value={value[key]} isCopyable {...booleans} />
+      ))}
     </>
   );
 };
+
+export const DEFAULT_SECRET_FIELDS: SecretFields = [
+  { key: 'key', label: 'Key', booleans: {} },
+  { key: 'secret', label: 'Secret', booleans: { isMasked: true } },
+  { key: 'url', label: 'URL', booleans: { isUrl: true, isUrlExternal: true } },
+];

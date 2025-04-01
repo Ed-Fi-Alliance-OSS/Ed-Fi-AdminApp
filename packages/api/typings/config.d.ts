@@ -12,6 +12,17 @@ declare module 'config' {
     IV: string;
   }
 
+  export interface IAuth0Secret {
+    ISSUER?: string;
+    MACHINE_AUDIENCE?: string;
+    CLIENT_ID?: string;
+    CLIENT_SECRET?: string;
+
+    MANAGEMENT_DOMAIN?: string;
+    MANAGEMENT_CLIENT_ID?: string;
+    MANAGEMENT_CLIENT_SECRET?: string;
+  }
+
   interface IConfig {
     OPEN_API: boolean;
     AWS_DB_SECRET?: string | undefined;
@@ -46,6 +57,11 @@ declare module 'config' {
     };
 
     ADMIN_USERNAME?: string | undefined;
+
+    CODE_ENV: string;
+
+    // over-arching application to access auth0 management API
+    AUTH0_CONFIG_SECRET: IAuth0Secret | Promise<IAuth0Secret>;
   }
 
   const config: IConfig;

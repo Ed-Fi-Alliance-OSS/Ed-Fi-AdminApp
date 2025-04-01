@@ -92,6 +92,7 @@ export function SbaaTableProvider<
   pageSizes?: number[];
   queryKeyPrefix?: string | undefined;
   state?: Partial<TableState>;
+  isFixedHeightForPagination?: boolean;
 }) {
   const data = useMemo(() => [...props.data], [props.data]);
   const columns = props.columns;

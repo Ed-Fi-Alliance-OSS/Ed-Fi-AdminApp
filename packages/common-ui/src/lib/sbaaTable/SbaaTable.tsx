@@ -10,19 +10,31 @@ import {
   Tr,
   chakra,
 } from '@chakra-ui/react';
-import { flexRender } from '@tanstack/react-table';
+import { type Row, flexRender } from '@tanstack/react-table';
 import { BsFunnel } from 'react-icons/bs';
 import { useSbaaTableContext } from './SbaaTableProvider';
 
-type TableComponent = ChakraComponent<'table'>;
+type TableComponent = ChakraComponent<'table', { isFixedHeightForPagination?: boolean }>;
 
 export const SbaaTable: TableComponent = (props) => {
-  const { children, ...rest } = props;
+  const { children, isFixedHeightForPagination = false, ...rest } = props;
   const { table, isRowSelectionEnabled } = useSbaaTableContext();
   if (!table) {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
+
+  // If isFixedHeightForPagination is true, then we need to add empty rows to fill the page.
+  // This is to prevent layout shift when a table is above other content and the pagination changes
+  const { pageIndex, pageSize } = table.getState().pagination;
+  const rows = table.getRowModel().rows;
+  // If pageIndex is 0, then there are no empty rows.
+  // Empty rows are only needed if on a later page.
+  const emptyRowCount = pageIndex === 0 ? 0 : pageSize - rows.length;
+  const emptyRows = [...Array(emptyRowCount).keys()].map((i) => ({
+    id: `empty-${i}`,
+  })) as Row<any>[];
+  const columnCount = table.getAllColumns().length;
 
   return (
     <Table {...rest}>
@@ -74,7 +86,7 @@ export const SbaaTable: TableComponent = (props) => {
         ))}
       </Thead>
       <Tbody>
-        {table.getRowModel().rows.map((row) => {
+        {rows.map((row) => {
           return (
             <Tr key={row.id}>
               {isRowSelectionEnabled ? (
@@ -90,6 +102,17 @@ export const SbaaTable: TableComponent = (props) => {
             </Tr>
           );
         })}
+        {isFixedHeightForPagination &&
+          emptyRows.map((row) => (
+            <Tr key={row.id} className="group">
+              <Td
+                colSpan={columnCount}
+                _groupHover={{ bg: 'transparent', borderColor: 'transparent' }}
+              >
+                &nbsp;
+              </Td>
+            </Tr>
+          ))}
       </Tbody>
     </Table>
   );

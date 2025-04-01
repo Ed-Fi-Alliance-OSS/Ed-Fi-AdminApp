@@ -16,3 +16,4 @@ export * from './resourceClaimsTable';
 export * from './ToggleButtonGroup';
 export * from './searchWithResults';
 export * from './CappedLinesText';
+export * from './OneTimeShareLink';

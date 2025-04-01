@@ -1,5 +1,5 @@
 import { useQuery } from '@tanstack/react-query';
-import { PageActions, PageTemplate } from '@edanalytics/common-ui';
+import { OneTimeShareLink, PageActions, PageTemplate } from '@edanalytics/common-ui';
 import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
 import { userQueries } from '../../api';
@@ -22,11 +22,11 @@ export const UserGlobalPage = () => {
 
   return (
     <PageTemplate
-      constrainWidth
       title={user?.displayName || 'User'}
       actions={<PageActions actions={omit(actions, 'View')} />}
     >
       {user ? edit ? <EditUserGlobal user={user} /> : <ViewUserGlobal /> : null}
+      <OneTimeShareLink />
     </PageTemplate>
   );
 };

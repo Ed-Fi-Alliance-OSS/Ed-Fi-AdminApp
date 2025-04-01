@@ -1,12 +1,12 @@
 import { TextProps, Text, ChakraComponent } from '@chakra-ui/react';
 
-export const CappedLinesText = ((props: TextProps & { maxLines?: number }) => (
+export const CappedLinesText = (({ maxLines, ...props }: TextProps & { maxLines?: number }) => (
   <Text
     as="span"
     css={[
       {
         display: '-webkit-box',
-        WebkitLineClamp: props.maxLines ?? 1,
+        WebkitLineClamp: maxLines ?? 1,
         WebkitBoxOrient: 'vertical',
         overflow: 'hidden',
         wordBreak: 'break-all',

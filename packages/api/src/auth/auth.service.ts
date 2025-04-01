@@ -11,6 +11,9 @@ import {
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, Not, Repository, TreeRepository } from 'typeorm';
+import * as jose from 'jose';
+import { type ProtectedHeaderParameters, type JWTPayload } from 'jose';
+import { Issuer } from 'openid-client';
 import { CacheService } from '../app/cache.module';
 import {
   cacheAccordingToPrivileges,
@@ -20,6 +23,7 @@ import {
   initializeEdfiTenantPrivilegeCache,
   initializeSbEnvironmentPrivilegeCache,
 } from './authorization/helpers';
+import config from 'config';
 
 @Injectable()
 export class AuthService {
@@ -88,11 +92,12 @@ export class AuthService {
     return privileges;
   }
 
-  private async getUser(username: string) {
+  private async getUser({ username, clientId }: { username?: string; clientId?: string }) {
+    if (!clientId && !username) return null;
+
+    const where = username ? { username } : { clientId, userType: 'machine' as const };
     const user = await this.usersRepo.findOne({
-      where: {
-        username,
-      },
+      where,
       relations: ['role'],
     });
     if (user === null) return null;
@@ -112,8 +117,10 @@ export class AuthService {
     return user;
   }
 
-  async validateUser(username: string) {
-    const user = await this.getUser(username);
+  async validateUser({ username, clientId }: { username?: string; clientId?: string }) {
+    if (!clientId && !username) return null;
+
+    const user = await this.getUser({ username, clientId });
     if (user === null || !user.isActive) {
       return null;
     } else {
@@ -551,6 +558,95 @@ export class AuthService {
       const newCache = this.constructTeamOwnerships(teamId);
       this.cacheManager.set(String(teamId), newCache, 30); //10 * 60 /* seconds */);
       return await newCache;
+    }
+  }
+
+  async verifyBearerJwt(
+    token: string | undefined
+  ): Promise<{ status: 'success' | 'failure'; data?: JWTPayload; message?: string }> {
+    if (token === undefined || token === '') {
+      return {
+        status: 'failure' as const,
+        message: 'Bearer token not found in authorization header',
+      };
+    }
+
+    let header: ProtectedHeaderParameters;
+    try {
+      header = jose.decodeProtectedHeader(token);
+    } catch (decodeError) {
+      return {
+        status: 'failure' as const,
+        message: 'Invalid token', // decode error
+      };
+    }
+
+    const jwkResult = await this.getJsonWebKey(header?.kid);
+    if (jwkResult.status !== 'success') {
+      return {
+        status: 'failure' as const,
+        message: 'Invalid token', // kid not found in issuer's jwks
+      };
+    }
+
+    try {
+      const verifyResult = await jose.jwtVerify(token, jwkResult.jwk);
+      return {
+        status: 'success' as const,
+        data: verifyResult.payload,
+      };
+    } catch (verifyError) {
+      return {
+        status: 'failure' as const,
+        message: 'Invalid token', // some kind of invalid crypto
+      };
+    }
+  }
+
+  private _jwks: Promise<Record<string, CryptoKey | Uint8Array>> | undefined;
+  private async getJsonWebKey(kid: string) {
+    const jwk = (await this._jwks)?.[kid];
+    if (jwk === undefined) {
+      const AUTH0_CONFIG_SECRET = await config.AUTH0_CONFIG_SECRET;
+      if (!AUTH0_CONFIG_SECRET.ISSUER) {
+        return {
+          status: 'failure' as const,
+          message: 'AUTH0_CONFIG_SECRET.ISSUER is not defined',
+        };
+      }
+
+      this._jwks = new Promise((resolve) =>
+        Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER).then((issuer) =>
+          fetch(issuer.metadata.jwks_uri).then((response) =>
+            response.json().then(async (jwks) => {
+              const out: Record<string, CryptoKey | Uint8Array> = {};
+              for (let i = 0; i < jwks.keys.length; i++) {
+                const jwk = jwks.keys[i];
+                out[jwk.kid as string] = await jose.importJWK(jwk);
+              }
+              resolve(out);
+            })
+          )
+        )
+      );
+      const jwk = (await this._jwks)?.[kid];
+
+      if (jwk === undefined) {
+        return {
+          status: 'failure' as const,
+          message: 'key id (kid) not found in jwks',
+        };
+      } else {
+        return {
+          status: 'success' as const,
+          jwk,
+        };
+      }
+    } else {
+      return {
+        status: 'success' as const,
+        jwk,
+      };
     }
   }
 }

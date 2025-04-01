@@ -31,7 +31,17 @@ module.exports = {
   },
 
   // Optional: seed an initial user.
-  ADMIN_USERNAME: '<your value>'
+  ADMIN_USERNAME: '<your value>',
+
+  AUTH0_CONFIG_SECRET_VALUE: {
+    ISSUER: 'https://auth0-dev.apps.edanalytics.org/',
+    CLIENT_ID: '<your value>',
+    CLIENT_SECRET: '<your value>',
+    MACHINE_AUDIENCE: 'sbaa-local',
+    MANAGEMENT_DOMAIN: '<your value>',
+    MANAGEMENT_CLIENT_ID: '<your value>',
+    MANAGEMENT_CLIENT_SECRET: '<your value>',
+  },
 
   // There are other defaults you can override if you want to. See default.js.
 };

@@ -6,14 +6,16 @@ import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
-import { ValidationHttpException, throwNotFound } from '../utils';
+import { ValidationHttpException, postYopassAuth0Secret, throwNotFound } from '../utils';
 import { UsersGlobalService } from './users-global.service';
+import { Auth0Service } from '../auth0/auth0.service';
 
 @ApiTags('User - Global')
 @Controller()
 export class UsersGlobalController {
   constructor(
     private readonly userService: UsersGlobalService,
+    private readonly auth0Service: Auth0Service,
     @InjectRepository(User)
     private usersRepository: Repository<User>
   ) {}
@@ -27,6 +29,38 @@ export class UsersGlobalController {
   })
   async create(@Body() createUserDto: PostUserDto, @ReqUser() user: GetSessionDataDto) {
     try {
+      if (createUserDto.userType === 'machine') {
+        // For machine users, we check for a user existing first
+        // That way, we don't have to create a new application if the user already exists
+        // And we don't have to update create a user, create an application, and then update the user with the client ID
+        const possibleExistingUser = await this.userService
+          .findByUsername(createUserDto.username)
+          .catch(() => null);
+        if (possibleExistingUser) {
+          throw new ValidationHttpException({
+            field: 'username',
+            message: 'Username already exists',
+          });
+        }
+
+        const application = await this.auth0Service.createApplication({
+          name: createUserDto.username,
+          description: createUserDto.description,
+        });
+        createUserDto.clientId = application.client_id;
+
+        const yopass = await postYopassAuth0Secret({
+          clientId: application.client_id,
+          clientSecret: application.client_secret,
+        });
+
+        const createdUser = (await this.userService.create(
+          addUserCreating(createUserDto, user)
+        )) as User & { yopassLink: string };
+        createdUser.yopassLink = yopass.link;
+        return toGetUserDto(createdUser);
+      }
+
       return toGetUserDto(await this.userService.create(addUserCreating(createUserDto, user)));
     } catch (error) {
       if (error?.code === '23505') {
