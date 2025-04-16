@@ -1,6 +1,11 @@
 # Starting Blocks Admin App
 
 - [Starting Blocks Admin App](#starting-blocks-admin-app)
+  - [Creating Releases](#creating-releases)
+    - [Naming Pull Requests (PRs) and the Semantic Workflow](#naming-pull-requests-prs-and-the-semantic-workflow)
+    - [Versioning](#versioning)
+    - [Breaking Changes](#breaking-changes)
+    - [Note on branch names and commit messages](#note-on-branch-names-and-commit-messages)
   - [Running locally](#running-locally)
     - [Environment](#environment)
     - [External dependencies](#external-dependencies)
@@ -9,6 +14,54 @@
   - [Using a machine user](#using-a-machine-user)
   - [Random things](#random-things)
   - [Architecture overview](#architecture-overview)
+
+## Creating Releases
+
+1. Create a PR from `develop` to `main` and name it `chore: cut release`
+2. When merging a release PR, **always** click `Create a merge commit`
+   1. This ensures that each commit gets individually added to the git history
+
+### Naming Pull Requests (PRs) and the Semantic Workflow
+
+To take advantage of semantic-release, commits that make it into main and develop should be named with a specific prefix. These prefixes let semantic-release know how to update the version appropriately.
+
+When creating PRs, give it a name of `[prefix]: [specific work]`. For example, a PR to update documentation would be `docs: added testing instructions`
+
+When merging PRs into `develop`, always click `Squash and merge`. This ensures that only a single commit gets merged in and gives you the chance to rename it. Check that this commit message has the same format and the PR number in parentheses. So continuing the docs example with a PR numbered 99999, it should be `docs: added testing instructions (#99999)`.
+
+Possible prefixes are listed here, and what they are meant to be for.
+
+| Prefix      | Description                                        | Release Type |
+| ----------- | -------------------------------------------------- | ------------ |
+| `feat:`     | New features, like adding a new field to a form    | minor        |
+| `fix:`      | Bug fixes                                          | patch        |
+| `perf:`     | Performance improvements                           | patch        |
+| `style:`    | Code style changes, like linting                   | patch        |
+| `revert:`   | Undoing previous commits, usually via `git revert` | patch        |
+| `docs:`     | Updating docs                                      | none         |
+| `chore:`    | Small changes where nothing else fits              | none         |
+| `refactor:` | Improving code logic                               | patch        |
+| `test:`     | Adding or updating tests                           | none         |
+| `build:`    | Changing the build system                          | none         |
+| `ci:`       | Improving the CI                                   | none         |
+
+### Versioning
+
+Semantic version (or semver) is when a version consists of 3 numbers separated by a dot like this `1.15.0`.
+
+The first number (`1` in this case) is the major version. This only changes if functionality breaks previous usage, usually if something is removed.
+
+The second number (`15` in this case) is the minor version. This is incremented whenever new features are added.
+
+The third number (`0` in this case) is the patch. This is incremented whenever small changes are made.
+
+### Breaking Changes
+
+Typically, we want to avoid breaking changes, hence why there is no prefix for this. To indicate a breaking change, the words `BREAKING CHANGE:` (in all caps) must be added into the body of a commit message.
+
+### Note on branch names and commit messages
+
+Using `Squash and merge` on PRs into `develop` gives developers the flexibility to be more flexible in how they work. Branches off of `develop` can be named anything and commit messages can contain anything. It is recommended that you still write somewhat reasonable messages for the purposes of seeing what's been done on a PR, but it won't cause issues if a commit message is written in a non-semantic format.
 
 ## Running locally
 
