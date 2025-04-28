@@ -302,4 +302,5 @@ export type PrivilegeResources =
   | 'team.sb-environment.edfi-tenant.ods'
   | 'team.sb-environment.edfi-tenant.ods.edorg'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application'
-  | 'sb-sync-queue';
+  | 'sb-sync-queue'
+  | 'integration-provider';

@@ -1,3 +1,10 @@
+const providerPrivileges = {
+  'integration-provider:read': 'Read providers in the global scope.',
+  'integration-provider:update': 'Update providers in the global scope.',
+  'integration-provider:delete': 'Delete providers in the global scope.',
+  'integration-provider:create': 'Create providers in the global scope.',
+};
+
 // TODO: add other configs beyond just description. For example whether it inherits upward maybe.
 export const privileges = {
   'me:read': 'Read my own user information.',
@@ -92,4 +99,5 @@ export const privileges = {
     "Reset credentials for your team's applications.",
   'sb-sync-queue:read': 'Read SB sync queue in the global scope.',
   'sb-sync-queue:archive': 'Archive SB sync queue in the global scope.',
+  ...providerPrivileges,
 };

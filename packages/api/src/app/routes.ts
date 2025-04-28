@@ -19,6 +19,7 @@ import { SbSyncModule } from '../sb-sync/sb-sync.module';
 import { AdminApiModuleV2 } from '../teams/edfi-tenants/starting-blocks/v2/admin-api.v2.module';
 import { SbEnvironmentsGlobalModule } from '../sb-environments-global/sb-environments-global.module';
 import { SbEnvironmentsModule } from '../teams/sb-environments/sb-environments.module';
+import { IntegrationProvidersGlobalModule } from '../integration-providers-global/integration-providers-global.module';
 
 export const routes: Routes = [
   {
@@ -90,6 +91,10 @@ export const routes: Routes = [
   {
     path: '/edfi-tenants/:edfiTenantId/edorgs',
     module: EdorgsGlobalModule,
+  },
+  {
+    path: '/integration-providers',
+    module: IntegrationProvidersGlobalModule,
   },
   {
     path: '/ownerships',

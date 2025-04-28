@@ -1,4 +1,5 @@
-import { Box, ChakraProvider, ListItem, Text, UnorderedList } from '@chakra-ui/react';
+import { ChakraProvider } from '@chakra-ui/react';
+import { globalTheme } from '@edanalytics/common-ui';
 import { memo, useEffect } from 'react';
 import { Outlet, RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
 import { ErrorFallback } from '../Layout/Fallback404';
@@ -6,6 +7,7 @@ import { PublicAppLayout } from '../Layout/PublicAppLayout';
 import { StandardLayout } from '../Layout/StandardLayout';
 import { TeamHome } from '../Pages/Home/TeamHome';
 import { useSearchParamsObject } from '../helpers/useSearch';
+
 import { accountRouteGlobal } from './account.routes';
 import {
   applicationCreateRoute,
@@ -24,12 +26,27 @@ import {
   claimsetsRoute,
 } from './claimset.routes';
 import {
+  edfiTenantCreateRoute,
+  edfiTenantIndexRoute,
+  edfiTenantRoute,
+  edfiTenantsIndexRoute,
+  edfiTenantsRoute,
+} from './edfi-tenant.routes';
+import {
+  edfiTenantGlobalCreateRoute,
+  edfiTenantGlobalIndexRoute,
+  edfiTenantGlobalRoute,
+  edfiTenantsGlobalIndexRoute,
+  edfiTenantsGlobalRoute,
+} from './edfi-tenant-global.routes';
+import {
   edorgCreateRoute,
   edorgIndexRoute,
   edorgRoute,
   edorgsIndexRoute,
   edorgsRoute,
 } from './edorg.routes';
+import { integrationProvidersGlobalRoutes } from './integration-providers-global.routes';
 import { odsCreateRoute, odsIndexRoute, odsRoute, odssIndexRoute, odssRoute } from './ods.routes';
 import {
   ownershipGlobalCreateRoute,
@@ -45,27 +62,26 @@ import {
   ownershipsRoute,
 } from './ownership.routes';
 import {
+  profileCreateRoute,
+  profileIndexRoute,
+  profileRoute,
+  profilesIndexRoute,
+  profilesRoute,
+} from './profile.routes';
+import { roleIndexRoute, roleRoute, rolesIndexRoute, rolesRoute } from './role.routes';
+import {
   roleGlobalCreateRoute,
   roleGlobalIndexRoute,
   roleGlobalRoute,
   rolesGlobalIndexRoute,
   rolesGlobalRoute,
 } from './role-global.routes';
-import { roleIndexRoute, roleRoute, rolesIndexRoute, rolesRoute } from './role.routes';
 import {
-  edfiTenantGlobalCreateRoute,
-  edfiTenantGlobalIndexRoute,
-  edfiTenantGlobalRoute,
-  edfiTenantsGlobalIndexRoute,
-  edfiTenantsGlobalRoute,
-} from './edfi-tenant-global.routes';
-import {
-  edfiTenantCreateRoute,
-  edfiTenantIndexRoute,
-  edfiTenantRoute,
-  edfiTenantsIndexRoute,
-  edfiTenantsRoute,
-} from './edfi-tenant.routes';
+  sbEnvironmentIndexRoute,
+  sbEnvironmentRoute,
+  sbEnvironmentsIndexRoute,
+  sbEnvironmentsRoute,
+} from './sb-environment.routes';
 import {
   sbEnvironmentGlobalCreateRoute,
   sbEnvironmentGlobalIndexRoute,
@@ -74,11 +90,11 @@ import {
   sbEnvironmentsGlobalRoute,
 } from './sb-environment-global.routes';
 import {
-  sbEnvironmentIndexRoute,
-  sbEnvironmentRoute,
-  sbEnvironmentsIndexRoute,
-  sbEnvironmentsRoute,
-} from './sb-environment.routes';
+  sbSyncQueuesRoute,
+  sbSyncQueuesIndexRoute,
+  sbSyncQueueRoute,
+  sbSyncQueueIndexRoute,
+} from './sb-sync-queue.routes';
 import { secretRoute } from './secret.routes';
 import {
   teamCreateRoute,
@@ -89,23 +105,12 @@ import {
 } from './team.routes';
 import { userIndexRoute, userRoute, usersIndexRoute, usersRoute } from './user.routes';
 import {
-  vendorIndexRoute,
-  vendorCreateRoute,
-  vendorRoute,
-  vendorsIndexRoute,
-  vendorsRoute,
-} from './vendor.routes';
-import {
   usersGlobalRoute,
   usersGlobalIndexRoute,
   userGlobalRoute,
   userGlobalIndexRoute,
   userGlobalCreateRoute,
 } from './user-global.routes';
-import { GlobalHome } from '../Pages/Home/GlobalHome';
-import { UnauthenticatedPage } from '../Layout/Unauthenticated';
-import { useMe } from '../api';
-import { LandingLayoutRouteElement } from '../Layout/LandingLayout';
 import {
   utmsGlobalRoute,
   utmsGlobalIndexRoute,
@@ -114,38 +119,37 @@ import {
   utmGlobalCreateRoute,
 } from './utm-global.routes';
 import {
-  sbSyncQueuesRoute,
-  sbSyncQueuesIndexRoute,
-  sbSyncQueueRoute,
-  sbSyncQueueIndexRoute,
-} from './sb-sync-queue.routes';
-import {
-  profileCreateRoute,
-  profileIndexRoute,
-  profileRoute,
-  profilesIndexRoute,
-  profilesRoute,
-} from './profile.routes';
-import { globalTheme } from '@edanalytics/common-ui';
+  vendorIndexRoute,
+  vendorCreateRoute,
+  vendorRoute,
+  vendorsIndexRoute,
+  vendorsRoute,
+} from './vendor.routes';
+
+import { GlobalHome } from '../Pages/Home/GlobalHome';
+import { UnauthenticatedPage } from '../Layout/Unauthenticated';
+import { useMe } from '../api';
+import { LandingLayoutRouteElement } from '../Layout/LandingLayout';
+
 export * from './account.routes';
 export * from './application.routes';
 export * from './claimset.routes';
 export * from './edorg.routes';
 export * from './ods.routes';
-export * from './ownership-global.routes';
 export * from './ownership.routes';
-export * from './role.routes';
-export * from './edfi-tenant-global.routes';
+export * from './ownership-global.routes';
 export * from './edfi-tenant.routes';
-export * from './sb-environment-global.routes';
+export * from './edfi-tenant-global.routes';
+export * from './profile.routes';
+export * from './role.routes';
 export * from './sb-environment.routes';
+export * from './sb-environment-global.routes';
+export * from './sb-sync-queue.routes';
 export * from './team.routes';
-export * from './utm-global.routes';
 export * from './user.routes';
 export * from './user-global.routes';
+export * from './utm-global.routes';
 export * from './vendor.routes';
-export * from './sb-sync-queue.routes';
-export * from './profile.routes';
 
 export const fallback404Route: RouteObject = {
   path: '*',
@@ -259,6 +263,8 @@ export const adminRoutes: RouteObject = {
     edfiTenantGlobalCreateRoute,
     edfiTenantGlobalRoute,
     edfiTenantGlobalIndexRoute,
+
+    ...integrationProvidersGlobalRoutes,
   ],
 };
 export const authenticatedRoutes: RouteObject = {

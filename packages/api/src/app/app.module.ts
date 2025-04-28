@@ -33,6 +33,7 @@ import { routes } from './routes';
 import { SbEnvironmentEdfiTenantInterceptor } from './sb-environment-edfi-tenant.interceptor';
 import { ServicesModule } from './services.module';
 import { PgBossModule } from '../sb-sync/pg-boss.module';
+import { IntegrationProvidersGlobalModule } from '../integration-providers-global/integration-providers-global.module';
 
 @Module({
   imports: [
@@ -69,6 +70,7 @@ import { PgBossModule } from '../sb-sync/pg-boss.module';
     OdssGlobalModule,
     EdorgsGlobalModule,
     SbSyncModule,
+    IntegrationProvidersGlobalModule,
   ],
   controllers: [AppController],
   providers: [

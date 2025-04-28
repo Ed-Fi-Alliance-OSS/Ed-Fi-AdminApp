@@ -5,19 +5,20 @@ import { UsersService } from '../teams/users/users.service';
 import { UserTeamMembershipsGlobalService } from '../user-team-memberships-global/user-team-memberships-global.service';
 import { UsersGlobalService } from '../users-global/users-global.service';
 import {
-  User,
-  Team,
-  Ods,
   EdfiTenant,
-  SbEnvironment,
   Edorg,
-  UserTeamMembership,
-  Role,
+  EnvNav,
+  IntegrationProvider,
+  Ods,
+  Oidc,
   Ownership,
   OwnershipView,
-  Oidc,
+  Role,
+  SbEnvironment,
   SbSyncQueue,
-  EnvNav,
+  Team,
+  User,
+  UserTeamMembership,
 } from '@edanalytics/models-server';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service';
@@ -47,19 +48,20 @@ import { Auth0Service } from '../auth0/auth0.service';
 
 const imports = [
   TypeOrmModule.forFeature([
-    User,
-    Team,
-    Ods,
     EdfiTenant,
-    SbEnvironment,
     Edorg,
-    UserTeamMembership,
-    Role,
+    EnvNav,
+    IntegrationProvider,
+    Ods,
+    Oidc,
     Ownership,
     OwnershipView,
-    Oidc,
+    Role,
+    SbEnvironment,
     SbSyncQueue,
-    EnvNav,
+    Team,
+    User,
+    UserTeamMembership,
   ]),
 ];
 const providers = [

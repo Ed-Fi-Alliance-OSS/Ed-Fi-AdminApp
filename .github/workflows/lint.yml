@@ -16,6 +16,7 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version-file: '.nvmrc'
+          # cache: 'npm'
 
       - name: Download dependencies
         uses: bahmutov/npm-install@v1

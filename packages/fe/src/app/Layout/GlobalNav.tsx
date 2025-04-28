@@ -16,12 +16,15 @@ import {
   BsPersonBadgeFill,
   BsPersonVcard,
   BsPersonVcardFill,
+  BsPuzzle,
+  BsPuzzleFill,
 } from 'react-icons/bs';
 import { Link as RouterLink, useMatches } from 'react-router-dom';
 import { sbEnvironmentQueries } from '../api';
 import { arrayElemIf, authorize, useAuthorize, usePrivilegeCacheForConfig } from '../helpers';
 import { INavButtonProps, NavButton } from './NavButton';
 import { UniversalNavLinks } from './UniversalNavLinks';
+import { paths } from '../routes/paths';
 
 export const findDeepestMatch = (
   matches: { pathname: string }[],
@@ -203,6 +206,21 @@ export const GlobalNav = (props: object) => {
         icon: BsClipboard,
         activeIcon: BsClipboardFill,
         text: 'Ownerships',
+      }
+    ),
+    ...arrayElemIf(
+      authorize({
+        queryClient,
+        config: {
+          privilege: 'integration-provider:read',
+          subject: { id: '__filtered__' },
+        },
+      }),
+      {
+        route: paths.integrationProvider.index,
+        icon: BsPuzzle,
+        activeIcon: BsPuzzleFill,
+        text: 'Integration Providers',
       }
     ),
     ...arrayElemIf(

@@ -1,6 +1,7 @@
 import { IEdfiTenant, ISbEnvironment } from '../interfaces';
 import {
   BasePrivilege,
+  ProviderPrivilege,
   TeamBasePrivilege,
   TeamEdfiTenantPrivilege,
   TeamSbEnvironmentPrivilege,
@@ -56,6 +57,13 @@ export type EdfiTenantSubEntityPrivilege =
   | 'edorg.application:create'
   | 'edorg.application:reset-credentials';
 
+const integrationProviderPrivileges: Record<ProviderPrivilege, true> = {
+  'integration-provider:read': true,
+  'integration-provider:update': true,
+  'integration-provider:delete': true,
+  'integration-provider:create': true,
+};
+
 /** @deprecated to be replaced with codegen */
 export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'me:read': true,
@@ -94,6 +102,7 @@ export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'user-team-membership:update': true,
   'user-team-membership:delete': true,
   'user-team-membership:create': true,
+  ...integrationProviderPrivileges,
 };
 /** @deprecated to be replaced with codegen */
 export const isGlobalPrivilege = (privilege: PrivilegeCode): privilege is BasePrivilege =>
