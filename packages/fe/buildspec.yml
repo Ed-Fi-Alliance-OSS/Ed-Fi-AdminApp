@@ -8,7 +8,7 @@ phases:
       - env
   build:
     commands:
-      - n 18
+      - n 22
       - npm ci
       - npm run build:fe
   post_build:
