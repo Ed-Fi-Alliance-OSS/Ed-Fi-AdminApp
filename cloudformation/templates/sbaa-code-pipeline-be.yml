@@ -203,6 +203,11 @@ Resources:
                   - logs:PutRetentionPolicy
                   - ssm:GetParameters
                 Resource: '*'
+              - Effect: Allow
+                Action:
+                  - ssm:PutParameter
+                  - ssm:AddTagsToResource
+                Resource: !Sub 'arn:aws:ssm:${AWS::Region}:${AWS::AccountId}:parameter/beanstalk/environments/${EnvLabel}-Env/parameters/EBLoadBalancerArn'
 
   CodeBuildRole:
     Type: AWS::IAM::Role

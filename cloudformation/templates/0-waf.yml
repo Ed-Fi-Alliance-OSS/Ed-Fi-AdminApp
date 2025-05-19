@@ -1,0 +1,351 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: >-
+  This template creates and configures the Web Application Firewall for your application.
+Parameters:
+  EnvLabel:
+    Description: Provide a label for your environment.
+    Type: String
+
+Resources:
+  RegionalWebAcl:
+    Type: 'AWS::WAFv2::WebACL'
+    Properties:
+      Description: 'A collection of rules to inspect and control web requests to your ALB - Application Load Balancer'
+      Name: !Sub '${EnvLabel}-waf'
+      DefaultAction:
+        Allow: {}
+      Scope: 'REGIONAL'
+      VisibilityConfig:
+        SampledRequestsEnabled: true
+        MetricName: !Sub '${EnvLabel}-waf'
+        CloudWatchMetricsEnabled: true
+      Rules:
+        - Action:
+            Block: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'Non-US-Countries'
+            CloudWatchMetricsEnabled: true
+          Priority: 0
+          Statement:
+            NotStatement:
+              Statement:
+                GeoMatchStatement:
+                  CountryCodes:
+                    - 'US'
+          Name: 'Non-US-Countries'
+        - OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesCommonRuleSet'
+            CloudWatchMetricsEnabled: true
+          Priority: 1
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides:
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_URIPATH_RC_COUNT'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_BODY_RC_COUNT'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_QUERYARGUMENTS_RC_COUNT'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_COOKIE_RC_COUNT'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'UserAgent_BadBots_HEADER_RC_COUNT'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'NoUserAgent_HEADER'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'UserAgent_BadBots_HEADER'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SizeRestrictions_QUERYSTRING'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SizeRestrictions_Cookie_HEADER'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SizeRestrictions_BODY'
+                - ActionToUse:
+                    Count: {}
+                  Name: 'SizeRestrictions_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'EC2MetaDataSSRF_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'EC2MetaDataSSRF_COOKIE'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'EC2MetaDataSSRF_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'EC2MetaDataSSRF_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericLFI_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericLFI_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericLFI_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'RestrictedExtensions_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'RestrictedExtensions_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericRFI_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericRFI_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'GenericRFI_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_COOKIE'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CrossSiteScripting_URIPATH'
+              ExcludedRules: []
+              Name: 'AWSManagedRulesCommonRuleSet'
+          Name: 'AWS-AWSManagedRulesCommonRuleSet'
+        - OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesKnownBadInputsRuleSet'
+            CloudWatchMetricsEnabled: true
+          Priority: 2
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides:
+                - ActionToUse:
+                    Block: {}
+                  Name: 'JavaDeserializationRCE_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'JavaDeserializationRCE_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'JavaDeserializationRCE_QUERYSTRING'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'JavaDeserializationRCE_HEADER'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'Host_localhost_HEADER'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'PROPFIND_METHOD'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'ExploitablePaths_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'Log4JRCE_QUERYSTRING'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'Log4JRCE_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'Log4JRCE_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'Log4JRCE_HEADER'
+              ExcludedRules: []
+              Name: 'AWSManagedRulesKnownBadInputsRuleSet'
+          Name: 'AWS-AWSManagedRulesKnownBadInputsRuleSet'
+        - OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesSQLiRuleSet'
+            CloudWatchMetricsEnabled: true
+          Priority: 3
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides:
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SQLiExtendedPatterns_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SQLi_QUERYARGUMENTS'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SQLi_BODY'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SQLi_COOKIE'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SQLi_URIPATH'
+              ExcludedRules: []
+              Name: 'AWSManagedRulesSQLiRuleSet'
+          Name: 'AWS-AWSManagedRulesSQLiRuleSet'
+        - OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesLinuxRuleSet'
+            CloudWatchMetricsEnabled: true
+          Priority: 4
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides:
+                - ActionToUse:
+                    Block: {}
+                  Name: 'LFI_URIPATH'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'LFI_QUERYSTRING'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'LFI_HEADER'
+              ExcludedRules: []
+              Name: 'AWSManagedRulesLinuxRuleSet'
+          Name: 'AWS-AWSManagedRulesLinuxRuleSet'
+        - OverrideAction:
+            None: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesBotControlRuleSet'
+            CloudWatchMetricsEnabled: true
+          Priority: 5
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs:
+                - AWSManagedRulesBotControlRuleSet:
+                    InspectionLevel: 'COMMON'
+              VendorName: 'AWS'
+              RuleActionOverrides:
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryAdvertising'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryArchiver'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryContentFetcher'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryEmailClient'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryHttpLibrary'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryLinkChecker'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryMiscellaneous'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryMonitoring'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryScrapingFramework'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategorySearchEngine'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategorySecurity'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategorySeo'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategorySocialMedia'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'CategoryAI'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SignalAutomatedBrowser'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SignalKnownBotDataCenter'
+                - ActionToUse:
+                    Block: {}
+                  Name: 'SignalNonBrowserUserAgent'
+              ExcludedRules: []
+              Name: 'AWSManagedRulesBotControlRuleSet'
+          Name: 'AWS-AWSManagedRulesBotControlRuleSet'
+        - OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesAnonymousIpList'
+            CloudWatchMetricsEnabled: true
+          Priority: 6
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides: []
+              ExcludedRules: []
+              Name: 'AWSManagedRulesAnonymousIpList'
+          Name: 'AWS-AWSManagedRulesAnonymousIpList'
+        - OverrideAction:
+            Count: {}
+          VisibilityConfig:
+            SampledRequestsEnabled: true
+            MetricName: 'AWS-AWSManagedRulesAmazonIpReputationList'
+            CloudWatchMetricsEnabled: true
+          Priority: 7
+          Statement:
+            ManagedRuleGroupStatement:
+              ManagedRuleGroupConfigs: []
+              VendorName: 'AWS'
+              RuleActionOverrides: []
+              ExcludedRules: []
+              Name: 'AWSManagedRulesAmazonIpReputationList'
+          Name: 'AWS-AWSManagedRulesAmazonIpReputationList'
+  WebAclLogging:
+    UpdateReplacePolicy: Retain
+    DeletionPolicy: Retain
+    Type: AWS::Logs::LogGroup
+    Properties:
+      LogGroupClass: STANDARD
+      LogGroupName: !Sub 'aws-waf-logs-${EnvLabel}'
+      RetentionInDays: 365
+  WebAclLoggingConfiguration:
+    Type: 'AWS::WAFv2::LoggingConfiguration'
+    Properties:
+      ResourceArn: !GetAtt RegionalWebAcl.Arn
+      LogDestinationConfigs:
+        - !GetAtt WebAclLogging.Arn
+
+Outputs:
+  RegionalWebAclArn:
+    Value: !GetAtt RegionalWebAcl.Arn
+    Description: ARN of the Web ACL used to create rules to inspect web requests.

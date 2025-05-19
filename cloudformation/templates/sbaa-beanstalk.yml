@@ -77,11 +77,30 @@ Parameters:
   Auth0ConfigSecret:
     Type: String
     Description: Name of Auth0 Config Secret in Secrets Manager
+  WebACLArn:
+    Description: WAF ARN
+    Type: String
+  DeploymentStrategy:
+    Type: String
+    Description: Beanstalk deployment strategy for platform updates and application versions.
+    AllowedValues:
+      - 'RollingWithAdditionalBatch'
+      - 'AllAtOnce'
+  OpenApi:
+    Type: String
+    AllowedValues:
+      - 'true'
+      - 'false'
+    Description: Create the /api endpoint
 Conditions:
   AllowSshToBeanstalk: !Equals
     - !Ref 'SshToBeanstalk'
     - 'yes'
   EnableHealthCheck: !Not [!Equals [!Ref SNSTopicArn, '']]
+  AttachWAF: !Not [!Equals [!Ref WebACLArn, '']]
+  UseRollingUpdates: !Equals
+    - !Ref 'DeploymentStrategy'
+    - 'RollingWithAdditionalBatch'
 Resources:
   DbEncryptionSecretRole:
     Type: AWS::IAM::Role
@@ -108,6 +127,7 @@ Resources:
                   - secretsmanager:GetSecretValue
                   - secretsmanager:TagResource
                   - secretsmanager:PutSecretValue
+                  - secretsmanager:DeleteSecret
                 Effect: Allow
                 Resource:
                   - !Sub 'arn:aws:secretsmanager:${AWS::Region}:${AWS::AccountId}:secret:${EnvLabel}-DBEncryptionSecret*'
@@ -263,6 +283,31 @@ Resources:
               - Effect: Allow
                 Action: lambda:InvokeFunction
                 Resource: '*'
+        - PolicyName: 'AttachWebACL'
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action: elasticloadbalancing:SetWebACL
+                Resource: '*'
+              - Effect: Allow
+                Action: ssm:GetParameter
+                Resource: !Sub 'arn:${AWS::Partition}:ssm:${AWS::Region}:${AWS::AccountId}:parameter/beanstalk/environments/${EnvLabel}-Env/parameters/*'
+  ElasticBeanstalkEC2RoleWAFManagedPolicy:
+    Condition: AttachWAF
+    Type: 'AWS::IAM::ManagedPolicy'
+    Properties:
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Sid: WAF
+            Effect: Allow
+            Action:
+              - 'wafv2:AssociateWebACL'
+              - 'wafv2:DisassociateWebACL'
+            Resource: !Ref WebACLArn
+      Roles:
+        - !Ref ElasticBeanstalkEC2Role
   ElasticBeanstalkEC2InstanceProfile:
     Type: 'AWS::IAM::InstanceProfile'
     Properties:
@@ -327,6 +372,7 @@ Resources:
   BeanstalkEnvironment:
     DependsOn:
       - ALBHostNameRestrictionParameter
+      - WebACLArnParameter
     Type: AWS::ElasticBeanstalk::Environment
     Properties:
       ApplicationName: !Ref BeanstalkApplication
@@ -358,28 +404,46 @@ Resources:
             }
         - Namespace: aws:autoscaling:updatepolicy:rollingupdate
           OptionName: RollingUpdateEnabled
-          Value: true
-        - Namespace: aws:autoscaling:updatepolicy:rollingupdate
-          OptionName: MaxBatchSize
-          Value: 1
-        - Namespace: aws:autoscaling:updatepolicy:rollingupdate
-          OptionName: MinInstancesInService
-          Value: !Ref 'BeanstalkMinInstances'
-        - Namespace: aws:autoscaling:updatepolicy:rollingupdate
-          OptionName: RollingUpdateType
-          Value: Health
-        - Namespace: aws:autoscaling:updatepolicy:rollingupdate
-          OptionName: Timeout
-          Value: PT30M
+          Value: !If [UseRollingUpdates, true, false]
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+            OptionName: MaxBatchSize
+            Value: 1
+          - !Ref 'AWS::NoValue'
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+            OptionName: MinInstancesInService
+            Value: !Ref 'BeanstalkMinInstances'
+          - !Ref 'AWS::NoValue'
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+            OptionName: RollingUpdateType
+            Value: Health
+          - !Ref 'AWS::NoValue'
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:autoscaling:updatepolicy:rollingupdate
+            OptionName: Timeout
+            Value: PT30M
+          - !Ref 'AWS::NoValue'
         - Namespace: aws:elasticbeanstalk:command
           OptionName: DeploymentPolicy
-          Value: RollingWithAdditionalBatch
-        - Namespace: aws:elasticbeanstalk:command
-          OptionName: BatchSizeType
-          Value: Fixed
-        - Namespace: aws:elasticbeanstalk:command
-          OptionName: BatchSize
-          Value: 1
+          Value: !Ref DeploymentStrategy
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:elasticbeanstalk:command
+            OptionName: BatchSizeType
+            Value: Fixed
+          - !Ref 'AWS::NoValue'
+        - !If
+          - UseRollingUpdates
+          - Namespace: aws:elasticbeanstalk:command
+            OptionName: BatchSize
+            Value: 1
+          - !Ref 'AWS::NoValue'
         - Namespace: aws:autoscaling:asg
           OptionName: MinSize
           Value: !Ref 'BeanstalkMinInstances'
@@ -479,6 +543,12 @@ Resources:
         - Namespace: aws:elasticbeanstalk:application:environment
           OptionName: AUTH0_CONFIG_SECRET
           Value: !Ref Auth0ConfigSecret
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: ENV_NAME
+          Value: !Sub '${EnvLabel}-Env'
+        - Namespace: aws:elasticbeanstalk:application:environment
+          OptionName: OPEN_API
+          Value: !Ref OpenApi
         - Namespace: aws:elasticbeanstalk:environment:process:https
           OptionName: Port
           Value: 443
@@ -560,6 +630,14 @@ Resources:
       SNSTopicArn: !Ref 'SNSTopicArn'
       Route53HealthCheck: !Ref 'Route53HealthCheck'
       AlarmLabel: 'BackEnd'
+  WebACLArnParameter:
+    Type: AWS::SSM::Parameter
+    Properties:
+      Description: !Sub 'WAF for the ${EnvLabel} environment.'
+      Name: !Sub '/beanstalk/environments/${EnvLabel}-Env/parameters/WebACLArn'
+      Type: String
+      Value: !If ['AttachWAF', !Ref WebACLArn, 'no_waf']
+
 Outputs:
   EndpointURL:
     Description: The DNS name of the ELB
