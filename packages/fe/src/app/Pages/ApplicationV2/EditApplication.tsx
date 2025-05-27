@@ -177,14 +177,17 @@ export const EditApplication = (props: {
       { entity: data },
       {
         onSuccess() {
+          if (!!data.integrationProviderId) {
+            queryClient.invalidateQueries({
+              queryKey: [
+                QUERY_KEYS.integrationProviders,
+                data.integrationProviderId,
+                QUERY_KEYS.integrationApps,
+              ],
+            });
+          }
           queryClient.invalidateQueries({
-            queryKey: [
-              QUERY_KEYS.team,
-              teamId,
-              QUERY_KEYS.edfiTenants,
-              edfiTenantId,
-              QUERY_KEYS.applications,
-            ],
+            queryKey: [QUERY_KEYS.edfiTenants, edfiTenantId, QUERY_KEYS.applications],
           });
           queryClient.invalidateQueries({
             queryKey: queryKey({

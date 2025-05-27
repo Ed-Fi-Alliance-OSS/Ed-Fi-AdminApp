@@ -18,8 +18,6 @@ export function useGetOneApplication({ queryArgs, queryKey, ...rest }: Props) {
 
   return useQuery({
     queryKey: queryKey ?? [
-      QUERY_KEYS.team,
-      teamId,
       QUERY_KEYS.edfiTenants,
       edfiTenantId,
       QUERY_KEYS.applications,
@@ -36,6 +34,7 @@ export function useGetOneApplication({ queryArgs, queryKey, ...rest }: Props) {
       );
       return response;
     },
+    throwOnError: true,
     ...rest,
   }) as UseQueryResult<GetApplicationDtoV2 & GetIntegrationAppDto>;
 }

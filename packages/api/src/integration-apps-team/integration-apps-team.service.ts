@@ -28,6 +28,20 @@ export class IntegrationAppsTeamService {
     );
   }
 
+  async findOneById({
+    integrationAppId,
+    integrationProviderId,
+  }: {
+    integrationAppId: number;
+    integrationProviderId: number;
+  }) {
+    return toGetIntegrationAppDto(
+      await this.integrationAppsDetailedRepository
+        .findOneByOrFail({ id: integrationAppId, integrationProviderId })
+        .catch(throwNotFound)
+    );
+  }
+
   async findAll({ integrationProviderId, edfiTenantId }: FindAllProps) {
     const where: FindAllProps = {};
 

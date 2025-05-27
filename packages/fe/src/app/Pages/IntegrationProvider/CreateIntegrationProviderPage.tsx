@@ -18,12 +18,13 @@ import { PostIntegrationProviderDto } from '@edanalytics/models';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useNavToParent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { paths } from '../../routes/paths';
+import { usePaths } from '../../routes/paths';
 import { QUERY_KEYS, useCreateIntegrationProvider } from '../../api-v2';
 
 const resolver = classValidatorResolver(PostIntegrationProviderDto);
 
 export const CreateIntegrationProviderPage = () => {
+  const paths = usePaths();
   const popGlobalBanner = usePopBanner();
 
   const queryClient = useQueryClient();
@@ -41,9 +42,9 @@ export const CreateIntegrationProviderPage = () => {
   const onSubmit = (data: PostIntegrationProviderDto) => {
     createIntegrationProvider(data, {
       ...mutationErrCallback({ popGlobalBanner, setFormError }),
-      onSuccess: (result) => {
+      onSuccess: ({ id: integrationProviderId }) => {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.integrationProviders] });
-        navigate(paths.integrationProvider.id(result.id));
+        navigate(paths.integrationProvider.view({ integrationProviderId }));
       },
     }).catch(() => {});
   };

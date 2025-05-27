@@ -65,11 +65,6 @@ const integrationProviderPrivileges: Record<IntegrationProviderPrivilege, true> 
   'integration-provider:create': true,
 };
 
-const integrationAppPrivileges: Record<IntegrationAppPrivilege, true> = {
-  'team.integration-provider.application:read': true,
-  'team.integration-provider.application:reset-credentials': true,
-};
-
 /** @deprecated to be replaced with codegen */
 export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'me:read': true,
@@ -109,7 +104,6 @@ export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'user-team-membership:delete': true,
   'user-team-membership:create': true,
   ...integrationProviderPrivileges,
-  ...integrationAppPrivileges,
 };
 /** @deprecated to be replaced with codegen */
 export const isGlobalPrivilege = (privilege: PrivilegeCode): privilege is BasePrivilege =>
@@ -140,6 +134,8 @@ export interface ITeamCache
   'team.user-team-membership:update'?: Ids;
   'team.user-team-membership:delete'?: Ids;
   'team.user-team-membership:create'?: TrueValue;
+  'team.integration-provider.application:read'?: Ids;
+  'team.integration-provider.application:reset-credentials'?: Ids;
   'team.sb-environment:read'?: Ids;
   'team.sb-environment:create-tenant'?: Ids;
   'team.sb-environment:delete-tenant'?: Ids;
@@ -187,6 +183,10 @@ export const isBaseTeamPrivilege = (str: string): str is TeamBasePrivilege =>
 // TODO eventually this can be a dynamic version of the above: /^team\.[a-z-]+:/.test(str);
 /** @deprecated to be replaced with codegen */
 export const baseTeamResourcePrivilegesMap: Record<string, TeamBasePrivilege[]> = {
+  'team.integration-provider.application': [
+    'team.integration-provider.application:read',
+    'team.integration-provider.application:reset-credentials',
+  ],
   'team.user': ['team.user:read'],
   'team.user-team-membership': [
     'team.user-team-membership:read',

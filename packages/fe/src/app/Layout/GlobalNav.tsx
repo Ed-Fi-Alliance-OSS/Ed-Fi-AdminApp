@@ -24,7 +24,7 @@ import { sbEnvironmentQueries } from '../api';
 import { arrayElemIf, authorize, useAuthorize, usePrivilegeCacheForConfig } from '../helpers';
 import { INavButtonProps, NavButton } from './NavButton';
 import { UniversalNavLinks } from './UniversalNavLinks';
-import { paths } from '../routes/paths';
+import { usePaths } from '../routes/paths';
 
 export const findDeepestMatch = (
   matches: { pathname: string }[],
@@ -60,7 +60,8 @@ export const tagMatch = (
         childItems: tagMatch(item.childItems || [], deepestMatch),
       }));
 
-export const GlobalNav = (props: object) => {
+export const GlobalNav = () => {
+  const paths = usePaths({ asTeam: false });
   const queryClient = useQueryClient();
   const sbEnvironmentsIsAuthorized = useAuthorize({
     privilege: 'sb-environment:read',
@@ -217,7 +218,7 @@ export const GlobalNav = (props: object) => {
         },
       }),
       {
-        route: paths.integrationProvider.index,
+        route: paths.integrationProvider.index(),
         icon: BsPuzzle,
         activeIcon: BsPuzzleFill,
         text: 'Integration Providers',

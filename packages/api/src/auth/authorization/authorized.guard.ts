@@ -14,6 +14,9 @@ import { AUTHORIZE_KEY, AuthorizeMetadata } from './authorize.decorator';
 import { abilityFromCache } from './helpers';
 import { IS_PUBLIC_KEY } from './public.decorator';
 
+// The use of __filtered__ is means the response data will be filtered by the business logic
+// This is instead of the authorized guard handling the check which is the more normal thing
+
 @Injectable()
 export class AuthorizedGuard implements CanActivate {
   constructor(

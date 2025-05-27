@@ -43,6 +43,8 @@ import { EnvironmentsNav } from './EnvironmentsNav';
 import { findDeepestMatch, tagMatch } from './GlobalNav';
 import { INavButtonProps, NavButton } from './NavButton';
 import { UniversalNavLinks } from './UniversalNavLinks';
+import { usePaths } from '../routes/paths';
+import { useGetManyIntegrationProviders } from '../api-v2';
 
 type OpenNavs = Record<number, number[]>;
 const mergeOpenNavs = (objectOne: OpenNavs, objectTwo: OpenNavs) => {
@@ -101,6 +103,7 @@ const removePinnedTenant = (
 };
 
 export const TeamNav = (props: { teamId: string }) => {
+  const paths = usePaths({ asTeam: true });
   const { edfiTenantId, sbEnvironmentId } = useParams();
   const [lastTenantFromNav, setLastTenantFromNav] = useState(
     edfiTenantId ? { [sbEnvironmentId!]: [Number(edfiTenantId)] } : {}
@@ -124,96 +127,65 @@ export const TeamNav = (props: { teamId: string }) => {
   const queryClient = useQueryClient();
   const sbEnvironmentAuth: AuthorizeConfig = {
     privilege: 'team.sb-environment:read',
-    subject: {
-      id: '__filtered__',
-      teamId,
-    },
+    subject: { id: '__filtered__', teamId },
   };
   const sbEnvironments = useQuery({
     ...sbEnvironmentQueries.getAll({ teamId }),
     enabled: useAuthorize(sbEnvironmentAuth),
   });
 
+  const integrationProviderAuth: AuthorizeConfig = {
+    privilege: 'team.integration-provider.application:read',
+    subject: { id: '__filtered__', teamId },
+  };
+  const { data: integrationProviders } = useGetManyIntegrationProviders({
+    enabled: useAuthorize(integrationProviderAuth),
+  });
+
   usePrivilegeCacheForConfig([
     sbEnvironmentAuth,
+    integrationProviderAuth,
     {
       privilege: 'team.role:read',
-      subject: {
-        id: '__filtered__',
-        teamId: teamId,
-      },
+      subject: { id: '__filtered__', teamId },
     },
     {
       privilege: 'team.user:read',
-      subject: {
-        id: '__filtered__',
-        teamId: teamId,
-      },
+      subject: { id: '__filtered__', teamId },
     },
     {
       privilege: 'team.ownership:read',
-      subject: {
-        id: '__filtered__',
-        teamId: teamId,
-      },
+      subject: { id: '__filtered__', teamId },
     },
     ...Object.entries(openNavItems).flatMap(([sbEnvironmentId, edfiTenantIds]) =>
       edfiTenantIds.flatMap((edfiTenantId) => [
         {
           privilege: 'team.sb-environment.edfi-tenant:read' as const,
-          subject: {
-            id: edfiTenantId,
-            sbEnvironmentId: Number(sbEnvironmentId),
-            teamId: teamId,
-          },
+          subject: { id: edfiTenantId, sbEnvironmentId: Number(sbEnvironmentId), teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.ods:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.ods.edorg:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.claimset:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.profile:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.vendor:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
         {
           privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read' as const,
-          subject: {
-            id: '__filtered__',
-            edfiTenantId: edfiTenantId,
-            teamId: teamId,
-          },
+          subject: { id: '__filtered__', edfiTenantId, teamId },
         },
       ])
     ),
@@ -412,26 +384,6 @@ export const TeamNav = (props: { teamId: string }) => {
                             text: 'Profiles',
                           }
                         ),
-                        ...arrayElemIf(
-                          // TODO: remove false in the next PR
-                          false &&
-                            authorize({
-                              queryClient,
-                              config: {
-                                privilege: 'team.integration-provider.application:read',
-                                subject: {
-                                  id: '__filtered__',
-                                  // teamId,
-                                },
-                              },
-                            }),
-                          {
-                            route: `${tenantRootUrl}/integration-providers`,
-                            icon: BsPuzzle,
-                            activeIcon: BsPuzzleFill,
-                            text: 'Integration Providers',
-                          }
-                        ),
                       ],
                     });
                     return accum;
@@ -442,6 +394,8 @@ export const TeamNav = (props: { teamId: string }) => {
       );
     })
     .flat();
+
+  const integrationProviderCount = integrationProviders?.length ?? 0;
 
   const mainItems: INavButtonProps[] = [
     ...arrayElemIf(
@@ -457,6 +411,22 @@ export const TeamNav = (props: { teamId: string }) => {
         icon: BsPeople,
         activeIcon: BsPeopleFill,
         text: 'Users',
+      }
+    ),
+    ...arrayElemIf(
+      integrationProviderCount > 0 &&
+        authorize({
+          queryClient,
+          config: {
+            privilege: 'team.integration-provider.application:read',
+            subject: { teamId, id: '__filtered__' },
+          },
+        }),
+      {
+        route: paths.integrationProvider.index(),
+        icon: BsPuzzle,
+        activeIcon: BsPuzzleFill,
+        text: 'Integration Providers',
       }
     ),
   ];

@@ -54,7 +54,9 @@ export const CreateRoleGlobalPage = () => {
       ? Object.values(privileges).filter(
           (p) =>
             type === RoleType.UserGlobal ||
-            (type === RoleType.ResourceOwnership && p.code.startsWith('team.sb-environment')) ||
+            (type === RoleType.ResourceOwnership &&
+              (p.code.startsWith('team.sb-environment') ||
+                p.code.startsWith('team.integration-provider'))) ||
             (type === RoleType.UserTeam && p.code.startsWith('team.'))
         )
       : undefined;

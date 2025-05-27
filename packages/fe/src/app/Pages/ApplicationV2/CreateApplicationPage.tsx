@@ -134,14 +134,17 @@ export const CreateApplicationPageV2 = () => {
       { entity: data },
       {
         onSuccess({ id: appId, link: state }) {
+          if (!!data.integrationProviderId) {
+            queryClient.invalidateQueries({
+              queryKey: [
+                QUERY_KEYS.integrationProviders,
+                data.integrationProviderId,
+                QUERY_KEYS.integrationApps,
+              ],
+            });
+          }
           queryClient.invalidateQueries({
-            queryKey: [
-              QUERY_KEYS.team,
-              asId,
-              QUERY_KEYS.edfiTenants,
-              edfiTenantId,
-              QUERY_KEYS.applications,
-            ],
+            queryKey: [QUERY_KEYS.edfiTenants, edfiTenantId, QUERY_KEYS.applications],
           });
           navigate(
             `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${appId}`,

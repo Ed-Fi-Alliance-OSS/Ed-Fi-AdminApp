@@ -3,34 +3,45 @@ import { ManyIntegrationProvidersPage } from '../Pages/IntegrationProvider/ManyI
 import { CreateIntegrationProviderPage } from '../Pages/IntegrationProvider/CreateIntegrationProviderPage';
 import { OneIntegrationProviderPage } from '../Pages/IntegrationProvider/OneIntegrationProviderPage';
 import { IntegrationProviderBreadcrumb } from '../Pages/IntegrationProvider/IntegrationProviderBreadcrumb';
-
-export const integrationProviderPaths = {
-  index: '/integration-providers',
-  create: '/integration-providers/create',
-  id: (id: string | number) => `/integration-providers/${id}`,
-  edit: (id: string | number) => `/integration-providers/${id}?edit=true`,
-};
+import { routeDefinitions } from './paths';
 
 const integrationProvidersGlobalIndexRoute: RouteObject = {
-  path: integrationProviderPaths.index,
+  path: routeDefinitions.integrationProvider.index,
   element: <ManyIntegrationProvidersPage />,
   handle: { crumb: () => 'Integration Providers' },
 };
 
 export const integrationProviderGlobalCreateRoute: RouteObject = {
-  path: integrationProviderPaths.create,
+  path: routeDefinitions.integrationProvider.create,
   handle: { crumb: () => 'Create' },
   element: <CreateIntegrationProviderPage />,
 };
 
 export const integrationProviderGlobalViewRoute: RouteObject = {
-  path: integrationProviderPaths.id(':integrationProviderId'),
+  path: routeDefinitions.integrationProvider.view,
   handle: { crumb: IntegrationProviderBreadcrumb },
   element: <OneIntegrationProviderPage />,
+};
+
+const integrationProviderTeamIndexRoute: RouteObject = {
+  path: routeDefinitions.asTeam.integrationProvider.index,
+  element: <ManyIntegrationProvidersPage />,
+  handle: { crumb: () => 'Integration Providers' },
+};
+
+const integrationProviderTeamViewRoute: RouteObject = {
+  path: routeDefinitions.asTeam.integrationProvider.view,
+  element: <OneIntegrationProviderPage />,
+  handle: { crumb: IntegrationProviderBreadcrumb },
 };
 
 export const integrationProvidersGlobalRoutes = [
   integrationProvidersGlobalIndexRoute,
   integrationProviderGlobalCreateRoute,
   integrationProviderGlobalViewRoute,
+];
+
+export const integrationProvidersTeamRoutes = [
+  integrationProviderTeamIndexRoute,
+  integrationProviderTeamViewRoute,
 ];

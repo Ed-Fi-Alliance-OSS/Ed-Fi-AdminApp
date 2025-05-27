@@ -67,7 +67,8 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
           (p) =>
             role.type === RoleType.UserGlobal ||
             (role.type === RoleType.ResourceOwnership &&
-              p.code.startsWith('team.sb-environment')) ||
+              (p.code.startsWith('team.sb-environment') ||
+                p.code.startsWith('team.integration-provider'))) ||
             (role.type === RoleType.UserTeam && p.code.startsWith('team.'))
         )
       : undefined;

@@ -181,6 +181,10 @@ export const TeamResourcePrivileges = {
     'team.sb-environment.edfi-tenant.ods.edorg.application:create',
     'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
   ],
+  'team.integration-provider.application': [
+    'team.integration-provider.application:read',
+    'team.integration-provider.application:reset-credentials',
+  ],
 };
 
 export const TeamSbEnvironmentResourcePrivileges = {

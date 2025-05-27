@@ -1,10 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
 import { useGetManyIntegrationProviders } from '../../api-v2';
-import { paths } from '../../routes/paths';
+import { usePaths } from '../../routes/paths';
 
 export const IntegrationProviderLink = (props: { id: number | undefined; prefix?: string }) => {
   const integrationProviders = useGetManyIntegrationProviders({}).data;
+  const paths = usePaths();
 
   const { id, prefix } = props;
 
@@ -23,7 +24,10 @@ export const IntegrationProviderLink = (props: { id: number | undefined; prefix?
   const integrationProvider = integrationProviders?.find((p) => p.id === id);
   return (
     <Link as="span">
-      <RouterLink title="Go to integration provider" to={paths.integrationProvider.id(id)}>
+      <RouterLink
+        title="Go to integration provider"
+        to={paths.integrationProvider.view({ integrationProviderId: id })}
+      >
         {prefix} {integrationProvider?.name ?? id}
       </RouterLink>
     </Link>

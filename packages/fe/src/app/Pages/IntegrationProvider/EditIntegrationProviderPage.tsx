@@ -20,7 +20,7 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { paths } from '../../routes/paths';
+import { usePaths } from '../../routes/paths';
 import {
   QUERY_KEYS,
   useGetOneIntegrationProvider,
@@ -31,19 +31,18 @@ import { ContentSection, PageContentCard } from '@edanalytics/common-ui';
 const resolver = classValidatorResolver(PutTeamDto);
 
 export const EditIntegrationProviderPage = () => {
+  const paths = usePaths();
   const popGlobalBanner = usePopBanner();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
 
-  const { integrationProviderId } = useParams() as {
-    integrationProviderId: string;
-  };
+  const { integrationProviderId } = useParams() as { integrationProviderId: string };
 
   const integrationProvider = useGetOneIntegrationProvider({
-    queryArgs: { id: integrationProviderId },
+    queryArgs: { integrationProviderId },
   }).data as GetIntegrationProviderDto;
 
-  const goToView = () => navigate(paths.integrationProvider.id(integrationProviderId));
+  const goToView = () => navigate(paths.integrationProvider.view({ integrationProviderId }));
 
   const {
     register,

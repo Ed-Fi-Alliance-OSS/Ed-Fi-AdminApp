@@ -46,7 +46,11 @@ import {
   edorgsIndexRoute,
   edorgsRoute,
 } from './edorg.routes';
-import { integrationProvidersGlobalRoutes } from './integration-providers-global.routes';
+import { integrationAppsTeamRoutes } from './integration-apps-team.routes';
+import {
+  integrationProvidersGlobalRoutes,
+  integrationProvidersTeamRoutes,
+} from './integration-providers-global.routes';
 import { odsCreateRoute, odsIndexRoute, odsRoute, odssIndexRoute, odssRoute } from './ods.routes';
 import {
   ownershipGlobalCreateRoute,
@@ -336,6 +340,10 @@ export const authenticatedRoutes: RouteObject = {
     profileIndexRoute,
     profilesIndexRoute,
     profileCreateRoute,
+
+    ...integrationAppsTeamRoutes,
+    ...integrationProvidersTeamRoutes,
+
     asRoute,
     adminRoutes,
   ],

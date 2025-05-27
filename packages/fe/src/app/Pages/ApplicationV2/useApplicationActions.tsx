@@ -191,14 +191,17 @@ export const useSingleApplicationActions = ({
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => {
                         queryClient.invalidateQueries({
-                          queryKey: [
-                            QUERY_KEYS.team,
-                            asId,
-                            QUERY_KEYS.edfiTenants,
-                            edfiTenantId,
-                            QUERY_KEYS.applications,
-                          ],
+                          queryKey: [QUERY_KEYS.edfiTenants, edfiTenantId, QUERY_KEYS.applications],
                         });
+                        if (!!application.integrationProviderId) {
+                          queryClient.invalidateQueries({
+                            queryKey: [
+                              QUERY_KEYS.integrationProviders,
+                              application.integrationProviderId,
+                              QUERY_KEYS.integrationApps,
+                            ],
+                          });
+                        }
                         if (onApplicationPage) {
                           navigate(parentPath);
                         }

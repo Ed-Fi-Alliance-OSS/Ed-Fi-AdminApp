@@ -6,33 +6,29 @@ import { QUERY_KEYS } from './queryKeys';
 type Props = Omit<UseQueryOptions, 'queryKey'> & {
   queryArgs?: {
     edfiTenantId?: number;
-    integrationProviderId?: number;
     teamId?: number;
   };
   queryKey?: string[];
 };
 
 export function useGetManyApplications({ queryArgs, queryKey, ...rest }: Props) {
-  const { edfiTenantId, integrationProviderId, teamId } = queryArgs ?? {};
+  const { edfiTenantId, teamId } = queryArgs ?? {};
+  const asTeamKey = teamId ? [QUERY_KEYS.asTeam, teamId] : [];
+
   return useQuery({
     queryKey: queryKey ?? [
-      QUERY_KEYS.team,
-      teamId,
       QUERY_KEYS.edfiTenants,
       edfiTenantId,
       QUERY_KEYS.applications,
-      { integrationProviderId },
+      ...asTeamKey,
     ],
     queryFn: async () => {
-      const params = new URLSearchParams();
-      if (integrationProviderId)
-        params.append('integrationProviderId', integrationProviderId.toString());
-
       const response = await apiClient.get(
-        `teams/${teamId}/edfi-tenants/${edfiTenantId}/admin-api/v2/applications?${params}`
+        `teams/${teamId}/edfi-tenants/${edfiTenantId}/admin-api/v2/applications`
       );
       return response;
     },
+    throwOnError: true,
     ...rest,
   }) as UseQueryResult<(GetApplicationDtoV2 & GetIntegrationAppDto)[]>;
 }

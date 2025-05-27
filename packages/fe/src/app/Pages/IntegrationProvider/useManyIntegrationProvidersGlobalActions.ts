@@ -1,16 +1,18 @@
 import { useNavigate } from 'react-router-dom';
 import { ActionsType } from '@edanalytics/common-ui';
 import { BiPlus } from 'react-icons/bi';
-import { GetIntegrationProviderDto } from '@edanalytics/models';
-import { paths } from '../../routes/paths';
-import { globalUserAuthConfig, useAuthorize } from '../../helpers';
+import { usePaths } from '../../routes/paths';
+import { globalUserAuthConfig, useAuthorize, useNavContext } from '../../helpers';
 
-export const useManyIntegrationProvidersGlobalActions = (
-  provider?: GetIntegrationProviderDto
-): ActionsType => {
+export const useManyIntegrationProvidersGlobalActions = (): ActionsType => {
+  const paths = usePaths();
   const navigate = useNavigate();
 
-  const canCreate = useAuthorize(globalUserAuthConfig('integration-provider:create'));
+  const { asId: teamId } = useNavContext();
+  const inTeamScope = !!teamId;
+
+  const canCreate =
+    useAuthorize(globalUserAuthConfig('integration-provider:create')) && !inTeamScope;
 
   const createAction: ActionsType = canCreate
     ? {
@@ -18,8 +20,8 @@ export const useManyIntegrationProvidersGlobalActions = (
           icon: BiPlus,
           text: 'Create new',
           title: 'Create new integration provider.',
-          to: paths.integrationProvider.create,
-          onClick: () => navigate(paths.integrationProvider.create),
+          to: paths.integrationProvider.create(),
+          onClick: () => navigate(paths.integrationProvider.create()),
         },
       }
     : {};

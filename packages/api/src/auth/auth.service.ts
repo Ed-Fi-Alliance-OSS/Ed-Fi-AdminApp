@@ -7,6 +7,7 @@ import {
   User,
   UserTeamMembership,
   SbEnvironment,
+  IntegrationProvider,
 } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, UnauthorizedException } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
@@ -143,27 +144,29 @@ export class AuthService {
         'ods',
         'edorg',
         'role',
+        'integrationProvider',
       ],
     });
-    /** Map of all Edorgs needed during execution.
-     *
+
+    /**
+     * Map of all Edorgs needed during execution.
      * Just a data bucket used for dynamic programming; carries no access control meaning itself.
-     * */
+     */
     const allEdorgs = new Map<number, Edorg>();
-    /** Map of all Odss needed during execution.
-     *
+    /**
+     * Map of all Odss needed during execution.
      * Just a data bucket used for dynamic programming; carries no access control meaning itself.
-     * */
+     */
     const allOdss = new Map<number, Ods>();
-    /** Map of all EdfiTenants needed during execution.
-     *
+    /**
+     * Map of all EdfiTenants needed during execution.
      * Just a data bucket used for dynamic programming; carries no access control meaning itself.
-     * */
+     */
     const allEdfiTenants = new Map<number, EdfiTenant>();
-    /** Map of all SbEnvironments needed during execution.
-     *
+    /**
+     * Map of all SbEnvironments needed during execution.
      * Just a data bucket used for dynamic programming; carries no access control meaning itself.
-     * */
+     */
     const allSbEnvironments = new Map<number, SbEnvironment>();
 
     const ownedOdss: Ownership[] = [];
@@ -205,7 +208,17 @@ export class AuthService {
      * inheritance rules.
      */
     const edorgPrivileges = new Map<number, Set<PrivilegeCode>>();
+    /**
+     * Repository of the privileges this team has on each relevant IntegrationProvider
+     *
+     * These variables are used dynamically. As the authorization builder
+     * works its way up and down the resource hierarchy, it adds new items
+     * or new privileges to existing items as prescribed by the app's
+     * inheritance rules.
+     */
+    const integrationProviderPrivileges = new Map<number, Set<PrivilegeCode>>();
 
+    // console.log('ownerships', ownerships);
     ownerships
       .filter((o) => o.role?.privilegeIds.length)
       .forEach((o) => {
@@ -240,6 +253,11 @@ export class AuthService {
           edorgPrivileges.set(o.edorg.id, new Set(o.role?.privilegeIds ?? []));
           ownedEdorgs.push(o);
           allEdorgs.set(o.edorg.id, o.edorg);
+        } else if (o.integrationProvider) {
+          integrationProviderPrivileges.set(
+            o.integrationProvider.id,
+            new Set(o.role?.privilegeIds ?? [])
+          );
         }
       });
 
@@ -257,6 +275,7 @@ export class AuthService {
 
       // See various notes about "empty privileges"
       'team.sb-environment:read': new Set(),
+      'team.integration-provider.application:read': new Set(),
     };
 
     /*
@@ -359,6 +378,16 @@ export class AuthService {
         id: sbEnvironmentId,
       });
       initializeSbEnvironmentPrivilegeCache(cache, myPrivileges, sbEnvironment);
+    });
+
+    const integrationProviderPrivilegesEntries = [...integrationProviderPrivileges.entries()];
+    integrationProviderPrivilegesEntries.forEach(([integrationProviderId, myPrivileges]) => {
+      cacheAccordingToPrivileges({
+        cache,
+        privileges: myPrivileges,
+        resource: 'team.integration-provider.application',
+        id: integrationProviderId,
+      });
     });
 
     const edfiTenantPrivilegesEntries = [...edfiTenantPrivileges.entries()];

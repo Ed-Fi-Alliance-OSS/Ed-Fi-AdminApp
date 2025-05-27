@@ -1,11 +1,14 @@
 import { SelectWrapper, StandardSelector } from '../../helpers/StandardSelector';
-import { useNavContext } from '../../helpers/navContext';
 import { useGetManyIntegrationProviders } from '../../api-v2';
 
 export const SelectIntegrationProvider: StandardSelector = (props) => {
   const { options: externalOptions, ...others } = props;
 
-  const { data: integrationProviders, isPending, isStale } = useGetManyIntegrationProviders({});
+  const {
+    data: integrationProviders,
+    isPending,
+    isStale,
+  } = useGetManyIntegrationProviders({ queryArgs: { asTeam: false } });
 
   const options = externalOptions ?? {};
   if (!externalOptions) {

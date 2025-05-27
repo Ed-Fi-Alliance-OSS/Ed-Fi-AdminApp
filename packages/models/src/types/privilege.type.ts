@@ -49,10 +49,10 @@ export type BasePrivilege =
   | 'user-team-membership:update'
   | 'user-team-membership:delete'
   | 'user-team-membership:create'
-  | IntegrationProviderPrivilege
-  | IntegrationAppPrivilege;
+  | IntegrationProviderPrivilege;
 
 export type TeamBasePrivilege =
+  | IntegrationAppPrivilege
   | 'team.ownership:read'
   | 'team.role:read'
   | 'team.role:update'
