@@ -2,6 +2,7 @@ import {
   CopyClaimsetDtoV2,
   GetApplicationDtoV2,
   GetClaimsetSingleDtoV2,
+  GetIntegrationAppDto,
   Id,
   Ids,
   ImportClaimsetSingleDtoV2,
@@ -65,6 +66,7 @@ import {
 } from '../../../../utils';
 import { AdminApiV1xExceptionFilter } from '../v1/admin-api-v1x-exception.filter';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
+import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
 
 @Injectable()
 class AdminApiV2Interceptor implements NestInterceptor {
@@ -87,6 +89,7 @@ class AdminApiV2Interceptor implements NestInterceptor {
 export class AdminApiControllerV2 {
   private downloadCache = new NodeCache({ stdTTL: 60 * 5 /* 5 minutes */ });
   constructor(
+    private readonly integrationAppsTeamService: IntegrationAppsTeamService,
     private readonly sbService: AdminApiServiceV2,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
@@ -131,6 +134,10 @@ export class AdminApiControllerV2 {
       )
     );
   }
+
+  //
+  // Vendors
+  //
 
   @Get('vendors')
   @Authorize({
@@ -225,6 +232,10 @@ export class AdminApiControllerV2 {
     return this.sbService.deleteVendor(edfiTenant, vendorId);
   }
 
+  //
+  // Applications
+  //
+
   @Get('applications')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
@@ -242,9 +253,21 @@ export class AdminApiControllerV2 {
     validIds: Ids
   ) {
     const allApplications = await this.sbService.getApplications(edfiTenant);
-    return allApplications.filter((application) =>
-      this.checkApplicationEdorgsForSafeOperations(application, validIds)
-    );
+
+    const integrationProviderApps = await this.integrationAppsTeamService.findAll({
+      edfiTenantId,
+    });
+    const idToAppsMap = new Map<number, GetIntegrationAppDto>();
+    integrationProviderApps.forEach((app) => idToAppsMap.set(app.applicationId, app));
+
+    return allApplications
+      .filter((application) => this.checkApplicationEdorgsForSafeOperations(application, validIds))
+      .map((application) => ({
+        // The EdFi application overrides any differences with the Integration App
+        ...idToAppsMap.get(application.id),
+        ...application,
+        id: application.id,
+      })) as (GetApplicationDtoV2 & GetIntegrationAppDto)[];
   }
 
   @Get('applications/:applicationId')
@@ -267,7 +290,20 @@ export class AdminApiControllerV2 {
     const application = await this.sbService.getApplication(edfiTenant, applicationId);
 
     if (this.checkApplicationEdorgsForSafeOperations(application, validIds)) {
-      return application;
+      try {
+        const integrationProviderApp = await this.integrationAppsTeamService.findOne({
+          applicationId,
+          edfiTenantId,
+        });
+        return {
+          // The EdFi application overrides any differences with the Integration App
+          ...integrationProviderApp,
+          ...application,
+          id: application.id,
+        };
+      } catch (error) {
+        return application;
+      }
     } else {
       throw new NotFoundException();
     }
@@ -313,16 +349,18 @@ export class AdminApiControllerV2 {
     });
     const odsInstanceId = availableEdorgs[0].odsInstanceId;
 
+    // This checks the existing unchanged version of the application against the valid IDs
+    const existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
+    if (!this.checkApplicationEdorgsForUnsafeOperations(existingApplication, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
     const dto = plainToInstance(PutApplicationDtoV2, {
       ...instanceToPlain(application),
       claimSetName: claimset.name,
       odsInstanceIds: [odsInstanceId],
       educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
     });
-    const existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
-    if (!this.checkApplicationEdorgsForUnsafeOperations(existingApplication, validIds)) {
-      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
-    }
 
     if (dto.educationOrganizationIds.length !== availableEdorgs.length) {
       throw new ValidationHttpException({
@@ -338,7 +376,75 @@ export class AdminApiControllerV2 {
         message: 'Education organizations not all from the same ODS',
       });
     }
+
+    // This checks the new version of the application against the valid IDs
     if (this.checkApplicationEdorgsForUnsafeOperations(dto, validIds)) {
+      const realOds = await this.odsRepository.findOneBy({
+        edfiTenantId: edfiTenant.id,
+        odsInstanceId,
+      });
+      const existingIntegrationApp = await this.integrationAppsTeamService.findOne({
+        applicationId,
+        edfiTenantId,
+      });
+
+      if (existingIntegrationApp) {
+        // EdFi applications that are Integration Apps are only allowed to update: name, vendor, profile, and claimset
+        if (realOds.id !== existingIntegrationApp.odsId) {
+          throw new ValidationHttpException({
+            field: 'odsInstanceId',
+            message: 'Cannot change ODS instance for an Integration Application',
+          });
+        }
+        if (dto.integrationProviderId !== existingIntegrationApp.integrationProviderId) {
+          throw new ValidationHttpException({
+            field: 'integrationProviderId',
+            message: 'Cannot change Integration Provider for an Integration Application',
+          });
+        }
+
+        const realEdorgs = await this.edorgRepository.findBy({
+          edfiTenantId: edfiTenant.id,
+          educationOrganizationId: In(dto.educationOrganizationIds),
+          odsInstanceId,
+        });
+        const hasChangedAmountOfEdorgs =
+          realEdorgs.length !== existingIntegrationApp.edorgIds.length;
+        const hasChangedEdorgs = realEdorgs.some(
+          (edorg) => !existingIntegrationApp.edorgIds.includes(edorg.id)
+        );
+        if (hasChangedAmountOfEdorgs || hasChangedEdorgs) {
+          throw new ValidationHttpException({
+            field: 'educationOrganizationIds',
+            message: 'Cannot change Education Organization IDs for an Integration Application',
+          });
+        }
+
+        // Integration Apps are only allowed to change their name so only update if the name changes
+        const hasNewName = dto.applicationName !== existingIntegrationApp.applicationName;
+        if (hasNewName) {
+          await this.integrationAppsTeamService.update({
+            applicationId,
+            edfiTenantId,
+            applicationName: dto.applicationName,
+          });
+        }
+      }
+
+      // If no Integration App exists and an integrationProviderId is provided, create a new Integration App
+      if (!existingIntegrationApp && dto.integrationProviderId) {
+        await this.integrationAppsTeamService.create({
+          applicationId,
+          applicationName: dto.applicationName,
+          edfiTenantId: edfiTenant.id,
+          edorgIds: availableEdorgs.map((edorg) => edorg.id),
+          integrationProviderId: dto.integrationProviderId,
+          odsId: realOds.id,
+          sbEnvironmentId: edfiTenant.sbEnvironmentId,
+        });
+      }
+
+      delete dto.integrationProviderId;
       return this.sbService.putApplication(edfiTenant, applicationId, dto);
     } else {
       throw new ValidationHttpException({
@@ -380,18 +486,19 @@ export class AdminApiControllerV2 {
         message: 'Cannot use system-reserved claimset',
       });
     }
+
+    const { educationOrganizationIds, odsInstanceId } = application;
     const realEdorgs = await this.edorgRepository.findBy({
       edfiTenantId: edfiTenant.id,
-      educationOrganizationId: In(application.educationOrganizationIds),
-      odsInstanceId: application.odsInstanceId,
+      educationOrganizationId: In(educationOrganizationIds),
+      odsInstanceId,
     });
-    if (realEdorgs.length !== application.educationOrganizationIds.length) {
+    if (realEdorgs.length !== educationOrganizationIds.length) {
       throw new ValidationHttpException({
         field: 'educationOrganizationIds',
         message: 'Invalid education organization IDs',
       });
     }
-    const odsInstanceId = application.odsInstanceId;
 
     const dto = plainToInstance(
       PostApplicationDtoV2,
@@ -407,6 +514,22 @@ export class AdminApiControllerV2 {
       throw new InternalServerErrorException('Environment config lacks an Ed-Fi hostname.');
     if (this.checkApplicationEdorgsForUnsafeOperations(dto, validIds)) {
       const adminApiResponse = await this.sbService.postApplication(edfiTenant, dto);
+
+      if (application.integrationProviderId) {
+        const realOds = await this.odsRepository.findOneBy({
+          edfiTenantId: edfiTenant.id,
+          odsInstanceId,
+        });
+        await this.integrationAppsTeamService.create({
+          applicationId: adminApiResponse.id,
+          applicationName: application.applicationName,
+          edfiTenantId: edfiTenant.id,
+          edorgIds: realEdorgs.map((edorg) => edorg.id),
+          integrationProviderId: application.integrationProviderId,
+          odsId: realOds.id,
+          sbEnvironmentId: sbEnvironment.id,
+        });
+      }
 
       const yopass = await postYopassSecret({
         ...adminApiResponse,
@@ -448,6 +571,7 @@ export class AdminApiControllerV2 {
     const application = await this.sbService.getApplication(edfiTenant, applicationId);
 
     if (this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      this.integrationAppsTeamService.remove({ applicationId, edfiTenantId });
       return this.sbService.deleteApplication(edfiTenant, applicationId);
     } else {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
@@ -475,6 +599,20 @@ export class AdminApiControllerV2 {
     const application = await this.sbService.getApplication(edfiTenant, applicationId);
 
     if (this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      const integrationProviderApp = await this.integrationAppsTeamService.findOne({
+        applicationId,
+        edfiTenantId,
+      });
+      if (integrationProviderApp) {
+        throw new CustomHttpException(
+          {
+            title: 'Cannot reset credentials for an Integration Provider application.',
+            type: 'Error',
+          },
+          400
+        );
+      }
+
       const adminApiResponse = await this.sbService.putApplicationResetCredential(
         edfiTenant,
         applicationId
@@ -495,6 +633,10 @@ export class AdminApiControllerV2 {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
   }
+
+  //
+  // Claimsets
+  //
 
   @Get('claimsets')
   @Authorize({
@@ -712,6 +854,11 @@ export class AdminApiControllerV2 {
     await this.sbService.deleteClaimset(edfiTenant, claimsetId);
     return undefined;
   }
+
+  //
+  // Profiles
+  //
+
   @Get('profiles')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.profile:read',

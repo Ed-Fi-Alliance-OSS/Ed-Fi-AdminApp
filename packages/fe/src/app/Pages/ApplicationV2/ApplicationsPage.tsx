@@ -1,3 +1,4 @@
+import { Fragment } from 'react/jsx-runtime';
 import {
   CappedLinesText,
   PageActions,
@@ -6,7 +7,6 @@ import {
 } from '@edanalytics/common-ui';
 import { GetClaimsetMultipleDtoV2, GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
 import {
-  applicationQueriesV2,
   claimsetQueriesV2,
   edorgQueries,
   odsQueries,
@@ -20,17 +20,18 @@ import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
 import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
+import { useGetManyApplications } from '../../api-v2';
 
 export const ApplicationsPageV2 = () => {
   return (
     <PageTemplate title="Applications" actions={<ApplicationsPageActions />}>
-      <ApplicationsPageContent />
+      <AllApplicationsTable />
     </PageTemplate>
   );
 };
 
 export const ApplicationsPageActions = () => {
-  const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
 
   const actions = useMultiApplicationActions({
     edfiTenantId: edfiTenantId,
@@ -39,27 +40,16 @@ export const ApplicationsPageActions = () => {
   return <PageActions actions={actions} />;
 };
 
-export const ApplicationsPageContent = () => {
-  const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+export const AllApplicationsTable = () => {
+  const { asId, edfiTenantId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
 
-  const applications = useQuery(
-    applicationQueriesV2.getAll({
-      edfiTenant: edfiTenant,
-      teamId: asId,
-    })
-  );
-  const edorgs = useQuery(
-    edorgQueries.getAll({
-      edfiTenant: edfiTenant,
-      teamId: asId,
-    })
-  );
-  const odss = useQuery(
-    odsQueries.getAll({
-      edfiTenant: edfiTenant,
-      teamId: asId,
-    })
-  );
+  const { data: applications } = useGetManyApplications({
+    queryArgs: { edfiTenantId, teamId: asId },
+  });
+
+  const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
+  const odss = useQuery(odsQueries.getAll({ edfiTenant, teamId: asId }));
+
   const odssByInstanceId = {
     ...odss,
     data: Object.values(odss.data ?? {}).reduce<Record<string, GetOdsDto>>((map, ods) => {
@@ -111,10 +101,10 @@ export const ApplicationsPageContent = () => {
 
   return (
     <SbaaTableAllInOne
-      data={Object.values(applications?.data || {})}
+      data={applications ?? []}
       columns={[
         {
-          accessorKey: 'displayName',
+          accessorKey: 'applicationName',
           cell: NameCell,
           header: 'Name',
         },
@@ -135,25 +125,28 @@ export const ApplicationsPageContent = () => {
               )
               .join(', '),
           header: 'Education organization',
-          cell: (info) => (
-            <CappedLinesText maxLines={2}>
-              {info.row.original.educationOrganizationIds
-                .flatMap((edorgId) =>
-                  info.row.original.odsInstanceIds.map((odsInstanceId) => (
-                    <EdorgLink
-                      key={edorgId}
-                      id={edorgKeyV2({
-                        edorg: edorgId,
-                        ods: odsInstanceId,
-                      })}
-                      query={edorgsByEdorgId}
-                    />
+          cell: (info) => {
+            const { educationOrganizationIds, odsInstanceIds } = info.row.original;
+            const addCommas = educationOrganizationIds.length > 1;
+            return (
+              <CappedLinesText maxLines={2}>
+                {educationOrganizationIds.flatMap((edorgId, index) =>
+                  odsInstanceIds.map((odsInstanceId) => (
+                    <Fragment key={edorgId}>
+                      <EdorgLink
+                        id={edorgKeyV2({
+                          edorg: edorgId,
+                          ods: odsInstanceId,
+                        })}
+                        query={edorgsByEdorgId}
+                      />
+                      {addCommas && index < educationOrganizationIds.length - 1 ? ', ' : ''}
+                    </Fragment>
                   ))
-                )
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .reduce((prev, curr) => [prev, ', ', curr] as any)}
-            </CappedLinesText>
-          ),
+                )}
+              </CappedLinesText>
+            );
+          },
           meta: {
             type: 'options',
           },
@@ -165,16 +158,20 @@ export const ApplicationsPageContent = () => {
               .map((odsInstanceId) => getRelationDisplayName(odsInstanceId, odssByInstanceId))
               .join(', '),
           header: 'Ods',
-          cell: (info) => (
-            <>
-              {info.row.original.odsInstanceIds
-                .map((odsInstanceId) => (
-                  <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
-                ))
-                // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                .reduce((prev, curr) => [prev, ', ', curr] as any)}
-            </>
-          ),
+          cell: (info) => {
+            const { odsInstanceIds } = info.row.original;
+            const addCommas = odsInstanceIds.length > 1;
+            return (
+              <>
+                {odsInstanceIds.map((odsInstanceId, index) => (
+                  <Fragment key={odsInstanceId}>
+                    <OdsLink id={odsInstanceId} query={odssByInstanceId} />
+                    {addCommas && index < odsInstanceIds.length - 1 ? ', ' : ''}
+                  </Fragment>
+                ))}
+              </>
+            );
+          },
           meta: {
             type: 'options',
           },
@@ -195,26 +192,23 @@ export const ApplicationsPageContent = () => {
               .map((profileId) => getRelationDisplayName(profileId, profiles))
               .join(', '),
           header: 'Profiles',
-          cell: (info) => (
-            <>
-              {info.row.original.profileIds
-                .map((profileId) => <ProfileLink key={profileId} query={profiles} id={profileId} />)
-                .reduce((accumulator, currentValue, index) => {
-                  return index === 0
-                    ? currentValue
-                    : ((
-                        <>
-                          {accumulator}
-                          {', '}
-                          {currentValue}
-                        </>
-                      ) as any);
-                }, null)}
-            </>
-          ),
+          cell: (info) => {
+            const { profileIds } = info.row.original;
+            const addCommas = profileIds.length > 1;
+            return (
+              <>
+                {profileIds.map((profileId, index) => (
+                  <Fragment key={profileId}>
+                    <ProfileLink query={profiles} id={profileId} />
+                    {addCommas && index < profileIds.length - 1 ? ', ' : ''}
+                  </Fragment>
+                ))}
+              </>
+            );
+          },
         },
         {
-          id: 'claimest',
+          id: 'claimset',
           accessorFn: (info) => getRelationDisplayName(info.claimSetName, claimsetsByName),
           header: 'Claimset',
           cell: (info) => (
@@ -223,6 +217,11 @@ export const ApplicationsPageContent = () => {
           meta: {
             type: 'options',
           },
+        },
+        {
+          id: 'integrationProvider',
+          header: 'Integration Provider',
+          accessorKey: 'integrationProviderName',
         },
       ]}
     />

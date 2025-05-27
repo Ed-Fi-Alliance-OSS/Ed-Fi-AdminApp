@@ -9,13 +9,18 @@ import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
 import { applicationQueriesV2, claimsetQueriesV2 } from '../../api';
 
-import { GetClaimsetMultipleDtoV2 } from '@edanalytics/models';
+import {
+  GetApplicationDtoV2,
+  GetClaimsetMultipleDtoV2,
+  GetIntegrationAppDto,
+} from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { EditApplication } from './EditApplication';
 import { ViewApplication } from './ViewApplication';
 import { useSingleApplicationActions } from './useApplicationActions';
+import { useGetOneApplication } from '../../api-v2';
 
 export const ApplicationPageV2 = () => {
   return (
@@ -37,21 +42,19 @@ export const ApplicationPageV2 = () => {
 };
 
 export const ApplicationPageTitle = () => {
-  const { asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { asId, edfiTenantId } = useTeamEdfiTenantNavContextLoaded();
 
-  const params = useParams() as {
-    applicationId: string;
-  };
+  const { applicationId } = useParams();
 
-  const application = useQuery(
-    applicationQueriesV2.getOne({
-      id: params.applicationId,
-      edfiTenant,
+  const { data: application } = useGetOneApplication({
+    queryArgs: {
+      applicationId: Number(applicationId),
+      edfiTenantId,
       teamId: asId,
-    })
-  ).data;
+    },
+  });
 
-  return <>{application?.displayName || 'Application'}</>;
+  return <>{application?.applicationName || 'Application'}</>;
 };
 
 export const ApplicationPageContent = () => {
@@ -62,13 +65,15 @@ export const ApplicationPageContent = () => {
     applicationId: string;
   };
 
-  const application = useQuery(
-    applicationQueriesV2.getOne({
-      id: params.applicationId,
-      edfiTenant: edfiTenant,
+  const { data: application } = useGetOneApplication({
+    queryArgs: {
+      applicationId: Number(params.applicationId),
+      edfiTenantId,
       teamId: asId,
-    })
-  ).data;
+      getIntegrationAppDetails: true,
+    },
+  });
+
   const claimsets = useQuery(
     claimsetQueriesV2.getAll({
       edfiTenant: edfiTenant,
@@ -113,7 +118,7 @@ export const ApplicationPageActions = () => {
       edfiTenant: edfiTenant,
       teamId: asId,
     })
-  ).data;
+  ).data as GetApplicationDtoV2 & GetIntegrationAppDto;
 
   const actions = useSingleApplicationActions({
     application,

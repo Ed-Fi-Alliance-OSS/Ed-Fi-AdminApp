@@ -17,7 +17,13 @@ export class GetSbEnvironmentDto
   implements
     GetDto<
       ISbEnvironment,
-      'ownerships' | 'odss' | 'edorgs' | 'configPrivate' | 'edfiTenants' | 'adminApiUrl'
+      | 'ownerships'
+      | 'odss'
+      | 'edorgs'
+      | 'configPrivate'
+      | 'edfiTenants'
+      | 'adminApiUrl'
+      | 'integrationApps'
     >
 {
   @Expose()
@@ -131,6 +137,7 @@ export class PostSbEnvironmentDto
       | 'odsApiVersion'
       | 'odsDsVersion'
       | 'name'
+      | 'integrationApps'
     >
 {
   @Expose()
@@ -173,6 +180,7 @@ export class PutSbEnvironmentDto
       | 'odsApiVersion'
       | 'odsDsVersion'
       | 'adminApiUrl'
+      | 'integrationApps'
     >
 {
   @Expose()

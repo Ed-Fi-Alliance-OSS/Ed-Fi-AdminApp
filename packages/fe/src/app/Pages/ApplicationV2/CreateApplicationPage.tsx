@@ -18,8 +18,7 @@ import {
 import { PageTemplate } from '@edanalytics/common-ui';
 import { GetEdorgDto, PostApplicationFormDtoV2, edorgKeyV2 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { noop } from '@tanstack/react-table';
-import { useEffect, useMemo } from 'react';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { BsInfoCircle, BsTrash } from 'react-icons/bs';
 import { useNavigate } from 'react-router-dom';
@@ -38,25 +37,24 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { SelectIntegrationProvider } from '../IntegrationProvider/SelectIntegrationProvider';
+import { QUERY_KEYS } from '../../api-v2';
 const resolver = classValidatorResolver(PostApplicationFormDtoV2);
 
 export const CreateApplicationPageV2 = () => {
   const navigate = useNavigate();
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navToParentOptions = useNavToParent();
-  const popBanner = usePopBanner();
-  const postApplication = applicationQueriesV2.post({
+  const popGlobalBanner = usePopBanner();
+  const { mutateAsync: postApplication } = applicationQueriesV2.post({
     edfiTenant: edfiTenant,
     teamId: asId,
   });
-  const edorgs = useQuery(
-    edorgQueries.getAll({
-      edfiTenant,
-      teamId: asId,
-    })
-  );
+  const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
   const profiles = useQuery(profileQueriesV2.getAll({ edfiTenant, teamId: asId }));
+
+  const queryClient = useQueryClient();
 
   const edorgsByEdorgId = useMemo(() => {
     return {
@@ -71,7 +69,7 @@ export const CreateApplicationPageV2 = () => {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    setError,
+    setError: setFormError,
     watch,
     setValue,
     control,
@@ -80,17 +78,10 @@ export const CreateApplicationPageV2 = () => {
     defaultValues: new PostApplicationFormDtoV2(),
   });
 
-  const selectedEdorgs = watch('educationOrganizationIds', []);
-  const selectedProfileIds = watch('profileIds', []);
-
   const selectedOds = watch('odsInstanceId');
 
-  const setSelectedEdorgs = (edorgs: number[]) => {
-    setValue('educationOrganizationIds', edorgs);
-  };
-  const setSelectedProfiles = (profiles: number[]) => {
-    setValue('profileIds', profiles);
-  };
+  const selectedEdorgs = watch('educationOrganizationIds', []);
+  const setSelectedEdorgs = (edorgs: number[]) => setValue('educationOrganizationIds', edorgs);
   const filteredEdorgOptions = useMemo(() => {
     const filteredEdorgs = { ...edorgsByEdorgId.data };
     const selectedEdorgsSet = new Set(selectedEdorgs);
@@ -110,7 +101,7 @@ export const CreateApplicationPageV2 = () => {
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredEdorgs).map(([compositeKey, v]) => [
+      Object.entries(filteredEdorgs).map(([, v]) => [
         v.educationOrganizationId,
         {
           value: v.educationOrganizationId,
@@ -121,6 +112,9 @@ export const CreateApplicationPageV2 = () => {
       ])
     );
   }, [edorgsByEdorgId, selectedEdorgs, selectedOds]);
+
+  const selectedProfileIds = watch('profileIds', []);
+  const setSelectedProfiles = (profiles: number[]) => setValue('profileIds', profiles);
   const filteredProfileOptions = useMemo(() => {
     const filteredProfiles = { ...profiles.data };
     const selectedProfiles = new Set(selectedProfileIds);
@@ -131,43 +125,43 @@ export const CreateApplicationPageV2 = () => {
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredProfiles).map(([compositeKey, v]) => [
-        v.id,
-        {
-          value: v.id,
-          label: v.name,
-        },
-      ])
+      Object.entries(filteredProfiles).map(([, { id, name }]) => [id, { value: id, label: name }])
     );
   }, [profiles.data, selectedProfileIds]);
+
+  const onSubmit = async (data: PostApplicationFormDtoV2) => {
+    return postApplication(
+      { entity: data },
+      {
+        onSuccess({ id: appId, link: state }) {
+          queryClient.invalidateQueries({
+            queryKey: [
+              QUERY_KEYS.team,
+              asId,
+              QUERY_KEYS.edfiTenants,
+              edfiTenantId,
+              QUERY_KEYS.applications,
+            ],
+          });
+          navigate(
+            `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${appId}`,
+            { state }
+          );
+        },
+        ...mutationErrCallback({ popGlobalBanner, setFormError }),
+      }
+    ).catch(() => {});
+  };
+
   return (
     <PageTemplate title="New application">
-      <chakra.form
-        w="form-width"
-        onSubmit={handleSubmit((data) => {
-          return postApplication
-            .mutateAsync(
-              { entity: data },
-              {
-                onSuccess(data, variables, context) {
-                  navigate(
-                    `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${data.id}`,
-                    {
-                      state: data.link,
-                    }
-                  );
-                },
-                ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              }
-            )
-            .catch(noop);
-        })}
-      >
+      <chakra.form w="form-width" onSubmit={handleSubmit(onSubmit)}>
         <FormControl isInvalid={!!errors.applicationName}>
           <FormLabel>Application name</FormLabel>
           <Input {...register('applicationName')} placeholder="name" />
           <FormErrorMessage>{errors.applicationName?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.odsInstanceId}>
           <FormLabel>ODS</FormLabel>
           <SelectOds
@@ -185,6 +179,7 @@ export const CreateApplicationPageV2 = () => {
           />
           <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.educationOrganizationIds}>
           {selectedEdorgs.length ? (
             <Box my={4}>
@@ -215,6 +210,7 @@ export const CreateApplicationPageV2 = () => {
                     </ListItem>
                   ))}
                 </UnorderedList>
+
                 <FormLabel>Add another</FormLabel>
                 <SelectEdorg
                   onChange={(edorgId) => setSelectedEdorgs([...selectedEdorgs, Number(edorgId)])}
@@ -239,11 +235,13 @@ export const CreateApplicationPageV2 = () => {
           )}
           <FormErrorMessage>{errors.educationOrganizationIds?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.vendorId}>
           <FormLabel>Vendor</FormLabel>
           <SelectVendorV2 name="vendorId" control={control} />
           <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl>
           {selectedProfileIds?.length ? (
             <Box my={4}>
@@ -269,6 +267,7 @@ export const CreateApplicationPageV2 = () => {
                     </ListItem>
                   ))}
                 </UnorderedList>
+
                 <FormLabel>Add another</FormLabel>
                 <SelectProfile
                   onChange={(profileId) => setSelectedProfiles([...selectedProfileIds, profileId])}
@@ -290,6 +289,13 @@ export const CreateApplicationPageV2 = () => {
             </>
           )}
         </FormControl>
+
+        <FormControl isInvalid={!!errors.integrationProviderId}>
+          <FormLabel>Integration Provider</FormLabel>
+          <SelectIntegrationProvider name="integrationProviderId" control={control} />
+          <FormErrorMessage>{errors.integrationProviderId?.message}</FormErrorMessage>
+        </FormControl>
+
         <FormControl isInvalid={!!errors.claimsetId}>
           <FormLabel>
             Claimset{' '}
@@ -302,6 +308,7 @@ export const CreateApplicationPageV2 = () => {
           <SelectClaimsetV2 noReserved name="claimsetId" control={control} />
           <FormErrorMessage>{errors.claimsetId?.message}</FormErrorMessage>
         </FormControl>
+
         <ButtonGroup mt={4} colorScheme="primary">
           <Button isLoading={isSubmitting} type="submit">
             Save

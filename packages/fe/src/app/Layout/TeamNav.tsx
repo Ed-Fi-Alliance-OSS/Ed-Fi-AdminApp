@@ -25,6 +25,8 @@ import {
   BsPeopleFill,
   BsPin,
   BsPinFill,
+  BsPuzzle,
+  BsPuzzleFill,
   BsShieldLock,
   BsShieldLockFill,
 } from 'react-icons/bs';
@@ -262,6 +264,12 @@ export const TeamNav = (props: { teamId: string }) => {
                     }
                     const isPinned =
                       pinnedTenants[props.teamId]?.[sbEnvironment.id]?.includes(edfiTenantId);
+                    const tenantRootUrl = `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}`;
+                    const privilegeSubject = {
+                      teamId,
+                      edfiTenantId,
+                      id: '__filtered__',
+                    };
 
                     accum.push({
                       route: `/as/${teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}`,
@@ -318,15 +326,11 @@ export const TeamNav = (props: { teamId: string }) => {
                             queryClient,
                             config: {
                               privilege: 'team.sb-environment.edfi-tenant.ods:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }),
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/odss`,
+                            route: `${tenantRootUrl}/odss`,
                             icon: BsDatabase,
                             activeIcon: BsDatabaseFill,
                             text: 'ODSs',
@@ -337,15 +341,11 @@ export const TeamNav = (props: { teamId: string }) => {
                             queryClient,
                             config: {
                               privilege: 'team.sb-environment.edfi-tenant.ods.edorg:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }),
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/edorgs`,
+                            route: `${tenantRootUrl}/edorgs`,
                             icon: BsMortarboard,
                             activeIcon: BsFillMortarboardFill,
                             text: 'Ed-Orgs',
@@ -356,15 +356,11 @@ export const TeamNav = (props: { teamId: string }) => {
                             queryClient,
                             config: {
                               privilege: 'team.sb-environment.edfi-tenant.vendor:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }),
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/vendors`,
+                            route: `${tenantRootUrl}/vendors`,
                             icon: BsBuilding,
                             activeIcon: BsBuildingFill,
                             text: 'Vendors',
@@ -376,15 +372,11 @@ export const TeamNav = (props: { teamId: string }) => {
                             config: {
                               privilege:
                                 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }),
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/applications`,
+                            route: `${tenantRootUrl}/applications`,
                             icon: BsKey,
                             activeIcon: BsKeyFill,
                             text: 'Applications',
@@ -395,15 +387,11 @@ export const TeamNav = (props: { teamId: string }) => {
                             queryClient,
                             config: {
                               privilege: 'team.sb-environment.edfi-tenant.claimset:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }),
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/claimsets`,
+                            route: `${tenantRootUrl}/claimsets`,
                             icon: BsShieldLock,
                             activeIcon: BsShieldLockFill,
                             text: 'Claimsets',
@@ -414,18 +402,34 @@ export const TeamNav = (props: { teamId: string }) => {
                             queryClient,
                             config: {
                               privilege: 'team.sb-environment.edfi-tenant.profile:read',
-                              subject: {
-                                teamId: teamId,
-                                edfiTenantId: edfiTenantId,
-                                id: '__filtered__',
-                              },
+                              subject: privilegeSubject,
                             },
                           }) && sbEnvironment?.version === 'v2',
                           {
-                            route: `/as/${props.teamId}/sb-environments/${sbEnvironment.id}/edfi-tenants/${edfiTenantId}/profiles`,
+                            route: `${tenantRootUrl}/profiles`,
                             icon: BsFileEarmarkDiff,
                             activeIcon: BsFileEarmarkDiffFill,
                             text: 'Profiles',
+                          }
+                        ),
+                        ...arrayElemIf(
+                          // TODO: remove false in the next PR
+                          false &&
+                            authorize({
+                              queryClient,
+                              config: {
+                                privilege: 'team.integration-provider.application:read',
+                                subject: {
+                                  id: '__filtered__',
+                                  // teamId,
+                                },
+                              },
+                            }),
+                          {
+                            route: `${tenantRootUrl}/integration-providers`,
+                            icon: BsPuzzle,
+                            activeIcon: BsPuzzleFill,
+                            text: 'Integration Providers',
                           }
                         ),
                       ],

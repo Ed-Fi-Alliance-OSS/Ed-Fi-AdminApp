@@ -1,5 +1,6 @@
 import {
   IEdfiTenant,
+  IIntegrationApp,
   IOwnership,
   ISbEnvironment,
   SbEnvironmentConfigPrivate,
@@ -16,6 +17,9 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
 
   @OneToMany('EdfiTenant', (edfiTenant: IEdfiTenant) => edfiTenant.sbEnvironment)
   edfiTenants: IEdfiTenant[];
+
+  @OneToMany('IntegrationApp', (integrationApp: IIntegrationApp) => integrationApp.sbEnvironment)
+  integrationApps: IIntegrationApp[];
 
   @Column({ nullable: true })
   envLabel: string | null;

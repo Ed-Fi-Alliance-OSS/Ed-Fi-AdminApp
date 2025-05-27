@@ -3,6 +3,7 @@ export * from './edfi-admin-api.v2.dto';
 export * from './edfi-tenant.dto';
 export * from './edorg.dto';
 export * from './env-nav.dto';
+export * from './integration-app.dto';
 export * from './integration-provider.dto';
 export * from './ods.dto';
 export * from './operations.dto';

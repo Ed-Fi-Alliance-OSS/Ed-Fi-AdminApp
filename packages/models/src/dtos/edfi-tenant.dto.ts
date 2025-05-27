@@ -10,7 +10,10 @@ import { GetSbEnvironmentDto } from './sb-environment.dto';
 export class GetEdfiTenantDto
   extends DtoGetBase
   implements
-    GetDto<IEdfiTenant, 'ownerships' | 'odss' | 'edorgs' | 'configPrivate' | 'sbEnvironment'>
+    GetDto<
+      IEdfiTenant,
+      'ownerships' | 'odss' | 'edorgs' | 'configPrivate' | 'sbEnvironment' | 'integrationApps'
+    >
 {
   @Expose()
   name: string;
@@ -40,6 +43,7 @@ export class PostEdfiTenantDto
       | 'configPublic'
       | 'sbEnvironment'
       | 'sbEnvironmentId'
+      | 'integrationApps'
     >
 {
   @Expose()

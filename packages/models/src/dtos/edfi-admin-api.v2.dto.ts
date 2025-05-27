@@ -128,6 +128,10 @@ export class PostApplicationDtoV2 extends PostApplicationDtoBase {
   @Expose()
   @IsNumber()
   odsInstanceIds: number[];
+
+  @Expose()
+  @IsNumber()
+  integrationProviderId: number;
 }
 export class PutApplicationDtoV2 extends PostApplicationDtoV2 {}
 
@@ -145,6 +149,11 @@ export class PostApplicationFormDtoV2 extends PostApplicationFormBase {
   @Expose()
   @IsNumber()
   odsInstanceId: number;
+
+  @Expose()
+  @IsNumber()
+  @IsOptional()
+  integrationProviderId?: number;
 }
 
 export class PutApplicationFormDtoV2 extends PostApplicationFormDtoV2 {

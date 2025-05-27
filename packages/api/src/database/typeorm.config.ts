@@ -2,6 +2,8 @@ import {
   EdfiTenant,
   Edorg,
   EnvNav,
+  IntegrationApp,
+  IntegrationAppDetailed,
   IntegrationProvider,
   Ods,
   Oidc,
@@ -14,7 +16,9 @@ import {
   User,
   UserTeamMembership,
 } from '@edanalytics/models-server';
+
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+
 import { Initial1688158300508 } from './migrations/1687190483471-initial';
 import { SbeConfigReorg1687190483472 } from './migrations/1687190483472-sbe-config-reorg';
 import { AdOdsNaturalKeyToEdorg1687466013005 } from './migrations/1687466013005-add-ods-natural-key-to-edorg';
@@ -42,6 +46,8 @@ import { AddNameOfInstitutionToOwnershipView1725479500715 } from './migrations/1
 import { AddMachineUserColumns1742186909224 } from './migrations/1742891918530-AddMachineUserColumns';
 import { IntegrationProviders1744127024224 } from './migrations/1744127024224-IntegrationProviders';
 import { AddIntegrationProviderToOwnership1744919046622 } from './migrations/1744919046622-AddIntegrationProviderToOwnership';
+import { CreateIntegrationApps1744933017953 } from './migrations/1744933017953-CreateIntegrationApps';
+import { CreateDetailedIntegrationAppsView1745533840578 } from './migrations/1745533840578-CreateDetailedIntegrationAppsView';
 
 const config: Pick<
   PostgresConnectionOptions,
@@ -52,6 +58,8 @@ const config: Pick<
     EdfiTenant,
     Edorg,
     EnvNav,
+    IntegrationApp,
+    IntegrationAppDetailed,
     IntegrationProvider,
     Ods,
     Oidc,
@@ -94,6 +102,8 @@ const config: Pick<
     AddMachineUserColumns1742186909224,
     IntegrationProviders1744127024224,
     AddIntegrationProviderToOwnership1744919046622,
+    CreateIntegrationApps1744933017953,
+    CreateDetailedIntegrationAppsView1745533840578,
   ],
 };
 export default config;

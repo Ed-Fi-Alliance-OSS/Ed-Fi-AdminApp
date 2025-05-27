@@ -19,12 +19,12 @@ import {
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetEdorgDto,
+  GetIntegrationAppDto,
   PutApplicationFormDtoV2,
   edorgKeyV2,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { noop } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { BsInfoCircle, BsTrash } from 'react-icons/bs';
@@ -46,11 +46,13 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { SelectIntegrationProvider } from '../IntegrationProvider/SelectIntegrationProvider';
+import { QUERY_KEYS } from '../../api-v2';
 
 const resolver = classValidatorResolver(PutApplicationFormDtoV2);
 
 export const EditApplication = (props: {
-  application: GetApplicationDtoV2;
+  application: GetApplicationDtoV2 & GetIntegrationAppDto;
   claimset: GetClaimsetMultipleDtoV2 | undefined;
 }) => {
   const { application, claimset } = props;
@@ -78,12 +80,12 @@ export const EditApplication = (props: {
     })
   );
 
-  const putApplication = applicationQueriesV2.put({
+  const { mutateAsync: putApplication } = applicationQueriesV2.put({
     edfiTenant,
     teamId,
   });
   const queryClient = useQueryClient();
-  const popBanner = usePopBanner();
+  const popGlobalBanner = usePopBanner();
 
   const navigate = useNavigate();
   const goToView = () => {
@@ -91,25 +93,25 @@ export const EditApplication = (props: {
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}`
     );
   };
+
   const defaultValues = new PutApplicationFormDtoV2();
   defaultValues.id = application.id;
-  defaultValues.applicationName = application.displayName;
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  defaultValues.claimsetId = claimset?.id as any;
+  defaultValues.applicationName = application.applicationName;
+  defaultValues.claimsetId = claimset?.id as number;
+  defaultValues.integrationProviderId = application.integrationProviderId;
   defaultValues.profileIds = application.profileIds;
   defaultValues.vendorId = application.vendorId;
   defaultValues.educationOrganizationIds = application.educationOrganizationIds;
   defaultValues.odsInstanceId = application.odsInstanceIds[0];
+
   const {
     register,
     handleSubmit,
     formState: { errors, isSubmitting },
-    formState,
     control,
     setValue,
     watch,
-    setError,
-    reset,
+    setError: setFormError,
   } = useForm<PutApplicationFormDtoV2>({
     resolver,
     defaultValues,
@@ -155,6 +157,7 @@ export const EditApplication = (props: {
       ])
     );
   }, [edorgsByEdorgId, selectedEdorgs, selectedOds]);
+
   const filteredProfileOptions = useMemo(() => {
     const filteredProfiles = { ...profiles.data };
     const selectedProfiles = new Set(selectedProfileIds);
@@ -165,44 +168,56 @@ export const EditApplication = (props: {
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredProfiles).map(([compositeKey, v]) => [
-        v.id,
-        {
-          value: v.id,
-          label: v.name,
-        },
-      ])
+      Object.entries(filteredProfiles).map(([, v]) => [v.id, { value: v.id, label: v.name }])
     );
   }, [profiles.data, selectedProfileIds]);
+
+  const onSubmit = async (data: PutApplicationFormDtoV2) => {
+    return putApplication(
+      { entity: data },
+      {
+        onSuccess() {
+          queryClient.invalidateQueries({
+            queryKey: [
+              QUERY_KEYS.team,
+              teamId,
+              QUERY_KEYS.edfiTenants,
+              edfiTenantId,
+              QUERY_KEYS.applications,
+            ],
+          });
+          queryClient.invalidateQueries({
+            queryKey: queryKey({
+              resourceName: 'Claimset',
+              teamId: teamId,
+              edfiTenantId: edfiTenantId,
+            }),
+          });
+          goToView();
+        },
+        ...mutationErrCallback({ popGlobalBanner, setFormError }),
+      }
+    ).catch(() => {});
+  };
+
+  const hasIntegrationProvider = !!application.integrationProviderId;
+
   return edorgs.data && claimsets.data ? (
-    <form
-      onSubmit={handleSubmit((data) => {
-        return putApplication
-          .mutateAsync(
-            { entity: data },
-            {
-              onSuccess() {
-                queryClient.invalidateQueries({
-                  queryKey: queryKey({
-                    resourceName: 'Claimset',
-                    teamId: teamId,
-                    edfiTenantId: edfiTenantId,
-                  }),
-                });
-                goToView();
-              },
-              ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-            }
-          )
-          .catch(noop);
-      })}
-    >
+    <form onSubmit={handleSubmit(onSubmit)}>
       <Box w="form-width">
+        {hasIntegrationProvider && (
+          <Text>
+            Integration Applications do not allow the editing of:
+            <br />
+            ODS, Ed-orgs, or Integration Providers.
+          </Text>
+        )}
         <FormControl isInvalid={!!errors.applicationName}>
           <FormLabel>Application name</FormLabel>
           <Input {...register('applicationName')} placeholder="name" />
           <FormErrorMessage>{errors.applicationName?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.odsInstanceId}>
           <FormLabel>ODS</FormLabel>
           <SelectOds
@@ -217,9 +232,11 @@ export const EditApplication = (props: {
                 )
               );
             }}
+            isDisabled={hasIntegrationProvider}
           />
           <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.educationOrganizationIds}>
           {selectedEdorgs.length ? (
             <Box my={4}>
@@ -228,25 +245,26 @@ export const EditApplication = (props: {
                 <UnorderedList fontSize="sm">
                   {selectedEdorgs.map((edorgId, i) => (
                     <ListItem key={edorgId}>
-                      <Text as="span">
+                      <Text as="span" mr={2}>
                         {getRelationDisplayName(
                           edorgKeyV2({ edorg: edorgId, ods: selectedOds }),
                           edorgsByEdorgId
                         )}
                       </Text>
-                      &nbsp;&nbsp;
-                      <IconButton
-                        variant="ghost"
-                        colorScheme="red"
-                        aria-label="remove"
-                        icon={<Icon as={BsTrash} />}
-                        size="xs"
-                        onClick={() => {
-                          const newSelection = [...selectedEdorgs];
-                          newSelection.splice(i, 1);
-                          setSelectedEdorgs(newSelection);
-                        }}
-                      />
+                      {!hasIntegrationProvider && (
+                        <IconButton
+                          variant="ghost"
+                          colorScheme="red"
+                          aria-label="remove"
+                          icon={<Icon as={BsTrash} />}
+                          size="xs"
+                          onClick={() => {
+                            const newSelection = [...selectedEdorgs];
+                            newSelection.splice(i, 1);
+                            setSelectedEdorgs(newSelection);
+                          }}
+                        />
+                      )}
                     </ListItem>
                   ))}
                 </UnorderedList>
@@ -256,6 +274,7 @@ export const EditApplication = (props: {
                   onChange={(edorgId) => setSelectedEdorgs([...selectedEdorgs, Number(edorgId)])}
                   value={undefined}
                   options={filteredEdorgOptions}
+                  isDisabled={hasIntegrationProvider}
                 />
               </Box>
               <Divider mt={6} />
@@ -265,7 +284,7 @@ export const EditApplication = (props: {
               <FormLabel>Ed-org</FormLabel>
               <SelectEdorg
                 useEdorgId
-                isDisabled={selectedOds === undefined}
+                isDisabled={selectedOds === undefined || hasIntegrationProvider}
                 onChange={(edorgId) => setSelectedEdorgs([Number(edorgId)])}
                 value={undefined}
                 options={filteredEdorgOptions}
@@ -274,11 +293,13 @@ export const EditApplication = (props: {
           )}
           <FormErrorMessage>{errors.educationOrganizationIds?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl isInvalid={!!errors.vendorId}>
           <FormLabel>Vendor</FormLabel>
           <SelectVendorV2 name="vendorId" control={control} />
           <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
         </FormControl>
+
         <FormControl>
           {selectedProfileIds.length ? (
             <Box my={4}>
@@ -287,8 +308,9 @@ export const EditApplication = (props: {
                 <UnorderedList fontSize="sm">
                   {selectedProfileIds?.map((profileId, i) => (
                     <ListItem key={profileId}>
-                      <Text as="span">{profiles.data?.[profileId].name}</Text>
-                      &nbsp;&nbsp;
+                      <Text as="span" mr={2}>
+                        {profiles.data?.[profileId].name}
+                      </Text>
                       <IconButton
                         variant="ghost"
                         colorScheme="red"
@@ -323,6 +345,17 @@ export const EditApplication = (props: {
             </>
           )}
         </FormControl>
+
+        <FormControl isInvalid={!!errors.integrationProviderId}>
+          <FormLabel>Integration Provider</FormLabel>
+          <SelectIntegrationProvider
+            name="integrationProviderId"
+            control={control}
+            isDisabled={hasIntegrationProvider}
+          />
+          <FormErrorMessage>{errors.integrationProviderId?.message}</FormErrorMessage>
+        </FormControl>
+
         <FormControl isInvalid={!!errors.claimsetId}>
           <FormLabel>
             Claimset{' '}
@@ -335,6 +368,7 @@ export const EditApplication = (props: {
           <SelectClaimsetV2 noReserved name="claimsetId" control={control} />
           <FormErrorMessage>{errors.claimsetId?.message}</FormErrorMessage>
         </FormControl>
+
         <ButtonGroup mt={4} colorScheme="primary">
           <Button isLoading={isSubmitting} type="submit">
             Save

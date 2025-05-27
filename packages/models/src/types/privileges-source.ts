@@ -1,8 +1,14 @@
-const providerPrivileges = {
+const integrationProviderPrivileges = {
   'integration-provider:read': 'Read providers in the global scope.',
   'integration-provider:update': 'Update providers in the global scope.',
   'integration-provider:delete': 'Delete providers in the global scope.',
   'integration-provider:create': 'Create providers in the global scope.',
+};
+
+const integrationAppPrivileges = {
+  'team.integration-provider.application:read': 'Read integration provider apps for your team.',
+  'team.integration-provider.application:reset-credentials':
+    'Reset credentials for integration provider apps for your team.',
 };
 
 // TODO: add other configs beyond just description. For example whether it inherits upward maybe.
@@ -99,5 +105,6 @@ export const privileges = {
     "Reset credentials for your team's applications.",
   'sb-sync-queue:read': 'Read SB sync queue in the global scope.',
   'sb-sync-queue:archive': 'Archive SB sync queue in the global scope.',
-  ...providerPrivileges,
+  ...integrationProviderPrivileges,
+  ...integrationAppPrivileges,
 };

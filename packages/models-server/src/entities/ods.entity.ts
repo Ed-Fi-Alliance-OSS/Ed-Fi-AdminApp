@@ -1,4 +1,4 @@
-import { IEdorg, IOds, IOwnership, IEdfiTenant } from '@edanalytics/models';
+import { IEdorg, IOds, IOwnership, IEdfiTenant, IIntegrationApp } from '@edanalytics/models';
 import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';
 
@@ -17,6 +17,12 @@ export class Ods extends EntityBase implements IOds {
 
   @OneToMany('Edorg', (edorg: IEdorg) => edorg.ods)
   edorgs: IEdorg[];
+
+  @OneToMany(
+    'IntegrationApp',
+    (integrationApp: IIntegrationApp) => integrationApp.integrationProvider
+  )
+  integrationApps: IIntegrationApp[];
 
   @Column({ nullable: true })
   odsInstanceId: number | null;

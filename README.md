@@ -10,6 +10,8 @@
     - [Environment](#environment)
     - [External dependencies](#external-dependencies)
     - [Send it](#send-it)
+    - [Connecting to AWS](#connecting-to-aws)
+      - [Browser doesn't open for AWS CLI](#browser-doesnt-open-for-aws-cli)
   - [Creating and running migrations](#creating-and-running-migrations)
   - [Possible issues](#possible-issues)
   - [Using a machine user](#using-a-machine-user)
@@ -122,10 +124,29 @@ You now have a local identity provider running with a configuration that matches
 1. Go to http://localhost:4200 and log in.
 1. Start Storybook if you want with the Nx `storybook` target
 
+### Connecting to AWS
+
+1. Install the AWS Command Line Interface (CLI) [here](https://docs.aws.amazon.com/cli/latest/userguide/getting-started-install.html)
+2. Run `aws configure sso`
+   1. For session name, call it whatever you like
+   2. For start URL, put `https://edanalytics.awsapps.com/start/#`
+   3. For region, put `us-east-2`
+3. Run `aws sso login`
+   1. This should open a browser to login to AWS, if it does not, see below
+4. Follow the login prompts in the browser
+
+#### Browser doesn't open for AWS CLI
+
+If your browser isn't opening from WSL and you get a `gio: AWS_URL: operation not supported error`, try this
+
+1. Run `sudo add-apt-repository ppa:wslutilities/wslu`
+2. Run `sudo apt-get update`
+3. Run `sudo apt install wslu`
+
 ## Creating and running migrations
 
-1. Run `npx nx run api:migrations:generate --name MigrationNameHere`
-   1. Using the `--name` flag should give your migration a more meaningful name and put it in the correct folder
+1. Run `npm run migrations:generate -- MigrationNameHere`
+   1. Name your migration so its easy to understand what it does. This also puts it in the correct folder.
 2. Check the migration has appeared under [packages/api/src/database/migrations](packages/api/src/database/migrations) and with the name you gave it
    1. If it has, continue
    2. If it has not appeared under the above folder, move the migration to the above folder
@@ -133,12 +154,12 @@ You now have a local identity provider running with a configuration that matches
       - the filename
       - the classname in the file
       - the name variable in the file
-3. Run `npx nx run api:migrations:run`
+3. Run `npm run migrations:run`
 
 If you need to revert a migration, you can run the following
 
 ```
-npx nx run api:migrations:revert
+npm run migrations:revert
 ```
 
 ## Possible issues

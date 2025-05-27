@@ -9,6 +9,7 @@ import {
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetEdorgDto,
+  GetIntegrationAppDto,
   GetOdsDto,
   edorgKeyV2,
 } from '@edanalytics/models';
@@ -23,7 +24,11 @@ import {
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
 
-export const ViewApplication = ({ application }: { application: GetApplicationDtoV2 }) => {
+export const ViewApplication = ({
+  application,
+}: {
+  application: GetApplicationDtoV2 & GetIntegrationAppDto;
+}) => {
   const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
 
   const vendors = useQuery(
@@ -100,7 +105,7 @@ export const ViewApplication = ({ application }: { application: GetApplicationDt
   return application ? (
     <ContentSection>
       <AttributesGrid>
-        <Attribute isCopyable label="Application name" value={application.displayName} />
+        <Attribute isCopyable label="Application name" value={application.applicationName} />
         <AttributeContainer label="ODS">
           {application.odsInstanceIds
             .map((odsInstanceId) => (
@@ -150,6 +155,7 @@ export const ViewApplication = ({ application }: { application: GetApplicationDt
             '-'
           )}
         </AttributeContainer>
+        <Attribute label="Integration Provider" value={application.integrationProviderName} />
         <Attribute label="URL" value={url} isUrl isUrlExternal isCopyable />
       </AttributesGrid>
     </ContentSection>

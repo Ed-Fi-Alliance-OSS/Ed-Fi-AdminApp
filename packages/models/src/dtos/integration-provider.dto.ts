@@ -9,7 +9,7 @@ import { DtoPutBase, PutDto } from '../utils/put-base.dto';
 
 export class GetIntegrationProviderDto
   extends DtoGetBase
-  implements GetDto<IIntegrationProvider, 'ownerships'>
+  implements GetDto<IIntegrationProvider, 'ownerships' | 'integrationApps'>
 {
   @Expose()
   name: string;
@@ -21,7 +21,7 @@ export const toGetIntegrationProviderDto = makeSerializer(GetIntegrationProvider
 
 export class PutIntegrationProviderDto
   extends DtoPutBase
-  implements PutDto<IIntegrationProvider, 'ownerships'>
+  implements PutDto<IIntegrationProvider, 'ownerships' | 'integrationApps'>
 {
   @Expose()
   @IsString()
@@ -37,7 +37,7 @@ export class PutIntegrationProviderDto
 
 export class PostIntegrationProviderDto
   extends DtoPostBase
-  implements PostDto<IIntegrationProvider, 'ownerships'>
+  implements PostDto<IIntegrationProvider, 'ownerships' | 'integrationApps'>
 {
   @Expose()
   @IsString()

@@ -1,4 +1,4 @@
-import { IEdfiTenant, IOwnership } from '.';
+import { IEdfiTenant, IIntegrationApp, IOwnership } from '.';
 import { SbV2MetaSaved } from '../dtos/starting-blocks.v2.dto';
 import { IEntityBase } from '../utils/entity-base.interface';
 
@@ -75,6 +75,8 @@ export interface ISbEnvironment extends IEntityBase {
   ownerships: IOwnership[];
 
   edfiTenants: IEdfiTenant[];
+
+  integrationApps: IIntegrationApp[];
 
   envLabel: string | null;
   name: string;

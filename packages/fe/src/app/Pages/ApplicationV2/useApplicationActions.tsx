@@ -1,6 +1,7 @@
 import { ActionsType } from '@edanalytics/common-ui';
 
-import { GetApplicationDtoV2, edorgKeyV2 } from '@edanalytics/models';
+import { GetApplicationDtoV2, GetIntegrationAppDto, edorgKeyV2 } from '@edanalytics/models';
+import { useQueryClient } from '@tanstack/react-query';
 import { BiEdit, BiPlus, BiShieldX, BiTrash } from 'react-icons/bi';
 import { HiOutlineEye } from 'react-icons/hi';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -14,12 +15,14 @@ import {
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { QUERY_KEYS } from '../../api-v2';
 
 export const useSingleApplicationActions = ({
   application,
 }: {
-  application: GetApplicationDtoV2 | undefined;
+  application: (GetApplicationDtoV2 & GetIntegrationAppDto) | undefined;
 }): ActionsType => {
+  const queryClient = useQueryClient();
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
   const location = useLocation();
@@ -61,7 +64,7 @@ export const useSingleApplicationActions = ({
   });
 
   const canReset = useAuthorize(
-    application
+    application && !application.integrationProviderId
       ? application.odsInstanceIds.flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
@@ -119,7 +122,7 @@ export const useSingleApplicationActions = ({
               View: {
                 icon: HiOutlineEye,
                 text: 'View',
-                title: 'View ' + application.displayName,
+                title: 'View ' + application.applicationName,
                 to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}`,
                 onClick: () =>
                   navigate(
@@ -163,7 +166,7 @@ export const useSingleApplicationActions = ({
                 isDisabled: inEdit,
                 icon: BiEdit,
                 text: 'Edit',
-                title: 'Edit ' + application.displayName,
+                title: 'Edit ' + application.applicationName,
                 to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}?edit=true`,
                 onClick: () =>
                   navigate(
@@ -187,6 +190,15 @@ export const useSingleApplicationActions = ({
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => {
+                        queryClient.invalidateQueries({
+                          queryKey: [
+                            QUERY_KEYS.team,
+                            asId,
+                            QUERY_KEYS.edfiTenants,
+                            edfiTenantId,
+                            QUERY_KEYS.applications,
+                          ],
+                        });
                         if (onApplicationPage) {
                           navigate(parentPath);
                         }

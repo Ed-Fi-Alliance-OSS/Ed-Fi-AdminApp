@@ -1,4 +1,4 @@
-import { IIntegrationProvider, IOwnership } from '@edanalytics/models';
+import { IIntegrationApp, IIntegrationProvider, IOwnership } from '@edanalytics/models';
 import { Column, Entity, Index, OneToMany } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';
 
@@ -13,4 +13,10 @@ export class IntegrationProvider extends EntityBase implements IIntegrationProvi
 
   @OneToMany('Ownership', (ownership: IOwnership) => ownership.integrationProvider)
   ownerships: IOwnership[];
+
+  @OneToMany(
+    'IntegrationApp',
+    (integrationApp: IIntegrationApp) => integrationApp.integrationProvider
+  )
+  integrationApps: IIntegrationApp[];
 }

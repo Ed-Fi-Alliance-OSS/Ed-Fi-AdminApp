@@ -1,4 +1,4 @@
-import { IOwnership } from '.';
+import { IIntegrationApp, IOwnership } from '.';
 import { IEntityBase } from '../utils/entity-base.interface';
 import { IEdorg } from './edorg.interface';
 import { IEdfiTenant } from './edfi-tenant.interface';
@@ -15,4 +15,6 @@ export interface IOds extends IEntityBase {
   odsInstanceName: string | null;
   dbName: string;
   edorgs: IEdorg[];
+
+  integrationApps: IIntegrationApp[];
 }

@@ -39,7 +39,7 @@ export const toOdsRowCountsDto = makeSerializer(OdsRowCountsDto);
 
 export class GetOdsDto
   extends DtoGetBase
-  implements GetDto<IOds, 'ownerships' | 'edfiTenant' | 'edorgs'>
+  implements GetDto<IOds, 'ownerships' | 'edfiTenant' | 'edorgs' | 'integrationApps'>
 {
   @Expose()
   edfiTenantId: number;
@@ -74,6 +74,7 @@ export class PutOdsDto
       | 'odsInstanceId'
       | 'sbEnvironmentId'
       | 'odsInstanceName'
+      | 'integrationApps'
     >
 {
   @Expose()
@@ -96,6 +97,7 @@ export class PostOdsDto
       | 'sbEnvironmentId'
       | 'edfiTenantId'
       | 'odsInstanceName'
+      | 'integrationApps'
     >
 {
   @Expose()

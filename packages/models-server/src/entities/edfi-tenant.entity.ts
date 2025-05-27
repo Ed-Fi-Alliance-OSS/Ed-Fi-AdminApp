@@ -1,4 +1,11 @@
-import { IEdfiTenant, IEdorg, IOds, IOwnership, ISbEnvironment } from '@edanalytics/models';
+import {
+  IEdfiTenant,
+  IEdorg,
+  IIntegrationApp,
+  IOds,
+  IOwnership,
+  ISbEnvironment,
+} from '@edanalytics/models';
 import { Column, Entity, ManyToOne, OneToMany } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';
 
@@ -18,6 +25,9 @@ export class EdfiTenant extends EntityBase implements IEdfiTenant {
   odss: IOds[];
   @OneToMany('Edorg', (edorg: IEdorg) => edorg.edfiTenant)
   edorgs: IEdorg[];
+
+  @OneToMany('IntegrationApp', (integrationApp: IIntegrationApp) => integrationApp.edfiTenant)
+  integrationApps: IIntegrationApp[];
 
   @Column({
     comment:

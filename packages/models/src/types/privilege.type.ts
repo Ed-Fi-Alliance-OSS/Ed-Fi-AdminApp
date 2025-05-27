@@ -2,11 +2,15 @@ import { IPrivilege } from '../interfaces';
 import { PrivilegeCode } from './privileges';
 import { privileges } from './privileges-source';
 
-export type ProviderPrivilege =
+export type IntegrationProviderPrivilege =
   | 'integration-provider:read'
   | 'integration-provider:update'
   | 'integration-provider:delete'
   | 'integration-provider:create';
+
+export type IntegrationAppPrivilege =
+  | 'team.integration-provider.application:read'
+  | 'team.integration-provider.application:reset-credentials';
 
 export type BasePrivilege =
   | 'me:read'
@@ -45,7 +49,8 @@ export type BasePrivilege =
   | 'user-team-membership:update'
   | 'user-team-membership:delete'
   | 'user-team-membership:create'
-  | ProviderPrivilege;
+  | IntegrationProviderPrivilege
+  | IntegrationAppPrivilege;
 
 export type TeamBasePrivilege =
   | 'team.ownership:read'

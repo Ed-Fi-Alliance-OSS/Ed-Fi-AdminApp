@@ -8,6 +8,8 @@ import {
   EdfiTenant,
   Edorg,
   EnvNav,
+  IntegrationApp,
+  IntegrationAppDetailed,
   IntegrationProvider,
   Ods,
   Oidc,
@@ -45,12 +47,15 @@ import { RolesService } from '../teams/roles/roles.service';
 import { TeamsGlobalService } from '../teams/teams-global.service';
 import { CacheService } from './cache.module';
 import { Auth0Service } from '../auth0/auth0.service';
+import { IntegrationAppsTeamService } from '../integration-apps-team/integration-apps-team.service';
 
 const imports = [
   TypeOrmModule.forFeature([
     EdfiTenant,
     Edorg,
     EnvNav,
+    IntegrationApp,
+    IntegrationAppDetailed,
     IntegrationProvider,
     Ods,
     Oidc,
@@ -64,6 +69,7 @@ const imports = [
     UserTeamMembership,
   ]),
 ];
+
 const providers = [
   AdminApiServiceV1,
   AdminApiServiceV2,
@@ -73,6 +79,7 @@ const providers = [
   EdfiTenantsService,
   EdorgsGlobalService,
   EdorgsService,
+  IntegrationAppsTeamService,
   MetadataService,
   OdssGlobalService,
   OdssService,
