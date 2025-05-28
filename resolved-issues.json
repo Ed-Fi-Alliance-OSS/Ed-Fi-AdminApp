@@ -9,87 +9,9 @@
     "notes": "License acceptable"
   },
   {
-    "id": "GHSA-rhx6-c78j-4q9w",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>path-to-regexp"
-    ],
-    "notes": "path-to-regexp: Waiting on the same PR as body-parser"
-  },
-  {
-    "id": "GHSA-qwcr-r2fm-qrc7",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>body-parser",
-      "@nestjs/core>@nestjs/platform-express>express>body-parser",
-      "@nestjs/platform-express>body-parser",
-      "@nestjs/platform-express>express>body-parser",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>body-parser",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>body-parser",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>body-parser",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>body-parser"
-    ],
-    "notes": "body-parser: Waiting on PR to be merged into nestjs"
-  },
-  {
-    "id": "GHSA-qw6h-vgh9-j6wx",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>express",
-      "@nestjs/platform-express>express",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express"
-    ],
-    "notes": "express: Waiting on the same PR as body-parser"
-  },
-  {
     "id": "GHSA-9wv6-86v2-598j",
-    "paths": [
-      "@nestjs/core>path-to-regexp",
-      "@nestjs/platform-express>@nestjs/core>path-to-regexp",
-      "@nestjs/swagger>path-to-regexp",
-      "@nestjs/swagger>@nestjs/core>path-to-regexp",
-      "@nestjs/typeorm>@nestjs/core>path-to-regexp",
-      "@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>path-to-regexp",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>path-to-regexp"
-    ],
+    "paths": ["@nestjs/swagger>path-to-regexp"],
     "notes": "path-to-regexp: Waiting on the same PR as body-parser"
-  },
-  {
-    "id": "GHSA-m6fv-jmcg-4jfg",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>express>send",
-      "@nestjs/core>@nestjs/platform-express>express>serve-static>send",
-      "@nestjs/platform-express>express>send",
-      "@nestjs/platform-express>express>serve-static>send",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>send",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>serve-static>send",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>send",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>serve-static>send"
-    ],
-    "notes": "send: Waiting on the same PR as body-parser"
-  },
-  {
-    "id": "GHSA-cm22-4g7w-348p",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>express>serve-static",
-      "@nestjs/platform-express>express>serve-static",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>express>serve-static",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>express>serve-static"
-    ],
-    "notes": "send: Waiting on the same PR as body-parser"
-  },
-  {
-    "id": "SWRM-201-@nestjs/core-10.4.1-postinstall",
-    "paths": [
-      "@nestjs/core",
-      "@nestjs/platform-express>@nestjs/core",
-      "@nestjs/swagger>@nestjs/core",
-      "@nestjs/typeorm>@nestjs/core"
-    ],
-    "notes": "Install script acceptable"
   },
   {
     "id": "SWRM-201-@swc/core-1.5.7-postinstall",
@@ -124,24 +46,6 @@
     "notes": "License acceptable"
   },
   {
-    "id": "SWRM-102-package-json-from-dist-1.0.0",
-    "paths": [
-      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
-      "typeorm>glob>package-json-from-dist",
-      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
-    ],
-    "notes": "License acceptable"
-  },
-  {
-    "id": "SWRM-104-package-json-from-dist-1.0.0",
-    "paths": [
-      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
-      "typeorm>glob>package-json-from-dist",
-      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
-    ],
-    "notes": "License acceptable"
-  },
-  {
     "id": "SWRM-102-path-scurry-1.11.1",
     "paths": [
       "@nestjs/typeorm>typeorm>glob>path-scurry",
@@ -160,21 +64,31 @@
     "notes": "License acceptable"
   },
   {
-    "id": "SWRM-103-openpgp-5.11.2",
-    "paths": ["openpgp"],
-    "notes": "License acceptable"
-  },
-  {
-    "id": "SWRM-151-openpgp-5.11.2",
-    "paths": ["openpgp"],
-    "notes": "License acceptable"
-  },
-  {
     "id": "SWRM-202-react-style-singleton-2.2.1",
     "paths": [
       "@chakra-ui/react>@chakra-ui/modal>react-remove-scroll>react-remove-scroll-bar>react-style-singleton",
       "@chakra-ui/react>@chakra-ui/modal>react-remove-scroll>react-style-singleton"
     ],
     "notes": "A repository does exist. False positive."
+  },
+  {
+    "id": "GHSA-4pg4-qvpc-4q3h",
+    "paths": [
+      "@nestjs/core>@nestjs/platform-express>multer",
+      "@nestjs/platform-express>multer",
+      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>multer",
+      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>multer"
+    ],
+    "notes": "temporary resolution. no fixes yet available"
+  },
+  {
+    "id": "SWRM-201-@nestjs/core-10.4.17-postinstall",
+    "paths": [
+      "@nestjs/core",
+      "@nestjs/platform-express>@nestjs/core",
+      "@nestjs/swagger>@nestjs/core",
+      "@nestjs/typeorm>@nestjs/core"
+    ],
+    "notes": "just opencollective funding message"
   }
 ]
