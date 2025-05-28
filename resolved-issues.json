@@ -1,18 +1,10 @@
 [
   {
-    "id": "SWRM-104-package-json-from-dist-1.0.1",
-    "paths": [
-      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
-      "typeorm>glob>package-json-from-dist",
-      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
-    ],
-    "notes": "License acceptable"
-  },
-  {
     "id": "GHSA-9wv6-86v2-598j",
     "paths": ["@nestjs/swagger>path-to-regexp"],
     "notes": "path-to-regexp: Waiting on the same PR as body-parser"
   },
+
   {
     "id": "SWRM-201-@swc/core-1.5.7-postinstall",
     "paths": [
@@ -21,6 +13,45 @@
       "typeorm-encrypted>typeorm>ts-node>@swc/core"
     ],
     "notes": "Install script acceptable"
+  },
+  {
+    "id": "SWRM-201-@nestjs/core-10.4.18-postinstall",
+    "paths": [
+      "@nestjs/core",
+      "@nestjs/platform-express>@nestjs/core",
+      "@nestjs/swagger>@nestjs/core",
+      "@nestjs/typeorm>@nestjs/core"
+    ],
+    "notes": "just opencollective funding message"
+  },
+
+  {
+    "id": "SWRM-103-openpgp-6.1.1",
+    "paths": ["openpgp"],
+    "notes": "License acceptable"
+  },
+  {
+    "id": "SWRM-151-openpgp-6.1.1",
+    "paths": ["openpgp"],
+    "notes": "License acceptable"
+  },
+  {
+    "id": "SWRM-102-package-json-from-dist-1.0.1",
+    "paths": [
+      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
+      "typeorm>glob>package-json-from-dist",
+      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
+    ],
+    "notes": "License acceptable"
+  },
+  {
+    "id": "SWRM-104-package-json-from-dist-1.0.1",
+    "paths": [
+      "@nestjs/typeorm>typeorm>glob>package-json-from-dist",
+      "typeorm>glob>package-json-from-dist",
+      "typeorm-encrypted>typeorm>glob>package-json-from-dist"
+    ],
+    "notes": "License acceptable"
   },
   {
     "id": "SWRM-104-@fontsource/ibm-plex-sans-5.0.20",
@@ -63,6 +94,7 @@
     ],
     "notes": "License acceptable"
   },
+
   {
     "id": "SWRM-202-react-style-singleton-2.2.1",
     "paths": [
@@ -70,25 +102,5 @@
       "@chakra-ui/react>@chakra-ui/modal>react-remove-scroll>react-style-singleton"
     ],
     "notes": "A repository does exist. False positive."
-  },
-  {
-    "id": "GHSA-4pg4-qvpc-4q3h",
-    "paths": [
-      "@nestjs/core>@nestjs/platform-express>multer",
-      "@nestjs/platform-express>multer",
-      "@nestjs/swagger>@nestjs/core>@nestjs/platform-express>multer",
-      "@nestjs/typeorm>@nestjs/core>@nestjs/platform-express>multer"
-    ],
-    "notes": "temporary resolution. no fixes yet available"
-  },
-  {
-    "id": "SWRM-201-@nestjs/core-10.4.17-postinstall",
-    "paths": [
-      "@nestjs/core",
-      "@nestjs/platform-express>@nestjs/core",
-      "@nestjs/swagger>@nestjs/core",
-      "@nestjs/typeorm>@nestjs/core"
-    ],
-    "notes": "just opencollective funding message"
   }
 ]

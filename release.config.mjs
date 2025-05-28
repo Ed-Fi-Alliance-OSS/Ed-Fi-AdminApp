@@ -10,7 +10,9 @@ export default {
         preset: 'conventionalcommits',
         // Defaults: https://github.com/semantic-release/commit-analyzer/blob/master/lib/default-release-rules.js
         releaseRules: [
+          { type: 'feature', release: 'minor' },
           { type: 'refactor', release: 'patch' },
+          { type: 'performance', release: 'patch' },
           { type: 'perf', release: 'patch' },
           { type: 'style', release: 'patch' },
           { type: 'revert', release: 'patch' },
@@ -24,8 +26,10 @@ export default {
         presetConfig: {
           types: [
             // What commit types show up in the changelog file
+            { type: 'feature', section: 'Features' },
             { type: 'feat', section: 'Features' },
             { type: 'fix', section: 'Bug Fixes' },
+            { type: 'performance', section: 'Performance Improvements' },
             { type: 'perf', section: 'Performance Improvements' },
             { type: 'revert', section: 'Reverts' },
             { type: 'docs', section: 'Documentation' },
