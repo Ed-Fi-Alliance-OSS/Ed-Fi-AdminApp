@@ -65,14 +65,9 @@ Metadata:
           default: CodePipeline information
         Parameters:
           - GitHubConnectionArn
-          - BEGitHubRepo
-          - BEGitHubBranch
+          - GitHubRepo
+          - GitHubBranch
           - CreateS3Bucket
-          - FEGitHubRepo
-          - FEGitHubBranch
-          - AuthAppLauncherLoginUrl
-          - AuthCognitoPoolId
-          - AuthCognitoClientId
 
 Parameters:
   EnvLabel:
@@ -278,11 +273,11 @@ Parameters:
     Type: String
     Default: arn:aws:codestar-connections:us-east-2:179685256884:connection/5b1234e6-559b-4118-a522-282a6d01970e
 
-  BEGitHubRepo:
+  GitHubRepo:
     Type: String
     Description: GitHub repo name to build from
     Default: 'edanalytics/startingblocks_admin_app'
-  BEGitHubBranch:
+  GitHubBranch:
     Type: String
     Description: Name of the branch in the GitHub repo to build from.
     Default: SBAA-27-deployment
@@ -293,26 +288,6 @@ Parameters:
     AllowedValues:
       - 'Create the S3 Bucket'
       - 'The S3 Bucket already exists'
-  FEGitHubRepo:
-    Type: String
-    Description: GitHub repo name to build from
-    Default: 'edanalytics/startingblocks_admin_app'
-  FEGitHubBranch:
-    Type: String
-    Description: Name of the branch in the GitHub repo to build from.
-    Default: SBAA-27-deployment
-  AuthAppLauncherLoginUrl:
-    Type: String
-    Description: App launcher login url
-    Default: 'https://login.rally.edanalytics.org/login'
-  AuthCognitoPoolId:
-    Type: String
-    Description: Cognito pool Id for App Launcher
-    Default: 'us-east-2_GKriiKORy'
-  AuthCognitoClientId:
-    Type: String
-    Description: Cognito client Id for App Launcher
-    Default: '26gf6ua3iholfru7is2tr1ecs4'
   SNSTopicArn:
     Description: ARN of SNS topic in us-east-1 to publish Route53 HealthCheck Alarms (optional)
     Type: String
@@ -415,34 +390,26 @@ Resources:
         SNSTopicArn: !Ref SNSTopicArn
         East1AlarmLambdaArn:
           !If [EnableHealthCheck, !GetAtt 'LambdaCoreStack.Outputs.East1AlarmLambdaArn', '']
-  FrontEndCodePipelineStack:
+  CodePipelineStack:
     Type: AWS::CloudFormation::Stack
     Properties:
-      TemplateURL: !Sub 'https://${S3SourceBucket}.s3.amazonaws.com/templates/sbaa-code-pipeline-fe.yml'
+      TemplateURL: !Sub 'https://${S3SourceBucket}.s3.amazonaws.com/templates/sbaa-code-pipeline.yml'
       Parameters:
-        EnvLabel: !Ref EnvLabel
-        CreateS3Bucket: !Ref CreateS3Bucket
-        GitHubConnectionArn: !Ref GitHubConnectionArn
-        GitHubRepo: !Ref FEGitHubRepo
-        GitHubBranch: !Ref FEGitHubBranch
-        ViteApiUrl: !Sub 'https://api.${DomainName}'
-        FeBucketName: !Ref S3FrontEndBucket
-        DistributionId: !GetAtt 'FrontEndS3CloudFrontStack.Outputs.DistributionId'
-  BackEndCodePipelineStack:
-    Type: AWS::CloudFormation::Stack
-    Properties:
-      TemplateURL: !Sub 'https://${S3SourceBucket}.s3.amazonaws.com/templates/sbaa-code-pipeline-be.yml'
-      Parameters:
-        GitHubBranch: !Ref BEGitHubBranch
         GitHubConnectionArn: !Ref GitHubConnectionArn
         EnvLabel: !Ref EnvLabel
-        GitHubRepo: !Ref BEGitHubRepo
+        GitHubRepo: !Ref GitHubRepo
+        GitHubBranch: !Ref GitHubBranch
         BsAppName: !GetAtt 'BackEndBeanstalkStack.Outputs.ApplicationName'
         BsEnvName: !GetAtt 'BackEndBeanstalkStack.Outputs.EnvironmentName'
-        CreateS3Bucket: 'The S3 Bucket already exists'
-        AuthAppLauncherLoginUrl: !Ref AuthAppLauncherLoginUrl
-        AuthCognitoPoolId: !Ref AuthCognitoPoolId
-        AuthCognitoClientId: !Ref AuthCognitoClientId
+        CreateS3Bucket: !Ref CreateS3Bucket
+        FeBucketName: !Ref S3FrontEndBucket
+        DistributionId: !GetAtt 'FrontEndS3CloudFrontStack.Outputs.DistributionId'
+        ParentVPCStack: !Ref ParentVPCStack
+        ViteApiUrl: !Sub 'https://api.${DomainName}'
+        LambdaDefaultSgId:
+          Fn::GetAtt:
+            - LambdaCoreStack
+            - Outputs.LambdaDefaultSgId
   LambdaCoreStack:
     Type: AWS::CloudFormation::Stack
     Properties:
@@ -457,4 +424,4 @@ Resources:
 Outputs:
   TemplateVersion:
     Description: The version of the cloudformation template
-    Value: '1.0.1'
+    Value: '1.0.2'

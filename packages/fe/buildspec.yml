@@ -16,7 +16,6 @@ phases:
       - ls
       - ls dist
       - ls dist/packages/fe
-      - aws cloudfront create-invalidation --distribution-id $DISTRIBUTION_ID --paths '/*'
 artifacts:
   files:
     - '**/*'

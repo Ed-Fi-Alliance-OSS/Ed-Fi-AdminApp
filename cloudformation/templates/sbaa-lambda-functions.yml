@@ -293,3 +293,6 @@ Outputs:
     Condition: EnableHealthCheck
     Description: ARN for the East1 Alarm Function
     Value: !GetAtt 'East1AlarmFunction.Arn'
+  LambdaDefaultSgId:
+    Description: 'ID of LambdaDefaultSG'
+    Value: !Ref LambdaDefaultSG
