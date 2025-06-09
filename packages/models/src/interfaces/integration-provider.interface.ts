@@ -7,4 +7,5 @@ export interface IIntegrationProvider extends IEntityBase {
   description: string;
   integrationApps: IIntegrationApp[];
   ownerships: IOwnership[];
+  appCount?: number;
 }

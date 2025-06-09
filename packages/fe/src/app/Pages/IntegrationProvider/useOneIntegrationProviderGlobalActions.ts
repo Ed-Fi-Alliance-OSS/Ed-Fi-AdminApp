@@ -14,7 +14,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePaths } from '../../routes/paths';
-import { useDeleteIntegrationProvider, QUERY_KEYS } from '../../api-v2';
+import { useDeleteIntegrationProvider, QUERY_KEYS, useGetManyIntegrationApps } from '../../api-v2';
 
 export const useOneIntegrationProviderGlobalActions = (
   integrationProvider: GetIntegrationProviderDto | undefined
@@ -42,6 +42,8 @@ export const useOneIntegrationProviderGlobalActions = (
   if (!integrationProvider) {
     return {};
   }
+
+  const hasIntegrationApps = (integrationProvider.appCount ?? 0) > 0;
 
   const integrationProviderId = integrationProvider.id;
   const onPage =
@@ -100,14 +102,18 @@ export const useOneIntegrationProviderGlobalActions = (
       }
     : {};
 
+  const deleteTitle = hasIntegrationApps
+    ? 'This Integration Provider has integration apps and cannot be deleted.'
+    : `Delete ${integrationProvider.name}`;
   const deleteAction: ActionsType = canDelete
     ? {
         Delete: {
           icon: BiTrash,
           text: 'Delete',
-          title: 'Delete ' + integrationProvider.name,
+          title: deleteTitle,
           confirmBody: 'This will permanently delete the integration provider.',
           confirm: true,
+          isDisabled: hasIntegrationApps,
           onClick: onDeleteClick,
         },
       }

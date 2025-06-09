@@ -16,6 +16,9 @@ export class GetIntegrationProviderDto
 
   @Expose()
   description: string;
+
+  @Expose()
+  appCount?: number;
 }
 export const toGetIntegrationProviderDto = makeSerializer(GetIntegrationProviderDto);
 

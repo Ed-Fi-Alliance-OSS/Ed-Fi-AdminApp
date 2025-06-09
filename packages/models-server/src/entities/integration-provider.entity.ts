@@ -19,4 +19,6 @@ export class IntegrationProvider extends EntityBase implements IIntegrationProvi
     (integrationApp: IIntegrationApp) => integrationApp.integrationProvider
   )
   integrationApps: IIntegrationApp[];
+
+  appCount?: number;
 }
