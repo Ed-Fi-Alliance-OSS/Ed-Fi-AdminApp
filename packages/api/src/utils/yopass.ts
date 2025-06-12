@@ -54,31 +54,6 @@ export const postYopassSecret = async (body: PostApplicationResponseDtoBase & { 
   };
 };
 
-export const postYopassAuth0Secret = async ({
-  clientId,
-  clientSecret,
-}: {
-  clientId: string;
-  clientSecret: string;
-}) => {
-  const AUTH0_CONFIG_SECRET = await config.AUTH0_CONFIG_SECRET;
-  // It is not needed to add a guard if these are undefined, since this step happens after auth0 is initialized
-  // And the checks are done in the auth0 service
-  const { ISSUER: issuer, MACHINE_AUDIENCE: audience } = AUTH0_CONFIG_SECRET;
-  const { uuid, password } = await getYopassResponse({ clientId, clientSecret, issuer, audience });
-
-  // This is used in conjunction with getFieldsFromSearchParams and the SecretPage component
-  const searchParams = `?${new URLSearchParams({
-    fields:
-      'issuer,Issuer;clientId,Client ID;clientSecret,Client Secret,isMasked;audience,Audience',
-  })}`;
-
-  // searchParams must go before the hash due to browser spec
-  return {
-    link: [config.FE_URL, `secret/${searchParams}#`, uuid, password].join('/'),
-  };
-};
-
 const encryptMessage = async (data: string, passwords: string) => {
   return encrypt({
     message: await createMessage({ text: data }),

@@ -2,15 +2,19 @@ import {
   Box,
   Button,
   ButtonGroup,
+  chakra,
   Checkbox,
   FormControl,
   FormErrorMessage,
   FormLabel,
+  Icon,
   Input,
+  Link,
   Radio,
   RadioGroup,
   Stack,
   Text,
+  Tooltip,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { GetUserDto, PostUserDto, RoleType } from '@edanalytics/models';
@@ -24,6 +28,7 @@ import { userQueries, userTeamMembershipQueries } from '../../api';
 import { AuthorizeComponent, SelectRole, SelectTeam, useNavToParent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useState } from 'react';
+import { BsInfoCircle } from 'react-icons/bs';
 
 const resolver = classValidatorResolver(PostUserDto);
 
@@ -66,11 +71,9 @@ export const CreateUser = () => {
         {
           ...mutationErrCallback({ popGlobalBanner, setFormError }),
           onSuccess: async (result) => {
-            const { yopassLink } = result;
-
             queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
             if (!isAddingToTeam) {
-              navigate(`/users/${result.id}`, { state: yopassLink });
+              navigate(`/users/${result.id}`);
               return;
             }
 
@@ -82,7 +85,7 @@ export const CreateUser = () => {
                 {
                   onSuccess: () => {
                     queryClient.invalidateQueries({ queryKey: ['me', 'user-team-memberships'] });
-                    navigate(`/users/${result.id}`, { state: yopassLink });
+                    navigate(`/users/${result.id}`);
                   },
                   ...mutationErrCallback({ popGlobalBanner, setFormError }),
                 }
@@ -116,6 +119,7 @@ export const CreateUser = () => {
                     unregister('givenName');
                     unregister('familyName');
                     unregister('description');
+                    unregister('clientId');
                     field.onChange(value);
                   }}
                 >
@@ -143,11 +147,36 @@ export const CreateUser = () => {
               </FormControl>
             </>
           ) : (
-            <FormControl isInvalid={!!errors.description}>
-              <FormLabel>Description</FormLabel>
-              <Input {...register('description')} placeholder="description" />
-              <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
-            </FormControl>
+            <>
+              <FormControl isInvalid={!!errors.description}>
+                <FormLabel>Description</FormLabel>
+                <Input {...register('description')} placeholder="description" />
+                <FormErrorMessage>{errors.description?.message}</FormErrorMessage>
+              </FormControl>
+              <FormControl isInvalid={!!errors.clientId}>
+                <FormLabel>
+                  Client ID (
+                  <Link
+                    color="blue"
+                    target="_blank"
+                    href="https://github.com/edanalytics/startingblocks_admin_app/tree/6f79429b13ae0df5dbeb0649e268d1feca5e33ff?tab=readme-ov-file#auth0-application-creation"
+                  >
+                    help
+                  </Link>
+                  ){' '}
+                  <Tooltip
+                    label="Create the application in Auth0 first (likely a task for Mark T, Eshara M, or Bjorn H). Instructions at link."
+                    hasArrow
+                  >
+                    <chakra.span>
+                      <Icon as={BsInfoCircle} />
+                    </chakra.span>
+                  </Tooltip>
+                </FormLabel>
+                <Input {...register('clientId')} placeholder="clientId" />
+                <FormErrorMessage>{errors.clientId?.message}</FormErrorMessage>
+              </FormControl>
+            </>
           )}
 
           <FormControl isInvalid={!!errors.isActive}>

@@ -12,6 +12,7 @@ import {
 } from 'typeorm';
 
 @Index(['username'], { unique: true })
+@Index(['clientId'], { unique: true })
 @Entity()
 export class User implements IUser {
   @PrimaryGeneratedColumn()

@@ -202,3 +202,20 @@ curl \
 ## Architecture overview
 
 An overview of the architecture can be found [here](docs/architecture.md)
+
+## M2M Users
+
+SBAA has a concept of machine users. They're rows in the main user table, but their login mechanism is different. Each one is tied to an Auth0 "Application" by Client ID, and you request tokens from Auth0 using that application's credentials. Then when you make an SBAA API request with the access token (`Authorization: Bearer <token>`), SBAA looks up the machine user record by that Client ID and attaches it to the app logic just like it does for the normal cookie-based human users.
+
+### Auth0 Application creation
+
+> Note: the link to this section specifies a commit so we don't have to worry about rot, but you might want to check this [same location on `main`](https://github.com/edanalytics/startingblocks_admin_app/?tab=readme-ov-file#auth0-application-creation) for updates.
+
+An Application needs to be created by hand in Auth0, and then the Client ID entered in SBAA's machine user creation form. Create them like this:
+
+1. Choose the `Machine to machine applications` type
+1. Enter a name
+1. Once created, switch to the `APIs` tab of the application's page
+1. Turn on the `Authorized` toggle for SBAA
+1. Expand the dropdown and check the `login:app` scope
+1. Go to the `Settings` tab and retrieve the Client ID for use in SBAA's form. Copy one of the language-specific code blocks from the `Quickstart` tab and share it with the ultimate user of the machine registration.

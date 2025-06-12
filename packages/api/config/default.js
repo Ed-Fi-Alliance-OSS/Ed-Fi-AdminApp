@@ -41,9 +41,6 @@ module.exports = {
           CLIENT_ID: secret.CLIENT_ID,
           CLIENT_SECRET: secret.CLIENT_SECRET,
           MACHINE_AUDIENCE: secret.MACHINE_AUDIENCE,
-          MANAGEMENT_DOMAIN: secret.MANAGEMENT_DOMAIN,
-          MANAGEMENT_CLIENT_ID: secret.MANAGEMENT_CLIENT_ID,
-          MANAGEMENT_CLIENT_SECRET: secret.MANAGEMENT_CLIENT_SECRET,
         });
       });
     } else {

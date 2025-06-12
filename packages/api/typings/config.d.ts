@@ -17,10 +17,6 @@ declare module 'config' {
     MACHINE_AUDIENCE?: string;
     CLIENT_ID?: string;
     CLIENT_SECRET?: string;
-
-    MANAGEMENT_DOMAIN?: string;
-    MANAGEMENT_CLIENT_ID?: string;
-    MANAGEMENT_CLIENT_SECRET?: string;
   }
 
   interface IConfig {
