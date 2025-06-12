@@ -349,7 +349,7 @@ export const EditApplication = (props: {
           )}
         </FormControl>
 
-        <FormControl isInvalid={!!errors.integrationProviderId}>
+        {/* <FormControl isInvalid={!!errors.integrationProviderId}>
           <FormLabel>Integration Provider</FormLabel>
           <SelectIntegrationProvider
             name="integrationProviderId"
@@ -358,7 +358,7 @@ export const EditApplication = (props: {
             isClearable={!hasIntegrationProvider}
           />
           <FormErrorMessage>{errors.integrationProviderId?.message}</FormErrorMessage>
-        </FormControl>
+        </FormControl> */}
 
         <FormControl isInvalid={!!errors.claimsetId}>
           <FormLabel>

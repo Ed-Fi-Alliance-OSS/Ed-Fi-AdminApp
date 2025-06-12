@@ -34,19 +34,19 @@ When merging PRs into `develop`, always click `Squash and merge`. This ensures t
 
 Possible prefixes are listed here, and what they are meant to be for.
 
-| Prefix      | Description                                        | Release Type |
-| ----------- | -------------------------------------------------- | ------------ |
-| `feat:`     | New features, like adding a new field to a form    | minor        |
-| `fix:`      | Bug fixes                                          | patch        |
-| `perf:`     | Performance improvements                           | patch        |
-| `style:`    | Code style changes, like linting                   | patch        |
-| `revert:`   | Undoing previous commits, usually via `git revert` | patch        |
-| `docs:`     | Updating docs                                      | none         |
-| `chore:`    | Small changes where nothing else fits              | none         |
-| `refactor:` | Improving code logic                               | patch        |
-| `test:`     | Adding or updating tests                           | none         |
-| `build:`    | Changing the build system                          | none         |
-| `ci:`       | Improving the CI                                   | none         |
+| Prefix         | Description                                        | Release Type |
+| -------------- | -------------------------------------------------- | ------------ |
+| `feature:`     | New features, like adding a new field to a form    | minor        |
+| `fix:`         | Bug fixes                                          | patch        |
+| `performance:` | Performance improvements                           | patch        |
+| `style:`       | Code style changes, like linting                   | patch        |
+| `revert:`      | Undoing previous commits, usually via `git revert` | patch        |
+| `docs:`        | Updating docs                                      | none         |
+| `chore:`       | Small changes where nothing else fits              | none         |
+| `refactor:`    | Improving code logic                               | patch        |
+| `test:`        | Adding or updating tests                           | none         |
+| `build:`       | Changing the build system                          | none         |
+| `ci:`          | Improving the CI                                   | none         |
 
 ### Versioning
 
