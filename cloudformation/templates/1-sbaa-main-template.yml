@@ -420,8 +420,18 @@ Resources:
         S3BucketSourceCode: !Ref 'S3SourceBucket'
         S3KeySourceCode: lambdas
         SNSTopicArn: !Ref SNSTopicArn
+  CloudWatchDashboardStack:
+    Type: AWS::CloudFormation::Stack
+    Properties:
+      TemplateURL: !Sub 'https://${S3SourceBucket}.s3.amazonaws.com/templates/sbaa-cloudwatch-dashboard.yml'
+      Parameters:
+        EnvLabel: !Ref 'EnvLabel'
+        DBInstanceIdentifier: !GetAtt 'RdsPostgresStack.Outputs.InstanceName'
+        BeanstalkEnvName: !GetAtt 'BackEndBeanstalkStack.Outputs.EnvironmentName'
+        GetBsResourcesLambdaArn: !GetAtt 'LambdaCoreStack.Outputs.GetBsResourcesLambdaArn'
+        DistributionId: !GetAtt 'FrontEndS3CloudFrontStack.Outputs.DistributionId'
 
 Outputs:
   TemplateVersion:
     Description: The version of the cloudformation template
-    Value: '1.0.2'
+    Value: '1.0.3'

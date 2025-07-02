@@ -287,12 +287,139 @@ Resources:
       ServiceToken: !GetAtt 'SetCloudWatchRetentionLambdaFunction.Arn'
       logGroupName: !Sub '/aws/lambda/${SetCloudWatchRetentionLambdaFunction}'
       retentionInDays: 365
+  GetBsResourcesLambdaFunction:
+    Type: 'AWS::Lambda::Function'
+    DeletionPolicy: Delete
+    Properties:
+      Layers:
+        - !Ref 'CRHelperLambdaLayer'
+      Handler: index.handler
+      Runtime: python3.11
+      MemorySize: 128
+      Role: !GetAtt GetBsResourcesRole.Arn
+      ReservedConcurrentExecutions: 3
+      Timeout: 10
+      VpcConfig:
+        SecurityGroupIds:
+          - !Ref 'LambdaDefaultSG'
+        SubnetIds: !Split [',', { 'Fn::ImportValue': !Sub '${ParentVPCStack}-PrivateSubnets' }]
+      Code:
+        ZipFile: |
+          import boto3
+          import os
+          import cfnresponse
+          import signal
+          import traceback
+          from crhelper import CfnResource
+
+          helper = CfnResource()
+
+          def handler(event, context):
+              signal.alarm(int((context.get_remaining_time_in_millis() / 1000) - 1))
+              helper(event, context)
+
+          @helper.create
+          @helper.update
+          def create(event, _): 
+              beanstalk_env_name = event['ResourceProperties']['BeanstalkEnvName']
+              try:
+                    client = boto3.client('elasticbeanstalk')
+                    response = client.describe_environment_resources(
+                        EnvironmentName=beanstalk_env_name
+                    )
+              except:
+                    error_msg = f'An error occurred while describing the elasticbeanstalk environment {beanstalk_env_name}'
+                    print(error_msg)
+                    traceback.print_exc()
+                    raise ValueError(error_msg)
+                    exit(1)
+              ASGName = response['EnvironmentResources']['AutoScalingGroups'][0]['Name']
+              LBArn = response['EnvironmentResources']['LoadBalancers'][0]['Name']
+              print(ASGName)
+              print(LBArn)
+
+              try:
+                    client = boto3.client('elbv2')
+                    response = client.describe_target_groups(
+                        LoadBalancerArn=LBArn
+                    )
+              except:
+                    error_msg = f'An error occurred while describing the target groups for ALB {LBArn}'
+                    print(error_msg)
+                    traceback.print_exc()
+                    raise ValueError(error_msg)
+                    exit(1)
+              TGArn = response['TargetGroups'][0]['TargetGroupArn']
+              print(TGArn)
+              
+              helper.Data.update(
+                  {
+                      "ASGName": ASGName,
+                      "LBArn": LBArn,
+                      "TGArn": TGArn
+                  }
+              )
+
+          @helper.delete
+          def no_op(_, __):
+              pass
+            
+          def timeout_handler(_signal, _frame):
+              '''Handle SIGALRM'''
+              raise Exception('Time exceeded')
+
+          signal.signal(signal.SIGALRM, timeout_handler)
+  GetBsResourcesRole:
+    Type: AWS::IAM::Role
+    Properties:
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaVPCAccessExecutionRole
+      AssumeRolePolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service:
+                - lambda.amazonaws.com
+            Action:
+              - sts:AssumeRole
+      Path: /
+      Policies:
+        - PolicyName: AllowedActionsPolicy
+          PolicyDocument:
+            Version: '2012-10-17'
+            Statement:
+              - Effect: Allow
+                Action:
+                  - elasticbeanstalk:DescribeEnvironmentResources
+                  - elasticloadbalancing:DescribeTargetGroups
+                  - autoscaling:DescribeAutoScalingGroups
+                  - cloudformation:ListStackResources
+                Resource:
+                  - '*'
+  GetBsResourceVersion:
+    Type: AWS::Lambda::Version
+    Properties:
+      FunctionName: !Ref 'GetBsResourcesLambdaFunction'
+  GetBsResourcesRetention:
+    DependsOn: SetCloudWatchRetentionVersion
+    Type: Custom::CloudWatchRetention
+    Properties:
+      ServiceToken: !GetAtt 'SetCloudWatchRetentionLambdaFunction.Arn'
+      logGroupName: !Sub '/aws/lambda/${GetBsResourcesLambdaFunction}'
+      retentionInDays: 365
 
 Outputs:
   East1AlarmLambdaArn:
     Condition: EnableHealthCheck
     Description: ARN for the East1 Alarm Function
     Value: !GetAtt 'East1AlarmFunction.Arn'
+  GetBsResourcesLambdaArn:
+    Description: ARN for the Get Beanstalk Resources Lambda Function
+    Value: !GetAtt 'GetBsResourcesLambdaFunction.Arn'
+    Export:
+      Name: !Sub '${AWS::StackName}-GetBsResourcesLambdaArn'
   LambdaDefaultSgId:
     Description: 'ID of LambdaDefaultSG'
     Value: !Ref LambdaDefaultSG
