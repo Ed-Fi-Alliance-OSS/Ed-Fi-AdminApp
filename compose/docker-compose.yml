@@ -107,7 +107,6 @@ services:
       PATH_BASE: '${V7_ODS_VIRTUAL_NAME}'
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
       ODS_WAIT_POSTGRES_HOSTS: 'v7-db-ods-tenant1 v7-db-ods-tenant2 '
-      API_HEALTHCHECK_TEST: ${V7_API_HEALTHCHECK_TEST}
       NPG_POOLING_ENABLED: '${NPG_POOLING_ENABLED:-true}'
       NPG_API_MAX_POOL_SIZE_ODS: '${NPG_API_MAX_POOL_SIZE_ODS:-20}'
       NPG_API_MAX_POOL_SIZE_ADMIN: '${NPG_API_MAX_POOL_SIZE_ADMIN:-20}'
@@ -131,12 +130,11 @@ services:
       - v7-db-admin-tenant2
     restart: always
     hostname: ${V7_ODS_VIRTUAL_NAME}
-    # # skip ODS API healthcheck for now because we don't use it
-    # healthcheck:
-    #   test: $$API_HEALTHCHECK_TEST
-    #   start_period: 30s
-    #   retries: 30
-    #   interval: 3s
+    healthcheck:
+      test: ${V7_API_HEALTHCHECK_TEST}
+      start_period: 30s
+      retries: 30
+      interval: 3s
     networks:
       - sbaa-network
 
@@ -147,9 +145,9 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASEENGINE: PostgreSql
-      ADMIN_API_VIRTUAL_NAME: ${V7_ADMIN_API_VIRTUAL_NAME}
-      ADMIN_API_HEALTHCHECK_TEST: ${V7_ADMIN_API_HEALTHCHECK_TEST}
+      ASPNETCORE_ENVIRONMENT: multitenantdocker
+      AppSettings__DatabaseEngine: PostgreSql
+      AppSettings__PathBase: '${V7_ADMIN_API_VIRTUAL_NAME}'
       Authentication__Authority: http://localhost/${V7_ADMIN_API_VIRTUAL_NAME}
       Authentication__IssuerUrl: http://localhost/${V7_ADMIN_API_VIRTUAL_NAME}
       Authentication__SigningKey: ${SIGNING_KEY}
@@ -157,14 +155,14 @@ services:
       AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
       AppSettings__DefaultPageSizeLimit: ${PAGING_LIMIT:-25}
       AppSettings__MultiTenancy: ${MULTITENANCY_ENABLED:-true}
-      ASPNETCORE_ENVIRONMENT: multitenantdocker
       SwaggerSettings__EnableSwagger: true
       SwaggerSettings__DefaultTenant: ${SWAGGER_DEFAULT_TENANT:-tenant1}
       Log4NetCore__Log4NetConfigFileName: ./log4net/log4net.config
+      EnableDockerEnvironment: true
     volumes:
       - ./settings/appsettings.dockertemplate.json:/app/appsettings.dockertemplate.json
       - ./settings/adminapi-run.sh:/app/run.sh
-      # - ./settings/log4net.config:/app/log4net/log4net.config
+      - ./settings/log4net.config:/app/log4net/log4net.config
     entrypoint: ['/bin/sh']
     command:
       [
@@ -177,7 +175,7 @@ services:
     restart: always
     hostname: ${V7_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: $$ADMIN_API_HEALTHCHECK_TEST
+      test: ${V7_ADMIN_API_HEALTHCHECK_TEST}
       start_period: 30s
       retries: 30
       interval: 3s
@@ -189,6 +187,9 @@ services:
     environment:
       ODS_VIRTUAL_NAME: '${V7_ODS_VIRTUAL_NAME}'
       ADMIN_API_VIRTUAL_NAME: '${V7_ADMIN_API_VIRTUAL_NAME}'
+      EXTERNAL_PORT: 4443
+      # Note: this port must match the port in the `X-Forwarded-Port`
+      # header in the `default.conf.template` file.
     ports:
       - '127.0.0.1:4443:443'
     restart: always
@@ -202,13 +203,22 @@ services:
     networks:
       - sbaa-network
 
-  # # Edfi v6.x
+  # EdFi v6.x
   v6-db-admin:
     image: edfialliance/ods-admin-api-db:${ADMIN_DB_TAG_6X}
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       API_MODE: DistrictSpecific
+    # Temporary workaround to ensure the database is set up correctly (there's a bug in the image)
+    user: root  # Run as root initially
+    command: >
+      sh -c "
+        chown -R postgres:postgres /tmp/AdminApiScripts &&
+        chmod -R 755 /tmp/AdminApiScripts &&
+        chmod -R 644 /tmp/AdminApiScripts/PgSql/*.sql &&
+        su postgres -c 'docker-entrypoint.sh postgres'
+      "
     restart: always
     volumes:
       - vol-db-admin-6x:/var/lib/postgresql/data
@@ -220,7 +230,8 @@ services:
     networks:
       - sbaa-network
 
-  v6-edfi-ods-255901:
+  # Note: this host name _must_ have `ods_` before the district number. Cannot be `ods-`.
+  v6-edfi-ods_255901:
     image: edfialliance/ods-api-db-ods:${ODS_TAG_6X}
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -238,7 +249,8 @@ services:
     networks:
       - sbaa-network
 
-  v6-edfi-ods-255902:
+  # Note: this host name _must_ have `ods_` before the district number. Cannot be `ods-`.
+  v6-edfi-ods_255902:
     image: edfialliance/ods-api-db-ods:${ODS_TAG_6X}
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
@@ -262,12 +274,12 @@ services:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PORT: 5432
-      ODS_POSTGRES_HOST: EdFi_{0}
+      ODS_POSTGRES_HOST: v6-edfi-{0}
       ADMIN_POSTGRES_HOST: v6-db-admin
       API_MODE: DistrictSpecific
       ApiSettings__PathBase: '${V6_ODS_VIRTUAL_NAME}'
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
-      ODS_WAIT_POSTGRES_HOSTS: 'v6-edfi-ods-255901 v6-edfi-ods-255902 '
+      ODS_WAIT_POSTGRES_HOSTS: 'v6-edfi-ods_255901 v6-edfi-ods_255902 '
       API_HEALTHCHECK_TEST: ${V6_API_HEALTHCHECK_TEST}
       NPG_POOLING_ENABLED: '${NPG_POOLING_ENABLED:-true}'
       NPG_API_MAX_POOL_SIZE_ODS: '${NPG_API_MAX_POOL_SIZE_ODS:-20}'
@@ -278,16 +290,15 @@ services:
       - ${LOGS_FOLDER}:/app/logs
     depends_on:
       - v6-db-admin
-      - v6-edfi-ods-255901
-      - v6-edfi-ods-255902
+      - v6-edfi-ods_255901
+      - v6-edfi-ods_255902
     restart: always
     hostname: ${V6_ODS_VIRTUAL_NAME}
-    # # skip ODS API healthcheck for now because we don't use it
-    # healthcheck:
-    #   test: $$API_HEALTHCHECK_TEST
-    #   start_period: 30s
-    #   retries: 30
-    #   interval: 3s
+    healthcheck:
+      test: ${V6_API_HEALTHCHECK_TEST}
+      start_period: 30s
+      retries: 30
+      interval: 3s
     networks:
       - sbaa-network
 
@@ -298,22 +309,27 @@ services:
       POSTGRES_PORT: 5432
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-      DATABASEENGINE: 'PostgreSql'
-      API_MODE: DistrictSpecific
+      AppSettings__DatabaseEngine: 'PostgreSql'
+      AppSettings__ApiStartupType: DistrictSpecific
+      AppSettings__ProductionApiUrl: ${API_INTERNAL_URL}
+      AppSettings__PathBase: '${V6_ADMIN_API_VIRTUAL_NAME}'
+      AppSettings__OdsApiVersion: ${ODS_API_VERSION_6X}
+      AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
+      AppSettings__DefaultPageSizeLimit: ${PAGING_LIMIT:-25}
       Authentication__Authority: http://localhost/${V6_ADMIN_API_VIRTUAL_NAME}
       Authentication__IssuerUrl: http://localhost/${V6_ADMIN_API_VIRTUAL_NAME}
       Authentication__SigningKey: ${SIGNING_KEY}
       Authentication__AllowRegistration: true
-      ODS_API_VERSION: ${ODS_API_VERSION_6X}
-      ADMIN_API_VIRTUAL_NAME: ${V6_ADMIN_API_VIRTUAL_NAME}
-      ADMIN_API_HEALTHCHECK_TEST: ${V6_ADMIN_API_HEALTHCHECK_TEST}
-      API_INTERNAL_URL: ${API_INTERNAL_URL}
+      Log4NetCore__Log4NetConfigFileName: ./log4net/log4net.config
+      EnableDockerEnvironment: true
+    volumes:
+      - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
       - v6-db-admin
     restart: always
     hostname: ${V6_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: $$ADMIN_API_HEALTHCHECK_TEST
+      test: ${V6_ADMIN_API_HEALTHCHECK_TEST}
       start_period: 30s
       retries: 30
       interval: 3s
@@ -325,6 +341,9 @@ services:
     environment:
       ADMIN_API_VIRTUAL_NAME: '${V6_ADMIN_API_VIRTUAL_NAME}'
       ODS_VIRTUAL_NAME: '${V6_ODS_VIRTUAL_NAME}'
+      EXTERNAL_PORT: 5443
+      # Note: this port must match the port in the `X-Forwarded-Port`
+      # header in the `default.conf.template` file.
     ports:
       - '127.0.0.1:5443:443'
     restart: always

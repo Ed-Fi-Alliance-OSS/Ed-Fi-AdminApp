@@ -46,18 +46,18 @@
       "SSLMode": "prefer"
     },
     "6": {
-      "Name": "v6-edfi-ods-255901",
+      "Name": "v6-edfi-ods_255901",
       "Group": "ODS-API-6x",
-      "Host": "v6-edfi-ods-255901",
+      "Host": "v6-edfi-ods_255901",
       "Port": 5432,
       "MaintenanceDB": "EdFi_Ods_255901",
       "Username": "postgres",
       "SSLMode": "prefer"
     },
     "7": {
-      "Name": "v6-edfi-ods-255902",
+      "Name": "v6-edfi-ods_255902",
       "Group": "ODS-API-6x",
-      "Host": "v6-edfi-ods-255902",
+      "Host": "v6-edfi-ods_255902",
       "Port": 5432,
       "MaintenanceDB": "EdFi_Ods_255902",
       "Username": "postgres",

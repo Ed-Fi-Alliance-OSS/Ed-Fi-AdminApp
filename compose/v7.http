@@ -1,0 +1,222 @@
+# This file is intended for use with Admin API 2 and ODS/API 7.x in multi-tenant mode.
+# It assumes there are two different tenants named "tenant1" and "tenant2". Each has
+# only one ODS instance.
+
+@adminapi_url=https://localhost:4443/v7-adminapi
+@odsapi_url=https://localhost:4443/v7-ods
+@adminapi_client=adminapi_client
+@adminapi_secret=adminapi_SECRET_2025_rftyguhijkotgyhuijok
+
+##
+## Admin API v2.3 - Tenant 1
+##
+
+### Discover
+GET {{adminapi_url}}
+Tenant: tenant1
+
+### Swagger UI
+GET {{adminapi_url}}/swagger/index.html
+Tenant: tenant1
+
+### Register a new client
+# Always use tenant1
+POST {{adminapi_url}}/connect/register
+Content-Type: application/x-www-form-urlencoded
+Tenant: tenant1
+
+ClientId={{adminapi_client}}&ClientSecret={{adminapi_secret}}&DisplayName=Admin+API+{{adminapi_client}}
+
+### Get an Admin API token
+# Always use tenant1
+# @name tokenRequest
+POST {{adminapi_url}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: basic {{adminapi_client}}:{{adminapi_secret}}
+Tenant: tenant1
+
+grant_type=client_credentials&scope=edfi_admin_api/full_access
+
+###
+@token={{tokenRequest.response.body.access_token}}
+
+### Use the token
+GET {{adminapi_url}}/v2/vendors
+Authorization: bearer {{token}}
+Tenant: tenant1
+
+
+### Create a Vendor
+POST {{adminapi_url}}/v2/vendors
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant1
+
+{
+  "company": "Vendor 1",
+  "contactName": "Fake Person",
+  "contactEmailAddress": "fake@example.com"
+}
+
+### Get ods instances
+GET {{adminapi_url}}/v2/odsinstances
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant1
+
+
+### Create application
+# NOTE: adjust the `vendorId` to match the `Location` header from request above.
+# NOTE: also adjust odsInstanceIds.
+POST {{adminapi_url}}/v2/applications
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant1
+
+{
+  "applicationName": "myapp_1",
+  "vendorId": 1,
+  "claimSetName": "SIS Vendor",
+  "educationOrganizationIds": [
+    0
+  ],
+  "odsInstanceIds": [
+    1
+  ]
+}
+
+
+### Create ApiClient (new endpoint for v2.3)
+# NOTE: adjust the `applicationId` to match the `Location` header from request above.
+# @name tenant1ApiClient
+POST {{adminapi_url}}/v2/apiclients
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant1
+
+{
+  "name": "appc1",
+  "isApproved": true,
+  "applicationId": 1,
+  "odsInstanceIds": [
+    1
+  ]
+}
+
+
+##
+## ODS/API 7.3 - Tenant 1
+##
+
+### Discover - base URL
+GET {{odsapi_url}}/
+
+### Discover - tenant1
+GET {{odsapi_url}}/tenant1
+
+### Get token
+# @name tenant1ApiToken
+POST {{odsapi_url}}/tenant1/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id={{tenant1ApiClient.response.body.key}}&&client_secret={{tenant1ApiClient.response.body.secret}}
+
+### Use the token
+GET {{odsapi_url}}/tenant1/data/v3/ed-fi/academicSubjectDescriptors
+Authorization: bearer {{tenant1ApiToken.response.body.access_token}}
+
+### Create a Person
+# @name createPerson
+POST {{odsapi_url}}/tenant1/data/v3/ed-fi/people
+Content-Type: application/json
+Authorization: bearer {{tenant1ApiToken.response.body.access_token}}
+
+{
+    "personId": "123456",
+    "sourceSystemDescriptor": "uri://ed-fi.org/SourceSystemDescriptor#State",
+}
+
+### Retrieve that person
+GET {{createPerson.response.headers.Location}}
+Authorization: bearer {{tenant1ApiToken.response.body.access_token}}
+
+
+##
+## Admin API v2.3 - Tenant 2
+##
+
+### Create a Vendor
+POST {{adminapi_url}}/v2/vendors
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant2
+
+{
+  "company": "Vendor 2",
+  "contactName": "Fake Person2",
+  "contactEmailAddress": "fake@example.com"
+}
+
+### Get ods instances
+GET {{adminapi_url}}/v2/odsinstances
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant2
+
+
+### Create application
+# NOTE: adjust the `vendorId` to match the `Location` header from request above.
+# NOTE: also adjust odsInstanceIds.
+POST {{adminapi_url}}/v2/applications
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant2
+
+{
+  "applicationName": "myapp2",
+  "vendorId": 1,
+  "claimSetName": "Ed-Fi API Publisher - Reader",
+  "educationOrganizationIds": [
+    255901
+  ],
+  "odsInstanceIds": [
+    1
+  ]
+}
+
+
+### Create ApiClient (new endpoint for v2.3)
+# NOTE: adjust the `applicationId` to match the `Location` header from request above.
+# @name tenant2ApiClient
+POST {{adminapi_url}}/v2/apiclients
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: tenant2
+
+{
+  "name": "appc2",
+  "isApproved": true,
+  "applicationId": 1,
+  "odsInstanceIds": [
+    1
+  ]
+}
+
+
+##
+## ODS/API 7.3 - Tenant 2
+##
+
+### Discover - tenant2
+GET {{odsapi_url}}/tenant2
+
+### Get token
+# @name tenant2ApiToken
+POST {{odsapi_url}}/tenant2/oauth/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials&client_id={{tenant2ApiClient.response.body.key}}&&client_secret={{tenant2ApiClient.response.body.secret}}
+
+### Use the token
+GET {{odsapi_url}}/tenant2/data/v3/ed-fi/academicSubjectDescriptors
+Authorization: bearer {{tenant2ApiToken.response.body.access_token}}
