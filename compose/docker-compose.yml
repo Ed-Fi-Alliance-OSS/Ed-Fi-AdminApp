@@ -148,8 +148,8 @@ services:
       ASPNETCORE_ENVIRONMENT: multitenantdocker
       AppSettings__DatabaseEngine: PostgreSql
       AppSettings__PathBase: '${V7_ADMIN_API_VIRTUAL_NAME}'
-      Authentication__Authority: http://localhost/${V7_ADMIN_API_VIRTUAL_NAME}
-      Authentication__IssuerUrl: http://localhost/${V7_ADMIN_API_VIRTUAL_NAME}
+      Authentication__Authority: https://localhost:4443/${V7_ADMIN_API_VIRTUAL_NAME}
+      Authentication__IssuerUrl: https://localhost:4443/${V7_ADMIN_API_VIRTUAL_NAME}
       Authentication__SigningKey: ${SIGNING_KEY}
       Authentication__AllowRegistration: true
       AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
@@ -159,6 +159,7 @@ services:
       SwaggerSettings__DefaultTenant: ${SWAGGER_DEFAULT_TENANT:-tenant1}
       Log4NetCore__Log4NetConfigFileName: ./log4net/log4net.config
       EnableDockerEnvironment: true
+      AppSettings__AllowedOrigins: ${ALLOWED_ORIGINS:-https://localhost}
     volumes:
       - ./settings/appsettings.dockertemplate.json:/app/appsettings.dockertemplate.json
       - ./settings/adminapi-run.sh:/app/run.sh
@@ -316,12 +317,13 @@ services:
       AppSettings__OdsApiVersion: ${ODS_API_VERSION_6X}
       AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
       AppSettings__DefaultPageSizeLimit: ${PAGING_LIMIT:-25}
-      Authentication__Authority: http://localhost/${V6_ADMIN_API_VIRTUAL_NAME}
-      Authentication__IssuerUrl: http://localhost/${V6_ADMIN_API_VIRTUAL_NAME}
+      Authentication__Authority: https://localhost:5443/${V6_ADMIN_API_VIRTUAL_NAME}
+      Authentication__IssuerUrl: https://localhost:5443/${V6_ADMIN_API_VIRTUAL_NAME}
       Authentication__SigningKey: ${SIGNING_KEY}
       Authentication__AllowRegistration: true
       Log4NetCore__Log4NetConfigFileName: ./log4net/log4net.config
       EnableDockerEnvironment: true
+      AppSettings__AllowedOrigins: ${ALLOWED_ORIGINS:-https://localhost}
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
