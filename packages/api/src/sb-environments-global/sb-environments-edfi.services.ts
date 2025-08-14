@@ -73,7 +73,7 @@ export class SbEnvironmentsEdFiService {
 
         // Need to create the ODS and Edorgs, in v1 it's going to create a default tenant
         if (createSbEnvironmentDto.version === 'v1') {
-          this.syncv1Environment(sbEnvironment);
+          this.syncv1Environment(sbEnvironment, createSbEnvironmentDto);
           // Make a POST request to register the client
           const { clientId, displayName, clientSecret } = await this.createClientCredentials(
             createSbEnvironmentDto
@@ -127,37 +127,44 @@ export class SbEnvironmentsEdFiService {
     }
   }
 
-  private async syncv1Environment(sbEnvironment: SbEnvironment) {
-    const metaV1 = {
-      envlabel: sbEnvironment.envLabel,
-      mode: 'DistrictSpecific', //Not sure if this is correct, but it seems to be the case
-      domainName: sbEnvironment.configPublic.odsApiMeta.urls.dataManagementApi,
-      odss: [
-        {
-          dbname: 'EdFi_Ods_255901', // Not sure if we need to include the dbname here
-          edorgs: [
-            {
-              educationorganizationid: 1, // Default edorg for the environment
-              nameofinstitution: 'Default EdOrg',
-              shortnameofinstitution: 'Default',
-              discriminator: EdorgType['edfi.Other'], // Using the correct enum value
-            },
-          ],
-        },
-      ] as SbV1MetaOds[],
-    } as SbV1MetaEnv;
-    //Let's sync the odss and edorgs
-    const result = await this.startingBlocksServiceV1.syncEnvironmentEverything(
-      sbEnvironment,
-      metaV1
-    );
-    if (result.status !== 'SUCCESS') {
-      throw new ValidationHttpException({
-        field: 'odsApiDiscoveryUrl',
-        message: `Failed to sync environment: ${result.status}`,
-      });
+    private async syncv1Environment(sbEnvironment: SbEnvironment, createSbEnvironmentDto: PostSbEnvironmentDto) {
+        const metaV1 = {
+            envlabel: sbEnvironment.envLabel,
+            mode: 'DistrictSpecific', //Not sure if this is correct, but it seems to be the case
+            domainName: sbEnvironment.configPublic.odsApiMeta.urls.dataManagementApi,
+            odss: [
+                {
+                    dbname: 'EdFi_Ods_255901', // Not sure if we need to include the dbname here
+                    edorgs: createSbEnvironmentDto.edOrgIds
+                        ? createSbEnvironmentDto.edOrgIds.split(',').map(id => id.trim()).map(id => ({
+                            educationorganizationid: parseInt(id),
+                            nameofinstitution: id,
+                            shortnameofinstitution: id,
+                            discriminator: EdorgType['edfi.Other'],
+                        }))
+                        : [
+                            {
+                                educationorganizationid: 1,
+                                nameofinstitution: 'Default EdOrg',
+                                shortnameofinstitution: 'Default',
+                                discriminator: EdorgType['edfi.Other'],
+                            }
+                        ],
+                },
+            ],
+        } as SbV1MetaEnv;
+        //Let's sync the odss and edorgs
+        const result = await this.startingBlocksServiceV1.syncEnvironmentEverything(
+            sbEnvironment,
+            metaV1
+        );
+        if (result.status !== 'SUCCESS') {
+            throw new ValidationHttpException({
+                field: 'odsApiDiscoveryUrl',
+                message: `Failed to sync environment: ${result.status}`,
+            });
+        }
     }
-  }
 
   private async createClientCredentials(createSbEnvironmentDto: PostSbEnvironmentDto) {
     const registerUrl = `${createSbEnvironmentDto.adminApiUrl}/connect/register`;

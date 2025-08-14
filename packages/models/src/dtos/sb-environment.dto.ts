@@ -178,7 +178,12 @@ export class PostSbEnvironmentDto
   startingBlocks: boolean;
 
   @Expose()
-  edOrgIds: string;
+  @IsString()
+  @Matches(/^\s*\d+\s*(\s*,\s*\d+\s*)*$/, {
+    message: 'Must be a single number or a comma-separated list of numbers',
+  })
+  @TrimWhitespace()
+  edOrgIds?: string;
 
   @Expose()
   @IsOptional()
