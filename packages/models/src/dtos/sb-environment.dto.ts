@@ -146,29 +146,33 @@ export class PostSbEnvironmentDto
   name: string;
 
   @Expose()
+  @IsOptional()
   @MaxLength(2)
   @IsIn(['v1', 'v2'])
   version?: 'v1' | 'v2';
 
   @Expose()
-  @MinLength(3)
+  @IsOptional()
   @TrimWhitespace()
+  @MinLength(3)
   @Matches(/^(https?:\/\/)[^\s$.?#].[^\s]*$/i, {
     message: 'ODS/API Discovery URL must be a valid URL starting with http:// or https://',
   })
   odsApiDiscoveryUrl?: string;
 
   @Expose()
-  @MinLength(3)
+  @IsOptional()
   @TrimWhitespace()
+  @MinLength(3)
   @Matches(/^(https?:\/\/)[^\s$.?#].[^\s]*$/i, {
     message: 'Admin API URL must be a valid URL starting with http:// or https://',
   })
   adminApiUrl?: string;
 
   @Expose()
-  @MinLength(3)
+  @IsOptional()
   @TrimWhitespace()
+  @MinLength(3)
   environmentLabel?: string;
 
   @Expose()
@@ -178,6 +182,7 @@ export class PostSbEnvironmentDto
   startingBlocks: boolean;
 
   @Expose()
+  @IsOptional()
   @IsString()
   @Matches(/^\s*\d+\s*(\s*,\s*\d+\s*)*$/, {
     message: 'Must be a single number or a comma-separated list of numbers',

@@ -2,7 +2,6 @@ import {
   Box,
   Button,
   ButtonGroup,
-  Checkbox,
   FormControl,
   FormErrorMessage,
   FormLabel,
@@ -17,7 +16,6 @@ import {
 } from '@chakra-ui/react';
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
 import { PostSbEnvironmentDto } from '@edanalytics/models';
-import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
@@ -26,11 +24,8 @@ import { popSyncBanner, useNavToParent } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useState } from 'react';
 
-const resolver = classValidatorResolver(PostSbEnvironmentDto);
-
 export const CreateSbEnvironmentGlobalPage = () => {
   const [isStartingBlocks, setStartingBlocks] = useState(false);
-  const [version, setVersion] = useState('v1');
   const popBanner = usePopBanner();
   const navToParentOptions = useNavToParent();
   const navigate = useNavigate();
@@ -40,18 +35,38 @@ export const CreateSbEnvironmentGlobalPage = () => {
     setError,
     handleSubmit,
     clearErrors,
+    setValue,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<PostSbEnvironmentDto>({
-    resolver,
-    defaultValues: Object.assign(new PostSbEnvironmentDto(), { metaArn: undefined }),
+    defaultValues: Object.assign(new PostSbEnvironmentDto(), { metaArn: undefined, version: 'v1' }),
   });
+
+  // Watch the version value for the RadioGroup
+  const currentVersion = watch('version');
 
   const handleSwitchChange = (checked: boolean) => {
     setStartingBlocks(checked);
+
+    // Clear validation errors when switching modes to prevent stale errors
+    clearErrors(['metaArn', 'odsApiDiscoveryUrl', 'adminApiUrl', 'version', 'environmentLabel']);
+
+    // Clear field values when switching modes to prevent stale data
+    if (checked) {
+      setValue('odsApiDiscoveryUrl', undefined);
+      setValue('adminApiUrl', undefined);
+      setValue('version', undefined);
+      setValue('environmentLabel', undefined);
+      setValue('edOrgIds', undefined);
+      setValue('isMultitenant', false);
+    } else {
+      setValue('metaArn', undefined);
+      setValue('version', 'v1');
+    }
   };
 
   const handleVersionChange = (value: string) => {
-    setVersion(value);
+    setValue('version', value as 'v1' | 'v2');
   };
 
   // Manual validation function
@@ -196,16 +211,13 @@ export const CreateSbEnvironmentGlobalPage = () => {
               </FormControl>
               <FormControl isInvalid={!!errors.version}>
                 <FormLabel>Management API Version</FormLabel>
-                <RadioGroup onChange={handleVersionChange} value={version} colorScheme="primary">
+                <RadioGroup onChange={handleVersionChange} value={currentVersion} colorScheme="primary">
                   <Stack direction="row">
                     <Radio value="v1" {...register('version')}>
                       v1
                     </Radio>
                     <Radio value="v2" {...register('version')}>
                       v2
-                    </Radio>
-                    <Radio value="dms" {...register('version')}>
-                      DMS
                     </Radio>
                   </Stack>
                 </RadioGroup>
