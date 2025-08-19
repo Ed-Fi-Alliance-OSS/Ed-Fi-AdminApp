@@ -188,7 +188,7 @@ export class PostSbEnvironmentDto
     message: 'Must be a single number or a comma-separated list of numbers',
   })
   @TrimWhitespace()
-  edOrgIds?: string;
+  edOrgIds: string;
 
   @Expose()
   @IsOptional()

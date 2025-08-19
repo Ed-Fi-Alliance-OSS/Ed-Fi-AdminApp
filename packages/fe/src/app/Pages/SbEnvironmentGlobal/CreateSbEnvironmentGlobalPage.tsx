@@ -57,7 +57,7 @@ export const CreateSbEnvironmentGlobalPage = () => {
       setValue('adminApiUrl', undefined);
       setValue('version', undefined);
       setValue('environmentLabel', undefined);
-      setValue('edOrgIds', undefined);
+      setValue('edOrgIds', '');
       setValue('isMultitenant', false);
     } else {
       setValue('metaArn', undefined);

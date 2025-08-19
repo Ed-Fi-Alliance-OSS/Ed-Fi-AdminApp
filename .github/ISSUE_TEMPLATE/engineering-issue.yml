@@ -3,9 +3,9 @@
 # The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 # See the LICENSE and NOTICES files in the project root for more information.
 
-name: "🔧 Engineering Team Issue"
-description: "Internal issue for Ed-Fi engineering team members only"
-title: "Feature: [Brief Description of the Issue]"
+name: '🔧 Engineering Team Issue'
+description: 'Internal issue for Ed-Fi engineering team members only'
+title: 'Feature: [Brief Description of the Issue]'
 labels: []
 assignees: []
 body:
@@ -21,17 +21,17 @@ body:
   - type: textarea
     id: description
     attributes:
-      label: "Issue Description"
-      description: "Describe the issue or task"
-      placeholder: "Clear description of the issue..."
+      label: 'Issue Description'
+      description: 'Describe the issue or task'
+      placeholder: 'Clear description of the issue...'
     validations:
       required: true
 
   - type: textarea
     id: acceptance-criteria
     attributes:
-      label: "Acceptance Criteria"
-      description: "What needs to be done to resolve this issue?"
+      label: 'Acceptance Criteria'
+      description: 'What needs to be done to resolve this issue?'
       placeholder: "- [ ] Criteria 1\n- [ ] Criteria 2"
     validations:
       required: false
@@ -39,8 +39,8 @@ body:
   - type: textarea
     id: additional-context
     attributes:
-      label: "Additional Context"
-      description: "Any additional information, screenshots, or context"
-      placeholder: "Additional details..."
+      label: 'Additional Context'
+      description: 'Any additional information, screenshots, or context'
+      placeholder: 'Additional details...'
     validations:
       required: false

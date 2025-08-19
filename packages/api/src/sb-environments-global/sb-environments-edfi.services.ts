@@ -22,7 +22,7 @@ export class SbEnvironmentsEdFiService {
     private readonly startingBlocksServiceV2: StartingBlocksServiceV2,
     private readonly edfiTenantService: EdfiTenantsService,
     @InjectRepository(EdfiTenant)
-    private edfiTenantsRepository: Repository<EdfiTenant>
+    private edfiTenantsRepository: Repository<EdfiTenant>,
   ) {}
 
   async create(createSbEnvironmentDto: PostSbEnvironmentDto, user: any) {
@@ -67,17 +67,16 @@ export class SbEnvironmentsEdFiService {
                       },
                     },
             }),
-            user
-          )
+            user,
+          ),
         );
 
         // Need to create the ODS and Edorgs, in v1 it's going to create a default tenant
         if (createSbEnvironmentDto.version === 'v1') {
           this.syncv1Environment(sbEnvironment, createSbEnvironmentDto);
           // Make a POST request to register the client
-          const { clientId, displayName, clientSecret } = await this.createClientCredentials(
-            createSbEnvironmentDto
-          );
+          const { clientId, displayName, clientSecret } =
+            await this.createClientCredentials(createSbEnvironmentDto);
 
           // Save the admin API credentials
           const credentials = {
@@ -136,12 +135,15 @@ export class SbEnvironmentsEdFiService {
                 {
                     dbname: 'EdFi_Ods_255901', // Not sure if we need to include the dbname here
                     edorgs: createSbEnvironmentDto.edOrgIds
-                        ? createSbEnvironmentDto.edOrgIds.split(',').map(id => id.trim()).map(id => ({
-                            educationorganizationid: parseInt(id),
-                            nameofinstitution: id,
-                            shortnameofinstitution: id,
-                            discriminator: EdorgType['edfi.Other'],
-                        }))
+                        ? createSbEnvironmentDto.edOrgIds.split(',').map(id => {
+                            const trimmedId = id.trim();
+                            return {
+                                educationorganizationid: parseInt(trimmedId, 10),
+                                nameofinstitution: trimmedId,
+                                shortnameofinstitution: trimmedId,
+                                discriminator: EdorgType['edfi.Other'],
+                            };
+                        })
                         : [
                             {
                                 educationorganizationid: 1,
@@ -170,8 +172,8 @@ export class SbEnvironmentsEdFiService {
     const registerUrl = `${createSbEnvironmentDto.adminApiUrl}/connect/register`;
     const clientSecret = Array.from({ length: 32 }, () =>
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'.charAt(
-        Math.floor(Math.random() * 70)
-      )
+        Math.floor(Math.random() * 70),
+      ),
     ).join('');
     const clientId = `client_${Math.random().toString(36).substring(2, 15)}`;
     const displayName = `AdminApp-v4-${Math.random().toString(36).substring(2, 8)}`;
