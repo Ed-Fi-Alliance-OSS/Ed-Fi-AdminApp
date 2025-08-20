@@ -1,6 +1,6 @@
 import { Button, HStack, Image } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
-import logoUrl from '../../assets/logo-sb.svg';
+import logoUrl from '../../assets/ed-fi-logo.png';
 
 export const AppBarPublic = () => {
   return (
@@ -19,7 +19,7 @@ export const AppBarPublic = () => {
       px={3}
     >
       <RouterLink to="/">
-        <Image alt="logo" h="28px" w="238px" src={logoUrl} />
+        <Image alt="logo" h="40px" maxW="300px" objectFit="contain" src={logoUrl} />
       </RouterLink>
       <Button variant="solid" colorScheme="blue" as={RouterLink} to="/login">
         Log in

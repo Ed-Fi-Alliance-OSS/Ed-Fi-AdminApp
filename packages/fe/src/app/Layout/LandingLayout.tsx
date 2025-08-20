@@ -1,9 +1,9 @@
 import { Box, Divider, Image, Link, VStack } from '@chakra-ui/react';
 import { ReactNode } from 'react';
 import { Outlet } from 'react-router-dom';
-import logoUrl from '../../assets/logo-sbaa.svg';
+import logoUrl from '../../assets/ed-fi-logo.png';
 import bgUrl from '../../assets/starting-blocks-no-text.svg';
-import { emailUrls } from '../routes/pathConstants';
+import { externalUrls } from '../routes/pathConstants';
 
 export const LandingLayoutRouteElement = () => (
   <LandingLayout>
@@ -37,17 +37,20 @@ export const LandingLayout = (props: { children: ReactNode }) => {
       h="100%"
     >
       <Image
-        w="60rem"
+        maxW={{ base: "90%", md: "500px", lg: "600px", xl: "700px" }}
+        h="auto"
         filter={'drop-shadow(13px 13px 15px rgba(0,0,0,0.15))'}
-        display="inline"
+        objectFit="contain"
         src={logoUrl}
       />
       <Divider borderColor="gray.500" w="40%" />
       <Box flex="0.6 1 0%">{props.children}</Box>
       <Box fontSize="sm" color="gray.600" textAlign="center">
-        ©2023-{new Date().getFullYear()} Education Analytics, Inc. All Rights Reserved
+        ©2023-{new Date().getFullYear()}, Education Analytics, Inc., Ed-Fi Alliance, LLC. All rights reserved.
         <br />
-        <Link href={emailUrls.reportIssue()} target="_blank" rel="noopener noreferrer">
+        Distributed under the Apache License, version 2.
+        <br />
+        <Link href={externalUrls.supportCommunity()} target="_blank" rel="noopener noreferrer">
           Report an issue
         </Link>
       </Box>

@@ -1,4 +1,4 @@
-import { Box, Flex, HStack, Text, VStack } from '@chakra-ui/react';
+import { Box, Flex, HStack, Text, VStack, Link } from '@chakra-ui/react';
 import { Outlet, useParams } from 'react-router-dom';
 import { useMe } from '../api';
 import { NavContextProvider, useNavContext } from '../helpers';
@@ -8,6 +8,7 @@ import { Breadcrumbs } from './Breadcrumbs';
 import { FeedbackBanners } from './FeedbackBanner';
 import { LandingLayout, LandingLayoutRouteElement } from './LandingLayout';
 import { Nav, useAsId } from './Nav';
+import { externalUrls } from '../routes/pathConstants';
 
 const LoadEdfiTenantContext = () => {
   const { edfiTenant, edfiTenantId, sbEnvironment, sbEnvironmentId } = useNavContext();
@@ -65,8 +66,14 @@ export const StandardLayout = () => {
                         <LoadEdfiTenantContext />
                       )}
                     </Box>
-                    <Box fontSize="sm" color="gray.600" mt="auto" textAlign="center">
-                      ©2023-{new Date().getFullYear()} Education Analytics, Inc. All Rights Reserved
+                    <Box fontSize="sm" color="gray.600" textAlign="center">
+                      ©2023-{new Date().getFullYear()}, Education Analytics, Inc., Ed-Fi Alliance, LLC. All rights reserved.
+                      <br />
+                      Distributed under the Apache License, version 2.
+                      <br />
+                      <Link href={externalUrls.supportCommunity()} target="_blank" rel="noopener noreferrer">
+                      Report an issue
+                      </Link>
                     </Box>
                   </Box>
                 </Flex>
