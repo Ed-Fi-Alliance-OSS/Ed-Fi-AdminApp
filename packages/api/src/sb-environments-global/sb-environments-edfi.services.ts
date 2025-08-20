@@ -73,6 +73,7 @@ export class SbEnvironmentsEdFiService {
               configPublic:
                 createSbEnvironmentDto.version === 'v1'
                   ? {
+                      startingBlocks: createSbEnvironmentDto.startingBlocks,
                       odsApiMeta: odsApiMetaResponse,
                       adminApiUrl: createSbEnvironmentDto.adminApiUrl,
                       values: {
@@ -81,6 +82,7 @@ export class SbEnvironmentsEdFiService {
                       },
                     }
                   : {
+                      startingBlocks: createSbEnvironmentDto.startingBlocks,
                       odsApiMeta: odsApiMetaResponse,
                       adminApiUrl: createSbEnvironmentDto.adminApiUrl,
                       values: {

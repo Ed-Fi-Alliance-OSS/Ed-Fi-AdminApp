@@ -47,11 +47,13 @@ export const ViewSbEnvironmentGlobal = (props: { sbEnvironment: GetSbEnvironment
               label="SBAA system version"
               value={sbEnvironment.configPublic?.version}
             />
-            <Attribute
-              isCopyable
-              label="Metadata ARN"
-              value={sbEnvironment.configPublic?.sbEnvironmentMetaArn}
-            />
+            {sbEnvironment.startingBlocks && (
+              <Attribute
+                isCopyable
+                label="Metadata ARN"
+                value={sbEnvironment.configPublic?.sbEnvironmentMetaArn}
+              />
+            )}
           </AttributesGrid>
         </ContentSection>
         <Text mt={6}>

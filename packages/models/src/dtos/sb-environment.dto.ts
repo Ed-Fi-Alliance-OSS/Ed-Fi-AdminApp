@@ -101,6 +101,10 @@ export class GetSbEnvironmentDto
       return undefined;
     }
   }
+
+  get startingBlocks() {
+    return this.configPublic?.startingBlocks ?? false;
+  }
 }
 export const toGetSbEnvironmentDto = makeSerializer<GetSbEnvironmentDto, ISbEnvironment>(
   GetSbEnvironmentDto

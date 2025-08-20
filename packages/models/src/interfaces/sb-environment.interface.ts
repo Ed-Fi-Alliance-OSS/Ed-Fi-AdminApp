@@ -34,6 +34,7 @@ export type SbEnvironmentConfigPublic = {
   adminApiUrl: string;
   lastSuccessfulPull?: Date;
   adminApiVersion: SbaaAdminApiVersion; //Maybe it will be required in case we add DMS
+  startingBlocks?: boolean;
 } & (
   | {
       version: 'v1';

@@ -102,6 +102,9 @@ export const CreateSbEnvironmentGlobalPage = () => {
       return;
     }
 
+    // Set the startingBlocks field based on the current mode
+    data.startingBlocks = isStartingBlocks;
+
     return postSbEnvironment
       .mutateAsync(
         { entity: data },

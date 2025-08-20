@@ -66,7 +66,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canUpdate
+        ...(canUpdate && sbEnvironment.startingBlocks
           ? {
               EditSbMeta: {
                 isIrrelevant: !!sbEnvironment.configPublic?.sbEnvironmentMetaArn,

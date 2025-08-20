@@ -6,7 +6,6 @@ import {
   PostSbEnvironmentDto,
   PutSbEnvironmentDto,
   PutSbEnvironmentMeta,
-  SbEnvironmentConfigPublic,
   toGetSbEnvironmentDto,
   toOperationResultDto,
   toPostSbEnvironmentResponseDto,
@@ -20,13 +19,11 @@ import {
 } from '@edanalytics/models-server';
 
 import {
-  BadRequestException,
   Body,
   Controller,
   Delete,
   Get,
   Inject,
-  NotFoundException,
   Param,
   ParseIntPipe,
   Post,
@@ -87,6 +84,7 @@ export class SbEnvironmentsGlobalController {
           this.sbEnvironmentsRepository.create({
             name: createSbEnvironmentDto.name,
             configPublic: {
+              startingBlocks: createSbEnvironmentDto.startingBlocks,
               sbEnvironmentMetaArn: createSbEnvironmentDto.metaArn,
             },
           }),
