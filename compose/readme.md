@@ -108,7 +108,8 @@ In `packages/api/config`, copy `local.js-edfi` to create `local.js`.
 - If you changed anything in your `.env` or `keycloak_sbaa_client.json`, then be sure to update those values in this file as well.
 - Ensure that `ADMIN_USERNAME` matches the email address you used when creating a new user in Keycloak (above).
 
-> [!NOTE] > `local.js` should not be kept in source control.
+> [!NOTE]
+> `local.js` should not be kept in source control.
 
 In `packages/fe`, copy `.copyme.env.local` to create `.env`.
 
@@ -150,7 +151,7 @@ In Global Scope, complete the following setup:
 - **Teams** - create a Team, name it whatever you like. More detail to come.
 - **Users** - ignore for now
 - **Team Memberships** - try adding yourself to the new Team, with "Tenant Admin" access.
-- **Roles** - ignore for now
+- **Roles** - assign all `team.sb-environment.edfi-tenant.profile` privileges to the "Tenant admin" and "Full ownership" roles
 - **Ownerships** - won't be able to do anything until we figure out how to create an Environment outside of AWS.
 - **Sync Queue** - ignore
 
