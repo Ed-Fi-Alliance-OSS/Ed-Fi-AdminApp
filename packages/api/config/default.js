@@ -109,4 +109,5 @@ module.exports = {
     }
     return out;
   }),
+  USE_YOPASS: false,
 };

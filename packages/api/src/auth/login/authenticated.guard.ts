@@ -41,8 +41,21 @@ export class AuthenticatedGuard implements CanActivate {
       this.authService
         .validateUser({ username: request.user.username })
         .then((user) => {
-          request.session.passport.user = user;
-          request.session.save();
+          // Sanitize user object before saving to session
+          if (user) {
+            const sanitizedUser = {
+              id: user.id,
+              username: user.username,
+              role: user.role ? {
+                id: user.role.id,
+                name: user.role.name,
+                privilegeIds: user.role.privilegeIds,
+              } : undefined,
+              isActive: user.isActive,
+            };
+            request.session.passport.user = sanitizedUser;
+            request.session.save();
+          }
         })
         .catch((err) => {
           Logger.error(err);
