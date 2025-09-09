@@ -29,5 +29,5 @@ tests](./EXECUTION.md), including recording test results.
 
 Component test plans:
 
-- [Admin App 4](./adminapp/FUNCTIONAL.md)
-- [Admin API 2](./api/README.md)
+- [Admin App v4](./adminapp/FUNCTIONAL.md)
+- [Admin API v2](./api/README.md)

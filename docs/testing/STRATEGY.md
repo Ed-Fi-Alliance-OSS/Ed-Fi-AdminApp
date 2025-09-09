@@ -14,7 +14,44 @@ worker applications.
 
 ## Test Basis
 
-TBD
+The following C4 Context diagram depicts the systems and relationships covered by this testing strategy. Below it are sub-sections summarizing the functionality for each application. This work is based on the functional requirements and technical designs found in the [AdminApp v4](https://github.com/Ed-Fi-Closed/AdminApp-v4/tree/develop/docs/design) and in Jira work items (private / staff and contractors only).
+
+```mermaid
+C4Context
+    title System Context for Ed-Fi AdminAppv4
+
+    Enterprise_Boundary(edorg, "<br/>Education Organization") {
+        Person(User, "AdminApp User", "A system administrator")
+    }
+
+    Enterprise_Boundary(other, "<br/>Other Services") {
+        System(Keycloak, "Keycloak", "OpenID Connect authorization provider")
+    }
+
+    Enterprise_Boundary(edfi, "<br/>Ed-Fi ODS/API Platform") {
+        System(AdminApp, "Ed-Fi AdminApp", "A web application for managing ODS/API Deployments")
+
+
+        System_Boundary(backend, "<br/>Backend Systems") {
+            System(AdminAPI, "Ed-Fi Admin API v2", "A REST API system for managing<br />administrative data and deployments,<br />plus background worker apps")
+            System(OdsApi, "Ed-Fi ODS/API", "A REST API system for<br />educational data interoperability")
+        }
+    }
+
+    Rel(User, AdminApp, "Manages instances,<br/>Manages client credentials,<br/>Manage synchronizations")
+    UpdateRelStyle(User, AdminApp, $offsetX="0", $offsetY="-10")
+
+    Rel(AdminApp, AdminAPI, "Issues HTTP requests")
+    UpdateRelStyle(AdminApp, AdminAPI, $offsetY="-40", $offsetX="20")
+
+    Rel(AdminAPI, OdsApi, "Reads and<br />configures")
+    UpdateRelStyle(AdminAPI, OdsApi, $offsetY="-20", $offsetX="-30")
+
+    Rel(User, Keycloak, "Authentication")
+    UpdateRelStyle(User, Keycloak, $offsetX="-20", $offsetY="10")
+
+    UpdateLayoutConfig($c4ShapeInRow="2", $c4BoundaryInRow="2")
+```
 
 ### Ed-Fi Applications
 
@@ -30,16 +67,33 @@ tested with this solution: 7.1, 7.2, and 7.3.
 
 #### Admin App
 
-TBD
+The AdminApp is a web-based user interface. In version 4.0 includes the functionality:
+
+* Management ODS/API ODSs, Ed-Orgs, Vendors, Applications and Claimsets
+  * Supported by _Admnin API_ below.
+* Management Accounts, Environments, Teams, Users, Team memberships, Roles, Ownerships and Sync queue.
+  * Supported by _Admnin APP_.
 
 #### Admin API
 
 Admin API is a REST API application that will serve as the Backend-for-frontend
 (BFF) supporting Admin App. In other words, the Admin App will retrieve
-all necessary data from Admin API. Additionally, Admin API will provide data
-management for the two worker processes described below.
+all necessary data from Admin API.
 
-New endpoints are being added to Admin API for support of Admin App. <TBD>
+| Resource                            | Verb   | Notes                                                   |
+| ----------------------------------- | ------ | ------------------------------------------------------- |
+| ResourceClaims                      | GET    | Retrieve a list or by id from all resource claims       |
+| ResourceClaimsActions               | GET    | Retrieve a list of actions                              |
+| ResourceClaimsActionsAuthStrategies | GET    | Retrieve a list of actions auth strategies              |
+| Vendors                             | GET, POST, PUT, DELETE | Vendor actions                          |
+| Profiles                            | GET, POST, PUT, DELETE | Profiles actions                        |
+| OdsInstances                        | GET, POST, PUT, DELETE | Ods Instances actions                   |
+| OdsInstanceDerivatives              | GET, POST, PUT, DELETE | Ods Instance Derivations actions        |
+| OdsInstanceContexts                 | GET, POST, PUT, DELETE | Ods Instance Contexts actions           |
+| ClaimSets                           | GET, POST, PUT, DELETE | Claim Sets actions                      |
+| AuthorizationStrategies             | GET, POST, PUT, DELETE | Authorization Strategies actions        |
+| Applications                        | GET, POST, PUT, DELETE | Applications actions                    |
+| Apiclients                          | GET, POST, PUT, DELETE | Api clients actions                     |
 
 ### Supporting Tools and Concepts
 
@@ -69,19 +123,29 @@ multi-tenancy is an administrative feature, not an authorization feature.
 
 #### Authentication and Authorization
 
-TBD
+Keycloak is a third-party, open source, application that serves as an Open ID
+Connect compatible _identity provider_ (IdP). Admin App users will
+authenticate with Keycloak, receiving a JSON Web Token (JWT) on successful
+sign-in. Admin API also has a legacy, internal, authentication system. That
+system is being kept for backwards compatibility with automation scripts that
+work directly with the Admin API. Admin App v4.0 _requires_ use of Keycloak
+for authentication.
 
-##### Client Authorization
-
-TBD
+> [!NOTE]
+> This test strategy will only cover the integration points between the Ed-Fi
+> system and Keycloak; for example, we will not perform detailed functional or
+> usability testing of Keycloak.
 
 ##### Resource Authorization
 
-Resource authorization will be based on the _scope_ claim. TBD
+Resource authorization will be based on the _scope_ claim.
+
+* Legacy client credentials for system integration with Admin API will also
+  continue to use `edfi_admin_api/full_access`.
 
 #### Database Management Systems
 
-These systems will support both PostgreSQL and Microsoft SQL Server running on
+These systems will support both PostgreSQL running on
 "bare metal", in a VM or as a Docker container. These three configurations are
 functionally equivalent, and most testing will occur within Docker containers.
 
@@ -89,7 +153,6 @@ While other recent versions of the applications will likely work out of the box,
 the Ed-Fi Alliance's testing process will only include the following versions:
 
 - PostgreSQL 16
-- Microsoft SQL Server 2022
 
 ## Testing Approach
 
@@ -123,13 +186,14 @@ promotes:
 In addition, the Alliance uses the following tools to automate static testing at
 the level of source code:
 
-1. [sonar-dotnet](https://github.com/SonarSource/sonar-dotnet), which analyzes
-   code against 470+ C# rules covering know vulnerabilities, bugs, security
+1. [SonarJS](https://github.com/SonarSource/SonarJS), which analyzes
+   JavaScript and TypeScript code for known vulnerabilities, bugs, security
    hotspots ,and code smells.
-   1. The application source code tunes some of the default rules to comply with
-      the Ed-Fi C# Coding Standard.
-   2. All warnings are treated _as errors_.
-   3. Code that contains errors (including "warnings") does not pass the review process.
+   1. The application source code can be configured to tune default rules to comply 
+      with Ed-Fi JavaScript/TypeScript coding standards.
+   2. All warnings are treated _as errors_ to maintain a high standard of code quality.
+   3. Code that contains errors (including "warnings") does not pass the review process, 
+      ensuring only clean and secure code is merged.
 2. [GitHub CodeQL](https://codeql.github.com/) provides advanced semantic
    analysis that searches for potential security vulnerabilities in a code base.
 3. [Github
@@ -167,37 +231,36 @@ described in more detail below:
 Isolated code-level tests without external dependencies.
 
 - Automation: Fully automated and integrated with the source code.
-- Tools: NUnit
+- Tools: Jest (for JavaScript/TypeScript), NUnit (for .NET/C#)
 - Coverage: Minimum 80% branch coverage.
   - Typical exceptions in the 20% include:
     - HTTP handlers ("controller")
     - ORM layer ("repository")
-    - Minimize business logic in these layers so that business logic can be
-      fully tested.
-  - This value is not set as a hard-gate on pull requests. The product needs to
-    reach 80% by the time it is ready for release.
+    - Minimize business logic in these layers so that business logic can be fully tested.
+  - This value is not set as a hard-gate on pull requests. The product needs to reach 80% by the time it is ready for release.
 - Scope:
-  - Admin API
+  - Admin API (NUnit for .NET, Jest for Node/TypeScript portions)
+  - Admin App (Jest for React/Angular/TypeScript code)
 - Out of Scope:
-  - Admin App
+  - Legacy code not migrated to supported frameworks
 
 > [!NOTE]
-> Unit tests in the Admin App web application code may be added in a
-> future release.
+> Unit tests in the Admin App web application code are implemented 
+> using Jest and may be expanded in future releases.
 
 ### Integration Testing
 
-Code-level tests that include integration with external resources (e.g.,
+Code-level tests that include integration with external resources (e.g., 
 database servers).
 
 - Automation: Automated where feasible.
-- Tools: NUnit
-- Coverage: not determined
+- Tools: Jest (with integration test setup for Node/TypeScript), NUnit (for .NET/C#)
+- Coverage: Not determined
 - Scope:
   - Admin API
+  - Admin App (where applicable)
 - Out of Scope:
-  - Admin App
-- To be determined: worker processes.
+  - Worker processes (to be determined)
 
 ### System Testing
 
@@ -260,7 +323,7 @@ similar conditions.
 
 Each application needs to be assessed separately.
 
-For meaningful statistics, all tests procedures need to run multiple times:
+For meaningful statistics, all test procedures need to run multiple times:
 ideally thirty times when fully automated and not cost prohibitive, with a
 minimum of five executions (thirty is the "magic number" for normal distribution
 statistics). Record the results of each run and provide summary statistics
@@ -276,33 +339,12 @@ example, do not use burst-mode VPCUs that have unpredictable performance.
 - Automation: manual.
 - Application type: web site.
 - Expected load: 1 user.
-- Peak load: 2 users with 2000 instances in a single tenant.
+- Peak load: 2 users with 2000 instances in a single / multi tenant.
 - Key performance characteristics:
   - **Page speed**: Web pages should load "quickly". Because of the limited
     usage of the application, there is no benchmark requirement for page speed
     at this time. This should pass the "eyeball" test.
 - Tools: [Microsoft Edge performance tool](https://learn.microsoft.com/en-us/microsoft-edge/devtools-guide-chromium/evaluate-performance/).
-
-##### Admin API Performance
-
-- Automation: automated.
-- Application type: web API.
-- Expected load: 1 to 3 clients.
-- Peak load: 5 clients with 2000 instances in a single tenant.
-- Key performance characteristics:
-  - **Response time**: 90% of requests should complete in under 1 seconds under
-    peak load.
-- Additional testing: the API should also be subject to much higher volume load
-  testing in order to assess potential breaking point. Set default rate limiting
-  based on this volume.
-- Tools: [Locust](https://locust.io/)
-
-> [!TIP]
-> These peak load values are laughably low. Why bother? To emphasize the true
-> low traffic nature of these applications. Heavy traffic could cause a denial
-> of service; in all likelihood this would require several orders of magnitude
-> more traffic. The Ed-Fi Alliance _might_ perform load testing to characterize
-> the impact in more detail. To be determined.
 
 ### Usability Testing
 
@@ -322,7 +364,7 @@ example, do not use burst-mode VPCUs that have unpredictable performance.
 - Objective: Ensure the application works across different devices, browsers,
   and operating systems.
 - Types: Cross-browser testing, simulated cross-device testing (use developer
-  tools in the browser to assess compatibility on table and current phone
+  tools in the browser to assess compatibility on tablet and current phone
   devices).
 - Requirement: the web site must be fully functional in the two most common
   browsers used in Windows and Mac OS X. Mobile, Tablet devices and Responsive usability is
@@ -349,10 +391,10 @@ example, do not use burst-mode VPCUs that have unpredictable performance.
 - Tools:
   [Lighthouse](https://learn.microsoft.com/en-us/microsoft-edge/devtools-guide-chromium/accessibility/lighthouse).
 
-### Operational Useability
+### Operational Usability
 
 - Automation: manual.
-- Objective: Ensure the integrated system is sufficiently useable from an operational perspective.
+- Objective: Ensure the integrated system is sufficiently usable from an operational perspective.
 - Heuristics:
   - Operationally stable running in Docker Desktop in a local environment.
   - Able to deploy and operate in a cloud environment with relative ease.
@@ -364,7 +406,7 @@ example, do not use burst-mode VPCUs that have unpredictable performance.
 - Scope:
   - Admin App
   - Admin API
-- Tools: user reporting with similar tools as the useability heuristics testing.
+- Tools: user reporting with similar tools as the usability heuristics testing.
 
 ## Implementation
 
@@ -388,7 +430,8 @@ example, do not use burst-mode VPCUs that have unpredictable performance.
 
 ## Test Case Development
 
-Specific Testing Areas for Admin API. TBD
+The scenarios defined for AdminApp are based on the current application configuration. 
+If any changes occur, they will be updated later and can be reviewed in this file [Functional Test](./adminapp/FUNCTIONAL.md) in Gherkin format.
 
 ## Conclusion
 
