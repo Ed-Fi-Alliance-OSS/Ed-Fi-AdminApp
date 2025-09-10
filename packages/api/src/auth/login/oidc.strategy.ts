@@ -2,7 +2,7 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-import { Issuer, Strategy, TokenSet } from 'openid-client';
+import { BaseClient, Issuer, Strategy, TokenSet } from 'openid-client';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
@@ -17,13 +17,19 @@ export class RegisterOidcIdpsService {
   ) {
     this.oidcRepo.find().then((oidcs) => {
       oidcs.forEach(async (oidcConfig) => {
-        const TrustIssuer = await Issuer.discover(
-          `${oidcConfig.issuer}/.well-known/openid-configuration`
-        );
-        const client = new TrustIssuer.Client({
-          client_id: oidcConfig.clientId,
-          client_secret: oidcConfig.clientSecret,
-        });
+        let client: BaseClient;
+        try {
+          const TrustIssuer = await Issuer.discover(
+            `${oidcConfig.issuer}/.well-known/openid-configuration`
+          );
+          client = new TrustIssuer.Client({
+            client_id: oidcConfig.clientId,
+            client_secret: oidcConfig.clientSecret,
+          });
+        } catch (err) {
+          Logger.error(`Error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
+          return;
+        }
         const strategy = new Strategy(
           {
             client,
@@ -33,7 +39,7 @@ export class RegisterOidcIdpsService {
             },
             usePKCE: false,
           },
-          async (tokenset: TokenSet, userinfo, done) => {
+          async (_: TokenSet, userinfo, done) => {
             let username: string | undefined = undefined;
             if (typeof userinfo.email !== 'string' || userinfo.email === '') {
               throw new Error('Invalid email from IdP');

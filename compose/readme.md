@@ -102,7 +102,7 @@ There are two Docker Compose files: `docker-compose.yml` and `keycloak.yml`. Thi
 
 ### Setup Keycloak
 
-1. Open [Keycloak](http://localhost:8045).
+1. Open [Keycloak](https://localhost/auth).
 2. Sign-in with the credentials from your `.env` file.
 3. Create a new realm called `edfi`.
 4. Create a new non-admin client:
@@ -140,10 +140,11 @@ See [Ed-Fi Developer's Guide](../docs/ed-fi-development.md) for troublshooting t
 
 If you are signed into Keycloak with the default `admin` user, then either impersonate the new user or sign out and sign-in as that user.
 
-Run each application in separate terminal windows:
+Run each application in separate terminal windows. In the API terminal, setup Node to trust the self-signed cert.
 
-```shell
+```pwsh
 # Terminal 1
+$env:NODE_EXTRA_CA_CERTS="d:\ed-fi\AdminApp-v4\compose\ssl\server.crt"
 npm run start:api:dev
 
 # Terminal 2
@@ -172,17 +173,19 @@ In Global Scope, complete the following setup:
 
 ### URLs
 
-- Multi-Tenant: [ODS/API 7.x](https://localhost:4443/v7-ods)
-  - Multi-Tenant: [Admin API 2.x](https://localhost:4443/v7-adminapi)
-- Single-Tenant: [ODS/API 7.x](https://localhost:4443/v7-ods-single-tenant)
-  - Single-Tenant: [Admin API 2.x](https://localhost:4443/v7-adminapi-single-tenant)
-- [ODS/API 6.x](https://localhost:5443/v6-ods)
-  - [Admin API 1.x](https://localhost:5443/v6-adminapi)
-- [Keycloak](http://localhost:8045)
+These are the default URLs. The last path segment must match your environment variable settings.
+
+- Multi-Tenant: [ODS/API 7.x](https://localhost/v7-ods)
+  - Multi-Tenant: [Admin API 2.x](https://localhost/v7-adminapi)
+- Single-Tenant: [ODS/API 7.x](https://localhost/v7-ods-single-tenant)
+  - Single-Tenant: [Admin API 2.x](https://localhost/v7-adminapi-single-tenant)
+- [ODS/API 6.x](https://localhost/v6-ods)
+  - [Admin API 1.x](https://localhost/v6-adminapi)
+- [Keycloak](https://localhost/auth)
 - [Yopass](http://localhost:8082)
-- [PGAdmin4](http://localhost:5050)
-- [Admin App API Swagger](http://localhost:3333/api/)
-- [Admin App UI](http://localhost:4200/)
+- [PGAdmin4](https://localhost/pgadmin)
+- [SBAA API Swagger](http://localhost:3333/api/)
+- [SBAA UI](http://localhost:4200/)
 
 ## Troubleshooting
 

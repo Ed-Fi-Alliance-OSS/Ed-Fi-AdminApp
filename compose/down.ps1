@@ -22,10 +22,12 @@ else {
 }
 
 if ($Keycloak) {
+  if ($V) {
     # Shut down Keycloak and remove its volume
     docker compose --project-name edfiadminapp-dev-environment -f keycloak.yml down --volumes
-}
-else {
-    # Shut down Keycloak without removing its volume
-    docker compose --project-name edfiadminapp-dev-environment -f keycloak.yml down
+  }
+  else {
+      # Shut down Keycloak without removing its volume
+      docker compose --project-name edfiadminapp-dev-environment -f keycloak.yml down
+  }
 }
