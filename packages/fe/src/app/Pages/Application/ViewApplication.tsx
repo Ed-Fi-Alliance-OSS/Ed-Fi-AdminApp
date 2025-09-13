@@ -54,7 +54,7 @@ export const ViewApplication = ({ application }: { application: GetApplicationDt
 
   const url =
     application && edfiTenant.sbEnvironment.domain
-      ? GetApplicationDto.apiUrl(edfiTenant.sbEnvironment.domain, application.applicationName)
+      ? GetApplicationDto.apiUrl(edfiTenant.sbEnvironment.startingBlocks, edfiTenant.sbEnvironment.domain, application.applicationName)
       : undefined;
 
   return application ? (

@@ -86,6 +86,7 @@ export class IntegrationAppsTeamController {
     const body = {
       ...adminApiResponse,
       url: GetApplicationDtoV2.apiUrl(
+        sbEnvironment.startingBlocks,
         sbEnvironment.domain,
         integrationApp.applicationName,
         edfiTenant.name

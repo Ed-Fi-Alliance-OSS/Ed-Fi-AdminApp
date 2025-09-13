@@ -68,7 +68,10 @@ export class StartingBlocksServiceV1 {
       this.logger.warn('Failed to GET ODS API root URL at ' + sbEnvironment.usableDomain);
     }
 
-    configPublic.values = { ...configPublic.values, edfiHostname: meta.domainName };
+    if (configPublic.startingBlocks) {
+      configPublic.values = { ...configPublic.values, edfiHostname: meta.domainName };
+    }
+    
     sbEnvironment.envLabel = meta.envlabel;
     return await this.sbEnvironmentsRepository.save(sbEnvironment);
   }

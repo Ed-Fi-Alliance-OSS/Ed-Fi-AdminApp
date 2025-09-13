@@ -91,4 +91,5 @@ export interface ISbEnvironment extends IEntityBase {
   usableDomain: string | undefined;
   odsApiVersion: string | undefined;
   odsDsVersion: string | undefined;
+  startingBlocks: boolean;
 }

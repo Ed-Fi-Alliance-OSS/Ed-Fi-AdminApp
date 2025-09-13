@@ -538,6 +538,7 @@ export class AdminApiControllerV2 {
         const yopass = await postYopassSecret({
           ...adminApiResponse,
           url: GetApplicationDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             application.applicationName,
             edfiTenant.name
@@ -633,6 +634,7 @@ export class AdminApiControllerV2 {
         const yopass = await postYopassSecret({
           ...adminApiResponse,
           url: GetApplicationDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             application.applicationName,
             edfiTenant.name

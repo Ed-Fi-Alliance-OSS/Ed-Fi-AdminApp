@@ -96,6 +96,7 @@ export const ViewApplication = ({
 
   const url = edfiTenant?.sbEnvironment.domain
     ? GetApplicationDtoV2.apiUrl(
+        edfiTenant?.sbEnvironment.startingBlocks,
         edfiTenant?.sbEnvironment.domain,
         application.applicationName,
         edfiTenant.name

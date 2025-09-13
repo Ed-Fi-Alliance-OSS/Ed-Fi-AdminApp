@@ -329,18 +329,20 @@ export class GetApplicationDto {
     return this.applicationId;
   }
 
-  static apiUrl(domain: string, applicationName: GetApplicationDto['applicationName']) {
-    const safe = (str: string) =>
-      str
-        .toLowerCase()
-        .replace(/\s/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
-
-    const appName = safe(applicationName).slice(0, 40);
+  static apiUrl(startingBlocks: boolean, domain: string, applicationName: GetApplicationDto['applicationName']) {
     const url = new URL(domain);
     url.protocol = 'https:';
-    url.hostname = `${appName}.${url.hostname}`;
+    if (startingBlocks)
+    {
+      const safe = (str: string) =>
+        str
+          .toLowerCase()
+          .replace(/\s/g, '-')
+          .replace(/[^a-z0-9-]/g, '');
 
+      const appName = safe(applicationName).slice(0, 40);
+      url.hostname = `${appName}.${url.hostname}`;
+    }  
     return url.toString();
   }
 }

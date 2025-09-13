@@ -98,22 +98,25 @@ export class GetApplicationDtoV2 {
     return this.applicationName;
   }
 
-  static apiUrl(domain: string, applicationName: string, tenantName: string) {
-    const safe = (str: string) =>
-      str
-        .toLowerCase()
-        .replace(/\s/g, '-')
-        .replace(/[^a-z0-9-]/g, '');
-
-    const appName = safe(applicationName).slice(0, 40);
+  static apiUrl(startingBlocks: boolean, domain: string, applicationName: string, tenantName: string) {
     const url = new URL(domain);
     url.protocol = 'https:';
-    url.pathname = url.pathname.replace(/\/+$/, '') + '/' + tenantName;
-    url.hostname = `${appName}.${url.hostname}`;
+    if (startingBlocks)
+    {
+      const safe = (str: string) =>
+        str
+          .toLowerCase()
+          .replace(/\s/g, '-')
+          .replace(/[^a-z0-9-]/g, '');
 
+      const appName = safe(applicationName).slice(0, 40);
+      url.pathname = url.pathname.replace(/\/+$/, '') + '/' + tenantName;
+      url.hostname = `${appName}.${url.hostname}`;
+    }
     return url.toString();
   }
 }
+
 export const toGetApplicationDtoV2 = makeSerializer(GetApplicationDtoV2);
 export class PostApplicationDtoV2 extends PostApplicationDtoBase {
   @Expose()

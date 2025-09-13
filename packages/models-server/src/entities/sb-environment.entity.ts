@@ -69,6 +69,10 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
       return undefined;
     }
   }
+  
+  get startingBlocks() {
+    return this.configPublic?.startingBlocks ?? false;
+  }
 
   @Column({
     type: 'jsonb',

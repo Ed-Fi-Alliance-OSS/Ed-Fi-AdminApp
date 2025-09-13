@@ -430,7 +430,7 @@ export class AdminApiControllerV1 {
         if (config.USE_YOPASS) {
           const yopass = await postYopassSecret({
             ...adminApiResponse,
-            url: GetApplicationDto.apiUrl(sbEnvironment.domain, application.applicationName),
+            url: GetApplicationDto.apiUrl(sbEnvironment.startingBlocks, sbEnvironment.domain, application.applicationName),
           });
           return toApplicationYopassResponseDto({
             link: yopass.link,
@@ -513,7 +513,7 @@ export class AdminApiControllerV1 {
         if (config.USE_YOPASS) {
           const yopass = await postYopassSecret({
             ...adminApiResponse,
-            url: GetApplicationDto.apiUrl(sbEnvironment.domain, application.applicationName),
+            url: GetApplicationDto.apiUrl(sbEnvironment.startingBlocks, sbEnvironment.domain, application.applicationName),
           });
           return toApplicationYopassResponseDto({
             link: yopass.link,

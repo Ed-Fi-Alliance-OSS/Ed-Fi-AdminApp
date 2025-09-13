@@ -279,6 +279,7 @@ export class PutSbEnvironmentDto
       | 'odsDsVersion'
       | 'adminApiUrl'
       | 'integrationApps'
+      | 'startingBlocks'
     >
 {
   @Expose()
