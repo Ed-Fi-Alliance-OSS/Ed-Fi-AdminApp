@@ -97,10 +97,6 @@ server {
         proxy_redirect off;
         # Do not set "HttpOnly" below, as Keycloak can't handle it: https://github.com/keycloak/keycloak/pull/16747
         proxy_cookie_flags ~ Secure SameSite=Strict;
-
-        proxy_hide_header Content-Security-Policy;
-        # Allowing 'unsafe-inline' for script-src and style-src are required for using Keylcoak's UI: https://github.com/keycloak/keycloak/issues/16277
-        add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline';  style-src 'self' 'unsafe-inline';";
     }
 
     location /pgadmin {
