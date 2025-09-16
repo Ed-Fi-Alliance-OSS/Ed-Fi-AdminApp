@@ -187,6 +187,90 @@ These are the default URLs. The last path segment must match your environment va
 - [SBAA API Swagger](http://localhost:3333/api/)
 - [SBAA UI](http://localhost:4200/)
 
+## Authentication Flows
+
+The Ed-Fi Admin App supports two authentication methods:
+
+### 1. Human User Authentication (Browser-based)
+
+- **Config File**: `keycloak_edfiadminapp_client.json`
+- **Flow**: User logs in through the browser → redirected to Keycloak → enters
+  credentials → authorization code exchanged for access token → authenticated
+  session established
+- **Use Case**: Interactive web application access
+
+### 2. Machine-to-Machine Authentication (API-based)
+
+- **Config File**: `keycloak_edfiadminapp_machine_client.json`
+- **Flow**: Client credentials flow for automated API access
+- **Requirements**:
+  - Token must include `login:app` scope
+  - Audience must be `edfiadminapp-api`
+  - Token verification using `jose.jwtVerify`
+- **Use Case**: Automated scripts, system integrations, and service-to-service
+  communication
+
+### Testing Machine Authentication
+
+Use the `e2e\http\machine-user-jwt-testing.http` file to test the machine-to-machine
+authentication flow:
+
+#### Setup Steps
+
+1. **Create Client Scope**: In Keycloak Admin Console:
+   - Select the `edfi` realm
+   - Navigate to **Client Scopes** (in the left sidebar)
+   - Click **"Create client scope"**
+   - Set **Name**: `login:app`
+   - Set **Description**: `Access to Ed-Fi Admin App API`
+   - Set **Type**: `Default`
+   - Set **Protocol**: `openid-connect`
+   - Enable **Include In Token Scope**: `ON`
+   - Save
+2. **Import Keycloak Client**: Import `keycloak_edfiadminapp_machine_client.json` into Keycloak
+3. **Update Application Configuration**: Please update the
+   `AUTH0_CONFIG_SECRET_VALUE` section in the `local.js` file as shown below. If
+   any configuration values are changed in
+   `keycloak_edfiadminapp_machine_client.json`, make sure they match
+   accordingly.
+  
+   ```js
+
+    AUTH0_CONFIG_SECRET_VALUE: 
+    {
+    ISSUER: 'https://localhost/auth/realms/edfi'
+    CLIENT_ID: 'edfiadminapp'
+    CLIENT_SECRET: 'big-secret-123'
+    MACHINE_AUDIENCE: 'edfiadminapp-api'
+    MANAGEMENT_DOMAIN: 'localhost'
+    MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine'
+    MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'
+    }
+   ```
+
+4. **Create Machine User In Admin App frontend**:  
+    1. Open AdminApp frontend (http://localhost:4200)
+    2. Navigate to Home page → Users
+    3. Click "Create New" user
+    4. Fill in the form:
+       - Username: edfiadminapp-machine (must be unique)
+       - User Type: Select "Machine" from dropdown
+       - Description: "Machine-to-Machine Authentication User" (or your preferred description)
+       - Client ID: edfiadminapp-machine (CRITICAL: must match Keycloak client ID)
+       - Is Active: ✓ Check this box
+       - Role: Select appropriate role (e.g., GlobalAdmin, GlobalViewer, etc.)
+       - Add to Team: Select "Yes" if you want to assign to a team
+       - If yes: Select team and role for team membership
+    5. Click "Save"
+    >[!NOTE]
+    > 1. The Client ID MUST exactly match the Keycloak client ID:
+    >    edfiadminapp-machine
+    > 2. The Username should be descriptive and unique
+    > 3. Machine users don't need Given Name or Family Name
+    > 4. Ensure "Is Active" is checked or authentication will fail
+    > 5. Role assignment determines what API endpoints the machine user can
+    >    access
+
 ## Troubleshooting
 
 ### Unable to connect to OpenID Connect Provider

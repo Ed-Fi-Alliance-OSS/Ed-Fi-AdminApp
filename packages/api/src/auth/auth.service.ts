@@ -619,15 +619,38 @@ export class AuthService {
     }
 
     try {
-      const verifyResult = await jose.jwtVerify(token, jwkResult.jwk);
+
+      const AUTH0_CONFIG_SECRET = await config.AUTH0_CONFIG_SECRET;
+      const verifyResult = await jose.jwtVerify(token, jwkResult.jwk, {
+        // Core security validations
+        issuer: AUTH0_CONFIG_SECRET.ISSUER,
+        audience: AUTH0_CONFIG_SECRET.MACHINE_AUDIENCE,
+        // Validate required claims exist
+        requiredClaims: ['iss', 'aud', 'exp', 'iat', 'sub']
+      });
+
       return {
         status: 'success' as const,
         data: verifyResult.payload,
       };
     } catch (verifyError) {
+      // Provide specific error messages
+      let errorMessage = 'Invalid token';
+
+      if (verifyError.code === 'ERR_JWT_EXPIRED') {
+        errorMessage = 'Token has expired. Please obtain a new access token.';
+      } else if (verifyError.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED') {
+        // This handles all claim validation failures (audience, issuer, subject, etc.)
+        errorMessage = 'Token claim validation failed. Please check token audience and issuer configuration.';
+      } else if (verifyError.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
+        errorMessage = 'Token signature verification failed. Please check token source and signing configuration.';
+      } else {
+        Logger.warn('Unknown verification error:', verifyError.code, verifyError.message);
+        errorMessage = `Token verification failed: ${verifyError.code || 'UNKNOWN_ERROR'}. Please check token format and configuration.`;
+      }
       return {
         status: 'failure' as const,
-        message: 'Invalid token', // some kind of invalid crypto
+        message: errorMessage,
       };
     }
   }
@@ -644,20 +667,23 @@ export class AuthService {
         };
       }
 
-      this._jwks = new Promise((resolve) =>
-        Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER).then((issuer) =>
-          fetch(issuer.metadata.jwks_uri).then((response) =>
-            response.json().then(async (jwks) => {
-              const out: Record<string, CryptoKey | Uint8Array> = {};
-              for (let i = 0; i < jwks.keys.length; i++) {
-                const jwk = jwks.keys[i];
-                out[jwk.kid as string] = await jose.importJWK(jwk);
-              }
-              resolve(out);
-            })
-          )
-        )
-      );
+      this._jwks = new Promise((resolve) => {
+          Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER).then((issuer) =>
+            fetch(issuer.metadata.jwks_uri).then((response) =>
+              response.json().then(async (jwks) => {
+                const out: Record<string, CryptoKey | Uint8Array> = {};
+                for (let i = 0; i < jwks.keys.length; i++) {
+                  const jwk = jwks.keys[i];
+                  out[jwk.kid as string] = await jose.importJWK(jwk);
+                }
+                resolve(out);
+              })
+            )
+          ).catch((error) => {
+            Logger.error(`Error fetching JWKS from ${AUTH0_CONFIG_SECRET.ISSUER}. Check the ISSUER configuration.`, error);
+            resolve({});
+          });
+      });
       const jwk = (await this._jwks)?.[kid];
 
       if (jwk === undefined) {

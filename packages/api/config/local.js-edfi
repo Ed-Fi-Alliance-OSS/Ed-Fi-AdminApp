@@ -1,5 +1,6 @@
 // packages/api/config/local-development.js
 const FE_URL = 'http://localhost:4200';
+const API_URL = 'http://localhost:3333';
 
 module.exports = {
   _OPEN_API: true,
@@ -36,17 +37,19 @@ module.exports = {
   // Optional: seed an initial user.
   ADMIN_USERNAME: 'admin@example.com', // use an email address in the future
 
+  // JWT Authentication Configuration for Machine-to-Machine and User Authentication
+  // Please refer to "keycloak_edfiadminapp_machine_client.json" configuration for test values
   // Do not comment this out! Even though Ed-Fi environments do not use Auth0, the code is looking for this object
   AUTH0_CONFIG_SECRET_VALUE: {
-    ISSUER: 'https://example.com/',
-    CLIENT_ID: '<your value>',
-    CLIENT_SECRET: '<your value>',
-    MACHINE_AUDIENCE: 'sbaa-local',
-    MANAGEMENT_DOMAIN: '<your value>',
-    MANAGEMENT_CLIENT_ID: '<your value>',
-    MANAGEMENT_CLIENT_SECRET: '<your value>',
+    ISSUER: 'https://localhost/auth/realms/edfi'
+    CLIENT_ID: 'edfiadminapp'
+    CLIENT_SECRET: 'big-secret-123'
+    MACHINE_AUDIENCE: 'edfiadminapp-api'
+    MANAGEMENT_DOMAIN: 'localhost'
+    MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine'
+    MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'
   },
-  
+
   WHITELISTED_REDIRECTS: [FE_URL],
 
   // There are other defaults you can override if you want to. See default.js.

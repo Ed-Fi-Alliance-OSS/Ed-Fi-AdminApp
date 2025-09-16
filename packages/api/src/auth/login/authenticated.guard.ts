@@ -72,7 +72,14 @@ export class AuthenticatedGuard implements CanActivate {
       }
 
       if (verifyResult.status !== 'success') {
-        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNAUTHORIZED,
+            message: verifyResult.message || 'Unauthorized',
+            error: 'Unauthorized'
+          },
+          HttpStatus.UNAUTHORIZED
+        );
       }
 
       const { data } = verifyResult;

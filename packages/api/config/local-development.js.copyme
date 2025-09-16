@@ -1,5 +1,10 @@
+
+// This file is for local development in a Starting Blocks Environment.
+// Use local.js-edfi for local development outside of a Starting Blocks Environment.
+
 // packages/api/config/local-development.js
 const FE_URL = 'http://localhost:4200';
+const API_URL = 'http://localhost:3333';
 
 module.exports = {
   _OPEN_API: true,
@@ -7,7 +12,7 @@ module.exports = {
   DB_SSL: false,
   AWS_REGION: 'us-east-2',
   FE_URL: FE_URL,
-  MY_URL: 'http://localhost:3333',
+  MY_URL: API_URL,
   YOPASS_URL: 'https://i2970wh4a8.execute-api.us-east-2.amazonaws.com/prod/',
 
   DB_SECRET_VALUE: {
