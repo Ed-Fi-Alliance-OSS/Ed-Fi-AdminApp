@@ -167,7 +167,7 @@ export const useEdfiTenantGlobalActions = (
           },
         }
       : {}),
-    ...(canRefreshResources
+    ...(canRefreshResources && sbEnvironment.startingBlocks
       ? {
           RefreshResources: {
             icon: Icons.Download,

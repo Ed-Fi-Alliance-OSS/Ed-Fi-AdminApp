@@ -77,24 +77,26 @@ export const ViewSbEnvironmentGlobal = (props: { sbEnvironment: GetSbEnvironment
           </ContentSection>
         </PageContentCard>
       </AuthorizeComponent>
-      <AuthorizeComponent
-        config={{
-          privilege: 'sb-sync-queue:read',
-          subject: {
-            id: '__filtered__',
-          },
-        }}
-      >
-        <PageContentCard>
-          <ContentSection heading="Sync queue">
-            <SbSyncQueuesTable
-              defaultFilters={[
-                { id: 'dataText', value: `{"sbEnvironmentId": ${sbEnvironment.id}}` },
-              ]}
-            />
-          </ContentSection>
-        </PageContentCard>
-      </AuthorizeComponent>
+      {sbEnvironment.startingBlocks && (
+        <AuthorizeComponent
+          config={{
+            privilege: 'sb-sync-queue:read',
+            subject: {
+              id: '__filtered__',
+            },
+          }}
+        >
+          <PageContentCard>
+            <ContentSection heading="Sync queue">
+              <SbSyncQueuesTable
+                defaultFilters={[
+                  { id: 'dataText', value: `{"sbEnvironmentId": ${sbEnvironment.id}}` },
+                ]}
+              />
+            </ContentSection>
+          </PageContentCard>
+        </AuthorizeComponent>
+      )}
     </>
   );
 };

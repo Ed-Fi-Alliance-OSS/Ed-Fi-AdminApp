@@ -112,7 +112,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canRefreshResources
+        ...(canRefreshResources && sbEnvironment.startingBlocks
           ? {
               RefreshResources: {
                 icon: Icons.Download,
@@ -136,7 +136,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canUpdate && sbEnvironment.version === 'v2'
+        ...(canUpdate && sbEnvironment.version === 'v2' && sbEnvironment.startingBlocks
           ? {
               Restart: {
                 isPending: reloadTenants.isPending,

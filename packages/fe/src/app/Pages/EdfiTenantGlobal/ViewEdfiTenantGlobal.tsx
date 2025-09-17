@@ -36,6 +36,7 @@ export const ViewEdfiTenantGlobal = withLoader((props: { edfiTenant: GetEdfiTena
           </AttributesGrid>
         </ContentSection>
       </PageContentCard>
+      {sbEnvironment.startingBlocks && (
       <AuthorizeComponent
         config={{
           privilege: 'sb-sync-queue:read',
@@ -51,7 +52,7 @@ export const ViewEdfiTenantGlobal = withLoader((props: { edfiTenant: GetEdfiTena
             />
           </ContentSection>
         </PageContentCard>
-      </AuthorizeComponent>
+      </AuthorizeComponent>)}
     </>
   );
 });
