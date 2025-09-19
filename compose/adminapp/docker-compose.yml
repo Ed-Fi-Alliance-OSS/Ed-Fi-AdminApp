@@ -37,6 +37,7 @@ services:
         VITE_API_URL: '${VITE_API_URL:-https://localhost/adminapp-api}'
         VITE_OIDC_ID: ${VITE_OIDC_ID:-1}
         VITE_BASE_PATH: '${VITE_BASE_PATH:-/adminapp/}'
+        VITE_HELP_GUIDE: '${VITE_HELP_GUIDE:-https://docs.ed-fi.org/}'
     container_name: edfiadminapp-fe
     # Remove or comment out the ports since nginx will proxy to it
     # ports:

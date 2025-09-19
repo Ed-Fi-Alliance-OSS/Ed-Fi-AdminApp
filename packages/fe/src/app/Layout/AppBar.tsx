@@ -55,8 +55,7 @@ export const AppBar = () => {
       </HStack>
       <HStack>
         <IconButton
-          // TODO EA-specific support link
-          href="https://docs.startingblocks.org/"
+          href={import.meta.env.VITE_HELP_GUIDE || "https://docs.ed-fi.org/"}
           as="a"
           target="_blank"
           rel="noopener noreferrer"
@@ -100,8 +99,7 @@ export const AppBar = () => {
               Report an issue
             </MenuItem>
             <MenuItem
-              // TODO EA-specific support link
-              href="https://docs.startingblocks.org/"
+              href={import.meta.env.VITE_HELP_GUIDE || "https://docs.ed-fi.org/"}
               as="a"
               target="_blank"
               rel="noopener noreferrer"
