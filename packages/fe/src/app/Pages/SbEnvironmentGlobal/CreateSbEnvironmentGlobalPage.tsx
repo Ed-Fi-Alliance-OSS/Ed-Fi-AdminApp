@@ -238,6 +238,15 @@ export const CreateSbEnvironmentGlobalPage = () => {
             if (!ods.allowedEdOrgs || ods.allowedEdOrgs.trim() === '') {
               setError(`tenants.${tenantIndex}.odss.${odsIndex}.allowedEdOrgs`, { message: 'Education Organization Identifier(s) is required' });
               isValid = false;
+            } else {
+              // Validate that allowedEdOrgs contains only numbers separated by commas
+              const edOrgPattern = /^\s*\d+(\s*,\s*\d+)*\s*$/;
+              if (!edOrgPattern.test(ods.allowedEdOrgs.trim())) {
+                setError(`tenants.${tenantIndex}.odss.${odsIndex}.allowedEdOrgs`, {
+                  message: 'Education Organization Identifier(s) must be numbers separated by commas (e.g., "1, 255901, 25590100")'
+                });
+                isValid = false;
+              }
             }
           });
         });
@@ -379,26 +388,15 @@ export const CreateSbEnvironmentGlobalPage = () => {
               </FormControl>
               {
                 (currentVersion === 'v1' || currentVersion === 'v2') ? (
-                  <Box>
-                    {/* Hidden field for tenant-level errors */}
-                    <FormControl isInvalid={!!errors.tenants} display="none">
-                      <Input {...register('tenants')} type="hidden" />
-                    </FormControl>
-                    {errors.tenants?.message && (
-                      <Text color="red.500" fontSize="sm" mb={2}>
-                        {errors.tenants.message}
-                      </Text>
-                    )}
-                    <TenantManagementSection
-                      isMultitenant={currentVersion === 'v2' ? (isMultitenant || false) : false}
-                      tenants={tenants}
-                      register={register}
-                      setValue={setValue}
-                      getValues={getValues}
-                      errors={errors}
-                      clearErrors={clearErrors}
-                    />
-                  </Box>
+                  <TenantManagementSection
+                    isMultitenant={currentVersion === 'v2' ? (isMultitenant || false) : false}
+                    tenants={tenants}
+                    register={register}
+                    setValue={setValue}
+                    getValues={getValues}
+                    errors={errors}
+                    clearErrors={clearErrors}
+                  />
                 ) : null
               }
             </Box>

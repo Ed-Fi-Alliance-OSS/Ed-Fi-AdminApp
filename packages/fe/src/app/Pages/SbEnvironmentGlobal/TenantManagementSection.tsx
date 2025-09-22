@@ -61,6 +61,15 @@ export const TenantManagementSection = ({
           <Text fontSize="sm" color="orange.600" mb={2}>
             ⚠️ Ensure all tenant names entered below are properly configured in your Admin API before proceeding
           </Text>
+          {/* Hidden field for tenant-level errors */}
+          <FormControl isInvalid={!!errors.tenants} display="none">
+            <Input {...register('tenants')} type="hidden" />
+          </FormControl>
+          {errors.tenants?.message && (
+            <Text color="red.500" fontSize="sm" mb={2}>
+              {errors.tenants.message}
+            </Text>
+          )}
           <Stack spacing={2}>
             <ButtonGroup size="sm">
               <Button
@@ -101,6 +110,8 @@ export const TenantManagementSection = ({
                             updatedTenants.splice(index, 1);
                           }
                           setValue('tenants', updatedTenants);
+                          // Clear tenant-related validation errors when removing a tenant
+                          clearErrors('tenants');
                         }}
                       >
                         Remove
@@ -266,6 +277,8 @@ export const TenantManagementSection = ({
                                                 updatedTenants[index].odss.splice(odsIndex, 1);
                                               }
                                               setValue('tenants', updatedTenants);
+                                              // Clear validation errors specific to this tenant's ODS instances
+                                              clearErrors(`tenants.${index}.odss`);
                                             }}
                                           >
                                             Remove
@@ -436,6 +449,8 @@ export const TenantManagementSection = ({
                               updatedTenants[0].odss.splice(odsIndex, 1);
                             }
                             setValue('tenants', updatedTenants);
+                            // Clear validation errors specific to the default tenant's ODS instances
+                            clearErrors('tenants.0.odss');
                           }}
                         >
                           Remove

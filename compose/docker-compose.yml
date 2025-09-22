@@ -276,6 +276,8 @@ services:
       Log4NetCore__Log4NetConfigFileName: ./log4net/log4net.config
       EnableDockerEnvironment: true
       AppSettings__AllowedOrigins: ${ALLOWED_ORIGINS:-https://localhost}
+      # Increase rate limiting for Connect/Register endpoint
+      IpRateLimiting__GeneralRules__0__Limit: 25
     volumes:
       - ./settings/appsettings.dockertemplate.json:/app/appsettings.dockertemplate.json
       - ./settings/adminapi-run.sh:/app/run.sh

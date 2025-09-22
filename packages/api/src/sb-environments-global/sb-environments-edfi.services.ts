@@ -26,6 +26,9 @@ import axios from 'axios';
 import { persistSyncTenant, SyncableOds } from '../sb-sync/sync-ods';
 import { randomUUID } from 'crypto';
 
+type TenantCredentials = { clientId: string; clientSecret: string; displayName: string };
+type TenantCredentialsMap = Map<string, TenantCredentials>;
+
 @Injectable()
 export class SbEnvironmentsEdFiService {
   private readonly logger = new Logger(SbEnvironmentsEdFiService.name);
@@ -174,6 +177,12 @@ export class SbEnvironmentsEdFiService {
           });
         }
 
+        // Validate tenants and create credentials for multi-tenant v2 environments
+        let tenantCredentialsMap: TenantCredentialsMap | undefined;
+        if (createSbEnvironmentDto.isMultitenant && createSbEnvironmentDto.version === 'v2') {
+          tenantCredentialsMap = await this.validateTenantsAndCreateCredentials(createSbEnvironmentDto);
+        }
+
         // Replace the current configPublic logic with this:
         const configPublic =
           createSbEnvironmentDto.version === 'v1'
@@ -224,7 +233,7 @@ export class SbEnvironmentsEdFiService {
           await this.syncv1Environment(sbEnvironment, createSbEnvironmentDto);
         } else if (createSbEnvironmentDto.version === 'v2') {
           // For v2, we need to investigate if applies the same process
-          await this.syncv2Environment(sbEnvironment, createSbEnvironmentDto);
+          await this.syncv2Environment(sbEnvironment, createSbEnvironmentDto, tenantCredentialsMap);
         }
 
         return sbEnvironment;
@@ -270,10 +279,11 @@ export class SbEnvironmentsEdFiService {
 
   private async syncv2Environment(
     sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto
+    createSbEnvironmentDto: PostSbEnvironmentDto,
+    tenantCredentialsMap?: TenantCredentialsMap
   ) {
     if (createSbEnvironmentDto.isMultitenant) {
-      return await this.syncMultiTenantEnvironment(sbEnvironment, createSbEnvironmentDto);
+      return await this.syncMultiTenantEnvironment(sbEnvironment, createSbEnvironmentDto, tenantCredentialsMap);
     } else {
       return await this.syncSingleTenantEnvironment(sbEnvironment, createSbEnvironmentDto);
     }
@@ -281,7 +291,8 @@ export class SbEnvironmentsEdFiService {
 
   private async syncMultiTenantEnvironment(
     sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto
+    createSbEnvironmentDto: PostSbEnvironmentDto,
+    tenantCredentialsMap?: TenantCredentialsMap
   ) {
     if (!createSbEnvironmentDto.tenants || createSbEnvironmentDto.tenants.length === 0) {
       throw new ValidationHttpException({
@@ -291,7 +302,7 @@ export class SbEnvironmentsEdFiService {
     }
 
     for (const tenant of createSbEnvironmentDto.tenants) {
-      await this.createAndSyncTenant(sbEnvironment, createSbEnvironmentDto, tenant);
+      await this.createAndSyncTenant(sbEnvironment, createSbEnvironmentDto, tenant, tenantCredentialsMap);
     }
 
     return { status: 'SUCCESS' as const };
@@ -323,7 +334,8 @@ export class SbEnvironmentsEdFiService {
   private async createAndSyncTenant(
     sbEnvironment: SbEnvironment,
     createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantDto: PostSbEnvironmentTenantDTO
+    tenantDto: PostSbEnvironmentTenantDTO,
+    tenantCredentialsMap?: TenantCredentialsMap
   ) {
     // Create the tenant in the local database
     const tenantEntity = await this.edfiTenantsRepository.save({
@@ -331,7 +343,7 @@ export class SbEnvironmentsEdFiService {
       sbEnvironmentId: sbEnvironment.id,
     });
 
-    await this.syncTenantData(sbEnvironment, createSbEnvironmentDto, tenantDto, tenantEntity);
+    await this.syncTenantData(sbEnvironment, createSbEnvironmentDto, tenantDto, tenantEntity, tenantCredentialsMap);
   }
 
   private async findOrCreateTenant(
@@ -356,7 +368,8 @@ export class SbEnvironmentsEdFiService {
     sbEnvironment: SbEnvironment,
     createSbEnvironmentDto: PostSbEnvironmentDto,
     tenantDto: PostSbEnvironmentTenantDTO,
-    tenantEntity: EdfiTenant
+    tenantEntity: EdfiTenant,
+    tenantCredentialsMap?: TenantCredentialsMap
   ) {
     // Create ODS metadata objects
     const metaOds: SbV2MetaOds[] = this.createODSObject(tenantDto);
@@ -364,8 +377,8 @@ export class SbEnvironmentsEdFiService {
     // Sync ODS and EdOrgs
     await this.saveSyncableOds(metaOds, tenantEntity);
 
-    // Create Admin API credentials
-    await this.createAdminAPICredentialsV2(createSbEnvironmentDto, tenantEntity, sbEnvironment);
+    // Create Admin API credentials - use cached credentials if available
+    await this.createAdminAPICredentialsV2(createSbEnvironmentDto, tenantEntity, sbEnvironment, tenantCredentialsMap);
   }
 
   private async syncTenantDataV1(tenantDto: PostSbEnvironmentTenantDTO, tenantEntity: EdfiTenant) {
@@ -379,12 +392,28 @@ export class SbEnvironmentsEdFiService {
   private async createAdminAPICredentialsV2(
     createSbEnvironmentDto: PostSbEnvironmentDto,
     tenantEntity: { name: string; sbEnvironmentId: number } & EdfiTenant,
-    sbEnvironment: SbEnvironment
+    sbEnvironment: SbEnvironment,
+    tenantCredentialsMap?: TenantCredentialsMap
   ) {
-    const { clientId, clientSecret } = await this.createClientCredentials(
-      createSbEnvironmentDto,
-      tenantEntity.name
-    );
+    let clientId: string;
+    let clientSecret: string;
+
+    // Use cached credentials if available, otherwise create new ones
+    if (tenantCredentialsMap && tenantCredentialsMap.has(tenantEntity.name)) {
+      const cachedCredentials = tenantCredentialsMap.get(tenantEntity.name);
+      clientId = cachedCredentials.clientId;
+      clientSecret = cachedCredentials.clientSecret;
+      this.logger.log(`Using cached credentials for tenant: ${tenantEntity.name}`);
+    } else {
+      // Fallback to creating new credentials (for single-tenant or when cache is not available)
+      const credentials = await this.createClientCredentials(
+        createSbEnvironmentDto,
+        tenantEntity.name
+      );
+      clientId = credentials.clientId;
+      clientSecret = credentials.clientSecret;
+    }
+
     await this.startingBlocksServiceV2.saveAdminApiCredentials(tenantEntity, sbEnvironment, {
       ClientId: clientId,
       ClientSecret: clientSecret,
@@ -466,10 +495,47 @@ export class SbEnvironmentsEdFiService {
     );
   }
 
+  private async validateTenantsAndCreateCredentials(
+    createSbEnvironmentDto: PostSbEnvironmentDto
+  ): Promise<TenantCredentialsMap> {
+    const credentialsMap = new Map<string, TenantCredentials>();
+    const failedTenants: string[] = [];
+
+    if (!createSbEnvironmentDto.tenants || createSbEnvironmentDto.tenants.length === 0) {
+      throw new ValidationHttpException({
+        field: 'tenants',
+        message: 'At least one tenant is required for multi-tenant deployment',
+      });
+    }
+
+    // Validate all tenants by creating credentials for each
+    for (const tenant of createSbEnvironmentDto.tenants) {
+      try {
+        const credentials = await this.createClientCredentials(createSbEnvironmentDto, tenant.name);
+        credentialsMap.set(tenant.name, credentials);
+        this.logger.log(`Successfully validated tenant: ${tenant.name}`);
+      } catch (error) {
+        this.logger.error(`Failed to validate tenant: ${tenant.name}`, error);
+        failedTenants.push(tenant.name);
+      }
+    }
+
+    // If any tenants failed, throw an error with all failed tenant names
+    if (failedTenants.length > 0) {
+      const failedTenantList = failedTenants.join(', ');
+      throw new ValidationHttpException({
+        field: 'tenants',
+        message: `The following tenant(s) do not exist or are not properly configured in the Admin API: ${failedTenantList}`,
+      });
+    }
+
+    return credentialsMap;
+  }
+
   private async createClientCredentials(
     createSbEnvironmentDto: PostSbEnvironmentDto,
     tenant?: string
-  ) {
+  ): Promise<TenantCredentials> {
     const registerUrl = `${createSbEnvironmentDto.adminApiUrl}/connect/register`;
     const clientSecret = Array.from({ length: 32 }, () =>
       'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'.charAt(
