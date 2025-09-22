@@ -60,6 +60,7 @@ services:
   v7-api-single-tenant:
     image: edfialliance/ods-api-web-api:${ODS_API_TAG_7X}
     environment:
+      ADMIN_POSTGRES_HOST: v7-db-admin
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
       POSTGRES_PORT: 5432
