@@ -12,6 +12,7 @@ import colors from 'colors/safe';
 import * as config from 'config';
 import * as pgSession from 'connect-pg-simple';
 import { json } from 'express';
+import { NestExpressApplication } from '@nestjs/platform-express';
 import * as expressSession from 'express-session';
 import { writeFileSync } from 'fs';
 import passport from 'passport';
@@ -22,7 +23,16 @@ import axios from 'axios';
 import https from 'https';
 
 async function bootstrap() {
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Optimize response headers for security
+  app.disable('x-powered-by');
+  app.use(function(_, res, next) {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'deny');
+    next();
+  });
+
   const globalPrefix = 'api';
   await config.DB_ENCRYPTION_SECRET;
   const pgConnectionStr = await config.DB_CONNECTION_STRING;

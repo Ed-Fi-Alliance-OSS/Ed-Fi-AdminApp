@@ -22,7 +22,12 @@ export default defineConfig({
     host: true,
     fs: {
       allow: ['../../node_modules/@fontsource'],
-    }
+    },
+    headers: {
+      "X-Content-Type-Options": "nosniff",
+      "X-Frame-Options": "deny",
+      //Content Security Policy cannot be set locally, but should be in production
+    },
   },
 
   preview: {
