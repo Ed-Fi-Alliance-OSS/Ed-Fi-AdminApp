@@ -40,7 +40,7 @@ services:
       timeout: 10s
       retries: 5
 
-  # Use edfiadminapp-db for the Admin App api's data store
+  # Use edfiadminapp-db for the Admin App api's data store with PostgreSQL
   edfiadminapp-db:
     image: postgres:${POSTGRESQL_IMAGE_TAG:-16.2}
     container_name: edfiadminapp-db
@@ -59,6 +59,22 @@ services:
       interval: 10s
       timeout: 5s
       retries: 5
+
+  # Use edfiadminapp-mssql for the Admin App api's data store with SQL Server
+  edfiadminapp-mssql:
+    image: mcr.microsoft.com/mssql/server:${MSSQL_IMAGE_TAG:-2022-latest}
+    container_name: edfiadminapp-mssql
+    ports:
+      - '127.0.0.1:${MSSQL_PORT_EXPOSED:-1433}:1433'
+    environment:
+      ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_DB: ${ADMIN_APP_DB_NAME:-sbaa}
+    volumes:
+      - vol-edfiadminapp-mssql:/var/opt/mssql
+    networks:
+      - edfiadminapp-network
+    # TODO: needs a healthcheck
 
   memcached:
     image: memcached
@@ -147,6 +163,9 @@ volumes:
   vol-edfiadminapp-db:
     driver: local
     name: vol-edfiadminapp-db
+  vol-edfiadminapp-mssql:
+    driver: local
+    name: vol-edfiadminapp-mssql
   vol-edfiadminapp-keycloak:
     driver: local
     name: vol-edfiadminapp-keycloak
