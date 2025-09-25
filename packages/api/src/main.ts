@@ -11,12 +11,14 @@ import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import colors from 'colors/safe';
 import * as config from 'config';
 import * as pgSession from 'connect-pg-simple';
+import * as mssqlSession from 'connect-mssql-v2';
 import { json } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as expressSession from 'express-session';
 import { writeFileSync } from 'fs';
 import passport from 'passport';
 import { Client } from 'pg';
+import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
@@ -56,6 +58,58 @@ async function checkDatabaseAvailability(): Promise<void> {
   }
 }
 
+async function setupDatabaseSession(connectionStr: string, engine: string) {
+  try {
+    if (engine === 'mssql') {
+      // For MSSQL, parse connection string and create session store
+      const urlParts = new URL(connectionStr);
+      const mssqlConfig = {
+        server: urlParts.hostname,
+        port: parseInt(urlParts.port) || 1433,
+        database: urlParts.pathname.slice(1), // Remove leading slash
+        user: urlParts.username,
+        password: urlParts.password,
+        options: {
+          encrypt: urlParts.searchParams.get('encrypt') === 'true',
+          trustServerCertificate: true, // For development - should be configurable
+        },
+      };
+
+      // Create session table if it doesn't exist
+      const pool = new sql.ConnectionPool(mssqlConfig);
+      await pool.connect();
+
+      Logger.log('Using MSSQL session store');
+      return new mssqlSession.default({
+        config: mssqlConfig,
+        tableName: 'sessions',
+        ttl: 60 * 60 * 2, // 2hr
+      });
+    } else {
+      // PostgreSQL setup (existing logic)
+      const pgClient = new Client({ connectionString: connectionStr });
+      await pgClient.connect();
+      const existingSchema = await pgClient.query(
+        "select schema_name from information_schema.schemata where schema_name = 'appsession'"
+      );
+      if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
+      await pgClient.end();
+
+      Logger.log('Using PostgreSQL session store');
+      return new (pgSession.default(expressSession.default))({
+        createTableIfMissing: true,
+        conString: connectionStr,
+        schemaName: 'appsession',
+        ttl: 60 * 60 * 2, // 2hr
+      });
+    }
+  } catch (error) {
+    Logger.warn(`Database unavailable for sessions, using memory store: ${error.message}`);
+    // Database unavailable, use memory store (note: sessions won't persist across restarts)
+    return undefined; // Use default memory store
+  }
+}
+
 async function bootstrap() {
   // Check database availability first - exit if not available
   await checkDatabaseAvailability();
@@ -72,48 +126,26 @@ async function bootstrap() {
 
   const globalPrefix = 'api';
   await config.DB_ENCRYPTION_SECRET;
-  // Setup session store with database fallback to memory
-  let sessionStore;
 
-  try {
-    const pgConnectionStr = await config.DB_CONNECTION_STRING;
-    const pgClient = new Client({ connectionString: pgConnectionStr });
-    await pgClient.connect();
+  const connectionStr = await config.DB_CONNECTION_STRING;
+  const engine = (config as any).DB_ENGINE || 'pgsql';
 
-    const existingSchema = await pgClient.query(
-      "select schema_name from information_schema.schemata where schema_name = 'appsession'"
-    );
-    if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
-    await pgClient.end();
+  const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
-    // Database is available, use PostgreSQL session store
-    sessionStore = new (pgSession.default(expressSession.default))({
-      createTableIfMissing: true,
-      conString: pgConnectionStr,
-      schemaName: 'appsession',
-      ttl: 60 * 60 * 2, // 2hr (if omitted defaults to 24hr)
-    });
-
-    Logger.log('Using PostgreSQL session store');
-  } catch (error) {
-    Logger.warn(`Database unavailable for sessions, using memory store: ${error.message}`);
-    // Database unavailable, use memory store (note: sessions won't persist across restarts)
-    sessionStore = undefined; // Use default memory store
-  }
-
-  const sessionConfig = {
-    store: sessionStore,
-    secret: 'my-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: 'auto' as const },
-  };
-  
   app.use(json({ limit: '512kb' }));
-  app.use(expressSession.default(sessionConfig));
+  app.use(
+    expressSession.default({
+      store: sessionStore,
+      // cryptographic signing is not necessary here. expressSession is very generic and there are other ways of using it for which signing is important.
+      secret: 'my-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: 'auto' },
+    })
+  );
   app.use(passport.initialize());
   app.use(passport.session());
-  
+
   app.setGlobalPrefix(globalPrefix);
 
   // Add global exception filter for AggregateError handling
