@@ -18,94 +18,130 @@ import {
 } from '@edanalytics/models-server';
 
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
+import { SqlServerConnectionOptions } from 'typeorm/driver/sqlserver/SqlServerConnectionOptions';
+import * as config from 'config';
 
-import { Initial1688158300508 } from './migrations/1687190483471-initial';
-import { SbeConfigReorg1687190483472 } from './migrations/1687190483472-sbe-config-reorg';
-import { AdOdsNaturalKeyToEdorg1687466013005 } from './migrations/1687466013005-add-ods-natural-key-to-edorg';
-import { EducationOrganizationIdToNumber1687881668666 } from './migrations/1687881668666-educationOrganizationIdToNumber';
-import { UniqueOwnershipConstraints1687900131470 } from './migrations/1687900131470-uniqueOwnershipConstraints';
-import { EdorgShortname1689282856860 } from './migrations/1689282856860-edorg-shortname';
-import { OwnershipUniquenessSoftdelete1691010443030 } from './migrations/1691010443030-ownershipUniquenessSoftdelete';
-import { AbandonSoftDeletion1691520653756 } from './migrations/1691520653756-abandonSoftDeletion';
-import { GuaranteeMembershipUniqueness1691694310950 } from './migrations/1691694310950-guaranteeMembershipUniqueness';
-import { AddSeparateSbeNameField1692280869502 } from './migrations/1692280869502-AddSeparateSbeNameField';
-import { NewSbSyncQueue1692740626759 } from './migrations/1692740626759-NewSbSyncQueue';
-import { NullableEnvlabel1693335908870 } from './migrations/1693335908870-NullableEnvlabel';
-import { FkOnDeleteTweaks1693514948085 } from './migrations/1693514948085-fkOnDeleteTweaks';
-import { FkOnDeleteFix1694446892889 } from './migrations/1694446892889-FkOnDeleteFix';
-import { LowercaseUniqueUsernames1697054661848 } from './migrations/1697054661848-LowercaseUniqueUsernames';
-import { Seeding1697203599392 } from './migrations/1697203599392-Seeding';
-import { RemoveRemainingAppLauncherThings1697207080973 } from './migrations/1697207080973-RemoveRemainingAppLauncherThings';
-import { V7Changes1709328882890 } from './migrations/1709328882890-v7-changes';
-import { EnvNav1710178189458 } from './migrations/1710178189458-EnvNav';
-import { OdsInstanceName1710454017707 } from './migrations/1710454017707-OdsInstanceName';
-import { RemoveImpliedPrivilege1714074225483 } from './migrations/1714074225483-RemoveImpliedPrivilege';
-import { BigIntEdOrg1717166915117 } from './migrations/1717166915117-BigIntEdOrgId';
-import { AddProfilePrivileges1719427712090 } from './migrations/1719427712090-AddProfilePrivileges';
-import { AddNameOfInstitutionToOwnershipView1725479500715 } from './migrations/1725479500715-AddNameOfInstitutionToOwnershipView';
-import { AddMachineUserColumns1742186909224 } from './migrations/1742891918530-AddMachineUserColumns';
-import { IntegrationProviders1744127024224 } from './migrations/1744127024224-IntegrationProviders';
-import { AddIntegrationProviderToOwnership1744919046622 } from './migrations/1744919046622-AddIntegrationProviderToOwnership';
-import { UniqueClientId1747424374434 } from './migrations/1747424374434-UniqueClientId';
-import { CreateIntegrationApps1744933017953 } from './migrations/1744933017953-CreateIntegrationApps';
-import { CreateDetailedIntegrationAppsView1745533840578 } from './migrations/1745533840578-CreateDetailedIntegrationAppsView';
+// PostgreSQL migrations
+import { Initial1688158300508 as PgsqlInitial1688158300508 } from './migrations/pgsql/1687190483471-initial';
+import { SbeConfigReorg1687190483472 as PgsqlSbeConfigReorg1687190483472 } from './migrations/pgsql/1687190483472-sbe-config-reorg';
+import { AdOdsNaturalKeyToEdorg1687466013005 as PgsqlAdOdsNaturalKeyToEdorg1687466013005 } from './migrations/pgsql/1687466013005-add-ods-natural-key-to-edorg';
+import { EducationOrganizationIdToNumber1687881668666 as PgsqlEducationOrganizationIdToNumber1687881668666 } from './migrations/pgsql/1687881668666-educationOrganizationIdToNumber';
+import { UniqueOwnershipConstraints1687900131470 as PgsqlUniqueOwnershipConstraints1687900131470 } from './migrations/pgsql/1687900131470-uniqueOwnershipConstraints';
+import { EdorgShortname1689282856860 as PgsqlEdorgShortname1689282856860 } from './migrations/pgsql/1689282856860-edorg-shortname';
+import { OwnershipUniquenessSoftdelete1691010443030 as PgsqlOwnershipUniquenessSoftdelete1691010443030 } from './migrations/pgsql/1691010443030-ownershipUniquenessSoftdelete';
+import { AbandonSoftDeletion1691520653756 as PgsqlAbandonSoftDeletion1691520653756 } from './migrations/pgsql/1691520653756-abandonSoftDeletion';
+import { GuaranteeMembershipUniqueness1691694310950 as PgsqlGuaranteeMembershipUniqueness1691694310950 } from './migrations/pgsql/1691694310950-guaranteeMembershipUniqueness';
+import { AddSeparateSbeNameField1692280869502 as PgsqlAddSeparateSbeNameField1692280869502 } from './migrations/pgsql/1692280869502-AddSeparateSbeNameField';
+import { NewSbSyncQueue1692740626759 as PgsqlNewSbSyncQueue1692740626759 } from './migrations/pgsql/1692740626759-NewSbSyncQueue';
+import { NullableEnvlabel1693335908870 as PgsqlNullableEnvlabel1693335908870 } from './migrations/pgsql/1693335908870-NullableEnvlabel';
+import { FkOnDeleteTweaks1693514948085 as PgsqlFkOnDeleteTweaks1693514948085 } from './migrations/pgsql/1693514948085-fkOnDeleteTweaks';
+import { FkOnDeleteFix1694446892889 as PgsqlFkOnDeleteFix1694446892889 } from './migrations/pgsql/1694446892889-FkOnDeleteFix';
+import { LowercaseUniqueUsernames1697054661848 as PgsqlLowercaseUniqueUsernames1697054661848 } from './migrations/pgsql/1697054661848-LowercaseUniqueUsernames';
+import { Seeding1697203599392 as PgsqlSeeding1697203599392 } from './migrations/pgsql/1697203599392-Seeding';
+import { RemoveRemainingAppLauncherThings1697207080973 as PgsqlRemoveRemainingAppLauncherThings1697207080973 } from './migrations/pgsql/1697207080973-RemoveRemainingAppLauncherThings';
+import { V7Changes1709328882890 as PgsqlV7Changes1709328882890 } from './migrations/pgsql/1709328882890-v7-changes';
+import { EnvNav1710178189458 as PgsqlEnvNav1710178189458 } from './migrations/pgsql/1710178189458-EnvNav';
+import { OdsInstanceName1710454017707 as PgsqlOdsInstanceName1710454017707 } from './migrations/pgsql/1710454017707-OdsInstanceName';
+import { RemoveImpliedPrivilege1714074225483 as PgsqlRemoveImpliedPrivilege1714074225483 } from './migrations/pgsql/1714074225483-RemoveImpliedPrivilege';
+import { BigIntEdOrg1717166915117 as PgsqlBigIntEdOrg1717166915117 } from './migrations/pgsql/1717166915117-BigIntEdOrgId';
+import { AddProfilePrivileges1719427712090 as PgsqlAddProfilePrivileges1719427712090 } from './migrations/pgsql/1719427712090-AddProfilePrivileges';
+import { AddNameOfInstitutionToOwnershipView1725479500715 as PgsqlAddNameOfInstitutionToOwnershipView1725479500715 } from './migrations/pgsql/1725479500715-AddNameOfInstitutionToOwnershipView';
+import { AddMachineUserColumns1742186909224 as PgsqlAddMachineUserColumns1742186909224 } from './migrations/pgsql/1742891918530-AddMachineUserColumns';
+import { IntegrationProviders1744127024224 as PgsqlIntegrationProviders1744127024224 } from './migrations/pgsql/1744127024224-IntegrationProviders';
+import { AddIntegrationProviderToOwnership1744919046622 as PgsqlAddIntegrationProviderToOwnership1744919046622 } from './migrations/pgsql/1744919046622-AddIntegrationProviderToOwnership';
+import { UniqueClientId1747424374434 as PgsqlUniqueClientId1747424374434 } from './migrations/pgsql/1747424374434-UniqueClientId';
+import { CreateIntegrationApps1744933017953 as PgsqlCreateIntegrationApps1744933017953 } from './migrations/pgsql/1744933017953-CreateIntegrationApps';
+import { CreateDetailedIntegrationAppsView1745533840578 as PgsqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/pgsql/1745533840578-CreateDetailedIntegrationAppsView';
 
-const config: Pick<
-  PostgresConnectionOptions,
-  'entities' | 'synchronize' | 'migrations' | 'type' | 'migrationsRun'
-> = {
-  type: 'postgres',
-  entities: [
-    EdfiTenant,
-    Edorg,
-    EnvNav,
-    IntegrationApp,
-    IntegrationAppDetailed,
-    IntegrationProvider,
-    Ods,
-    Oidc,
-    Ownership,
-    OwnershipView,
-    Role,
-    SbEnvironment,
-    SbSyncQueue,
-    Team,
-    User,
-    UserTeamMembership,
-  ],
-  synchronize: false,
-  migrationsRun: true,
-  migrations: [
-    Initial1688158300508,
-    SbeConfigReorg1687190483472,
-    AdOdsNaturalKeyToEdorg1687466013005,
-    EducationOrganizationIdToNumber1687881668666,
-    UniqueOwnershipConstraints1687900131470,
-    EdorgShortname1689282856860,
-    OwnershipUniquenessSoftdelete1691010443030,
-    AbandonSoftDeletion1691520653756,
-    GuaranteeMembershipUniqueness1691694310950,
-    AddSeparateSbeNameField1692280869502,
-    NewSbSyncQueue1692740626759,
-    NullableEnvlabel1693335908870,
-    FkOnDeleteTweaks1693514948085,
-    FkOnDeleteFix1694446892889,
-    LowercaseUniqueUsernames1697054661848,
-    Seeding1697203599392,
-    RemoveRemainingAppLauncherThings1697207080973,
-    V7Changes1709328882890,
-    EnvNav1710178189458,
-    OdsInstanceName1710454017707,
-    RemoveImpliedPrivilege1714074225483,
-    BigIntEdOrg1717166915117,
-    AddProfilePrivileges1719427712090,
-    AddNameOfInstitutionToOwnershipView1725479500715,
-    AddMachineUserColumns1742186909224,
-    IntegrationProviders1744127024224,
-    AddIntegrationProviderToOwnership1744919046622,
-    CreateIntegrationApps1744933017953,
-    CreateDetailedIntegrationAppsView1745533840578,
-    UniqueClientId1747424374434,
-  ],
+// MSSQL migrations
+import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
+
+// Get migrations based on database engine
+const getPostgreSQLMigrations = () => [
+  PgsqlInitial1688158300508,
+  PgsqlSbeConfigReorg1687190483472,
+  PgsqlAdOdsNaturalKeyToEdorg1687466013005,
+  PgsqlEducationOrganizationIdToNumber1687881668666,
+  PgsqlUniqueOwnershipConstraints1687900131470,
+  PgsqlEdorgShortname1689282856860,
+  PgsqlOwnershipUniquenessSoftdelete1691010443030,
+  PgsqlAbandonSoftDeletion1691520653756,
+  PgsqlGuaranteeMembershipUniqueness1691694310950,
+  PgsqlAddSeparateSbeNameField1692280869502,
+  PgsqlNewSbSyncQueue1692740626759,
+  PgsqlNullableEnvlabel1693335908870,
+  PgsqlFkOnDeleteTweaks1693514948085,
+  PgsqlFkOnDeleteFix1694446892889,
+  PgsqlLowercaseUniqueUsernames1697054661848,
+  PgsqlSeeding1697203599392,
+  PgsqlRemoveRemainingAppLauncherThings1697207080973,
+  PgsqlV7Changes1709328882890,
+  PgsqlEnvNav1710178189458,
+  PgsqlOdsInstanceName1710454017707,
+  PgsqlRemoveImpliedPrivilege1714074225483,
+  PgsqlBigIntEdOrg1717166915117,
+  PgsqlAddProfilePrivileges1719427712090,
+  PgsqlAddNameOfInstitutionToOwnershipView1725479500715,
+  PgsqlAddMachineUserColumns1742186909224,
+  PgsqlIntegrationProviders1744127024224,
+  PgsqlAddIntegrationProviderToOwnership1744919046622,
+  PgsqlCreateIntegrationApps1744933017953,
+  PgsqlCreateDetailedIntegrationAppsView1745533840578,
+  PgsqlUniqueClientId1747424374434,
+];
+
+const getMSSQLMigrations = () => [
+  MssqlInitial1688158300508,
+  // Additional MSSQL migrations will be added here as they are created
+  // For now, only the initial migration is implemented
+];
+
+const getMigrations = () => {
+  const engine = (config as any).DB_ENGINE || 'pgsql';
+  if (engine === 'mssql') {
+    return getMSSQLMigrations();
+  }
+  return getPostgreSQLMigrations();
 };
-export default config;
+
+const getDatabaseConfig = (): Pick<PostgresConnectionOptions | SqlServerConnectionOptions, 'entities' | 'synchronize' | 'migrations' | 'type' | 'migrationsRun'> => {
+  const engine = (config as any).DB_ENGINE || 'pgsql';
+  
+  const baseConfig = {
+    entities: [
+      EdfiTenant,
+      Edorg,
+      EnvNav,
+      IntegrationApp,
+      IntegrationAppDetailed,
+      IntegrationProvider,
+      Ods,
+      Oidc,
+      Ownership,
+      OwnershipView,
+      Role,
+      SbEnvironment,
+      SbSyncQueue,
+      Team,
+      User,
+      UserTeamMembership,
+    ],
+    synchronize: false,
+    migrationsRun: true,
+    migrations: getMigrations(),
+  };
+
+  if (engine === 'mssql') {
+    return {
+      ...baseConfig,
+      type: 'mssql' as const,
+    };
+  }
+
+  return {
+    ...baseConfig,
+    type: 'postgres' as const,
+  };
+};
+
+export default getDatabaseConfig();
