@@ -60,20 +60,20 @@ export class Initial1688158300508 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`DROP TABLE "edorg_closure"`);
-    await queryRunner.query(`DROP INDEX "IDX_07bc07701aba37968ecf1f4ba1" ON "role_privileges_privilege"`);
-    await queryRunner.query(`DROP INDEX "IDX_d11ab7c8589ca17646c5345fb7" ON "role_privileges_privilege"`);
-    await queryRunner.query(`DROP TABLE "role_privileges_privilege"`);
-    await queryRunner.query(`DROP TABLE "app_launcher"`);
-    await queryRunner.query(`DROP TABLE "oidc"`);
-    await queryRunner.query(`DROP TABLE "ownership"`);
-    await queryRunner.query(`DROP TABLE "role"`);
-    await queryRunner.query(`DROP TABLE "privilege"`);
-    await queryRunner.query(`DROP TABLE "user_tenant_membership"`);
-    await queryRunner.query(`DROP TABLE "edorg"`);
-    await queryRunner.query(`DROP TABLE "sbe"`);
-    await queryRunner.query(`DROP TABLE "ods"`);
-    await queryRunner.query(`DROP TABLE "tenant"`);
-    await queryRunner.query(`DROP TABLE "user"`);
+    await queryRunner.query(`DROP TABLE [edorg_closure]`);
+    await queryRunner.query(`DROP INDEX [IDX_07bc07701aba37968ecf1f4ba1] ON [role_privileges_privilege]`);
+    await queryRunner.query(`DROP INDEX [IDX_d11ab7c8589ca17646c5345fb7] ON [role_privileges_privilege]`);
+    await queryRunner.query(`DROP TABLE [role_privileges_privilege]`);
+    await queryRunner.query(`DROP TABLE [app_launcher]`);
+    await queryRunner.query(`DROP TABLE [oidc]`);
+    await queryRunner.query(`DROP TABLE [ownership]`);
+    await queryRunner.query(`DROP TABLE [role]`);
+    await queryRunner.query(`DROP TABLE [privilege]`);
+    await queryRunner.query(`DROP TABLE [user_tenant_membership]`);
+    await queryRunner.query(`DROP TABLE [edorg]`);
+    await queryRunner.query(`DROP TABLE [sbe]`);
+    await queryRunner.query(`DROP TABLE [ods]`);
+    await queryRunner.query(`DROP TABLE [tenant]`);
+    await queryRunner.query(`DROP TABLE [user]`);
   }
 }
