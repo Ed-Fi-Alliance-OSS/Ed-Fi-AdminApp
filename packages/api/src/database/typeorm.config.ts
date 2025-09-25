@@ -55,6 +55,7 @@ import { CreateDetailedIntegrationAppsView1745533840578 as PgsqlCreateDetailedIn
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
+import { SbeConfigReorg1687190483472 as MssqlSbeConfigReorg1687190483472 } from './migrations/mssql/1687190483472-sbe-config-reorg';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -92,8 +93,9 @@ const getPostgreSQLMigrations = () => [
 
 const getMSSQLMigrations = () => [
   MssqlInitial1688158300508,
+  MssqlSbeConfigReorg1687190483472,
   // Additional MSSQL migrations will be added here as they are created
-  // For now, only the initial migration is implemented
+  // Note: Each PostgreSQL migration needs to be manually converted to MSSQL syntax
 ];
 
 const getMigrations = () => {
