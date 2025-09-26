@@ -39,9 +39,17 @@ export class SbSyncConsumer implements OnModuleInit {
     private readonly metadataService: MetadataService
   ) {}
   public async onModuleDestroy() {
+    if (config.DB_ENGINE !== 'postgres') {
+      // mssql is not yet supported
+      return null;
+    }
     await this.boss.stop();
   }
   public async onModuleInit() {
+    if (config.DB_ENGINE !== 'postgres') {
+      // mssql is not yet supported
+      return null;
+    }
     this.boss.on('error', (error) => Logger.error(error));
 
     try {
