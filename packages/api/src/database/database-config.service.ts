@@ -23,6 +23,10 @@ export class DatabaseConfigService {
         autoLoadEntities: true,
         retryAttempts,
         retryDelay,
+        extra: {
+          trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+          encrypt: config.DB_SSL,
+        }
       };
     } catch (error) {
       this.logger.error(`Database configuration failed: ${error.message}`);

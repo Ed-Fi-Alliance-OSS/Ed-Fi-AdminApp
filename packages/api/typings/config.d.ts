@@ -42,7 +42,9 @@ declare module 'config' {
     DB_ENCRYPTION_SECRET: IDbEncryptionSecret | Promise<IDbEncryptionSecret>;
 
     AWS_REGION?: string | undefined;
+    DB_ENGINE: 'mssql' | 'postgres';
     DB_SSL: boolean;
+    DB_TRUST_CERTIFICATE: boolean;
     DB_RUN_MIGRATIONS: boolean;
     DB_SYNCHRONIZE: boolean;
     FE_URL: string;
