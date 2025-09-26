@@ -70,8 +70,8 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
         user: urlParts.username,
         password: urlParts.password,
         options: {
-          encrypt: urlParts.searchParams.get('encrypt') === 'true',
-          trustServerCertificate: true, // For development - should be configurable
+          encrypt: config.DB_SSL,
+          trustServerCertificate: config.DB_TRUST_CERTIFICATE,
         },
       };
 

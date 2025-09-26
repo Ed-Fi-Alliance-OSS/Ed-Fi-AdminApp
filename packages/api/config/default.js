@@ -7,10 +7,12 @@ const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client
 //   secretAccessKey: '',
 //   sessionToken: '',
 // },
-const makeConnectionString = (port, db, username, password, host, ssl, engine = 'pgsql') => {
+const makeConnectionString = (port, db, username, password, host, ssl, engine = 'pgsql', trustServerCertificate = false) => {
   if (engine === 'mssql') {
-    return `mssql://${username}:${password}@${host}:${port}/${db}${ssl ? '?encrypt=true' : '?encrypt=false'}`;
+     const connString = `mssql://${username}:${password}@${host}:${port}/${db}?encrypt=${ssl === 'require'};trustServerCertificate=${trustServerCertificate}`;
+     return connString;
   }
+
   return `postgres://${username}@${host}:${port}/${db}?password=${password}&sslmode=${ssl}`;
 };
 module.exports = {
@@ -21,6 +23,7 @@ module.exports = {
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
   DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'
+  DB_TRUST_CERTIFICATE: false, // For MSSQL, whether to trust the server certificate
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
