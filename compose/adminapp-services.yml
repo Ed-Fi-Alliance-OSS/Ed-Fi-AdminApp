@@ -70,6 +70,15 @@ services:
       ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
       SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       MSSQL_DB: ${ADMIN_APP_DB_NAME:-sbaa}
+      MSSQL_PID: ${MSSQL_PID:-Express}
+    command:
+      - /bin/bash
+      - -c
+      - |
+        /opt/mssql/bin/sqlservr &
+        sleep 30s
+        /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  ${MSSQL_SA_PASSWORD} -Q "IF DB_ID(N'${MSSQL_DB:-sbaa}') IS NULL CREATE DATABASE [${MSSQL_DB:-sbaa}];"
+        wait
     volumes:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
