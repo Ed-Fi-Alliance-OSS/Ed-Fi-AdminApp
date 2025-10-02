@@ -10,7 +10,8 @@
   "redirectUris": [
     "http://localhost:3333/*",
     "http://localhost:3333/auth/callback",
-    "http://localhost:3333/api/auth/callback/2"
+    "http://localhost:3333/api/auth/callback/2",
+    "http://localhost:3333/api/auth/post-logout"
   ],
   "webOrigins": [
     "https://localhost"

@@ -8,9 +8,8 @@ import {
   toGetSessionDataDto,
   toGetTeamDto,
   isCachedBySbEnvironment,
-  GetUserDto,
 } from '@edanalytics/models';
-import { Team } from '@edanalytics/models-server';
+import { Team, Oidc } from '@edanalytics/models-server';
 import {
   BadRequestException,
   Controller,
@@ -20,7 +19,6 @@ import {
   Logger,
   NotFoundException,
   Param,
-  Post,
   Query,
   Request as Req, // TODO: can Req just be used here?
   Res,
@@ -43,7 +41,9 @@ import { NO_ROLE, USER_NOT_FOUND } from './login/oidc.strategy';
 export class AuthController {
   constructor(
     @InjectRepository(Team)
-    private readonly teamsRepository: Repository<Team>
+    private readonly teamsRepository: Repository<Team>,
+    @InjectRepository(Oidc)
+    private readonly oidcRepository: Repository<Oidc>
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -192,11 +192,105 @@ export class AuthController {
     return result;
   }
 
-  @Post('/logout')
+  @Get('/post-logout')
   @Public()
-  async logout(@Req() request: Request) {
+  async postLogout(@Res() response: Response) {
+    // Redirect users to the frontend after successful Keycloak logout
+    Logger.log('Keycloak logout complete, redirecting to frontend');
+    return response.redirect(config.FE_URL);
+  }
+
+  @Get('/logout')
+  @Public()
+  async logout(@Req() request: Request, @Res() response: Response) {
     this.throwOnBearerToken({ request, route: 'logout' });
-    return request.session.destroy(async () => undefined);
+
+    try {
+      // Get the OIDC providers to construct logout URL
+      const oidcProviders = await this.oidcRepository.find();
+      Logger.log(`Found ${oidcProviders.length} OIDC provider(s) for logout`);
+
+      // Destroy the local session first
+      await new Promise<void>((resolve, reject) => {
+        request.session.destroy((err) => {
+          if (err) {
+            Logger.error('Error destroying session:', err);
+            reject(err);
+          } else {
+            Logger.log('AdminApp session destroyed successfully');
+            resolve();
+          }
+        });
+      });
+
+      if (oidcProviders.length > 0) {
+        // Try to find provider matching the configured client ID (case-insensitive)
+        let oidcProvider = oidcProviders[0]; // Default fallback to first provider
+
+        if (config.SAMPLE_OIDC_CONFIG?.clientId) {
+          const clientId = config.SAMPLE_OIDC_CONFIG.clientId.toLowerCase();
+          const matchingProvider = oidcProviders.find(provider =>
+            provider.clientId.toLowerCase() === clientId
+          );
+          if (matchingProvider) {
+            oidcProvider = matchingProvider;
+            Logger.log(`Found matching OIDC provider for clientId: ${config.SAMPLE_OIDC_CONFIG.clientId}`);
+          } else {
+            Logger.warn(`No OIDC provider found matching configured clientId: ${config.SAMPLE_OIDC_CONFIG.clientId}, using first available`);
+          }
+        }
+
+        Logger.log(`Using OIDC provider: ${oidcProvider.issuer}, client: ${oidcProvider.clientId}`);
+        const logoutUrl = this.constructKeycloakLogoutUrl(oidcProvider.issuer, oidcProvider.clientId);
+
+        if (logoutUrl) {
+          Logger.log(`Redirecting to Keycloak logout: ${logoutUrl}`);
+          return response.redirect(logoutUrl);
+        }
+      }
+
+      // Fallback: redirect to base URL if no OIDC provider or logout URL construction failed
+      Logger.log('No OIDC logout URL available, redirecting to frontend');
+      return response.redirect(config.FE_URL);
+
+    } catch (error) {
+      Logger.error('Error during logout process:', error);
+      // Even if there's an error, still redirect to base URL
+      return response.redirect(config.FE_URL);
+    }
+  }
+
+  // Constructs a Keycloak logout URL from the OIDC issuer
+  private constructKeycloakLogoutUrl(issuer: string, clientId?: string): string | null {
+    try {
+      if (!issuer || typeof issuer !== 'string') {
+        Logger.warn('Invalid issuer provided for logout URL construction');
+        return null;
+      }
+
+      // Remove trailing slash if present
+      const cleanIssuer = issuer.replace(/\/$/, '');
+      // Keycloak OIDC logout endpoint is always: {issuer}/protocol/openid-connect/logout
+      const logoutEndpoint = `${cleanIssuer}/protocol/openid-connect/logout`;
+
+      // Always redirect to our post-logout endpoint which forwards to frontend
+      const redirectUrl = `${config.MY_URL}/api/auth/post-logout`;
+      const returnUrl = encodeURIComponent(redirectUrl);
+
+      // Add client_id and post_logout_redirect_uri to bypass confirmation page
+      let fullLogoutUrl = `${logoutEndpoint}?post_logout_redirect_uri=${returnUrl}`;
+
+      if (clientId) {
+        fullLogoutUrl += `&client_id=${encodeURIComponent(clientId)}`;
+      }
+
+      Logger.log(`Constructed Keycloak logout URL: ${fullLogoutUrl}`);
+
+      return fullLogoutUrl;
+    } catch (error) {
+      Logger.error('Failed to construct Keycloak logout URL:', error);
+      return null;
+    }
   }
 
   private validateRedirectUrl(redirect: string): string {
