@@ -20,7 +20,7 @@ export const LandingContent = () => (
       variant="outline"
       colorScheme="blue"
       as={RouterLink}
-      to="https://www.edanalytics.org/products/starting-blocks"
+      to={import.meta.env.VITE_ADMINAPP_HELP_GUIDE || "https://docs.ed-fi.org/reference/admin-app-v4/"}
     >
       Learn more
     </Button>
