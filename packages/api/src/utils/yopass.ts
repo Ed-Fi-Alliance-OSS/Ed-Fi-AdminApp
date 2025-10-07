@@ -1,7 +1,7 @@
 import { PostApplicationResponseDtoBase } from '@edanalytics/models';
 import axios, { AxiosResponse } from 'axios';
 import config from 'config';
-import { BadRequestException, Logger, ServiceUnavailableException } from '@nestjs/common';
+import { HttpException, HttpStatus, Logger } from '@nestjs/common';
 import { webcrypto } from 'crypto';
 import { createMessage, encrypt } from 'openpgp';
 
@@ -35,7 +35,13 @@ const backendDomain = config.YOPASS_URL;
 const getYopassResponse = async (body: object): Promise<{ uuid: string; password: string }> => {
   // Check if Yopass is configured
   if (!backendDomain) {
-    throw new BadRequestException(YOPASS_ERROR_MESSAGE);
+    throw new HttpException(
+      {
+        message: YOPASS_ERROR_MESSAGE,
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      },
+      HttpStatus.INTERNAL_SERVER_ERROR
+    );
   }
 
   const password = randomString();
@@ -61,7 +67,13 @@ const getYopassResponse = async (body: object): Promise<{ uuid: string; password
       error: error instanceof Error ? error.message : 'Unknown error',
     });
 
-    throw new ServiceUnavailableException(YOPASS_ERROR_MESSAGE);
+    throw new HttpException(
+      {
+        message: YOPASS_ERROR_MESSAGE,
+        statusCode: HttpStatus.INTERNAL_SERVER_ERROR,
+      },
+      HttpStatus.INTERNAL_SERVER_ERROR
+    );
   }
 };
 

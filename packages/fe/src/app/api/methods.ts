@@ -1,7 +1,7 @@
 import axios from 'axios';
 import { ClassConstructor, instanceToPlain, plainToInstance } from 'class-transformer';
 
-export const API_URL: string = import.meta.env.VITE_API_URL.endsWith("api") ? import.meta.env.VITE_API_URL : `${import.meta.env.VITE_API_URL}/api`;
+export const API_URL: string = import.meta.env.VITE_API_URL.endsWith("/api") ? import.meta.env.VITE_API_URL : `${import.meta.env.VITE_API_URL}/api`;
 axios.defaults.baseURL = API_URL;
 
 export const apiClient = axios.create({

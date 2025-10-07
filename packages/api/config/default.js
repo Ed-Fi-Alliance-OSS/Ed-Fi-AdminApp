@@ -113,7 +113,7 @@ module.exports = {
   WHITELISTED_REDIRECTS: [this.FE_URL],
   MY_URL: string = "",
   get MY_URL_API_PATH() {
-    return this.MY_URL.endsWith("api") ? this.MY_URL : `${this.MY_URL}/api`;
+    return this.MY_URL.endsWith("/api") ? this.MY_URL : `${this.MY_URL}/api`;
   },
   OPENAPI_TITLE: 'Starting Blocks Admin App',
   OPENAPI_DESCRIPTION: 'OpenAPI spec for the EA Starting Blocks admin application.',
