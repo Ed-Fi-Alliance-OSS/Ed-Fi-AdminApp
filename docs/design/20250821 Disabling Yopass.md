@@ -1,5 +1,13 @@
 # Design: Making Yopass Integration Optional
 
+## Feature
+
+Context: Ed-Fi Admin App running outside of a Starting Blocks Environment.
+
+User Story: _As a system administrator, I want to provide Ed-Fi API clients with a "self-destructing" link that contains their API credentials, so that they can view those credentials once and only once_.
+
+Feature Name: self-destructing credentials link.
+
 ## Overview
 
 Yopass is a core integration in v4 Admin system for safely sending an ODS API key and secret. In previous versions of the application, keys and secrets were displayed directly to the user, albeit temporarily. We aim to restore this way of handling key and secret delivery, if desired, to eliminate the dependency on another integration and service in the system.

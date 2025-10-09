@@ -1,4 +1,12 @@
-# Admin API Sync Integration Design Document
+# Design: Admin API Sync Integration
+
+## Feature
+
+Context: Ed-Fi Admin App running outside of a Starting Blocks Environment.
+
+User Story: _As a system administrator, I want to synchronize the Admin App database's list of tenants, education organizations, ODS instances, and other information with the actual deployed state, so that the user interface can be more responsive and provide better validation for my requests_.
+
+Feature Name: environment synchronization.
 
 ## Overview
 

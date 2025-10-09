@@ -1,4 +1,12 @@
-# Tenant Reload Functionality Documentation
+# Design: Tenant Reload
+
+## Feature
+
+Context: Ed-Fi Admin App running outside of a Starting Blocks Environment.
+
+User Story: _As a system administrator, I want to update the tenant information in an environment without having to delete and recreate it, for example, when I add a new tenant to an existing Ed-Fi API deployment_.
+
+Feature Name: tenant reload.
 
 ## Overview
 
