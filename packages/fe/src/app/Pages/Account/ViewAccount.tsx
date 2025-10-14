@@ -6,7 +6,8 @@ import {
   ContentSection,
 } from '@edanalytics/common-ui';
 import { Link as RouterLink } from 'react-router-dom';
-import { useMe } from '../../api';
+import { IDP_ACCOUNT_URL, useMe } from '../../api';
+import { ExternalLinkIcon } from '@chakra-ui/icons';
 
 export const ViewAccount = () => {
   const me = useMe();
@@ -33,6 +34,12 @@ export const ViewAccount = () => {
         ) : utmArr.length > 0 ? (
           <Attribute label="Team" value={utmArr[0].team.displayName} />
         ) : null}
+
+        <AttributeContainer label="Account Management">
+          <Link href={IDP_ACCOUNT_URL} isExternal color="blue.500" target="_blank">
+            Manage your account in Identity Provider <ExternalLinkIcon mx="2px" />
+          </Link>
+        </AttributeContainer>
       </AttributesGrid>
     </ContentSection>
   ) : null;

@@ -2,6 +2,7 @@ import axios from 'axios';
 import { ClassConstructor, instanceToPlain, plainToInstance } from 'class-transformer';
 
 export const API_URL: string = import.meta.env.VITE_API_URL.endsWith("/api") ? import.meta.env.VITE_API_URL : `${import.meta.env.VITE_API_URL}/api`;
+export const IDP_ACCOUNT_URL: string = import.meta.env.VITE_IDP_ACCOUNT_URL || 'https://localhost/auth/realms/edfi/account/';
 axios.defaults.baseURL = API_URL;
 
 export const apiClient = axios.create({

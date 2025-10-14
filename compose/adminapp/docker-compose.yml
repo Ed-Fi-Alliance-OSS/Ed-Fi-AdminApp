@@ -38,6 +38,7 @@ services:
         VITE_OIDC_ID: ${VITE_OIDC_ID:-1}
         VITE_BASE_PATH: '${VITE_BASE_PATH:-/adminapp/}'
         VITE_HELP_GUIDE: '${VITE_HELP_GUIDE:-https://docs.ed-fi.org/}'
+        VITE_IDP_ACCOUNT_URL: '${VITE_IDP_ACCOUNT_URL:-https://localhost/auth/realms/edfi/account/}'
         VITE_STARTING_GUIDE: '${VITE_STARTING_GUIDE:-https://docs.ed-fi.org/reference/admin-app-v4/system-administrators/global-administration-tasks}'
         VITE_CONTACT: '${VITE_CONTACT:-https://community.ed-fi.org/}'
     container_name: edfiadminapp-fe
