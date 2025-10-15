@@ -1,5 +1,5 @@
-import { PostOdsDto, toGetOdsDto } from '@edanalytics/models';
-import { EdfiTenant, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
+import { PostOdsDto, PutOdsDto, toGetOdsDto } from '@edanalytics/models';
+import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomHttpException, ValidationHttpException } from '../../../utils';
@@ -11,6 +11,8 @@ export class OdssService {
   constructor(
     @InjectRepository(Ods)
     private odssRepository: Repository<Ods>,
+    @InjectRepository(Edorg)
+    private edorgsRepository: Repository<Edorg>,
     private readonly startingBlocksServiceV2: StartingBlocksServiceV2
   ) {}
 
@@ -50,6 +52,25 @@ export class OdssService {
       500
     );
   }
+  
+  async UpdateOdsInstanceId(odsId: number, dto: PutOdsDto) {
+
+    const ods = await this.odssRepository.findOneBy({ id: odsId });
+    if (!ods) {
+      throw new NotFoundException('ODS not found');
+    }
+    ods.odsInstanceId = dto.odsInstanceId;
+
+    // Update all EdOrgs that belong to this ODS
+    const edorgs = await this.edorgsRepository.findBy({ odsId: odsId });
+    for (const edorg of edorgs) {
+      edorg.odsInstanceId = dto.odsInstanceId;
+    }
+
+    await this.edorgsRepository.save(edorgs);
+    await this.odssRepository.save(ods);
+  }
+
   async delete(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, id: Ods['id']) {
     const ods = await this.odssRepository.findOneBy({ id });
     if (ods === null) {

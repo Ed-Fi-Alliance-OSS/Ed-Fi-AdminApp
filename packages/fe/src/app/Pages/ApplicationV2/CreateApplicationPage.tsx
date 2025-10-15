@@ -21,7 +21,7 @@ import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { applicationQueriesV2, edorgQueries, profileQueriesV2 } from '../../api';
+import { applicationQueriesV2, edorgQueries, profileQueriesV2, odsInstancesV2, odsQueries } from '../../api';
 import {
   getRelationDisplayName,
   useNavToParent,
@@ -51,6 +51,9 @@ export const CreateApplicationPageV2 = () => {
   });
   const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
   const profiles = useQuery(profileQueriesV2.getAll({ edfiTenant, teamId: asId }));
+  const appOdsInstances = useQuery(odsQueries.getAll({ teamId: asId, edfiTenant }));
+  const odsInstancesAdminApi = useQuery(odsInstancesV2.getAll({ edfiTenant, teamId: asId }));
+  const { mutateAsync: updateOds } = odsQueries.put({ edfiTenant, teamId: asId });
 
   const queryClient = useQueryClient();
 
@@ -128,15 +131,56 @@ export const CreateApplicationPageV2 = () => {
   }, [profiles.data, selectedProfileIds]);
 
   const onSubmit = async (data: PostApplicationFormDtoV2) => {
+    // Create a copy of the payload before modifications
+    const dataCopy: PostApplicationFormDtoV2 = { ...data };
+    
+    if (selectedOds > 0) {
+      const selectedAppOdsInstance = Object.values(appOdsInstances.data ?? {}).find(
+        (instance) => instance.odsInstanceId === selectedOds
+      );
+
+      const selectedAppOdsInstanceName = selectedAppOdsInstance?.odsInstanceName;
+
+      const odsInstanceAdminApi = Object.values(odsInstancesAdminApi.data ?? {}).find(
+        (odsInstance) => odsInstance.name === selectedAppOdsInstanceName
+      );
+
+      if (!odsInstanceAdminApi) {
+        setFormError('odsInstanceId', { message: `ODS instance "${selectedAppOdsInstanceName}" does not exist in Admin API` });
+        return;
+      }
+      else
+      {
+        // Update the local ODS record with the Admin API ODS instance ID
+        if (selectedAppOdsInstance) {
+          try {
+            await updateOds({ 
+              entity: { 
+                id: selectedAppOdsInstance.id, 
+                edfiTenantId: selectedAppOdsInstance.edfiTenantId,
+                name: selectedAppOdsInstance.dbName,
+                odsInstanceId: odsInstanceAdminApi.id
+              } 
+            });
+          } catch (error) {
+            setFormError('odsInstanceId', { message: 'Failed to update ODS instance' });
+            return;
+          }
+        }
+        
+        dataCopy.odsInstanceId = odsInstanceAdminApi.id;
+      }
+    }
+
     return postApplication(
-      { entity: data },
+      { entity: dataCopy },
       {
         onSuccess(response) {
-          if (data.integrationProviderId) {
+          if (dataCopy.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,
-                data.integrationProviderId,
+                dataCopy.integrationProviderId,
                 QUERY_KEYS.integrationApps,
               ],
             });

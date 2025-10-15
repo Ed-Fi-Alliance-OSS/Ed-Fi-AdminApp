@@ -48,7 +48,8 @@ import {
   SbSyncQueueDto,
   SpecificIds,
   ApplicationResponseV1,
-  PostApplicationResponseDto
+  PostApplicationResponseDto,
+  PutOdsDto
 } from '@edanalytics/models';
 import { QueryKey, UseQueryOptions, useQueries } from '@tanstack/react-query';
 import kebabCase from 'kebab-case';
@@ -168,6 +169,7 @@ export const odsQueries = new EntityQueryBuilder({
       }),
     ],
   })
+  .put('put', { ReqDto: PutOdsDto, ResDto: GetOdsDto })
   .delete('delete', {
     keysToInvalidate: (params) => [
       params.standard,

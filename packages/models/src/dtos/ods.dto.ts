@@ -71,7 +71,6 @@ export class PutOdsDto
       | 'edfiTenant'
       | 'edorgs'
       | 'dbName'
-      | 'odsInstanceId'
       | 'sbEnvironmentId'
       | 'odsInstanceName'
       | 'integrationApps'
@@ -82,6 +81,8 @@ export class PutOdsDto
   @Expose()
   @TrimWhitespace()
   name: string;
+  @Expose()
+  odsInstanceId: number | null;
 }
 
 export class PostOdsDto

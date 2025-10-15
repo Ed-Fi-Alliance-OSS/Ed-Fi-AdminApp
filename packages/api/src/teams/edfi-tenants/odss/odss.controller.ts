@@ -1,4 +1,4 @@
-import { Ids, PostOdsDto, toGetOdsDto, toOdsRowCountsDto } from '@edanalytics/models';
+import { Ids, PostOdsDto, PutOdsDto, toGetOdsDto, toOdsRowCountsDto } from '@edanalytics/models';
 import { EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
@@ -9,6 +9,7 @@ import {
   Param,
   ParseIntPipe,
   Post,
+  Put,
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
@@ -91,6 +92,25 @@ export class OdssController {
     @Body() dto: PostOdsDto
   ) {
     return this.odsService.create(sbEnvironment, edfiTenant, dto);
+  }
+  @Put(':odsId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:create',
+    subject: {
+      id: 'odsId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  put(
+    @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() dto: PutOdsDto
+  ) {
+    return this.odsService.UpdateOdsInstanceId(odsId, dto);
   }
   @Delete(':odsId')
   @Authorize({

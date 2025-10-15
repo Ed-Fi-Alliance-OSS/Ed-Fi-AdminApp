@@ -890,6 +890,30 @@ export class AdminApiControllerV2 {
   }
 
   //
+  // Ods Instances
+  //
+
+  @Get('odsinstances')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getOdsInstances(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods:read')
+    validIds: Ids
+  ) {
+    const allOdsInstances = await this.sbService.getOdsInstances(edfiTenant);
+    return allOdsInstances.filter((c) => checkId(c.id, validIds));
+  }
+
+  //
   // Profiles
   //
 

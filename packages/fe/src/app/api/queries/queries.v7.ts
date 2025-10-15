@@ -4,6 +4,7 @@ import {
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetClaimsetSingleDtoV2,
+  GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
   GetVendorDtoV2,
   Id,
@@ -142,4 +143,13 @@ export const profileQueriesV2 = new EntityQueryBuilder({
   .put('put', { ResDto: GetProfileDtoV2, ReqDto: PutProfileDtoV2 })
   .post('post', { ResDto: GetProfileDtoV2, ReqDto: PostProfileDtoV2 })
   .delete('delete')
+  .build();
+
+export const odsInstancesV2 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Odsinstance',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll('getAll', { ResDto: GetOdsInstanceSummaryDtoV2 })
   .build();
