@@ -40,14 +40,14 @@ import {
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
-import { 
-  CustomHttpException, 
+import {
+  CustomHttpException,
   determineTenantModeFromMetadata,
-  determineVersionFromMetadata, 
-  fetchOdsApiMetadata, 
-  throwNotFound, 
+  determineVersionFromMetadata,
+  fetchOdsApiMetadata,
+  throwNotFound,
   validateAdminApiUrl,
-  ValidationHttpException, 
+  ValidationHttpException,
 } from '../utils';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
 import { StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
@@ -68,6 +68,51 @@ export class SbEnvironmentsGlobalController {
     private readonly boss: PgBossInstance,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
+
+  /**
+   * Creates a detailed response object for SbEnvironment with computed properties and tenant/ODS data
+   * Used by both findOne and update methods to maintain consistency
+   */
+  private createDetailedEnvironmentResponse(environment: SbEnvironment) {
+    const dto = toGetSbEnvironmentDto(environment);
+
+    return {
+      id: environment.id,
+      created: environment.created,
+      modified: environment.modified,
+      createdById: environment.createdById,
+      modifiedById: environment.modifiedById,
+      envLabel: environment.envLabel,
+      configPublic: environment.configPublic,
+      name: environment.name,
+      // Include edfiTenants with ODS data for edit form
+      edfiTenants: environment.edfiTenants?.map(tenant => ({
+        id: tenant.id,
+        name: tenant.name,
+        displayName: tenant.name,
+        sbEnvironmentId: tenant.sbEnvironmentId,
+        odss: tenant.odss?.map(ods => ({
+          id: ods.id,
+          name: ods.odsInstanceName || ods.dbName,
+          dbName: ods.dbName,
+          // Handle both cases: educationOrganizationId for findOne, id for update
+          allowedEdOrgs: ods.edorgs?.map(edorg => edorg.educationOrganizationId || edorg.id).join(', ') || '',
+          edfiTenantId: ods.edfiTenantId,
+          sbEnvironmentId: ods.sbEnvironmentId,
+        })) || []
+      })) || [],
+      // Add computed properties from the DTO directly in the object literal
+      displayName: dto.displayName,
+      version: dto.version,
+      domain: dto.domain,
+      usableDomain: dto.usableDomain,
+      odsApiVersion: dto.odsApiVersion,
+      odsDsVersion: dto.odsDsVersion,
+      adminApiUrl: dto.adminApiUrl,
+      startingBlocks: dto.startingBlocks,
+      multiTenant: dto.multiTenant,
+    };
+  }
 
   @Post()
   @Authorize({
@@ -175,9 +220,9 @@ export class SbEnvironmentsGlobalController {
       id: '__filtered__',
     },
   })
-  async validateAdminApiUrl(@Body() body: { adminApiUrl: string }) {
-    const { adminApiUrl } = body;
-    await validateAdminApiUrl(adminApiUrl);
+  async validateAdminApiUrl(@Body() body: { adminApiUrl: string, odsApiDiscoveryUrl:string }) {
+    const { adminApiUrl, odsApiDiscoveryUrl } = body;
+    await validateAdminApiUrl(adminApiUrl, odsApiDiscoveryUrl);
     return { valid: true, message: 'Management API URL is valid' };
   }
 
@@ -192,9 +237,17 @@ export class SbEnvironmentsGlobalController {
     @Param('sbEnvironmentId', new ParseIntPipe())
     sbEnvironmentId: number
   ) {
-    return toGetSbEnvironmentDto(
-      await this.sbEnvironmentService.findOne(sbEnvironmentId).catch(throwNotFound)
-    );
+    // Load environment with tenant and ODS relations for the edit page
+    const environment = await this.sbEnvironmentsRepository.findOne({
+      where: { id: sbEnvironmentId },
+      relations: ['edfiTenants', 'edfiTenants.odss', 'edfiTenants.odss.edorgs'],
+    });
+
+    if (!environment) {
+      throwNotFound(new Error(`Environment with id ${sbEnvironmentId} not found`));
+    }
+
+    return this.createDetailedEnvironmentResponse(environment);
   }
 
   @Put(':sbEnvironmentId')
@@ -210,12 +263,29 @@ export class SbEnvironmentsGlobalController {
     @Body() updateSbEnvironmentDto: PutSbEnvironmentDto,
     @ReqUser() user: GetSessionDataDto
   ) {
-    return toGetSbEnvironmentDto(
-      await this.sbEnvironmentService.update(
+    // Check if this includes tenant updates or URL/configuration updates
+    const hasTenantUpdates = updateSbEnvironmentDto.tenants && updateSbEnvironmentDto.tenants.length > 0;
+    const hasUrlUpdates = updateSbEnvironmentDto.odsApiDiscoveryUrl || updateSbEnvironmentDto.adminApiUrl || updateSbEnvironmentDto.environmentLabel || updateSbEnvironmentDto.isMultitenant !== undefined;
+
+    if (hasTenantUpdates || hasUrlUpdates) {
+      // Use the enhanced update method for tenant/ODS updates
+      const updatedEnvironment = await this.sbEnvironmentEdFiService.updateEnvironment(
         sbEnvironmentId,
-        addUserModifying(updateSbEnvironmentDto, user)
-      )
-    );
+        updateSbEnvironmentDto,
+        user
+      );
+
+      // Return the same detailed response as the findOne method for consistency
+      return this.createDetailedEnvironmentResponse(updatedEnvironment);
+    } else {
+      // Use the simple update method for name-only updates
+      return toGetSbEnvironmentDto(
+        await this.sbEnvironmentService.update(
+          sbEnvironmentId,
+          addUserModifying(updateSbEnvironmentDto, user)
+        )
+      );
+    }
   }
 
   @Delete(':sbEnvironmentId')

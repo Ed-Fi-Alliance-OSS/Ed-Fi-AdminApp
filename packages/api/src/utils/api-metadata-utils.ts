@@ -4,6 +4,25 @@ import axios from 'axios';
 import { ValidationHttpException } from './customExceptions';
 
 /**
+ * Determines the API version (v1 or v2) from Admin API metadata version string
+ */
+export const determineVersionFromAdminApiMetadata = (adminApiVersion: string): 'v1' | 'v2' => {
+  try {
+    // Admin API version format: "1.1", "2.0", etc.
+    const majorVersion = parseInt(adminApiVersion.split('.')[0], 10);
+
+    if (majorVersion >= 2) {
+      return 'v2';
+    } else {
+      return 'v1';
+    }
+  } catch (error) {
+    Logger.warn('Failed to parse Admin API version, defaulting to v1:', error);
+    return 'v1';
+  }
+};
+
+/**
  * Determines the API version (v1 or v2) from ODS API metadata
  */
 export const determineVersionFromMetadata = (odsApiMeta: OdsApiMeta): 'v1' | 'v2' => {
@@ -59,10 +78,12 @@ export const determineTenantModeFromMetadata = (odsApiMeta: OdsApiMeta): 'MultiT
  * Fetches ODS API metadata from the discovery URL
  */
 export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironmentDto) => {
-  const response = await axios.get(createSbEnvironmentDto.odsApiDiscoveryUrl, {
-    headers: {
-      Accept: 'application/json',
-    },
+  const odsApiDiscoveryUrl = createSbEnvironmentDto.odsApiDiscoveryUrl;
+  try {
+    const response = await axios.get(odsApiDiscoveryUrl, {
+      headers: {
+        Accept: 'application/json',
+      },
   });
   if (response.status !== 200) {
     throw new Error(`Failed to fetch ODS API metadata: ${response.statusText}`);
@@ -70,15 +91,26 @@ export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironm
   // Optionally validate the response contains expected discovery document structure
   const odsApiMetaResponse = response.data;
   return odsApiMetaResponse;
+  } catch (error) {
+    Logger.warn(`Error fetching ODS API metadata from ${odsApiDiscoveryUrl}:`, error);
+    throw new ValidationHttpException({
+      field: 'odsApiDiscoveryUrl',
+      message: `Failed to connect to Ed-Fi API Discovery URL. Please check the URL and ensure it is valid.`,
+    });
+  }
 };
 
 /**
  * Validates the Management API Discovery URL.
  * @param adminApiUrl The URL to validate.
+ * @param odsApiDiscoveryUrl The ODS API URL for version comparison (optional if odsApiMeta provided).
  * @returns A promise that resolves if the URL is valid, or rejects with a ValidationHttpException if it is not.
  */
 
-export const validateAdminApiUrl = async (adminApiUrl: string): Promise<void> => {
+export const validateAdminApiUrl = async (
+  adminApiUrl: string,
+  odsApiDiscoveryUrl: string
+): Promise<void> => {
   if (!adminApiUrl) {
     throw new ValidationHttpException({
       field: 'adminApiUrl',
@@ -87,20 +119,55 @@ export const validateAdminApiUrl = async (adminApiUrl: string): Promise<void> =>
   }
 
   try {
-    const response = await axios.get(`${adminApiUrl}/health`, {
-      headers: {
-        Accept: 'application/json',
-      },
-    });
-
+    const response = await axios.get(adminApiUrl);
     if (response.status !== 200) {
       throw new ValidationHttpException({
         field: 'adminApiUrl',
         message: `Failed to validate Management API Discovery URL: ${response.statusText}`,
       });
     }
+    else{
+      // Validate the version
+      const metadata = response.data;
+      const adminApiVersion = metadata.version;
+      if (!adminApiVersion) {
+        throw new ValidationHttpException({
+          field: 'adminApiUrl',
+          message: `Management API Discovery URL does not contain a valid version.`,
+        });
+      }
+
+      // Only perform version validation if we have ODS API information
+      let odsMetadata: OdsApiMeta;
+       if (odsApiDiscoveryUrl) {
+          odsMetadata = await fetchOdsApiMetadata({odsApiDiscoveryUrl} as PostSbEnvironmentDto);
+        } else {
+          throw new ValidationHttpException({
+            field: 'adminApiUrl',
+            message: `Please provide a valid Ed-Fi API Discovery URL to validate against.`,
+          });
+        }
+
+        const odsDetectedVersion = determineVersionFromMetadata(odsMetadata);
+
+        // Convert Admin API version to same format as ODS API version for comparison
+        const adminDetectedVersion = determineVersionFromAdminApiMetadata(adminApiVersion);
+
+        if (odsDetectedVersion !== adminDetectedVersion) {
+          throw new ValidationHttpException({
+            field: 'adminApiUrl',
+            message: `Management API version (${adminDetectedVersion}) does not match Ed-Fi API version. Expected APIs to be compatible versions.`,
+          });
+        }
+    }
   } catch (error) {
-    Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error);
+    Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
+    // Re-throw ValidationHttpException errors to preserve specific error messages
+    if (error instanceof ValidationHttpException) {
+      throw error;
+    }
+
+    // For network/connection errors, throw a generic validation exception
     throw new ValidationHttpException({
       field: 'adminApiUrl',
       message: `Failed to connect to Management API Discovery URL. Please check the URL and ensure it is valid.`,

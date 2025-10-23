@@ -115,11 +115,11 @@ export const CreateSbEnvironmentGlobalPage = () => {
   }
 
   const validateAdminApiUrl = (adminApiUrl: string) => {
-    const errorMessage = 'Management API is not responding. Please check the URL and ensure it is valid.';
     if (!isStartingBlocks && adminApiUrl && adminApiUrl.trim() !== '') {
+      const currentOdsApiUrl = getValues('odsApiDiscoveryUrl');
       // To validate Admin API URL availability
       checkAdminApiUrl.mutateAsync(
-        { entity: { adminApiUrl: adminApiUrl }, pathParams: null },
+        { entity: { adminApiUrl: adminApiUrl, odsApiDiscoveryUrl: currentOdsApiUrl }, pathParams: null },
         {
           onSuccess: (result) => {
             if (result) {
@@ -130,16 +130,9 @@ export const CreateSbEnvironmentGlobalPage = () => {
               }
             }
           },
-          onError: (error) => {
-            setError('adminApiUrl', { message: errorMessage });
-            console.error('Error validating Admin API URL:', error);
-          },
+          ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
         }
-      )
-        .catch((error) => {
-          setError('adminApiUrl', { message: errorMessage });
-          console.error('Error validating Admin API URL:', error);
-        });
+      );
     };
   }
 
@@ -362,6 +355,9 @@ export const CreateSbEnvironmentGlobalPage = () => {
                     </chakra.span>
                   </Tooltip>
                 </FormLabel>
+                <Text fontSize="sm" color="orange.600" mb={1}>
+                    ⚠️ Ensure Management API version and tenant mode are compatible with Ed-Fi API
+                </Text>
                 <Input {...register('adminApiUrl')} placeholder="https://..."
                   onBlur={async (e) => {
                     const value = e.target.value;

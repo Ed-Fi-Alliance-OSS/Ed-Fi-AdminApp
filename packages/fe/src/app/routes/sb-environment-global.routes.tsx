@@ -8,6 +8,7 @@ import { sbEnvironmentQueries } from '../api';
 import { getRelationDisplayName } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 import { CreateSbEnvironmentGlobalPage } from '../Pages/SbEnvironmentGlobal/CreateSbEnvironmentGlobalPage';
+import { EditSbEnvironmentGlobalPage } from '../Pages/SbEnvironmentGlobal/EditSbEnvironmentGlobalPage';
 
 const SbEnvironmentGlobalBreadcrumb = () => {
   const params = useParams() as { sbEnvironmentId: string };
@@ -18,6 +19,10 @@ const SbEnvironmentGlobalBreadcrumb = () => {
 export const sbEnvironmentGlobalCreateRoute: RouteObject = {
   path: '/sb-environments/create',
   element: <CreateSbEnvironmentGlobalPage />,
+};
+export const sbEnvironmentGlobalEditRoute: RouteObject = {
+  path: '/sb-environments/:sbEnvironmentId/edit',
+  element: <EditSbEnvironmentGlobalPage />,
 };
 export const sbEnvironmentGlobalIndexRoute: RouteObject = {
   path: '/sb-environments/:sbEnvironmentId/',

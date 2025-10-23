@@ -88,6 +88,7 @@ import {
 } from './sb-environment.routes';
 import {
   sbEnvironmentGlobalCreateRoute,
+  sbEnvironmentGlobalEditRoute,
   sbEnvironmentGlobalIndexRoute,
   sbEnvironmentGlobalRoute,
   sbEnvironmentsGlobalIndexRoute,
@@ -225,6 +226,7 @@ export const adminRoutes: RouteObject = {
     sbEnvironmentsGlobalRoute,
     sbEnvironmentsGlobalIndexRoute,
     sbEnvironmentGlobalCreateRoute,
+    sbEnvironmentGlobalEditRoute,
     sbEnvironmentGlobalRoute,
     sbEnvironmentGlobalIndexRoute,
 

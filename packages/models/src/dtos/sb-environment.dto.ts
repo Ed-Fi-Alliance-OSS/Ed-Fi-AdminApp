@@ -286,4 +286,39 @@ export class PutSbEnvironmentDto
   @MinLength(3)
   @TrimWhitespace()
   name: string;
+
+  @Expose()
+  @IsOptional()
+  @TrimWhitespace()
+  @MinLength(3)
+  @Matches(/^(https?:\/\/)[^\s$.?#].[^\s]*$/i, {
+    message: 'Ed-Fi API Discovery URL must be a valid URL starting with http:// or https://',
+  })
+  odsApiDiscoveryUrl?: string;
+
+  @Expose()
+  @IsOptional()
+  @TrimWhitespace()
+  @MinLength(3)
+  @Matches(/^(https?:\/\/)[^\s$.?#].[^\s]*$/i, {
+    message: 'Management API Discovery URL must be a valid URL starting with http:// or https://',
+  })
+  adminApiUrl?: string;
+
+  @Expose()
+  @IsOptional()
+  @TrimWhitespace()
+  @MinLength(3)
+  environmentLabel?: string;
+
+  @Expose()
+  @IsOptional()
+  isMultitenant?: boolean;
+
+  @Expose()
+  @IsOptional()
+  @IsArray()
+  @ValidateNested({ each: true })
+  @Type(() => PostSbEnvironmentTenantDTO)
+  tenants?: PostSbEnvironmentTenantDTO[];
 }

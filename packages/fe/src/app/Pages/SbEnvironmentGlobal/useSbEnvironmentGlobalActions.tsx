@@ -80,7 +80,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canUpdate
+        ...(canUpdate && sbEnvironment.startingBlocks
           ? {
               Rename: {
                 isDisabled: edit === 'name',
@@ -89,6 +89,17 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                 title: 'Rename the environment',
                 to: `/sb-environments/${sbEnvironment.id}?edit=name`,
                 onClick: () => navigate(`/sb-environments/${sbEnvironment.id}?edit=name`),
+              },
+            }
+          : {}),
+        ...(canUpdate && !sbEnvironment.startingBlocks
+          ? {
+              Edit: {
+                icon: Icons.Edit,
+                text: 'Edit',
+                title: 'Edit environment details',
+                to: `/sb-environments/${sbEnvironment.id}/edit`,
+                onClick: () => navigate(`/sb-environments/${sbEnvironment.id}/edit`),
               },
             }
           : {}),
