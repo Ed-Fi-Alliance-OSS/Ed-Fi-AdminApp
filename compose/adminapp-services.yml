@@ -40,10 +40,10 @@ services:
       timeout: 10s
       retries: 5
 
-  # Use edfiadminapp-db for the Admin App api's data store with PostgreSQL
-  edfiadminapp-db:
+  # Use edfiadminapp-postgres for the Admin App api's data store with PostgreSQL
+  edfiadminapp-postgres:
     image: postgres:${POSTGRESQL_IMAGE_TAG:-16.2}
-    container_name: edfiadminapp-db
+    container_name: edfiadminapp-postgres
     ports:
       - '127.0.0.1:${POSTGRES_PORT_EXPOSED:-5432}:5432'
     environment:
