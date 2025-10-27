@@ -1,0 +1,63 @@
+name: "Copilot Setup Steps"
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      DATABASE_USER: sa
+      DATABASE_PASSWORD: Password123!
+      DATABASE_NAME: aa
+
+    steps:
+      - run: echo "PostgreSQL and MSSQL are running"
+
+    services:
+      - name: "PostgreSQL"
+        image: postgres:16.2
+        description: "PostgreSQL database for Admin App backend"
+        port:
+          - "5432:5432"
+        host: "localhost"
+        healthCheck:
+          command: "docker exec edfiadminapp-db pg_isready -h localhost -p 5432 -U ${DATABASE_USER}"
+          interval: 30000
+        env:
+          POSTGRES_USER: ${DATABASE_USER}
+          POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+          POSTGRES_DB: ${DATABASE_NAME}
+
+      - name: "MSSQL Express"
+        image: mcr.microsoft.com/mssql/server:2022-latest
+        description: "Microsoft SQL Server Express for Admin App backend"
+        port:
+          - "1433:1433"
+        host: "localhost"
+        command:
+          - /bin/bash
+          - -c
+          - |
+            /opt/mssql/bin/sqlservr &
+            sleep 30s
+            /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  ${MSSQL_SA_PASSWORD} -Q "IF DB_ID(N'${MSSQL_DB:-sbaa}') IS NULL CREATE DATABASE [${MSSQL_DB:-sbaa}];"
+            wait
+        healthCheck:
+          command: "docker exec edfiadminapp-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U ${DATABASE_USER} -P '${DATABASE_PASSWORD}' -Q 'SELECT 1'"
+          interval: 30000
+        env:
+          ACCEPT_EULA: Y
+          MSSQL_PID: Express
+          SA_PASSWORD: ${DATABASE_PASSWORD}
+          MSSQL_DB: ${DATABASE_NAME}
