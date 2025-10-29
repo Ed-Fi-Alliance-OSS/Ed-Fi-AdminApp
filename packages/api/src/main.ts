@@ -88,17 +88,24 @@ async function bootstrap() {
     })
   );
   const port = config.API_PORT;
-
   if (config.OPEN_API) {
-    const swaggerConfig = new DocumentBuilder()
-      .setTitle(config.OPENAPI_TITLE)
-      .setDescription(config.OPENAPI_DESCRIPTION)
-      .setVersion('1.0')
-      .build();
-    const document = SwaggerModule.createDocument(app, swaggerConfig);
-    SwaggerModule.setup('api', app, document);
-    writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
-    Logger.verbose(`OpenAPI spec available at ${config.MY_URL_API_PATH} or file:./sbaa-swagger.json`);
+    if (process.env.NODE_ENV === 'production') {
+      Logger.warn(
+        colors.yellow(
+          'Swagger UI is disabled in production environment for security reasons.'
+        )
+      );
+    } else {
+      const swaggerConfig = new DocumentBuilder()
+        .setTitle(config.OPENAPI_TITLE)
+        .setDescription(config.OPENAPI_DESCRIPTION)
+        .setVersion('1.0')
+        .build();
+      const document = SwaggerModule.createDocument(app, swaggerConfig);
+      SwaggerModule.setup('api', app, document);
+      writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
+      Logger.verbose(`OpenAPI spec available at ${config.MY_URL_API_PATH} or file:./sbaa-swagger.json`);
+    }
   }
   await app.listen(port);
   if (config.FE_URL.includes('localhost')) {

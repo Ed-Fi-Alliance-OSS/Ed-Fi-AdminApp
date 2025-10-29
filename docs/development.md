@@ -16,6 +16,10 @@
   - [Possible issues](#possible-issues)
   - [Using a machine user](#using-a-machine-user)
   - [Random things](#random-things)
+  - [Swagger/OpenAPI Documentation](#swaggeropenapi-documentation)
+    - [Local Development](#local-development)
+    - [Production Environment](#production-environment)
+    - [Troubleshooting](#troubleshooting)
   - [Architecture overview](#architecture-overview)
   - [M2M Users](#m2m-users)
     - [Auth0 Application creation](#auth0-application-creation)
@@ -203,6 +207,82 @@ npm run migrations:revert
 - You'll get a file called `/sbaa-swagger.json` generated when the server starts if you have that enabled in your config variables. That's the OpenAPI spec served at the `/api` route.
 - You'll get a file called `/stats.html` generated when the front-end builds in production mode. That's the output of a bundle analyzer to help with getting rid of dependency cruft that the front end has to (slowly) load.
 - If you don't have the needed AWS access, the app can still run. It just won't be able to do the particular operations that try to execute lambdas.
+  
+## Swagger/OpenAPI Documentation
+
+### Local Development
+
+The API includes Swagger UI for exploring and testing endpoints during local development.
+
+**To enable Swagger UI:**
+
+1. Set `_OPEN_API: true` in your `packages/api/config/local.js` file (already enabled by default in local config)
+2. Start the API server in development mode:
+
+   ```shell
+   npm run start:api:dev
+   ```
+
+3. Navigate to `http://localhost:3333/api` to access the interactive Swagger UI
+
+**Configuration Options:**
+
+- **Environment Variable:** Set `OPEN_API=true` in your environment
+- **Config File:** Set `_OPEN_API: true` in your configuration file
+- **Default:** Disabled (`false`) in `packages/api/config/default.js`
+
+### Production Environment
+
+⚠️ **CRITICAL SECURITY WARNING**
+
+**Swagger UI is disabled by default and must NEVER be enabled in production environments.**
+
+API documentation exposure represents a significant security risk because it reveals:
+
+- Complete API endpoint structure and attack surface
+- Request/response schemas and data models
+- Authentication patterns and security mechanisms
+- Business logic and authorization models
+- Multi-tenant resource patterns
+
+**Security Safeguards:**
+
+The application includes multiple layers of protection:
+
+1. **Default Configuration:** `OPEN_API` defaults to `false` in base configuration
+2. **Production Config:** Explicitly sets `_OPEN_API: false` in production configuration
+3. **Runtime Guard:** If `OPEN_API` is enabled, Swagger is blocked at runtime when `NODE_ENV=production`
+4. **Warning Logging:** A warning is logged if Swagger is disabled due to production environment
+
+**Testing the Safeguard:**
+
+To verify the production safeguard is working:
+
+```shell
+# This should block Swagger and show a warning
+npm run start:api
+# Expected log: "Swagger UI is disabled in production environment for security reasons."
+```
+
+**Best Practices:**
+
+- ✅ Use Swagger in local development for API exploration
+- ✅ Keep `OPEN_API=false` in all non-local environments
+- ✅ Never set `OPEN_API=true` in staging or production
+- ✅ Verify Swagger is inaccessible in deployed environments
+
+### Troubleshooting
+
+**Swagger not loading in development:**
+
+1. Verify `_OPEN_API: true` in your config file
+2. Check that you're using the development command: `npm run start:api:dev`
+3. Confirm `NODE_ENV` is not set to `production`
+
+**Getting 404 on /api route:**
+
+- If you see "Cannot GET /api", Swagger is disabled
+- Check your environment with the debug logs that show `NODE_ENV` and `config.OPEN_API` values
 
 ## Architecture overview
 
