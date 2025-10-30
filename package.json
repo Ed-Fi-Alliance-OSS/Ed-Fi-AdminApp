@@ -30,8 +30,8 @@
     "node": ">=18.0.0"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.913.0",
-    "@aws-sdk/client-secrets-manager": "^3.913.0",
+    "@aws-sdk/client-lambda": "^3.917.0",
+    "@aws-sdk/client-secrets-manager": "^3.917.0",
     "@aws-sdk/util-arn-parser": "^3.893.0",
     "@casl/ability": "^6.7.3",
     "@chakra-ui/icons": "^2.2.4",
@@ -99,9 +99,9 @@
     "xml-formatter": "^3.6.7"
   },
   "devDependencies": {
-    "@babel/core": "^7.28.4",
-    "@babel/preset-react": "^7.27.1",
-    "@babel/preset-typescript": "7.27.1",
+    "@babel/core": "^7.28.5",
+    "@babel/preset-react": "^7.28.5",
+    "@babel/preset-typescript": "7.28.5",
     "@chakra-ui/cli": "^2.4.1",
     "@chakra-ui/storybook-addon": "^5.2.5",
     "@eslint/compat": "^1.4.0",
