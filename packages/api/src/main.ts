@@ -109,7 +109,7 @@ async function bootstrap() {
     secret: 'my-secret',
     resave: false,
     saveUninitialized: false,
-    cookie: { secure: process.env.NODE_ENV === 'production' ? true : 'auto' as const },
+    cookie: { secure: 'auto' as const },
   };
 
   app.use(expressSession.default(sessionConfig));
