@@ -43,7 +43,7 @@ jobs:
           sudo systemctl start postgresql.service
           pg_isready
           sudo -u postgres psql -c "CREATE ROLE ${DATABASE_USER} WITH LOGIN PASSWORD '${DATABASE_PASSWORD}';"
-          sudo -u postgres psql --no-transaction -c "CREATE DATABASE ${DATABASE_NAME}"
+          sudo -u postgres psql -c "CREATE DATABASE ${DATABASE_NAME}"
         env:
           DATABASE_USER: ${{ env.DATABASE_USER }}
           DATABASE_NAME: ${{ env.DATABASE_NAME }}
