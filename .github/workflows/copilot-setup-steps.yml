@@ -36,11 +36,21 @@ jobs:
         env:
           ACCEPT_EULA: Y
           MSSQL_PID: Express
-          MSSQL_SA_PASSWORD: ${DATABASE_PASSWORD}
+          MSSQL_SA_PASSWORD: ${{ env.DATABASE_PASSWORD }}
 
     steps:
-      - run: sudo systemctl start postgresql.service
+      - run: |
+          sudo systemctl start postgresql.service
+          pg_isready
+          sudo -u postgres psql -c "CREATE ROLE ${DATABASE_USER} WITH LOGIN PASSWORD '${DATABASE_PASSWORD}'; CREATE DATABASE ${DATABASE_NAME}"
+        env:
+          DATABASE_USER: ${{ env.DATABASE_USER }}
+          DATABASE_NAME: ${{ env.DATABASE_NAME }}
+          DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
 
       - run: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DATABASE_PASSWORD} -Q "IF DB_ID(N'${DATABASE_NAME}') IS NULL CREATE DATABASE [${DATABASE_NAME}];"
+        env:
+          DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+          DATABASE_NAME: ${{ env.DATABASE_NAME }}
 
       - run: echo "PostgreSQL and MSSQL are running"
