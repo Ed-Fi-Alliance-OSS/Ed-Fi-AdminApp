@@ -18,7 +18,7 @@ jobs:
 
     env:
       DATABASE_USER: sa
-      DATABASE_PASSWORD: Password123!
+      DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
       DATABASE_NAME: aa
 
     services:
@@ -36,9 +36,11 @@ jobs:
         env:
           ACCEPT_EULA: Y
           MSSQL_PID: Express
-          SA_PASSWORD: ${DATABASE_PASSWORD}
+          MSSQL_SA_PASSWORD: ${DATABASE_PASSWORD}
 
     steps:
       - run: sudo systemctl start postgresql.service
+
+      - run: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DATABASE_PASSWORD} -Q "IF DB_ID(N'${DATABASE_NAME}') IS NULL CREATE DATABASE [${DATABASE_NAME}];"
 
       - run: echo "PostgreSQL and MSSQL are running"
