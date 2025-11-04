@@ -50,7 +50,7 @@ module.exports = {
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 10,
 
-  USEPKCE: true,
+  USE_PKCE: true,
   
   WHITELISTED_REDIRECTS: [FE_URL],
 };

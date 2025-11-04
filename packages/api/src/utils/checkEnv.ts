@@ -40,8 +40,8 @@ if (config.RATE_LIMIT_LIMIT === undefined) {
   errs.push('RATE_LIMIT_LIMIT not defined.');
 }
 
-if (config.USEPKCE === undefined) {
-  errs.push('USEPKCE not defined.');
+if (config.USE_PKCE === undefined) {
+  errs.push('USE_PKCE not defined.');
 }
 if (errs.length > 0) {
   throw new Error('Config error:\n- ' + errs.join('\n- '));
