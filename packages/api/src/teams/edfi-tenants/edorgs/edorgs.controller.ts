@@ -31,6 +31,7 @@ import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { whereIds } from '../../../auth/helpers/where-ids';
 import { ValidationHttpException } from '../../../utils';
 import { EdorgsService } from './edorgs.service';
+import { EDORG_PRIVILEGES } from './edorg-privileges.constants';
 
 @ApiTags('Edorg')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
@@ -45,7 +46,7 @@ export class EdorgsController {
 
   @Get()
   @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods.edorg:read',
+    privilege: EDORG_PRIVILEGES.READ,
     subject: {
       id: '__filtered__',
       edfiTenantId: 'edfiTenantId',
@@ -64,7 +65,7 @@ export class EdorgsController {
 
   @Get(':edorgId')
   @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods.edorg:read',
+    privilege: EDORG_PRIVILEGES.READ,
     subject: {
       id: 'edorgId',
       edfiTenantId: 'edfiTenantId',
@@ -81,7 +82,7 @@ export class EdorgsController {
 
   @Post()
   @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods:create-edorg',
+    privilege: EDORG_PRIVILEGES.CREATE,
     subject: {
       id: '__filtered__',
       edfiTenantId: 'edfiTenantId',
@@ -110,7 +111,7 @@ export class EdorgsController {
 
     if (
       !checkAbility({
-        privilege: 'team.sb-environment.edfi-tenant.ods:create-edorg',
+        privilege: EDORG_PRIVILEGES.CREATE,
         subject: {
           id: 'odsId',
           edfiTenantId: 'edfiTenantId',
@@ -137,7 +138,7 @@ export class EdorgsController {
   @Operation('Deleting edorgs')
   @Delete(':edorgId')
   @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods:delete-edorg',
+    privilege: EDORG_PRIVILEGES.DELETE,
     subject: {
       id: '__filtered__',
       edfiTenantId: 'edfiTenantId',
@@ -157,7 +158,7 @@ export class EdorgsController {
     if (
       // check for edorg read privilege which is required as a dependency of delete
       !checkAbility({
-        privilege: 'team.sb-environment.edfi-tenant.ods.edorg:read',
+        privilege: EDORG_PRIVILEGES.READ,
         subject: {
           id: 'edorgId',
           edfiTenantId: 'edfiTenantId',
@@ -178,19 +179,6 @@ export class EdorgsController {
     const ods = edorg.ods;
     // artificially add odsId to request.params to be used by checkAbility
     request.params.odsId = String(ods.id);
-
-    if (
-      !checkAbility({
-        privilege: 'team.sb-environment.edfi-tenant.ods:create-edorg',
-        subject: {
-          id: 'odsId',
-          edfiTenantId: 'edfiTenantId',
-          teamId: 'teamId',
-        },
-      })
-    ) {
-      throw new NotFoundException();
-    }
 
     const allowedEdorgs =
       'tenants' in sbEnvironment.configPublic.values &&

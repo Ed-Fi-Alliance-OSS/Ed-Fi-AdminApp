@@ -12,12 +12,15 @@ import { AuthService } from '../auth.service';
 import { IS_PUBLIC_KEY } from '../authorization/public.decorator';
 import config from 'config';
 import { JWTPayload } from 'jose';
+import { User } from '@edanalytics/models-server';
 
 type Auth0Payload = JWTPayload & {
   aud: string;
   azp: string;
   gty: string;
   scope: string;
+  preferred_username: string;
+  client_id: string;
 };
 
 @Injectable()
@@ -83,13 +86,26 @@ export class AuthenticatedGuard implements CanActivate {
       }
 
       const { data } = verifyResult;
-      const { aud: audience, azp: clientId, scope } = data as Auth0Payload;
-      if (audience !== AUTH0_CONFIG_SECRET.MACHINE_AUDIENCE || !scope.includes('login:app')) {
-        throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
-      }
+      const { aud: audience, azp: clientId, scope, preferred_username: username, client_id: machineClientId } = data as Auth0Payload;
 
+      // Determine if it's a machine client token
+      const isMachineClient = !!machineClientId || (audience === AUTH0_CONFIG_SECRET.MACHINE_AUDIENCE && !username);
+
+      let user: User;
       try {
-        const user = await this.authService.validateUser({ clientId });
+        if (isMachineClient) {
+          if (audience !== AUTH0_CONFIG_SECRET.MACHINE_AUDIENCE || !scope?.includes('login:app')) {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+          }
+          user = await this.authService.validateUser({ clientId: machineClientId });
+        } else {
+          Logger.verbose(`Authenticating user: ${username}`);
+          if (!username || audience !== 'account') {
+            throw new HttpException('Unauthorized', HttpStatus.UNAUTHORIZED);
+          }
+          // User token: pass username and clientId for validation
+          user = await this.authService.validateUser({ username, clientId });
+        }
         if (user) {
           request.user = user;
           return true;
