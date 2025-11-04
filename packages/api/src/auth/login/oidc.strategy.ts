@@ -37,7 +37,7 @@ export class RegisterOidcIdpsService {
                 redirect_uri: `${config.MY_URL_API_PATH}/auth/callback/${oidcConfig.id}`,
                 scope: oidcConfig.scope,
               },
-              usePKCE: false,
+              usePKCE: config.USEPKCE,
             },
             async (_: TokenSet, userinfo, done) => {
               let username: string | undefined = undefined;

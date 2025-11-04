@@ -74,6 +74,8 @@ declare module 'config' {
 
     RATE_LIMIT_TTL: number; // The time to live in milliseconds
     RATE_LIMIT_LIMIT: number; // The maximum number of requests within the ttl
+
+    USEPKCE: boolean;
   }
 
   const config: IConfig;

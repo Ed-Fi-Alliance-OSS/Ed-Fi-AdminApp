@@ -127,4 +127,6 @@ module.exports = {
 
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 100,
+  
+  USEPKCE: true,
 };
