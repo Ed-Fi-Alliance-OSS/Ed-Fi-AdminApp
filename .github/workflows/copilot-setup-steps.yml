@@ -49,7 +49,17 @@ jobs:
           DATABASE_NAME: ${{ env.DATABASE_NAME }}
           DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
 
-      - run: /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DATABASE_PASSWORD} -Q "IF DB_ID(N'${DATABASE_NAME}') IS NULL CREATE DATABASE [${DATABASE_NAME}];"
+      - name: Install sqlcmd
+        run: |
+          curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+          curl -sSL https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+          sudo apt-get update
+          sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+          echo 'export PATH="$PATH:/opt/mssql-tools18/bin"' >> ~/.bashrc
+          source ~/.bashrc
+
+      - run: |
+          sqlcmd -C -S localhost -U sa -P ${DATABASE_PASSWORD} -Q "IF DB_ID(N'${DATABASE_NAME}') IS NULL CREATE DATABASE [${DATABASE_NAME}];"
         env:
           DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
           DATABASE_NAME: ${{ env.DATABASE_NAME }}
