@@ -13,7 +13,7 @@ module.exports = {
   YOPASS_URL: 'http://localhost:8082',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
 
-  DB_ENGINE: 'postgres', // 'postgres' or 'mssql'
+  DB_ENGINE: 'pgsql', // 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: true, // For MSSQL local development using self-signed certs, set to true
 
   DB_SECRET_VALUE: {
