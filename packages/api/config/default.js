@@ -7,12 +7,7 @@ const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client
 //   secretAccessKey: '',
 //   sessionToken: '',
 // },
-const makeConnectionString = (port, db, username, password, host, ssl, engine = 'pgsql', trustServerCertificate = false) => {
-  if (engine === 'mssql') {
-     const connString = `mssql://${username}:${password}@${host}:${port}/${db}?encrypt=${ssl === 'require'};trustServerCertificate=${trustServerCertificate}`;
-     return connString;
-  }
-
+const makePgsqlConnectionString = (port, db, username, password, host, ssl) => {
   return `postgres://${username}@${host}:${port}/${db}?password=${password}&sslmode=${ssl}`;
 };
 module.exports = {
@@ -79,12 +74,34 @@ module.exports = {
 
         const secret = JSON.parse(secretValueRaw.SecretString);
         const { username, password, host, port, dbname } = secret;
-        r(makeConnectionString(port, dbname, username, password, host, ssl, engine));
+        r(makePgsqlConnectionString(port, dbname, username, password, host, ssl, engine));
       });
     } else {
+      console.log('>>>> DB ENGINE: ', engine);
+
       // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
+      if (engine === 'mssql') {
+        const {
+          MSSQL_DB_USERNAME,
+          MSSQL_DB_PASSWORD,
+          MSSQL_DB_HOST,
+          MSSQL_DB_PORT,
+          MSSQL_DB_DATABASE,
+        } = this.DB_SECRET_VALUE;
+        const connString = `mssql://${MSSQL_DB_USERNAME}:${MSSQL_DB_PASSWORD}@${MSSQL_DB_HOST}:${MSSQL_DB_PORT}/${MSSQL_DB_DATABASE}?encrypt=${this.DB_SSL}&trustServerCertificate=${this.DB_TRUST_CERTIFICATE}`;
+
+        return connString;
+      }
+
       const { DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE } = this.DB_SECRET_VALUE;
-      return makeConnectionString(DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_HOST, ssl, engine);
+      return makePgsqlConnectionString(
+        DB_PORT,
+        DB_DATABASE,
+        DB_USERNAME,
+        DB_PASSWORD,
+        DB_HOST,
+        ssl
+      );
     }
   }),
   DB_ENCRYPTION_SECRET: defer(function () {
@@ -123,9 +140,9 @@ module.exports = {
   }),
   USE_YOPASS: false,
   WHITELISTED_REDIRECTS: [this.FE_URL],
-  MY_URL: string = "",
+  MY_URL: (string = ''),
   get MY_URL_API_PATH() {
-    return this.MY_URL.endsWith("/api") ? this.MY_URL : `${this.MY_URL}/api`;
+    return this.MY_URL.endsWith('/api') ? this.MY_URL : `${this.MY_URL}/api`;
   },
   OPENAPI_TITLE: 'Starting Blocks Admin App',
   OPENAPI_DESCRIPTION: 'OpenAPI spec for the EA Starting Blocks admin application.',

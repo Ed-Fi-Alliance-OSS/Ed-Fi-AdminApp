@@ -43,8 +43,6 @@ declare module 'config' {
 
     AWS_REGION?: string | undefined;
     DB_ENGINE: 'mssql' | 'pgsql';
-    isUsingPostgres: boolean;
-    isUsingMssql: boolean;
     DB_SSL: boolean;
     DB_TRUST_CERTIFICATE: boolean;
     DB_RUN_MIGRATIONS: boolean;
@@ -83,8 +81,6 @@ declare module 'config' {
   }
 
   const config: IConfig;
-  config.prototype.isUsingMssql = (this: IConfig): boolean => this.engine == "mssql";
-  config.prototype.isUsingPostgres = (this: IConfig): boolean => this.engine == "pgsql";
 
   export = config;
 }
