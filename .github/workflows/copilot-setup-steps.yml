@@ -19,7 +19,7 @@ jobs:
     env:
       DATABASE_USER: sa
       DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
-      DATABASE_NAME: aa
+      DATABASE_NAME: sbaa
 
     services:
       mssql:
