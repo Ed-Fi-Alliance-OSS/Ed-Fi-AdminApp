@@ -45,7 +45,7 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
     {
       provide: 'PgBossInstance',
       useFactory: async () => {
-        if (appConfig.DB_ENGINE !== 'postgres') { // mssql is not yet supported
+        if (appConfig.DB_ENGINE === "mssql") { // mssql is not yet supported
           return null;
         }
 

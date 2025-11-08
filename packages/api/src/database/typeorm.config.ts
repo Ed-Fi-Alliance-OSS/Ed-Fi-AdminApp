@@ -152,13 +152,6 @@ const getMSSQLMigrations = () => [
   MssqlUniqueClientId1747424374434,
 ];
 
-const getMigrations = () => {
-  if (config.isUsingMssql) {
-    return getMSSQLMigrations();
-  }
-  return getPostgreSQLMigrations();
-};
-
 const getDatabaseConfig = (): Pick<PostgresConnectionOptions | SqlServerConnectionOptions, 'entities' | 'synchronize' | 'migrations' | 'type' | 'migrationsRun'> => {
 
   const baseConfig = {
@@ -182,18 +175,19 @@ const getDatabaseConfig = (): Pick<PostgresConnectionOptions | SqlServerConnecti
     ],
     synchronize: false,
     migrationsRun: true,
-    migrations: getMigrations(),
   };
 
-  if (config.isUsingMssql) {
+  if (config.DB_ENGINE === "mssql") {
     return {
       ...baseConfig,
+      migrations: getMSSQLMigrations(),
       type: 'mssql' as const,
     };
   }
 
   return {
     ...baseConfig,
+    migrations: getPostgreSQLMigrations(),
     type: 'postgres' as const,
   };
 };
