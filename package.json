@@ -13,6 +13,7 @@
     "start:fe:dev": "nx run fe:serve",
     "migrations:generate": "nx run api:migrations:generate --name",
     "migrations:run": "nx run api:migrations:run",
+    "migrations:run:mssql": "cross-env DB_ENGINE=mssql nx run api:migrations:run",
     "migrations:revert": "nx run api:migrations:revert",
     "generate:icons": "./scripts/generateIcons.sh",
     "test:api": "nx run api:test",
@@ -23,7 +24,7 @@
     "lint:fix": "eslint --fix .",
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",
-    "sandworm:audit": "NODE_OPTIONS=\"--max-old-space-size=16384\" npx @sandworm/audit@latest"
+    "sandworm:audit": "cross-env NODE_OPTIONS=\"--max-old-space-size=16384\" npx @sandworm/audit@latest"
   },
   "private": true,
   "engines": {
@@ -154,6 +155,7 @@
     "babel-jest": "^29.4.1",
     "babel-loader": "8.1.0",
     "conventional-changelog-conventionalcommits": "^8.0.0",
+    "cross-env": "^10.1.0",
     "cypress": "13.13.1",
     "eslint": "8.57.0",
     "eslint-config-prettier": "9.1.0",
