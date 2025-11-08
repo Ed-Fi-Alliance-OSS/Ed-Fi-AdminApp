@@ -4,16 +4,6 @@
   "sourceRoot": "packages/api/src",
   "projectType": "application",
   "targets": {
-    "populate:demo": {
-      "executor": "nx:run-commands",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "cwd": "./",
-        "commands": [
-          "ts-node -r tsconfig-paths/register --project=packages/api/tsconfig.app.json packages/api/src/database/demo-populate.ts --noInteraction"
-        ]
-      }
-    },
     "build-migration-config": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
