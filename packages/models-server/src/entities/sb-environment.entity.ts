@@ -27,7 +27,7 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
   @Column()
   name: string;
 
-  @Column({ type: 'jsonb', nullable: true })
+  @Column({ type: 'simple-json', nullable: true })
   configPublic: SbEnvironmentConfigPublic | null;
 
   get version() {
@@ -75,7 +75,7 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
   }
 
   @Column({
-    type: 'jsonb',
+    type: 'simple-json',
     nullable: true,
     transformer: {
       from(value) {
