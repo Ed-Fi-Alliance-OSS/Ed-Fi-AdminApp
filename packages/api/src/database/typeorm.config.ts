@@ -152,8 +152,8 @@ const getMSSQLMigrations = () => [
   MssqlUniqueClientId1747424374434,
 ];
 
-const getDatabaseConfig = (): Pick<PostgresConnectionOptions | SqlServerConnectionOptions, 'entities' | 'synchronize' | 'migrations' | 'type' | 'migrationsRun'> => {
 
+const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {
   const baseConfig = {
     entities: [
       EdfiTenant,
@@ -181,15 +181,21 @@ const getDatabaseConfig = (): Pick<PostgresConnectionOptions | SqlServerConnecti
     return {
       ...baseConfig,
       migrations: getMSSQLMigrations(),
-      type: 'mssql' as const,
-    };
+      type: 'mssql',
+      // MSSQL-specific options,
+      options: {
+        encrypt: config.DB_SSL,
+        trustServerCertificate: config.DB_TRUST_CERTIFICATE
+      }
+    } as SqlServerConnectionOptions;
   }
 
   return {
     ...baseConfig,
     migrations: getPostgreSQLMigrations(),
-    type: 'postgres' as const,
-  };
+    type: 'postgres',
+    // Add Postgres-specific options here if needed
+  } as PostgresConnectionOptions;
 };
 
 export default getDatabaseConfig();
