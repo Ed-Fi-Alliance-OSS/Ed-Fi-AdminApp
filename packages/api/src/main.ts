@@ -26,19 +26,56 @@ import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import axios from 'axios';
 import https from 'https';
 
+const FIVE_SECONDS_IN_SECONDS = 5;
+const FIVE_SECONDS_IN_MILLISECONDS = 5000;
+const TWO_HOURS_IN_SECONDS = 60 * 60 * 2;
+
+async function createMssqlConfig(): Promise<sql.config> {
+  const mssqlConnectionStr = await config.DB_CONNECTION_STRING;
+  const urlParts = new URL(mssqlConnectionStr);
+  return {
+    server: urlParts.hostname,
+    port: parseInt(urlParts.port) || 1433,
+    database: urlParts.pathname.slice(1),
+    user: urlParts.username,
+    password: urlParts.password,
+    options: {
+      encrypt: config.DB_SSL,
+      trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+    },
+    connectionTimeout: FIVE_SECONDS_IN_SECONDS, // this might be to aggressive
+  };
+}
+
+async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.ConnectionPool> {
+  mssqlConfig = mssqlConfig || (await createMssqlConfig());
+  const pool = new sql.ConnectionPool(mssqlConfig);
+  return await pool.connect();
+}
+
 async function checkDatabaseAvailability(): Promise<void> {
+  const healthCheckQuery = 'SELECT 1';
   try {
     Logger.log('Checking database availability before starting API...');
 
-    const pgConnectionStr = await config.DB_CONNECTION_STRING;
-    const pgClient = new Client({
-      connectionString: pgConnectionStr,
-      connectionTimeoutMillis: 5000 // 5 second timeout
-    });
+    if (config.DB_ENGINE === 'mssql') {
+      const pool = await createMssqlConnection();
+      try {
+        await pool.request().query(healthCheckQuery);
+      } finally {
+        await pool.close();
+      }
+    } else {
+      const pgConnectionStr = await config.DB_CONNECTION_STRING;
+      const pgClient = new Client({
+        connectionString: pgConnectionStr,
+        connectionTimeoutMillis: FIVE_SECONDS_IN_MILLISECONDS,
+      });
 
-    await pgClient.connect();
-    await pgClient.query('SELECT 1'); // Simple health check query
-    await pgClient.end();
+      await pgClient.connect();
+      await pgClient.query(healthCheckQuery);
+      await pgClient.end();
+    }
 
     Logger.log('Database is available - proceeding with API startup');
   } catch (error) {
@@ -61,29 +98,21 @@ async function checkDatabaseAvailability(): Promise<void> {
 async function setupDatabaseSession(connectionStr: string, engine: string) {
   try {
     if (engine === 'mssql') {
-      // For MSSQL, parse connection string and create session store
-      const urlParts = new URL(connectionStr);
-      const mssqlConfig = {
-        server: urlParts.hostname,
-        port: parseInt(urlParts.port) || 1433,
-        database: urlParts.pathname.slice(1), // Remove leading slash
-        user: urlParts.username,
-        password: urlParts.password,
-        options: {
-          encrypt: config.DB_SSL,
-          trustServerCertificate: config.DB_TRUST_CERTIFICATE,
-        },
-      };
+      const table = 'sessions';
 
-      // Create session table if it doesn't exist
-      const pool = new sql.ConnectionPool(mssqlConfig);
-      await pool.connect();
+      const mssqlConfig = await createMssqlConfig();
+
+      const pool = await createMssqlConnection();
+      try {
+        await pool.query(`IF (OBJECT_ID('${table}') IS NOT NULL) CREATE TABLE ${table};`);
+      } finally {
+        await pool.close();
+      }
 
       Logger.log('Using MSSQL session store');
-      return new mssqlSession.default({
-        config: mssqlConfig,
-        tableName: 'sessions',
-        ttl: 60 * 60 * 2, // 2hr
+      return new mssqlSession.default(mssqlConfig, {
+        table,
+        ttl: TWO_HOURS_IN_SECONDS,
       });
     } else {
       // PostgreSQL setup (existing logic)
@@ -100,7 +129,7 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
         createTableIfMissing: true,
         conString: connectionStr,
         schemaName: 'appsession',
-        ttl: 60 * 60 * 2, // 2hr
+        ttl: TWO_HOURS_IN_SECONDS,
       });
     }
   } catch (error) {
@@ -174,9 +203,7 @@ async function bootstrap() {
   if (config.OPEN_API) {
     if (process.env.NODE_ENV === 'production') {
       Logger.warn(
-        colors.yellow(
-          'Swagger UI is disabled in production environment for security reasons.'
-        )
+        colors.yellow('Swagger UI is disabled in production environment for security reasons.')
       );
     } else {
       const swaggerConfig = new DocumentBuilder()
