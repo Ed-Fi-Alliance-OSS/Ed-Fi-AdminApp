@@ -19,7 +19,7 @@ export class Role extends EntityBase implements IRole {
   @Column({ type: 'simple-json' })
   type: RoleType;
 
-  @Column({ array: true, type: 'text', default: '{}' })
+  @Column({ type: 'simple-array', default: '' })
   privilegeIds: PrivilegeCode[];
 
   get privileges() {

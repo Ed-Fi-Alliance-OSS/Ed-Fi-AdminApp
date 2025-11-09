@@ -4,40 +4,40 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
   name = 'CreateDetailedIntegrationAppsView1745533840578';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`CREATE VIEW "integration_apps_view" AS
+    await queryRunner.query(`CREATE VIEW [integration_apps_view] AS
     SELECT
       ia.*,
-      et.name AS "edfiTenantName",
-      ip.name AS "integrationProviderName",
-      ARRAY(
-        SELECT e."nameOfInstitution"
+      et.[name] AS [edfiTenantName],
+      ip.[name] AS [integrationProviderName],
+      (
+        SELECT STRING_AGG(e.[nameOfInstitution], ',')
         FROM edorg e
-        WHERE e.id = ANY(ia."edorgIds")
-      ) AS "edorgNames",
-      ods."odsInstanceName" AS "odsName",
-      sbe.name AS "sbEnvironmentName"
+        WHERE ',' + ia.[edorgIds] + ',' LIKE '%,' + CAST(e.id AS VARCHAR) + ',%'
+      ) AS [edorgNames],
+      ods.[odsInstanceName] AS [odsName],
+      sbe.[name] AS [sbEnvironmentName]
     FROM integration_app ia
-    LEFT JOIN edfi_tenant et ON et.id = ia."edfiTenantId"
-    LEFT JOIN integration_provider ip ON ip.id = ia."integrationProviderId"
-    LEFT JOIN ods ON ods.id = ia."odsId"
-    LEFT JOIN sb_environment sbe ON sbe.id = ia."sbEnvironmentId"
+    LEFT JOIN edfi_tenant et ON et.id = ia.[edfiTenantId]
+    LEFT JOIN integration_provider ip ON ip.id = ia.[integrationProviderId]
+    LEFT JOIN ods ON ods.id = ia.[odsId]
+    LEFT JOIN sb_environment sbe ON sbe.id = ia.[sbEnvironmentId]
   `);
     await queryRunner.query(
-      `INSERT INTO "typeorm_metadata"("database", "schema", "table", "type", "name", "value") VALUES (DEFAULT, $1, DEFAULT, $2, $3, $4)`,
+      `INSERT INTO [typeorm_metadata]([database], [schema], [table], [type], [name], [value]) VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
       [
-        'public',
+        'dbo',
         'VIEW',
         'integration_apps_view',
-        'SELECT\n      ia.*,\n      et.name AS "edfiTenantName",\n      ip.name AS "integrationProviderName",\n      ARRAY(\n        SELECT e."nameOfInstitution"\n        FROM edorg e\n        WHERE e.id = ANY(ia."edorgIds")\n      ) AS "edorgNames",\n      ods."odsInstanceName" AS "odsName",\n      sbe.name AS "sbEnvironmentName"\n    FROM integration_app ia\n    LEFT JOIN edfi_tenant et ON et.id = ia."edfiTenantId"\n    LEFT JOIN integration_provider ip ON ip.id = ia."integrationProviderId"\n    LEFT JOIN ods ON ods.id = ia."odsId"\n    LEFT JOIN sb_environment sbe ON sbe.id = ia."sbEnvironmentId"',
+        'SELECT\n      ia.*,\n      et.[name] AS [edfiTenantName],\n      ip.[name] AS [integrationProviderName],\n      (\n        SELECT STRING_AGG(e.[nameOfInstitution], \',\')\n        FROM edorg e\n        WHERE \',\' + ia.[edorgIds] + \',\' LIKE \'%,\' + CAST(e.id AS VARCHAR) + \',%\'\n      ) AS [edorgNames],\n      ods.[odsInstanceName] AS [odsName],\n      sbe.[name] AS [sbEnvironmentName]\n    FROM integration_app ia\n    LEFT JOIN edfi_tenant et ON et.id = ia.[edfiTenantId]\n    LEFT JOIN integration_provider ip ON ip.id = ia.[integrationProviderId]\n    LEFT JOIN ods ON ods.id = ia.[odsId]\n    LEFT JOIN sb_environment sbe ON sbe.id = ia.[sbEnvironmentId]',
       ]
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM "typeorm_metadata" WHERE "type" = $1 AND "name" = $2 AND "schema" = $3`,
-      ['VIEW', 'integration_apps_view', 'public']
+      `DELETE FROM [typeorm_metadata] WHERE [type] = @p0 AND [name] = @p1 AND [schema] = @p2`,
+      ['VIEW', 'integration_apps_view', 'dbo']
     );
-    await queryRunner.query(`DROP VIEW "integration_apps_view"`);
+    await queryRunner.query(`DROP VIEW [integration_apps_view]`);
   }
 }
