@@ -6,14 +6,20 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class RemoveImpliedPrivilege1714074225483 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
+    // For simple-array (comma-separated string), remove 'privilege:read' from the list
     queryRunner.query(
-      `UPDATE role set "privilegeIds" = array_remove("privilegeIds", 'privilege:read')`
+      `UPDATE [role] SET [privilegeIds] = REPLACE(',' + [privilegeIds] + ',', ',privilege:read,', ',') WHERE [privilegeIds] LIKE '%privilege:read%'`
+    );
+    // Clean up leading/trailing commas
+    queryRunner.query(
+      `UPDATE [role] SET [privilegeIds] = TRIM(',' FROM [privilegeIds])`
     );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
+    // For simple-array, append 'privilege:read' if not already present
     queryRunner.query(
-      `UPDATE role set "privilegeIds" = array_append("privilegeIds", 'privilege:read')`
+      `UPDATE [role] SET [privilegeIds] = CASE WHEN LEN([privilegeIds]) > 0 THEN [privilegeIds] + ',privilege:read' ELSE 'privilege:read' END WHERE [privilegeIds] NOT LIKE '%privilege:read%'`
     );
   }
 }

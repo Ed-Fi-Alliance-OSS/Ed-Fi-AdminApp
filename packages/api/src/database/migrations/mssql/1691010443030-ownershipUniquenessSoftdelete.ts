@@ -38,10 +38,10 @@ export class OwnershipUniquenessSoftdelete1691010443030 implements MigrationInte
       `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_03fd4f242cf59f808f69df949a1] UNIQUE ([tenantId], [sbeId])`
     );
     await queryRunner.query(
-      `ALTER TABLE "ownership" ADD CONSTRAINT "UQ_4f9d354f38493a53dd7b1a1b96e" UNIQUE ("tenantId", "odsId")`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_4f9d354f38493a53dd7b1a1b96e] UNIQUE ([tenantId], [odsId])`
     );
     await queryRunner.query(
-      `ALTER TABLE "ownership" ADD CONSTRAINT "UQ_e81f6591816838e021ba3a4e110" UNIQUE ("tenantId", "edorgId")`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_e81f6591816838e021ba3a4e110] UNIQUE ([tenantId], [edorgId])`
     );
   }
 }
