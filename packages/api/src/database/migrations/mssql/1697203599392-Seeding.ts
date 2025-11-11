@@ -8,12 +8,12 @@ export class Seeding1697203599392 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     const rolesCount = await queryRunner.query(
       `SELECT COUNT(*) as r_count
-       FROM "role"`
+       FROM [role]`
     );
     if (Number(rolesCount[0].r_count) === 0) {
       Logger.verbose('Seeding roles');
       await queryRunner.query(
-        `INSERT INTO "role" ("id", "name", "description", "type") VALUES
+        `INSERT INTO [role] ([id], [name], [description], [type]) VALUES
         (1, 'Tenant user global role', 'Standard tenant user', '"UserGlobal"'),
         (2, 'Global admin', 'Global admin', '"UserGlobal"'),
         (3, 'Global viewer', 'Global viewer', '"UserGlobal"'),
@@ -24,11 +24,11 @@ export class Seeding1697203599392 implements MigrationInterface {
         (8, 'Standard tenant access', 'Tenant user', '"UserTenant"')`
       );
       await queryRunner.query(`SELECT setval('"role_id_seq"', 8)`);
-      const allPrivileges = (await queryRunner.query('SELECT * FROM "privilege"')).map(
+      const allPrivileges = (await queryRunner.query('SELECT * FROM [privilege]')).map(
         (p) => p.code
       );
       await queryRunner.query(
-        `INSERT INTO "role_privileges_privilege" ("roleId", "privilegeCode") VALUES
+        `INSERT INTO [role_privileges_privilege] ([roleId], [privilegeCode]) VALUES
         (1, 'me:read'),
         (1, 'privilege:read'),
         ${allPrivileges.map((p: any) => `(2, '${p}')`).join(',\n')},
@@ -63,14 +63,14 @@ export class Seeding1697203599392 implements MigrationInterface {
         `
       );
     }
-    const idpsCount = await queryRunner.query('SELECT COUNT(*) as i_count FROM "oidc"');
+    const idpsCount = await queryRunner.query('SELECT COUNT(*) as i_count FROM [oidc]');
     if (Number(idpsCount[0].i_count) === 0) {
       if (config.SAMPLE_OIDC_CONFIG) {
         Logger.verbose('Seeding OIDC connection');
         const oidc = config.SAMPLE_OIDC_CONFIG;
         await queryRunner.query(
-          `INSERT INTO "oidc"
-        ("issuer", "clientId", "clientSecret", "scope") values
+          `INSERT INTO [oidc]
+        ("issuer", [clientId], [clientSecret], "scope") values
         ('${oidc.issuer}', '${oidc.clientId}', '${oidc.clientSecret}', '${oidc.scope}')`
         );
       } else {
@@ -80,12 +80,12 @@ export class Seeding1697203599392 implements MigrationInterface {
       }
     }
 
-    const userCount = await queryRunner.query('SELECT COUNT(*) as u_count FROM "user"');
+    const userCount = await queryRunner.query('SELECT COUNT(*) as u_count FROM [user]');
     if (Number(userCount[0].u_count) === 0) {
       if (config.ADMIN_USERNAME) {
         Logger.verbose('Seeding initial user');
         await queryRunner.query(
-          `INSERT INTO "user" ("username", "roleId", "isActive") VALUES
+          `INSERT INTO [user] ([username], [roleId], "isActive") VALUES
         ('${config.ADMIN_USERNAME}', 2, true)`
         );
       } else {
