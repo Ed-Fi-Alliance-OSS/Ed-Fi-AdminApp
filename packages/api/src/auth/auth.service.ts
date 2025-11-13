@@ -141,6 +141,13 @@ export class AuthService {
     }
   }
 
+  async findActiveUserById(userId: number): Promise<User | null> {
+    return await this.usersRepo.findOne({
+      where: { id: userId, isActive: true },
+      relations: ['role']
+    });
+  }
+
   async constructTeamOwnerships(teamId: number) {
     const start = new Date();
     if (typeof teamId !== 'number') throw new UnauthorizedException();

@@ -15,6 +15,8 @@ import {
   Controller,
   Get,
   Header,
+  HttpException,
+  HttpStatus,
   InternalServerErrorException,
   Logger,
   NotFoundException,
@@ -35,6 +37,7 @@ import { Public } from './authorization/public.decorator';
 import { AuthCache } from './helpers/inject-auth-cache';
 import { ReqUser } from './helpers/user.decorator';
 import { NO_ROLE, USER_NOT_FOUND } from './login/oidc.strategy';
+import { AuthService } from './auth.service';
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -43,7 +46,8 @@ export class AuthController {
     @InjectRepository(Team)
     private readonly teamsRepository: Repository<Team>,
     @InjectRepository(Oidc)
-    private readonly oidcRepository: Repository<Oidc>
+    private readonly oidcRepository: Repository<Oidc>,
+    private readonly authService: AuthService
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -135,8 +139,25 @@ export class AuthController {
   @NoAuthorization()
   @Header('Cache-Control', 'no-store')
   async me(@ReqUser() session: GetSessionDataDto) {
-    return toGetSessionDataDto(session);
+    const userId = session?.id;
+
+    try {
+      // Validate user still exists and is active (this is the "deserialization" logic)
+      const user = await this.authService.findActiveUserById(userId);
+
+      if (!user || !user.isActive || !user.role) {
+        throw new HttpException('User no longer valid', HttpStatus.UNAUTHORIZED);
+      }
+      return toGetSessionDataDto(session);
+    } catch (error) {
+      Logger.error(`Error validating user ${session}:`, error);
+      if (error instanceof HttpException) {
+        throw error;
+      }
+      throw new HttpException('Authentication failed', HttpStatus.UNAUTHORIZED);
+    }
   }
+
   @Get('my-teams')
   @NoAuthorization()
   @Header('Cache-Control', 'no-store')
@@ -199,8 +220,6 @@ export class AuthController {
   @Get('/post-logout')
   @Public()
   async postLogout(@Res() response: Response) {
-    // Redirect users to the frontend after successful Keycloak logout
-    Logger.log('Keycloak logout complete, redirecting to frontend');
     return response.redirect(config.FE_URL);
   }
 
@@ -212,7 +231,6 @@ export class AuthController {
     try {
       // Get the OIDC providers to construct logout URL
       const oidcProviders = await this.oidcRepository.find();
-      Logger.log(`Found ${oidcProviders.length} OIDC provider(s) for logout`);
 
       // Destroy the local session first
       await new Promise<void>((resolve, reject) => {
@@ -221,7 +239,6 @@ export class AuthController {
             Logger.error('Error destroying session:', err);
             reject(err);
           } else {
-            Logger.log('AdminApp session destroyed successfully');
             resolve();
           }
         });
@@ -238,23 +255,20 @@ export class AuthController {
           );
           if (matchingProvider) {
             oidcProvider = matchingProvider;
-            Logger.log(`Found matching OIDC provider for clientId: ${config.SAMPLE_OIDC_CONFIG.clientId}`);
           } else {
             Logger.warn(`No OIDC provider found matching configured clientId: ${config.SAMPLE_OIDC_CONFIG.clientId}, using first available`);
           }
         }
 
-        Logger.log(`Using OIDC provider: ${oidcProvider.issuer}, client: ${oidcProvider.clientId}`);
         const logoutUrl = this.constructKeycloakLogoutUrl(oidcProvider.issuer, oidcProvider.clientId);
 
         if (logoutUrl) {
-          Logger.log(`Redirecting to Keycloak logout: ${logoutUrl}`);
           return response.redirect(logoutUrl);
         }
       }
 
       // Fallback: redirect to base URL if no OIDC provider or logout URL construction failed
-      Logger.log('No OIDC logout URL available, redirecting to frontend');
+      Logger.warn('No OIDC logout URL available, redirecting to frontend');
       return response.redirect(config.FE_URL);
 
     } catch (error) {
@@ -287,8 +301,6 @@ export class AuthController {
       if (clientId) {
         fullLogoutUrl += `&client_id=${encodeURIComponent(clientId)}`;
       }
-
-      Logger.log(`Constructed Keycloak logout URL: ${fullLogoutUrl}`);
 
       return fullLogoutUrl;
     } catch (error) {

@@ -31,7 +31,6 @@ export class AuthCacheGuard implements CanActivate {
      */
     const authorizationCache: AuthorizationCache = {};
     const teamIdStr = request.params?.teamId;
-
     const userPrivileges = await this.authService.getUserPrivileges(
       request.user.id,
       teamIdStr === undefined ? undefined : Number(teamIdStr)

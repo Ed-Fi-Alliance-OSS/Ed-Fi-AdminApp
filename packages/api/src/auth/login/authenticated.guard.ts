@@ -28,7 +28,7 @@ export class AuthenticatedGuard implements CanActivate {
   constructor(
     private reflector: Reflector,
     @Inject(AuthService) private readonly authService: AuthService
-  ) {}
+  ) { }
   async canActivate(context: ExecutionContext) {
     const isPublic = this.reflector.getAllAndOverride<boolean>(IS_PUBLIC_KEY, [
       context.getHandler(),
@@ -39,33 +39,66 @@ export class AuthenticatedGuard implements CanActivate {
     }
 
     const request = context.switchToHttp().getRequest();
+
     if (request.isAuthenticated()) {
-      // Updates the session row asynchronously in case the user has changed
-      this.authService
-        .validateUser({ username: request.user.username })
-        .then((user) => {
-          // Sanitize user object before saving to session
-          if (user) {
-            const sanitizedUser = {
-              id: user.id,
-              username: user.username,
-              role: user.role ? {
-                id: user.role.id,
-                name: user.role.name,
-                privilegeIds: user.role.privilegeIds,
-              } : undefined,
-              isActive: user.isActive,
-            };
-            request.session.passport.user = sanitizedUser;
-            request.session.save();
+      try {
+        const user = await this.authService.findActiveUserById(request.user.id);
+
+        if (!user || !user.isActive) {
+          Logger.warn(`User ${request.user.username} no longer valid - logging out`);
+          // Destroy the session safely
+          if (request.session && typeof request.session.destroy === 'function') {
+            await new Promise<void>((resolve) => {
+              request.session.destroy((err) => {
+                if (err) Logger.error('Error destroying session:', err);
+                resolve();
+              });
+            });
           }
-        })
-        .catch((err) => {
-          Logger.error(err);
-          request.logout(Logger.error);
-        });
-      return true;
+          // Send 401 response to trigger frontend logout
+          throw new HttpException(
+            {
+              statusCode: HttpStatus.UNAUTHORIZED,
+              message: 'Session invalid - user no longer active',
+              error: 'Unauthorized'
+            },
+            HttpStatus.UNAUTHORIZED
+          );
+        }
+
+        request.user = user;
+
+        return true;
+      } catch (err) {
+        Logger.error('User validation failed:', err);
+
+        // Destroy the session safely
+        if (request.session && typeof request.session.destroy === 'function') {
+          await new Promise<void>((resolve) => {
+            request.session.destroy((err) => {
+              if (err) Logger.error('Error destroying session:', err);
+              resolve();
+            });
+          });
+        }
+
+        // If it's already an HttpException, re-throw it
+        if (err instanceof HttpException) {
+          throw err;
+        }
+
+        // Otherwise, throw a new 401
+        throw new HttpException(
+          {
+            statusCode: HttpStatus.UNAUTHORIZED,
+            message: 'Authentication failed',
+            error: 'Unauthorized'
+          },
+          HttpStatus.UNAUTHORIZED
+        );
+      }
     } else {
+      // JWT validation logic remains the same...
       const token = this.extractTokenFromHeader(request);
       const verifyResult = await this.authService.verifyBearerJwt(token);
 
@@ -106,13 +139,15 @@ export class AuthenticatedGuard implements CanActivate {
           // User token: pass username and clientId for validation
           user = await this.authService.validateUser({ username, clientId });
         }
-        if (user) {
+        if (user && user.isActive) {
           request.user = user;
           return true;
+        } else {
+          throw new HttpException('User not found or inactive', HttpStatus.UNAUTHORIZED);
         }
       } catch (error) {
-        Logger.error(error);
-        request.logout(Logger.error);
+        Logger.error('Machine user validation failed:', error);
+        throw new HttpException('Authentication failed', HttpStatus.UNAUTHORIZED);
       }
     }
   }

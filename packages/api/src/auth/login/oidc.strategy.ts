@@ -49,7 +49,6 @@ export class RegisterOidcIdpsService {
 
               try {
                 const user: User = await this.authService.validateUser({ username });
-
                 const isEaUser = username.includes('edanalytics.org');
                 if (user === null) {
                   if (!isEaUser) {

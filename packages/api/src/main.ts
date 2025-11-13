@@ -72,9 +72,6 @@ async function bootstrap() {
 
   const globalPrefix = 'api';
   await config.DB_ENCRYPTION_SECRET;
-
-  app.use(json({ limit: '512kb' }));
-
   // Setup session store with database fallback to memory
   let sessionStore;
 
@@ -111,16 +108,12 @@ async function bootstrap() {
     saveUninitialized: false,
     cookie: { secure: 'auto' as const },
   };
-
+  
+  app.use(json({ limit: '512kb' }));
   app.use(expressSession.default(sessionConfig));
   app.use(passport.initialize());
   app.use(passport.session());
-  passport.serializeUser((user, done) => {
-    done(null, user);
-  });
-  passport.deserializeUser((user, done) => {
-    done(null, user);
-  });
+  
   app.setGlobalPrefix(globalPrefix);
 
   // Add global exception filter for AggregateError handling
