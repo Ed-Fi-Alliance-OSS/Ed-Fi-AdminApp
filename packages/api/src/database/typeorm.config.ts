@@ -5,6 +5,7 @@ import {
   IntegrationApp,
   IntegrationAppDetailed,
   IntegrationProvider,
+  MssqlUser,
   Ods,
   Oidc,
   Ownership,
@@ -154,8 +155,7 @@ const getMSSQLMigrations = () => [
 
 
 const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {
-  const baseConfig = {
-    entities: [
+  const baseEntities = [
       EdfiTenant,
       Edorg,
       EnvNav,
@@ -170,16 +170,19 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
       SbEnvironment,
       SbSyncQueue,
       Team,
-      User,
       UserTeamMembership,
-    ],
+    ];
+
+  const baseConfig = {
     synchronize: false,
     migrationsRun: true,
+    logging: config.TYPEORM_LOGGING
   };
 
   if (config.DB_ENGINE === "mssql") {
     return {
       ...baseConfig,
+      entities: [...baseEntities, MssqlUser],
       migrations: getMSSQLMigrations(),
       type: 'mssql',
       // MSSQL-specific options,
@@ -192,6 +195,7 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
 
   return {
     ...baseConfig,
+      entities: [...baseEntities, User],
     migrations: getPostgreSQLMigrations(),
     type: 'postgres',
     // Add Postgres-specific options here if needed

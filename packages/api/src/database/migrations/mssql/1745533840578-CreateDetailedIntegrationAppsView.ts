@@ -4,6 +4,7 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
   name = 'CreateDetailedIntegrationAppsView1745533840578';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
+  	// TODO: manually verify this strange syntax compared to the PostgreSQL version with its ANY() function
     await queryRunner.query(`CREATE VIEW [integration_apps_view] AS
     SELECT
       ia.*,

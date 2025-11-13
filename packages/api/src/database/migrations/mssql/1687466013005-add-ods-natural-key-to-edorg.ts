@@ -16,7 +16,7 @@ export class AdOdsNaturalKeyToEdorg1687466013005 implements MigrationInterface {
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-  await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [UQ_07c5479767d3c27eb0150fee1d9]`);
-  await queryRunner.query(`ALTER TABLE [edorg] DROP COLUMN [odsDbName]`);
+    await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [UQ_07c5479767d3c27eb0150fee1d9]`);
+    await queryRunner.query(`ALTER TABLE [edorg] DROP COLUMN [odsDbName]`);
   }
 }
