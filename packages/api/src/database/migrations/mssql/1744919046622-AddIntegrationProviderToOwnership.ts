@@ -25,13 +25,13 @@ CASE
     WHEN ownership.[edfiTenantId] IS NOT NULL THEN 'EdfiTenant'
     WHEN ownership.[integrationProviderId] IS NOT NULL THEN 'IntegrationProvider'
     ELSE 'SbEnvironment' END "resourceType",
-COALESCE(sb_environment.name, '') ||
-COALESCE(integration_provider.name, '') ||
-CASE WHEN edfi_tenant.[name] IS NOT NULL THEN ' / ' || edfi_tenant.[name] ELSE '' END ||
-CASE WHEN ods."dbName" IS NOT NULL THEN ' / ' || ods."dbName" ELSE '' END ||
+COALESCE(sb_environment.name, '') +
+COALESCE(integration_provider.name, '') +
+CASE WHEN edfi_tenant.[name] IS NOT NULL THEN ' / ' + edfi_tenant.[name] ELSE '' END +
+CASE WHEN ods."dbName" IS NOT NULL THEN ' / ' + ods."dbName" ELSE '' END +
 CASE
-    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN ' / ' || edorg.[shortNameOfInstitution]
-    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN ' / ' || edorg.[nameOfInstitution]
+    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN ' / ' + edorg.[shortNameOfInstitution]
+    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN ' / ' + edorg.[nameOfInstitution]
     ELSE ''
 END "resourceText"
 FROM ownership
@@ -47,7 +47,7 @@ FROM ownership
         'dbo',
         'VIEW',
         'ownership_view',
-        'SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL THEN \'Edorg\'\n    WHEN ownership.[odsId] IS NOT NULL THEN \'Ods\'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN \'EdfiTenant\'\n    WHEN ownership.[integrationProviderId] IS NOT NULL THEN \'IntegrationProvider\'\n    ELSE \'SbEnvironment\' END "resourceType",\nCOALESCE(sb_environment.name, \'\') ||\nCOALESCE(integration_provider.name, \'\') ||\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN \' / \' || edfi_tenant.[name] ELSE \'\' END ||\nCASE WHEN ods."dbName" IS NOT NULL THEN \' / \' || ods."dbName" ELSE \'\' END ||\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN \' / \' || edorg.[shortNameOfInstitution]\n    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN \' / \' || edorg.[nameOfInstitution]\n    ELSE \'\'\nEND "resourceText"\nFROM ownership\n  LEFT JOIN integration_provider ON ownership.[integrationProviderId] = integration_provider.id\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id\n            OR edfi_tenant.[sbEnvironmentId] = sb_environment.id',
+        'SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL THEN \'Edorg\'\n    WHEN ownership.[odsId] IS NOT NULL THEN \'Ods\'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN \'EdfiTenant\'\n    WHEN ownership.[integrationProviderId] IS NOT NULL THEN \'IntegrationProvider\'\n    ELSE \'SbEnvironment\' END "resourceType",\nCOALESCE(sb_environment.name, \'\') +\nCOALESCE(integration_provider.name, \'\') +\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN \' / \' + edfi_tenant.[name] ELSE \'\' END +\nCASE WHEN ods."dbName" IS NOT NULL THEN \' / \' + ods."dbName" ELSE \'\' END +\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN \' / \' + edorg.[shortNameOfInstitution]\n    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN \' / \' + edorg.[nameOfInstitution]\n    ELSE \'\'\nEND "resourceText"\nFROM ownership\n  LEFT JOIN integration_provider ON ownership.[integrationProviderId] = integration_provider.id\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id\n            OR edfi_tenant.[sbEnvironmentId] = sb_environment.id',
       ]
     );
   }
@@ -73,12 +73,12 @@ CASE
     WHEN ownership.[odsId] IS NOT NULL THEN 'Ods'
     WHEN ownership.[edfiTenantId] IS NOT NULL THEN 'EdfiTenant'
     ELSE 'SbEnvironment' END "resourceType",
-sb_environment.name ||
-CASE WHEN edfi_tenant.[name] IS NOT NULL THEN ' / ' || edfi_tenant.[name] ELSE '' END ||
-CASE WHEN ods."dbName" IS NOT NULL THEN ' / ' || ods."dbName" ELSE '' END ||
+sb_environment.name +
+CASE WHEN edfi_tenant.[name] IS NOT NULL THEN ' / ' + edfi_tenant.[name] ELSE '' END +
+CASE WHEN ods."dbName" IS NOT NULL THEN ' / ' + ods."dbName" ELSE '' END +
 CASE
-    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN ' / ' || edorg.[shortNameOfInstitution]
-    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN ' / ' || edorg.[nameOfInstitution]
+    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN ' / ' + edorg.[shortNameOfInstitution]
+    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN ' / ' + edorg.[nameOfInstitution]
     ELSE '' END              "resourceText"
 FROM ownership
   LEFT JOIN edorg ON ownership.[edorgId] = edorg.id
@@ -92,7 +92,7 @@ FROM ownership
         'dbo',
         'VIEW',
         'ownership_view',
-        'SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL then \'Edorg\'\n    WHEN ownership.[odsId] IS NOT NULL THEN \'Ods\'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN \'EdfiTenant\'\n    ELSE \'SbEnvironment\' END "resourceType",\nsb_environment.name ||\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN \' / \' || edfi_tenant.[name] ELSE \'\' END ||\nCASE WHEN ods."dbName" IS NOT NULL THEN \' / \' || ods."dbName" ELSE \'\' END ||\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN \' / \' || edorg.[shortNameOfInstitution]\n    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN \' / \' || edorg.[nameOfInstitution]\n    ELSE \'\' END              "resourceText"\nFROM ownership\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or\n                              edfi_tenant.[sbEnvironmentId] = sb_environment.id',
+        'SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL then \'Edorg\'\n    WHEN ownership.[odsId] IS NOT NULL THEN \'Ods\'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN \'EdfiTenant\'\n    ELSE \'SbEnvironment\' END "resourceType",\nsb_environment.name +\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN \' / \' + edfi_tenant.[name] ELSE \'\' END +\nCASE WHEN ods."dbName" IS NOT NULL THEN \' / \' + ods."dbName" ELSE \'\' END +\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN \' / \' + edorg.[shortNameOfInstitution]\n    WHEN edorg.[nameOfInstitution] IS NOT NULL THEN \' / \' + edorg.[nameOfInstitution]\n    ELSE \'\' END              "resourceText"\nFROM ownership\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or\n                              edfi_tenant.[sbEnvironmentId] = sb_environment.id',
       ]
     );
   }

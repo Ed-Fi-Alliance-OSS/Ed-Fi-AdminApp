@@ -11,12 +11,12 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 
-// NOTE: when modifying User, be sure to also modify MssqlUser.
+// Duplicate of 'user.entity.ts', with column types adjusted for MSSQL
 
 @Index(['username'], { unique: true })
 @Index(['clientId'], { unique: true })
 @Entity()
-export class User implements IUser {
+export class MssqlUser implements IUser {
   @PrimaryGeneratedColumn()
   id: number;
 
@@ -40,7 +40,7 @@ export class User implements IUser {
   @Column({ nullable: true })
   modifiedById: IUser['id'];
 
-  @Column({ type: 'citext' })
+  @Column()
   username: string;
 
   @Column({ nullable: true })
@@ -76,7 +76,7 @@ export class User implements IUser {
   @Column()
   isActive: boolean;
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({ type: 'string', nullable: true })
   config?: IUserConfig;
 
   @Column({ type: 'enum', enum: ['human', 'machine'], default: 'human' })

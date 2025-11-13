@@ -5,25 +5,25 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // remove deletedBy FKs
-  await queryRunner.query(`ALTER TABLE [user] DROP CONSTRAINT [FK_c3062c4102a912dfe7195a72bfb]`);
+    await queryRunner.query(`ALTER TABLE [user] DROP CONSTRAINT [FK_c3062c4102a912dfe7195a72bfb]`);
     await queryRunner.query(
       `ALTER TABLE [tenant] DROP CONSTRAINT [FK_d5a26eda6ff5cef9bbff80770d6]`
     );
-  await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_cc1b217b80a24fd0031146c944a]`);
-  await queryRunner.query(`ALTER TABLE [sbe] DROP CONSTRAINT [FK_ab37768ff29885bd116f519bd3d]`);
-  await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_00c8aa855170254728ee9fe3864]`);
+    await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_cc1b217b80a24fd0031146c944a]`);
+    await queryRunner.query(`ALTER TABLE [sbe] DROP CONSTRAINT [FK_ab37768ff29885bd116f519bd3d]`);
+    await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_00c8aa855170254728ee9fe3864]`);
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] DROP CONSTRAINT [FK_1d21629daa4dda26aedd2c3b03d]`
     );
-  await queryRunner.query(`ALTER TABLE [role] DROP CONSTRAINT [FK_c5d666dd8bf212b0d9ba353cb4f]`);
+    await queryRunner.query(`ALTER TABLE [role] DROP CONSTRAINT [FK_c5d666dd8bf212b0d9ba353cb4f]`);
     await queryRunner.query(
       `ALTER TABLE [ownership] DROP CONSTRAINT [FK_b6c6688493760930cef57202552]`
     );
 
     // remove normal relationship FKs...
-  await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_829131f86e2d025918e2dee5a40]`);
-  await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_eacb927c57ecca3c22ab93fb849]`);
-  await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_4f7237384382e4796332a25ea48]`);
+    await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_829131f86e2d025918e2dee5a40]`);
+    await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_eacb927c57ecca3c22ab93fb849]`);
+    await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_4f7237384382e4796332a25ea48]`);
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] DROP CONSTRAINT [FK_559208b256dbd6a371f121333e5]`
     );
@@ -33,7 +33,7 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] DROP CONSTRAINT [FK_49e594e22dbe4c5e78689dbcb5e]`
     );
-  await queryRunner.query(`ALTER TABLE [role] DROP CONSTRAINT [FK_1751a572e91385a09d41c624714]`);
+    await queryRunner.query(`ALTER TABLE [role] DROP CONSTRAINT [FK_1751a572e91385a09d41c624714]`);
     await queryRunner.query(
       `ALTER TABLE [ownership] DROP CONSTRAINT [FK_1d4587643a7ce7fa5727816d7cc]`
     );

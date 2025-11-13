@@ -25,7 +25,7 @@ export class IntegrationProviders1744127024224 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "integration_provider" DROP CONSTRAINT "FK_357a7d86266b4d4ecbf2eabd2e1"`
     );
-    await queryRunner.query(`DROP INDEX "dbo"."IDX_0f80b4b1ae8514fb0874197f5d"`);
-    await queryRunner.query(`DROP TABLE "integration_provider"`);
+    await queryRunner.query(`DROP INDEX [IDX_0f80b4b1ae8514fb0874197f5d] ON [integration_provider]`);
+    await queryRunner.query(`DROP TABLE [integration_provider]`);
   }
 }

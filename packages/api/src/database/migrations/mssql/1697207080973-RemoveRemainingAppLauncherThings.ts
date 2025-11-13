@@ -8,19 +8,12 @@ export class RemoveRemainingAppLauncherThings1697207080973 implements MigrationI
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`create table public.app_launcher
-        (
-            id         serial
-                constraint "PK_28730cf6765e38a38cc7994f2c8"
-                    primary key,
-            url        varchar not null,
-            [clientId] varchar not null,
-            "poolId"   varchar not null
-        );
-
-        alter table public.app_launcher
-            owner to sbaa;
-
-        `);
+    await queryRunner.query(`CREATE TABLE [app_launcher] (
+    	[id] int IDENTITY(1,1) NOT NULL, 
+    	[url] nvarchar(255) NOT NULL, 
+    	[clientId] nvarchar(255) NOT NULL, 
+    	[poolId] nvarchar(255) NOT NULL, 
+    	CONSTRAINT [PK_28730cf6765e38a38cc7994f2c8] PRIMARY KEY ([id]));
+    `);
   }
 }
