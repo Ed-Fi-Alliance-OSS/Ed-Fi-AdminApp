@@ -13,4 +13,3 @@ export * from './sb-sync-queue.view.entity';
 export * from './team.entity';
 export * from './user-tenant-membership.entity';
 export * from './user.entity';
-export * from './mssql-user.entity';

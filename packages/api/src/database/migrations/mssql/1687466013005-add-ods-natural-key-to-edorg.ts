@@ -1,4 +1,3 @@
-import { Edorg } from '@edanalytics/models-server';
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
 export class AdOdsNaturalKeyToEdorg1687466013005 implements MigrationInterface {
