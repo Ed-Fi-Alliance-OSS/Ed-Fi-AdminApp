@@ -54,8 +54,10 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT "FK_eacb927c57ecca3c22ab93fb849" FOREIGN KEY ([odsId]) REFERENCES [ods]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
+
+    // The Delete cascade must be set to no action in order to avoid forbidden cascade paths
     await queryRunner.query(
-      `ALTER TABLE [edorg] ADD CONSTRAINT "FK_4f7237384382e4796332a25ea48" FOREIGN KEY ([sbeId]) REFERENCES [sbe]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [edorg] ADD CONSTRAINT "FK_4f7237384382e4796332a25ea48" FOREIGN KEY ([sbeId]) REFERENCES [sbe]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
     );
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] ADD CONSTRAINT "FK_559208b256dbd6a371f121333e5" FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
@@ -66,8 +68,10 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] ADD CONSTRAINT "FK_49e594e22dbe4c5e78689dbcb5e" FOREIGN KEY ([roleId]) REFERENCES [role]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
+
+    // The Delete cascade must be set to no action in order to avoid forbidden cascade paths
     await queryRunner.query(
-      `ALTER TABLE [role] ADD CONSTRAINT "FK_1751a572e91385a09d41c624714" FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [role] ADD CONSTRAINT "FK_1751a572e91385a09d41c624714" FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
     );
     await queryRunner.query(
       `ALTER TABLE [ownership] ADD CONSTRAINT "FK_1d4587643a7ce7fa5727816d7cc" FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`

@@ -5,7 +5,7 @@ export class Initial1688158300508 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE [user] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [username] nvarchar(255) NOT NULL, [givenName] nvarchar(255), [familyName] nvarchar(255), [roleId] int, [isActive] bit NOT NULL, [config] ntext, CONSTRAINT [PK_cace4a159ff9f2512dd42373760] PRIMARY KEY ([id]))`
+      `CREATE TABLE [user] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [username] nvarchar(255) NOT NULL, [givenName] nvarchar(255), [familyName] nvarchar(255), [roleId] int, [isActive] bit NOT NULL, [config]  nvarchar(max), CONSTRAINT [PK_cace4a159ff9f2512dd42373760] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
       `CREATE TABLE [tenant] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [name] nvarchar(255) NOT NULL, CONSTRAINT [PK_da8c6efd67bb301e810e56ac139] PRIMARY KEY ([id]))`
@@ -14,7 +14,7 @@ export class Initial1688158300508 implements MigrationInterface {
       `CREATE TABLE [ods] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [sbeId] int NOT NULL, [dbName] nvarchar(255) NOT NULL, CONSTRAINT [PK_85909268d35d1e1b470fd8706d7] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
-      `CREATE TABLE [sbe] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [envLabel] nvarchar(255) NOT NULL, [configPublic] ntext NOT NULL, [configPrivate] nvarchar(MAX), CONSTRAINT [PK_4ab896e8044a62fcb3d2adb2957] PRIMARY KEY ([id]))`
+      `CREATE TABLE [sbe] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [envLabel] nvarchar(255) NOT NULL, [configPublic]  nvarchar(max) NOT NULL, [configPrivate] nvarchar(MAX), CONSTRAINT [PK_4ab896e8044a62fcb3d2adb2957] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
       `CREATE TABLE [edorg] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [odsId] int NOT NULL, [sbeId] int NOT NULL, [parentId] int, [educationOrganizationId] nvarchar(255) NOT NULL, [nameOfInstitution] nvarchar(255) NOT NULL, [discriminator] nvarchar(255) NOT NULL, CONSTRAINT [PK_8ff8cd575c93fd763da4020d0bb] PRIMARY KEY ([id]))`
@@ -26,7 +26,7 @@ export class Initial1688158300508 implements MigrationInterface {
       `CREATE TABLE [privilege] ([name] nvarchar(255) NOT NULL, [description] nvarchar(255) NOT NULL, [code] nvarchar(255) NOT NULL, CONSTRAINT [PK_b0141171c058b8b5d2cf5a5bce9] PRIMARY KEY ([code]))`
     );
     await queryRunner.query(
-      `CREATE TABLE [role] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [name] nvarchar(255) NOT NULL, [description] nvarchar(255), [tenantId] int, [type] ntext NOT NULL, CONSTRAINT [PK_b36bcfe02fc8de3c57a8b2391c2] PRIMARY KEY ([id]))`
+      `CREATE TABLE [role] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [name] nvarchar(255) NOT NULL, [description] nvarchar(255), [tenantId] int, [type]  nvarchar(max) NOT NULL, CONSTRAINT [PK_b36bcfe02fc8de3c57a8b2391c2] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
       `CREATE TABLE [ownership] ([id] int IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [deleted] datetime2, [createdById] int, [modifiedById] int, [deletedById] int, [tenantId] int NOT NULL, [roleId] int, [sbeId] int, [odsId] int, [edorgId] int, CONSTRAINT [PK_f911f1e192c37beebcf9ef2f756] PRIMARY KEY ([id]))`
@@ -46,8 +46,10 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(
       `CREATE INDEX [IDX_07bc07701aba37968ecf1f4ba1] ON [role_privileges_privilege] ([privilegeCode])`
     );
+
+    // In Postgresql the descendant is not nullable, but we need it to be nullable to avoid a later problem with cascading deletes. This also forces introduction of a synthetic primary key.
     await queryRunner.query(
-      `CREATE TABLE [edorg_closure] ([id_ancestor] int NOT NULL, [id_descendant] int NOT NULL, CONSTRAINT [PK_b515d3f3a0246481749362eec94] PRIMARY KEY ([id_ancestor], [id_descendant]))`
+      `CREATE TABLE [edorg_closure] ([id] int IDENTITY NOT NULL, [id_ancestor] int NOT NULL, [id_descendant] int NULL, CONSTRAINT [PK_b515d3f3a0246481749362eec94] PRIMARY KEY ([id], [id])), CONSTRAINT [UQ_ancestor_descendant] ([id_ancestor], [id_descendant])`
     );
     await queryRunner.query(
       `CREATE INDEX [IDX_edbf6dd20c24ac4acac37cf506] ON [edorg_closure] ([id_ancestor])`
@@ -170,16 +172,20 @@ export class Initial1688158300508 implements MigrationInterface {
       `ALTER TABLE [ownership] ADD CONSTRAINT [FK_091071fb2770f4bf2e3192e6192] FOREIGN KEY ([edorgId]) REFERENCES [edorg] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
     await queryRunner.query(
-      `ALTER TABLE [role_privileges_privilege] ADD CONSTRAINT [FK_d11ab7c8589ca17646c5345fb7f] FOREIGN KEY ([roleId]) REFERENCES [role][.id] ON DELETE CASCADE ON UPDATE CASCADE`
+      `ALTER TABLE [role_privileges_privilege] ADD CONSTRAINT [FK_d11ab7c8589ca17646c5345fb7f] FOREIGN KEY ([roleId]) REFERENCES [role] ([id]) ON DELETE CASCADE ON UPDATE CASCADE`
     );
     await queryRunner.query(
-      `ALTER TABLE [role_privileges_privilege] ADD CONSTRAINT [FK_07bc07701aba37968ecf1f4ba19]CONSTRAINT [FK_b67fab0829f3b586fc9cd24cb93] FOREIGN KEY ([privilegeCode]) REFERENCES [privilege] ([code]) ON DELETE CASCADE ON UPDATE CASCADE`
+      `ALTER TABLE [role_privileges_privilege] ADD CONSTRAINT [FK_07bc07701aba37968ecf1f4ba19] FOREIGN KEY ([privilegeCode]) REFERENCES [privilege] ([code]) ON DELETE CASCADE ON UPDATE CASCADE`
     );
     await queryRunner.query(
       `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_b67fab0829f3b586fc9cd24cb93] FOREIGN KEY ([id_ancestor]) REFERENCES [edorg] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
+
+    // In PostgreSQL this cascades the delete, but SQL Server does not allow
+    // multiple ON DELETE CASCADE paths that could result in cycles. Going to
+    // take the risk of setting the value to null on cascade.
     await queryRunner.query(
-      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_535b90f37f800a350ce4de5b90e] FOREIGN KEY ([id_descendant]) REFERENCES [edorg] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_535b90f37f800a350ce4de5b90e] FOREIGN KEY ([id_descendant]) REFERENCES [edorg] ([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
     );
 
     // Set up app privileges

@@ -5,7 +5,6 @@ import {
   IntegrationApp,
   IntegrationAppDetailed,
   IntegrationProvider,
-  MssqlUser,
   Ods,
   Oidc,
   Ownership,
@@ -182,7 +181,7 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
   if (config.DB_ENGINE === "mssql") {
     return {
       ...baseConfig,
-      entities: [...baseEntities, MssqlUser],
+      entities: [...baseEntities, User],
       migrations: getMSSQLMigrations(),
       type: 'mssql',
       // MSSQL-specific options,

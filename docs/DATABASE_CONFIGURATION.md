@@ -127,7 +127,7 @@ Sessions are automatically configured based on the selected database engine.
 
 1. Ensure the database user has DDL permissions (CREATE, ALTER, DROP)
 2. Check for syntax differences between PostgreSQL and MSSQL
-3. Review migration logs for specific error messages
+3. Enable logging by adding `TYPEORM_LOGGING: ["error"],` to the API config file or setting it in an environment variable, then review migration logs for specific error messages
 4. Consider running migrations manually if automatic migration fails
 
 ### Session Store Issues

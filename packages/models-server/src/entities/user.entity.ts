@@ -10,6 +10,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import * as config from 'config';
 
 // NOTE: when modifying User, be sure to also modify MssqlUser.
 
@@ -40,7 +41,7 @@ export class User implements IUser {
   @Column({ nullable: true })
   modifiedById: IUser['id'];
 
-  @Column({ type: 'citext' })
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'citext' : 'nvarchar' })
   username: string;
 
   @Column({ nullable: true })
@@ -76,10 +77,10 @@ export class User implements IUser {
   @Column()
   isActive: boolean;
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'simple-json' : 'nvarchar', nullable: true })
   config?: IUserConfig;
 
-  @Column({ type: 'enum', enum: ['human', 'machine'], default: 'human' })
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'enum' : 'nvarchar', enum: ['human', 'machine'], default: 'human' })
   userType: UserType;
 
   get fullName() {
