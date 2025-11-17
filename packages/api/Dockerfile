@@ -1,4 +1,4 @@
-FROM node:22-alpine AS build
+FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb51beb1f026c5 AS build
 
 WORKDIR /app
 
@@ -8,15 +8,11 @@ COPY nx.json ./
 COPY tsconfig*.json ./
 
 # Install ALL dependencies for building
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Copy only the API package and shared libraries
-COPY packages/api/ ./packages/api/
-COPY packages/models/ ./packages/models/
-COPY packages/models-server/ ./packages/models-server/
-COPY packages/utils/ ./packages/utils/
+# Copy all packages, types, and config (filtered by .dockerignore)
+COPY packages/ ./packages/
 COPY types/ ./types/
-
 # Copy our configuration
 COPY packages/api/config/local.js-edfi-docker ./packages/api/config/local.js
 

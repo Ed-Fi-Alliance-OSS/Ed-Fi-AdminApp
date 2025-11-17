@@ -31,7 +31,7 @@ POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=password
-&client_id=edfiadminapp-dev
+&client_id=edfiadminapp
 &client_secret=big-secret-123
 &username={{username}}
 &password={{password}}

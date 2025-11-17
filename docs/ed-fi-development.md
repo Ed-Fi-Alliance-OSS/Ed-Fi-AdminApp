@@ -12,15 +12,15 @@ Two differences to highlight:
 
 ## Running Locally
 
-Use the [compose/readme.md](../compose/readme.md) to start the main services, using the `.\up.ps1` command.
+Use the [compose/readme.md](../compose/readme.md) to start the main services, using the `.\start-local-dev.ps1` command.
 
-Once you have it, import the file `keycloak_edfiadminapp_client_dev.json` from the `settings` directory in Keycloak as this instructions [compose/readme.md#setup-keycloak](../compose/readme.md#setup-keycloak).
+Once you have the services running, the Keycloak client `edfiadminapp-dev` will be created automatically during the Keycloak setup process. For details, see [compose/readme.md#setup-keycloak](../compose/readme.md#setup-keycloak).
 
 ### Setup Local Configuration for Admin App
 
 In `packages/api/config`, copy `local.js-edfi` to create `local.js`.
 
-- If you changed anything in your `.env` or `keycloak_edfiadminapp_client_dev.json`, then be sure to update those values in this file as well.
+- If you changed anything in your `.env` or `realm-config.json`, then be sure to update those values in this file as well.
 - Ensure that `ADMIN_USERNAME` matches the email address you used when creating a new user in Keycloak (above).
 
 > [!NOTE]
@@ -120,22 +120,60 @@ npm install --legacy-peer-deps
 ### Login page is not working or redirecting to `Not found`
 
 - Did you set Node to trust the certificate _before_ starting the API service?
-- Run the script `.\compose\settings\populate-oidc.ps1` and wait for the results. It should display something similar to this:
+  
+- This error usually means the required OIDC record is missing from the
+`public.oidc` table in your database. The API startup process copies OIDC
+configuration from the config file into the database, but if the record is
+missing or incorrect, authentication will fail.
 
-  ```shell
-  id |               issuer               |     clientId     |  clientSecret  | scope
-  ----+------------------------------------+------------------+----------------+-------
-    1 | https://localhost/auth/realms/edfi | edfiadminapp     | big-secret-123 |
-    2 | https://localhost/auth/realms/edfi | edfiadminapp-dev | big-secret-123 |
-  ```
+1. How to Fix:
+   Check that the correct OIDC record exists in the `public.oidc` table.
 
-- The clientId we will use in Keycloak is `edfiadminapp-dev`, so make sure the `id` match what you have in the `VITE_OIDC_ID` variable in file `packages/fe/.env`. In our example we need to set `VITE_OIDC_ID=2` since that one contains the right configuration
-- The same value you set in variable `VITE_OIDC_ID` has to be checked in Keycloak.
-  1. Open [Keycloak](https://localhost/auth).
-  2. Sign-in with the credentials from your `.env` file.
-  3. Select the realm called `edfi`.
-  4. Go the clients and select `edfiadminapp-dev`, make sure the `Valid redirect URIs` has the correct url included `http://localhost:3333/api/auth/callback/{your_oidc_id}`, in this case should be `http://localhost:3333/api/auth/callback/2`
-- Start the services again
+   - For local-dev (`edfiadminapp-dev`  client):
+
+    ```shell
+     id |               issuer               |     clientId     |  clientSecret  | scope
+    ----+------------------------------------+------------------+----------------+-------
+      1 | https://localhost/auth/realms/edfi | edfiadminapp-dev | big-secret-123 |
+    ```
+
+   - For main services (`edfiadminapp` client):
+
+    ```shell
+
+     id |               issuer               |     clientId     |  clientSecret  | scope
+    ----+------------------------------------+------------------+----------------+-------
+      1 | https://localhost/auth/realms/edfi | edfiadminapp     | big-secret-123 |
+    ```
+
+2. If the required OIDC record is missing, you can manually insert it, or run the helper script:  
+
+   - Run `./settings/populate-oidc.ps1` with parameters to add a oidc:
+
+     ```powershell
+     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp" -ClientSecret "big-secret-123" -Issuer "https://localhost/auth/realms/edfi"
+
+     OR
+
+     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp-dev" -ClientSecret "big-secret-123" -Issuer "https://localhost/auth/realms/edfi"
+     
+      ```
+
+3. Make sure the `VITE_OIDC_ID` variable in your `.env` file matches the correct
+   OIDC record id for your client. For example, set `VITE_OIDC_ID=1` for
+   `edfiadminapp` or `edfiadminapp-dev`.
+
+4. In Keycloak, confirm that the client configuration matches your OIDC settings:
+
+     1. Open [Keycloak](https://localhost/auth).
+     2. Sign-in with the credentials from your `.env` file.
+     3. Select the realm called `edfi`.
+     4. Go the clients and select `edfiadminapp` or `edfiadminapp-dev`, make sure the `Valid redirect
+        URIs` has the correct url included
+        `https://localhost/adminapp-api/api/auth/callback/{your_oidc_id}`, in
+        this case should be `https://localhost/adminapp-api/api/auth/callback/1`
+
+5. Start the services again
 
   ```pwsh
   # Terminal 1

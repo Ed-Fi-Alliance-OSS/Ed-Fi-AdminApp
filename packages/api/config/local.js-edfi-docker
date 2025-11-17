@@ -43,14 +43,14 @@ module.exports = {
     MANAGEMENT_CLIENT_ID: '<your value>',
     MANAGEMENT_CLIENT_SECRET: '<your value>',
   },
-    
+
   // The time to live in milliseconds
-  RATE_LIMIT_TTL: 60000, 
+  RATE_LIMIT_TTL: 60000,
 
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 10,
 
   USE_PKCE: true,
-  
+
   WHITELISTED_REDIRECTS: [FE_URL],
 };

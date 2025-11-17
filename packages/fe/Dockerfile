@@ -1,5 +1,5 @@
 # Multi-stage build for frontend
-FROM node:22-alpine AS build
+FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb51beb1f026c5 AS build
 
 WORKDIR /app
 
@@ -9,7 +9,7 @@ COPY nx.json ./
 COPY tsconfig*.json ./
 
 # Install dependencies
-RUN npm ci
+RUN --mount=type=cache,target=/root/.npm npm ci
 
 # Copy source code
 COPY . .
@@ -38,7 +38,10 @@ RUN npx nx reset
 RUN npm run build:fe
 
 # Production stage with nginx
-FROM nginx:1.25-alpine
+FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS nginxbase
+
+# Update packages to reduce vulnerabilities
+RUN apk update && apk upgrade
 
 # Remove default nginx config
 RUN rm /etc/nginx/conf.d/default.conf

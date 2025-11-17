@@ -3,18 +3,13 @@
     Starts the Docker Compose services.
 
 .EXAMPLE
-    ./up.ps1
+    ./start-local.ps1
     Starts the Docker Compose services
     If the edfiadminapp-network does not exist, it will be created.
-    If the -AdminApp switch is provided as $false, it won't start the AdminApp services.
     If the -Rebuild switch is provided as $true, it will rebuild the AdminApp images before starting them.
 #>
 
 param(
-    # Start AdminApp services after starting base services
-    [Switch]
-    $AdminApp,
-
     # Rebuild the images before starting
     [Switch]
     $Rebuild
@@ -25,13 +20,15 @@ if (-not $networkExists) {
     Write-Host "Creating edfiadminapp-network..." -ForegroundColor Yellow
     docker network create edfiadminapp-network --driver bridge
 }
+$files = @(
+    "-f",
+    "edfi-services.yml",
+    "-f",
+    "nginx-compose.yml",
+    "-f",
+    "adminapp-services.yml"
+)
 
 Write-Host "Starting Docker Compose services..." -ForegroundColor Green
-docker compose -f docker-compose.yml -f keycloak.yml up -d
+docker compose $files --env-file ".env" up -d $(if ($Rebuild) { "--build" })
 Write-Host "Services started successfully!" -ForegroundColor Green
-
-if ($AdminApp) {
-    Push-Location adminapp
-    .\up.ps1 -Rebuild:$Rebuild -EnvFile (Join-Path $PSScriptRoot ".env")
-    Pop-Location
-}
