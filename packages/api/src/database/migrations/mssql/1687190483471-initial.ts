@@ -51,7 +51,7 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(
       `CREATE TABLE [edorg_closure] (
         [id] int IDENTITY(1,1) NOT NULL,
-        [id_ancestor] int NOT NULL,
+        [id_ancestor] int NULL,
         [id_descendant] int NULL,
         CONSTRAINT [PK_b515d3f3a0246481749362eec94] PRIMARY KEY ([id]),
         CONSTRAINT [UQ_ancestor_descendant] UNIQUE ([id_ancestor], [id_descendant])
@@ -189,34 +189,61 @@ export class Initial1688158300508 implements MigrationInterface {
     // The edorg_closure table needs two foreign keys back to edorg. Deleting an
     // edorg should delete any edorg_closure that references it. SQL Server is
     // very conservative and does not let you create two cascading FK's to the
-    // same table. The recommended alternative is to create one cascading
-    // delete, then for the other, set to no action. Create a trigger that will
-    // sweep through and delete orphaned records.
-    // https://learn.microsoft.com/en-us/sql/relational-databases/errors-events/mssqlserver-1785-database-engine-error?view=sql-server-ver17
-
+    // same table. Solution: set the values to null, and add an AFTER DELETE
+    // trigger on [edorg] that will clean up orphaned entries.
     await queryRunner.query(
-      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_b67fab0829f3b586fc9cd24cb93] FOREIGN KEY ([id_ancestor]) REFERENCES [edorg] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `
+CREATE TRIGGER [TR_edorg_closure_psuedo_fk]
+ON [edorg_closure]
+INSTEAD OF INSERT, UPDATE
+AS
+BEGIN
+  SET NOCOUNT ON;
+
+	-- Simulate regular foreign keys by rejecting an insert or update with an invalid FK value
+
+	IF NOT EXISTS (
+		SELECT 1 FROM inserted INNER JOIN [edorg] ON [edorg].[id] = inserted.[id_ancestor]
+	) OR NOT EXISTS (
+		SELECT 1 FROM inserted INNER JOIN [edorg] ON [edorg].[id] = inserted.[id_descendant]
+	)
+	BEGIN
+		RAISERROR ('Virtual foreign key violation: either the id_ancestor or id_descendant value does not exist in edorg', 16, 1)
+		ROLLBACK
+		RETURN
+	END
+
+	IF EXISTS (SELECT 1 FROM deleted) -- modification is an UPDATE
+	BEGIN
+		UPDATE [edorg_closure]
+		SET [id_ancestor] = inserted.[id_ancestor], [id_descendant] = inserted.[id_descendant]
+		FROM [edorg_closure]
+		CROSS JOIN inserted
+		WHERE [edorg_closure].[id] = inserted.[id];
+	END
+	ELSE
+	BEGIN
+		INSERT INTO [edorg_closure] ([id_ancestor], [id_descendant])
+		SELECT [id_ancestor], [id_descendant]
+		FROM inserted;
+    END
+END`
     );
     await queryRunner.query(
-      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_535b90f37f800a350ce4de5b90e] FOREIGN KEY ([id_descendant]) REFERENCES [edorg] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
-    );
-    await queryRunner.query(
-      `CREATE TRIGGER [TR_edorg_delete_cascade_closure]
-        ON [edorg]
-        INSTEAD OF DELETE
-        AS
-        BEGIN
-          SET NOCOUNT ON;
+      `
+CREATE TRIGGER [TR_edorg_delete_cascade_closure]
+ON [edorg]
+AFTER DELETE
+AS
+BEGIN
+    SET NOCOUNT ON;
 
-          -- Delete related rows from edorg_closure before deleting from edorg
-          DELETE FROM [edorg_closure]
-          WHERE [id_ancestor] IN (SELECT [id] FROM DELETED)
-            OR [id_descendant] IN (SELECT [id] FROM DELETED);
+    -- Delete orphaned [edorg_closure] records
+    DELETE FROM [edorg_closure]
+    WHERE [id_ancestor] IN (SELECT [id] FROM DELETED)
+    OR [id_descendant] IN (SELECT [id] FROM DELETED);
 
-          -- Now delete from edorg
-          DELETE FROM [edorg]
-          WHERE [id] IN (SELECT [id] FROM DELETED);
-        END;`
+END;`
     )
 
 
