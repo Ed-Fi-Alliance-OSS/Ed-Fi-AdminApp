@@ -55,10 +55,12 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
       `ALTER TABLE [edorg] ADD CONSTRAINT "FK_eacb927c57ecca3c22ab93fb849" FOREIGN KEY ([odsId]) REFERENCES [ods]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
 
-    // The Delete cascade must be set to no action in order to avoid forbidden cascade paths
+    // The Delete cascade must be set to no action in order to avoid forbidden cascade paths. Set sbeId to nullable, then create a trigger to delete on null.
     await queryRunner.query(
-      `ALTER TABLE [edorg] ADD CONSTRAINT "FK_4f7237384382e4796332a25ea48" FOREIGN KEY ([sbeId]) REFERENCES [sbe]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [edorg] ADD CONSTRAINT "FK_4f7237384382e4796332a25ea48" FOREIGN KEY ([sbeId]) REFERENCES [sbe]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
+
+
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] ADD CONSTRAINT "FK_559208b256dbd6a371f121333e5" FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );

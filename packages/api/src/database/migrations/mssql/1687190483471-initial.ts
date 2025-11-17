@@ -47,9 +47,15 @@ export class Initial1688158300508 implements MigrationInterface {
       `CREATE INDEX [IDX_07bc07701aba37968ecf1f4ba1] ON [role_privileges_privilege] ([privilegeCode])`
     );
 
-    // In Postgresql the descendant is not nullable, but we need it to be nullable to avoid a later problem with cascading deletes. This also forces introduction of a synthetic primary key.
+    // In SQL Server, descendant needs to be nullable for alternative cascading. Introduce a synthetic key.
     await queryRunner.query(
-      `CREATE TABLE [edorg_closure] ([id] int IDENTITY NOT NULL, [id_ancestor] int NOT NULL, [id_descendant] int NULL, CONSTRAINT [PK_b515d3f3a0246481749362eec94] PRIMARY KEY ([id], [id])), CONSTRAINT [UQ_ancestor_descendant] ([id_ancestor], [id_descendant])`
+      `CREATE TABLE [edorg_closure] (
+        [id] int IDENTITY(1,1) NOT NULL,
+        [id_ancestor] int NOT NULL,
+        [id_descendant] int NULL,
+        CONSTRAINT [PK_b515d3f3a0246481749362eec94] PRIMARY KEY ([id]),
+        CONSTRAINT [UQ_ancestor_descendant] UNIQUE ([id_ancestor], [id_descendant])
+      )`
     );
     await queryRunner.query(
       `CREATE INDEX [IDX_edbf6dd20c24ac4acac37cf506] ON [edorg_closure] ([id_ancestor])`
@@ -108,6 +114,8 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT [FK_00c8aa855170254728ee9fe3864] FOREIGN KEY ([deletedById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
+    // Cannot define foreign key constraint 'FK_eacb927c57ecca3c22ab93fb849' with cascaded DELETE or UPDATE on table 'edorg'
+    // because the table has an INSTEAD OF DELETE or UPDATE TRIGGER defined on it.
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT [FK_eacb927c57ecca3c22ab93fb849] FOREIGN KEY ([odsId]) REFERENCES [ods] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
@@ -177,16 +185,40 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [role_privileges_privilege] ADD CONSTRAINT [FK_07bc07701aba37968ecf1f4ba19] FOREIGN KEY ([privilegeCode]) REFERENCES [privilege] ([code]) ON DELETE CASCADE ON UPDATE CASCADE`
     );
+
+    // The edorg_closure table needs two foreign keys back to edorg. Deleting an
+    // edorg should delete any edorg_closure that references it. SQL Server is
+    // very conservative and does not let you create two cascading FK's to the
+    // same table. The recommended alternative is to create one cascading
+    // delete, then for the other, set to no action. Create a trigger that will
+    // sweep through and delete orphaned records.
+    // https://learn.microsoft.com/en-us/sql/relational-databases/errors-events/mssqlserver-1785-database-engine-error?view=sql-server-ver17
+
     await queryRunner.query(
       `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_b67fab0829f3b586fc9cd24cb93] FOREIGN KEY ([id_ancestor]) REFERENCES [edorg] ([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
-
-    // In PostgreSQL this cascades the delete, but SQL Server does not allow
-    // multiple ON DELETE CASCADE paths that could result in cycles. Going to
-    // take the risk of setting the value to null on cascade.
     await queryRunner.query(
-      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_535b90f37f800a350ce4de5b90e] FOREIGN KEY ([id_descendant]) REFERENCES [edorg] ([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [edorg_closure] ADD CONSTRAINT [FK_535b90f37f800a350ce4de5b90e] FOREIGN KEY ([id_descendant]) REFERENCES [edorg] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
+    await queryRunner.query(
+      `CREATE TRIGGER [TR_edorg_delete_cascade_closure]
+        ON [edorg]
+        INSTEAD OF DELETE
+        AS
+        BEGIN
+          SET NOCOUNT ON;
+
+          -- Delete related rows from edorg_closure before deleting from edorg
+          DELETE FROM [edorg_closure]
+          WHERE [id_ancestor] IN (SELECT [id] FROM DELETED)
+            OR [id_descendant] IN (SELECT [id] FROM DELETED);
+
+          -- Now delete from edorg
+          DELETE FROM [edorg]
+          WHERE [id] IN (SELECT [id] FROM DELETED);
+        END;`
+    )
+
 
     // Set up app privileges
     await queryRunner.query(
@@ -337,6 +369,7 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(`ALTER TABLE [user] DROP CONSTRAINT [FK_45c0d39d1f9ceeb56942db93cc5]`);
     await queryRunner.query(`DROP INDEX [dbo].[IDX_535b90f37f800a350ce4de5b90]`);
     await queryRunner.query(`DROP INDEX [dbo].[IDX_b67fab0829f3b586fc9cd24cb9]`);
+    await queryRunner.query('DROP TRIGGER [TR_edorg_closure_delete_on_null_descendant]');
     await queryRunner.query(`DROP TABLE [edorg_closure]`);
     await queryRunner.query(`DROP INDEX [dbo].[IDX_07bc07701aba37968ecf1f4ba1]`);
     await queryRunner.query(`DROP INDEX [dbo].[IDX_d11ab7c8589ca17646c5345fb7]`);
