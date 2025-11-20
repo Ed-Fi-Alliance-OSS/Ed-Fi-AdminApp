@@ -1,4 +1,4 @@
-// Shape of the final config your app will use
+// Shape of the final config
 export interface AppConfig {
   apiUrl: string;
   oidcId: string;
@@ -28,7 +28,7 @@ const runtime: RuntimeConfig = (window as Window & typeof globalThis).__APP_CONF
 // Read build-time env (Vite)
 const env = import.meta.env;
 
-// Final merged, validated config
+// Final merged config
 export const config: Readonly<AppConfig> = Object.freeze({
   apiUrl: runtime.VITE_API_URL ?? env.VITE_API_URL ?? "/api",
   helpGuide: runtime.VITE_HELP_GUIDE ?? env.VITE_HELP_GUIDE,

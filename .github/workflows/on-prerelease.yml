@@ -11,12 +11,10 @@ on:
 
 env:
   ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
-  ARTIFACTS_FEED_URL: ${{ vars.AZURE_ARTIFACTS_FEED_URL }}
-  VSS_NUGET_EXTERNAL_FEED_ENDPOINTS: '{"endpointCredentials": [{"endpoint": "${{ vars.AZURE_ARTIFACTS_FEED_URL }}","password": "${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}"}]}'
-  MANIFEST_FILE: "_manifest/spdx_2.2/manifest.spdx.json"
+  NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
   IMAGE_NAME: ${{ vars.IMAGE_NAME }}
-  DATABASE_IMAGE_NAME: ${{ vars.DATABASE_IMAGE_NAME }}
+  FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
   DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
   REF: ${{ github.ref_name }}
@@ -106,17 +104,17 @@ jobs:
       # Authenticate to Azure Artifacts npm registry
       - name: Set up .npmrc for Azure Artifacts
         run: |
-          echo "//pkgs.dev.azure.com/${{ vars.AZURE_ARTIFACTS_ORG }}/_packaging/${{ vars.AZURE_ARTIFACTS_FEED }}/npm/registry/:_authToken=${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}" > ~/.npmrc
+          echo ${{ env.NPM_REGISTRY }}:_authToken=${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }} > ~/.npmrc
 
       # Publish API npm package to Azure Artifacts
       - name: Publish API npm package to Azure Artifacts
         run: |
-          npm publish --registry "https://pkgs.dev.azure.com/${{ vars.AZURE_ARTIFACTS_ORG }}/_packaging/${{ vars.AZURE_ARTIFACTS_FEED }}/npm/registry/" packages/api/*.tgz
+          npm publish --registry "${{ env.NPM_REGISTRY }}" packages/api/*.tgz
 
       # Publish Frontend npm package to Azure Artifacts
       - name: Publish Frontend npm package to Azure Artifacts
         run: |
-          npm publish --registry "https://pkgs.dev.azure.com/${{ vars.AZURE_ARTIFACTS_ORG }}/_packaging/${{ vars.AZURE_ARTIFACTS_FEED }}/npm/registry/" packages/fe/*.tgz
+          npm publish --registry "${{ env.NPM_REGISTRY }}" packages/fe/*.tgz
 
       - name: Generate hash for API tgz
         id: api-tgz-hash
@@ -346,7 +344,6 @@ jobs:
           SEMVERSION=${PACKAGEVERSION:1}  # strip off the leading 'v'
           echo "APITAGS=$APITAGS" >> $GITHUB_OUTPUT
           echo "FETAGS=$FETAGS" >> $GITHUB_OUTPUT
-          echo "VERSION=$SEMVERSION" >> $GITHUB_OUTPUT
 
       - name: Log in to Docker Hub
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567  # v3.3.0
@@ -373,9 +370,6 @@ jobs:
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:pre
           cache-to: type=inline
           platforms: linux/amd64,linux/arm64
-          build-args: |
-            VERSION=${{ steps.prepare-tags.outputs.VERSION }}
-            ADMIN_API_VERSION=${{ steps.prepare-tags.outputs.VERSION }}
           file: Dockerfile
           tags: ${{ steps.prepare-tags.outputs.APITAGS }}
           labels: ${{ steps.metaapi.outputs.labels }}
@@ -393,7 +387,6 @@ jobs:
           context: "{{defaultContext}}:packages/fe"
           cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE_NAME }}:pre
           cache-to: type=inline
-          build-args: ADMIN_API_VERSION=${{ steps.prepare-tags.outputs.VERSION }}
           file: Dockerfile
           tags: ${{ steps.prepare-tags.outputs.FETAGS }}
           labels: ${{ steps.metafe.outputs.labels }}
