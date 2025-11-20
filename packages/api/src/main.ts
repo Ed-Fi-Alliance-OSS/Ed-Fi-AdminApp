@@ -154,8 +154,8 @@ async function bootstrap() {
         .build();
       const document = SwaggerModule.createDocument(app, swaggerConfig);
       SwaggerModule.setup('api', app, document);
-      writeFileSync('./sbaa-swagger.json', JSON.stringify(document, null, 2));
-      Logger.verbose(`OpenAPI spec available at ${config.MY_URL_API_PATH} or file:./sbaa-swagger.json`);
+      writeFileSync('./swagger.json', JSON.stringify(document, null, 2));
+      Logger.verbose(`OpenAPI spec available at ${config.MY_URL_API_PATH} or file:./swagger.json`);
     }
   }
   await app.listen(port);
