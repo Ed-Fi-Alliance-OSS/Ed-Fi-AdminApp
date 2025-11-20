@@ -1,0 +1,68 @@
+{
+  "clientId": "edfiadminapp-machine",
+  "name": "Ed-Fi Machine Client",
+  "description": "Ed-Fi Admin App Machine-to-Machine Authentication Client",
+  "enabled": true,
+  "clientAuthenticatorType": "client-secret",
+  "secret": "edfi-machine-secret-456",
+  "standardFlowEnabled": false,
+  "implicitFlowEnabled": false,
+  "directAccessGrantsEnabled": false,
+  "serviceAccountsEnabled": true,
+  "publicClient": false,
+  "bearerOnly": false,
+  "consentRequired": false,
+  "defaultClientScopes": ["login:app"],
+  "optionalClientScopes": ["openid", "profile", "email"],
+  "attributes": {
+    "access.token.lifespan": "3600",
+    "client.secret.creation.time": "1725958800",
+    "oauth2.device.authorization.grant.enabled": "false",
+    "oidc.ciba.grant.enabled": "false",
+    "backchannel.logout.session.required": "true",
+    "backchannel.logout.revoke.offline.tokens": "false"
+  },
+  "protocol": "openid-connect",
+  "frontchannelLogout": false,
+  "protocolMappers": [
+    {
+      "name": "machine-client-audience",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-audience-mapper",
+      "consentRequired": false,
+      "config": {
+        "included.client.audience": "edfiadminapp-api",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false"
+      }
+    },
+    {
+      "name": "login-app-scope-claim",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-hardcoded-claim-mapper",
+      "consentRequired": false,
+      "config": {
+        "claim.name": "scope",
+        "claim.value": "login:app",
+        "id.token.claim": "false",
+        "access.token.claim": "true",
+        "userinfo.token.claim": "false",
+        "jsonType.label": "String"
+      }
+    },
+    {
+      "name": "client-id-mapper",
+      "protocol": "openid-connect",
+      "protocolMapper": "oidc-usersessionmodel-note-mapper",
+      "consentRequired": false,
+      "config": {
+        "user.session.note": "clientId",
+        "id.token.claim": "true",
+        "access.token.claim": "true",
+        "claim.name": "client_id",
+        "jsonType.label": "String"
+      }
+    }
+  ]
+}

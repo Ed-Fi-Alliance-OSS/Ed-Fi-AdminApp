@@ -1,0 +1,227 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
+server {
+    listen 80 default_server;
+
+    server_name _;
+
+    return 301 https://$host$request_uri;
+}
+
+server {
+    listen       443 ssl;
+    server_name  localhost;
+
+    # Uncomment if using locally-generated self-signed certificate
+    ssl_certificate /ssl/server.crt;
+    ssl_certificate_key /ssl/server.key;
+
+    # Uncomment if using files from Let's Encrypt
+    #ssl_certificate /ssl/fullchain1.pem;
+    #ssl_certificate_key /ssl/privkey1.pem;
+
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # AdminApp Frontend - use variable to resolve at request time
+    location /adminapp/ {
+        resolver 127.0.0.11 valid=30s;
+        set $adminapp_fe edfiadminapp-fe:4200;
+
+        # Strip /adminapp prefix and proxy to the container
+        rewrite ^/adminapp/(.*)$ /$1 break;
+        proxy_pass http://$adminapp_fe;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_redirect off;
+
+        # Return 503 if service is not available
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @adminapp_unavailable;
+    }
+
+    # Handle /adminapp without trailing slash
+    location = /adminapp {
+        return 301 $scheme://$host/adminapp/;
+    }
+
+    location @adminapp_unavailable {
+        return 503 "AdminApp frontend service unavailable";
+        add_header Content-Type text/plain;
+    }
+
+    location /adminapp/login {
+          return 301 https://$host/api/auth/login/1?$query_string;
+    }
+
+    # AdminApp API - use variable to resolve at request time
+    location /adminapp-api/ {
+        resolver 127.0.0.11 valid=30s;
+        set $adminapp_api edfiadminapp-api:3333;
+
+        # Remove /adminapp-api prefix, everything else passes through
+        rewrite ^/adminapp-api/(.*)$ /$1 break;
+        proxy_pass http://$adminapp_api;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_redirect off;
+        client_max_body_size 20M;
+
+        # Return 503 if service is not available
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @adminapp_api_unavailable;
+    }
+
+    # Handle /adminapp-api without trailing slash - redirect to API root
+    location = /adminapp-api {
+        resolver 127.0.0.11 valid=30s;
+        set $adminapp_api edfiadminapp-api:3333;
+        proxy_pass http://$adminapp_api/api;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_redirect off;
+        client_max_body_size 20M;
+    }
+
+    # Handle hardcoded /api/ calls from React app
+    location /api/ {
+        resolver 127.0.0.11 valid=30s;
+        set $adminapp_api edfiadminapp-api:3333;
+
+        # Proxy directly to the API container
+        proxy_pass http://$adminapp_api;
+
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_redirect off;
+        client_max_body_size 20M;
+
+        # Return 503 if service is not available
+        proxy_intercept_errors on;
+        error_page 502 503 504 = @adminapp_api_unavailable;
+    }
+
+    location @adminapp_api_unavailable {
+        return 503 "AdminApp API service unavailable";
+        add_header Content-Type text/plain;
+    }
+
+    # Sourced from https://enable-cors.org/server_nginx.html with modifications
+    location /${V7_MULTI_API_VIRTUAL_NAME} {
+        resolver 127.0.0.11;
+        set $path ${V7_MULTI_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+   location /${V7_MULTI_ADMINAPI_VIRTUAL_NAME} {
+        client_max_body_size 20M;
+        resolver 127.0.0.11;
+        set $path ${V7_MULTI_ADMINAPI_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+   location /${V7_SINGLE_API_VIRTUAL_NAME} {
+        resolver 127.0.0.11;
+        set $path ${V7_SINGLE_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+   location /${V7_SINGLE_ADMIN_API_VIRTUAL} {
+        client_max_body_size 20M;
+        resolver 127.0.0.11;
+        set $path ${V7_SINGLE_ADMIN_API_VIRTUAL};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # ODS/API v6 support
+    location /${ODS_v6_VIRTUAL_NAME}{
+        resolver 127.0.0.11;
+        set $path ${ODS_v6_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+   location /${ADMIN_API_v6_VIRTUAL_NAME}{
+        client_max_body_size 20M;
+        resolver 127.0.0.11;
+        set $path ${ADMIN_API_v6_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    # Supporting Services
+    location /auth {
+        proxy_pass http://edfiadminapp-keycloak:8080;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_redirect off;
+        # Do not set "HttpOnly" below, as Keycloak can't handle it: https://github.com/keycloak/keycloak/pull/16747
+        proxy_cookie_flags ~ Secure SameSite=Strict;
+
+        proxy_hide_header Content-Security-Policy;
+
+        # Allowing 'unsafe-inline' for script-src and style-src are required for using Keycloak's UI: https://github.com/keycloak/keycloak/issues/16277
+        # ... this version is preferred and works in a more production-like deployment
+        # add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'self'; form-action 'self'; object-src 'none'; script-src 'self' 'unsafe-inline';  style-src 'self' 'unsafe-inline';";
+        # ... and this version works better for localhost development. It removes the form-action restriction.
+        add_header Content-Security-Policy "default-src 'self'; frame-ancestors 'self'; object-src 'none'; script-src 'self' 'unsafe-inline';  style-src 'self' 'unsafe-inline';";
+    }
+
+    location /pgadmin {
+        proxy_pass http://pgadmin4;
+        proxy_set_header X-Script-Name /pgadmin;
+        proxy_set_header X-Scheme $scheme;
+        proxy_set_header Host $host;
+        proxy_set_header X-Real-IP $remote_addr;
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_redirect off;
+    }
+}
