@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<!-- Created with Inkscape (http://www.inkscape.org/) -->
+
+<svg
+   version="1.1"
+   id="svg2"
+   width="122.10133"
+   height="46.919998"
+   viewBox="0 0 122.10133 46.919997"
+   sodipodi:docname="starting-blocks-no-text.svg"
+   inkscape:version="1.3 (0e150ed6c4, 2023-07-21)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs6">
+    <clipPath
+       clipPathUnits="userSpaceOnUse"
+       id="clipPath30">
+      <path
+         d="M 0,101.347 H 535.686 V 0 H 0 Z"
+         id="path28" />
+    </clipPath>
+  </defs>
+  <sodipodi:namedview
+     id="namedview4"
+     pagecolor="#ffffff"
+     bordercolor="#666666"
+     borderopacity="1.0"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     showgrid="false"
+     inkscape:zoom="2.006904"
+     inkscape:cx="56.554772"
+     inkscape:cy="25.910556"
+     inkscape:window-width="1920"
+     inkscape:window-height="1018"
+     inkscape:window-x="-6"
+     inkscape:window-y="-2"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="g10" />
+  <g
+     id="g10"
+     inkscape:groupmode="layer"
+     inkscape:label="Page 1"
+     transform="matrix(1.3333333,0,0,-1.3333333,-35.429332,85.479465)">
+    <g
+       id="g12"
+       transform="translate(83.485,64.1096)">
+      <path
+         d="M 0,0 H -19.266 V -18.661 L -2.984,-35.19 h 37.647 z"
+         style="fill:#007978;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="path14" />
+    </g>
+    <g
+       id="g16"
+       transform="translate(45.838,64.1096)">
+      <path
+         d="m 0,0 h -19.266 v -35.19 h 37.647 v 16.529 z"
+         style="fill:#11b9a3;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="path18" />
+    </g>
+    <g
+       id="g20"
+       transform="translate(64.2192,28.9196)">
+      <path
+         d="M 0,0 H 16.282 L 0,16.529 Z"
+         style="fill:#004263;fill-opacity:1;fill-rule:nonzero;stroke:none"
+         id="path22" />
+    </g>
+  </g>
+</svg>

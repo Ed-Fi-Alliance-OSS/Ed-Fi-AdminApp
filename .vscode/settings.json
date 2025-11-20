@@ -1,0 +1,18 @@
+{
+  "sqltools.useNodeRuntime": true,
+  "sqltools.connections": [
+    {
+      "previewLimit": 50,
+      "server": "localhost",
+      "port": 3306,
+      "driver": "PostgreSQL",
+      "name": "SBAA - local",
+      "database": "sbaa",
+      "username": "sbaa",
+      "password": "dev"
+    }
+  ],
+  "cSpell.words": [
+    "nginxbase"
+  ]
+}

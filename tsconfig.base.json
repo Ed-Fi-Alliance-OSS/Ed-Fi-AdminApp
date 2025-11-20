@@ -1,0 +1,43 @@
+{
+  "compileOnSave": false,
+  "compilerOptions": {
+    "rootDir": ".",
+    "sourceMap": true,
+    "declaration": false,
+    "moduleResolution": "node",
+    "emitDecoratorMetadata": true,
+    "experimentalDecorators": true,
+    "strictPropertyInitialization": false,
+    "importHelpers": true,
+    "target": "ES2020",
+    "module": "esnext",
+    "lib": ["es2019", "dom"],
+    "skipLibCheck": true,
+    "skipDefaultLibCheck": true,
+    "esModuleInterop": true,
+    "baseUrl": ".",
+    "paths": {
+      "@edanalytics/common-ui": ["packages/common-ui/src/index.ts"],
+      "@edanalytics/models": ["packages/models/src/index.ts"],
+      "@edanalytics/models-server": ["packages/models-server/src/index.ts"],
+      "@edanalytics/utils": ["packages/utils/src/index.ts"],
+      "@edanalytics/workspace-plugin": ["tools/workspace-plugin/src/index.ts"]
+    }
+  },
+  "exclude": ["node_modules", "tmp"],
+  "include": ["./types"],
+  "ts-node": {
+    "compilerOptions": {
+      "experimentalDecorators": true,
+      "module": "commonjs",
+      "typeRoots": ["./types"],
+      "paths": {
+        "@edanalytics/common-ui": ["packages/common-ui/src/index.ts"],
+        "@edanalytics/models": ["packages/models/src/index.ts"],
+        "@edanalytics/models-server": ["packages/models-server/src/index.ts"],
+        "@edanalytics/utils": ["packages/utils/src/index.ts"]
+      }
+    },
+    "exclude": ["node_modules", "tmp"]
+  }
+}
