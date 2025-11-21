@@ -1,0 +1,117 @@
+###
+### EdOrg Deletion Authorization Testing
+### This file tests the authorization bug where DELETE uses create-edorg privilege
+###
+### Pre-requisites steps:
+### 1. Set `MACHINE_AUDIENCE` to `"account"` in `packages/api/config/local.js`.
+### 2. Configure user and environment for EdOrg create/delete authorization:
+### - Edit the **Tenant Admin** role to include:
+### - `team.sb-environment.edfi-tenant.ods:create-edorg`
+### - `team.sb-environment.edfi-tenant.ods:delete-edorg`
+### - Assign the **Tenant Admin** role to the test user (`admin@example.com`) via team membership.
+### - Create the required environment, tenants, ODS instances, and EdOrgs.
+### - Edit the **Full Ownership** role to include:
+### - `team.sb-environment.edfi-tenant.ods:create-edorg`
+### - `team.sb-environment.edfi-tenant.ods:delete-edorg`
+### - Grant the **Full Ownership** role to the created environment.
+
+
+### Variables
+@baseUrl = http://localhost:3333
+@keycloakUrl = https://localhost/auth
+@realm = edfi
+
+# User Credentials (for password authentication)
+@username = admin@example.com
+@password = admin
+
+### 1. Get User Token (Password Grant Flow)
+# @name getUserToken
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=password
+&client_id=edfiadminapp
+&client_secret=big-secret-123
+&username={{username}}
+&password={{password}}
+
+###
+@token = {{getUserToken.response.body.access_token}}
+
+### Auth me
+# @name authMe
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Get Team ID
+# @name getTeams
+GET {{baseUrl}}/api/teams
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Extract the first team ID from the response
+@teamId = {{getTeams.response.body.$[0].id}}
+
+
+### Get SB Environments
+# @name getEnvironments
+GET {{baseUrl}}/api/teams/{{teamId}}/sb-environments
+Authorization: Bearer {{token}}
+
+### Assign environment ID from first environment in the response
+@envId = {{getEnvironments.response.body.0.id}}
+
+# Get EdFi Tenants using the environment ID
+# @name getTenants
+GET {{baseUrl}}/api/teams/{{teamId}}/sb-environments/{{envId}}/edfi-tenants
+Authorization: Bearer {{token}}
+
+### Assign tenant ID from first tenant in the response
+@tenantId = {{getTenants.response.body.0.id}}
+
+# Get ODS instances using tenant ID only (direct route)
+# @name getOds
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{tenantId}}/odss
+Authorization: Bearer {{token}}
+
+### Assign ODS ID from first ODS in the response
+@odsId = {{getOds.response.body.0.id}}
+
+
+### List existing EdOrgs to see what's available
+# @name listEdorgs
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{tenantId}}/edorgs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Assign edorg id
+@edOrgId = {{listEdorgs.response.body.0.id}}
+
+### Create an EdOrg for testing
+# @name createEdorg
+POST {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{tenantId}}/edorgs
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+  "ODSName": "ODS 1",
+  "EdOrgId": "999999",
+  "EdOrgCategory": "Local Education Agency",
+  "NameOfInstitution": "Test Education Organization",
+  "ShortNameOfInstitution": "TestEdOrg",
+  "Discriminator": "School"
+}
+
+### Test DELETE operation after removing create-edorg privilege check
+# @name deleteEdorg
+DELETE {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{tenantId}}/edorgs/{{edOrgId}}
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+### Verify deletion was successful by listing EdOrgs again
+# @name listEdorgsAfterDelete
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{tenantId}}/edorgs
+Authorization: Bearer {{token}}
+Content-Type: application/json

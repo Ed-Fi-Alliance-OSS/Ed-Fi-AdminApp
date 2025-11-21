@@ -1,0 +1,78 @@
+@adminapi_url=https://localhost/v7-single-adminapi
+@adminapi_client_id=adminapi_client
+@adminapi_client_secret=adminapi_SECRET_2025_rftyguhijkotgyhuijok
+
+@postgresql_password=postgres
+
+### Register this client
+POST {{adminapi_url}}/connect/register
+Content-Type: application/x-www-form-urlencoded
+
+ClientId={{adminapi_client_id}}&ClientSecret={{adminapi_client_secret}}&DisplayName=Admin+API+{{adminapi_client_id}}
+
+### Authenticate
+# @name tokenRequest
+POST {{adminapi_url}}/connect/token
+Content-Type: application/x-www-form-urlencoded
+Authorization: basic {{adminapi_client_id}}:{{adminapi_client_secret}}
+
+grant_type=client_credentials&scope=edfi_admin_api/full_access
+
+###
+@token={{tokenRequest.response.body.access_token}}
+
+# For Admin App (at the moment), the `OdsInstances` _must_ start with id=1.
+# There is already a pre-seeded id=1; replace it
+
+#
+# Setup dbo.OdsInstances
+#
+
+###
+PUT {{adminapi_url}}/v2/odsinstances/1
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "id": 1,
+    "name": "EdFi_Ods_255901",
+    "instanceType": "District",
+    "connectionString": "host=v7-db-ods-1;port=5432;username=postgres;password={{postgresql_password}};database=EdFi_Ods_255901"
+}
+
+###
+POST {{adminapi_url}}/v2/odsinstances/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "name": "EdFi_Ods_255902",
+    "instanceType": "District",
+    "connectionString": "host=v7-db-ods-1;port=5432;username=postgres;password={{postgresql_password}};database=EdFi_Ods_255902"
+}
+
+#
+# Setup dbo.OdsInstanceContext
+#
+
+###
+POST {{adminapi_url}}/v2/odsInstanceContexts/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "odsInstanceId": 1,
+    "contextKey": "instanceid",
+    "contextValue": "EdFi_Ods_255901"
+}
+
+###
+POST {{adminapi_url}}/v2/odsInstanceContexts/
+Authorization: Bearer {{token}}
+Content-Type: application/json
+
+{
+    "odsInstanceId": 2,
+    "contextKey": "instanceid",
+    "contextValue": "EdFi_Ods_255902"
+}

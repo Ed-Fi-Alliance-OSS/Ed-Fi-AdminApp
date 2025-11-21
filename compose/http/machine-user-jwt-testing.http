@@ -1,0 +1,174 @@
+###
+### JWT Testing for AdminApp-v4 API - Machine-to-Machine Authentication
+### This file tests machine client JWT scenarios to validate claims verification
+###
+
+### Variables (update these with your values)
+@baseUrl = http://localhost:3333
+@keycloakUrl = https://localhost/auth
+@realm = edfi
+
+# Machine Client (for M2M authentication)
+@machineClientId = edfiadminapp-machine
+@machineClientSecret = edfi-machine-secret-456
+
+### 1. Get Machine Token (Client Credentials Flow)
+# @name keycloakMachineLogin
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{machineClientId}}
+&client_secret={{machineClientSecret}}
+
+###
+### Extract machine token from Keycloak response
+@machineToken = {{keycloakMachineLogin.response.body.access_token}}
+
+###
+### 2. Get Machine Token with Explicit Scope
+# @name keycloakMachineLoginWithScope
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{machineClientId}}
+&client_secret={{machineClientSecret}}
+&scope=login:app
+
+###
+### Extract machine token with scope
+@machineTokenWithScope = {{keycloakMachineLoginWithScope.response.body.access_token}}
+
+###
+### === API TESTING WITH VALID MACHINE TOKENS ===
+###
+
+### 3. Test Machine Token - Should succeed and show machine authentication
+# @name testMachineToken
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{machineToken}}
+Content-Type: application/json
+
+###
+### 4. Test Machine Token with Scope - Should succeed with login:app scope
+# @name testMachineTokenWithScope
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer {{machineTokenWithScope}}
+Content-Type: application/json
+
+###
+### 5. Test Machine Token on Protected Endpoint
+# @name testMachineMyTeams
+GET {{baseUrl}}/api/auth/my-teams
+Authorization: Bearer {{machineToken}}
+Content-Type: application/json
+
+###
+### 6. Test Machine Token with Scope on Protected Endpoint
+# @name testMachineMyTeamsWithScope
+GET {{baseUrl}}/api/auth/my-teams
+Authorization: Bearer {{machineTokenWithScope}}
+Content-Type: application/json
+
+###
+### === NEGATIVE TESTING SCENARIOS ===
+###
+
+### 7. Test Invalid Token
+# @name testInvalidToken
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer invalid.token.here
+Content-Type: application/json
+
+###
+### 8. Test Malformed Token
+# @name testMalformedToken
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer malformed_token_without_dots
+Content-Type: application/json
+
+###
+### 9. Test No Token
+# @name testNoToken
+GET {{baseUrl}}/api/auth/me
+Content-Type: application/json
+
+###
+### 10. Test Wrong Authorization Type
+# @name testWrongAuthType
+GET {{baseUrl}}/api/auth/me
+Authorization: Basic dGVzdDp0ZXN0
+Content-Type: application/json
+
+###
+### 11. Test Empty Bearer Token
+# @name testEmptyToken
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer
+Content-Type: application/json
+
+###
+### 12. Test Expired Token
+# @name testExpiredToken
+GET {{baseUrl}}/api/auth/me
+Authorization: Bearer eyJhbGciOiJSUzI1NiIsInR5cCIgOiAiSldUIiwia2lkIiA6ICJleHBpcmVkX3Rva2VuIn0...
+Content-Type: application/json
+
+###
+### 13. Test Wrong Client Secret
+# @name testWrongClientSecret
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id={{machineClientId}}
+&client_secret=wrong-secret
+&scope=login:app
+
+###
+### === PUBLIC ENDPOINT TESTING ===
+###
+
+### 14. Test Public Endpoint - Should bypass JWT validation entirely
+# @name testPublicEndpoint
+GET {{baseUrl}}/api/healthcheck
+Content-Type: application/json
+
+###
+### 15. Test Auth Cache Endpoint with Machine Token
+# @name testAuthCacheMachine
+GET {{baseUrl}}/api/auth/cache
+Authorization: Bearer {{machineToken}}
+Content-Type: application/json
+
+###
+### 16. Test Auth Cache Endpoint with Scoped Machine Token
+# @name testAuthCacheMachineScoped
+GET {{baseUrl}}/api/auth/cache
+Authorization: Bearer {{machineTokenWithScope}}
+Content-Type: application/json
+
+###
+### === TOKEN INTROSPECTION ===
+###
+
+### 17. Introspect Machine Token
+# @name introspectMachineToken
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token={{machineToken}}
+&client_id={{machineClientId}}
+&client_secret={{machineClientSecret}}
+
+###
+### 18. Introspect Machine Token with Scope
+# @name introspectMachineTokenWithScope
+POST {{keycloakUrl}}/realms/{{realm}}/protocol/openid-connect/token/introspect
+Content-Type: application/x-www-form-urlencoded
+
+token={{machineTokenWithScope}}
+&client_id={{machineClientId}}
+&client_secret={{machineClientSecret}}
+

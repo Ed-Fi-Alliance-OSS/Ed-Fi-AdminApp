@@ -142,7 +142,7 @@ UNION
 SELECT odsinstanceid, 'instanceid', '255902' FROM dbo.odsinstances WHERE "name" = 'EdFi_Ods_255902';
 ```
 
-Or alternatively use Admin API: [adminapi-odsinstance.http](./adminapi-odsinstance.http)
+Or alternatively use Admin API: [adminapi-odsinstance.http](./http/adminapi-odsinstance.http)
 
 ### Setup Keycloak
 
@@ -191,17 +191,16 @@ In Global Scope, complete the following setup:
 
 These are the default URLs. The last path segment must match your environment variable settings.
 
-- Multi-Tenant: [ODS/API 7.x](https://localhost/v7-multi-api)
-  - Multi-Tenant: [Admin API 2.x in v2 mode](https://localhost/v7-multi-adminapi)
-- Single-Tenant: [ODS/API 7.x](https://localhost/v7-single-api)
-  - Single-Tenant: [Admin API 2.x in v2 mode](https://localhost/v7-single-adminapi)
-- [ODS/API 6.x](https://localhost/v6-api)
-  - [Admin API 2.x in v1 mode](https://localhost/v6-adminapi)
-- [Keycloak](https://localhost/auth)
-- [Yopass](http://localhost:8082)
-- [PGAdmin4](https://localhost/pgadmin)
-- [SBAA API Swagger](https://localhost/adminapp-api/api/)
-- [SBAA UI](https://localhost/adminapp)
+| App | URL |
+|-----|-----|
+| Multi-Tenant<br/>ODS/API 7.x<br>Admin API 2.x in v2 mode | https://localhost/v7-multi-api<br>https://localhost/v7-multi-adminapi |
+| Single-Tenant<br/>ODS/API 7.x<br/>Admin API 2.x in v2 mode | https://localhost/v7-single-api<br/>https://localhost/v7-single-adminapi |
+| ODS/API 6.x<br/>Admin API 2.x in v1 mode | https://localhost/v6-api<br/>https://localhost/v6-adminapi |
+| Keycloak | https://localhost/auth |
+| Yopass | http://localhost:8082 |
+| PGAdmin4 | https://localhost/pgadmin |
+| Admin App API Swagger | https://localhost/adminapp-api/api/ |
+| Admin App UI | https://localhost/adminapp |
 
 ## Authentication Flows
 
@@ -232,7 +231,7 @@ The Keycloak client `edfiadminapp` is created automatically as part of the Keycl
 
 ### Testing Machine Authentication
 
-Use the `e2e\http\machine-user-jwt-testing.http` file to test the machine-to-machine
+Use the [machine-user-jwt-testing.http](./http/machine-user-jwt-testing.http) file to test the machine-to-machine
 authentication flow:
 
 #### Setup Steps
@@ -280,15 +279,16 @@ authentication flow:
       - Add to Team: Select "Yes" if you want to assign to a team
       - If yes: Select team and role for team membership
    5. Click "Save"
-      > [!NOTE]
-      >
-      > 1. The Client ID MUST exactly match the Keycloak client ID:
-      >    edfiadminapp-machine
-      > 2. The Username should be descriptive and unique
-      > 3. Machine users don't need Given Name or Family Name
-      > 4. Ensure "Is Active" is checked or authentication will fail
-      > 5. Role assignment determines what API endpoints the machine user can
-      >    access
+
+> [!NOTE]
+>
+> 1. The Client ID MUST exactly match the Keycloak client ID:
+>    edfiadminapp-machine
+> 2. The Username should be descriptive and unique
+> 3. Machine users don't need Given Name or Family Name
+> 4. Ensure "Is Active" is checked or authentication will fail
+> 5. Role assignment determines what API endpoints the machine user can
+>    access
 
 ## Troubleshooting
 
