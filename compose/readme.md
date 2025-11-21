@@ -130,8 +130,8 @@ Direct database insert in the single tenant `EdFi_Admin` database (be sure to re
 ```sql
 INSERT INTO dbo.odsinstances ("name", instancetype, connectionstring)
 VALUES
-	('EdFi_Ods_255901', 'DistrictSpecific', 'host=v7-db-ods-1;port=5432;username=postgres;password=YOUR_PASSWORD;database=EdFi_Ods_255901'),
-	('EdFi_Ods_255902', 'DistrictSpecific', 'host=v7-db-ods-2;port=5432;username=postgres;password=YOUR_PASSWORD;database=EdFi_Ods_255902');
+  ('EdFi_Ods_255901', 'DistrictSpecific', 'host=v7-db-ods-1;port=5432;username=postgres;password=YOUR_PASSWORD;database=EdFi_Ods_255901'),
+  ('EdFi_Ods_255902', 'DistrictSpecific', 'host=v7-db-ods-2;port=5432;username=postgres;password=YOUR_PASSWORD;database=EdFi_Ods_255902');
 
 select * from dbo.odsinstances;
 
@@ -179,7 +179,7 @@ configuration.
 
 In Global Scope, complete the following setup:
 
-- **Environments** - ❌ our first Stumbling Block - this tries to connect to AWS. Will need to replace.
+- **Environments** - support AWS and on-premises
 - **Teams** - create a Team, name it whatever you like. More detail to come.
 - **Users** - ignore for now
 - **Team Memberships** - try adding yourself to the new Team, with "Tenant Admin" access.
@@ -193,8 +193,8 @@ These are the default URLs. The last path segment must match your environment va
 
 | App | URL |
 |-----|-----|
-| Multi-Tenant<br/>ODS/API 7.x<br>Admin API 2.x in v2 mode | https://localhost/v7-multi-api<br>https://localhost/v7-multi-adminapi |
-| Single-Tenant<br/>ODS/API 7.x<br/>Admin API 2.x in v2 mode | https://localhost/v7-single-api<br/>https://localhost/v7-single-adminapi |
+| Multi-Tenant <br/> - ODS/API 7.x <br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-multi-api<br/>https://localhost/v7-multi-adminapi |
+| Single-Tenant<br/> - ODS/API 7.x<br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-single-api<br/>https://localhost/v7-single-adminapi |
 | ODS/API 6.x<br/>Admin API 2.x in v1 mode | https://localhost/v6-api<br/>https://localhost/v6-adminapi |
 | Keycloak | https://localhost/auth |
 | Yopass | http://localhost:8082 |
@@ -255,13 +255,13 @@ authentication flow:
 
    ```js
    AUTH0_CONFIG_SECRET_VALUE: {
-     ISSUER: 'https://localhost/auth/realms/edfi';
-     CLIENT_ID: 'edfiadminapp';
-     CLIENT_SECRET: 'big-secret-123';
-     MACHINE_AUDIENCE: 'edfiadminapp-api';
-     MANAGEMENT_DOMAIN: 'localhost';
-     MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine';
-     MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456';
+     ISSUER: 'https://localhost/auth/realms/edfi',
+     CLIENT_ID: 'edfiadminapp',
+     CLIENT_SECRET: 'big-secret-123',
+     MACHINE_AUDIENCE: 'edfiadminapp-api',
+     MANAGEMENT_DOMAIN: 'localhost',
+     MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
+     MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456',
    }
    ```
 
