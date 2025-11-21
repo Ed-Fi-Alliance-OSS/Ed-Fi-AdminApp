@@ -1,0 +1,68 @@
+// packages/api/config/local-development.js
+const FE_URL = 'http://localhost:4200';
+const API_URL = 'http://localhost:3333';
+
+module.exports = {
+  _OPEN_API: true,
+  API_PORT: 3333,
+  DB_SSL: false,
+  AWS_REGION: 'us-east-2',
+  FE_URL: FE_URL,
+  MY_URL: 'http://localhost:3333',
+  USE_YOPASS: false,
+  YOPASS_URL: 'http://localhost:8082',
+  EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+
+
+  DB_SECRET_VALUE: {
+    DB_HOST: 'localhost',
+    DB_PORT: 5432,
+    DB_USERNAME: 'postgres',
+    DB_DATABASE: 'sbaa',
+    DB_PASSWORD: 'postgres',
+  },
+  DB_ENCRYPTION_SECRET_VALUE: {
+    // Can replace with `openssl rand -hex 32` or `node -e "console.log('KEY: '+ require('crypto').randomBytes(32).toString('hex'))"`
+    KEY: 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565',
+    IV: '<ignore - this should be refactored out. See comments elsewhere>',
+  },
+
+  // Optional (can delete): seed IdP configs for your local Keycloak. You'll need to use these values for the appropriate things in keycloak itself.
+  SAMPLE_OIDC_CONFIG: {
+    issuer: 'https://localhost/auth/realms/edfi',
+    // use `-dev` for localhost development, leave off `-dev` when running the API in docker
+    clientId: 'edfiadminapp-dev',
+    clientSecret: 'big-secret-123',
+    scope: '',
+  },
+
+  // Optional: seed an initial user.
+  ADMIN_USERNAME: 'admin@example.com', // use an email address in the future
+
+  // JWT Authentication Configuration for Machine-to-Machine and User Authentication
+  // Please refer to "keycloak_edfiadminapp_machine_client.json" configuration for test values
+  // Do not comment this out! Even though Ed-Fi environments do not use Auth0, the code is looking for this object
+  AUTH0_CONFIG_SECRET_VALUE: {
+    ISSUER: 'https://localhost/auth/realms/edfi',
+    CLIENT_ID: 'edfiadminapp',
+    CLIENT_SECRET: 'big-secret-123',
+    MACHINE_AUDIENCE: 'edfiadminapp-api',
+    MANAGEMENT_DOMAIN: 'localhost',
+    MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
+    MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'
+  },
+
+  WHITELISTED_REDIRECTS: [FE_URL],
+  OPENAPI_TITLE: 'Ed-Fi Admin App',
+  OPENAPI_DESCRIPTION: 'OpenAPI spec for the Ed-Fi Admin App backend application',
+
+  // The time to live in milliseconds
+  RATE_LIMIT_TTL: 60000,
+
+  // The maximum number of requests within the ttl
+  RATE_LIMIT_LIMIT: 10,
+
+  USE_PKCE: true,
+
+  // There are other defaults you can override if you want to. See default.js.
+};

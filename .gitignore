@@ -46,11 +46,11 @@ db.sqlite
 # environment variables
 *.local.*
 *.local
-!sbaa-keycloak-config.local.yml
-!local.js-edfi
-!local.js-edfi-docker
 
 packages/api/config/local*
+!packages/api/config/local.js-edfi
+!packages/api/config/local.js-edfi-docker
+
 !*.copyme*
 
 sandworm/
