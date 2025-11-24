@@ -105,7 +105,6 @@ services:
       ConnectionStrings__EdFi_Security: 'host=v7-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Security;'
       EdFiApiDiscoveryUrl: ${ODS_API_73_SINGLE_DISCOVERY}
     volumes:
-      - ./settings/adminapi-run.sh:/app/run.sh
       - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
       - v7-single-db-admin
@@ -271,7 +270,6 @@ services:
       EdFiApiDiscoveryUrl: ${ODS_API_73_MULTI_DISCOVERY}
     volumes:
       - ./settings/appsettings.dockertemplate.json:/app/appsettings.dockertemplate.json
-      - ./settings/adminapi-run.sh:/app/run.sh
       - ./settings/log4net.config:/app/log4net/log4net.config
     entrypoint: ['/bin/sh']
     command:
