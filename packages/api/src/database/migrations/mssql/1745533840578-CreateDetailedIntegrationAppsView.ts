@@ -24,7 +24,7 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
     LEFT JOIN sb_environment sbe ON sbe.id = ia.[sbEnvironmentId]
   `);
     await queryRunner.query(
-      `INSERT INTO [typeorm_metadata]([database], [schema], [table], [type], [name], [value]) VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], [value]) VALUES ($1, $2, $3, $4)`,
       [
         'dbo',
         'VIEW',
@@ -36,7 +36,7 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM [typeorm_metadata] WHERE [type] = @p0 AND [name] = @p1 AND [schema] = @p2`,
+      `DELETE FROM [typeorm_metadata] WHERE [type] = $1 AND [name] = $2 AND [schema] = $3`,
       ['VIEW', 'integration_apps_view', 'dbo']
     );
     await queryRunner.query(`DROP VIEW [integration_apps_view]`);

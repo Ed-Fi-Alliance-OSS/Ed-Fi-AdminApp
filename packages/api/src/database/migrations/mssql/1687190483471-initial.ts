@@ -47,7 +47,7 @@ export class Initial1688158300508 implements MigrationInterface {
       `CREATE INDEX [IDX_07bc07701aba37968ecf1f4ba1] ON [role_privileges_privilege] ([privilegeCode])`
     );
 
-    // In SQL Server, descendant needs to be nullable for alternative cascading. Introduce a synthetic key.
+    // In SQL Server, descendant and ancestor need to be nullable for alternative cascading. Introduce a synthetic key.
     await queryRunner.query(
       `CREATE TABLE [edorg_closure] (
         [id] int IDENTITY(1,1) NOT NULL,
@@ -114,11 +114,10 @@ export class Initial1688158300508 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT [FK_00c8aa855170254728ee9fe3864] FOREIGN KEY ([deletedById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
-    // Cannot define foreign key constraint 'FK_eacb927c57ecca3c22ab93fb849' with cascaded DELETE or UPDATE on table 'edorg'
-    // because the table has an INSTEAD OF DELETE or UPDATE TRIGGER defined on it.
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT [FK_eacb927c57ecca3c22ab93fb849] FOREIGN KEY ([odsId]) REFERENCES [ods] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
+    // Troublesome
     await queryRunner.query(
       `ALTER TABLE [edorg] ADD CONSTRAINT [FK_4f7237384382e4796332a25ea48] FOREIGN KEY ([sbeId]) REFERENCES [sbe] ([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
@@ -189,8 +188,7 @@ export class Initial1688158300508 implements MigrationInterface {
     // The edorg_closure table needs two foreign keys back to edorg. Deleting an
     // edorg should delete any edorg_closure that references it. SQL Server is
     // very conservative and does not let you create two cascading FK's to the
-    // same table. Solution: set the values to null, and add an AFTER DELETE
-    // trigger on [edorg] that will clean up orphaned entries.
+    // same table. Solution: use triggers to replace the foreign keys.
     await queryRunner.query(
       `
 CREATE TRIGGER [TR_edorg_closure_psuedo_fk]

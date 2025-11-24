@@ -5,7 +5,7 @@ export class UpdateOwnershipsView1725479500715 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM [typeorm_metadata] WHERE [type] = @p0 AND [name] = @p1 AND [schema] = @p2`,
+      `DELETE FROM [typeorm_metadata] WHERE [type] = $1 AND [name] = $2 AND [schema] = $3`,
       ['VIEW', 'ownership_view', 'dbo']
     );
     await queryRunner.query(`DROP VIEW [ownership_view]`);
@@ -31,7 +31,7 @@ FROM ownership
   LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or
                               edfi_tenant.[sbEnvironmentId] = sb_environment.id`);
     await queryRunner.query(
-      `INSERT INTO [typeorm_metadata]([database], [schema], [table], [type], [name], [value]) VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], [value]) VALUES ($1, $2, $3, $4)`,
       [
         'dbo',
         'VIEW',
@@ -43,7 +43,7 @@ FROM ownership
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM [typeorm_metadata] WHERE [type] = @p0 AND [name] = @p1 AND [schema] = @p2`,
+      `DELETE FROM [typeorm_metadata] WHERE [type] = $1 AND [name] = $2 AND [schema] = $3`,
       ['VIEW', 'ownership_view', 'dbo']
     );
     await queryRunner.query(`DROP VIEW [ownership_view]`);
@@ -68,7 +68,7 @@ FROM ownership
   LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or
                               edfi_tenant.[sbEnvironmentId] = sb_environment.id`);
     await queryRunner.query(
-      `INSERT INTO [typeorm_metadata]([database], [schema], [table], [type], [name], [value]) VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], [value]) VALUES ($1, $2, $3, $4)`,
       [
         'dbo',
         'VIEW',

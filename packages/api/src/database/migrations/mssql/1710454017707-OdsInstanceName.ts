@@ -4,7 +4,7 @@ export class OdsInstanceName1710454017707 implements MigrationInterface {
   name = 'OdsInstanceName1710454017707';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-    await queryRunner.query(`ALTER TABLE [ods] ADD [odsInstanceName] character varying`);
+    await queryRunner.query(`ALTER TABLE [ods] ADD [odsInstanceName] NVARCHAR NULL`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
