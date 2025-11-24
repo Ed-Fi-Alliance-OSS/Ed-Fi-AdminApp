@@ -1,0 +1,65 @@
+// Component Name, Purpose, Icon Name, IconFill Name (optional)
+
+// non resource menu icons
+Home, Menu item, BsHouseDoor, BsHouseDoorFill
+Account, Menu item, BsPerson, BsPersonFill
+OpenProfileMenu, Menu item, RxCaretDown
+HelpLink, Menu item, BsQuestionLg
+
+// resource menu icons
+Application, Menu item, BsKey, BsKeyFill
+Claimset, Menu item, BsShieldLock, BsShieldLockFill
+EdFiTenant, Menu item, BsGrid, BsGridFill
+EdOrg, Menu item, BsMortarboard, BsMortarboardFill
+IntegrationProvider, Menu item, BsPuzzle, BsPuzzleFill
+Profile, Menu item, BsFileEarmarkDiff, BsFileEarmarkDiffFill
+ODS, Menu item, BsDatabase, BsDatabaseFill
+Ownership, Menu item, BsClipboard, BsClipboardFill
+Role, Menu item, BsPersonVcard, BsPersonVcardFill
+SbEnvironment, Menu item, BsHdd, BsHddFill
+SyncQueue, Menu item, BsInboxes, BsInboxesFill
+Team, Menu item, BsBuildings, BsBuildingsFill
+TeamMembership, Menu item, BsPersonBadge, BsPersonBadgeFill
+Vendor, Menu item, BsBuilding, BsBuildingFill
+User, Menu item, BsPeople, BsPeopleFill
+
+// general icons
+CheckAll, Has all privileges, BsCheckAll
+LargeX, Has some or no privileges, BsXLg
+Copy, Copy text, BiCopy
+CheckCircle, Copy text success, BsCheckCircle
+InfoCircle, For tooltips, BsInfoCircle
+Pin, For pinning tenants, BsPin
+
+// table icons
+CaretRightFill, Expand row, BsCaretRightFill
+Funnel, For filters, BsFunnel, BsFunnelFill
+X, Clear search/filter, BsX
+DotsVerticalRounded, Show more actions, BiDotsVerticalRounded
+ChevronLeft, Previous page, FiChevronLeft
+ChevronRight, Next page, FiChevronRight
+DoubleChevronsLeft, Go to first page, FiChevronsLeft
+DoubleChevronsRight, Go to last page, FiChevronsRight
+
+// general resource actions
+Plus, Create resource / show filters, BiPlus
+Delete, Delete resource / remove selection, BiTrash
+Edit, Edit resource, BiEdit
+View, View resource, HiOutlineEye
+ClipboardPlus, Add resource ownership to this team, BsClipboardPlus
+
+// specific resource actions
+Arch, Assume team scope, BiArch
+Cog, Connect to Admin API, BiCog
+Data, Connect to metadata API, BiData
+Download, Sync with Starting Blocks, BiDownload
+Export, Export claimset, BiExport
+Import, Import claimset, BiImport
+Plug, Ping Admin API, BiPlug
+Refresh, Refresh tenants, BiRefresh
+Rename, Rename environment, BiRename
+Search, Search, BiSearch
+ShieldPlus, Grant team ownership of this resource, BiShieldPlus
+ShieldX, Reset application credentials, BiShieldX
+IdCard, Add this user to team, BiIdCard
+UserPlus, Add user to this team, BiUserPlus

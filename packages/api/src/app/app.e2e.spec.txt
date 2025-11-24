@@ -1,0 +1,827 @@
+process.env.NODE_ENV = 'testing';
+
+import 'reflect-metadata';
+
+process.env['NODE_CONFIG_DIR'] = './packages/api/config';
+
+import '../utils/checkEnv';
+
+import {
+  PostApplicationForm,
+  PostApplicationFormDtoV2,
+  PostClaimsetDto,
+  PostProfileDto,
+  PostVendorDto,
+  PostVendorDtoV2,
+  PutApplicationForm,
+  PutApplicationFormDtoV2,
+  PutClaimsetDto,
+} from '@edanalytics/models';
+import { formErrFromValidator, wait } from '@edanalytics/utils';
+import { ClassSerializerInterceptor, INestApplication, ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
+import { DocumentBuilder, OpenAPIObject, SwaggerModule } from '@nestjs/swagger';
+import { execSync } from 'child_process';
+import * as config from 'config';
+import * as pgSession from 'connect-pg-simple';
+import * as expressSession from 'express-session';
+import passport from 'passport';
+import request from 'supertest';
+import { CustomHttpException } from '../utils/customExceptions';
+import { AppModule } from './app.module'; /* eslint jest/expect-expect: 0 */
+
+const idStr = (id: number | undefined) => (id === undefined ? '' : '/' + id);
+class TestUrl {
+  _str: string;
+  sbId: number | undefined;
+  constructor() {
+    this._str = '/api/';
+  }
+  str() {
+    return this._str;
+  }
+
+  /** `'teams/1/'` */
+  asSchool() {
+    this._str += 'teams/1/';
+    return this;
+  }
+  /** `'teams/2/'` */
+  asLea() {
+    this._str += 'teams/2/';
+    return this;
+  }
+  /** `'teams/3/'` */
+  asState() {
+    this._str += 'teams/3/';
+    return this;
+  }
+
+  /** `sb-environments/1/` */
+  sb1() {
+    this._str += 'sb-environments/1/';
+    this.sbId = 1;
+    return this;
+  }
+  /** `sb-environments/2/` */
+  sb2() {
+    this._str += 'sb-environments/2/';
+    this.sbId = 2;
+    return this;
+  }
+  /** `sb-environments/3/` (does not exist) */
+  sb3() {
+    this._str += 'sb-environments/3/';
+    this.sbId = 3;
+    return this;
+  }
+
+  /** `edfi-tenants/1/` */
+  et1() {
+    this._str += 'edfi-tenants/1/';
+    this.sbId = 1;
+    return this;
+  }
+  /** `edfi-tenants/2/` */
+  et2() {
+    this._str += 'edfi-tenants/2/';
+    this.sbId = 2;
+    return this;
+  }
+
+  private _adminApi() {
+    this._str += `admin-api/${this.sbId === 1 ? 'v2' : 'v1'}/`;
+  }
+
+  /** `admin-api/<auto version>/vendors/:id?` */
+  vendor(id?: number) {
+    this._adminApi();
+    this._str += `vendors${idStr(id)}`;
+    return this;
+  }
+  /** `admin-api/<auto version>/claimsets/:id?` */
+  claimset(id?: number) {
+    this._adminApi();
+    this._str += `claimsets${idStr(id)}`;
+    return this;
+  }
+  /** `admin-api/<auto version>/applications/:id?` */
+  application(id?: number) {
+    this._adminApi();
+    this._str += `applications${idStr(id)}`;
+    return this;
+  }
+
+  /** edorgs/:id? */
+  edorg(id?: number) {
+    this._str += `edorgs${idStr(id)}`;
+    return this;
+  }
+  /** odss/:id? */
+  ods(id?: number) {
+    this._str += `odss${idStr(id)}`;
+    return this;
+  }
+  /** profiles/:id? */
+  profile(id?: number) {
+    this._str += `profiles${idStr(id)}`;
+    return this;
+  }
+}
+
+/** `'teams/2/` */
+const asLea = () => new TestUrl().asLea();
+/** `'teams/3/` */
+const asState = () => new TestUrl().asState();
+/** `'teams/1/` */
+const asSchool = () => new TestUrl().asSchool();
+
+/** helper for standard request shorthand. If you want to _do_ something with the result, just use the full custom syntax. */
+const get = (url: string, cookie: string, expectedStatus: number) => () =>
+  request(app.getHttpServer()).get(url).set('Cookie', cookie).expect(expectedStatus);
+/** helper for standard request shorthand. If you want to _do_ something with the result, just use the full custom syntax. */
+const post = (url: string, cookie: string, body: any, expectedStatus: number) => () =>
+  request(app.getHttpServer()).post(url).set('Cookie', cookie).send(body).expect(expectedStatus);
+/** helper for standard request shorthand. If you want to _do_ something with the result, just use the full custom syntax. */
+const put = (url: string, cookie: string, body: any, expectedStatus: number) => () =>
+  request(app.getHttpServer()).put(url).set('Cookie', cookie).send(body).expect(expectedStatus);
+/** helper for standard request shorthand. If you want to _do_ something with the result, just use the full custom syntax. */
+const del = (url: string, cookie: string, expectedStatus: number) => () =>
+  request(app.getHttpServer()).delete(url).set('Cookie', cookie).expect(expectedStatus);
+
+// OIDC authentication not currently tested. Mock data includes pre-made user sessions.
+const cookies = {
+  /** LEA team (`id 2`) */
+  moAdmin:
+    'connect.sid=s%3AiOHKzKxsPyc8JJw_pw0cwwutJUJdiZ3e.qI%2FntCxCy0ddrRkd%2Fs3GtZDpAO0YezZaO%2B53ztC5UJI',
+  /** LEA team (`id 2`) */
+  moReader:
+    'connect.sid=s%3AUhBRab6PFt0VWChbRgJAIKLf-2u1VXTS.hL2mJOS5QOUYyjJdr82xNqVwfjEC3PTMK3Modc9ObQM',
+  /** school team (`id 1`) */
+  moHsLite:
+    'connect.sid=s%3ABYwFyb1rMAoPQQyeHVYnSdL5pUW6x5Jq.QGmwGkOS0BfRbsS7%2BSDaopbqEq4GJcA9%2BMjm22qt5EA',
+  /** state admin team (`id 3`) */
+  stateAdmin:
+    'connect.sid=s%3AbQDd2KOUIzv-uEbyD_PxLmjcQg4akSXs.W7ZD7UEDbcal9%2Fdr4XlWGYkxbukCuFyvDEY3VNwy%2BlE',
+  globalAdmin:
+    'connect.sid=s%3AP3ENz2CSIraOTT-sSRT4gJyQKV5aOKxE.3lrNRkxA5bKprXrwoeRikgI89hV26RShwlCST5MHM%2F8',
+};
+
+const edorgs = {
+  lea: {
+    appDb: 1,
+    educationOrganizationId: 1,
+  },
+  hs: {
+    appDb: 2,
+    educationOrganizationId: 11,
+  },
+  ms: {
+    appDb: 3,
+    educationOrganizationId: 12,
+  },
+};
+
+let app: INestApplication;
+let closeSessionStore: () => Promise<void>;
+let swaggerDoc: OpenAPIObject;
+
+afterAll(async () => {
+  try {
+    await app?.close();
+  } catch (error) {
+    // still do other teardown
+  }
+  try {
+    await closeSessionStore();
+  } catch (error) {
+    // still do other teardown
+  }
+  try {
+    execSync('docker compose -f ./e2e/docker-compose.yml down --volumes');
+  } catch (error) {
+    // still do other teardown
+  }
+}, 60000);
+
+beforeAll(async () => {
+  execSync('docker compose -f ./e2e/docker-compose.yml up --wait');
+  const sessionStore = new (pgSession.default(expressSession.default))({
+    createTableIfMissing: false,
+    conString: await config.DB_CONNECTION_STRING,
+    schemaName: 'appsession',
+  });
+  closeSessionStore = async () => {
+    await sessionStore.close();
+  };
+  await config.DB_ENCRYPTION_SECRET;
+  app = await NestFactory.create(AppModule);
+  // await wait(2000);
+  app.enableShutdownHooks();
+  const globalPrefix = 'api';
+  await config.DB_ENCRYPTION_SECRET;
+  app.use(
+    expressSession.default({
+      store: sessionStore,
+      secret: 'my-secret',
+      resave: false,
+      saveUninitialized: false,
+    })
+  );
+  app.use(passport.initialize());
+  app.use(passport.session());
+  passport.serializeUser((user, done) => {
+    done(null, user);
+  });
+  passport.deserializeUser((user, done) => {
+    done(null, user);
+  });
+  app.setGlobalPrefix(globalPrefix);
+  app.useGlobalPipes(
+    new ValidationPipe({
+      transform: true,
+      stopAtFirstError: false,
+      exceptionFactory: (validationErrors = []) => {
+        return new CustomHttpException({
+          type: 'ValidationError',
+          title: 'Invalid submission.',
+          data: { errors: formErrFromValidator(validationErrors) },
+        });
+      },
+    })
+  );
+  app.enableCors({ origin: config.FE_URL, credentials: true });
+  app.useGlobalInterceptors(
+    new ClassSerializerInterceptor(app.get(Reflector), {
+      excludeExtraneousValues: true,
+    })
+  );
+  const swaggerConfig = new DocumentBuilder()
+    .setTitle('Starting Blocks Admin App')
+    .setDescription('OpenAPI spec for the EA Starting Blocks admin console application.')
+    .setVersion('1.0')
+    .build();
+  swaggerDoc = SwaggerModule.createDocument(app, swaggerConfig);
+  SwaggerModule.setup('api', app, swaggerDoc);
+  await app.init();
+}, 130000);
+
+it(
+  '/api/healthcheck (GET)',
+  () => request(app.getHttpServer()).get('/api/healthcheck').expect(200).expect("Feelin' great!"),
+  15000 // first request and server might still be warming up
+);
+
+/* The real purpose of these tests is to trigger re-load of
+   the session store so that we don't have to meticulously keep
+   the inserts for those in sync with all the other data as our
+   tests evolve. The response doesn't wait for reload so we
+   need to wait just a moment to ensure it's completed before
+   running the next tests */
+it(
+  'get me - moReader',
+  () =>
+    request(app.getHttpServer()).get('/api/auth/me').set('Cookie', cookies.moReader).expect(200),
+  5000
+);
+it(
+  'get me - moAdmin',
+  () => request(app.getHttpServer()).get('/api/auth/me').set('Cookie', cookies.moAdmin).expect(200),
+  5000
+);
+it(
+  'get me - moHsLite',
+  () =>
+    request(app.getHttpServer()).get('/api/auth/me').set('Cookie', cookies.moHsLite).expect(200),
+  5000
+);
+it(
+  'get me - stateAdmin',
+  () =>
+    request(app.getHttpServer()).get('/api/auth/me').set('Cookie', cookies.stateAdmin).expect(200),
+  5000
+);
+it(
+  'get me - globalAdmin',
+  () =>
+    request(app.getHttpServer()).get('/api/auth/me').set('Cookie', cookies.globalAdmin).expect(200),
+  5000
+);
+it('register v7 admin api', async () => {
+  // About this waiting line: see note above about reloading session store
+  await wait(1000);
+
+  const url = 'https://localhost:4444/v7-adminapi/connect/register';
+  const options = {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+      tenant: 'tenant1',
+    },
+    body: new URLSearchParams({
+      ClientId: '252bd79f5caf6276e89e10a2',
+      ClientSecret: 'Tc*7T&#n9Ks9dad34979695fe7b7c5de4532be287be2a39e65cd4a1aafcd81b1616c88fc6f9',
+      DisplayName: 'e2e',
+    }),
+  };
+
+  const response = await fetch(url, options);
+  expect(response.status).toBe(200);
+});
+it('register v6 admin api', async () => {
+  const url = 'https://localhost:4443/v6-adminapi/connect/register';
+  const options = {
+    method: 'POST',
+    headers: {
+      Accept: 'application/json',
+    },
+    body: new URLSearchParams({
+      ClientId: '252bd79f5caf6276e89e10a2',
+      ClientSecret: 'Tc*7T&#n9Ks9dad34979695fe7b7c5de4532be287be2a39e65cd4a1aafcd81b1616c88fc6f9',
+      DisplayName: 'e2e',
+    }),
+  };
+
+  const response = await fetch(url, options);
+  expect(response.status).toBe(200);
+});
+
+it(
+  'check admin api sb1 - global admin',
+  put(new TestUrl().sb1().et1().str() + 'check-admin-api', cookies.globalAdmin, { id: 1 }, 200)
+);
+it(
+  'check admin api sb2 - global admin',
+  put(new TestUrl().sb2().et2().str() + 'check-admin-api', cookies.globalAdmin, { id: 2 }, 200)
+);
+
+it(
+  'check admin api fake sb - tenant admin',
+  put(new TestUrl().sb3().et1().str() + 'check-admin-api', cookies.stateAdmin, { id: 1 }, 403)
+);
+it(
+  'check admin api sb1 - LEA admin',
+  put(new TestUrl().sb1().et1().str() + 'check-admin-api', cookies.moAdmin, { id: 1 }, 403)
+);
+
+// test team memberships using GET <something arbitrary behind team/:id/...>
+it('get sb1 - LEA reader as LEA', get(asLea().sb1().et1().str(), cookies.moReader, 200));
+it('get sb1 - LEA reader as school', get(asSchool().sb1().et1().str(), cookies.moReader, 403));
+it('get sb1 - LEA reader as state', get(asState().sb1().et1().str(), cookies.moReader, 403));
+
+it('get sb1 - school lite as LEA', get(asLea().sb1().et1().str(), cookies.moHsLite, 403));
+it('get sb1 - school lite as school', get(asSchool().sb1().et1().str(), cookies.moHsLite, 200));
+it('get sb1 - school lite as state', get(asState().sb1().et1().str(), cookies.moHsLite, 403));
+
+it('get sb1 - state admin as LEA', get(asLea().sb1().et1().str(), cookies.stateAdmin, 403));
+it('get sb1 - state admin as school', get(asSchool().sb1().et1().str(), cookies.stateAdmin, 403));
+it('get sb1 - state admin as state', get(asState().sb1().et1().str(), cookies.stateAdmin, 200));
+
+it('get vendors sb1 - LEA reader', get(asLea().et1().vendor().str(), cookies.moReader, 200));
+
+it('get vendors sb1 - tenant admin', get(asState().et1().vendor().str(), cookies.stateAdmin, 200));
+
+it('get vendors sb2 - LEA reader', get(asLea().et2().vendor().str(), cookies.moReader, 200));
+
+it('get vendors sb2 - tenant admin', get(asState().et2().vendor().str(), cookies.stateAdmin, 200));
+
+const newVendorV2: PostVendorDtoV2 = {
+  company: 'EA',
+  contactEmailAddress: 'me@example.com',
+  contactName: 'Me',
+  namespacePrefixes: 'url://ea',
+};
+const newVendorV1: PostVendorDto = {
+  company: 'EA',
+  contactEmailAddress: 'me@example.com',
+  contactName: 'Me',
+  namespacePrefixes: 'url://ea',
+};
+
+it(
+  'post vendor sb1 - LEA admin',
+  post(asLea().et1().vendor().str(), cookies.moAdmin, newVendorV2, 403)
+);
+
+it(
+  'post vendor sb1 - tenant admin',
+  post(asState().et1().vendor().str(), cookies.stateAdmin, newVendorV2, 201)
+);
+
+it(
+  'post vendor sb2 - LEA admin',
+  post(asLea().et2().vendor().str(), cookies.moAdmin, newVendorV1, 403)
+);
+it(
+  'post vendor sb2 - tenant admin',
+  post(asState().et2().vendor().str(), cookies.stateAdmin, newVendorV1, 201)
+);
+
+it('get profiles sb2 - LEA reader', get(asLea().et2().profile().str(), cookies.moReader, 200));
+
+it(
+  'get profiles sb2 - tenant admin',
+  get(asState().et2().profile().str(), cookies.stateAdmin, 200)
+);
+
+const newProfile: PostProfileDto = {
+  name: 'EA',
+  definition: 'test',
+};
+it(
+  'post profile sb2 - LEA admin',
+  post(asLea().et2().profile().str(), cookies.moAdmin, newProfile, 403)
+);
+it(
+  'post profile sb2 - tenant admin',
+  post(asState().et2().profile().str(), cookies.stateAdmin, newProfile, 201)
+);
+
+it(
+  'put profile sb2 - LEA admin',
+  put(asLea().et2().profile().str(), cookies.moAdmin, newProfile, 403)
+);
+it(
+  'put profile sb2 - tenant admin',
+  put(asState().et2().profile().str(), cookies.stateAdmin, newProfile, 201)
+);
+
+it('read claimsets - LEA reader', get(asLea().et1().claimset().str(), cookies.moReader, 200));
+
+it(
+  'read claimsets - school reader lite',
+  get(asSchool().et1().claimset().str(), cookies.moHsLite, 403)
+);
+it('read claimsets et2 - LEA reader', () =>
+  get(asLea().et2().claimset().str(), cookies.moReader, 200)());
+it('read claimsets et2 - school reader lite', () =>
+  get(asSchool().et2().claimset().str(), cookies.moHsLite, 403)());
+it('read claimsets et2 - school via global admin', () =>
+  get(asSchool().et2().claimset().str(), cookies.globalAdmin, 200)());
+
+let v1Claimset: PostClaimsetDto;
+
+it('read claimsets et2 - single item - school via global admin', async () => {
+  const res = await request(app.getHttpServer())
+    .get(asSchool().et2().claimset(1).str())
+    .set('Cookie', cookies.globalAdmin);
+  expect(res.statusCode).toBe(200);
+  v1Claimset = res.body;
+  v1Claimset.name = 'e2e test copy';
+});
+
+const copyDto = { originalId: 1, name: 'SIS Vendor (copy)' };
+it(
+  'copy claimset - school reader lite',
+  post(asSchool().et1().claimset().str() + '/copy', cookies.moHsLite, copyDto, 403)
+);
+
+it(
+  'copy claimset - LEA reader',
+  post(asLea().et1().claimset().str() + '/copy', cookies.moReader, copyDto, 403)
+);
+
+it(
+  'copy claimset - LEA admin',
+  post(asLea().et1().claimset().str() + '/copy', cookies.moAdmin, copyDto, 403)
+);
+
+let newClaimsetV2Id: number;
+const newApplicationV2: PostApplicationFormDtoV2 = {
+  applicationName: 'EA App',
+  vendorId: 1,
+  claimsetId: newClaimsetV2Id,
+  educationOrganizationIds: [],
+  odsInstanceId: 1,
+};
+
+it('copy claimset et1 - tenant admin', async () => {
+  const res = await request(app.getHttpServer())
+    .post(asState().et1().claimset().str() + '/copy')
+    .set('Cookie', cookies.stateAdmin)
+    .send({
+      originalId: 1,
+      name: 'New copied claimset',
+    });
+  expect(res.statusCode).toBe(201);
+  newClaimsetV2Id = res.body.id;
+  newApplicationV2.claimsetId = newClaimsetV2Id;
+});
+
+let newClaimsetV1Id: number;
+let v1PutClaimset: PutClaimsetDto;
+const newApplicationV1: PostApplicationForm = {
+  applicationName: 'EA App',
+  vendorId: 1,
+  claimsetId: newClaimsetV1Id,
+  educationOrganizationId: NaN,
+  profileId: undefined,
+};
+
+it('post claimset et2 - tenant admin', async () => {
+  const res = await request(app.getHttpServer())
+    .post(asState().et2().claimset().str())
+    .set('Cookie', cookies.stateAdmin)
+    .send(v1Claimset);
+  expect(res.statusCode).toBe(201);
+  newClaimsetV1Id = res.body.id;
+  v1PutClaimset = Object.assign(new PutClaimsetDto(), v1Claimset, { id: newClaimsetV1Id });
+  newApplicationV1.claimsetId = newClaimsetV2Id;
+});
+
+it(
+  'post claimset et2 - lea admin',
+  post(asLea().et2().claimset().str(), cookies.moAdmin, v1Claimset, 403)
+);
+it(
+  'post claimset et2 - school team user',
+  post(asSchool().et2().claimset().str(), cookies.moHsLite, v1Claimset, 403)
+);
+it(
+  'post claimset et2 - school global admin',
+  post(asSchool().et2().claimset().str(), cookies.globalAdmin, v1Claimset, 403)
+);
+
+it('put claimset et2 - lea admin', () =>
+  put(asLea().et2().claimset(newClaimsetV1Id).str(), cookies.moAdmin, v1PutClaimset, 403)());
+it('put claimset et2 - school team user', () =>
+  put(asSchool().et2().claimset(newClaimsetV1Id).str(), cookies.moHsLite, v1PutClaimset, 403)());
+it('put claimset et2 - school global admin', () =>
+  put(asSchool().et2().claimset(newClaimsetV1Id).str(), cookies.globalAdmin, v1PutClaimset, 403)());
+it('put claimset et2 - tenant admin', () =>
+  put(asState().et2().claimset(newClaimsetV1Id).str(), cookies.stateAdmin, v1PutClaimset, 200)());
+
+it(
+  'read LEA edorg - school reader lite',
+  get(asSchool().et1().edorg(edorgs.lea.appDb).str(), cookies.moHsLite, 200)
+);
+it(
+  'read school edorg - school reader lite',
+  get(asSchool().et1().edorg(edorgs.hs.appDb).str(), cookies.moHsLite, 200)
+);
+it(
+  'read other school edorg - school reader lite',
+  get(asSchool().et1().edorg(edorgs.ms.appDb).str(), cookies.moHsLite, 403)
+);
+
+it(
+  'create application - all edorgs - school team - global user',
+  post(asSchool().et1().application().str(), cookies.globalAdmin, newApplicationV2, 400)
+);
+
+let schoolAppV2: PutApplicationFormDtoV2;
+it('create application v2 - owned edorg - school team - global user', async () => {
+  const result = await request(app.getHttpServer())
+    .post('/api/teams/1/edfi-tenants/1/admin-api/v2/applications')
+    .set('Cookie', cookies.globalAdmin)
+    .send(
+      Object.assign(newApplicationV2, {
+        educationOrganizationIds: [edorgs.hs.educationOrganizationId],
+      })
+    );
+  expect(result.statusCode).toBe(201);
+  schoolAppV2 = {
+    ...newApplicationV2,
+    id: result.body.applicationId,
+    educationOrganizationIds: [edorgs.hs.educationOrganizationId],
+  };
+});
+
+let leaAppV2: PutApplicationFormDtoV2;
+it('create application v2 - all edorgs - LEA team - LEA admin', async () => {
+  const result = await request(app.getHttpServer())
+    .post('/api/teams/2/edfi-tenants/1/admin-api/v2/applications')
+    .set('Cookie', cookies.moAdmin)
+    .send(
+      Object.assign(newApplicationV2, {
+        educationOrganizationIds: [
+          edorgs.lea.educationOrganizationId,
+          edorgs.hs.educationOrganizationId,
+        ],
+      })
+    );
+  expect(result.statusCode).toBe(201);
+  leaAppV2 = {
+    ...newApplicationV2,
+    id: result.body.applicationId,
+    educationOrganizationIds: [
+      edorgs.lea.educationOrganizationId,
+      edorgs.hs.educationOrganizationId,
+    ],
+  };
+});
+
+let schoolAppV1: PutApplicationForm;
+it('create application v1 - owned edorg - school team - global user', async () => {
+  const result = await request(app.getHttpServer())
+    .post(asSchool().et2().application().str())
+    .set('Cookie', cookies.globalAdmin)
+    .send(
+      Object.assign(newApplicationV1, {
+        educationOrganizationId: edorgs.hs.educationOrganizationId,
+      })
+    );
+  expect(result.statusCode).toBe(201);
+  schoolAppV1 = Object.assign(new PutApplicationForm(), newApplicationV1, {
+    applicationId: result.body.applicationId,
+    educationOrganizationId: edorgs.hs.educationOrganizationId,
+  });
+});
+
+let leaAppV1: PutApplicationForm;
+it('create application v1 - lea edorg - LEA team - LEA admin', async () => {
+  const body: PostApplicationForm = Object.assign(newApplicationV1, {
+    educationOrganizationId: edorgs.lea.educationOrganizationId,
+  });
+  const result = await request(app.getHttpServer())
+    .post(asLea().et2().application().str())
+    .set('Cookie', cookies.moAdmin)
+    .send(body);
+  expect(result.statusCode).toBe(201);
+  leaAppV1 = Object.assign(new PutApplicationForm(), body, {
+    applicationId: result.body.applicationId,
+  });
+});
+
+it('create application v1 - school edorg - LEA team - LEA admin', async () => {
+  const body: PostApplicationForm = Object.assign(newApplicationV1, {
+    educationOrganizationId: edorgs.hs.educationOrganizationId,
+  });
+  const result = await request(app.getHttpServer())
+    .post(asLea().et2().application().str())
+    .set('Cookie', cookies.moAdmin)
+    .send(body);
+  expect(result.statusCode).toBe(201);
+});
+
+it('update v2 LEA application with school edorg - school team - global user', async () => {
+  const putBody = { ...leaAppV2, educationOrganizationIds: [edorgs.hs.educationOrganizationId] };
+  await request(app.getHttpServer())
+    .put('/api/teams/1/edfi-tenants/1/admin-api/v2/applications/' + leaAppV2.id)
+    .set('Cookie', cookies.globalAdmin)
+    .send(putBody)
+    .expect(403);
+});
+
+it('update v2 school application with LEA edorg - school team - global user', () =>
+  put(
+    asSchool().et1().application(schoolAppV2.id).str(),
+    cookies.globalAdmin,
+    {
+      ...schoolAppV2,
+      educationOrganizationIds: [
+        edorgs.lea.educationOrganizationId,
+        edorgs.hs.educationOrganizationId,
+      ],
+    },
+    400
+  )());
+it('update v2 school application with no changes - school team - global user', () =>
+  put(asSchool().et1().application(schoolAppV2.id).str(), cookies.globalAdmin, schoolAppV2, 200)());
+it('reset v2 LEA application - school team - global user', () =>
+  put(
+    asSchool().et1().application(leaAppV2.id).str() + '/reset-credential',
+    cookies.globalAdmin,
+    leaAppV2,
+    403
+  )());
+it('delete v2 LEA application - school team - global user', () =>
+  del(asSchool().et1().application(leaAppV2.id).str(), cookies.globalAdmin, 403)());
+
+it('reset v2 LEA application - LEA team', () =>
+  put(
+    asLea().et1().application(leaAppV2.id).str() + '/reset-credential',
+    cookies.moAdmin,
+    leaAppV2,
+    200
+  )());
+it('reset v2 school application - LEA team', () =>
+  put(
+    asLea().et1().application(schoolAppV2.id).str() + '/reset-credential',
+    cookies.moAdmin,
+    schoolAppV2,
+    200
+  )());
+
+/* One of the differences between v2 and v1 is that an app only has one edorg in v1. So the school team
+can't access the LEA app at all in a few of the requests here and should get a 404. Whereas above
+in the v2 tests the school team does have GET access via its ownership of one of the two edorgs in the
+application.
+*/
+it('update v1 LEA application with school edorg - school team - global user', async () => {
+  const putBody = { ...leaAppV1, educationOrganizationId: edorgs.hs.educationOrganizationId };
+  await request(app.getHttpServer())
+    .put(asSchool().et2().application(leaAppV1.id).str())
+    .set('Cookie', cookies.globalAdmin)
+    .send(putBody)
+    .expect(404);
+});
+
+it('update v1 school application with LEA edorg - school team - global user', () =>
+  put(
+    asSchool().et2().application(schoolAppV1.id).str(),
+    cookies.globalAdmin,
+    {
+      ...schoolAppV1,
+      educationOrganizationId: edorgs.lea.educationOrganizationId,
+    },
+    400
+  )());
+it('update v1 school application with no changes - school team - global user', () =>
+  put(asSchool().et2().application(schoolAppV1.id).str(), cookies.globalAdmin, schoolAppV1, 200)());
+it('reset v1 LEA application - school team - global user', () =>
+  put(
+    asSchool().et2().application(leaAppV1.id).str() + '/reset-credential',
+    cookies.globalAdmin,
+    leaAppV1,
+    404
+  )());
+it('delete v1 LEA application - school team - global user', () =>
+  del(asSchool().et2().application(leaAppV1.id).str(), cookies.globalAdmin, 404)());
+
+it('reset v1 LEA application - LEA team', () =>
+  put(
+    asLea().et2().application(leaAppV1.id).str() + '/reset-credential',
+    cookies.moAdmin,
+    leaAppV1,
+    200
+  )());
+it('reset v1 school application - LEA team', () =>
+  put(
+    asLea().et2().application(schoolAppV1.id).str() + '/reset-credential',
+    cookies.moAdmin,
+    schoolAppV1,
+    200
+  )());
+
+it('delete ODS - school team', del(asLea().et1().ods(1).str(), cookies.moAdmin, 403));
+it('delete ODS - LEA team', del(asLea().et1().ods(1).str(), cookies.moAdmin, 403));
+it('delete ODS - tenant admin', del(asState().et1().ods(1).str(), cookies.stateAdmin, 500));
+
+const newEdorg = {
+  EdOrgId: '1',
+  NameOfInstitution: 'going to 500 bc no aws',
+  AddressType: 'Mailing',
+  City: 'Miniscule Oxbow',
+  Zip: '00000',
+  State: 'VT',
+  Address: '12345 Some Rd',
+  ODSName: 'prod',
+  EdOrgCategory: 'School',
+};
+
+it('Add Edorg - LEA team', post(asLea().et1().edorg().str(), cookies.globalAdmin, newEdorg, 500));
+it('Add Edorg - HS team', post(asSchool().et1().edorg().str(), cookies.globalAdmin, newEdorg, 403));
+it(`All routes - unauthenticated`, async () => {
+  const responseStatuses: number[] = [];
+  const requestConfigs = Object.entries(swaggerDoc.paths).flatMap(([path, methods]) =>
+    Object.entries(methods)
+      .map(([method, config]) => ({
+        method,
+        // Use 1 as a placeholder for any path parameters
+        path: path.replace(/\{\w+\}/g, '1'),
+        config,
+      }))
+      .filter(
+        ({ path }) =>
+          (!path.startsWith('/api/auth') &&
+            !path.startsWith('/api/secret') &&
+            !path.startsWith('/api/healthcheck')) ||
+          ['/api/auth/me', '/api/auth/my-tenants'].includes(path)
+      )
+  );
+  for (let i = 0; i < requestConfigs.length; i++) {
+    const { method, path } = requestConfigs[i];
+    const { status } = await request(app.getHttpServer())[method.toLowerCase()](path);
+    responseStatuses.push(status);
+  }
+  expect(responseStatuses).toEqual(expect.arrayContaining([401]));
+}, 30000);
+it(`Tenant user no global access`, async () => {
+  const responseStatuses: number[] = [];
+  const requestConfigs = Object.entries(swaggerDoc.paths).flatMap(([path, methods]) =>
+    Object.entries(methods)
+      .map(([method, config]) => ({
+        method,
+        // Use 1 as a placeholder for any path parameters
+        path: path.replace(/\{\w+\}/g, '1'),
+        config,
+      }))
+      .filter(
+        ({ path }) =>
+          !path.startsWith('/api/auth') &&
+          !path.startsWith('/api/secret') &&
+          !path.startsWith('/api/healthcheck') &&
+          !path.startsWith('/api/privileges') &&
+          !path.startsWith('/api/teams/1/')
+      )
+  );
+  for (let i = 0; i < requestConfigs.length; i++) {
+    const { method, path } = requestConfigs[i];
+    const { status } = await request(app.getHttpServer())
+      [method.toLowerCase()](path)
+      .set('Cookie', cookies.stateAdmin);
+    responseStatuses.push(status);
+  }
+  expect(responseStatuses).toEqual(expect.arrayContaining([403]));
+}, 30000);

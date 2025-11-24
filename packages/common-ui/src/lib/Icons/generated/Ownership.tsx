@@ -1,0 +1,11 @@
+// This file was generated using "npm run generate:icons". Do not edit directly.
+
+import { Icon } from '@chakra-ui/icon';
+import { BsClipboard, BsClipboardFill } from 'react-icons/bs';
+import type { IconProps } from '../types';
+
+export function Ownership({ isFilled, ...rest }: IconProps) {
+  return <Icon as={isFilled ? BsClipboardFill : BsClipboard} {...rest} />;
+}
+Ownership.displayName = 'Ownership';
+Ownership.purpose = 'Menu item';

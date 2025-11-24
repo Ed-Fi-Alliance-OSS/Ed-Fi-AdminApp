@@ -1,0 +1,56 @@
+// packages/api/config/local-development.js - Nginx proxy version
+const FE_URL = 'https://localhost/adminapp';
+
+module.exports = {
+  _OPEN_API: true,
+  API_PORT: 3333,
+  DB_SSL: false,
+  AWS_REGION: 'us-east-2',
+  FE_URL: FE_URL,
+  MY_URL: 'https://localhost/adminapp-api',
+  USE_YOPASS: true,
+  YOPASS_URL: 'http://edfiadminapp-local-build-yopass-1:80',
+  EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+
+  DB_SECRET_VALUE: {
+    DB_HOST: 'edfiadminapp-db',
+    DB_PORT: 5432,
+    DB_USERNAME: 'postgres',
+    DB_DATABASE: 'sbaa',
+    DB_PASSWORD: 'postgres',
+  },
+  DB_ENCRYPTION_SECRET_VALUE: {
+    KEY: 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565',
+    IV: '<ignore - this should be refactored out. See comments elsewhere>',
+  },
+
+  // Updated to use nginx proxy URL
+  SAMPLE_OIDC_CONFIG: {
+    issuer: 'https://localhost/auth/realms/edfi',
+    clientId: 'edfiadminapp',
+    clientSecret: 'big-secret-123',
+    scope: '',
+  },
+
+  ADMIN_USERNAME: 'admin@example.com',
+
+  AUTH0_CONFIG_SECRET_VALUE: {
+    ISSUER: 'https://example.com/',
+    CLIENT_ID: '<your value>',
+    CLIENT_SECRET: '<your value>',
+    MACHINE_AUDIENCE: 'sbaa-local',
+    MANAGEMENT_DOMAIN: '<your value>',
+    MANAGEMENT_CLIENT_ID: '<your value>',
+    MANAGEMENT_CLIENT_SECRET: '<your value>',
+  },
+
+  // The time to live in milliseconds
+  RATE_LIMIT_TTL: 60000,
+
+  // The maximum number of requests within the ttl
+  RATE_LIMIT_LIMIT: 10,
+
+  USE_PKCE: true,
+
+  WHITELISTED_REDIRECTS: [FE_URL],
+};

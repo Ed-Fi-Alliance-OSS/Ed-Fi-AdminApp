@@ -1,0 +1,130 @@
+{
+  "name": "api",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "packages/api/src",
+  "projectType": "application",
+  "targets": {
+    "populate:demo": {
+      "executor": "nx:run-commands",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "cwd": "./",
+        "commands": [
+          "ts-node -r tsconfig-paths/register --project=packages/api/tsconfig.app.json packages/api/src/database/demo-populate.ts --noInteraction"
+        ]
+      }
+    },
+    "build-migration-config": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/packages/migration",
+        "main": "packages/api/src/database/migrations.datasource.ts",
+        "tsConfig": "packages/api/tsconfig.app.json",
+        "webpackConfig": "packages/api/webpack.config.js"
+      }
+    },
+    "migrations:generate": {
+      "executor": "nx:run-commands",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "cwd": "packages/api",
+        "commands": [
+          "typeorm -d ../../dist/packages/migration/main.js migration:generate src/database/migrations/{args.name}"
+        ]
+      },
+      "dependsOn": ["build-migration-config"]
+    },
+    "schema:drop": {
+      "executor": "nx:run-commands",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "cwd": "packages/api",
+        "commands": ["typeorm -d ../../dist/packages/migration/main.js schema:drop"]
+      },
+      "dependsOn": ["build-migration-config"]
+    },
+    "migrations:revert": {
+      "executor": "nx:run-commands",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "cwd": "packages/api",
+        "commands": ["typeorm -d ../../dist/packages/migration/main.js migration:revert"]
+      },
+      "dependsOn": ["build-migration-config"]
+    },
+    "migrations:run": {
+      "executor": "nx:run-commands",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "cwd": "packages/api",
+        "commands": ["typeorm -d ../../dist/packages/migration/main.js migration:run"]
+      },
+      "dependsOn": ["build-migration-config"]
+    },
+    "build": {
+      "executor": "@nx/webpack:webpack",
+      "outputs": ["{options.outputPath}"],
+      "defaultConfiguration": "production",
+      "options": {
+        "target": "node",
+        "compiler": "tsc",
+        "outputPath": "dist/packages/api",
+        "main": "packages/api/src/main.ts",
+        "tsConfig": "packages/api/tsconfig.app.json",
+        "tsPlugins": [
+          {
+            "name": "@nestjs/swagger/plugin",
+            "options": {
+              "dtoFileNameSuffix": [".entity.ts", ".dto.ts"],
+              "introspectComments": true
+            }
+          }
+        ],
+        "assets": ["packages/api/src/assets"],
+        "isolatedConfig": true,
+        "webpackConfig": "packages/api/webpack.config.js"
+      },
+      "configurations": {
+        "development": {},
+        "production": {
+          "fileReplacements": [
+            {
+              "replace": "packages/api/src/modes/dev.ts",
+              "with": "packages/api/src/modes/prod.ts"
+            }
+          ]
+        }
+      }
+    },
+    "serve": {
+      "executor": "@nx/js:node",
+      "defaultConfiguration": "development",
+      "options": {
+        "buildTarget": "api:build"
+      },
+      "configurations": {
+        "development": {
+          "buildTarget": "api:build:development"
+        },
+        "production": {
+          "buildTarget": "api:build:production"
+        }
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "outputs": ["{options.outputFile}"]
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "packages/api/jest.config.ts"
+      }
+    }
+  },
+  "tags": []
+}
