@@ -5,16 +5,16 @@ export class AddIntegrationProviderToOwnership1744919046622 implements Migration
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM "typeorm_metadata" WHERE [type] = @p0 AND [name] = @p1 AND "schema" = @p2`,
+      `DELETE FROM "typeorm_metadata" WHERE [type] = $1 AND [name] = $2 AND "schema" = $3`,
       ['VIEW', 'ownership_view', 'dbo']
     );
     await queryRunner.query(`DROP VIEW "ownership_view"`);
     await queryRunner.query(`ALTER TABLE [ownership] ADD [integrationProviderId] integer`);
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT "UQ_15254869519459309bbe96ee64e" UNIQUE ([teamId], [integrationProviderId])`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_15254869519459309bbe96ee64e] UNIQUE ([teamId], [integrationProviderId])`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT "FK_a40bf59df64995289bf17b4ed3e" FOREIGN KEY ([integrationProviderId]) REFERENCES "integration_provider"([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_a40bf59df64995289bf17b4ed3e] FOREIGN KEY ([integrationProviderId]) REFERENCES "integration_provider"([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
     await queryRunner.query(`CREATE VIEW "ownership_view" AS SELECT ownership.[id],
 ownership.[teamId],
@@ -42,7 +42,7 @@ FROM ownership
   LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id
             OR edfi_tenant.[sbEnvironmentId] = sb_environment.id`);
     await queryRunner.query(
-      `INSERT INTO "typeorm_metadata"("database", "schema", "table", [type], [name], "value") VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], "value") VALUES ($1, $2, $3,$4)`,
       [
         'dbo',
         'VIEW',
@@ -54,15 +54,15 @@ FROM ownership
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM "typeorm_metadata" WHERE [type] = @p0 AND [name] = @p1 AND "schema" = @p2`,
+      `DELETE FROM "typeorm_metadata" WHERE [type] = $1 AND [name] = $2 AND "schema" = $3`,
       ['VIEW', 'ownership_view', 'dbo']
     );
     await queryRunner.query(`DROP VIEW "ownership_view"`);
     await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT "FK_a40bf59df64995289bf17b4ed3e"`
+      `ALTER TABLE [ownership] DROP CONSTRAINT [FK_a40bf59df64995289bf17b4ed3e]`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT "UQ_15254869519459309bbe96ee64e"`
+      `ALTER TABLE [ownership] DROP CONSTRAINT [UQ_15254869519459309bbe96ee64e]`
     );
     await queryRunner.query(`ALTER TABLE [ownership] DROP COLUMN [integrationProviderId]`);
     await queryRunner.query(`CREATE VIEW "ownership_view" AS SELECT ownership.[id],
@@ -87,7 +87,7 @@ FROM ownership
   LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or
                               edfi_tenant.[sbEnvironmentId] = sb_environment.id`);
     await queryRunner.query(
-      `INSERT INTO "typeorm_metadata"("database", "schema", "table", [type], [name], "value") VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], "value") VALUES ($1, $2, $3,$4)`,
       [
         'dbo',
         'VIEW',

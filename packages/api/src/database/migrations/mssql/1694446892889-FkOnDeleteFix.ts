@@ -5,7 +5,7 @@ export class FkOnDeleteFix1694446892889 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT FK_b09a0d360c3eeb7a25a598f04e4"`
+      `ALTER TABLE [ownership] DROP CONSTRAINT [FK_b09a0d360c3eeb7a25a598f04e4]`
     );
     await queryRunner.query(
       `ALTER TABLE [ownership] ADD CONSTRAINT [FK_b09a0d360c3eeb7a25a598f04e4] FOREIGN KEY ([roleId]) REFERENCES [role]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`

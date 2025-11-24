@@ -13,7 +13,8 @@ export class Seeding1697203599392 implements MigrationInterface {
     if (Number(rolesCount[0].r_count) === 0) {
       Logger.verbose('Seeding roles');
       await queryRunner.query(
-        `INSERT INTO [role] ([id], [name], [description], [type]) VALUES
+        `SET IDENTITY_INSERT [role] ON;
+        INSERT INTO [role] ([id], [name], [description], [type]) VALUES
         (1, 'Tenant user global role', 'Standard tenant user', '"UserGlobal"'),
         (2, 'Global admin', 'Global admin', '"UserGlobal"'),
         (3, 'Global viewer', 'Global viewer', '"UserGlobal"'),
@@ -21,9 +22,9 @@ export class Seeding1697203599392 implements MigrationInterface {
         (5, 'Full ownership', 'Full ownership', '"ResourceOwnership"'),
         (6, 'Tenant admin', 'Tenant admin', '"UserTenant"'),
         (7, 'Tenant viewer', 'Tenant viewer', '"UserTenant"'),
-        (8, 'Standard tenant access', 'Tenant user', '"UserTenant"')`
+        (8, 'Standard tenant access', 'Tenant user', '"UserTenant"');
+        SET IDENTITY_INSERT [role] OFF;`
       );
-      await queryRunner.query(`SELECT setval('"role_id_seq"', 8)`);
       const allPrivileges = (await queryRunner.query('SELECT * FROM [privilege]')).map(
         (p) => p.code
       );
@@ -70,7 +71,7 @@ export class Seeding1697203599392 implements MigrationInterface {
         const oidc = config.SAMPLE_OIDC_CONFIG;
         await queryRunner.query(
           `INSERT INTO [oidc]
-        ("issuer", [clientId], [clientSecret], "scope") values
+        ("issuer", [clientId], [clientSecret], [scope]) values
         ('${oidc.issuer}', '${oidc.clientId}', '${oidc.clientSecret}', '${oidc.scope}')`
         );
       } else {
@@ -85,8 +86,8 @@ export class Seeding1697203599392 implements MigrationInterface {
       if (config.ADMIN_USERNAME) {
         Logger.verbose('Seeding initial user');
         await queryRunner.query(
-          `INSERT INTO [user] ([username], [roleId], "isActive") VALUES
-        ('${config.ADMIN_USERNAME}', 2, true)`
+          `INSERT INTO [user] ([username], [roleId], [isActive]) VALUES
+        ('${config.ADMIN_USERNAME}', 2, 1)`
         );
       } else {
         Logger.warn(

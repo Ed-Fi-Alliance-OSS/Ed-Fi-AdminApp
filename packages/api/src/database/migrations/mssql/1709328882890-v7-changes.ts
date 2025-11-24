@@ -98,11 +98,11 @@ export class V7Changes1709328882890 implements MigrationInterface {
     );
 
     await queryRunner.query(
-      `ALTER TABLE [user_team_membership] ADD CONSTRAINT [FK_2454184e9011e28172f06d0d639] FOREIGN KEY ([createdById]) REFERENCES [user]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [user_team_membership] ADD CONSTRAINT [FK_2454184e9011e28172f06d0d639] FOREIGN KEY ([createdById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
 
     await queryRunner.query(
-      `ALTER TABLE [user_team_membership] ADD CONSTRAINT [FK_978dfce88e15d0e7461b7350b1e] FOREIGN KEY ([modifiedById]) REFERENCES [user]([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [user_team_membership] ADD CONSTRAINT [FK_978dfce88e15d0e7461b7350b1e] FOREIGN KEY ([modifiedById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
 
     await queryRunner.query(
@@ -117,19 +117,22 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `ALTER TABLE [user_team_membership] ADD CONSTRAINT [FK_ac0aaa143bbf1ee8725a6b1593e] FOREIGN KEY ([roleId]) REFERENCES [role]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
 
-    await queryRunner.query(
-      `ALTER TABLE [role] ADD CONSTRAINT [FK_997dd31f342ad1e67a8dc9a24d1] FOREIGN KEY ([teamId]) REFERENCES [team]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
-    );
+    // Why would role depend on team? There might be something important here.
+    // await queryRunner.query(
+    //   `ALTER TABLE [role] ADD CONSTRAINT [FK_997dd31f342ad1e67a8dc9a24d1] FOREIGN KEY ([teamId]) REFERENCES [team]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
 
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_9ed3cde4307ca1cf1275e297152] FOREIGN KEY ("teamId") REFERENCES "team"([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_9ed3cde4307ca1cf1275e297152] FOREIGN KEY ([teamId]) REFERENCES [team]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
     // rename sbe
     await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_829131f86e2d025918e2dee5a40]`);
     await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_4f7237384382e4796332a25ea48]`);
-    await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT [FK_dcde9ae7d31fa30b2623697ff28]`
-    );
+
+    // This constraint no longer exists
+    // await queryRunner.query(
+    //   `ALTER TABLE [ownership] DROP CONSTRAINT [FK_dcde9ae7d31fa30b2623697ff28]`
+    // );
     await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [UQ_07c5479767d3c27eb0150fee1d9]`);
     await queryRunner.query(
       `ALTER TABLE [ownership] DROP CONSTRAINT [UQ_6963c608cdaa6f203b20eb938ed]`
@@ -145,17 +148,21 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `ALTER TABLE [edorg] ADD CONSTRAINT [UQ_33c75697e30842d2559e910ffef] UNIQUE ([edfiTenantId], [odsId], [educationOrganizationId])`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_0796c30d643a13b0a5489e1f7c3] UNIQUE ("teamId", [edfiTenantId])`
+      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_0796c30d643a13b0a5489e1f7c3] UNIQUE ([teamId], [edfiTenantId])`
     );
     await queryRunner.query(
       `ALTER TABLE [ods] ADD CONSTRAINT [FK_21f00024e194f67e9f51575f750] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
-    await queryRunner.query(
-      `ALTER TABLE [edorg] ADD CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
-    );
-    await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
-    );
+
+    // edorg already depends on ods, therefore the following cascade is unnecessary. And MSSQL does not allow it anyway.
+    // await queryRunner.query(
+    //   `ALTER TABLE [edorg] ADD CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
+
+    // Not sure what the problem is here. Need to evaluate the table structure
+    // await queryRunner.query(
+    //   `ALTER TABLE [ownership] ADD CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
 
     await queryRunner.query(
       `UPDATE [role] SET [privilegeIds] = REPLACE([privilegeIds], 'sbe', 'edfi-tenant')`
@@ -168,30 +175,33 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `ALTER TABLE [edfi_tenant] DROP CONSTRAINT [FK_ce4b1775b7e60418caa2df331a2]`
     );
     await queryRunner.query(
-      `CREATE TABLE [sb_environment] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT now(), [modified] datetime2 NOT NULL DEFAULT now(), [createdById] integer, [modifiedById] integer, [envLabel] nvarchar(max), [name] nvarchar(max) NOT NULL, [configPublic] nvarchar(max), [configPrivate] nvarchar(max), CONSTRAINT [PK_9f51231184c890eb1d5b9d01758] PRIMARY KEY ([id]))`
+      `CREATE TABLE [sb_environment] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [createdById] integer, [modifiedById] integer, [envLabel] nvarchar(max), [name] nvarchar(max) NOT NULL, [configPublic] nvarchar(max), [configPrivate] nvarchar(max), CONSTRAINT [PK_9f51231184c890eb1d5b9d01758] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
-      `INSERT INTO [sb_environment] (
+      `SET IDENTITY_INSERT [sb_environment] ON;
+      INSERT INTO [sb_environment] (
         [id], [name], [created], [modified], [createdById], [modifiedById], [envLabel], [configPublic], [configPrivate]
         ) SELECT
-        [id], [name], [created], [modified], [createdById], [modifiedById], [envLabel], [configPublic], [configPrivate] FROM [edfi_tenant]`
+        [id], [name], [created], [modified], [createdById], [modifiedById], [envLabel], [configPublic], [configPrivate] FROM [edfi_tenant];
+        SET IDENTITY_INSERT [sb_environment] OFF;`
     );
-    await queryRunner.query(`ALTER TABLE [edfi_tenant] ADD [sbEnvironmentId] integer`);
+    await queryRunner.query(`ALTER TABLE [edfi_tenant] ADD [sbEnvironmentId] INT NULL`);
     await queryRunner.query(`UPDATE [edfi_tenant] SET [sbEnvironmentId] = [id]`);
     await queryRunner.query(
-      `ALTER TABLE [edfi_tenant] ALTER COLUMN [sbEnvironmentId] SET NOT NULL`
+      `ALTER TABLE [edfi_tenant] ALTER COLUMN [sbEnvironmentId] INT NOT NULL`
     );
     await queryRunner.query(`UPDATE [edfi_tenant] SET [name] = 'default'`);
     await queryRunner.query(`ALTER TABLE [edfi_tenant] DROP COLUMN [envLabel]`);
     await queryRunner.query(`ALTER TABLE [edfi_tenant] DROP COLUMN [configPrivate]`);
     await queryRunner.query(`ALTER TABLE [edfi_tenant] DROP COLUMN [configPublic]`);
     await queryRunner.query(`ALTER TABLE [ownership] ADD [sbEnvironmentId] integer`);
-    await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9]`);
-    await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d]`
-    );
+    // These constraints no longer exists
+    // await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9]`);
+    // await queryRunner.query(
+    //   `ALTER TABLE [ownership] DROP CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d]`
+    // );
     await queryRunner.query(`ALTER TABLE [ods] DROP CONSTRAINT [FK_21f00024e194f67e9f51575f750]`);
-    await queryRunner.query(`EXEC sp_updateextendedproperty
+    await queryRunner.query(`EXEC sp_addextendedproperty
 @name = N'MS_Description', @value = 'The name used in the tenant management database in StartingBlocks',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edfi_tenant',
@@ -201,28 +211,29 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `ALTER TABLE [ods] ADD CONSTRAINT [FK_21f00024e194f67e9f51575f750] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
     await queryRunner.query(
-      `ALTER TABLE [edfi_tenant] ADD CONSTRAINT [FK_77c6bec8378354712fac1f4ed9e] FOREIGN KEY ([createdById]) REFERENCES "user"([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [edfi_tenant] ADD CONSTRAINT [FK_77c6bec8378354712fac1f4ed9e] FOREIGN KEY ([createdById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
     await queryRunner.query(
-      `ALTER TABLE [edfi_tenant] ADD CONSTRAINT [FK_e1ebbdef1ca79a15f84673c8c04] FOREIGN KEY ([modifiedById]) REFERENCES "user"([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [edfi_tenant] ADD CONSTRAINT [FK_e1ebbdef1ca79a15f84673c8c04] FOREIGN KEY ([modifiedById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
     await queryRunner.query(
       `ALTER TABLE [edfi_tenant] ADD CONSTRAINT [FK_becbb52581423083ffcf053733a] FOREIGN KEY ([sbEnvironmentId]) REFERENCES [sb_environment]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
+    // Bad constraints
+    // await queryRunner.query(
+    //   `ALTER TABLE [edorg] ADD CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
+    // await queryRunner.query(
+    //   `ALTER TABLE [ownership] ADD CONSTRAINT [FK_fe36fa53d8f494740a5af704430] FOREIGN KEY ([sbEnvironmentId]) REFERENCES [sb_environment]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
+    // await queryRunner.query(
+    //   `ALTER TABLE [ownership] ADD CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+    // );
     await queryRunner.query(
-      `ALTER TABLE [edorg] ADD CONSTRAINT [FK_bce5c212f9dd8360f0bf8168ac9] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
+      `ALTER TABLE [sb_environment] ADD CONSTRAINT [FK_9689609f9a1151c15e0fd46044e] FOREIGN KEY ([createdById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_fe36fa53d8f494740a5af704430] FOREIGN KEY ([sbEnvironmentId]) REFERENCES [sb_environment]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
-    );
-    await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [FK_ce537e2505b0775277cf7e4a83d] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
-    );
-    await queryRunner.query(
-      `ALTER TABLE [sb_environment] ADD CONSTRAINT [FK_9689609f9a1151c15e0fd46044e] FOREIGN KEY ([createdById]) REFERENCES "user"([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
-    );
-    await queryRunner.query(
-      `ALTER TABLE [sb_environment] ADD CONSTRAINT [FK_d31c6bd5a79862649f2407ff3ac] FOREIGN KEY ([modifiedById]) REFERENCES "user"([id]) ON DELETE SET NULL ON UPDATE NO ACTION`
+      `ALTER TABLE [sb_environment] ADD CONSTRAINT [FK_d31c6bd5a79862649f2407ff3ac] FOREIGN KEY ([modifiedById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
     );
     // migrate privileges
     await queryRunner.query(
@@ -263,8 +274,8 @@ export class V7Changes1709328882890 implements MigrationInterface {
     `);
 
     // denormalize sbEnvironmentId
-    await queryRunner.query(`ALTER TABLE [ods] ADD [sbEnvironmentId] integer`);
-    await queryRunner.query(`ALTER TABLE [edorg] ADD [sbEnvironmentId] integer`);
+    await queryRunner.query(`ALTER TABLE [ods] ADD [sbEnvironmentId] INT NULL`);
+    await queryRunner.query(`ALTER TABLE [edorg] ADD [sbEnvironmentId] INT NULL`);
 
     await queryRunner.query(
       `UPDATE [ods] SET [sbEnvironmentId] = [edfi_tenant].[sbEnvironmentId] FROM [edfi_tenant] WHERE [ods].[edfiTenantId] = [edfi_tenant].[id]`
@@ -273,18 +284,18 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `UPDATE [edorg] SET [sbEnvironmentId] = [edfi_tenant].[sbEnvironmentId] FROM [edfi_tenant] WHERE [edorg].[edfiTenantId] = [edfi_tenant].[id]`
     );
 
-    await queryRunner.query(`ALTER TABLE [ods] ALTER COLUMN [sbEnvironmentId] SET NOT NULL`);
-    await queryRunner.query(`ALTER TABLE [edorg] ALTER COLUMN [sbEnvironmentId] SET NOT NULL`);
+    await queryRunner.query(`ALTER TABLE [ods] ALTER COLUMN [sbEnvironmentId] INT NOT NULL`);
+    await queryRunner.query(`ALTER TABLE [edorg] ALTER COLUMN [sbEnvironmentId] INT NOT NULL`);
 
-    await queryRunner.query(`ALTER TABLE [ods] ADD [odsInstanceId] integer`);
-    await queryRunner.query(`ALTER TABLE [edorg] ADD [odsInstanceId] integer`);
+    await queryRunner.query(`ALTER TABLE [ods] ADD [odsInstanceId] INT NULL`);
+    await queryRunner.query(`ALTER TABLE [edorg] ADD [odsInstanceId] INT NULL`);
     await queryRunner.query(`EXEC sp_updateextendedproperty
 @name = N'MS_Description', @value = 'The name used in the tenant management database in StartingBlocks, or "default" for v5/6 environments',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edfi_tenant',
 @level2type = N'Column', @level2name = 'name';`
     );
-    await queryRunner.query(`EXEC sp_updateextendedproperty
+    await queryRunner.query(`EXEC sp_addextendedproperty
 @name = N'MS_Description', @value = 'Pre-v7/v2, this reliably included the Ods name. In v7/v2 it is no longer alone sufficient as a natural key, and must be combined with an ODS identifier.',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edorg',

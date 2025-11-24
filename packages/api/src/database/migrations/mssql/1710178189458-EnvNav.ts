@@ -6,9 +6,9 @@ export class EnvNav1710178189458 implements MigrationInterface {
   public async up(queryRunner: QueryRunner): Promise<void> {
     // Note: pgboss materialized view skipped for MSSQL (PostgreSQL-only feature)
     // MSSQL doesn't support materialized views natively
-    
+
     // Create env_nav view with MSSQL syntax
-    await queryRunner.query(`CREATE VIEW [env_nav] AS 
+    await queryRunner.query(`CREATE VIEW [env_nav] AS
   select [name] [sbEnvironmentName], [id] [sbEnvironmentId], null [edfiTenantName], null [edfiTenantId]
 from sb_environment
 union
@@ -19,7 +19,7 @@ select sb_environment.[name],
 from sb_environment
          right join edfi_tenant on sb_environment.id = edfi_tenant.[sbEnvironmentId]`);
     await queryRunner.query(
-      `INSERT INTO [typeorm_metadata]([database], [schema], [table], [type], [name], [value]) VALUES (DEFAULT, @p0, DEFAULT, @p1, @p2, @p3)`,
+      `INSERT INTO [typeorm_metadata]([schema], [type], [name], [value]) VALUES ($1, $2, $3, $4)`,
       [
         'dbo',
         'VIEW',
@@ -31,7 +31,7 @@ from sb_environment
 
   public async down(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `DELETE FROM [typeorm_metadata] WHERE [type] = @p0 AND [name] = @p1 AND [schema] = @p2`,
+      `DELETE FROM [typeorm_metadata] WHERE [type] = $1 AND [name] = $2 AND [schema] = $3`,
       ['VIEW', 'env_nav', 'dbo']
     );
     await queryRunner.query(`DROP VIEW [env_nav]`);
