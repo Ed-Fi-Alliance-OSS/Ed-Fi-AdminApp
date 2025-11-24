@@ -5,8 +5,17 @@
 
 version: 2
 updates:
+  # Root package.json (Nx workspace)
   - package-ecosystem: npm
-    directory: packages/
+    directory: /
     target-branch: main
     schedule:
       interval: weekly
+    groups:
+      minor-patches:
+        applies-to: version-updates
+        patterns:
+          - '*'
+        update-types:
+          - 'minor'
+          - 'patch'
