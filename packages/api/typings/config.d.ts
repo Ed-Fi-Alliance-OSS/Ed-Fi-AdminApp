@@ -1,3 +1,5 @@
+import { LogLevel } from '@nestjs/common';
+
 declare module 'config' {
   export interface IDbSecret {
     DB_HOST: string;
@@ -78,6 +80,8 @@ declare module 'config' {
     RATE_LIMIT_LIMIT: number; // The maximum number of requests within the ttl
 
     USE_PKCE: boolean;
+
+    LOG_LEVEL: LogLevel;
   }
 
   const config: IConfig;

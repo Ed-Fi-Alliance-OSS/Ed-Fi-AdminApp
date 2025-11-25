@@ -1,11 +1,11 @@
 import './modes/dev';
 
-process.env['NODE_CONFIG_DIR'] = './packages/api/config';
+process.env['NODE_CONFIG_DIR'] = process.env['NODE_CONFIG_DIR'] || './packages/api/config';
 
 import './utils/checkEnv';
 
 import { formErrFromValidator } from '@edanalytics/utils';
-import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, LogLevel, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import colors from 'colors/safe';
@@ -82,15 +82,15 @@ async function checkDatabaseAvailability(): Promise<void> {
     // Handle AggregateError during startup
     const errorAnalysis = AggregateErrorHandler.handle(error);
 
-    Logger.error('Database is not available - API startup aborted');
-    Logger.error(`Database connection error: ${errorAnalysis.safeMessage}`);
+    Logger.error(errorAnalysis.safeMessage);
+    Logger.debug(`Detailed error: ${error}`);
 
     if (AggregateErrorHandler.isAggregateError(error)) {
       const allMessages = AggregateErrorHandler.extractAllMessages(error);
       Logger.error(`Individual AggregateError messages: ${allMessages.join(', ')}`);
     }
 
-    Logger.error('Please ensure the database service is running and accessible');
+    Logger.error('Database is not available - API startup aborted');
     process.exit(1); // Exit with error code
   }
 }
@@ -102,7 +102,7 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
 
       const mssqlConfig = await createMssqlConfig();
 
-      const pool = await createMssqlConnection();
+      const pool = await createMssqlConnection(mssqlConfig);
       try {
         await pool.query(`IF (OBJECT_ID('${table}') IS NOT NULL) CREATE TABLE ${table};`);
       } finally {
@@ -139,11 +139,31 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
   }
 }
 
+function getLogLevel() : LogLevel[] {
+  switch (config.LOG_LEVEL) {
+    case 'verbose':
+      return ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
+    case 'debug':
+      return ['debug', 'log', 'warn', 'error', 'fatal'];
+    case 'log':
+      return ['log', 'warn', 'error', 'fatal'];
+    case 'warn':
+      return ['warn', 'error', 'fatal'];
+    case 'error':
+      return ['error', 'fatal'];
+    case 'fatal':
+      return ['fatal'];
+    default:
+      return ['log', 'warn', 'error', 'fatal'];
+  }
+}
+
 async function bootstrap() {
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: getLogLevel()});
+
   // Check database availability first - exit if not available
   await checkDatabaseAvailability();
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Optimize response headers for security
   app.disable('x-powered-by');
@@ -157,7 +177,7 @@ async function bootstrap() {
   await config.DB_ENCRYPTION_SECRET;
 
   const connectionStr = await config.DB_CONNECTION_STRING;
-  const engine = (config as any).DB_ENGINE || 'pgsql';
+  const engine = config.DB_ENGINE || 'pgsql';
 
   const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
