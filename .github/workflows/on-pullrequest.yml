@@ -154,4 +154,4 @@ jobs:
           failure-threshold: error
 
       - name: Docker Build
-        run: docker build -t adminapp-${{ matrix.package }}-ci -f packages/${{ matrix.package }}/Dockerfile packages/${{ matrix.package }}
+        run: docker build -t adminapp-${{ matrix.package }}-ci -f packages/${{ matrix.package }}/Dockerfile .
