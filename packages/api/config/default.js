@@ -77,8 +77,6 @@ module.exports = {
         r(makePgsqlConnectionString(port, dbname, username, password, host, ssl, engine));
       });
     } else {
-      console.log('>>>> DB ENGINE: ', engine);
-
       // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
       if (engine === 'mssql') {
         const {
@@ -147,12 +145,15 @@ module.exports = {
   OPENAPI_TITLE: 'Starting Blocks Admin App',
   OPENAPI_DESCRIPTION: 'OpenAPI spec for the EA Starting Blocks admin application.',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
-  
+
   // The time to live in milliseconds
-  RATE_LIMIT_TTL: 60000, 
+  RATE_LIMIT_TTL: 60000,
 
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 100,
-  
+
   USE_PKCE: true,
+
+  // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
+  LOG_LEVEL: 'log'
 };
