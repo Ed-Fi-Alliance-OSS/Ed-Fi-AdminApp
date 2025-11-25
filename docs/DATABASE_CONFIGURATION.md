@@ -16,12 +16,14 @@ Set the `DB_ENGINE` configuration variable to choose your database:
 The application automatically formats connection strings based on the selected database engine:
 
 #### PostgreSQL
-```
+
+```none
 postgres://username@host:port/database?password=password&sslmode=require
 ```
 
 #### MSSQL
-```
+
+```none
 mssql://username:password@host:port/database?encrypt=true
 ```
 
@@ -71,15 +73,15 @@ When adding new migrations, you may need to create versions for both database ty
 
 #### PostgreSQL → MSSQL Conversion Examples
 
-| PostgreSQL | MSSQL |
-|------------|-------|
-| `SERIAL` | `int IDENTITY(1,1)` |
-| `TIMESTAMP` | `datetime2` |
-| `character varying` | `nvarchar(255)` |
-| `text` | `ntext` |
-| `jsonb` | `nvarchar(MAX)` |
-| `boolean` | `bit` |
-| `now()` | `getdate()` |
+| PostgreSQL          | MSSQL               |
+| ------------------- | ------------------- |
+| `SERIAL`            | `int IDENTITY(1,1)` |
+| `TIMESTAMP`         | `datetime2`         |
+| `character varying` | `nvarchar(255)`     |
+| `text`              | `ntext`             |
+| `jsonb`             | `nvarchar(MAX)`     |
+| `boolean`           | `bit`               |
+| `now()`             | `getdate()`         |
 
 ### Running Migrations
 
@@ -135,3 +137,27 @@ Sessions are automatically configured based on the selected database engine.
 1. Verify the session table/schema exists and is accessible
 2. Check database user permissions for session storage
 3. Review session store configuration in application logs
+
+## ERD
+
+The following diagram does not include foreign keys back to the `user` table for `createdById` and `lastModifiedById`, which would make the diagram difficult to read. Note the many cycles, which cause problems for foreign key creation in MSSQL.
+
+```mermaid
+erDiagram
+    user }|--|| role : ""
+    ownership }|--|| edorg : ""
+    ownership }|--|| ods : ""
+    ownership }|--|| role : ""
+    ownership }|--|| team : ""
+    ownership }|--|| integration_provider : ""
+    edorg ||--|{ edorg : "has child"
+    edorg }|--|| ods : ""
+    ods }|--|| edfi_tenant : ""
+    user_team_membership }|--|| team : ""
+    user_team_membership }|--|| role : ""
+    edfi_tenant }|--|| sb_environment : ""
+    integration_app }|--|| edfi_tenant : ""
+    integration_app }|--|| integration_provider : ""
+    integration_app }|--|| ods : ""
+    integration_app }|--|| sb_environment : ""
+```
