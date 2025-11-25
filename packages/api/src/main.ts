@@ -43,12 +43,18 @@ async function createMssqlConfig(): Promise<sql.config> {
       encrypt: config.DB_SSL,
       trustServerCertificate: config.DB_TRUST_CERTIFICATE,
     },
-    connectionTimeout: FIVE_SECONDS_IN_SECONDS, // this might be to aggressive
+    connectionTimeout: FIVE_SECONDS_IN_MILLISECONDS, // this might be to aggressive
   };
 }
 
 async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.ConnectionPool> {
   mssqlConfig = mssqlConfig || (await createMssqlConfig());
+
+  const secureCopy = {
+    ...mssqlConfig,
+    password: '***'
+  };
+  Logger.debug(`MSSQL connection parameters: ${JSON.stringify(secureCopy)}`);
   const pool = new sql.ConnectionPool(mssqlConfig);
   return await pool.connect();
 }
@@ -104,7 +110,14 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
 
       const pool = await createMssqlConnection(mssqlConfig);
       try {
-        await pool.query(`IF (OBJECT_ID('${table}') IS NOT NULL) CREATE TABLE ${table};`);
+        await pool.query(`IF (SELECT OBJECT_ID('${table}')) IS NULL
+BEGIN
+    CREATE TABLE [dbo].[${table}](
+        [sid] [nvarchar](255) NOT NULL PRIMARY KEY,
+        [session] [nvarchar](max) NOT NULL,
+        [expires] [datetime] NOT NULL
+    );
+END`);
       } finally {
         await pool.close();
       }
@@ -119,7 +132,7 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
       const pgClient = new Client({ connectionString: connectionStr });
       await pgClient.connect();
       const existingSchema = await pgClient.query(
-        "select schema_name from information_schema.schemata where schema_name = 'appsession'"
+        `select schema_name from information_schema.schemata where schema_name = 'appsession'`
       );
       if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
       await pgClient.end();
