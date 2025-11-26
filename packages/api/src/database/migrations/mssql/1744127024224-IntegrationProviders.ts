@@ -5,7 +5,7 @@ export class IntegrationProviders1744127024224 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE [integration_provider] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [createdById] integer, [modifiedById] integer, [name] nvarchar NOT NULL, [description] NVARCHAR NOT NULL, CONSTRAINT [PK_da855fe9095d6c59ea7072408a0] PRIMARY KEY ([id]))`
+      `CREATE TABLE [integration_provider] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [createdById] integer, [modifiedById] integer, [name] nvarchar(100) NOT NULL, [description] NVARCHAR(255) NOT NULL, CONSTRAINT [PK_da855fe9095d6c59ea7072408a0] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
       `CREATE UNIQUE INDEX [IDX_0f80b4b1ae8514fb0874197f5d] ON [integration_provider] ([name]) `
