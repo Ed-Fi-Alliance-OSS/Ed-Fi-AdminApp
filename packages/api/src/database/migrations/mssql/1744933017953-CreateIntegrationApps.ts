@@ -5,7 +5,7 @@ export class CreateIntegrationApps1744933017953 implements MigrationInterface {
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     await queryRunner.query(
-      `CREATE TABLE [integration_app] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [createdById] integer, [modifiedById] integer, [applicationId] integer NOT NULL, [applicationName] NVARCHAR NOT NULL, [edfiTenantId] integer NOT NULL, [edorgIds] varchar NOT NULL DEFAULT '[]', [integrationProviderId] integer NOT NULL, [odsId] integer NOT NULL, [sbEnvironmentId] integer NOT NULL, CONSTRAINT [PK_e1de4484e14a51defadd1098ead] PRIMARY KEY ([id]))`
+      `CREATE TABLE [integration_app] ([id] INT IDENTITY(1,1) NOT NULL, [created] datetime2 NOT NULL DEFAULT getdate(), [modified] datetime2 NOT NULL DEFAULT getdate(), [createdById] integer, [modifiedById] integer, [applicationId] integer NOT NULL, [applicationName] NVARCHAR(100) NOT NULL, [edfiTenantId] integer NOT NULL, [edorgIds] varchar NOT NULL DEFAULT '[]', [integrationProviderId] integer NOT NULL, [odsId] integer NOT NULL, [sbEnvironmentId] integer NOT NULL, CONSTRAINT [PK_e1de4484e14a51defadd1098ead] PRIMARY KEY ([id]))`
     );
     await queryRunner.query(
       `ALTER TABLE [integration_app] ADD CONSTRAINT [FK_399b9dc9729e57736004ce43f18] FOREIGN KEY ([createdById]) REFERENCES [user]([id]) ON DELETE NO ACTION ON UPDATE NO ACTION`
