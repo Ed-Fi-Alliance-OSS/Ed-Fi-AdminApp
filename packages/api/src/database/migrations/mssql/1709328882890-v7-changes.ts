@@ -381,7 +381,15 @@ export class V7Changes1709328882890 implements MigrationInterface {
 
     // Here the Postgresql created a materialized view "sb_sync_queue". This
     // will need to be created in the future, as we're not ready to support an
-    // MSSQL equivalent to pgboss
+    // MSSQL equivalent to pgboss. For now, just create an object that returns
+    // nothing, so that the application will not trigger errors when trying to
+    // query the view.
+    await queryRunner.query(
+      `CREATE VIEW [sb_sync_queue] AS
+      SELECT 1 as [id], '1' as [type], '1' as [name], 1 as [sbEnvironmentId], 1 as [edfiTenantId], '' as [dataText], '' as [data], '' as [state], '1900-01-01 00:00:00' as [createdon], '1900-01-02 00:00:00' as [completedon], '' as output, 0 as hasChanges
+      FROM sys.views
+      WHERE 1=0
+    )
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
