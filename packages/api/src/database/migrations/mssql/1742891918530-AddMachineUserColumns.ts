@@ -10,8 +10,8 @@ export class AddMachineUserColumns1742186909224 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE [user] ADD CONSTRAINT [CHK_user_userType] CHECK ([userType] IN ('human', 'machine'))`
     );
-    await queryRunner.query(`ALTER TABLE [user] ADD [clientId] NVARCHAR`);
-    await queryRunner.query(`ALTER TABLE [user] ADD [description] NVARCHAR`);
+    await queryRunner.query(`ALTER TABLE [user] ADD [clientId] NVARCHAR(255) NULL`);
+    await queryRunner.query(`ALTER TABLE [user] ADD [description] NVARCHAR(255) NULL`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
