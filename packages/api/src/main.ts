@@ -26,7 +26,6 @@ import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import axios from 'axios';
 import https from 'https';
 
-const FIVE_SECONDS_IN_SECONDS = 5;
 const FIVE_SECONDS_IN_MILLISECONDS = 5000;
 const TWO_HOURS_IN_SECONDS = 60 * 60 * 2;
 
