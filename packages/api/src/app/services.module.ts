@@ -7,6 +7,7 @@ import { UsersGlobalService } from '../users-global/users-global.service';
 import {
   EdfiTenant,
   Edorg,
+  EdOrgClosure,
   EnvNav,
   IntegrationApp,
   IntegrationAppDetailed,
@@ -54,6 +55,7 @@ const imports = [
   TypeOrmModule.forFeature([
     EdfiTenant,
     Edorg,
+    EdOrgClosure,
     EnvNav,
     IntegrationApp,
     IntegrationAppDetailed,

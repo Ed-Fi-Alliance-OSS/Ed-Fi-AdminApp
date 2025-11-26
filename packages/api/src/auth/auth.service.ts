@@ -1,6 +1,7 @@
 import { ITeamCache, PrivilegeCode, upwardInheritancePrivileges } from '@edanalytics/models';
 import {
   Edorg,
+  EdOrgClosure,
   Ods,
   Ownership,
   EdfiTenant,
@@ -35,6 +36,8 @@ export class AuthService {
     private edfiTenantsRepository: Repository<EdfiTenant>,
     @InjectRepository(Edorg)
     private edorgsRepository: Repository<Edorg>,
+    @InjectRepository(EdOrgClosure)
+    private edorgClosureRepository: Repository<EdOrgClosure>,
     @InjectRepository(Ownership)
     private ownershipsRepository: Repository<Ownership>,
     @InjectRepository(User)
@@ -237,7 +240,6 @@ export class AuthService {
      */
     const integrationProviderPrivileges = new Map<number, Set<PrivilegeCode>>();
 
-    // console.log('ownerships', ownerships);
     ownerships
       .filter((o) => o.role?.privilegeIds.length)
       .forEach((o) => {
@@ -304,35 +306,35 @@ export class AuthService {
     resources we encounter.
 
     */
-
     const allEdfiTenantIds = [...allEdfiTenants.keys()];
+
     const [allEdorgsRaw, allOdssRaw, allEdfiTenantsRaw] = await Promise.all([
       this.edorgsRepository
         .createQueryBuilder('edorg')
         .leftJoin(
           'edorg_closure',
           'descendants',
-          'descendants.id_ancestor = ANY (:edorgs) AND descendants.id_descendant = edorg.id',
+          'descendants.id_ancestor IN (:edorgs) AND descendants.id_descendant = edorg.id',
           {
-            edorgs: [...edorgPrivileges.keys()],
+            edorgs: [...edorgPrivileges.keys()].join(','),
           }
         )
         .leftJoin(
           'edorg_closure',
           'ancestors',
-          'ancestors.id_descendant = ANY (:edorgs) AND ancestors.id_ancestor = edorg.id',
+          'ancestors.id_descendant IN (:edorgs) AND ancestors.id_ancestor = edorg.id',
           {
-            edorgs: [...edorgPrivileges.keys()],
+            edorgs: [...edorgPrivileges.keys()].join(','),
           }
         )
         .where(
           `descendants.id_ancestor IS NOT NULL OR
            ancestors.id_descendant IS NOT NULL OR
-           --edorg.edfiTenantId = ANY (:edfiTenants) OR
-           edorg.odsId = ANY (:odss)`,
+           --edorg.edfiTenantId IN (:edfiTenants) OR
+           edorg.odsId IN (:odss)`,
           {
             // edfiTenants: allEdfiTenantIds, // TODO it may be easy enough to remove this because edfiTenant privileges are just a blanket `true` anyway.
-            odss: ownedOdss.map((o) => o.ods.id),
+            odss: ownedOdss.map((o) => o.ods.id).join(','),
           }
         )
         .getMany(),
@@ -461,10 +463,16 @@ export class AuthService {
     const edorgPrivilegesEntries = [...edorgPrivileges.entries()];
 
     const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId]) => edorgId));
-    const edorgClosureRaw = await this.entityManager.query(
-      'SELECT "id_ancestor", "id_descendant" from "edorg_closure" WHERE "id_ancestor" <> "id_descendant" and ("id_ancestor" = ANY ($1) OR "id_descendant" = ANY ($1))',
-      [[...edorgIds.values()]]
-    );
+
+    const edOrgIdList = [[...edorgIds.values()]].join(',');
+    const edorgClosureRaw = await this.edorgClosureRepository
+      .createQueryBuilder('edorg_closure')
+      .where('"id_ancestor" <> "id_descendant"')
+      .andWhere('("id_ancestor" IN (:ancestors) OR "id_descendant" IN (:descendants))', {
+        ancestors: edOrgIdList,
+        descendants: edOrgIdList,
+      })
+      .getMany();
 
     const parentEdorgIds = new Set<number>();
     const ancestorMap = new Map<number, Set<Edorg>>();
@@ -591,7 +599,7 @@ export class AuthService {
     if (existingValue || evenIfInactive) {
       this.clearTeamOwnershipCache(teamId);
       const newCache = this.constructTeamOwnerships(teamId);
-      this.cacheManager.set(String(teamId), newCache, 30); //10 * 60 /* seconds */);
+      this.cacheManager.set(String(teamId), newCache, 30 /* seconds */);
       return await newCache;
     } else {
       return null;
@@ -605,10 +613,13 @@ export class AuthService {
     } else {
       try {
         const newCache = this.constructTeamOwnerships(teamId);
-        this.cacheManager.set(String(teamId), newCache, 30); //10 * 60 /* seconds */);
+        this.cacheManager.set(String(teamId), newCache, 30 /* seconds */);
         return await newCache;
       } catch (error) {
-        Logger.error(`Database error during team ownership cache construction for team ${teamId}:`, error);
+        Logger.error(
+          `Database error during team ownership cache construction for team ${teamId}:`,
+          error
+        );
         // Return null during database failures to indicate the operation failed
         // This will cause authentication to fail gracefully
         return null;
@@ -645,14 +656,13 @@ export class AuthService {
     }
 
     try {
-
       const AUTH0_CONFIG_SECRET = await config.AUTH0_CONFIG_SECRET;
       const verifyResult = await jose.jwtVerify(token, jwkResult.jwk, {
         // Core security validations
         issuer: AUTH0_CONFIG_SECRET.ISSUER,
         audience: AUTH0_CONFIG_SECRET.MACHINE_AUDIENCE,
         // Validate required claims exist
-        requiredClaims: ['iss', 'aud', 'exp', 'iat', 'sub']
+        requiredClaims: ['iss', 'aud', 'exp', 'iat', 'sub'],
       });
 
       return {
@@ -667,12 +677,16 @@ export class AuthService {
         errorMessage = 'Token has expired. Please obtain a new access token.';
       } else if (verifyError.code === 'ERR_JWT_CLAIM_VALIDATION_FAILED') {
         // This handles all claim validation failures (audience, issuer, subject, etc.)
-        errorMessage = 'Token claim validation failed. Please check token audience and issuer configuration.';
+        errorMessage =
+          'Token claim validation failed. Please check token audience and issuer configuration.';
       } else if (verifyError.code === 'ERR_JWS_SIGNATURE_VERIFICATION_FAILED') {
-        errorMessage = 'Token signature verification failed. Please check token source and signing configuration.';
+        errorMessage =
+          'Token signature verification failed. Please check token source and signing configuration.';
       } else {
         Logger.warn('Unknown verification error:', verifyError.code, verifyError.message);
-        errorMessage = `Token verification failed: ${verifyError.code || 'UNKNOWN_ERROR'}. Please check token format and configuration.`;
+        errorMessage = `Token verification failed: ${
+          verifyError.code || 'UNKNOWN_ERROR'
+        }. Please check token format and configuration.`;
       }
       return {
         status: 'failure' as const,
@@ -694,7 +708,8 @@ export class AuthService {
       }
 
       this._jwks = new Promise((resolve) => {
-          Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER).then((issuer) =>
+        Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER)
+          .then((issuer) =>
             fetch(issuer.metadata.jwks_uri).then((response) =>
               response.json().then(async (jwks) => {
                 const out: Record<string, CryptoKey | Uint8Array> = {};
@@ -705,8 +720,12 @@ export class AuthService {
                 resolve(out);
               })
             )
-          ).catch((error) => {
-            Logger.error(`Error fetching JWKS from ${AUTH0_CONFIG_SECRET.ISSUER}. Check the ISSUER configuration.`, error);
+          )
+          .catch((error) => {
+            Logger.error(
+              `Error fetching JWKS from ${AUTH0_CONFIG_SECRET.ISSUER}. Check the ISSUER configuration.`,
+              error
+            );
             resolve({});
           });
       });
