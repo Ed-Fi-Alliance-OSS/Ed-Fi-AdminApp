@@ -8,6 +8,8 @@ services:
   edfiadminapp-keycloak:
     image: quay.io/keycloak/keycloak:${KEYCLOAK_TAG:-26.1}
     container_name: edfiadminapp-keycloak
+    ports:
+      - '127.0.0.1:${KEYCLOAK_PORT_EXPOSED:-8080}:8080'
     volumes:
       - vol-edfiadminapp-keycloak:/opt/keycloak/data
       - ./adminapp/realm-config.json:/opt/keycloak/data/import/realm-config.json
@@ -23,13 +25,17 @@ services:
       KC_LOG_CONSOLE_LEVEL: ${KC_LOG_CONSOLE_LEVEL:-error}
       KC_LOG: file,console
       KC_HEALTH_ENABLED: "true"
-    command:
-      - start-dev
-      - --import-realm
+    entrypoint:
+      - sh
+      - -c
+      - |
+        cp /opt/keycloak/healthcheck.sh /tmp/healthcheck.sh && \
+        chmod +x /tmp/healthcheck.sh && \
+        /opt/keycloak/bin/kc.sh start-dev --import-realm
     networks:
       - edfiadminapp-network
     healthcheck:
-      test: ["CMD-SHELL", "/opt/keycloak/healthcheck.sh"]
+      test: ["CMD-SHELL", "/tmp/healthcheck.sh"]
       interval: 20s
       timeout: 10s
       retries: 5
