@@ -147,7 +147,7 @@ export class AuthService {
   async findActiveUserById(userId: number): Promise<User | null> {
     return await this.usersRepo.findOne({
       where: { id: userId, isActive: true },
-      relations: ['role']
+      relations: ['role'],
     });
   }
 
@@ -308,52 +308,76 @@ export class AuthService {
     */
     const allEdfiTenantIds = [...allEdfiTenants.keys()];
 
-    const [allEdorgsRaw, allOdssRaw, allEdfiTenantsRaw] = await Promise.all([
-      this.edorgsRepository
-        .createQueryBuilder('edorg')
-        .leftJoin(
-          'edorg_closure',
-          'descendants',
-          'descendants.id_ancestor IN (:edorgs) AND descendants.id_descendant = edorg.id',
-          {
-            edorgs: [...edorgPrivileges.keys()].join(','),
-          }
-        )
-        .leftJoin(
-          'edorg_closure',
-          'ancestors',
-          'ancestors.id_descendant IN (:edorgs) AND ancestors.id_ancestor = edorg.id',
-          {
-            edorgs: [...edorgPrivileges.keys()].join(','),
-          }
-        )
-        .where(
-          `descendants.id_ancestor IS NOT NULL OR
+    const dbSpecificEdOrgQuery = {
+      mssql: () => {
+        return this.edorgsRepository
+          .createQueryBuilder('edorg')
+          .leftJoin(
+            'edorg_closure',
+            'descendants',
+            'descendants.id_ancestor IN (:edorgs) AND descendants.id_descendant = edorg.id',
+            {
+              edorgs: [...edorgPrivileges.keys()].join(','),
+            }
+          )
+          .leftJoin(
+            'edorg_closure',
+            'ancestors',
+            'ancestors.id_descendant IN (:edorgs) AND ancestors.id_ancestor = edorg.id',
+            {
+              edorgs: [...edorgPrivileges.keys()].join(','),
+            }
+          )
+          .where(
+            `descendants.id_ancestor IS NOT NULL OR
+              ancestors.id_descendant IS NOT NULL OR
+              edorg.odsId IN (:odss)`,
+            {
+              odss: ownedOdss.map((o) => o.ods.id).join(','),
+            }
+          )
+          .getMany();
+      },
+      pgsql: () => {
+        return this.edorgsRepository
+          .createQueryBuilder('edorg')
+          .leftJoin(
+            'edorg_closure',
+            'descendants',
+            'descendants.id_ancestor = ANY (:edorgs) AND descendants.id_descendant = edorg.id',
+            {
+              edorgs: [...edorgPrivileges.keys()],
+            }
+          )
+          .leftJoin(
+            'edorg_closure',
+            'ancestors',
+            'ancestors.id_descendant = ANY (:edorgs) AND ancestors.id_ancestor = edorg.id',
+            {
+              edorgs: [...edorgPrivileges.keys()],
+            }
+          )
+          .where(
+            `descendants.id_ancestor IS NOT NULL OR
            ancestors.id_descendant IS NOT NULL OR
-           --edorg.edfiTenantId IN (:edfiTenants) OR
-           edorg.odsId IN (:odss)`,
-          {
-            // edfiTenants: allEdfiTenantIds, // TODO it may be easy enough to remove this because edfiTenant privileges are just a blanket `true` anyway.
-            odss: ownedOdss.map((o) => o.ods.id).join(','),
-          }
-        )
-        .getMany(),
+           --edorg.edfiTenantId = ANY (:edfiTenants) OR
+           edorg.odsId = ANY (:odss)`,
+            {
+              odss: ownedOdss.map((o) => o.ods.id),
+            }
+          )
+          .getMany();
+      },
+    };
+
+    const [allEdorgsRaw, allOdssRaw, allEdfiTenantsRaw] = await Promise.all([
+      dbSpecificEdOrgQuery[config.DB_ENGINE](),
       this.odssRepository.findBy([
-        // {
-        //   edfiTenantId: In(
-        //     allEdfiTenantIds // TODO same possibility as above
-        //   ),
-        // },
         {
           id: In(ownedEdorgs.map((o) => o.edorg.odsId)),
         },
       ]),
       this.edfiTenantsRepository.findBy([
-        // {
-        //   edfiTenantId: In(
-        //     allEdfiTenantIds // TODO same possibility as above
-        //   ),
-        // },
         {
           id: In([
             ...ownedEdorgs.map((o) => o.edorg.edfiTenantId),
@@ -464,15 +488,27 @@ export class AuthService {
 
     const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId]) => edorgId));
 
-    const edOrgIdList = [[...edorgIds.values()]].join(',');
-    const edorgClosureRaw = await this.edorgClosureRepository
-      .createQueryBuilder('edorg_closure')
-      .where('"id_ancestor" <> "id_descendant"')
-      .andWhere('("id_ancestor" IN (:ancestors) OR "id_descendant" IN (:descendants))', {
-        ancestors: edOrgIdList,
-        descendants: edOrgIdList,
-      })
-      .getMany();
+    const dbSpecificEdOrgClosureQuery = {
+      mssql: () => {
+        const edOrgIdList = [[...edorgIds.values()]].join(',');
+        return this.edorgClosureRepository
+          .createQueryBuilder('edorg_closure')
+          .where('"id_ancestor" <> "id_descendant"')
+          .andWhere('("id_ancestor" IN (:ancestors) OR "id_descendant" IN (:descendants))', {
+            ancestors: edOrgIdList,
+            descendants: edOrgIdList,
+          })
+          .getMany();
+      },
+      pgsql: () => {
+        return this.entityManager.query(
+          'SELECT "id_ancestor", "id_descendant" from "edorg_closure" WHERE "id_ancestor" <> "id_descendant" and ("id_ancestor" = ANY ($1) OR "id_descendant" = ANY ($1))',
+          [[...edorgIds.values()]]
+        );
+      },
+    };
+
+    const edorgClosureRaw = await dbSpecificEdOrgClosureQuery[config.DB_ENGINE]();
 
     const parentEdorgIds = new Set<number>();
     const ancestorMap = new Map<number, Set<Edorg>>();
