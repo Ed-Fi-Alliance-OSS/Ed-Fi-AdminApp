@@ -388,8 +388,17 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `CREATE VIEW [sb_sync_queue] AS
       SELECT 1 as [id], '1' as [type], '1' as [name], 1 as [sbEnvironmentId], 1 as [edfiTenantId], '' as [dataText], '' as [data], '' as [state], '1900-01-01 00:00:00' as [createdon], '1900-01-02 00:00:00' as [completedon], '' as output, 0 as hasChanges
       FROM sys.views
-      WHERE 1=0
+      WHERE 1=0`
     )
+    await queryRunner.query(
+      `INSERT INTO [typeorm_metadata] ("schema", "type", "name", "value") VALUES ($1, $2, $3, $4)`,
+      [
+        'public',
+        'MATERIALIZED_VIEW',
+        'sb_sync_queue',
+        "SELECT 1 as [id], '1' as [type], '1' as [name], 1 as [sbEnvironmentId], 1 as [edfiTenantId], '' as [dataText], '' as [data], '' as [state], '1900-01-01 00:00:00' as [createdon], '1900-01-02 00:00:00' as [completedon], '' as output, 0 as hasChanges\n FROM sys.views\n WHERE 1=0",
+      ]
+    );
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {
