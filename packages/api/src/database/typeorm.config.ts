@@ -169,10 +169,12 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
       SbEnvironment,
       SbSyncQueue,
       Team,
+      User,
       UserTeamMembership,
     ];
 
   const baseConfig = {
+    entities: baseEntities,
     synchronize: false,
     migrationsRun: true,
     logging: config.TYPEORM_LOGGING
@@ -181,7 +183,6 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
   if (config.DB_ENGINE === "mssql") {
     return {
       ...baseConfig,
-      entities: [...baseEntities, User],
       migrations: getMSSQLMigrations(),
       type: 'mssql',
       // MSSQL-specific options,
@@ -194,7 +195,6 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
 
   return {
     ...baseConfig,
-      entities: [...baseEntities, User],
     migrations: getPostgreSQLMigrations(),
     type: 'postgres',
     // Add Postgres-specific options here if needed
