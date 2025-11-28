@@ -8,6 +8,12 @@
     If the edfiadminapp-network does not exist, it will be created.
 #>
 
+param(
+    # Use SQL Server instead of PostgreSQL for the Admin App database
+    [Switch]
+    $MSSQL
+)
+
 $networkExists = docker network ls --filter name=edfiadminapp-network --format '{{.Name}}' | Select-String -Pattern 'edfiadminapp-network'
 if (-not $networkExists) {
     Write-Host "Creating edfiadminapp-network..." -ForegroundColor Yellow
@@ -19,9 +25,14 @@ $files = @(
     "-f",
     "nginx-compose.yml",
     "-f",
-    "adminapp-local-dev.yml"
+    "adminapp-services.yml"
 )
 
-Write-Host "Starting Docker Compose services..." -ForegroundColor Green
-docker compose $files --env-file ".env" up -d
+$composeProfile = "postgresql"
+if ($MSSQL) {
+  $composeProfile = "mssql"
+}
+
+Write-Host "Starting Docker Compose services with profile $composeProfile..." -ForegroundColor Green
+docker compose $files --env-file ".env" --profile $composeProfile up -d
 Write-Host "Services started successfully!" -ForegroundColor Green

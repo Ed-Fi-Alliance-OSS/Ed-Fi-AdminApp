@@ -39,14 +39,11 @@ $files = @(
     "adminapp-services.yml"
 )
 
+$composeProfile = "postgresql"
 if ($MSSQL) {
-    Write-Host "Starting Docker Compose services with SQL Server..." -ForegroundColor Green
-    $env:COMPOSE_PROFILES="mssql"
-    docker compose $files up edfiadminapp-mssql -d $(if ($Rebuild) { "--build" })
-    Write-Host "SQL Server service started! Starting remaining services..." -ForegroundColor Green
-    docker compose $files up -d $(if ($Rebuild) { "--build" }) --scale edfiadminapp-db=0
-} else {
-    Write-Host "Starting Docker Compose services with PostgreSQL..." -ForegroundColor Green
-    docker compose $files up -d $(if ($Rebuild) { "--build" }) --scale edfiadminapp-mssql=0
+  $composeProfile = "mssql"
 }
+
+Write-Host "Starting Docker Compose services with profile $composeProfile, running Admin App..." -ForegroundColor Green
+docker compose $files --env-file ".env" --profile $composeProfile --profile adminapp up -d $(if ($Rebuild) { "--build" })
 Write-Host "Services started successfully!" -ForegroundColor Green

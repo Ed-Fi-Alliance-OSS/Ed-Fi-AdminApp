@@ -2,7 +2,7 @@
 # This compose file defines the supporting services, Ed-Fi Admin App and Api.
 # It is intended to be used in conjunction with the base edfi-docker-compose.yml file
 
-name: edfiadminapp-local-build
+name: edfiadminapp
 
 services:
   edfiadminapp-keycloak:
@@ -43,6 +43,8 @@ services:
   # Use edfiadminapp-postgres for the Admin App api's data store with PostgreSQL
   edfiadminapp-postgres:
     image: postgres:${POSTGRESQL_IMAGE_TAG:-16.2}
+    profiles:
+      - postgresql
     container_name: edfiadminapp-postgres
     ports:
       - '127.0.0.1:${POSTGRES_PORT_EXPOSED:-5432}:5432'
@@ -63,6 +65,8 @@ services:
   # Use edfiadminapp-mssql for the Admin App api's data store with SQL Server
   edfiadminapp-mssql:
     image: mcr.microsoft.com/mssql/server:${MSSQL_IMAGE_TAG:-2022-latest}
+    profiles:
+      - mssql
     container_name: edfiadminapp-mssql
     ports:
       - '127.0.0.1:${MSSQL_PORT_EXPOSED:-1433}:1433'
@@ -104,6 +108,8 @@ services:
     build:
       context: ../
       dockerfile: packages/api/Dockerfile
+    profiles:
+      - adminapp
     container_name: edfiadminapp-api
     volumes:
       - api-logs:/app/logs
@@ -120,7 +126,6 @@ services:
         condition: service_healthy
       edfiadminapp-keycloak:
         condition: service_healthy
-
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:3333/api/healthcheck || exit 1']
       interval: 30s
@@ -138,12 +143,14 @@ services:
         # Change this to use the nginx proxy URL
         VITE_API_URL: ${VITE_API_URL:-https://localhost/adminapp-api}
         VITE_OIDC_ID: ${VITE_OIDC_ID:-1}
-        VITE_BASE_PATH: ${VITE_BASE_PATH:-/adminapp/}
-        VITE_HELP_GUIDE: ${VITE_HELP_GUIDE:-https://docs.ed-fi.org/}
-        VITE_IDP_ACCOUNT_URL: ${VITE_IDP_ACCOUNT_URL:-https://localhost/auth/realms/edfi/account/}
-        VITE_STARTING_GUIDE: ${VITE_STARTING_GUIDE:-${VITE_HELP_GUIDE}reference/admin-app-v4/system-administrators/global-administration-tasks}
-        VITE_CONTACT: ${VITE_CONTACT:-https://community.ed-fi.org/}
-        VITE_APPLICATION_NAME: ${VITE_APPLICATION_NAME:-Ed-Fi Admin App}
+        VITE_BASE_PATH: '${VITE_BASE_PATH:-/adminapp/}'
+        VITE_HELP_GUIDE: '${VITE_HELP_GUIDE:-https://docs.ed-fi.org/reference/admin-app-v4}'
+        VITE_IDP_ACCOUNT_URL: '${VITE_IDP_ACCOUNT_URL:-https://localhost/auth/realms/edfi/account/}'
+        VITE_STARTING_GUIDE: '${VITE_STARTING_GUIDE:-${VITE_HELP_GUIDE}/system-administrators/global-administration-tasks}'
+        VITE_CONTACT: '${VITE_CONTACT:-https://community.ed-fi.org/}'
+        VITE_APPLICATION_NAME: '${VITE_APPLICATION_NAME:-Ed-Fi Admin App}'
+    profiles:
+      - adminapp
     container_name: edfiadminapp-fe
     volumes:
       - ./adminapp/nginx.conf:/etc/nginx/nginx.conf
