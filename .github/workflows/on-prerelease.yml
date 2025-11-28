@@ -131,9 +131,7 @@ jobs:
         shell: bash
         run: |
           api_tgz=$(ls packages/api/AdminApp.Api-*.tgz)
-          api_tgz_name=$(basename $api_tgz)
-          api_tgz_hash=$(sha256sum $api_tgz | awk '{print $1}')
-          api_tgz_base64=$(echo -n "${api_tgz_name}:sha256:${api_tgz_hash}" | base64 -w0)
+          api_tgz_base64=$(sha256sum "$api_tgz" | base64 -w0)
           echo "api-tgz-hash=$api_tgz_base64" >> $GITHUB_OUTPUT
 
       - name: Generate hash for FrontEnd tgz
@@ -141,9 +139,7 @@ jobs:
         shell: bash
         run: |
           fe_tgz=$(ls packages/fe/AdminApp.FrontEnd-*.tgz)
-          fe_tgz_name=$(basename $fe_tgz)
-          fe_tgz_hash=$(sha256sum $fe_tgz | awk '{print $1}')
-          fe_tgz_base64=$(echo -n "${fe_tgz_name}:sha256:${fe_tgz_hash}" | base64 -w0)
+          fe_tgz_base64=$(sha256sum "$fe_tgz" | base64 -w0)
           echo "fe-tgz-hash=$fe_tgz_base64" >> $GITHUB_OUTPUT
 
   sbom-create:
@@ -153,8 +149,7 @@ jobs:
     permissions:
       actions: write
     outputs:
-      api-sbom-hash-code: ${{ steps.api-sbom-hash.outputs.api-sbom-hash-code }}
-      fe-sbom-hash-code: ${{ steps.fe-sbom-hash.outputs.fe-sbom-hash-code }}
+      sbom-hash-code: ${{ steps.sbom-hash.outputs.sbom-hash-code }}
     steps:
       - name: Checkout repository
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -162,63 +157,31 @@ jobs:
           ref: ${{ github.ref }}
           fetch-depth: 0
 
-      - name: Generate SBOM for API npm package
-        shell: pwsh
+      - name: Install Syft (SBOM generator)
+        shell: bash
         run: |
-          dotnet tool install --global Microsoft.Sbom.DotNetTool
-          sbom-tool generate `
-            -b ./packages/api `
-            -pn "AdminApp.Api-npm" `
-            -pv "${{ needs.pack.outputs.adminApp-version }}" `
-            -nsb https://ed-fi.org `
-            -m ./ `
-            -ps "Ed-Fi Alliance" `
-            -mf ./packages/api/manifest.spdx.json
+          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
 
-      - name: Generate SBOM for Frontend npm package
-        shell: pwsh
+      - name: Generate SBOM
+        shell: bash
         run: |
-          dotnet tool install --global Microsoft.Sbom.DotNetTool
-          sbom-tool generate `
-            -b ./packages/fe `
-            -pn "AdminApp.FrontEnd-npm" `
-            -pv "${{ needs.pack.outputs.adminApp-version }}" `
-            -nsb https://ed-fi.org `
-            -m ./ `
-            -ps "Ed-Fi Alliance" `
-            -mf ./packages/fe/manifest.spdx.json
+          syft dir:. -o spdx-json > manifest.spdx.json
 
-      - name: Upload API SBOM
+      - name: Upload SBOM
         if: success()
         uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
         with:
-          name: AdminApp.Api-SBOM
-          path: packages/api/manifest.spdx.json
+          name: AdminApp.SBOM
+          path: manifest.spdx.json
           if-no-files-found: error
           retention-days: 30
 
-      - name: Upload Frontend SBOM
-        if: success()
-        uses: actions/upload-artifact@26f96dfa697d77e81fd5907df203aa23a56210a8 # v4.3.0
-        with:
-          name: AdminApp.FrontEnd-SBOM
-          path: packages/fe/manifest.spdx.json
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Generate hash code for API SBOM
-        id: api-sbom-hash
+      - name: Generate hash code for SBOM
+        id: sbom-hash
         shell: bash
         run: |
-          api_sbom_hash=$(sha256sum ./packages/api/manifest.spdx.json | awk '{print $1}')
-          echo "api-sbom-hash-code=$api_sbom_hash" >> $GITHUB_OUTPUT
-
-      - name: Generate hash code for Frontend SBOM
-        id: fe-sbom-hash
-        shell: bash
-        run: |
-          fe_sbom_hash=$(sha256sum ./packages/fe/manifest.spdx.json | awk '{print $1}')
-          echo "fe-sbom-hash-code=$fe_sbom_hash" >> $GITHUB_OUTPUT
+          sbom_hash=$(sha256sum ./manifest.spdx.json | awk '{print $1}')
+          echo "sbom-hash-code=$sbom_hash" >> $GITHUB_OUTPUT
 
   sbom-attach:
     name: Attach SBOM file
@@ -230,53 +193,21 @@ jobs:
       actions: read
       contents: write
     steps:
-      - name: Download the API SBOM
+      - name: Download the SBOM
         uses: Ed-Fi-Alliance-OSS/slsa-github-generator/.github/actions/secure-download-artifact@main
         with:
-          name: "AdminApp.Api-SBOM"
-          path: packages/api/manifest.spdx.json
-          sha256: "${{ needs.sbom-create.outputs.api-sbom-hash-code }}"
+          name: "AdminApp.SBOM"
+          path: manifest.spdx.json
+          sha256: "${{ needs.sbom-create.outputs.sbom-hash-code }}"
 
-      - name: Download the Frontend SBOM
-        uses: Ed-Fi-Alliance-OSS/slsa-github-generator/.github/actions/secure-download-artifact@main
-        with:
-          name: "AdminApp.FrontEnd-SBOM"
-          path: packages/fe/manifest.spdx.json
-          sha256: "${{ needs.sbom-create.outputs.fe-sbom-hash-code }}"
-
-      - name: Attach API SBOM to release
+      - name: Attach SBOM to release
         shell: pwsh
         run: |
           $release = "${{ github.ref_name }}"
           $repo = "${{ github.repository }}"
           $token = "${{ secrets.GITHUB_TOKEN }}"
-          $file = "packages/api/manifest.spdx.json"
-          $uploadName = "AdminApp.Api-SBOM.zip"
-
-          $url = "https://api.github.com/repos/$repo/releases/tags/$release"
-          $gh_headers = @{
-              "Accept"        = "application/vnd.github+json"
-              "Authorization" = "Bearer $token"
-          }
-          $response = Invoke-RestMethod -Uri $url -Headers $gh_headers
-          $releaseId = $response.id
-          $url = "https://uploads.github.com/repos/$repo/releases/$releaseId/assets"
-
-          Compress-Archive $file -DestinationPath $uploadName
-          $gh_headers["Content-Type"] = "application/octet"
-          Invoke-RestMethod -Method POST `
-              -Uri "$($url)?name=$($uploadName)" `
-              -Headers $gh_headers `
-              -InFile $uploadName
-
-      - name: Attach Frontend SBOM to release
-        shell: pwsh
-        run: |
-          $release = "${{ github.ref_name }}"
-          $repo = "${{ github.repository }}"
-          $token = "${{ secrets.GITHUB_TOKEN }}"
-          $file = "packages/fe/manifest.spdx.json"
-          $uploadName = "AdminApp.FrontEnd-SBOM.zip"
+          $file = "manifest.spdx.json"
+          $uploadName = "AdminApp.SBOM.zip"
 
           $url = "https://api.github.com/repos/$repo/releases/tags/$release"
           $gh_headers = @{
