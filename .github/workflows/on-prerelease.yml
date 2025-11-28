@@ -37,7 +37,14 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-          fetch-depth: 0
+           ref: ${{ github.sha }}
+           fetch-depth: 0
+
+      - name: Set up Node.js (22.x)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+          cache: 'npm'
 
       - name: Set Version Numbers
         id: versions
@@ -57,41 +64,59 @@ jobs:
 
 
       # --- TypeScript API and Frontend Build/Pack/Upload ---
-      - name: Install dependencies (API)
-        run: npm install --prefix packages/api
+      # Install deps once at root, build both API and Frontend via Nx
+      - name: Install dependencies (root)
+        run: npm ci
 
-      - name: Build API
-        run: npm run build --prefix packages/api
+      - name: Build API (root)
+        run: npm run build:api
 
-      - name: Pack API
-        run: npm pack --prefix packages/api
+      - name: Build Frontend (root)
+        run: npm run build:fe
 
-      - name: Rename API tgz with version
+      - name: Prepare package versions
+        shell: pwsh
         run: |
-          VERSION="${{ steps.versions.outputs.adminApp-semver }}"
-          mv packages/api/*.tgz "packages/api/AdminApp.Api-${VERSION}.tgz"
+          $version = "${{ steps.versions.outputs.adminApp-semver }}"
+          $api = Get-Content packages/api/package.json | ConvertFrom-Json
+          $api.version = $version
+          $api | ConvertTo-Json -Depth 10 | Set-Content packages/api/package.json
+          $fe = Get-Content packages/fe/package.json | ConvertFrom-Json
+          $fe.version = $version
+          $fe | ConvertTo-Json -Depth 10 | Set-Content packages/fe/package.json
+
+      - name: Copy build outputs under package roots
+        shell: bash
+        run: |
+          rm -rf packages/api/dist packages/fe/dist
+          mkdir -p packages/api/dist packages/fe/dist
+          cp -R dist/packages/api/* packages/api/dist/
+          cp -R dist/packages/fe/* packages/fe/dist/
+
+      - name: Pack API (npm pack)
+        working-directory: packages/api
+        run: npm pack
 
       - name: Upload API npm package
         uses: actions/upload-artifact@v4
         with:
           name: api-npm-package
-          path: packages/api/AdminApp.Api-*.tgz
+          path: packages/api/*.tgz
           if-no-files-found: error
           retention-days: 30
 
-      - name: Install dependencies (Frontend)
-        run: npm install --prefix packages/fe
-
-      - name: Build Frontend
-        run: npm run build --prefix packages/fe
-
       - name: Pack Frontend
-        run: npm pack --prefix packages/fe
+        working-directory: packages/fe
+        run: npm pack
 
-      - name: Rename Frontend tgz with version
+      - name: Rename API and Frontend tgz with version
+        shell: bash
         run: |
           VERSION="${{ steps.versions.outputs.adminApp-semver }}"
-          mv packages/fe/*.tgz "packages/fe/AdminApp.FrontEnd-${VERSION}.tgz"
+          API_TGZ=$(ls packages/api/*.tgz | head -n1)
+          FE_TGZ=$(ls packages/fe/*.tgz | head -n1)
+          mv "$API_TGZ" "packages/api/AdminApp.Api-${VERSION}.tgz"
+          mv "$FE_TGZ" "packages/fe/AdminApp.FrontEnd-${VERSION}.tgz"
 
       - name: Upload Frontend npm package
         uses: actions/upload-artifact@v4
@@ -101,36 +126,25 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-      # Authenticate to Azure Artifacts npm registry
-      - name: Set up .npmrc for Azure Artifacts
-        run: |
-          echo ${{ env.NPM_REGISTRY }}:_authToken=${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }} > ~/.npmrc
-
-      # Publish API npm package to Azure Artifacts
-      - name: Publish API npm package to Azure Artifacts
-        run: |
-          npm publish --registry "${{ env.NPM_REGISTRY }}" packages/api/*.tgz
-
-      # Publish Frontend npm package to Azure Artifacts
-      - name: Publish Frontend npm package to Azure Artifacts
-        run: |
-          npm publish --registry "${{ env.NPM_REGISTRY }}" packages/fe/*.tgz
-
       - name: Generate hash for API tgz
         id: api-tgz-hash
         shell: bash
         run: |
           api_tgz=$(ls packages/api/AdminApp.Api-*.tgz)
+          api_tgz_name=$(basename $api_tgz)
           api_tgz_hash=$(sha256sum $api_tgz | awk '{print $1}')
-          echo "api-tgz-hash=$api_tgz_hash" >> $GITHUB_OUTPUT
+          api_tgz_base64=$(echo -n "${api_tgz_name}:sha256:${api_tgz_hash}" | base64 -w0)
+          echo "api-tgz-hash=$api_tgz_base64" >> $GITHUB_OUTPUT
 
       - name: Generate hash for FrontEnd tgz
         id: fe-tgz-hash
         shell: bash
         run: |
           fe_tgz=$(ls packages/fe/AdminApp.FrontEnd-*.tgz)
+          fe_tgz_name=$(basename $fe_tgz)
           fe_tgz_hash=$(sha256sum $fe_tgz | awk '{print $1}')
-          echo "fe-tgz-hash=$fe_tgz_hash" >> $GITHUB_OUTPUT
+          fe_tgz_base64=$(echo -n "${fe_tgz_name}:sha256:${fe_tgz_hash}" | base64 -w0)
+          echo "fe-tgz-hash=$fe_tgz_base64" >> $GITHUB_OUTPUT
 
   sbom-create:
     name: Create SBOM
@@ -307,6 +321,8 @@ jobs:
   docker-publish:
     name: Publish to Docker Hub
     runs-on: ubuntu-latest
+    needs:
+      - pack
     steps:
       - name: Prepare Tags
         id: prepare-tags
@@ -360,11 +376,11 @@ jobs:
       - name: Build and push admin-app api image
         uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc  # v6.11.0
         with:
-          context: "{{defaultContext}}:packages/api"
+          context: "{{defaultContext}}:./"
           cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:pre
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          file: Dockerfile
+          platforms: linux/amd64
+          file: packages/api/Dockerfile
           tags: ${{ steps.prepare-tags.outputs.APITAGS }}
           labels: ${{ steps.metaapi.outputs.labels }}
           push: true
@@ -378,11 +394,11 @@ jobs:
       - name: Build and push admin-app fe image
         uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc  # v6.11.0
         with:
-          context: "{{defaultContext}}:packages/fe"
+          context: "{{defaultContext}}:./"
           cache-from: type=registry,ref=${{ env.FRONTEND_IMAGE_NAME }}:pre
           cache-to: type=inline
-          platforms: linux/amd64,linux/arm64
-          file: Dockerfile
+          platforms: linux/amd64
+          file: packages/fe/Dockerfile
           tags: ${{ steps.prepare-tags.outputs.FETAGS }}
           labels: ${{ steps.metafe.outputs.labels }}
           push: true

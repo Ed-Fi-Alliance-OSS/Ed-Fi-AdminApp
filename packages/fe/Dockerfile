@@ -1,33 +1,52 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
 # Multi-stage build for frontend
 FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb51beb1f026c5 AS build
 
 WORKDIR /app
 
-# Copy package files
+ENV NODE_ENV=development \
+  NX_DAEMON=false \
+  NX_VERBOSE_LOGGING=true \
+  NX_TASKS_TARGET_OUTPUT_USE_STDOUT=true \
+  NODE_OPTIONS="--max-old-space-size=4096"
+
+# Copy only manifest + workspace config for efficient layer caching
 COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig*.json ./
 
-# Install dependencies
+# Copy only required package sources (adjust if FE imports others)
+COPY packages/fe ./packages/fe
+COPY packages/common-ui ./packages/common-ui
+COPY packages/models ./packages/models
+COPY packages/utils ./packages/utils
+COPY types ./types
+
+# Install dependencies including dev (Nx is a devDependency). NODE_ENV=development ensures dev deps are installed.
 RUN --mount=type=cache,target=/root/.npm npm ci
 
-# Copy source code
-COPY . .
+# Reset Nx cache explicitly using local Nx
+RUN ./node_modules/.bin/nx reset --yes
 
-# Build the frontend with base path
-RUN npx nx reset
-RUN npm run build:fe
+# Build the frontend (production) with streaming output
+RUN npx nx run fe:build:production --skip-nx-cache --verbose --output-style=stream
 
 # Production stage with nginx
 FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS nginxbase
+# Ensure runtime environment is production for nginx image
+ENV NODE_ENV=production
 
-# Update packages + install envsubst (from gettext) and curl for healthcheck
-RUN apk update && apk upgrade && apk add --no-cache gettext curl
+# Install only necessary runtime tools (gettext provides envsubst) + curl for healthcheck
+RUN apk add --no-cache gettext curl
 
-# Remove default nginx config
+# Remove default site config and add custom configuration listening on 4200
 RUN rm /etc/nginx/conf.d/default.conf
 
-# Copy built files
+# Copy built static assets
 COPY --from=build /app/dist/packages/fe /usr/share/nginx/html
 
 # Copy runtime config template + entrypoint
