@@ -2,10 +2,6 @@ import { IRole } from '.';
 import { IEntityBase } from '../utils/entity-base.interface';
 import { IUserTeamMembership } from './user-team-membership.interface';
 
-export interface IUserConfig {
-  confirmDeletion?: boolean;
-}
-
 export type UserType = 'human' | 'machine';
 
 export interface IUser extends Omit<IEntityBase, 'createdBy' | 'createdById'> {
@@ -16,7 +12,6 @@ export interface IUser extends Omit<IEntityBase, 'createdBy' | 'createdById'> {
   description: string | null;
   fullName: string;
   role?: IRole;
-  config?: IUserConfig;
   userType: UserType;
   isActive: boolean;
   userTeamMemberships: IUserTeamMembership[];

@@ -1,6 +1,5 @@
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { throwNotFound } from '../../utils';
 import { User } from '@edanalytics/models-server';

@@ -1,7 +1,7 @@
 import { Expose } from 'class-transformer';
 import { IsBoolean, IsNumber, IsOptional, IsString, MinLength } from 'class-validator';
 import { TrimWhitespace } from '../utils';
-import type { IUser, IUserConfig, UserType } from '../interfaces/user.interface';
+import type { IUser, UserType } from '../interfaces/user.interface';
 import { DtoGetBase__User, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
 import { DtoPostBase, PostDto } from '../utils/post-base.dto';
@@ -42,7 +42,6 @@ export class GetUserDto
       ? this.givenName + ' ' + this.familyName
       : this.username;
   }
-  config?: IUserConfig;
 
   override get displayName() {
     return this.fullName;
