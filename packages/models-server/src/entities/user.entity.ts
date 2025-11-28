@@ -1,4 +1,4 @@
-import { IRole, IUser, IUserConfig, IUserTeamMembership, UserType } from '@edanalytics/models';
+import { IRole, IUser, IUserTeamMembership, UserType } from '@edanalytics/models';
 import { Type } from 'class-transformer';
 import {
   Column,
@@ -11,8 +11,6 @@ import {
   UpdateDateColumn,
 } from 'typeorm';
 import * as config from 'config';
-
-// NOTE: when modifying User, be sure to also modify MssqlUser.
 
 @Index(['username'], { unique: true })
 @Index(['clientId'], { unique: true })
@@ -76,9 +74,6 @@ export class User implements IUser {
 
   @Column()
   isActive: boolean;
-
-  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'simple-json' : 'nvarchar', nullable: true })
-  config?: IUserConfig;
 
   @Column({ type: config.DB_ENGINE === 'pgsql' ? 'enum' : 'nvarchar', enum: ['human', 'machine'], default: 'human' })
   userType: UserType;
