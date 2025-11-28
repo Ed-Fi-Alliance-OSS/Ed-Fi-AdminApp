@@ -9,7 +9,7 @@
     "build-storybook:common-ui": "nx run common-ui:build-storybook",
     "storybook": "nx run common-ui:storybook",
     "start:api": "nx run api:serve --configuration=production",
-    "start:api:dev": "nx run api:serve",
+    "start:api:dev": "cross-env NODE_TLS_REJECT_UNAUTHORIZED=0 nx run api:serve",
     "start:fe:dev": "nx run fe:serve",
     "migrations:generate": "nx run api:migrations:generate --name",
     "migrations:run": "nx run api:migrations:run",
