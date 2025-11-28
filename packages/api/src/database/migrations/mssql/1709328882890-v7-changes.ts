@@ -36,7 +36,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
     await queryRunner.query(
       `UPDATE [role] SET [privilegeIds] = REPLACE([privilegeIds], 'tenant', 'team')`
     );
-    await queryRunner.query(`UPDATE [role] SET [type] = 'UserTeam' WHERE [type] = 'UserTenant'`);
+    await queryRunner.query(`UPDATE [role] SET [type] = '"UserTeam"' WHERE [type] = '"UserTenant"'`);
 
     // rename constraints (they're hashes of templated strings like sequence names above, and typeorm relies on that)
     await queryRunner.query(`ALTER TABLE [team] DROP CONSTRAINT [FK_1636cc00622963d7c7a5499312c]`);
