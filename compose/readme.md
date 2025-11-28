@@ -116,7 +116,7 @@ To use SQL Server instead of PostgreSQL:
 
 ### Database Management
 
-- **PostgreSQL**: Access via PGAdmin4 at https://localhost/pgadmin
+- **PostgreSQL**: Access via PGAdmin4 at [https://localhost/pgadmin](https://localhost/pgadmin)
 - **SQL Server**: Connect using SQL Server Management Studio or Azure Data Studio to `localhost,1433` with SA credentials
 
 ## Getting Started
@@ -128,13 +128,13 @@ To use SQL Server instead of PostgreSQL:
 
 There are two main PowerShell scripts for starting services:
 
-- **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi ODS/API and AdminApp supporting services. It uses the following compose files:
+- **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi ODS/API and ODS Admin API supporting services. It uses the following compose files:
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-local-dev.yml`
   If the `edfiadminapp-network` does not exist, it will be created automatically.
 
-- **`start-services.ps1`**: Starts the Docker Compose services for EdFi, AdminApp, AdminApp API and supporting services. It uses:
+- **`start-services.ps1`**: Starts the Docker Compose services for the Ed-Fi ODS/API, ODS Admin API, _and_ runs Ed-Fi Admin App, along with supporting services. It uses:
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-services.yml`
@@ -235,16 +235,21 @@ In Global Scope, complete the following setup:
 
 These are the default URLs. The last path segment must match your environment variable settings.
 
-| App | URL |
-|-----|-----|
-| Multi-Tenant <br/> - ODS/API 7.x <br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-multi-api<br/>https://localhost/v7-multi-adminapi |
-| Single-Tenant<br/> - ODS/API 7.x<br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-single-api<br/>https://localhost/v7-single-adminapi |
-| ODS/API 6.x<br/>Admin API 2.x in v1 mode | https://localhost/v6-api<br/>https://localhost/v6-adminapi |
-| Keycloak | https://localhost/auth |
-| Yopass | http://localhost:8082 |
-| PGAdmin4 | https://localhost/pgadmin |
-| Admin App API Swagger | https://localhost/adminapp-api/api/ |
-| Admin App UI | https://localhost/adminapp |
+| App                                    | URL                                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------- |
+| Multi-Tenant ODS/API 7.x               | [https://localhost/v7-multi-api](https://localhost/v7-multi-api)             |
+| Multi-tenant Admin API 2.x in v2 mode  | [https://localhost/v7-multi-adminapi](https://localhost/v7-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x              | [https://localhost/v7-single-api](https://localhost/v7-single-api)           |
+| Single-Tenant Admin API 2.x in v2 mode | [https://localhost/v7-single-adminapi](https://localhost/v7-single-adminapi) |
+| ODS/API 6.x                            | [https://localhost/v6-api](https://localhost/v6-api)                         |
+| Admin API 2.x in v1 mode               | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)               |
+| Keycloak                               | [https://localhost/auth](https://localhost/auth)                             |
+| Yopass                                 | [http://localhost:8082](http://localhost:8082)                               |
+| PGAdmin4                               | [https://localhost/pgadmin](https://localhost/pgadmin)                       |
+| Admin App API Swagger (container)      | [https://localhost/adminapp-api/api/](https://localhost/adminapp-api/api/)   |
+| Admin App UI (container)               | [https://localhost/adminapp](https://localhost/adminapp)                     |
+| Admin App API Swagger (local)          | [http://localhost:3333/api/](http://localhost:3333/api)                      |
+| Admin App UI (local)                   | [http://localhost:4200](https://localhost:4200)                              |
 
 ## Authentication Flows
 
