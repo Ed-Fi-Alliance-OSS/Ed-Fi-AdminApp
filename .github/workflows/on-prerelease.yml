@@ -37,7 +37,7 @@ jobs:
     steps:
       - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
         with:
-           ref: ${{ github.sha }}
+           ref: ${{ github.ref }}
            fetch-depth: 0
 
       - name: Set up Node.js (22.x)
@@ -156,7 +156,11 @@ jobs:
       api-sbom-hash-code: ${{ steps.api-sbom-hash.outputs.api-sbom-hash-code }}
       fe-sbom-hash-code: ${{ steps.fe-sbom-hash.outputs.fe-sbom-hash-code }}
     steps:
-      - uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+      - name: Checkout repository
+        uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
+        with:
+          ref: ${{ github.ref }}
+          fetch-depth: 0
 
       - name: Generate SBOM for API npm package
         shell: pwsh
