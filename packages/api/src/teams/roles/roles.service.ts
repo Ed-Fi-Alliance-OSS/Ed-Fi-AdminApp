@@ -15,6 +15,7 @@ export class RolesService {
 
   async create(createRoleDto: PostRoleDto) {
     const uniqueReqPrivileges = _.uniq(createRoleDto.privilegeIds);
+
     if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
       throw new BadRequestException('Invalid privileges');
     }

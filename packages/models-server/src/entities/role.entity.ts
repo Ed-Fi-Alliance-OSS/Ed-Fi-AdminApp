@@ -1,6 +1,7 @@
 import { IRole, ITeam, PRIVILEGES, PrivilegeCode, RoleType } from '@edanalytics/models';
 import { Column, Entity, ManyToOne } from 'typeorm';
 import { EntityBase } from '../utils/entity-base';
+import * as config from 'config';
 
 @Entity()
 export class Role extends EntityBase implements IRole {
@@ -19,7 +20,11 @@ export class Role extends EntityBase implements IRole {
   @Column({ type: 'simple-json' })
   type: RoleType;
 
-  @Column({ type: 'simple-array', default: '' })
+  @Column({
+    array: config.DB_ENGINE === 'pgsql',
+    type: config.DB_ENGINE === 'pgsql' ? 'text' : 'simple-array',
+    default: config.DB_ENGINE === 'pgsql' ? '{}' : '',
+  })
   privilegeIds: PrivilegeCode[];
 
   get privileges() {
