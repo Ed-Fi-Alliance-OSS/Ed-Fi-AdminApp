@@ -9,6 +9,7 @@ import {
 import { Column, Entity, OneToMany } from 'typeorm';
 import { JSONEncryptionTransformer } from 'typeorm-encrypted';
 import { EntityBase } from '../utils/entity-base';
+import * as config from 'config';
 
 @Entity()
 export class SbEnvironment extends EntityBase implements ISbEnvironment {
@@ -27,7 +28,7 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
   @Column()
   name: string;
 
-  @Column({ type: 'simple-json', nullable: true })
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'jsonb' : 'simple-json', nullable: true })
   configPublic: SbEnvironmentConfigPublic | null;
 
   get version() {
@@ -69,13 +70,13 @@ export class SbEnvironment extends EntityBase implements ISbEnvironment {
       return undefined;
     }
   }
-  
+
   get startingBlocks() {
     return this.configPublic?.startingBlocks ?? false;
   }
 
   @Column({
-    type: 'simple-json',
+    type: config.DB_ENGINE === 'pgsql' ? 'jsonb' : 'simple-json',
     nullable: true,
     transformer: {
       from(value) {

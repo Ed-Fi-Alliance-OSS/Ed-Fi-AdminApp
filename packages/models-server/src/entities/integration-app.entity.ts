@@ -12,6 +12,7 @@ import { IntegrationProvider } from './integration-provider.entity';
 import { Ods } from './ods.entity';
 import { SbEnvironment } from './sb-environment.entity';
 import { EntityBase } from '../utils/entity-base';
+import * as config from 'config';
 
 @Entity()
 export class IntegrationApp extends EntityBase implements IIntegrationApp {
@@ -29,7 +30,11 @@ export class IntegrationApp extends EntityBase implements IIntegrationApp {
   @Column()
   edfiTenantId: number;
 
-  @Column({ type: 'simple-array', default: '' })
+  @Column({
+    array: config.DB_ENGINE === 'pgsql',
+    type: config.DB_ENGINE === 'pgsql' ? 'integer' : 'simple-array',
+    default: config.DB_ENGINE === 'pgsql' ? '{}' : '',
+  })
   edorgIds: number[];
 
   @ManyToOne('IntegrationProvider', (provider: IIntegrationProvider) => provider.integrationApps, {
@@ -60,6 +65,24 @@ export class IntegrationApp extends EntityBase implements IIntegrationApp {
 
 @ViewEntity({
   name: 'integration_apps_view',
+  expression: `
+    SELECT
+      ia.*,
+      et.name AS "edfiTenantName",
+      ip.name AS "integrationProviderName",
+      ARRAY(
+        SELECT e."nameOfInstitution"
+        FROM edorg e
+        WHERE e.id = ANY(ia."edorgIds")
+      ) AS "edorgNames",
+      ods."odsInstanceName" AS "odsName",
+      sbe.name AS "sbEnvironmentName"
+    FROM integration_app ia
+    LEFT JOIN edfi_tenant et ON et.id = ia."edfiTenantId"
+    LEFT JOIN integration_provider ip ON ip.id = ia."integrationProviderId"
+    LEFT JOIN ods ON ods.id = ia."odsId"
+    LEFT JOIN sb_environment sbe ON sbe.id = ia."sbEnvironmentId"
+  `,
 })
 export class IntegrationAppDetailed
   extends EntityBase
