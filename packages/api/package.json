@@ -1,0 +1,11 @@
+{
+  "name": "@edfi/adminapp-api",
+  "version": "0.0.0",
+  "license": "SEE LICENSE IN ../../LICENSE.txt",
+  "private": false,
+  "description": "Ed-Fi Admin App API",
+  "files": [
+    "dist"
+  ],
+  "main": "dist/main.js"
+}
