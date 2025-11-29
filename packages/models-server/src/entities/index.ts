@@ -1,5 +1,6 @@
 export * from './edfi-tenant.entity';
 export * from './edorg.entity';
+export * from './edorg_closure.entity';
 export * from './env-nav.entity';
 export * from './integration-app.entity';
 export * from './integration-provider.entity';

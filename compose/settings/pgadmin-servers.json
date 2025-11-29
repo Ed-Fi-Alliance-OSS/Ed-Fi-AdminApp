@@ -64,9 +64,9 @@
       "SSLMode": "prefer"
     },
     "8": {
-      "Name": "edfiadminapp-db",
+      "Name": "edfiadminapp-postgres",
       "Group": "AdminApp",
-      "Host": "edfiadminapp-db",
+      "Host": "edfiadminapp-postgres",
       "Port": 5432,
       "MaintenanceDB": "sbaa",
       "Username": "postgres",

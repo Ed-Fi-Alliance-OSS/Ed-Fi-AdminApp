@@ -11,6 +11,7 @@ module.exports = {
   USE_YOPASS: true,
   YOPASS_URL: 'http://edfiadminapp-local-build-yopass-1:80',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+  DB_ENGINE: 'pgsql',
 
   DB_SECRET_VALUE: {
     DB_HOST: 'edfiadminapp-db',

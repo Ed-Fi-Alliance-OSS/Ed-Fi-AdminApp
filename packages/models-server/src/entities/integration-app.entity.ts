@@ -12,6 +12,7 @@ import { IntegrationProvider } from './integration-provider.entity';
 import { Ods } from './ods.entity';
 import { SbEnvironment } from './sb-environment.entity';
 import { EntityBase } from '../utils/entity-base';
+import * as config from 'config';
 
 @Entity()
 export class IntegrationApp extends EntityBase implements IIntegrationApp {
@@ -29,7 +30,11 @@ export class IntegrationApp extends EntityBase implements IIntegrationApp {
   @Column()
   edfiTenantId: number;
 
-  @Column({ array: true, type: 'integer', default: '{}' })
+  @Column({
+    array: config.DB_ENGINE === 'pgsql',
+    type: config.DB_ENGINE === 'pgsql' ? 'integer' : 'simple-array',
+    default: config.DB_ENGINE === 'pgsql' ? '{}' : '',
+  })
   edorgIds: number[];
 
   @ManyToOne('IntegrationProvider', (provider: IIntegrationProvider) => provider.integrationApps, {

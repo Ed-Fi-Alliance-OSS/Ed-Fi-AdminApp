@@ -1,22 +1,24 @@
 import './modes/dev';
 
-process.env['NODE_CONFIG_DIR'] = './packages/api/config';
+process.env['NODE_CONFIG_DIR'] = process.env['NODE_CONFIG_DIR'] || './packages/api/config';
 
 import './utils/checkEnv';
 
 import { formErrFromValidator } from '@edanalytics/utils';
-import { ClassSerializerInterceptor, Logger, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, LogLevel, ValidationPipe } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import colors from 'colors/safe';
 import * as config from 'config';
 import * as pgSession from 'connect-pg-simple';
+import * as mssqlSession from 'connect-mssql-v2';
 import { json } from 'express';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import * as expressSession from 'express-session';
 import { writeFileSync } from 'fs';
 import passport from 'passport';
 import { Client } from 'pg';
+import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
@@ -24,43 +26,156 @@ import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import axios from 'axios';
 import https from 'https';
 
+const FIVE_SECONDS_IN_MILLISECONDS = 5000;
+const TWO_HOURS_IN_SECONDS = 60 * 60 * 2;
+
+async function createMssqlConfig(): Promise<sql.config> {
+  const mssqlConnectionStr = await config.DB_CONNECTION_STRING;
+  const urlParts = new URL(mssqlConnectionStr);
+  return {
+    server: urlParts.hostname,
+    port: parseInt(urlParts.port) || 1433,
+    database: urlParts.pathname.slice(1),
+    user: urlParts.username,
+    password: urlParts.password,
+    options: {
+      encrypt: config.DB_SSL,
+      trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+    },
+    connectionTimeout: FIVE_SECONDS_IN_MILLISECONDS, // this might be to aggressive
+  };
+}
+
+async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.ConnectionPool> {
+  mssqlConfig = mssqlConfig || (await createMssqlConfig());
+
+  const secureCopy = {
+    ...mssqlConfig,
+    password: '***'
+  };
+  Logger.debug(`MSSQL connection parameters: ${JSON.stringify(secureCopy)}`);
+  const pool = new sql.ConnectionPool(mssqlConfig);
+  return await pool.connect();
+}
+
 async function checkDatabaseAvailability(): Promise<void> {
+  const healthCheckQuery = 'SELECT 1';
   try {
     Logger.log('Checking database availability before starting API...');
 
-    const pgConnectionStr = await config.DB_CONNECTION_STRING;
-    const pgClient = new Client({
-      connectionString: pgConnectionStr,
-      connectionTimeoutMillis: 5000 // 5 second timeout
-    });
+    if (config.DB_ENGINE === 'mssql') {
+      const pool = await createMssqlConnection();
+      try {
+        await pool.request().query(healthCheckQuery);
+      } finally {
+        await pool.close();
+      }
+    } else {
+      const pgConnectionStr = await config.DB_CONNECTION_STRING;
+      const pgClient = new Client({
+        connectionString: pgConnectionStr,
+        connectionTimeoutMillis: FIVE_SECONDS_IN_MILLISECONDS,
+      });
 
-    await pgClient.connect();
-    await pgClient.query('SELECT 1'); // Simple health check query
-    await pgClient.end();
+      await pgClient.connect();
+      await pgClient.query(healthCheckQuery);
+      await pgClient.end();
+    }
 
     Logger.log('Database is available - proceeding with API startup');
   } catch (error) {
     // Handle AggregateError during startup
     const errorAnalysis = AggregateErrorHandler.handle(error);
 
-    Logger.error('Database is not available - API startup aborted');
-    Logger.error(`Database connection error: ${errorAnalysis.safeMessage}`);
+    Logger.error(errorAnalysis.safeMessage);
+    Logger.debug(`Detailed error: ${error}`);
 
     if (AggregateErrorHandler.isAggregateError(error)) {
       const allMessages = AggregateErrorHandler.extractAllMessages(error);
       Logger.error(`Individual AggregateError messages: ${allMessages.join(', ')}`);
     }
 
-    Logger.error('Please ensure the database service is running and accessible');
+    Logger.error('Database is not available - API startup aborted');
     process.exit(1); // Exit with error code
   }
 }
 
+async function setupDatabaseSession(connectionStr: string, engine: string) {
+  try {
+    if (engine === 'mssql') {
+      const table = 'sessions';
+
+      const mssqlConfig = await createMssqlConfig();
+
+      const pool = await createMssqlConnection(mssqlConfig);
+      try {
+        await pool.query(`IF (SELECT OBJECT_ID('${table}')) IS NULL
+BEGIN
+    CREATE TABLE [dbo].[${table}](
+        [sid] [nvarchar](255) NOT NULL PRIMARY KEY,
+        [session] [nvarchar](max) NOT NULL,
+        [expires] [datetime] NOT NULL
+    );
+END`);
+      } finally {
+        await pool.close();
+      }
+
+      Logger.log('Using MSSQL session store');
+      return new mssqlSession.default(mssqlConfig, {
+        table,
+        ttl: TWO_HOURS_IN_SECONDS,
+      });
+    } else {
+      // PostgreSQL setup (existing logic)
+      const pgClient = new Client({ connectionString: connectionStr });
+      await pgClient.connect();
+      const existingSchema = await pgClient.query(
+        `select schema_name from information_schema.schemata where schema_name = 'appsession'`
+      );
+      if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
+      await pgClient.end();
+
+      Logger.log('Using PostgreSQL session store');
+      return new (pgSession.default(expressSession.default))({
+        createTableIfMissing: true,
+        conString: connectionStr,
+        schemaName: 'appsession',
+        ttl: TWO_HOURS_IN_SECONDS,
+      });
+    }
+  } catch (error) {
+    Logger.warn(`Database unavailable for sessions, using memory store: ${error.message}`);
+    // Database unavailable, use memory store (note: sessions won't persist across restarts)
+    return undefined; // Use default memory store
+  }
+}
+
+function getLogLevel() : LogLevel[] {
+  switch (config.LOG_LEVEL) {
+    case 'verbose':
+      return ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
+    case 'debug':
+      return ['debug', 'log', 'warn', 'error', 'fatal'];
+    case 'log':
+      return ['log', 'warn', 'error', 'fatal'];
+    case 'warn':
+      return ['warn', 'error', 'fatal'];
+    case 'error':
+      return ['error', 'fatal'];
+    case 'fatal':
+      return ['fatal'];
+    default:
+      return ['log', 'warn', 'error', 'fatal'];
+  }
+}
+
 async function bootstrap() {
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: getLogLevel()});
+
   // Check database availability first - exit if not available
   await checkDatabaseAvailability();
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
 
   // Optimize response headers for security
   app.disable('x-powered-by');
@@ -72,48 +187,26 @@ async function bootstrap() {
 
   const globalPrefix = 'api';
   await config.DB_ENCRYPTION_SECRET;
-  // Setup session store with database fallback to memory
-  let sessionStore;
 
-  try {
-    const pgConnectionStr = await config.DB_CONNECTION_STRING;
-    const pgClient = new Client({ connectionString: pgConnectionStr });
-    await pgClient.connect();
+  const connectionStr = await config.DB_CONNECTION_STRING;
+  const engine = config.DB_ENGINE || 'pgsql';
 
-    const existingSchema = await pgClient.query(
-      "select schema_name from information_schema.schemata where schema_name = 'appsession'"
-    );
-    if (existingSchema.rowCount === 0) await pgClient.query('create schema appsession');
-    await pgClient.end();
+  const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
-    // Database is available, use PostgreSQL session store
-    sessionStore = new (pgSession.default(expressSession.default))({
-      createTableIfMissing: true,
-      conString: pgConnectionStr,
-      schemaName: 'appsession',
-      ttl: 60 * 60 * 2, // 2hr (if omitted defaults to 24hr)
-    });
-
-    Logger.log('Using PostgreSQL session store');
-  } catch (error) {
-    Logger.warn(`Database unavailable for sessions, using memory store: ${error.message}`);
-    // Database unavailable, use memory store (note: sessions won't persist across restarts)
-    sessionStore = undefined; // Use default memory store
-  }
-
-  const sessionConfig = {
-    store: sessionStore,
-    secret: 'my-secret',
-    resave: false,
-    saveUninitialized: false,
-    cookie: { secure: 'auto' as const },
-  };
-  
   app.use(json({ limit: '512kb' }));
-  app.use(expressSession.default(sessionConfig));
+  app.use(
+    expressSession.default({
+      store: sessionStore,
+      // cryptographic signing is not necessary here. expressSession is very generic and there are other ways of using it for which signing is important.
+      secret: 'my-secret',
+      resave: false,
+      saveUninitialized: false,
+      cookie: { secure: 'auto' },
+    })
+  );
   app.use(passport.initialize());
   app.use(passport.session());
-  
+
   app.setGlobalPrefix(globalPrefix);
 
   // Add global exception filter for AggregateError handling
@@ -142,9 +235,7 @@ async function bootstrap() {
   if (config.OPEN_API) {
     if (process.env.NODE_ENV === 'production') {
       Logger.warn(
-        colors.yellow(
-          'Swagger UI is disabled in production environment for security reasons.'
-        )
+        colors.yellow('Swagger UI is disabled in production environment for security reasons.')
       );
     } else {
       const swaggerConfig = new DocumentBuilder()

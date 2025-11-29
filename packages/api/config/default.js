@@ -7,8 +7,9 @@ const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client
 //   secretAccessKey: '',
 //   sessionToken: '',
 // },
-const makeConnectionString = (port, db, username, password, host, ssl) =>
-  `postgres://${username}@${host}:${port}/${db}?password=${password}&sslmode=${ssl}`;
+const makePgsqlConnectionString = (port, db, username, password, host, ssl) => {
+  return `postgres://${username}@${host}:${port}/${db}?password=${password}&sslmode=${ssl}`;
+};
 module.exports = {
   get OPEN_API() {
     return this._OPEN_API === true || this._OPEN_API === 'true';
@@ -16,6 +17,8 @@ module.exports = {
   _OPEN_API: false,
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
+  DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'
+  DB_TRUST_CERTIFICATE: false, // For MSSQL, whether to trust the server certificate
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
@@ -52,6 +55,7 @@ module.exports = {
   }),
   DB_CONNECTION_STRING: defer(function () {
     const ssl = this.DB_SSL ? 'require' : 'disable';
+    const engine = this.DB_ENGINE || 'pgsql';
     if (this.AWS_DB_SECRET) {
       // eslint-disable-next-line no-async-promise-executor
       return new Promise(async (r) => {
@@ -65,17 +69,37 @@ module.exports = {
         );
 
         if (secretValueRaw.SecretString === undefined) {
-          throw new Error('No connection values defined for postgres when requesting secrets');
+          throw new Error(`No connection values defined for ${engine} when requesting secrets`);
         }
 
         const secret = JSON.parse(secretValueRaw.SecretString);
         const { username, password, host, port, dbname } = secret;
-        r(makeConnectionString(port, dbname, username, password, host, ssl));
+        r(makePgsqlConnectionString(port, dbname, username, password, host, ssl, engine));
       });
     } else {
       // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
+      if (engine === 'mssql') {
+        const {
+          MSSQL_DB_USERNAME,
+          MSSQL_DB_PASSWORD,
+          MSSQL_DB_HOST,
+          MSSQL_DB_PORT,
+          MSSQL_DB_DATABASE,
+        } = this.DB_SECRET_VALUE;
+        const connString = `mssql://${MSSQL_DB_USERNAME}:${MSSQL_DB_PASSWORD}@${MSSQL_DB_HOST}:${MSSQL_DB_PORT}/${MSSQL_DB_DATABASE}?encrypt=${this.DB_SSL}&trustServerCertificate=${this.DB_TRUST_CERTIFICATE}`;
+
+        return connString;
+      }
+
       const { DB_USERNAME, DB_PASSWORD, DB_HOST, DB_PORT, DB_DATABASE } = this.DB_SECRET_VALUE;
-      return makeConnectionString(DB_PORT, DB_DATABASE, DB_USERNAME, DB_PASSWORD, DB_HOST, ssl);
+      return makePgsqlConnectionString(
+        DB_PORT,
+        DB_DATABASE,
+        DB_USERNAME,
+        DB_PASSWORD,
+        DB_HOST,
+        ssl
+      );
     }
   }),
   DB_ENCRYPTION_SECRET: defer(function () {
@@ -114,19 +138,22 @@ module.exports = {
   }),
   USE_YOPASS: false,
   WHITELISTED_REDIRECTS: [this.FE_URL],
-  MY_URL: string = "",
+  MY_URL: (string = ''),
   get MY_URL_API_PATH() {
-    return this.MY_URL.endsWith("/api") ? this.MY_URL : `${this.MY_URL}/api`;
+    return this.MY_URL.endsWith('/api') ? this.MY_URL : `${this.MY_URL}/api`;
   },
   OPENAPI_TITLE: 'Starting Blocks Admin App',
   OPENAPI_DESCRIPTION: 'OpenAPI spec for the EA Starting Blocks admin application.',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
-  
+
   // The time to live in milliseconds
-  RATE_LIMIT_TTL: 60000, 
+  RATE_LIMIT_TTL: 60000,
 
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 100,
-  
+
   USE_PKCE: true,
+
+  // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
+  LOG_LEVEL: 'log'
 };

@@ -9,13 +9,15 @@ This directory includes a Docker Compose file for starting a collection of servi
 ```mermaid
 graph TD
   edfiadminapp-db
+  edfiadminapp-mssql
   pgadmin4
   keycloak
   memcached
   yopass --> memcached
 ```
 
-- **edfiadminapp-db**: PostgreSQL database instance for the SBAA API.
+- **edfiadminapp-db**: PostgreSQL database instance for the SBAA API (default).
+- **edfiadminapp-mssql**: SQL Server database instance for the SBAA API (alternative to PostgreSQL).
 - **pgadmin4**: Standard PGAdmin4 deploy, preconfigured with links to the various PostgreSQL databases.
 - **keycloak**: For user authentication.
 - **yopass**: A web application for sharing one-time encrypted secrets, such as a ODS/API `client_secret`.
@@ -75,6 +77,48 @@ graph TD
 
 Because this is district-specific mode, and not a multi-tenant application, both districts' setups and client credentials are in the same "Admin" database instance, even though the two districts have distinct "ODS" databases.
 
+## Database Configuration
+
+The Ed-Fi Admin App supports both PostgreSQL (default) and Microsoft SQL Server for its backend database.
+
+### PostgreSQL (Default)
+
+PostgreSQL is used by default and requires no additional configuration beyond the standard `.env` file settings.
+
+### SQL Server (MSSQL)
+
+To use SQL Server instead of PostgreSQL:
+
+1. **Configure Environment Variables**: In your `.env` file, uncomment and configure:
+
+   ```bash
+   MSSQL_PORT_EXPOSED=1433
+   MSSQL_ACCEPT_EULA=Y
+   MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+   MSSQL_IMAGE_TAG=2022-latest
+   DB_ENGINE=mssql
+   ```
+
+2. **Password Requirements**: The `MSSQL_SA_PASSWORD` must meet SQL Server requirements:
+   - At least 8 characters
+   - Contains characters from at least 3 of these categories:
+     - Uppercase letters (A-Z)
+     - Lowercase letters (a-z)
+     - Numbers (0-9)
+     - Special characters (!@#$%^&*()_+-=[]{}|;:,.<>?)
+
+3. **Start Services**: Use the `-MSSQL` flag:
+
+   ```powershell
+   .\up.ps1 -MSSQL
+   .\up.ps1 -AdminApp -MSSQL
+   ```
+
+### Database Management
+
+- **PostgreSQL**: Access via PGAdmin4 at [https://localhost/pgadmin](https://localhost/pgadmin)
+- **SQL Server**: Connect using SQL Server Management Studio or Azure Data Studio to `localhost,1433` with SA credentials
+
 ## Getting Started
 
 > [!WARNING]
@@ -84,13 +128,13 @@ Because this is district-specific mode, and not a multi-tenant application, both
 
 There are two main PowerShell scripts for starting services:
 
-- **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi and AdminApp supporting services. It uses the following compose files:
+- **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi ODS/API and ODS Admin API supporting services. It uses the following compose files:
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-local-dev.yml`
   If the `edfiadminapp-network` does not exist, it will be created automatically.
 
-- **`start-services.ps1`**: Starts the Docker Compose services for EdFi, AdminApp, AdminApp API and supporting services. It uses:
+- **`start-services.ps1`**: Starts the Docker Compose services for the Ed-Fi ODS/API, ODS Admin API, _and_ runs Ed-Fi Admin App, along with supporting services. It uses:
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-services.yml`
@@ -103,7 +147,7 @@ There are two main PowerShell scripts for starting services:
 2. Create a self-signed certificate using `ssl/generate-certificate.sh` (Windows users can use WSL or Git-bash).
 3. Run the desired script:
 
-   - For local development: `./start-local-dev.ps1`
+   - For local development: `./start-local-dev.ps1`; use `./start-local-dev.ps1 -MSSQL` for using SQL Server to store the Admin App tables
    - For main services: `./start-services.ps1 [-Rebuild]`
 
 4. To stop services, use the `stop.ps1` script with the following options:
@@ -191,16 +235,21 @@ In Global Scope, complete the following setup:
 
 These are the default URLs. The last path segment must match your environment variable settings.
 
-| App | URL |
-|-----|-----|
-| Multi-Tenant <br/> - ODS/API 7.x <br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-multi-api<br/>https://localhost/v7-multi-adminapi |
-| Single-Tenant<br/> - ODS/API 7.x<br/> - Admin API 2.x in v2 mode | <br/>https://localhost/v7-single-api<br/>https://localhost/v7-single-adminapi |
-| ODS/API 6.x<br/>Admin API 2.x in v1 mode | https://localhost/v6-api<br/>https://localhost/v6-adminapi |
-| Keycloak | https://localhost/auth |
-| Yopass | http://localhost:8082 |
-| PGAdmin4 | https://localhost/pgadmin |
-| Admin App API Swagger | https://localhost/adminapp-api/api/ |
-| Admin App UI | https://localhost/adminapp |
+| App                                    | URL                                                                          |
+| -------------------------------------- | ---------------------------------------------------------------------------- |
+| Multi-Tenant ODS/API 7.x               | [https://localhost/v7-multi-api](https://localhost/v7-multi-api)             |
+| Multi-tenant Admin API 2.x in v2 mode  | [https://localhost/v7-multi-adminapi](https://localhost/v7-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x              | [https://localhost/v7-single-api](https://localhost/v7-single-api)           |
+| Single-Tenant Admin API 2.x in v2 mode | [https://localhost/v7-single-adminapi](https://localhost/v7-single-adminapi) |
+| ODS/API 6.x                            | [https://localhost/v6-api](https://localhost/v6-api)                         |
+| Admin API 2.x in v1 mode               | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)               |
+| Keycloak                               | [https://localhost/auth](https://localhost/auth)                             |
+| Yopass                                 | [http://localhost:8082](http://localhost:8082)                               |
+| PGAdmin4                               | [https://localhost/pgadmin](https://localhost/pgadmin)                       |
+| Admin App API Swagger (container)      | [https://localhost/adminapp-api/api/](https://localhost/adminapp-api/api/)   |
+| Admin App UI (container)               | [https://localhost/adminapp](https://localhost/adminapp)                     |
+| Admin App API Swagger (local)          | [http://localhost:3333/api/](http://localhost:3333/api)                      |
+| Admin App UI (local)                   | [http://localhost:4200](https://localhost:4200)                              |
 
 ## Authentication Flows
 
