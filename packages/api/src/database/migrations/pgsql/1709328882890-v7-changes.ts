@@ -21,17 +21,18 @@ export class V7Changes1709328882890 implements MigrationInterface {
     await queryRunner.query(`DROP TABLE "privilege"`);
     // rename tenant
     await queryRunner.query(`ALTER TABLE "role" RENAME COLUMN "tenantId" TO "teamId"`);
-
     await queryRunner.query(`ALTER TABLE "ownership" RENAME COLUMN "tenantId" TO "teamId"`);
-
     await queryRunner.query(`ALTER TABLE "tenant" RENAME TO "team"`);
-
-    await queryRunner.query(`ALTER TABLE "user_tenant_membership" RENAME TO "user_team_membership"`);
-
+    await queryRunner.query(
+      `ALTER TABLE "user_tenant_membership" RENAME TO "user_team_membership"`
+    );
+    await queryRunner.query(`ALTER SEQUENCE "tenant_id_seq" RENAME TO "team_id_seq"`);
+    await queryRunner.query(
+      `ALTER SEQUENCE "user_tenant_membership_id_seq" RENAME TO "user_team_membership_id_seq"`
+    );
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" RENAME COLUMN "tenantId" TO "teamId"`
     );
-
     await queryRunner.query(`
       CREATE OR REPLACE FUNCTION array_replace(arr text[], search text, replace text)
       RETURNS text[] AS $$
@@ -85,55 +86,42 @@ export class V7Changes1709328882890 implements MigrationInterface {
     await queryRunner.query(
       `ALTER TABLE "ownership" DROP CONSTRAINT "UQ_e81f6591816838e021ba3a4e110"`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "UQ_fd1dcfae7e73c3d52a4b2d9df5e" UNIQUE ("teamId", "userId")`
     );
-
     await queryRunner.query(
       `ALTER TABLE "ownership" ADD CONSTRAINT "UQ_dd40433e091e5d45bec9b801d28" UNIQUE ("teamId", "edorgId")`
     );
-
     await queryRunner.query(
       `ALTER TABLE "ownership" ADD CONSTRAINT "UQ_dc1f1ddb60cb2358f424909bf7c" UNIQUE ("teamId", "odsId")`
     );
-
     await queryRunner.query(
       `ALTER TABLE "ownership" ADD CONSTRAINT "UQ_6963c608cdaa6f203b20eb938ed" UNIQUE ("teamId", "sbeId")`
     );
-
     await queryRunner.query(
       `ALTER TABLE "team" ADD CONSTRAINT "FK_3a93fbdeba4e1e9e47fec6bada9" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "team" ADD CONSTRAINT "FK_4a6172bf2bf88b295a19b3245a7" FOREIGN KEY ("modifiedById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "FK_2454184e9011e28172f06d0d639" FOREIGN KEY ("createdById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "FK_978dfce88e15d0e7461b7350b1e" FOREIGN KEY ("modifiedById") REFERENCES "user"("id") ON DELETE SET NULL ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "FK_e08e451152e4e3214301716d149" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "FK_513e407d9457dc50784b4d9c20d" FOREIGN KEY ("userId") REFERENCES "user"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "user_team_membership" ADD CONSTRAINT "FK_ac0aaa143bbf1ee8725a6b1593e" FOREIGN KEY ("roleId") REFERENCES "role"("id") ON DELETE SET NULL ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "role" ADD CONSTRAINT "FK_997dd31f342ad1e67a8dc9a24d1" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
     );
-
     await queryRunner.query(
       `ALTER TABLE "ownership" ADD CONSTRAINT "FK_9ed3cde4307ca1cf1275e297152" FOREIGN KEY ("teamId") REFERENCES "team"("id") ON DELETE CASCADE ON UPDATE NO ACTION`
     );
