@@ -242,8 +242,7 @@ BEGIN
     OR [id_descendant] IN (SELECT [id] FROM DELETED);
 
 END;`
-    )
-
+    );
 
     // Set up app privileges
     await queryRunner.query(

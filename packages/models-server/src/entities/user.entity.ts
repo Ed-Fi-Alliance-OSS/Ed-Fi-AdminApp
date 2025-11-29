@@ -75,7 +75,11 @@ export class User implements IUser {
   @Column()
   isActive: boolean;
 
-  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'enum' : 'nvarchar', enum: ['human', 'machine'], default: 'human' })
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'enum' : 'nvarchar',
+    enum: ['human', 'machine'],
+    default: 'human',
+  })
   userType: UserType;
 
   get fullName() {

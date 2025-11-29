@@ -1,4 +1,4 @@
-name: "Copilot Setup Steps"
+name: 'Copilot Setup Steps'
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ jobs:
       mssql:
         image: mcr.microsoft.com/mssql/server:2022-latest
         ports:
-          - "1433:1433"
+          - '1433:1433'
         options: >-
           --health-cmd "exit 0"
           --health-interval 10s

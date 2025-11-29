@@ -62,7 +62,7 @@ export class AddProfilePrivileges1719427712090 implements MigrationInterface {
     await queryRunner.query(
       `UPDATE [role] SET [privilegeIds] = REPLACE(',' + [privilegeIds] + ',', ',team.sb-environment.edfi-tenant.profile:create,', ',') WHERE id = 5`
     );
-    
+
     // Clean up leading/trailing commas
     await queryRunner.query(
       `UPDATE [role] SET [privilegeIds] = TRIM(',' FROM [privilegeIds]) WHERE id IN (5, 6)`

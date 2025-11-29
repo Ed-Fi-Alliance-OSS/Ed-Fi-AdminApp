@@ -4,8 +4,8 @@ export class SbeConfigReorg1687190483472 implements MigrationInterface {
   name = 'SbeConfigReorg1687190483472';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-  await queryRunner.query(`ALTER TABLE [sbe] DROP COLUMN [configPublic]`);
-  await queryRunner.query(`ALTER TABLE [sbe] ADD [configPublic] NVARCHAR(MAX)`);
+    await queryRunner.query(`ALTER TABLE [sbe] DROP COLUMN [configPublic]`);
+    await queryRunner.query(`ALTER TABLE [sbe] ADD [configPublic] NVARCHAR(MAX)`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

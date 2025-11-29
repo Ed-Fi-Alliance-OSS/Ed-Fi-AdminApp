@@ -1,7 +1,7 @@
- import { MigrationInterface, QueryRunner } from 'typeorm';
+import { MigrationInterface, QueryRunner } from 'typeorm';
 
-export class BigIntEdOrg1717166915117 implements MigrationInterface { name =
-  'BigIntEdOrg1717166915117';
+export class BigIntEdOrg1717166915117 implements MigrationInterface {
+  name = 'BigIntEdOrg1717166915117';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
     // await queryRunner.query(`ALTER TABLE [edorg]    DROP CONSTRAINT    [UQ_07c5479767d3c27eb0150fee1d9]`);

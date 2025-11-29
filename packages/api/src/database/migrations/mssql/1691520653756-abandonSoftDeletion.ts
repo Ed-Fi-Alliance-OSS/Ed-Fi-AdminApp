@@ -67,7 +67,6 @@ export class AbandonSoftDeletion1691520653756 implements MigrationInterface {
     //   `ALTER TABLE [edorg] ADD CONSTRAINT [FK_4f7237384382e4796332a25ea48] FOREIGN KEY ([sbeId]) REFERENCES [sbe]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     // );
 
-
     await queryRunner.query(
       `ALTER TABLE [user_tenant_membership] ADD CONSTRAINT [FK_559208b256dbd6a371f121333e5] FOREIGN KEY ([tenantId]) REFERENCES [tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );

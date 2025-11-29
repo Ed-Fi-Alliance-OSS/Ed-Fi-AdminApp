@@ -100,12 +100,13 @@ To use SQL Server instead of PostgreSQL:
    ```
 
 2. **Password Requirements**: The `MSSQL_SA_PASSWORD` must meet SQL Server requirements:
+
    - At least 8 characters
    - Contains characters from at least 3 of these categories:
      - Uppercase letters (A-Z)
      - Lowercase letters (a-z)
      - Numbers (0-9)
-     - Special characters (!@#$%^&*()_+-=[]{}|;:,.<>?)
+     - Special characters (!@#$%^&\*()\_+-=[]{}|;:,.<>?)
 
 3. **Start Services**: Use the `-MSSQL` flag:
 
@@ -129,16 +130,17 @@ To use SQL Server instead of PostgreSQL:
 There are two main PowerShell scripts for starting services:
 
 - **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi ODS/API and ODS Admin API supporting services. It uses the following compose files:
+
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-local-dev.yml`
-  If the `edfiadminapp-network` does not exist, it will be created automatically.
+    If the `edfiadminapp-network` does not exist, it will be created automatically.
 
 - **`start-services.ps1`**: Starts the Docker Compose services for the Ed-Fi ODS/API, ODS Admin API, _and_ runs Ed-Fi Admin App, along with supporting services. It uses:
   - `edfi-services.yml`
   - `nginx-compose.yml`
   - `adminapp-services.yml`
-  If the `edfiadminapp-network` does not exist, it will be created automatically.
+    If the `edfiadminapp-network` does not exist, it will be created automatically.
   - You can pass the `-Rebuild` switch to rebuild the AdminApp images before starting them.
 
 #### Steps to Start Containers
@@ -259,13 +261,13 @@ The Ed-Fi Admin App supports two authentication methods:
 
 The Keycloak client `edfiadminapp` is created automatically as part of the Keycloak setup process.
 
-  ```mermaid
+```mermaid
 
-  graph LR
-    A[User credentials] --> B[Authorization code]
-    B --> C[Access token]
-    C --> D[Authenticated session established]
-  ```
+graph LR
+  A[User credentials] --> B[Authorization code]
+  B --> C[Access token]
+  C --> D[Authenticated session established]
+```
 
 ### 2. Machine-to-Machine Authentication (API-based)
 
@@ -366,24 +368,24 @@ missing or incorrect, authentication will fail.
 1. How to Fix:
    Check that the correct OIDC record exists in the `public.oidc` table.
 
-   - For local-dev (`edfiadminapp-dev`  client):
+   - For local-dev (`edfiadminapp-dev` client):
 
-    ```shell
-     id |               issuer               |     clientId     |  clientSecret  | scope
-    ----+------------------------------------+------------------+----------------+-------
-      1 | https://localhost/auth/realms/edfi | edfiadminapp-dev | big-secret-123 |
-    ```
+   ```shell
+    id |               issuer               |     clientId     |  clientSecret  | scope
+   ----+------------------------------------+------------------+----------------+-------
+     1 | https://localhost/auth/realms/edfi | edfiadminapp-dev | big-secret-123 |
+   ```
 
    - For main services (`edfiadminapp` client):
 
-    ```shell
+   ```shell
 
-     id |               issuer               |     clientId     |  clientSecret  | scope
-    ----+------------------------------------+------------------+----------------+-------
-      1 | https://localhost/auth/realms/edfi | edfiadminapp     | big-secret-123 |
-    ```
+    id |               issuer               |     clientId     |  clientSecret  | scope
+   ----+------------------------------------+------------------+----------------+-------
+     1 | https://localhost/auth/realms/edfi | edfiadminapp     | big-secret-123 |
+   ```
 
-2. If the required OIDC record is missing, you can manually insert it, or run the helper script:  
+2. If the required OIDC record is missing, you can manually insert it, or run the helper script:
 
    - Run `./settings/populate-oidc.ps1` with parameters to add a oidc:
 
@@ -393,8 +395,8 @@ missing or incorrect, authentication will fail.
      OR
 
      ./settings/populate-oidc.ps1 -ClientId "edfiadminapp-dev" -ClientSecret "big-secret-123" -Issuer "https://localhost/auth/realms/edfi"
-     
-      ```
+
+     ```
 
 3. Make sure the `VITE_OIDC_ID` variable in your `.env` file matches the correct
    OIDC record id for your client. For example, set `VITE_OIDC_ID=1` for
@@ -402,12 +404,12 @@ missing or incorrect, authentication will fail.
 
 4. In Keycloak, confirm that the client configuration matches your OIDC settings:
 
-     1. Open [Keycloak](https://localhost/auth).
-     2. Sign-in with the credentials from your `.env` file.
-     3. Select the realm called `edfi`.
-     4. Go the clients and select `edfiadminapp` or `edfiadminapp-dev`, make sure the `Valid redirect
-        URIs` has the correct url included
-        `https://localhost/adminapp-api/api/auth/callback/{your_oidc_id}`, in
-        this case should be `https://localhost/adminapp-api/api/auth/callback/1`
+   1. Open [Keycloak](https://localhost/auth).
+   2. Sign-in with the credentials from your `.env` file.
+   3. Select the realm called `edfi`.
+   4. Go the clients and select `edfiadminapp` or `edfiadminapp-dev`, make sure the `Valid redirect
+URIs` has the correct url included
+      `https://localhost/adminapp-api/api/auth/callback/{your_oidc_id}`, in
+      this case should be `https://localhost/adminapp-api/api/auth/callback/1`
 
 - Restart the service container.

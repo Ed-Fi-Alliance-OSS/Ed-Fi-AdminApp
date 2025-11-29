@@ -4,7 +4,7 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
   name = 'CreateDetailedIntegrationAppsView1745533840578';
 
   public async up(queryRunner: QueryRunner): Promise<void> {
-  	// TODO: manually verify this strange syntax compared to the PostgreSQL version with its ANY() function
+    // TODO: manually verify this strange syntax compared to the PostgreSQL version with its ANY() function
     await queryRunner.query(`CREATE VIEW [integration_apps_view] AS
     SELECT
       ia.*,
@@ -29,7 +29,7 @@ export class CreateDetailedIntegrationAppsView1745533840578 implements Migration
         'dbo',
         'VIEW',
         'integration_apps_view',
-        'SELECT\n      ia.*,\n      et.[name] AS [edfiTenantName],\n      ip.[name] AS [integrationProviderName],\n      (\n        SELECT STRING_AGG(e.[nameOfInstitution], \',\')\n        FROM edorg e\n        WHERE \',\' + ia.[edorgIds] + \',\' LIKE \'%,\' + CAST(e.id AS VARCHAR) + \',%\'\n      ) AS [edorgNames],\n      ods.[odsInstanceName] AS [odsName],\n      sbe.[name] AS [sbEnvironmentName]\n    FROM integration_app ia\n    LEFT JOIN edfi_tenant et ON et.id = ia.[edfiTenantId]\n    LEFT JOIN integration_provider ip ON ip.id = ia.[integrationProviderId]\n    LEFT JOIN ods ON ods.id = ia.[odsId]\n    LEFT JOIN sb_environment sbe ON sbe.id = ia.[sbEnvironmentId]',
+        "SELECT\n      ia.*,\n      et.[name] AS [edfiTenantName],\n      ip.[name] AS [integrationProviderName],\n      (\n        SELECT STRING_AGG(e.[nameOfInstitution], ',')\n        FROM edorg e\n        WHERE ',' + ia.[edorgIds] + ',' LIKE '%,' + CAST(e.id AS VARCHAR) + ',%'\n      ) AS [edorgNames],\n      ods.[odsInstanceName] AS [odsName],\n      sbe.[name] AS [sbEnvironmentName]\n    FROM integration_app ia\n    LEFT JOIN edfi_tenant et ON et.id = ia.[edfiTenantId]\n    LEFT JOIN integration_provider ip ON ip.id = ia.[integrationProviderId]\n    LEFT JOIN ods ON ods.id = ia.[odsId]\n    LEFT JOIN sb_environment sbe ON sbe.id = ia.[sbEnvironmentId]",
       ]
     );
   }

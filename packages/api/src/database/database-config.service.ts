@@ -14,7 +14,9 @@ export class DatabaseConfigService {
       const retryAttempts = config.TYPEORM_RETRY_ATTEMPTS;
       const retryDelay = config.TYPEORM_RETRY_DELAY;
 
-      this.logger.log(`TypeORM configured with ${retryAttempts} retry attempts and ${retryDelay}ms delay`);
+      this.logger.log(
+        `TypeORM configured with ${retryAttempts} retry attempts and ${retryDelay}ms delay`
+      );
 
       return {
         ...typeormConfig,
@@ -26,7 +28,7 @@ export class DatabaseConfigService {
         extra: {
           trustServerCertificate: config.DB_TRUST_CERTIFICATE,
           encrypt: config.DB_SSL,
-        }
+        },
       };
     } catch (error) {
       this.logger.error(`Database configuration failed: ${error.message}`);

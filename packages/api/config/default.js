@@ -155,5 +155,5 @@ module.exports = {
   USE_PKCE: true,
 
   // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
-  LOG_LEVEL: 'log'
+  LOG_LEVEL: 'log',
 };

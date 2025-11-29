@@ -45,7 +45,8 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
     {
       provide: 'PgBossInstance',
       useFactory: async () => {
-        if (appConfig.DB_ENGINE === "mssql") { // mssql is not yet supported
+        if (appConfig.DB_ENGINE === 'mssql') {
+          // mssql is not yet supported
           return null;
         }
 
@@ -63,8 +64,7 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
         boss.on('error', async (err: any) => {
           const code = err?.code ?? 'UNKNOWN';
           const queue =
-            /Queue:\s*([^\s,]+)/.exec(String(err?.message ?? ''))?.[1] ??
-            (err?.queue ?? 'unknown');
+            /Queue:\s*([^\s,]+)/.exec(String(err?.message ?? ''))?.[1] ?? err?.queue ?? 'unknown';
           const key = `${code}:${queue}`;
 
           if (code === 'ECONNREFUSED') {
@@ -103,7 +103,7 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
             started = true;
             log.log(`PgBoss started (attempt ${attempt}/${maxAttempts}).`);
             break;
-          // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
           } catch (err: any) {
             const code = err?.code ?? 'UNKNOWN';
             if (code === 'ECONNREFUSED') {

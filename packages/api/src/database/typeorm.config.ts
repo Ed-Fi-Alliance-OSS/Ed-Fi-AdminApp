@@ -156,35 +156,34 @@ const getMSSQLMigrations = () => [
   MssqlRemoveUserConfig1764429283532,
 ];
 
-
 const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {
   const baseEntities = [
-      EdfiTenant,
-      Edorg,
-      EnvNav,
-      IntegrationApp,
-      IntegrationAppDetailed,
-      IntegrationProvider,
-      Ods,
-      Oidc,
-      Ownership,
-      OwnershipView,
-      Role,
-      SbEnvironment,
-      SbSyncQueue,
-      Team,
-      User,
-      UserTeamMembership,
-    ];
+    EdfiTenant,
+    Edorg,
+    EnvNav,
+    IntegrationApp,
+    IntegrationAppDetailed,
+    IntegrationProvider,
+    Ods,
+    Oidc,
+    Ownership,
+    OwnershipView,
+    Role,
+    SbEnvironment,
+    SbSyncQueue,
+    Team,
+    User,
+    UserTeamMembership,
+  ];
 
   const baseConfig = {
     entities: baseEntities,
     synchronize: false,
     migrationsRun: true,
-    logging: config.TYPEORM_LOGGING
+    logging: config.TYPEORM_LOGGING,
   };
 
-  if (config.DB_ENGINE === "mssql") {
+  if (config.DB_ENGINE === 'mssql') {
     return {
       ...baseConfig,
       migrations: getMSSQLMigrations(),
@@ -192,8 +191,8 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
       // MSSQL-specific options,
       options: {
         encrypt: config.DB_SSL,
-        trustServerCertificate: config.DB_TRUST_CERTIFICATE
-      }
+        trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+      },
     } as SqlServerConnectionOptions;
   }
 

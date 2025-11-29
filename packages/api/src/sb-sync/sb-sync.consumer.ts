@@ -39,14 +39,14 @@ export class SbSyncConsumer implements OnModuleInit {
     private readonly metadataService: MetadataService
   ) {}
   public async onModuleDestroy() {
-    if (config.DB_ENGINE === "mssql") {
+    if (config.DB_ENGINE === 'mssql') {
       // mssql is not yet supported
       return null;
     }
     await this.boss.stop();
   }
   public async onModuleInit() {
-    if (config.DB_ENGINE === "mssql") {
+    if (config.DB_ENGINE === 'mssql') {
       // mssql is not yet supported
       return null;
     }
@@ -59,7 +59,9 @@ export class SbSyncConsumer implements OnModuleInit {
       Logger.log('Sync scheduler job scheduled successfully');
     } catch (error) {
       if ((error as Error & { status?: number })?.status === 503) {
-        Logger.warn('Database unavailable - sync scheduler will be set up when database becomes available');
+        Logger.warn(
+          'Database unavailable - sync scheduler will be set up when database becomes available'
+        );
       } else {
         Logger.error('Failed to schedule sync job:', error);
         throw error;
@@ -97,7 +99,9 @@ export class SbSyncConsumer implements OnModuleInit {
       Logger.log('Sync workers registered successfully');
     } catch (error) {
       if ((error as Error & { status?: number })?.status === 503) {
-        Logger.warn('Database unavailable - sync workers will be registered when database becomes available');
+        Logger.warn(
+          'Database unavailable - sync workers will be registered when database becomes available'
+        );
       } else {
         Logger.error('Failed to register sync workers:', error);
         throw error;

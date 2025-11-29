@@ -29,14 +29,16 @@ export class V7Changes1709328882890 implements MigrationInterface {
 
     await queryRunner.query(`EXEC sp_rename '[user_tenant_membership]', 'user_team_membership'`);
 
-    await queryRunner.query(`EXEC sp_rename '[user_team_membership].[tenantId]', 'teamId', 'COLUMN'`);
-
-
+    await queryRunner.query(
+      `EXEC sp_rename '[user_team_membership].[tenantId]', 'teamId', 'COLUMN'`
+    );
 
     await queryRunner.query(
       `UPDATE [role] SET [privilegeIds] = REPLACE([privilegeIds], 'tenant', 'team')`
     );
-    await queryRunner.query(`UPDATE [role] SET [type] = '"UserTeam"' WHERE [type] = '"UserTenant"'`);
+    await queryRunner.query(
+      `UPDATE [role] SET [type] = '"UserTeam"' WHERE [type] = '"UserTenant"'`
+    );
 
     // rename constraints (they're hashes of templated strings like sequence names above, and typeorm relies on that)
     await queryRunner.query(`ALTER TABLE [team] DROP CONSTRAINT [FK_1636cc00622963d7c7a5499312c]`);
@@ -205,8 +207,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
 @name = N'MS_Description', @value = 'The name used in the tenant management database in StartingBlocks',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edfi_tenant',
-@level2type = N'Column', @level2name = 'name';`
-    );
+@level2type = N'Column', @level2name = 'name';`);
     await queryRunner.query(
       `ALTER TABLE [ods] ADD CONSTRAINT [FK_21f00024e194f67e9f51575f750] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
     );
@@ -293,14 +294,12 @@ export class V7Changes1709328882890 implements MigrationInterface {
 @name = N'MS_Description', @value = 'The name used in the tenant management database in StartingBlocks, or "default" for v5/6 environments',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edfi_tenant',
-@level2type = N'Column', @level2name = 'name';`
-    );
+@level2type = N'Column', @level2name = 'name';`);
     await queryRunner.query(`EXEC sp_addextendedproperty
 @name = N'MS_Description', @value = 'Pre-v7/v2, this reliably included the Ods name. In v7/v2 it is no longer alone sufficient as a natural key, and must be combined with an ODS identifier.',
 @level0type = N'Schema', @level0name = dbo,
 @level1type = N'Table',  @level1name = 'edorg',
-@level2type = N'Column', @level2name = 'educationOrganizationId';`
-    );
+@level2type = N'Column', @level2name = 'educationOrganizationId';`);
     // migrate sbe config
     await queryRunner.query(
       `UPDATE [sb_environment]
@@ -333,7 +332,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
           ),
           ',,', ','
         )`
-        // The last strange line is in case the replacement left any ",," double commas behind
+      // The last strange line is in case the replacement left any ",," double commas behind
     );
     // add ownership view
     await queryRunner.query(`CREATE VIEW [ownership_view] AS SELECT ownership.[id],
@@ -370,7 +369,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
         'public',
         'VIEW',
         'ownership_view',
-        'SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL then \'Edorg\'\n    WHEN ownership.[odsId] IS NOT NULL THEN \'Ods\'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN \'EdfiTenant\'\n    ELSE \'SbEnvironment\' END "resourceType",\nsb_environment.name +\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN \' / \' + edfi_tenant.[name] ELSE \'\' END +\nCASE WHEN ods.[dbName] IS NOT NULL THEN \' / \' + ods.[dbName] ELSE \'\' END +\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN \' / \' + edorg.[shortNameOfInstitution]\n    ELSE \'\' END              "resourceText"\nFROM ownership\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or\n                              edfi_tenant.[sbEnvironmentId] = sb_environment.id',
+        "SELECT ownership.[id],\nownership.[teamId],\nownership.[roleId],\nCASE\n    WHEN [ownership].[edorgId] IS NOT NULL then 'Edorg'\n    WHEN ownership.[odsId] IS NOT NULL THEN 'Ods'\n    WHEN ownership.[edfiTenantId] IS NOT NULL THEN 'EdfiTenant'\n    ELSE 'SbEnvironment' END \"resourceType\",\nsb_environment.name +\nCASE WHEN edfi_tenant.[name] IS NOT NULL THEN ' / ' + edfi_tenant.[name] ELSE '' END +\nCASE WHEN ods.[dbName] IS NOT NULL THEN ' / ' + ods.[dbName] ELSE '' END +\nCASE\n    WHEN edorg.[shortNameOfInstitution] IS NOT NULL THEN ' / ' + edorg.[shortNameOfInstitution]\n    ELSE '' END              \"resourceText\"\nFROM ownership\n  LEFT JOIN edorg ON ownership.[edorgId] = edorg.id\n  LEFT JOIN ods ON ownership.[odsId] = ods.id OR edorg.[odsId] = ods.id\n  LEFT JOIN edfi_tenant ON ownership.[edfiTenantId] = edfi_tenant.id OR ods.[edfiTenantId] = edfi_tenant.id\n  LEFT JOIN sb_environment ON ownership.[sbEnvironmentId] = sb_environment.id or\n                              edfi_tenant.[sbEnvironmentId] = sb_environment.id",
       ]
     );
     // new sb sync queue
@@ -389,7 +388,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
       SELECT 1 as [id], '1' as [type], '1' as [name], 1 as [sbEnvironmentId], 1 as [edfiTenantId], '' as [dataText], '' as [data], '' as [state], '1900-01-01 00:00:00' as [createdon], '1900-01-02 00:00:00' as [completedon], '' as output, 0 as hasChanges
       FROM sys.views
       WHERE 1=0`
-    )
+    );
     await queryRunner.query(
       `INSERT INTO [typeorm_metadata] ("schema", "type", "name", "value") VALUES ($1, $2, $3, $4)`,
       [

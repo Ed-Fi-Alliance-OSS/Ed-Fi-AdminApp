@@ -11,9 +11,7 @@ export class RemoveImpliedPrivilege1714074225483 implements MigrationInterface {
       `UPDATE [role] SET [privilegeIds] = REPLACE(',' + [privilegeIds] + ',', ',privilege:read,', ',') WHERE [privilegeIds] LIKE '%privilege:read%'`
     );
     // Clean up leading/trailing commas
-    queryRunner.query(
-      `UPDATE [role] SET [privilegeIds] = TRIM(',' FROM [privilegeIds])`
-    );
+    queryRunner.query(`UPDATE [role] SET [privilegeIds] = TRIM(',' FROM [privilegeIds])`);
   }
 
   public async down(queryRunner: QueryRunner): Promise<void> {

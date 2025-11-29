@@ -10,7 +10,9 @@ export class UniqueClientId1747424374434 implements MigrationInterface {
     // filtered index allows us to ignore nulls and get the same result as in
     // PostgreSQL.
     await queryRunner
-      .query(`CREATE UNIQUE INDEX [IDX_56f28841fe433cf13f8685f9bc] ON [user] ([clientId]) WHERE [clientId] IS NOT NULL`)
+      .query(
+        `CREATE UNIQUE INDEX [IDX_56f28841fe433cf13f8685f9bc] ON [user] ([clientId]) WHERE [clientId] IS NOT NULL`
+      )
       .catch((error) => {
         console.error(
           '\nError creating UNIQUE index on clientId. Check for existing duplicates.\n'

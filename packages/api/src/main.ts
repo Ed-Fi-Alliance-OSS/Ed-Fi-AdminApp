@@ -51,7 +51,7 @@ async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.Conn
 
   const secureCopy = {
     ...mssqlConfig,
-    password: '***'
+    password: '***',
   };
   Logger.debug(`MSSQL connection parameters: ${JSON.stringify(secureCopy)}`);
   const pool = new sql.ConnectionPool(mssqlConfig);
@@ -151,7 +151,7 @@ END`);
   }
 }
 
-function getLogLevel() : LogLevel[] {
+function getLogLevel(): LogLevel[] {
   switch (config.LOG_LEVEL) {
     case 'verbose':
       return ['verbose', 'debug', 'log', 'warn', 'error', 'fatal'];
@@ -171,8 +171,9 @@ function getLogLevel() : LogLevel[] {
 }
 
 async function bootstrap() {
-
-  const app = await NestFactory.create<NestExpressApplication>(AppModule, { logger: getLogLevel()});
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: getLogLevel(),
+  });
 
   // Check database availability first - exit if not available
   await checkDatabaseAvailability();
