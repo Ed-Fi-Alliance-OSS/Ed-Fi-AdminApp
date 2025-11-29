@@ -4,6 +4,7 @@
   "license": "Apache-2.0",
   "scripts": {
     "start": "nx run-many -p api fe -t serve",
+    "build": "npm run build:fe && npm run build:api",
     "build:fe": "nx run fe:build",
     "build:api": "nx run api:build",
     "build-storybook:common-ui": "nx run common-ui:build-storybook",

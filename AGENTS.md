@@ -1,22 +1,12 @@
-# Admin App - GitHub Copilot Instructions
+# Admin App - Coding Agent Instructions
 
 ## Overview
 
 The Admin App is a centralized management system for Ed-Fi Technology Suite deployments. It provides a unified interface for managing multiple Ed-Fi API instances across on-premises, cloud, or Starting Blocks environments.
 
-## Architecture
-
-- **Frontend**: React 18.3.1 with TypeScript, Chakra UI, and Vite
-- **Backend**: NestJS with TypeScript, TypeORM, and Express
-- **Database**: PostgreSQL (primary) with optional MSSQL support
-- **Monorepo**: Nx workspace with multiple packages
-- **Testing**: Jest for unit tests, Cypress for E2E
-- **Authentication**: OpenID Connect (OIDC) with configurable identity providers
-- **Cloud**: AWS services integration (Lambda, Secrets Manager)
-
 ## Project Structure
 
-```
+```none
 packages/
 ├── api/           # NestJS backend application
 ├── fe/            # React frontend application
@@ -30,30 +20,29 @@ packages/
 
 ### Frontend Stack
 
-- **React 18.3.1** with TypeScript 5.9.3
-- **Chakra UI 2.8.2** for component library
-- **Vite 5.4.20** for build tooling
-- **TanStack Query 5.90.5** for data fetching
-- **React Router DOM 6.14.0** for routing
-- **React Hook Form 7.65.0** for form management
-- **Jotai 2.15.0** for state management
+- **React** with TypeScript
+- **Chakra UI** for component library
+- **Vite** for build tooling
+- **TanStack Query** for data fetching
+- **React Router DOM** for routing
+- **React Hook Form** for form management
+- **Jotai** for state management
 
 ### Backend Stack
 
-- **NestJS 10.4.19** framework
-- **TypeORM 0.3.27** for database ORM
-- **PostgreSQL** as primary database
+- **NestJS** framework
+- **TypeORM** for database ORM
+- **PostgreSQL** as primary database, or alternatively **Microsoft SQL Server**
 - **Express Session** for session management
 - **Passport** for authentication
-- **AWS SDK** for cloud integration
 
 ### Development Tools
 
-- **Nx 19.8.12** for monorepo management
-- **ESLint 8.57.0** with TypeScript support
-- **Prettier 2.6.2** for code formatting
-- **Jest 29.4.1** for testing
-- **Storybook 8.6.14** for component development
+- **Nx** for monorepo management
+- **ESLint** with TypeScript support
+- **Prettier** for code formatting
+- **Jest** for testing
+- **Storybook** for component development
 
 ### Key Commands
 
@@ -85,12 +74,8 @@ packages/
 
 - **OIDC Integration**: Configurable identity providers
 - **Session Management**: Express sessions with database storage
-- **Machine Users**: Support for M2M authentication via Auth0
+- **Machine Users**: Support for M2M authentication via OAuth
 - **Encryption**: Sensitive data encrypted at rest
-
-### AWS Integration
-
-- Never modify AWS files in the `cloudformation` directory
 
 ### Testing Strategy
 
@@ -101,11 +86,19 @@ packages/
 
 ### Code Quality
 
+- **REQUIRED**: Obey the `.editorconfig` file settings at all times. The project uses:
+  - UTF-8 character encoding
+  - LF line endings
+  - 2-space indentation
+  - Spaces for indentation style
+  - Final newlines required
+  - Trailing whitespace must be trimmed
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Prettier**: Consistent code formatting
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)
-
+- **REQUIRED**: Execute `npm run build` before submitting any changes and correct any build errors
+ 
 ## Common Development Tasks
 
 ### Adding New Features
@@ -124,7 +117,7 @@ packages/
 # Generate migration
 npm run migrations:generate -- AddNewFeature
 
-# Run migrations
+# Run migrations on PostgreSQL
 npm run migrations:run
 
 # Revert last migration
@@ -156,7 +149,7 @@ Use semantic commit messages for automated versioning:
 
 ### Pull Request Process
 
-1. Create feature branch from `develop`
+1. Create feature branch from `main`
 2. Use semantic commit messages
 3. Include unit tests for new functionality
 4. Update documentation as needed
