@@ -52,6 +52,7 @@ import { AddIntegrationProviderToOwnership1744919046622 as PgsqlAddIntegrationPr
 import { UniqueClientId1747424374434 as PgsqlUniqueClientId1747424374434 } from './migrations/pgsql/1747424374434-UniqueClientId';
 import { CreateIntegrationApps1744933017953 as PgsqlCreateIntegrationApps1744933017953 } from './migrations/pgsql/1744933017953-CreateIntegrationApps';
 import { CreateDetailedIntegrationAppsView1745533840578 as PgsqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/pgsql/1745533840578-CreateDetailedIntegrationAppsView';
+import { RemoveUserConfig1764429283532 as PgsqlRemoveUserConfig1764429283532 } from './migrations/pgsql/1764429283532-remove-user-config';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -84,6 +85,7 @@ import { AddIntegrationProviderToOwnership1744919046622 as MssqlAddIntegrationPr
 import { UniqueClientId1747424374434 as MssqlUniqueClientId1747424374434 } from './migrations/mssql/1747424374434-UniqueClientId';
 import { CreateIntegrationApps1744933017953 as MssqlCreateIntegrationApps1744933017953 } from './migrations/mssql/1744933017953-CreateIntegrationApps';
 import { CreateDetailedIntegrationAppsView1745533840578 as MssqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/mssql/1745533840578-CreateDetailedIntegrationAppsView';
+import { RemoveUserConfig1764429283532 as MssqlRemoveUserConfig1764429283532 } from './migrations/mssql/1764429283532-remove-user-config';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -117,6 +119,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlCreateIntegrationApps1744933017953,
   PgsqlCreateDetailedIntegrationAppsView1745533840578,
   PgsqlUniqueClientId1747424374434,
+  PgsqlRemoveUserConfig1764429283532,
 ];
 
 const getMSSQLMigrations = () => [
@@ -150,6 +153,7 @@ const getMSSQLMigrations = () => [
   MssqlCreateIntegrationApps1744933017953,
   MssqlCreateDetailedIntegrationAppsView1745533840578,
   MssqlUniqueClientId1747424374434,
+  MssqlRemoveUserConfig1764429283532,
 ];
 
 
