@@ -1,12 +1,12 @@
 import { Box } from '@chakra-ui/layout';
 import type { SystemStyleObject } from '@chakra-ui/system';
 import { useMultiStyleConfig } from '@chakra-ui/system';
-import React from 'react';
 import type { GroupBase } from 'react-select';
 import { useSize } from './utils';
+import type { Size } from './utils';
 import { MenuIcon, useColorModeValue, Text } from '@chakra-ui/react';
-import { OptionProps, SizeProps } from 'chakra-react-select';
-import { ThemeObject } from 'chakra-react-select/dist/types/types';
+import { OptionProps } from 'chakra-react-select';
+import type { ThemeObject } from 'chakra-react-select';
 import { CheckIcon } from './CheckIcon';
 
 export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<Option>>(
@@ -35,7 +35,7 @@ export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<
 
   const menuItemStyles: ThemeObject = useMultiStyleConfig('Menu').item;
 
-  const paddings: SizeProps = {
+  const paddings: Record<Size, string> = {
     sm: '0.3rem 0.6rem',
     md: '0.4rem 0.8rem',
     lg: '0.5rem 1rem',

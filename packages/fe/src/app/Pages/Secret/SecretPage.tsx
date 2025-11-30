@@ -5,8 +5,8 @@ import {
   VStack,
   chakra,
   useBoolean,
-  type Interpolation,
 } from '@chakra-ui/react';
+import type { SystemStyleObject } from '@chakra-ui/system';
 import { ConfirmAction, SecretValue } from '@edanalytics/common-ui';
 import { useState } from 'react';
 import { useLocation } from 'react-router-dom';
@@ -30,7 +30,7 @@ const outerBoxCss = {
   css: { cursor: 'pointer' },
   _hover: { background: 'gray.50' },
 };
-const placeholderCss: Interpolation = {
+const placeholderCss: SystemStyleObject = {
   userSelect: 'none',
   opacity: '0.7',
   filter: 'blur(0.5rem)',
@@ -101,7 +101,7 @@ const SecretPage = () => {
               ) : secret && secretJson ? (
                 <SecretValue value={secretJson} fields={fields} />
               ) : (
-                <chakra.pre fontSize="lg" css={secret ? {} : placeholderCss}>
+                <chakra.pre fontSize="lg" sx={secret ? {} : placeholderCss}>
                   {secret ? secret : placeholder}
                 </chakra.pre>
               )}

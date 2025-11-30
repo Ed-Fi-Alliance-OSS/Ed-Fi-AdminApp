@@ -1,5 +1,4 @@
 import {
-  As,
   Box,
   Button,
   Collapse,
@@ -13,7 +12,7 @@ import { useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 export interface INavButtonProps {
   route: string;
-  icon: As;
+  icon: React.ElementType;
   text: string;
   childItems?: INavButtonProps[];
   depth?: number;

@@ -3,6 +3,10 @@
 # The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 # See the LICENSE and NOTICES files in the project root for more information.
 
+# Note: build this with working directory at the repository root, not from the
+# file's directory.
+
+# Build stage - Use latest Node.js Alpine with pinned SHA for security and reproducibility
 FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb51beb1f026c5 AS build
 
 WORKDIR /app
@@ -15,33 +19,63 @@ COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig*.json ./
 
-# Install ALL dependencies for building (use cache for npm)
-RUN --mount=type=cache,target=/root/.npm npm ci
+# Install all dependencies with cache mount for faster builds
+RUN --mount=type=cache,target=/root/.npm \
+    --mount=type=cache,target=/root/.cache/nx \
+    npm ci --legacy-peer-deps --prefer-offline --no-audit --progress=false
 
-# Copy all packages, types, and config (filtered by .dockerignore)
+# Copy source code (filtered by .dockerignore)
 COPY packages/ ./packages/
 COPY types/ ./types/
-# Copy our configuration
+
+# Copy configuration
 COPY packages/api/config/local.js-edfi-docker ./packages/api/config/local.js
 
-ENV NODE_OPTIONS="--max-old-space-size=4096" \
-  NX_VERBOSE_LOGGING=true
+# Build with optimizations - reset NX cache to avoid conflicts
+RUN --mount=type=cache,target=/root/.cache/nx \
+    npx nx reset --yes && \
+    NODE_OPTIONS="--max-old-space-size=4096" NX_VERBOSE_LOGGING=true && \
+    npx nx run api:build:production --verbose --output-style=stream
 
-# Reset NX cache to avoid conflicts
-RUN npx nx reset --yes &&\
-npx nx run api:build:production --skip-nx-cache --verbose --output-style=stream
+# Production stage - Minimal runtime image
+FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb51beb1f026c5 AS runtime
 
+# Create non-root user for security
+RUN addgroup -g 1001 -S nodejs && \
+    adduser -S adminapp -u 1001 -G nodejs
 
-# Install runtime dependencies, clean up build toolchain, and create logs dir
-RUN apk add --no-cache curl=~8 && \
-  apk del .build-deps && \
-  mkdir -p logs
+# Install only runtime dependencies
+RUN apk update && \
+    apk upgrade && \
+    apk add --no-cache curl=~8 dumb-init=~1.2 && \
+    rm -rf /var/cache/apk/*
 
+WORKDIR /app
+
+# Copy package.json for npm prune
+COPY package*.json ./
+
+# Copy all node_modules from build stage and prune dev dependencies
+COPY --from=build /app/node_modules ./node_modules
+RUN npm prune --omit=dev --legacy-peer-deps --no-audit --no-fund
+
+# Copy built application from build stage
+COPY --from=build --chown=adminapp:nodejs /app/dist ./dist/
+COPY --from=build --chown=adminapp:nodejs /app/packages/api/config/local.js ./packages/api/config/local.js
+
+# Create logs directory with proper permissions
+RUN mkdir -p logs && chown -R adminapp:nodejs logs
+
+# Switch to non-root user
+USER adminapp
+
+# Expose port
 EXPOSE 3333
 
-# Health check
+# Optimized health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD curl -f http://localhost:3333/api/healthcheck || exit 1
 
-# Start the built application
+# Use dumb-init to handle signals properly and start the application
+ENTRYPOINT ["dumb-init", "--"]
 CMD ["node", "dist/packages/api/main.js"]
