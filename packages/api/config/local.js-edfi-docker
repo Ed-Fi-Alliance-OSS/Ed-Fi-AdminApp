@@ -17,7 +17,7 @@ module.exports = {
   DB_SECRET_VALUE: {
 
     // PostgreSQL defaults
-    DB_HOST: 'edfiadminapp-db',
+    DB_HOST: 'edfiadminapp-postgres',
     DB_PORT: 5432,
     DB_USERNAME: 'postgres',
     DB_DATABASE: 'sbaa',

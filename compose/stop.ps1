@@ -41,38 +41,14 @@ function Remove-Volumes {
 
 
 try {
-    if ($LocalDev) {
-        $files = @(
-            "-f", "edfi-services.yml",
-            "-f", "nginx-compose.yml",
-            "-f", "adminapp-local-dev.yml"
-        )
-        docker compose $files --env-file ".env" down
-        if ($V) {
-            Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
-        }
-    } elseif ($MainServices) {
-        $files = @(
-            "-f", "edfi-services.yml",
-            "-f", "nginx-compose.yml",
-            "-f", "adminapp-services.yml"
-        )
-        docker compose $files --env-file ".env" down
-        if ($V) {
-            Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
-        }
-    } else {
-        # Default: stop both sets (all services)
-        $files = @(
-            "-f", "edfi-services.yml",
-            "-f", "nginx-compose.yml",
-            "-f", "adminapp-local-dev.yml",
-            "-f", "adminapp-services.yml"
-        )
-        docker compose $files --env-file ".env" down
-        if ($V) {
-            Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
-        }
+    $files = @(
+        "-f", "edfi-services.yml",
+        "-f", "nginx-compose.yml",
+        "-f", "adminapp-services.yml"
+    )
+    docker compose $files --env-file ".env" down
+    if ($V) {
+        Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
     }
     Write-Host "SUCCESS! Services stopped successfully." -ForegroundColor Green
     exit 0

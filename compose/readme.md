@@ -8,7 +8,7 @@ This directory includes a Docker Compose file for starting a collection of servi
 
 ```mermaid
 graph TD
-  edfiadminapp-db
+  edfiadminapp-postgres
   edfiadminapp-mssql
   pgadmin4
   keycloak
@@ -16,7 +16,7 @@ graph TD
   yopass --> memcached
 ```
 
-- **edfiadminapp-db**: PostgreSQL database instance for the SBAA API (default).
+- **edfiadminapp-postgres**: PostgreSQL database instance for the SBAA API (default).
 - **edfiadminapp-mssql**: SQL Server database instance for the SBAA API (alternative to PostgreSQL).
 - **pgadmin4**: Standard PGAdmin4 deploy, preconfigured with links to the various PostgreSQL databases.
 - **keycloak**: For user authentication.
