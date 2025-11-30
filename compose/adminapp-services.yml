@@ -117,11 +117,10 @@ services:
       - NODE_EXTRA_CA_CERTS=/app/ssl/server.crt
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
-    external_links:
-      - edfiadminapp-db:edfiadminapp-db
     restart: unless-stopped
     depends_on:
-      edfiadminapp-db:
+      # problematic for MSSQL
+      edfiadminapp-postgres:
         condition: service_healthy
       edfiadminapp-keycloak:
         condition: service_healthy
