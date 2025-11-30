@@ -7,7 +7,7 @@ const FE_URL = 'http://localhost:4200';
 const API_URL = 'http://localhost:3333';
 
 module.exports = {
-  _OPEN_API: true,
+  ENABLE_OPEN_API: true,
   API_PORT: 3333,
   DB_SSL: false,
   AWS_REGION: 'us-east-2',
@@ -48,12 +48,12 @@ module.exports = {
   WHITELISTED_REDIRECTS: [FE_URL],
 
   // The time to live in milliseconds
-  RATE_LIMIT_TTL: 60000, 
+  RATE_LIMIT_TTL: 60000,
 
   // The maximum number of requests within the ttl
   RATE_LIMIT_LIMIT: 100,
 
   USE_PKCE: true,
-  
+
   // There are other defaults you can override if you want to. See default.js.
 };

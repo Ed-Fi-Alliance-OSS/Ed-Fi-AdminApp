@@ -22,7 +22,7 @@ declare module 'config' {
   }
 
   interface IConfig {
-    OPEN_API: boolean;
+    ENABLE_OPEN_API: boolean;
     AWS_DB_SECRET?: string | undefined;
     DB_SECRET_VALUE: never;
     /**

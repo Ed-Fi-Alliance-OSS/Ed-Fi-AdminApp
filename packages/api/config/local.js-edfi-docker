@@ -2,9 +2,9 @@
 const FE_URL = 'https://localhost/adminapp';
 
 module.exports = {
-  _OPEN_API: true,
+  ENABLE_OPEN_API: true,
   API_PORT: 3333,
-  DB_SSL: false,
+  DB_SSL: true,
   AWS_REGION: 'us-east-2',
   FE_URL: FE_URL,
   MY_URL: 'https://localhost/adminapp-api',

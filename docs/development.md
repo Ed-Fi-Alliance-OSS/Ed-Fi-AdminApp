@@ -216,7 +216,7 @@ The API includes Swagger UI for exploring and testing endpoints during local dev
 
 **To enable Swagger UI:**
 
-1. Set `_OPEN_API: true` in your `packages/api/config/local.js` file (already enabled by default in local config)
+1. Set `ENABLEENABLE_OPEN_API: true` in your `packages/api/config/local.js` file (already enabled by default in local config)
 2. Start the API server in development mode:
 
    ```shell
@@ -228,7 +228,7 @@ The API includes Swagger UI for exploring and testing endpoints during local dev
 **Configuration Options:**
 
 - **Environment Variable:** Set `OPEN_API=true` in your environment
-- **Config File:** Set `_OPEN_API: true` in your configuration file
+- **Config File:** Set `ENABLEENABLE_OPEN_API: true` in your configuration file
 - **Default:** Disabled (`false`) in `packages/api/config/default.js`
 
 ### Production Environment
@@ -250,7 +250,7 @@ API documentation exposure represents a significant security risk because it rev
 The application includes multiple layers of protection:
 
 1. **Default Configuration:** `OPEN_API` defaults to `false` in base configuration
-2. **Production Config:** Explicitly sets `_OPEN_API: false` in production configuration
+2. **Production Config:** Explicitly sets `ENABLE_OPEN_API: false` in production configuration
 3. **Runtime Guard:** If `OPEN_API` is enabled, Swagger is blocked at runtime when `NODE_ENV=production`
 4. **Warning Logging:** A warning is logged if Swagger is disabled due to production environment
 
@@ -275,7 +275,7 @@ npm run start:api
 
 **Swagger not loading in development:**
 
-1. Verify `_OPEN_API: true` in your config file
+1. Verify `ENABLE_OPEN_API: true` in your config file
 2. Check that you're using the development command: `npm run start:api:dev`
 3. Confirm `NODE_ENV` is not set to `production`
 

@@ -12,9 +12,9 @@ const makePgsqlConnectionString = (port, db, username, password, host, ssl) => {
 };
 module.exports = {
   get OPEN_API() {
-    return this._OPEN_API === true || this._OPEN_API === 'true';
+    return this.ENABLE_OPEN_API === true || this.ENABLE_OPEN_API === 'true';
   },
-  _OPEN_API: false,
+  ENABLE_OPEN_API: false,
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
   DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'

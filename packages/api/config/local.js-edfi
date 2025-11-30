@@ -3,7 +3,7 @@ const FE_URL = 'http://localhost:4200';
 const API_URL = 'http://localhost:3333';
 
 module.exports = {
-  _OPEN_API: true,
+  ENABLE_OPEN_API: true,
   API_PORT: 3333,
   DB_SSL: false,
   AWS_REGION: 'us-east-2',
