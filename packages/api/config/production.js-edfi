@@ -12,7 +12,7 @@ module.exports = {
   YOPASS_URL: 'http://edfiadminapp-local-build-yopass-1:80',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
   DB_ENGINE: 'pgsql',// 'pgsql' or 'mssql'
-  DB_TRUST_CERTIFICATE: true, // For MSSQL local development using self-signed certs, set to true
+  DB_TRUST_CERTIFICATE: false, // For MSSQL local development using self-signed certs, set to true
 
   DB_SECRET_VALUE: {
 
@@ -24,7 +24,7 @@ module.exports = {
     DB_PASSWORD: 'postgres',
 
     // MSSQL overrides
-    MSSQL_DB_HOST: '127.0.0.1',
+    MSSQL_DB_HOST: 'edfiadminapp-mssql',
     MSSQL_DB_PORT: 1433,
     MSSQL_DB_USERNAME: 'sa',
     MSSQL_DB_DATABASE: 'sbaa',

@@ -28,9 +28,6 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY packages/ ./packages/
 COPY types/ ./types/
 
-# Copy configuration
-COPY packages/api/config/local.js-edfi-docker ./packages/api/config/local.js
-
 # Build with optimizations - reset NX cache to avoid conflicts
 RUN --mount=type=cache,target=/root/.cache/nx \
     npx nx reset --yes && \
@@ -60,8 +57,9 @@ COPY --from=build /app/node_modules ./node_modules
 RUN npm prune --omit=dev --legacy-peer-deps --no-audit --no-fund
 
 # Copy built application from build stage
-COPY --from=build --chown=adminapp:nodejs /app/dist ./dist/
-COPY --from=build --chown=adminapp:nodejs /app/packages/api/config/local.js ./packages/api/config/local.js
+COPY --from=build --chown=adminapp:nodejs /app/dist/packages/api ./dist/packages/api
+COPY --chown=adminapp:nodejs packages/api/config/production.js-edfi ./dist/packages/api/config/production.js
+COPY --chown=adminapp:nodejs packages/api/config/custom-environment-variables.js packages/api/config/default.js ./dist/packages/api/config/
 
 # Create logs directory with proper permissions
 RUN mkdir -p logs && chown -R adminapp:nodejs logs
@@ -75,6 +73,8 @@ EXPOSE 3333
 # Optimized health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=90s --retries=3 \
   CMD curl -f http://localhost:3333/api/healthcheck || exit 1
+
+ENV NODE_CONFIG_DIR=/app/dist/packages/api/config
 
 # Use dumb-init to handle signals properly and start the application
 ENTRYPOINT ["dumb-init", "--"]
