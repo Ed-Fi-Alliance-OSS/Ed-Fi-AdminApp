@@ -48,7 +48,7 @@ module.exports = {
   },
 
   // Optional: seed an initial user.
-  ADMIN_USERNAME: 'admin@example.com', // use an email address in the future
+  ADMIN_USERNAME: 'admin@example.com',
 
   // JWT Authentication Configuration for Machine-to-Machine and User Authentication
   // Please refer to "keycloak_edfiadminapp_machine_client.json" configuration for test values

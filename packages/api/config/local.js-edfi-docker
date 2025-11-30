@@ -11,16 +11,27 @@ module.exports = {
   USE_YOPASS: true,
   YOPASS_URL: 'http://edfiadminapp-local-build-yopass-1:80',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
-  DB_ENGINE: 'pgsql',
+  DB_ENGINE: 'pgsql',// 'pgsql' or 'mssql'
+  DB_TRUST_CERTIFICATE: true, // For MSSQL local development using self-signed certs, set to true
 
   DB_SECRET_VALUE: {
+
+    // PostgreSQL defaults
     DB_HOST: 'edfiadminapp-db',
     DB_PORT: 5432,
     DB_USERNAME: 'postgres',
     DB_DATABASE: 'sbaa',
     DB_PASSWORD: 'postgres',
+
+    // MSSQL overrides
+    MSSQL_DB_HOST: '127.0.0.1',
+    MSSQL_DB_PORT: 1433,
+    MSSQL_DB_USERNAME: 'sa',
+    MSSQL_DB_DATABASE: 'sbaa',
+    MSSQL_DB_PASSWORD: 'YourStrong!Passw0rd',
   },
   DB_ENCRYPTION_SECRET_VALUE: {
+    // Can replace with `openssl rand -hex 32` or `node -e "console.log('KEY: '+ require('crypto').randomBytes(32).toString('hex'))"`
     KEY: 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565',
     IV: '<ignore - this should be refactored out. See comments elsewhere>',
   },
@@ -36,14 +47,18 @@ module.exports = {
   ADMIN_USERNAME: 'admin@example.com',
 
   AUTH0_CONFIG_SECRET_VALUE: {
-    ISSUER: 'https://example.com/',
-    CLIENT_ID: '<your value>',
-    CLIENT_SECRET: '<your value>',
-    MACHINE_AUDIENCE: 'sbaa-local',
-    MANAGEMENT_DOMAIN: '<your value>',
-    MANAGEMENT_CLIENT_ID: '<your value>',
-    MANAGEMENT_CLIENT_SECRET: '<your value>',
+    ISSUER: 'https://localhost/auth/realms/edfi',
+    CLIENT_ID: 'edfiadminapp',
+    CLIENT_SECRET: 'big-secret-123',
+    MACHINE_AUDIENCE: 'edfiadminapp-api',
+    MANAGEMENT_DOMAIN: 'localhost',
+    MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
+    MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'
   },
+
+  WHITELISTED_REDIRECTS: [FE_URL],
+  OPENAPI_TITLE: 'Ed-Fi Admin App',
+  OPENAPI_DESCRIPTION: 'OpenAPI spec for the Ed-Fi Admin App backend application',
 
   // The time to live in milliseconds
   RATE_LIMIT_TTL: 60000,
@@ -52,6 +67,4 @@ module.exports = {
   RATE_LIMIT_LIMIT: 10,
 
   USE_PKCE: true,
-
-  WHITELISTED_REDIRECTS: [FE_URL],
 };
