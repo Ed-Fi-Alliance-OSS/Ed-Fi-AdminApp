@@ -75,7 +75,7 @@ module.exports = {
 
         const secret = JSON.parse(secretValueRaw.SecretString);
         const { username, password, host, port, dbname } = secret;
-        r(makePgsqlConnectionString(port, dbname, username, password, host, ssl, engine));
+        r(makePgsqlConnectionString(port, dbname, username, password, host, ssl));
       });
     } else {
       // locally we expect plain (non-promise) values. Especially the TypeORM migration CLI.
