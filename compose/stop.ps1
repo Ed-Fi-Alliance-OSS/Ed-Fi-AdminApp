@@ -46,7 +46,7 @@ try {
         "-f", "nginx-compose.yml",
         "-f", "adminapp-services.yml"
     )
-    docker compose $files --env-file ".env" down
+    docker compose $files --env-file ".env"  --profile "*" down
     if ($V) {
         Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
     }
