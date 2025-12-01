@@ -15,6 +15,7 @@ module.exports = {
     return this.ENABLE_OPEN_API === true || this.ENABLE_OPEN_API === 'true';
   },
   ENABLE_OPEN_API: false,
+  DB_SSL: true,
   DB_RUN_MIGRATIONS: true,
   DB_SYNCHRONIZE: false,
   DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'
@@ -54,7 +55,7 @@ module.exports = {
     }
   }),
   DB_CONNECTION_STRING: defer(function () {
-    const ssl = this.DB_SSL ? 'require' : 'disable';
+    const ssl = JSON.parse(this.DB_SSL || "false") ? 'require' : 'disable';
     const engine = this.DB_ENGINE || 'pgsql';
     if (this.AWS_DB_SECRET) {
       // eslint-disable-next-line no-async-promise-executor

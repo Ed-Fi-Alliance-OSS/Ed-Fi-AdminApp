@@ -114,7 +114,8 @@ services:
       - api-logs:/app/logs
       - ./ssl/server.crt:/app/ssl/server.crt:ro
     environment:
-      - NODE_EXTRA_CA_CERTS=/app/ssl/server.crt
+      - NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/app/ssl/server.crt}
+      - DB_SSL=${DB_SSL:-true}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped
