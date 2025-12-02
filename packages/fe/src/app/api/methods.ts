@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { ClassConstructor, instanceToPlain, plainToInstance } from 'class-transformer';
-import { config } from '../../../typings/config';
+import {config} from '../../../typings/config';
 
 export const API_URL: string = config.apiUrl.endsWith("/api") ? config.apiUrl : `${config.apiUrl}/api`;
 export const IDP_ACCOUNT_URL: string = config.idpAccountUrl || 'https://localhost/auth/realms/edfi/account/';

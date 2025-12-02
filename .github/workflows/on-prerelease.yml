@@ -10,6 +10,8 @@ on:
       - prereleased
 
 env:
+  # ARTIFACTS_API_KEY, NPM_REGISTRY, PACKAGE_NAME are intended for use by the Ed-Fi
+  # Artifacts publishing action in the future.
   ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
   NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
@@ -29,7 +31,6 @@ jobs:
       run:
         shell: pwsh
     outputs:
-      hash-code: ${{ steps.hash-code.outputs.hash-code }}
       adminApp-version: ${{ steps.versions.outputs.adminApp }}
       api-tgz-hash: ${{ steps.api-tgz-hash.outputs.api-tgz-hash }}
       fe-tgz-hash: ${{ steps.fe-tgz-hash.outputs.fe-tgz-hash }}
@@ -371,7 +372,6 @@ jobs:
             FETAGS="${{ env.FRONTEND_IMAGE_NAME }}:${PACKAGEVERSION},${{ env.FRONTEND_IMAGE_NAME }}:${MINOR}"
           fi
 
-          SEMVERSION=${PACKAGEVERSION:1}  # strip off the leading 'v'
           echo "APITAGS=$APITAGS" >> $GITHUB_OUTPUT
           echo "FETAGS=$FETAGS" >> $GITHUB_OUTPUT
 

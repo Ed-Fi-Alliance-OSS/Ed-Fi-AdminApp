@@ -26,31 +26,25 @@ COPY packages/models ./packages/models
 COPY packages/utils ./packages/utils
 COPY types ./types
 
-# Install dependencies including dev (Nx is a devDependency). NODE_ENV=development ensures dev deps are installed.
-RUN --mount=type=cache,target=/root/.npm npm ci
-
-# Reset Nx cache explicitly using local Nx
-RUN ./node_modules/.bin/nx reset --yes
-
-# Build the frontend (production) with streaming output
-RUN npx nx run fe:build:production --skip-nx-cache --verbose --output-style=stream
+# Install deps, reset Nx cache, and build in one layer
+RUN --mount=type=cache,target=/root/.npm \
+  npm ci && \
+  npx nx reset --yes && \
+  npx nx run fe:build:production --skip-nx-cache --verbose --output-style=stream
 
 # Production stage with nginx
-FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS nginxbase
+FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS production
 # Ensure runtime environment is production for nginx image
 ENV NODE_ENV=production
 
-# Install only necessary runtime tools (gettext provides envsubst) + curl for healthcheck
-RUN apk add --no-cache gettext curl
-
-# Remove default site config and add custom configuration listening on 4200
-RUN rm /etc/nginx/conf.d/default.conf
+# Install runtime tools (jq for safe JSON, curl for healthcheck), then remove default site config
+RUN apk add --no-cache jq=~1 curl=~8 \
+  && rm /etc/nginx/conf.d/default.conf
 
 # Copy built static assets
 COPY --from=build /app/dist/packages/fe /usr/share/nginx/html
 
-# Copy runtime config template + entrypoint
-COPY packages/fe/config.js.template /usr/share/nginx/html/config.js.template
+# Copy entrypoint script
 COPY packages/fe/entrypoint.sh /entrypoint.sh
 
 # Create nginx user and set up directories with proper permissions

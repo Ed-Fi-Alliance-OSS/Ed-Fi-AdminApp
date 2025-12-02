@@ -7,13 +7,13 @@ FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb5
 
 WORKDIR /app
 
+# Install build toolchain needed for any native deps during install
+RUN apk add --no-cache --virtual .build-deps python3~=3.12 make~=4.4 g++~=14
+
 # Copy package files first for better caching
 COPY package*.json ./
 COPY nx.json ./
 COPY tsconfig*.json ./
-
-# Install build toolchain needed for any native deps during install
-RUN apk add --no-cache --virtual .build-deps python3~=3.12 make~=4.4 g++~=14
 
 # Install ALL dependencies for building (use cache for npm)
 RUN --mount=type=cache,target=/root/.npm npm ci
