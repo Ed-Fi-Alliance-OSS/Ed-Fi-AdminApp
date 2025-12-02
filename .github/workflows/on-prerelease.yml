@@ -15,7 +15,7 @@ env:
   ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
   NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
-  IMAGE_NAME: ${{ vars.IMAGE_NAME }}
+  API_IMAGE_NAME: ${{ vars.API_IMAGE_NAME }}
   FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
   DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
@@ -361,14 +361,14 @@ jobs:
           if [[ $PACKAGEVERSION =~ "alpha" ]]
           then
             # Pre-releases get the tag "pre"
-            APITAGS="${{ env.IMAGE_NAME }}:pre"
+            APITAGS="${{ env.API_IMAGE_NAME }}:pre"
             FETAGS="${{ env.FRONTEND_IMAGE_NAME }}:pre"
           else
             # Releases get the version, plus shortened form for minor release.
             # We are not using shortened form for major or using "latest"
             # because they are too imprecise.
             MINOR=`echo ${PACKAGEVERSION} | awk -F"." '{print $1"."$2}'`
-            APITAGS="${{ env.IMAGE_NAME }}:${PACKAGEVERSION},${{ env.IMAGE_NAME }}:${MINOR}"
+            APITAGS="${{ env.API_IMAGE_NAME }}:${PACKAGEVERSION},${{ env.API_IMAGE_NAME }}:${MINOR}"
             FETAGS="${{ env.FRONTEND_IMAGE_NAME }}:${PACKAGEVERSION},${{ env.FRONTEND_IMAGE_NAME }}:${MINOR}"
           fi
 
@@ -391,13 +391,13 @@ jobs:
         id: metaapi
         uses: docker/metadata-action@369eb591f429131d6889c46b94e711f089e6ca96  # v5.6.1
         with:
-          images: ${{ env.IMAGE_NAME }}
+          images: ${{ env.API_IMAGE_NAME }}
 
       - name: Build and push admin-app api image
         uses: docker/build-push-action@b32b51a8eda65d6793cd0494a773d4f6bcef32dc  # v6.11.0
         with:
           context: "{{defaultContext}}:./"
-          cache-from: type=registry,ref=${{ env.IMAGE_NAME }}:pre
+          cache-from: type=registry,ref=${{ env.API_IMAGE_NAME }}:pre
           cache-to: type=inline
           platforms: linux/amd64
           file: packages/api/Dockerfile
