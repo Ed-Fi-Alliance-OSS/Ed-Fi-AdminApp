@@ -225,6 +225,91 @@ jobs:
               -Headers $gh_headers `
               -InFile $uploadName
 
+  validate-packages:
+    name: Validate npm packages
+    runs-on: ubuntu-latest
+    needs: pack
+    permissions:
+      actions: read
+    steps:
+      - name: Extract API sha256
+        id: api-sha
+        shell: bash
+        run: |
+          decoded=$(echo "${{ needs.pack.outputs.api-tgz-hash }}" | base64 -d)
+          api_sha=$(echo "$decoded" | awk '{print $1}')
+          echo "sha=$api_sha" >> $GITHUB_OUTPUT
+
+      - name: Download API package (verified)
+        uses: actions/download-artifact@v4
+        with:
+          name: api-npm-package
+          path: api-npm-package
+
+      - name: Resolve API filename and verify sha256
+        id: api-file
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=$(find api-npm-package -type f -name '*.tgz' -print -quit)
+          abs=$(realpath "$file")
+          echo "file=$file" >> $GITHUB_OUTPUT
+          echo "abs=$abs" >> $GITHUB_OUTPUT
+          actual=$(sha256sum "$file" | awk '{print $1}')
+          expected='${{ steps.api-sha.outputs.sha }}'
+          if [ "$actual" != "$expected" ]; then
+            echo "Expected sha256 $expected but got $actual" >&2
+            exit 1
+          fi
+
+      - name: Extract FrontEnd sha256
+        id: fe-sha
+        shell: bash
+        run: |
+          decoded=$(echo "${{ needs.pack.outputs.fe-tgz-hash }}" | base64 -d)
+          fe_sha=$(echo "$decoded" | awk '{print $1}')
+          echo "sha=$fe_sha" >> $GITHUB_OUTPUT
+
+      - name: Download FrontEnd package (verified)
+        uses: actions/download-artifact@v4
+        with:
+          name: fe-npm-package
+          path: fe-npm-package
+
+      - name: Resolve FE filename and verify sha256
+        id: fe-file
+        shell: bash
+        run: |
+          set -euo pipefail
+          file=$(find fe-npm-package -type f -name '*.tgz' -print -quit)
+          abs=$(realpath "$file")
+          echo "file=$file" >> $GITHUB_OUTPUT
+          echo "abs=$abs" >> $GITHUB_OUTPUT
+          actual=$(sha256sum "$file" | awk '{print $1}')
+          expected='${{ steps.fe-sha.outputs.sha }}'
+          if [ "$actual" != "$expected" ]; then
+            echo "Expected sha256 $expected but got $actual" >&2
+            exit 1
+          fi
+
+      - name: Set up Node.js (22.x)
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22.x'
+
+      - name: Install smoke test
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/validate && cd /tmp/validate
+          npm init -y >/dev/null 2>&1
+          # Use file: URLs with absolute paths so npm treats these as local tarballs even after cd
+          npm install --ignore-scripts "file:${{ steps.api-file.outputs.abs }}"
+          npm install --ignore-scripts "file:${{ steps.fe-file.outputs.abs }}"
+          # Basic existence checks post-install
+          test -d node_modules/@edfi/adminapp-api || echo "Warning: API package name not found in node_modules"
+          test -d node_modules/@edfi/adminapp-frontend || echo "Warning: FE package name not found in node_modules"
+
   provenance-api:
     name: Create Provenance for API
     needs: pack
