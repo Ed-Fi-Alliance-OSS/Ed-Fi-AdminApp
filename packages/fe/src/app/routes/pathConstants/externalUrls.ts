@@ -1,4 +1,4 @@
-import {config} from '../../../../typings/config';
+import { config } from '../../../config/config'
 
 export const supportCommunity = () => { return config.contact || "https://community.ed-fi.org/"; };
 export const helpGuide = () => { return config.helpGuide || "https://docs.ed-fi.org/"; };

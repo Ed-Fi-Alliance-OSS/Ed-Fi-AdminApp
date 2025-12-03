@@ -39,7 +39,7 @@ ENV NX_VERBOSE_LOGGING=true
 RUN npx nx run api:build:production --skip-nx-cache --verbose --output-style=stream
 
 # Install runtime dependencies, clean up build toolchain, and create logs dir
-RUN apk add --no-cache curl && \
+RUN apk add --no-cache curl=~8 && \
   apk del .build-deps && \
   mkdir -p logs
 

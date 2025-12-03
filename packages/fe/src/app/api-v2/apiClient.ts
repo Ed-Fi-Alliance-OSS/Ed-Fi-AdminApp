@@ -1,6 +1,6 @@
 import axios from 'axios';
 import { API_URL } from '../api/methods';
-import {config} from '../../../typings/config';
+import { config } from '../../config/config';
 
 axios.defaults.baseURL = API_URL;
 

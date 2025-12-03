@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
 import { Link as RouterLink, generatePath, useMatches, useParams } from 'react-router-dom';
 import { flatRoutes } from '../routes';
-import {config} from '../../../typings/config';
+import { config } from '../../config/config';
 
 export const Breadcrumbs = (props: BreadcrumbProps & StyleProps) => {
   const matches = useMatches();

@@ -7,7 +7,7 @@ import { PublicAppLayout } from '../Layout/PublicAppLayout';
 import { StandardLayout } from '../Layout/StandardLayout';
 import { TeamHome } from '../Pages/Home/TeamHome';
 import { useSearchParamsObject } from '../helpers/useSearch';
-import {config} from '../../../typings/config';
+import { config } from '../../config/config'
 
 import { accountRouteGlobal } from './account.routes';
 import {

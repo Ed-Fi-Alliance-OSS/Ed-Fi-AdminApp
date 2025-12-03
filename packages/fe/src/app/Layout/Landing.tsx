@@ -1,6 +1,6 @@
 import { ButtonGroup, Button } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router-dom';
-import {config} from '../../../typings/config';
+import { config } from '../../config/config';
 
 export const LandingContent = () => (
   <ButtonGroup size="lg" gap={10}>
