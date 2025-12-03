@@ -8,10 +8,7 @@ FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb5
 
 WORKDIR /app
 
-ENV NODE_ENV=development \
-  NX_DAEMON=false \
-  NX_VERBOSE_LOGGING=true \
-  NX_TASKS_TARGET_OUTPUT_USE_STDOUT=true \
+ENV NX_VERBOSE_LOGGING=true \
   NODE_OPTIONS="--max-old-space-size=4096"
 
 # Copy only manifest + workspace config for efficient layer caching
@@ -28,14 +25,12 @@ COPY types ./types
 
 # Install deps, reset Nx cache, and build in one layer
 RUN --mount=type=cache,target=/root/.npm \
-  npm ci && \
+  npm ci --legacy-peer-deps --no-audit --prefer-offline --progress=false && \
   npx nx reset --yes && \
   npx nx run fe:build:production --skip-nx-cache --verbose --output-style=stream
 
 # Production stage with nginx
 FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS production
-# Ensure runtime environment is production for nginx image
-ENV NODE_ENV=production
 
 # Install runtime tools (jq for safe JSON, curl for healthcheck), then remove default site config
 RUN apk add --no-cache jq=~1 curl=~8 \
