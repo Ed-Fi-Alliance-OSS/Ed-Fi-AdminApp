@@ -78,13 +78,12 @@ jobs:
       - name: Prepare package versions
         shell: pwsh
         run: |
-          $version = "${{ steps.versions.outputs.adminApp-semver }}"
-          $api = Get-Content packages/api/package.json | ConvertFrom-Json
-          $api.version = $version
-          $api | ConvertTo-Json -Depth 10 | Set-Content packages/api/package.json
-          $fe = Get-Content packages/fe/package.json | ConvertFrom-Json
-          $fe.version = $version
-          $fe | ConvertTo-Json -Depth 10 | Set-Content packages/fe/package.json
+          pushd packages/api
+          npm pkg set version="${{ steps.versions.outputs.adminApp-semver }}"
+          popd
+          pushd packages/fe
+          npm pkg set version="${{ steps.versions.outputs.adminApp-semver }}"
+          popd
 
       - name: Copy build outputs under package roots
         shell: bash
