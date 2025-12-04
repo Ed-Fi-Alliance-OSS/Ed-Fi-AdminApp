@@ -26,9 +26,9 @@
       "clientId": "edfiadminapp-dev",
       "name": "Ed-Fi Admin App Dev",
       "enabled": true,
-      "rootUrl": "{{BASE_URL_DEV}}",
-      "adminUrl": "{{BASE_URL_DEV}}",
-      "baseUrl": "{{BASE_URL_DEV}}",
+      "rootUrl": "{{BASE_URL_DEV}}/",
+      "adminUrl": "{{BASE_URL_DEV}}/",
+      "baseUrl": "{{BASE_URL_DEV}}/",
       "clientAuthenticatorType": "client-secret",
       "secret": "{{KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}}",
       "redirectUris": [
