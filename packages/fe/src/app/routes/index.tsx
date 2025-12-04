@@ -176,7 +176,7 @@ const Login = memo(() => {
   const { redirect } = useSearchParamsObject() as any;
   useEffect(() => {
     // TODO the backend supports multiple (trusted) IdPs, so maybe we should support that here with some kind of login screen
-    window.location.href = `${API_URL}/auth/login/${config.oidcId || 1}${
+    window.location.href = `${API_URL}/auth/login/${config.oidcId}${
       redirect ? `?redirect=${redirect}` : ''
     }`;
   }, []);
@@ -371,7 +371,7 @@ routes.forEach(addPathToHandle);
 const flattenRoute = (r: RouteObject): RouteObject[] =>
   [r, ...(r.children ?? []).map((route) => flattenRoute(route))].flat();
 const router = createBrowserRouter(routes, {
-  basename: config.basePath || '/'
+  basename: config.basePath
 });
 export const flatRoutes = routes.flatMap(flattenRoute);
 export const Routes = () => {

@@ -37,5 +37,5 @@ export const config: Readonly<AppConfig> = Object.freeze({
   contact: runtime.VITE_CONTACT ?? env.VITE_CONTACT,
   applicationName: runtime.VITE_APPLICATION_NAME ?? env.VITE_APPLICATION_NAME,
   idpAccountUrl: runtime.VITE_IDP_ACCOUNT_URL ?? env.VITE_IDP_ACCOUNT_URL,
-  oidcId: String(runtime.VITE_OIDC_ID ?? env.VITE_OIDC_ID)
+  oidcId: String(runtime.VITE_OIDC_ID ?? env.VITE_OIDC_ID ?? '1')
 });
