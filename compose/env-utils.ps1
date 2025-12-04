@@ -11,7 +11,7 @@
 .EXAMPLE
     . .\env-utils.ps1
     Import-EnvFile -Path ".env"
-    Invoke-EnvSubstitution -TemplateFile "config.template.json" -OutputFile "config.json"
+    Invoke-EnvSubstitution -TemplateFile "config.json" -WarnOnMissing
 #>
 
 <#
@@ -52,8 +52,18 @@ function Import-EnvFile {
             $name = $matches[1].Trim()
             $value = $matches[2].Trim()
 
-            # Remove quotes if present
-            if ($value -match '^["''](.*)["'']$') {
+            # Strip inline comments (# followed by space or end of line)
+            # Only strip comments that have whitespace before them to avoid breaking values with #
+            if ($value -match '^(.*?)\s+#.*$') {
+                $value = $matches[1].Trim()
+            }
+
+            # Remove quotes if present - check for matching pairs
+            if ($value -match '^"(.*)"$') {
+                # Double quotes
+                $value = $matches[1]
+            } elseif ($value -match "^'(.*)'$") {
+                # Single quotes
                 $value = $matches[1]
             }
 
@@ -107,9 +117,9 @@ function Invoke-EnvSubstitution {
     Write-Verbose "Processing template: $TemplateFile"
     $content = Get-Content $TemplateFile -Raw
 
-    # Track variables that were substituted
-    $substitutedVars = @()
-    $missingVars = @()
+    # Track variables that were substituted (using hashtables to track unique variables)
+    $substitutedVars = @{}
+    $missingVars = @{}
 
     # Find all placeholders and replace them
     $content = [regex]::Replace($content, $PlaceholderPattern, {
@@ -118,30 +128,122 @@ function Invoke-EnvSubstitution {
         $varValue = [Environment]::GetEnvironmentVariable($varName)
 
         if ($null -eq $varValue -or $varValue -eq '') {
-            $missingVars += $varName
-            return $match.Value  # Keep the placeholder if variable is not set
+            $missingVars[$varName] = $true
+            return $match.Value  # Keep placeholder if variable not found
+        } else {
+            $substitutedVars[$varName] = $true
+            return $varValue
         }
-
-        $substitutedVars += $varName
-        return $varValue
     })
 
-    # Write the processed content back to the same file
+    # Write the substituted content back
     $content | Set-Content $TemplateFile -NoNewline
 
     # Report results
     if ($substitutedVars.Count -gt 0) {
-        Write-Host "Substituted $($substitutedVars.Count) variable(s) in '$TemplateFile'" -ForegroundColor Cyan
-        Write-Verbose "Variables substituted: $($substitutedVars -join ', ')"
+        $uniqueVars = $substitutedVars.Keys | Sort-Object
+        Write-Host "Substituted $($uniqueVars.Count) unique variable(s) in '$TemplateFile'" -ForegroundColor Cyan
+        Write-Verbose "Variables substituted: $($uniqueVars -join ', ')"
     }
 
     if ($missingVars.Count -gt 0 -and $WarnOnMissing) {
-        Write-Warning "Missing environment variables in '$TemplateFile': $($missingVars -join ', ')"
+        $uniqueMissing = $missingVars.Keys | Sort-Object
+        Write-Warning "Missing environment variables in '$TemplateFile': $($uniqueMissing -join ', ')"
         Write-Warning "These placeholders were not replaced."
     }
 
     Write-Verbose "File updated: $TemplateFile"
     return $true
+}
+
+<#
+.SYNOPSIS
+    Creates a backup of template files and substitutes placeholders with environment variable values.
+
+.DESCRIPTION
+    Creates .bak backup files of the original templates, then performs environment variable substitution
+    on the originals. Returns information needed to restore the backups later.
+
+.PARAMETER TemplateFiles
+    An array of template file paths to process.
+
+.PARAMETER WarnOnMissing
+    If set, warns when environment variables are missing.
+
+.RETURNS
+    Array of backup file paths that were created.
+
+.EXAMPLE
+    $backups = Invoke-SafeEnvSubstitution -TemplateFiles @("config.json") -WarnOnMissing
+#>
+function Invoke-SafeEnvSubstitution {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$TemplateFiles,
+
+        [Parameter(Mandatory = $false)]
+        [switch]$WarnOnMissing
+    )
+
+    $backupFiles = @()
+
+    foreach ($file in $TemplateFiles) {
+        if (-not (Test-Path $file)) {
+            Write-Warning "Template file not found: $file"
+            continue
+        }
+
+        # Create backup file
+        $backupPath = "$file.bak"
+        Copy-Item -Path $file -Destination $backupPath -Force
+        $backupFiles += $backupPath
+        Write-Verbose "Created backup: $backupPath"
+
+        # Perform substitution on original
+        $result = Invoke-EnvSubstitution -TemplateFile $file -WarnOnMissing:$WarnOnMissing
+        if (-not $result) {
+            Write-Warning "Failed to process: $file"
+        }
+    }
+
+    return $backupFiles
+}
+
+<#
+.SYNOPSIS
+    Restores template files from their backups and removes the backup files.
+
+.DESCRIPTION
+    Moves .bak files back to their original names, effectively restoring the templates
+    with placeholders and cleaning up the backup files.
+
+.PARAMETER BackupFiles
+    Array of backup file paths to restore.
+
+.EXAMPLE
+    Restore-TemplateFiles -BackupFiles $backupFiles
+#>
+function Restore-TemplateFiles {
+    param(
+        [Parameter(Mandatory = $true)]
+        [string[]]$BackupFiles
+    )
+
+    foreach ($backupFile in $BackupFiles) {
+        if (-not (Test-Path $backupFile)) {
+            Write-Warning "Backup file not found: $backupFile"
+            continue
+        }
+
+        # Get original file path (remove .bak extension)
+        $originalFile = $backupFile -replace '\.bak$', ''
+
+        # Move backup back to original, overwriting the substituted version
+        Move-Item -Path $backupFile -Destination $originalFile -Force
+        Write-Verbose "Restored: $originalFile"
+    }
+
+    Write-Host "Template files restored with placeholders." -ForegroundColor Green
 }
 
 <#

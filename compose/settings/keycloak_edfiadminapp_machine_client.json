@@ -4,7 +4,7 @@
   "description": "Ed-Fi Admin App Machine-to-Machine Authentication Client",
   "enabled": true,
   "clientAuthenticatorType": "client-secret",
-  "secret": "{{KEYCLOAK_MACHINE_CLIENT_SECRET}}",
+  "secret": "edfi-machine-secret-456",
   "standardFlowEnabled": false,
   "implicitFlowEnabled": false,
   "directAccessGrantsEnabled": false,

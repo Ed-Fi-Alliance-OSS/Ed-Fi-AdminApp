@@ -29,11 +29,11 @@ if (-not (Test-Path ".env")) {
 Import-EnvFile -Path ".env"
 
 # Process configuration files with environment variable substitution
+# This creates .bak backups of the original template files before substitution
 $templateFiles = @(
-    "./settings/keycloak_edfiadminapp_machine_client.json",
     "./adminapp/realm-config.json"
 )
-Invoke-BulkEnvSubstitution -TemplateFiles $templateFiles -WarnOnMissing
+$backupFiles = Invoke-SafeEnvSubstitution -TemplateFiles $templateFiles -WarnOnMissing
 
 $networkExists = docker network ls --filter name=edfiadminapp-network --format '{{.Name}}' | Select-String -Pattern 'edfiadminapp-network'
 if (-not $networkExists) {
@@ -53,9 +53,43 @@ Write-Host "Starting Docker Compose services..." -ForegroundColor Green
 docker compose $files --env-file ".env" up -d $(if ($Rebuild) { "--build" })
 Write-Host "Services started successfully!" -ForegroundColor Green
 
-# Restore template files to keep placeholders in git
-Write-Host "Restoring template files with placeholders..." -ForegroundColor Cyan
-foreach ($file in $templateFiles) {
-    git restore $file 2>$null
+# Note: For bind-mounted files, Docker creates live filesystem links, NOT copies.
+# This means changes to host files immediately affect container files.
+# To work around this, we copy substituted files into containers before restoring host files.
+
+# Wait for Keycloak container to be running
+Write-Host "Waiting for Keycloak container to start..." -ForegroundColor Cyan
+$maxWaitSeconds = 30
+$startTime = Get-Date
+$keycloakRunning = $false
+
+while (((Get-Date) - $startTime).TotalSeconds -lt $maxWaitSeconds) {
+    $containerState = docker inspect --format='{{.State.Running}}' edfiadminapp-keycloak 2>$null
+    if ($containerState -eq "true") {
+        $keycloakRunning = $true
+        break
+    }
+    Start-Sleep -Seconds 2
 }
-Write-Host "Template files restored." -ForegroundColor Green
+
+if (-not $keycloakRunning) {
+    Write-Host "⚠ Warning: Keycloak container did not start within $maxWaitSeconds seconds." -ForegroundColor Yellow
+}
+
+# Copy substituted realm-config.json into Keycloak container's data directory
+# This creates a persistent copy that won't be affected by host file restoration
+if ($keycloakRunning) {
+    Write-Host "Copying substituted configuration files into Keycloak container..." -ForegroundColor Cyan
+    try {
+        # Copy realm-config.json to a location Keycloak will read on startup
+        docker cp "./adminapp/realm-config.json" "edfiadminapp-keycloak:/opt/keycloak/data/import/realm-config.json" 2>&1 | Out-Null
+        Write-Host "✓ Configuration files copied successfully" -ForegroundColor Green
+    } catch {
+        Write-Host "⚠ Warning: Failed to copy configuration files: $_" -ForegroundColor Yellow
+    }
+}
+
+# Restore template files from backups (moves .bak files back to originals)
+# This ensures the git-tracked files retain their placeholders without relying on git restore
+Write-Host "Restoring template files with placeholders..." -ForegroundColor Cyan
+Restore-TemplateFiles -BackupFiles $backupFiles

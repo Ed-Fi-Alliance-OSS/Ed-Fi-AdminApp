@@ -12,7 +12,8 @@ services:
       - '127.0.0.1:${KEYCLOAK_PORT_EXPOSED:-8080}:8080'
     volumes:
       - vol-edfiadminapp-keycloak:/opt/keycloak/data
-      - ./adminapp/realm-config.json:/opt/keycloak/data/import/realm-config.json
+      # realm-config.json is copied via docker cp in start-services.ps1 (not bind-mounted)
+      # to allow template restoration without affecting the running container
       - ./adminapp/healthcheck.sh:/opt/keycloak/healthcheck.sh
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
