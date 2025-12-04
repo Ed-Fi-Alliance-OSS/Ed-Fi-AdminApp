@@ -19,14 +19,15 @@ param(
 . "$PSScriptRoot\env-utils.ps1"
 
 # Check if .env file exists
-if (-not (Test-Path ".env")) {
+$envFilePath = Join-Path $PSScriptRoot ".env"
+if (-not (Test-Path $envFilePath)) {
     Write-Host ".env file not found!" -ForegroundColor Red
     Write-Host "Please create a .env file from .env.example with your configuration." -ForegroundColor Yellow
     exit 1
 }
 
 # Load environment variables from .env file
-Import-EnvFile -Path ".env"
+Import-EnvFile -Path $envFilePath
 
 # Process configuration files with environment variable substitution
 # This creates .bak backups of the original template files before substitution
