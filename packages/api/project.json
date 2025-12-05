@@ -3,6 +3,7 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/api/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
     "build-migration-config": {
       "executor": "@nx/webpack:webpack",
@@ -115,6 +116,5 @@
         "jestConfig": "packages/api/jest.config.ts"
       }
     }
-  },
-  "tags": []
+  }
 }
