@@ -56,3 +56,6 @@ packages/api/config/local*
 sandworm/
 
 .env
+
+vite.config.*.timestamp*
+vitest.config.*.timestamp*

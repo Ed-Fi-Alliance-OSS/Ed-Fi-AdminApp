@@ -16,7 +16,15 @@ const compat = new FlatCompat({
 
 export default [
   {
-    ignores: ['**/node_modules', '**/dist', '**/tmp', '**/.vscode', '**/migrations'],
+    ignores: [
+      '**/node_modules',
+      '**/dist',
+      '**/tmp',
+      '**/.vscode',
+      '**/migrations',
+      '**/vite.config.*.timestamp*',
+      '**/vitest.config.*.timestamp*',
+    ],
   },
   ...fixupConfigRules(
     compat.extends(

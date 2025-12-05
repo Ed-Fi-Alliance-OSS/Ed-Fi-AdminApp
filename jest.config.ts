@@ -1,6 +1,6 @@
-import { getJestProjects } from '@nx/jest';
+import { getJestProjectsAsync } from '@nx/jest';
 
-export default {
+export default async () => ({
   globalSetup: './jest-global-setup.js',
-  projects: getJestProjects(),
-};
+  projects: await getJestProjectsAsync(),
+});
