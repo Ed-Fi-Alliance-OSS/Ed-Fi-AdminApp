@@ -41,7 +41,7 @@ RUN --mount=type=cache,target=/root/.npm \
     npx nx run fe:build:production --skip-nx-cache --verbose --output-style=stream
 
 # Production base stage with nginx
-FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS productionBase
+FROM nginx:alpine@sha256:b3c656d55d7ad751196f21b7fd2e8d4da9cb430e32f646adcf92441b72f82b14 AS productionbase
 
 # Install runtime tools (jq for safe JSON, curl for healthcheck), then remove default site config
 RUN apk update && \
@@ -51,7 +51,7 @@ RUN apk update && \
     rm /etc/nginx/conf.d/default.conf
 
 # Final production layer
-FROM productionBase
+FROM productionbase
 
 # Copy built static assets
 COPY --from=build /app/dist/packages/fe /usr/share/nginx/html
