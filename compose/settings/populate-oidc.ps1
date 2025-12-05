@@ -5,7 +5,7 @@ param(
 	[string]$Issuer = "https://localhost/auth/realms/edfi"
 )
 
-$db_name = "edfiadminapp-db"
+$db_name = "edfiadminapp-postgres"
 $sql_file = Join-Path $PSScriptRoot "seed-oidc-dynamic.sql"
 
 # Generate dynamic SQL file

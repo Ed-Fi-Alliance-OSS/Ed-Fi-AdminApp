@@ -4,7 +4,7 @@ npm-debug.log*
 
 # Build outputs
 dist
-.nx/cache
+.nx
 .angular/cache
 
 # Logs

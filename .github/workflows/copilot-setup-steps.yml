@@ -1,0 +1,68 @@
+name: 'Copilot Setup Steps'
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+  pull_request:
+    paths:
+      - .github/workflows/copilot-setup-steps.yml
+
+jobs:
+  copilot-setup-steps:
+    runs-on: ubuntu-latest
+
+    permissions:
+      contents: read
+
+    env:
+      DATABASE_USER: sa
+      DATABASE_PASSWORD: ${{ secrets.DATABASE_PASSWORD }}
+      DATABASE_NAME: sbaa
+
+    # services:
+      # Disabling the SQL Server work for now, with the assumption that Copilot
+      # would have trouble working on MSSQL scripts in this repo.
+      # mssql:
+      #   image: mcr.microsoft.com/mssql/server:2022-latest
+      #   ports:
+      #     - '1433:1433'
+      #   options: >-
+      #     --health-cmd "exit 0"
+      #     --health-interval 10s
+      #     --health-timeout 5s
+      #     --health-retries 3
+      #     --name mssql
+      #     --user root
+      #   env:
+      #     ACCEPT_EULA: Y
+      #     MSSQL_PID: Express
+      #     MSSQL_SA_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+
+    steps:
+      - run: |
+          sudo systemctl start postgresql.service
+          pg_isready
+          sudo -u postgres psql -c "CREATE ROLE ${DATABASE_USER} WITH LOGIN PASSWORD '${DATABASE_PASSWORD}';"
+          sudo -u postgres psql -c "CREATE DATABASE ${DATABASE_NAME}"
+        env:
+          DATABASE_USER: ${{ env.DATABASE_USER }}
+          DATABASE_NAME: ${{ env.DATABASE_NAME }}
+          DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+
+      # - name: Install sqlcmd
+      #   run: |
+      #     curl -sSL https://packages.microsoft.com/keys/microsoft.asc | sudo apt-key add -
+      #     curl -sSL https://packages.microsoft.com/config/ubuntu/$(lsb_release -rs)/prod.list | sudo tee /etc/apt/sources.list.d/msprod.list
+      #     sudo apt-get update
+      #     sudo ACCEPT_EULA=Y apt-get install -y mssql-tools18 unixodbc-dev
+
+      # - run: |
+      #     /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${DATABASE_PASSWORD} -Q "CREATE DATABASE [${DATABASE_NAME}];"
+      #   env:
+      #     DATABASE_PASSWORD: ${{ env.DATABASE_PASSWORD }}
+      #     DATABASE_NAME: ${{ env.DATABASE_NAME }}
+
+      # - run: echo "PostgreSQL and MSSQL are running"
+      - run: echo "PostgreSQL is running"

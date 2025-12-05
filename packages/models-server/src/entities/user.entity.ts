@@ -1,4 +1,4 @@
-import { IRole, IUser, IUserConfig, IUserTeamMembership, UserType } from '@edanalytics/models';
+import { IRole, IUser, IUserTeamMembership, UserType } from '@edanalytics/models';
 import { Type } from 'class-transformer';
 import {
   Column,
@@ -10,6 +10,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import * as config from 'config';
 
 @Index(['username'], { unique: true })
 @Index(['clientId'], { unique: true })
@@ -38,7 +39,7 @@ export class User implements IUser {
   @Column({ nullable: true })
   modifiedById: IUser['id'];
 
-  @Column({ type: 'citext' })
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'citext' : 'nvarchar' })
   username: string;
 
   @Column({ nullable: true })
@@ -74,10 +75,11 @@ export class User implements IUser {
   @Column()
   isActive: boolean;
 
-  @Column({ type: 'simple-json', nullable: true })
-  config?: IUserConfig;
-
-  @Column({ type: 'enum', enum: ['human', 'machine'], default: 'human' })
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'enum' : 'nvarchar',
+    enum: ['human', 'machine'],
+    default: 'human',
+  })
   userType: UserType;
 
   get fullName() {

@@ -3,24 +3,15 @@
   "$schema": "../../node_modules/nx/schemas/project-schema.json",
   "sourceRoot": "packages/api/src",
   "projectType": "application",
+  "tags": [],
   "targets": {
-    "populate:demo": {
-      "executor": "nx:run-commands",
-      "outputs": ["{options.outputPath}"],
-      "options": {
-        "cwd": "./",
-        "commands": [
-          "ts-node -r tsconfig-paths/register --project=packages/api/tsconfig.app.json packages/api/src/database/demo-populate.ts --noInteraction"
-        ]
-      }
-    },
     "build-migration-config": {
       "executor": "@nx/webpack:webpack",
       "outputs": ["{options.outputPath}"],
       "options": {
         "target": "node",
         "compiler": "tsc",
-        "outputPath": "dist/packages/migration",
+        "outputPath": "dist/packages/migration/pgsql",
         "main": "packages/api/src/database/migrations.datasource.ts",
         "tsConfig": "packages/api/tsconfig.app.json",
         "webpackConfig": "packages/api/webpack.config.js"
@@ -32,7 +23,7 @@
       "options": {
         "cwd": "packages/api",
         "commands": [
-          "typeorm -d ../../dist/packages/migration/main.js migration:generate src/database/migrations/{args.name}"
+          "typeorm -d ../../dist/packages/migration/main.js migration:generate src/database/migrations/pgsql/{args.name}"
         ]
       },
       "dependsOn": ["build-migration-config"]
@@ -125,6 +116,5 @@
         "jestConfig": "packages/api/jest.config.ts"
       }
     }
-  },
-  "tags": []
+  }
 }

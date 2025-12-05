@@ -1,3 +1,5 @@
+import { LogLevel } from '@nestjs/common';
+
 declare module 'config' {
   export interface IDbSecret {
     DB_HOST: string;
@@ -20,7 +22,7 @@ declare module 'config' {
   }
 
   interface IConfig {
-    OPEN_API: boolean;
+    ENABLE_OPEN_API: boolean;
     AWS_DB_SECRET?: string | undefined;
     DB_SECRET_VALUE: never;
     /**
@@ -42,7 +44,9 @@ declare module 'config' {
     DB_ENCRYPTION_SECRET: IDbEncryptionSecret | Promise<IDbEncryptionSecret>;
 
     AWS_REGION?: string | undefined;
+    DB_ENGINE: 'mssql' | 'pgsql';
     DB_SSL: boolean;
+    DB_TRUST_CERTIFICATE: boolean;
     DB_RUN_MIGRATIONS: boolean;
     DB_SYNCHRONIZE: boolean;
     FE_URL: string;
@@ -76,8 +80,11 @@ declare module 'config' {
     RATE_LIMIT_LIMIT: number; // The maximum number of requests within the ttl
 
     USE_PKCE: boolean;
+
+    LOG_LEVEL: LogLevel;
   }
 
   const config: IConfig;
+
   export = config;
 }

@@ -155,19 +155,8 @@ export const CreateUser = () => {
               </FormControl>
               <FormControl isInvalid={!!errors.clientId}>
                 <FormLabel>
-                  Client ID (
-                  <Link
-                    color="blue"
-                    target="_blank"
-                    href="https://github.com/edanalytics/startingblocks_admin_app/tree/6f79429b13ae0df5dbeb0649e268d1feca5e33ff?tab=readme-ov-file#auth0-application-creation"
-                  >
-                    help
-                  </Link>
-                  ){' '}
-                  <Tooltip
-                    label="Create the application in Auth0 first (likely a task for Mark T, Eshara M, or Bjorn H). Instructions at link."
-                    hasArrow
-                  >
+                  Client ID{' '}
+                  <Tooltip label="Create the application in OAuth provider first." hasArrow>
                     <chakra.span>
                       <Icon as={BsInfoCircle} />
                     </chakra.span>
