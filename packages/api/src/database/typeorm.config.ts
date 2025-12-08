@@ -190,8 +190,8 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
       type: 'mssql',
       // MSSQL-specific options,
       options: {
-        encrypt: config.DB_SSL,
-        trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+        encrypt: config.DB_SSL === true || config.DB_SSL === 'true',
+        trustServerCertificate: config.DB_TRUST_CERTIFICATE === true || config.DB_TRUST_CERTIFICATE === 'true',
       },
     } as SqlServerConnectionOptions;
   }

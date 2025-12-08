@@ -111,9 +111,20 @@ To use SQL Server instead of PostgreSQL:
 3. **Start Services**: Use the `-MSSQL` flag:
 
    ```powershell
-   .\up.ps1 -MSSQL
-   .\up.ps1 -AdminApp -MSSQL
+   ./start-services.ps1 -Rebuild -MSSQL
    ```
+
+4. **Update Docker Compose to use SQL Server**:
+  Ensure the API service explicitly waits for the MSSQL container to be healthy by updating the `depends_on` section:
+
+    ```yml
+
+    edfiadminapp-api:
+     ....
+     depends_on:
+      edfiadminapp-mssql:
+        condition: service_healthy
+    ```
 
 ### Database Management
 

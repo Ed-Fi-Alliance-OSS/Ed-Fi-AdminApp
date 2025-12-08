@@ -55,7 +55,9 @@ module.exports = {
     }
   }),
   DB_CONNECTION_STRING: defer(function () {
-    const ssl = JSON.parse(this.DB_SSL || "false") ? 'require' : 'disable';
+    // Derive Postgres sslmode safely without JSON.parse
+    const sslRaw = this.DB_SSL;
+    const ssl = (sslRaw === true || sslRaw === 'true') ? 'require' : 'disable';
     const engine = this.DB_ENGINE || 'pgsql';
     if (this.AWS_DB_SECRET) {
       // eslint-disable-next-line no-async-promise-executor

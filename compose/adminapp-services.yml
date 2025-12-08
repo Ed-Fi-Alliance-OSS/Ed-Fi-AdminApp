@@ -86,7 +86,12 @@ services:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
       - edfiadminapp-network
-    # TODO: needs a healthcheck
+    healthcheck:
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -Q "SELECT 1" -b -l 10']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 40s
 
   memcached:
     image: memcached
@@ -116,11 +121,12 @@ services:
     environment:
       - NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/app/ssl/server.crt}
       - DB_SSL=${DB_SSL:-true}
+      - DB_ENGINE=${DB_ENGINE:-pgsql}
+      - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped
     depends_on:
-      # problematic for MSSQL
       edfiadminapp-postgres:
         condition: service_healthy
       edfiadminapp-keycloak:

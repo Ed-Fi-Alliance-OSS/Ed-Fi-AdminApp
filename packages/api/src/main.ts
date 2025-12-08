@@ -39,8 +39,9 @@ async function createMssqlConfig(): Promise<sql.config> {
     user: urlParts.username,
     password: urlParts.password,
     options: {
-      encrypt: config.DB_SSL,
-      trustServerCertificate: config.DB_TRUST_CERTIFICATE,
+      encrypt: config.DB_SSL === true || config.DB_SSL === 'true',
+      trustServerCertificate:
+        config.DB_TRUST_CERTIFICATE === true || config.DB_TRUST_CERTIFICATE === 'true',
     },
     connectionTimeout: FIVE_SECONDS_IN_MILLISECONDS, // this might be to aggressive
   };

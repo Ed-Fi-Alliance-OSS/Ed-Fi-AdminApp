@@ -31,7 +31,7 @@ COPY types/ ./types/
 # Build with optimizations - reset NX cache to avoid conflicts
 RUN --mount=type=cache,target=/root/.cache/nx \
     npx nx reset --yes && \
-    NODE_OPTIONS="--max-old-space-size=4096" NX_VERBOSE_LOGGING=true && \
+    NODE_OPTIONS="--max-old-space-size=4096" && \
     npx nx run api:build:production --verbose --output-style=stream
 
 # Production stage - Minimal runtime image
