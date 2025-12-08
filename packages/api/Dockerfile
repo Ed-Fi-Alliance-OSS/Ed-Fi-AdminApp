@@ -28,10 +28,11 @@ RUN --mount=type=cache,target=/root/.npm \
 COPY packages/ ./packages/
 COPY types/ ./types/
 
+ENV NODE_OPTIONS="--max-old-space-size=4096"
+
 # Build with optimizations - reset NX cache to avoid conflicts
 RUN --mount=type=cache,target=/root/.cache/nx \
     npx nx reset --yes && \
-    NODE_OPTIONS="--max-old-space-size=4096" && \
     npx nx run api:build:production --verbose --output-style=stream
 
 # Production stage - Minimal runtime image
