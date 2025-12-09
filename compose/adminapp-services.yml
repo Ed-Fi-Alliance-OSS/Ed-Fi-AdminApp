@@ -115,6 +115,7 @@ services:
   yopass:
     image: jhaals/yopass
     restart: always
+    container_name: edfiadminapp-yopass
     ports:
       - '127.0.0.1:8082:80'
     command: '--memcached=memcached:11211 --port 80'
@@ -137,7 +138,7 @@ services:
       - DB_ENGINE=${DB_ENGINE:-pgsql}
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
       - USE_YOPASS=${USE_YOPASS:-true}
-      - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass-1:80}
+      - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped

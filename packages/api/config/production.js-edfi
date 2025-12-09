@@ -9,7 +9,7 @@ module.exports = {
   FE_URL: FE_URL,
   MY_URL: 'https://localhost/adminapp-api',
   USE_YOPASS: true,
-  YOPASS_URL: 'http://edfiadminapp-local-build-yopass-1:80',
+  YOPASS_URL: 'http://edfiadminapp-yopass:80',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
   DB_ENGINE: 'pgsql',// 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: false, // For MSSQL local development using self-signed certs, set to true
