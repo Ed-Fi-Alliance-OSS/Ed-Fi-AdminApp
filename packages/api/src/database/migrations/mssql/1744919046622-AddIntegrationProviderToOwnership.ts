@@ -10,8 +10,9 @@ export class AddIntegrationProviderToOwnership1744919046622 implements Migration
     );
     await queryRunner.query(`DROP VIEW "ownership_view"`);
     await queryRunner.query(`ALTER TABLE [ownership] ADD [integrationProviderId] integer`);
+    // Use a filtered unique index to allow multiple rows where integrationProviderId is NULL
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_15254869519459309bbe96ee64e] UNIQUE ([teamId], [integrationProviderId])`
+      `CREATE UNIQUE INDEX [UQ_15254869519459309bbe96ee64e] ON [ownership]([teamId], [integrationProviderId]) WHERE [integrationProviderId] IS NOT NULL`
     );
     await queryRunner.query(
       `ALTER TABLE [ownership] ADD CONSTRAINT [FK_a40bf59df64995289bf17b4ed3e] FOREIGN KEY ([integrationProviderId]) REFERENCES "integration_provider"([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
@@ -62,7 +63,7 @@ FROM ownership
       `ALTER TABLE [ownership] DROP CONSTRAINT [FK_a40bf59df64995289bf17b4ed3e]`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT [UQ_15254869519459309bbe96ee64e]`
+      `DROP INDEX [UQ_15254869519459309bbe96ee64e] ON [ownership]`
     );
     await queryRunner.query(`ALTER TABLE [ownership] DROP COLUMN [integrationProviderId]`);
     await queryRunner.query(`CREATE VIEW "ownership_view" AS SELECT ownership.[id],
