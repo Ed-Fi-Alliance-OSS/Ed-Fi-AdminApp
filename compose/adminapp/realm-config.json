@@ -6,19 +6,19 @@
       "clientId": "edfiadminapp",
       "name": "Ed-Fi Admin App",
       "enabled": true,
-      "rootUrl": "https://localhost/adminapp",
-      "adminUrl": "https://localhost/adminapp",
-      "baseUrl": "https://localhost/adminapp",
+      "rootUrl": "{{BASE_URL}}/adminapp",
+      "adminUrl": "{{BASE_URL}}/adminapp",
+      "baseUrl": "{{BASE_URL}}/adminapp",
       "clientAuthenticatorType": "client-secret",
-      "secret": "big-secret-123",
+      "secret": "{{KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}}",
       "redirectUris": [
-        "https://localhost/adminapp/*",
-        "https://localhost/adminapp/auth/callback",
-        "https://localhost/adminapp-api/api/auth/callback/1",
-        "https://localhost/adminapp-api/api/auth/post-logout"
+        "{{BASE_URL}}/adminapp/*",
+        "{{BASE_URL}}/adminapp/auth/callback",
+        "{{BASE_URL}}/adminapp-api/api/auth/callback/1",
+        "{{BASE_URL}}/adminapp-api/api/auth/post-logout"
       ],
       "webOrigins": [
-        "https://localhost"
+        "{{BASE_URL}}"
       ],
       "protocol": "openid-connect"
     },
@@ -26,20 +26,20 @@
       "clientId": "edfiadminapp-dev",
       "name": "Ed-Fi Admin App Dev",
       "enabled": true,
-      "rootUrl": "http://localhost:3333/",
-      "adminUrl": "http://localhost:3333/",
-      "baseUrl": "http://localhost:3333/",
+      "rootUrl": "{{BASE_URL_DEV}}/",
+      "adminUrl": "{{BASE_URL_DEV}}/",
+      "baseUrl": "{{BASE_URL_DEV}}/",
       "clientAuthenticatorType": "client-secret",
-      "secret": "big-secret-123",
+      "secret": "{{KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}}",
       "redirectUris": [
-        "http://localhost:3333/*",
-        "http://localhost:3333/auth/callback",
-        "http://localhost:3333/api/auth/callback/1",
-        "http://localhost:3333/api/auth/callback/2",
-        "http://localhost:3333/api/auth/post-logout"
+        "{{BASE_URL_DEV}}/*",
+        "{{BASE_URL_DEV}}/auth/callback",
+        "{{BASE_URL_DEV}}/api/auth/callback/1",
+        "{{BASE_URL_DEV}}/api/auth/callback/2",
+        "{{BASE_URL_DEV}}/api/auth/post-logout"
       ],
       "webOrigins": [
-        "https://localhost"
+        "{{BASE_URL_DEV}}"
       ],
       "protocol": "openid-connect"
     }

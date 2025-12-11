@@ -11,8 +11,9 @@ services:
       - '127.0.0.1:${KEYCLOAK_PORT_EXPOSED:-8080}:8080'
     volumes:
       - vol-edfiadminapp-keycloak:/opt/keycloak/data
-      - ./adminapp/realm-config.json:/opt/keycloak/data/import/realm-config.json
       - ./adminapp/healthcheck.sh:/opt/keycloak/healthcheck.sh
+       # Bind-mount realm template for sed-based rendering at startup
+      - ./adminapp/realm-config.json:/tmp/realm-config.tmpl:ro
     environment:
       KC_BOOTSTRAP_ADMIN_USERNAME: ${KEYCLOAK_ADMIN:-admin}
       KC_BOOTSTRAP_ADMIN_PASSWORD: ${KEYCLOAK_ADMIN_PASSWORD:-admin}
@@ -24,12 +25,24 @@ services:
       KC_LOG_CONSOLE_LEVEL: ${KC_LOG_CONSOLE_LEVEL:-error}
       KC_LOG: file,console
       KC_HEALTH_ENABLED: true
+      # Variables used to render /tmp/realm-config.tmpl via sed
+      BASE_URL: ${BASE_URL:-https://localhost}
+      BASE_URL_DEV: ${BASE_URL_DEV:-http://localhost:3333}
+      KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET: ${KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET:-adminapp-secret}
+      KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET: ${KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET:-adminapp-dev-secret}
     entrypoint:
       - sh
       - -c
       - |
         cp /opt/keycloak/healthcheck.sh /tmp/healthcheck.sh && \
         chmod +x /tmp/healthcheck.sh && \
+        mkdir -p /opt/keycloak/data/import && \
+        sed \
+          -e "s|{{BASE_URL}}|${BASE_URL}|g" \
+          -e "s|{{BASE_URL_DEV}}|${BASE_URL_DEV}|g" \
+          -e "s|{{KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}}|${KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}|g" \
+          -e "s|{{KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}}|${KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}|g" \
+          /tmp/realm-config.tmpl > /opt/keycloak/data/import/realm-config.json && \
         /opt/keycloak/bin/kc.sh start-dev --import-realm
     networks:
       - edfiadminapp-network
@@ -102,6 +115,7 @@ services:
   yopass:
     image: jhaals/yopass
     restart: always
+    container_name: edfiadminapp-yopass
     ports:
       - '127.0.0.1:8082:80'
     command: '--memcached=memcached:11211 --port 80'
@@ -123,6 +137,8 @@ services:
       - DB_SSL=${DB_SSL:-true}
       - DB_ENGINE=${DB_ENGINE:-pgsql}
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
+      - USE_YOPASS=${USE_YOPASS:-true}
+      - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped
