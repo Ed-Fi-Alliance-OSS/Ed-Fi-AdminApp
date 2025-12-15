@@ -80,15 +80,17 @@ export class V7Changes1709328882890 implements MigrationInterface {
     );
 
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_dd40433e091e5d45bec9b801d28] UNIQUE ([teamId], [edorgId])`
+      `CREATE UNIQUE INDEX [UQ_dd40433e091e5d45bec9b801d28] ON [ownership]([teamId], [edorgId]) WHERE [edorgId] IS NOT NULL`
     );
 
+    // Enforce uniqueness only when [odsId] is NOT NULL
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_dc1f1ddb60cb2358f424909bf7c] UNIQUE ([teamId], [odsId])`
+      `CREATE UNIQUE INDEX [UQ_dc1f1ddb60cb2358f424909bf7c] ON [ownership]([teamId], [odsId]) WHERE [odsId] IS NOT NULL`
     );
 
+    // Enforce uniqueness only when [sbeId] is NOT NULL (pre-rename)
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_6963c608cdaa6f203b20eb938ed] UNIQUE ([teamId], [sbeId])`
+      `CREATE UNIQUE INDEX [UQ_6963c608cdaa6f203b20eb938ed] ON [ownership]([teamId], [sbeId]) WHERE [sbeId] IS NOT NULL`
     );
 
     await queryRunner.query(
@@ -137,7 +139,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
     // );
     await queryRunner.query(`ALTER TABLE [edorg] DROP CONSTRAINT [UQ_07c5479767d3c27eb0150fee1d9]`);
     await queryRunner.query(
-      `ALTER TABLE [ownership] DROP CONSTRAINT [UQ_6963c608cdaa6f203b20eb938ed]`
+      `DROP INDEX [UQ_6963c608cdaa6f203b20eb938ed] ON [ownership]`
     );
 
     await queryRunner.query(`EXEC sp_rename '[sbe]', 'edfi_tenant'`);
@@ -150,7 +152,7 @@ export class V7Changes1709328882890 implements MigrationInterface {
       `ALTER TABLE [edorg] ADD CONSTRAINT [UQ_33c75697e30842d2559e910ffef] UNIQUE ([edfiTenantId], [odsId], [educationOrganizationId])`
     );
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_0796c30d643a13b0a5489e1f7c3] UNIQUE ([teamId], [edfiTenantId])`
+      `CREATE UNIQUE INDEX [UQ_0796c30d643a13b0a5489e1f7c3] ON [ownership]([teamId], [edfiTenantId]) WHERE [edfiTenantId] IS NOT NULL`
     );
     await queryRunner.query(
       `ALTER TABLE [ods] ADD CONSTRAINT [FK_21f00024e194f67e9f51575f750] FOREIGN KEY ([edfiTenantId]) REFERENCES [edfi_tenant]([id]) ON DELETE CASCADE ON UPDATE NO ACTION`
@@ -317,8 +319,9 @@ export class V7Changes1709328882890 implements MigrationInterface {
       WHERE JSON_VALUE([configPublic], '$.sbeMetaArn') IS NOT NULL OR JSON_VALUE([configPublic], '$.adminApiUrl') IS NOT NULL;`
     );
     // ownership sb unique
+    // Enforce uniqueness only when [sbEnvironmentId] is NOT NULL
     await queryRunner.query(
-      `ALTER TABLE [ownership] ADD CONSTRAINT [UQ_99758503ba9f18ec99ab8d72384] UNIQUE ("teamId", [sbEnvironmentId])`
+      `CREATE UNIQUE INDEX [UQ_99758503ba9f18ec99ab8d72384] ON [ownership]([teamId], [sbEnvironmentId]) WHERE [sbEnvironmentId] IS NOT NULL`
     );
     // tweak tenant crud privileges
     await queryRunner.query(
