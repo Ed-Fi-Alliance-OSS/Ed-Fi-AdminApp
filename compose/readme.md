@@ -115,7 +115,7 @@ To use SQL Server instead of PostgreSQL:
    ```
 
 4. **Update Docker Compose to use SQL Server**:
-  Ensure the API service explicitly waits for the MSSQL container to be healthy by updating the `depends_on` section:
+  Ensure the API service explicitly waits for the MSSQL container to be healthy by updating the `depends_on` section in `adminapp-services.yml`:
 
     ```yml
 
@@ -140,19 +140,28 @@ To use SQL Server instead of PostgreSQL:
 
 There are two main PowerShell scripts for starting services:
 
-- **`start-local-dev.ps1`**: Starts Docker Compose services for local development, including Ed-Fi ODS/API and ODS Admin API supporting services. It uses the following compose files:
+**`start-local-dev.ps1`**: Starts Docker Compose services for local development, including support services for Ed‑Fi ODS/API and Admin API.
 
-  - `edfi-services.yml`
-  - `nginx-compose.yml`
-  - `adminapp-local-dev.yml`
-    If the `edfiadminapp-network` does not exist, it will be created automatically.
+> [!NOTE]
+> This does not start the AdminApp API or Frontend containers; these are excluded via Docker profiles.
 
-- **`start-services.ps1`**: Starts the Docker Compose services for the Ed-Fi ODS/API, ODS Admin API, _and_ runs Ed-Fi Admin App, along with supporting services. It uses:
-  - `edfi-services.yml`
-  - `nginx-compose.yml`
-  - `adminapp-services.yml`
-    If the `edfiadminapp-network` does not exist, it will be created automatically.
-  - You can pass the `-Rebuild` switch to rebuild the AdminApp images before starting them.
+It uses the following compose files:
+
+- `edfi-services.yml`
+- `nginx-compose.yml`
+- `adminapp-services.yml`
+
+If the `edfiadminapp-network` does not exist, it will be created automatically.
+
+**`start-services.ps1`**: Starts the Docker Compose services for the Ed-Fi ODS/API, ODS Admin API, _and_ runs Ed-Fi Admin App, along with supporting services. It uses:
+
+- `edfi-services.yml`
+- `nginx-compose.yml`
+- `adminapp-services.yml`
+
+If the `edfiadminapp-network` does not exist, it will be created automatically.
+
+- You can pass the `-Rebuild` switch to rebuild the AdminApp images before starting them.
 
 #### Steps to Start Containers
 
@@ -179,6 +188,9 @@ There are two main PowerShell scripts for starting services:
 The ODS database can use the "sandbox" or "minimal" container. When using the sandbox image, you must login to the server (e.g. using PgAdmin) and create a new `EdFi_Ods_??` database, choosing either the populated or minimal template.
 
 ### Setup Ods Instances
+
+> [!NOTE]
+> This section applies to **SBAA (Starting Blocks Admin App) environments only**. For non-SBAA environments, ODS instance configuration is managed differently.
 
 The ODS/API in multi-instance mode reads connection strings and routing information from the EdFi_Admin database. Currently the Admin App does not support configuring this information, so it needs to be handled manually.
 
