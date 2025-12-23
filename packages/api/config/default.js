@@ -20,6 +20,7 @@ module.exports = {
   DB_SYNCHRONIZE: false,
   DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: false, // For MSSQL, whether to trust the server certificate
+  DB_TTL_IN_MINUTES: 120, // Default to 120 minutes
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',

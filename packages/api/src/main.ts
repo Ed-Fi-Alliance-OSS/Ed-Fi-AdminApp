@@ -27,7 +27,7 @@ import axios from 'axios';
 import https from 'https';
 
 const FIVE_SECONDS_IN_MILLISECONDS = 5000;
-const TWO_HOURS_IN_SECONDS = 60 * 60 * 2;
+const DB_TTL_IN_SECONDS = 60 * config.DB_TTL_IN_MINUTES;
 
 async function createMssqlConfig(): Promise<sql.config> {
   const mssqlConnectionStr = await config.DB_CONNECTION_STRING;
@@ -125,7 +125,7 @@ END`);
       Logger.log('Using MSSQL session store');
       return new mssqlSession.default(mssqlConfig, {
         table,
-        ttl: TWO_HOURS_IN_SECONDS,
+        ttl: DB_TTL_IN_SECONDS,
       });
     } else {
       // PostgreSQL setup (existing logic)
@@ -142,7 +142,7 @@ END`);
         createTableIfMissing: true,
         conString: connectionStr,
         schemaName: 'appsession',
-        ttl: TWO_HOURS_IN_SECONDS,
+        ttl: DB_TTL_IN_SECONDS,
       });
     }
   } catch (error) {
