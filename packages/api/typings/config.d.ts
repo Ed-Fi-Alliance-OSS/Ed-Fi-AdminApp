@@ -47,6 +47,7 @@ declare module 'config' {
     DB_ENGINE: 'mssql' | 'pgsql';
     DB_SSL: boolean;
     DB_TRUST_CERTIFICATE: boolean;
+    DB_TTL_IN_MINUTES: number;
     DB_RUN_MIGRATIONS: boolean;
     DB_SYNCHRONIZE: boolean;
     FE_URL: string;

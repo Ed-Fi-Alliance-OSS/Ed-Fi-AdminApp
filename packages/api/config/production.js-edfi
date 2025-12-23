@@ -13,6 +13,7 @@ module.exports = {
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
   DB_ENGINE: 'pgsql',// 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: false, // For MSSQL local development using self-signed certs, set to true
+  DB_TTL_IN_MINUTES: 120, // Time to live for DB sessions in minutes
 
   DB_SECRET_VALUE: {
 
