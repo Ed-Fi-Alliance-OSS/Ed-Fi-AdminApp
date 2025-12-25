@@ -137,6 +137,7 @@ services:
       - DB_SSL=${DB_SSL:-true}
       - DB_ENGINE=${DB_ENGINE:-pgsql}
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
+      - DB_TTL_IN_MINUTES=${DB_TTL_IN_MINUTES:-120}
       - USE_YOPASS=${USE_YOPASS:-true}
       - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
     extra_hosts:
