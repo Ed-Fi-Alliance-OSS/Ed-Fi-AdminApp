@@ -40,10 +40,6 @@ export const SbEnvironmentsGlobalPage = () => {
   });
   const actions = useSbEnvironmentsGlobalActions();
 
-  if (sbEnvironments.isLoading) {
-    return <PageTemplate title="Environments">Loading...</PageTemplate>;
-  }
-
   return (
     <PageTemplate actions={<PageActions actions={omit(actions, 'View')} />} title="Environments">
       <SbaaTableAllInOne
