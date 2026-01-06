@@ -12,7 +12,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, edfiTenant, sbEnvironmentId, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
   const { odsId } = useParams();
 
@@ -27,7 +27,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete
+    ...(canDelete && sbEnvironment.startingBlocks
       ? {
           Delete: {
             icon: Icons.Delete,
