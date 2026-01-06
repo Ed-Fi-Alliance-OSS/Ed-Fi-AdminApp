@@ -12,10 +12,12 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, edfiTenant, sbEnvironmentId, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
   const { odsId } = useParams();
 
+  const displayOptions = sbEnvironment?.startingBlocks;
+  
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
       ods.id,
@@ -27,7 +29,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete
+    ...(canDelete && displayOptions
       ? {
           Delete: {
             icon: Icons.Delete,

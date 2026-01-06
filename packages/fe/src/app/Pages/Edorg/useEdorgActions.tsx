@@ -12,9 +12,11 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useEdorgActions = (edorg: Pick<GetEdorgDto, 'id'>): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, edfiTenant, sbEnvironmentId, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
   const { edorgId } = useParams();
+
+  const displayOptions = sbEnvironment?.startingBlocks;
 
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
@@ -27,7 +29,7 @@ export const useEdorgActions = (edorg: Pick<GetEdorgDto, 'id'>): ActionsType => 
   const deleteEdorg = edorgQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete
+    ...(canDelete && displayOptions
       ? {
           Delete: {
             icon: Icons.Delete,

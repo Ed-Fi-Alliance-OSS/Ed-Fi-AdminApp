@@ -8,8 +8,9 @@ import {
 
 export const useOdssActions = (): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
+  const { edfiTenantId, sbEnvironmentId, sbEnvironment, teamId } = useTeamSbEnvironmentNavContext();
 
+  const displayOptions = sbEnvironment?.startingBlocks;
   const canPost = useAuthorize(
     teamEdfiTenantAuthConfig(
       '__filtered__',
@@ -18,7 +19,7 @@ export const useOdssActions = (): ActionsType => {
       'team.sb-environment.edfi-tenant:create-ods'
     )
   );
-  return canPost
+  return canPost && displayOptions
     ? {
         Create: {
           icon: Icons.Plus,
