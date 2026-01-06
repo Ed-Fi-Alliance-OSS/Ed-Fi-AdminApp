@@ -18,11 +18,10 @@ import { useSbEnvironmentsGlobalActions } from './useSbEnvironmentsGlobalActions
 import { useAuthorize } from '../../helpers';
 
 const SbEnvironmentsNameCell = (info: CellContext<GetSbEnvironmentDto, unknown>) => {
-  const sbEnvironments = useQuery(sbEnvironmentQueries.getAll({}));
   const actions = useSbEnvironmentGlobalActions(info.row.original);
   return (
     <HStack justify="space-between">
-      <SbEnvironmentGlobalLink id={info.row.original.id} query={sbEnvironments} />
+      <SbEnvironmentGlobalLink id={info.row.original.id} sbEnvironment={info.row.original} />
       <TableRowActions actions={actions} />
     </HStack>
   );
@@ -40,6 +39,7 @@ export const SbEnvironmentsGlobalPage = () => {
     }),
   });
   const actions = useSbEnvironmentsGlobalActions();
+
   return (
     <PageTemplate actions={<PageActions actions={omit(actions, 'View')} />} title="Environments">
       <SbaaTableAllInOne
