@@ -43,13 +43,14 @@ export const sbEnvironmentsGlobalRoute: RouteObject = {
 
 export const SbEnvironmentGlobalLink = (props: {
   id: number | undefined;
-  query: Pick<UseQueryResult<Record<string | number, GetSbEnvironmentDto>, unknown>, 'data'>;
+  query?: Pick<UseQueryResult<Record<string | number, GetSbEnvironmentDto>, unknown>, 'data'>;
+  sbEnvironment?: GetSbEnvironmentDto;
 }) => {
-  const sbEnvironment = getEntityFromQuery(props.id, props.query);
+  const sbEnvironment = props.sbEnvironment ?? (props.query ? getEntityFromQuery(props.id, props.query) : undefined);
   return sbEnvironment ? (
     <Link as="span">
       <RouterLink title="Go to environment" to={`/sb-environments/${sbEnvironment.id}`}>
-        {getRelationDisplayName(props.id, props.query)}
+        {sbEnvironment.displayName}
       </RouterLink>
     </Link>
   ) : typeof props.id === 'number' ? (
