@@ -16,8 +16,6 @@ export const useEdorgActions = (edorg: Pick<GetEdorgDto, 'id'>): ActionsType => 
   const popBanner = usePopBanner();
   const { edorgId } = useParams();
 
-  const displayOptions = sbEnvironment?.startingBlocks;
-
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
       edorg.id,
@@ -29,7 +27,7 @@ export const useEdorgActions = (edorg: Pick<GetEdorgDto, 'id'>): ActionsType => 
   const deleteEdorg = edorgQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete && displayOptions
+    ...(canDelete && sbEnvironment.startingBlocks
       ? {
           Delete: {
             icon: Icons.Delete,

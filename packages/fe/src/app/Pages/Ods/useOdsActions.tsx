@@ -16,8 +16,6 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const popBanner = usePopBanner();
   const { odsId } = useParams();
 
-  const displayOptions = sbEnvironment?.startingBlocks;
-  
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
       ods.id,
@@ -29,7 +27,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete && displayOptions
+    ...(canDelete && sbEnvironment.startingBlocks
       ? {
           Delete: {
             icon: Icons.Delete,

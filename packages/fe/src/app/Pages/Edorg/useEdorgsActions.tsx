@@ -14,7 +14,6 @@ export const useEdorgsActions = ({ ods }: { ods?: GetOdsDto }): ActionsType => {
   const createEdorgUrl = `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/edorgs/create${
     ods?.odsInstanceName ? `?ODSName=${ods.odsInstanceName}` : ''
   }`;
-  const displayOptions = sbEnvironment?.startingBlocks;
   const canPost =
     useAuthorize(
       teamEdfiTenantAuthConfig(
@@ -24,7 +23,7 @@ export const useEdorgsActions = ({ ods }: { ods?: GetOdsDto }): ActionsType => {
         'team.sb-environment.edfi-tenant.ods:create-edorg'
       )
     ) && sbEnvironment?.version === 'v2';
-  return displayOptions && canPost
+  return canPost && sbEnvironment.startingBlocks
     ? {
         Create: {
           icon: Icons.Plus,
