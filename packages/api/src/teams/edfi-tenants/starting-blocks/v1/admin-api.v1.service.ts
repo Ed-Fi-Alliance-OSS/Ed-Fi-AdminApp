@@ -1,6 +1,8 @@
 import {
+  EducationOrganizationDto,
   GetClaimsetDto,
   ISbEnvironmentConfigPrivateV1,
+  OdsInstanceDto,
   PostApplicationDto,
   PostApplicationResponseDto,
   PostClaimsetDto,
@@ -8,6 +10,7 @@ import {
   PutApplicationDto,
   PutClaimsetDto,
   PutVendorDto,
+  TenantDto,
   toGetApplicationDto,
   toGetClaimsetDto,
   toGetVendorDto,
@@ -463,5 +466,127 @@ export class AdminApiServiceV1 {
         })
         .then(() => undefined)
     );
+  }
+  /**
+   * Creates default tenant representation for single-tenant environments
+   * For v1 API, typically returns single tenant derived from environment config
+   *
+   * @param environment - SB Environment containing configuration
+   * @returns Promise resolving to array with single default tenant object
+   */
+  async getTenants(environment: SbEnvironment): Promise<TenantDto[]> {
+    Logger.log(`Getting default tenant for environment: ${environment.name}`);
+
+    try {
+      // V1 API is single-tenant, so we create a default tenant from environment data
+      const defaultTenant: TenantDto = {
+        id: 'default',
+        name: environment.name || 'Default Tenant',
+        organizationDepartment: environment.configPublic?.['organizationDepartment'],
+        subscriptionId: environment.configPublic?.['subscriptionId'],
+        created: new Date(),
+      };
+
+      return [defaultTenant];
+    } catch (error) {
+      Logger.error(`Failed to get tenants: ${error.message}`, error.stack);
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve all education organizations for the tenant
+   *
+   * @param edfiTenant - EdFi Tenant for API access
+   * @param instanceId - Optional ODS instance ID to filter organizations
+   * @returns Promise resolving to array of education organization data
+   */
+  async getEducationOrganizations(
+    edfiTenant: EdfiTenant,
+    instanceId?: number
+  ): Promise<EducationOrganizationDto[]> {
+    Logger.log(
+      `Getting education organizations for tenant ${edfiTenant.id}${
+        instanceId ? `, instanceId: ${instanceId}` : ''
+      }`
+    );
+
+    try {
+      // Construct the appropriate endpoint based on whether instanceId is provided
+      const endpoint = instanceId
+        ? `v1/educationOrganizations/${instanceId}`
+        : 'v1/educationOrganizations';
+
+      // Call Admin API V1 to retrieve education organizations
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await this.getAdminApiClient(edfiTenant)
+        .get<any, any[]>(endpoint)
+        .catch((err) => {
+          Logger.error(
+            `Error getting education organizations for tenant ${edfiTenant.id}: ${err}`
+          );
+          throw err;
+        });
+
+      Logger.log(
+        `Retrieved ${response.length} education organizations from Admin API for tenant ${edfiTenant.id}`
+      );
+
+      // Transform and return the education organization data
+      return response.map((edOrg) => ({
+        educationOrganizationId: edOrg.educationOrganizationId,
+        nameOfInstitution: edOrg.nameOfInstitution,
+        shortNameOfInstitution: edOrg.shortNameOfInstitution,
+        discriminator: edOrg.discriminator,
+        odsInstanceId: edOrg.odsInstanceId ?? instanceId,
+      }));
+    } catch (error) {
+      Logger.error(
+        `Failed to get education organizations for tenant ${edfiTenant.id}: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Retrieve ODS instances for the default tenant
+   * Maps existing metadata structure to ODS instance format
+   *
+   * @param edfiTenant - EdFi Tenant containing ODS metadata
+   * @returns Promise resolving to array of ODS instance details
+   */
+  async getOdsInstancesForDefaultTenant(edfiTenant: EdfiTenant): Promise<OdsInstanceDto[]> {
+    Logger.log(`Getting ODS instances for default tenant in tenant ${edfiTenant.id}`);
+
+    try {
+      // Call Admin API V1 to retrieve ODS instances
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await this.getAdminApiClient(edfiTenant)
+        .get<any, any[]>('v1/odsInstances')
+        .catch((err) => {
+          Logger.error(`Error getting ODS instances for tenant ${edfiTenant.id}: ${err}`);
+          throw err;
+        });
+
+      Logger.log(
+        `Retrieved ${response.length} ODS instances from Admin API for tenant ${edfiTenant.id}`
+      );
+
+      // Map the Admin API response to OdsInstanceDto format
+      return response.map((instance, index) => ({
+        id: instance.odsInstanceId ?? instance.id ?? index,
+        name: instance.name ?? `ODS Instance ${index + 1}`,
+        instanceType: instance.instanceType,
+        connectionString: instance.connectionString,
+        created: instance.created ? new Date(instance.created) : new Date(),
+      }));
+    } catch (error) {
+      Logger.error(
+        `Failed to get ODS instances for tenant ${edfiTenant.id}: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
   }
 }
