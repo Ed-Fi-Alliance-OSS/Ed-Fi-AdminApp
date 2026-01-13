@@ -133,6 +133,98 @@ export class AdminApiServiceV1 {
     }
   }
 
+  async logIntoAdminApiUsingEnv(sbEnvironment: SbEnvironment) {
+    const configPublic = sbEnvironment.configPublic;
+    const configPrivate = sbEnvironment.configPrivate;
+    const v1Config =
+      'version' in configPublic && configPublic.version === 'v1' ? configPublic.values : undefined;
+    const v1ConfigPrivate =
+      'version' in configPublic && configPublic.version === 'v1'
+        ? (configPrivate as ISbEnvironmentConfigPrivateV1)
+        : undefined;
+
+    const adminApiUrl = sbEnvironment.adminApiUrl;
+    if (typeof adminApiUrl !== 'string') {
+      Logger.log('No Admin API URL configured for environment.');
+      return {
+        status: 'NO_ADMIN_API_URL' as const,
+      };
+    }
+    const adminApiKey = v1Config?.adminApiKey;
+    if (typeof adminApiKey !== 'string' || adminApiKey.length === 0) {
+      Logger.log('No Admin API key configured for environment.');
+      return {
+        status: 'NO_ADMIN_API_KEY' as const,
+      };
+    }
+    const adminApiSecret = v1ConfigPrivate?.adminApiSecret;
+    if (typeof adminApiSecret !== 'string' || adminApiSecret.length === 0) {
+      Logger.log('No Admin API secret configured for environment.');
+      return {
+        status: 'NO_ADMIN_API_SECRET' as const,
+      };
+    }
+    const accessTokenUri = `${adminApiUrl.replace(/\/$/, '')}/connect/token`;
+    try {
+      new URL(accessTokenUri);
+    } catch (InvalidUrl) {
+      Logger.log(InvalidUrl);
+      return {
+        status: 'INVALID_ADMIN_API_URL' as const,
+      };
+    }
+
+    const reqBody = new URLSearchParams();
+    reqBody.set('client_id', adminApiKey);
+    reqBody.set('client_secret', adminApiSecret);
+    reqBody.set('grant_type', 'client_credentials');
+    reqBody.set('scope', 'edfi_admin_api/full_access');
+
+    const options = {
+      method: 'POST',
+      url: accessTokenUri,
+      headers: {
+        Accept: 'application/json',
+      },
+      data: reqBody,
+    };
+
+    try {
+      await axios.request(options).then((v) => {
+        this.adminApiTokens.set(sbEnvironment.id, v.data.access_token, Number(v.data.expires_in) - 60);
+      });
+      return {
+        status: 'SUCCESS' as const,
+      };
+    } catch (LoginFailed) {
+      if (LoginFailed?.code === 'ERR_HTTP2_GOAWAY_SESSION') {
+        Logger.warn('ERR_HTTP2_GOAWAY_SESSION');
+        Logger.warn(LoginFailed);
+        return {
+          status: 'GOAWAY' as const, // TBD what this actually means
+        };
+      } else if (isAxiosError(LoginFailed) && LoginFailed.response?.status === 404) {
+        return {
+          status: 'TOKEN_URI_NOT_FOUND' as const,
+        };
+      } else if (isAxiosError(LoginFailed) && LoginFailed.response?.status === 401) {
+        return {
+          status: 'INVALID_CREDS' as const,
+        };
+      }
+      Logger.warn(LoginFailed);
+      return {
+        status: 'LOGIN_FAILED' as const,
+        message:
+          'body' in LoginFailed &&
+          'error' in LoginFailed.body &&
+          typeof LoginFailed.body.error === 'string'
+            ? LoginFailed.body.error
+            : 'Unknown login failure.',
+      };
+    }
+  }
+
   async selfRegisterAdminApi(
     /** Base URL, no `/connect/register` */
     url: string
@@ -238,6 +330,54 @@ export class AdminApiServiceV1 {
           );
         }
         token = this.adminApiTokens.get(edfiTenant.id);
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+    return client;
+  }
+
+  private getAdminApiClientUsingEnv(sbEnvironment: SbEnvironment) {
+    const client = axios.create({
+      baseURL: sbEnvironment.adminApiUrl,
+    });
+    client.interceptors.response.use(
+      (value) => {
+        if (_.isEqual(value.data, failureBut200Response)) {
+          // This is nonsensical but needed because of an Admin API bug
+          throw new CustomHttpException(
+            {
+              title: 'Admin API failure',
+              type: 'Error',
+            },
+            500
+          );
+        }
+        return value.data.result;
+      },
+      (err: AxiosError) => {
+        if (err.status === 401) {
+          this.adminApiTokens.del(sbEnvironment.id);
+        }
+        Logger.error(`Unable to create client on ${sbEnvironment.adminApiUrl}: ${err}`);
+        throw err;
+      }
+    );
+    client.interceptors.request.use(async (config) => {
+      let token: undefined | string = this.adminApiTokens.get(sbEnvironment.id);
+      if (token === undefined) {
+        const adminLogin = await this.logIntoAdminApiUsingEnv(sbEnvironment);
+
+        if (adminLogin.status !== 'SUCCESS') {
+          throw new CustomHttpException(
+            {
+              title: adminApiLoginStatusMsgs[adminLogin.status],
+              type: 'Error',
+            },
+            500
+          );
+        }
+        token = this.adminApiTokens.get(sbEnvironment.id);
       }
       config.headers.Authorization = `Bearer ${token}`;
       return config;
@@ -478,19 +618,38 @@ export class AdminApiServiceV1 {
     Logger.log(`Getting default tenant for environment: ${environment.name}`);
 
     try {
+      const endpoint = 'v1/tenants';
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await this.getAdminApiClientUsingEnv(environment)
+        .get<any, any[]>(endpoint)
+        .catch((err) => {
+          Logger.error(
+            `Error getting tenants: ${err}`
+          );
+          throw err;
+        });
+
+      Logger.log(
+        `Retrieved ${response.length} tenants from Admin API for environment ${environment.name}`
+      );
+
+      // Transform and return the tenant data
+      return response.map((tenant) => ({
+        id: tenant.tenantName,
+        name: tenant.tenantName
+      }));
+    } catch (error) {
+      Logger.warn(
+        `Failed to get tenants for environment ${environment.name}: ${error.message}. Returning a default tenant.`,
+        error.stack
+      );
       // V1 API is single-tenant, so we create a default tenant from environment data
       const defaultTenant: TenantDto = {
         id: 'default',
-        name: environment.name || 'Default Tenant',
-        organizationDepartment: environment.configPublic?.['organizationDepartment'],
-        subscriptionId: environment.configPublic?.['subscriptionId'],
-        created: new Date(),
+        name: environment.name || 'Default Tenant'
       };
 
       return [defaultTenant];
-    } catch (error) {
-      Logger.error(`Failed to get tenants: ${error.message}`, error.stack);
-      throw error;
     }
   }
 
