@@ -397,7 +397,7 @@ services:
       Authentication__SigningKey: ${SIGNING_KEY}
       Authentication__AllowRegistration: true
       SwaggerSettings__EnableSwagger: true
-      SwaggerSettings__DefaultTenant: ${SWAGGER_DEFAULT_TENANT:-tenant1}
+      SwaggerSettings__DefaultTenant: ${SWAGGER_DEFAULT_TENANT:-default}
       AppSettings__DefaultPageSizeOffset: ${PAGING_OFFSET:-0}
       AppSettings__DefaultPageSizeLimit: ${PAGING_LIMIT:-25}
       AppSettings__MultiTenancy: false
