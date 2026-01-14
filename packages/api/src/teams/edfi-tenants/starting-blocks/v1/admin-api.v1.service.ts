@@ -601,13 +601,53 @@ export class AdminApiServiceV1 {
           throw err;
         });
 
+      // Validate response is an array
+      if (!Array.isArray(response)) {
+        Logger.error(
+          `Expected array response from tenants endpoint, got ${typeof response}. Falling back to default tenant.`
+        );
+        const defaultTenant: TenantDto = {
+          id: 'default',
+          name: environment.name || 'Default Tenant',
+          EdOrgs: [],
+          OdsInstances: [],
+        };
+        return [defaultTenant];
+      }
+
       Logger.log(
         `Retrieved ${response.length} tenants from Admin API for environment ${environment.name}`
       );
 
+      // Filter out invalid tenant objects and log warnings
+      const validTenants = response.filter((tenant) => {
+        if (!tenant || typeof tenant !== 'object') {
+          Logger.warn(`Skipping invalid tenant object: ${JSON.stringify(tenant)}`);
+          return false;
+        }
+        if (!tenant.tenantName || typeof tenant.tenantName !== 'string') {
+          Logger.warn(`Skipping tenant with missing or invalid tenantName: ${JSON.stringify(tenant)}`);
+          return false;
+        }
+        return true;
+      });
+
+      if (validTenants.length === 0) {
+        Logger.warn(
+          `No valid tenants found in response for environment ${environment.name}. Returning default tenant.`
+        );
+        const defaultTenant: TenantDto = {
+          id: 'default',
+          name: environment.name || 'Default Tenant',
+          EdOrgs: [],
+          OdsInstances: [],
+        };
+        return [defaultTenant];
+      }
+
       // For each tenant, fetch detailed information including EdOrgs and OdsInstances
       const tenantsWithDetails = await Promise.all(
-        response.map(async (tenant) => {
+        validTenants.map(async (tenant) => {
           const tenantId = tenant.tenantName;
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -639,7 +679,7 @@ export class AdminApiServiceV1 {
               })) || [],
               OdsInstances: details.odsInstances?.map((instance: any, index: number) => {
                 const odsInstance: OdsInstanceDto = {
-                  id: instance.odsInstanceId ?? instance.id ?? index,
+                  id: instance.odsInstanceId ?? instance.id ?? null,
                   name: instance.name ?? `ODS Instance ${index + 1}`,
                   instanceType: instance.instanceType,
                   connectionString: instance.connectionString,
@@ -651,9 +691,15 @@ export class AdminApiServiceV1 {
               }) || [],
             };
           } catch (detailsError) {
+            const errorMessage = detailsError instanceof Error 
+              ? detailsError.message 
+              : String(detailsError);
+            const errorStack = detailsError instanceof Error 
+              ? detailsError.stack 
+              : undefined;
             Logger.warn(
-              `Failed to get details for tenant ${tenantId}: ${detailsError.message}. Returning tenant with empty details.`,
-              detailsError.stack
+              `Failed to get details for tenant ${tenantId}: ${errorMessage}. Returning tenant with empty details.`,
+              errorStack
             );
             // Return tenant with empty details if the details endpoint fails
             return {
@@ -687,13 +733,13 @@ export class AdminApiServiceV1 {
 
       // For all other errors (auth failures, network issues, server errors), re-throw
       // so administrators can identify and fix configuration problems
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
       Logger.error(
-        `Failed to get tenants for environment ${environment.name}: ${error.message}`,
-        error.stack
+        `Failed to get tenants for environment ${environment.name}: ${errorMessage}`,
+        errorStack
       );
       throw error;
     }
   }
-
-
 }
