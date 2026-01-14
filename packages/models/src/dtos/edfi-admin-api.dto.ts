@@ -355,8 +355,8 @@ export interface TenantDto {
   organizationDepartment?: string;
   subscriptionId?: string;
   created?: Date;
-  EdOrgs?: EducationOrganizationDto[];
-  OdsInstances?: OdsInstanceDto[];
+  edOrgs?: EducationOrganizationDto[];
+  odsInstances?: OdsInstanceDto[];
 }
 
 export interface EducationOrganizationDto {

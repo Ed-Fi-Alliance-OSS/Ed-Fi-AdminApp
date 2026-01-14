@@ -120,8 +120,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         id: 'tenant-one',
         name: 'tenant-one',
       });
-      expect(result[0].EdOrgs).toHaveLength(1);
-      expect(result[0].EdOrgs![0]).toMatchObject({
+      expect(result[0].edOrgs).toHaveLength(1);
+      expect(result[0].edOrgs![0]).toMatchObject({
         instanceId: 1,
         instanceName: 'ODS One',
         educationOrganizationId: 255901,
@@ -130,30 +130,30 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         discriminator: 'edfi.School',
         parentId: 255900,
       });
-      expect(result[0].OdsInstances).toHaveLength(1);
-      expect(result[0].OdsInstances![0]).toMatchObject({
+      expect(result[0].odsInstances).toHaveLength(1);
+      expect(result[0].odsInstances![0]).toMatchObject({
         id: 1,
         name: 'ODS One',
         instanceType: 'Production',
         connectionString: 'Server=prod;Database=EdFi_Ods;',
       });
-      expect(result[0].OdsInstances![0].created).toBeInstanceOf(Date);
+      expect(result[0].odsInstances![0].created).toBeInstanceOf(Date);
 
       // Verify second tenant
       expect(result[1]).toMatchObject({
         id: 'tenant-two',
         name: 'tenant-two',
       });
-      expect(result[1].EdOrgs).toHaveLength(1);
-      expect(result[1].EdOrgs![0]).toMatchObject({
+      expect(result[1].edOrgs).toHaveLength(1);
+      expect(result[1].edOrgs![0]).toMatchObject({
         instanceId: 2,
         instanceName: 'ODS Two',
         educationOrganizationId: 255902,
         nameOfInstitution: 'School Two',
         discriminator: 'edfi.School',
       });
-      expect(result[1].OdsInstances).toHaveLength(1);
-      expect(result[1].OdsInstances![0].id).toBe(2);
+      expect(result[1].odsInstances).toHaveLength(1);
+      expect(result[1].odsInstances![0].id).toBe(2);
     });
 
     it('should handle tenant details endpoint failure gracefully', async () => {
@@ -175,8 +175,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'tenant-one',
         name: 'tenant-one',
-        EdOrgs: [],
-        OdsInstances: [],
+        edOrgs: [],
+        odsInstances: [],
       });
     });
 
@@ -194,8 +194,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        EdOrgs: [],
-        OdsInstances: [],
+        edOrgs: [],
+        odsInstances: [],
       });
     });
 
@@ -246,12 +246,12 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       expect(result[0]).toHaveProperty('id');
       expect(result[0]).toHaveProperty('name');
-      expect(result[0]).toHaveProperty('EdOrgs');
-      expect(result[0]).toHaveProperty('OdsInstances');
+      expect(result[0]).toHaveProperty('edOrgs');
+      expect(result[0]).toHaveProperty('odsInstances');
       expect(typeof result[0].id).toBe('string');
       expect(typeof result[0].name).toBe('string');
-      expect(Array.isArray(result[0].EdOrgs)).toBe(true);
-      expect(Array.isArray(result[0].OdsInstances)).toBe(true);
+      expect(Array.isArray(result[0].edOrgs)).toBe(true);
+      expect(Array.isArray(result[0].odsInstances)).toBe(true);
     });
 
     it('should set ODS instance ID to null when odsInstanceId and id are missing', async () => {
@@ -276,8 +276,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const result = await service.getTenants(environment);
 
-      expect(result[0].OdsInstances![0].id).toBeNull();
-      expect(result[0].OdsInstances![1].id).toBeNull();
+      expect(result[0].odsInstances![0].id).toBeNull();
+      expect(result[0].odsInstances![1].id).toBeNull();
     });
 
     it('should generate default names for ODS instances with missing names', async () => {
@@ -299,9 +299,9 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const result = await service.getTenants(environment);
 
-      expect(result[0].OdsInstances![0].name).toBe('ODS Instance 1');
-      expect(result[0].OdsInstances![1].name).toBe('ODS Instance 2');
-      expect(result[0].OdsInstances![2].name).toBe('ODS Instance 3');
+      expect(result[0].odsInstances![0].name).toBe('ODS Instance 1');
+      expect(result[0].odsInstances![1].name).toBe('ODS Instance 2');
+      expect(result[0].odsInstances![2].name).toBe('ODS Instance 3');
     });
 
     it('should handle non-array response from tenants endpoint by returning default tenant', async () => {
@@ -320,8 +320,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        EdOrgs: [],
-        OdsInstances: [],
+        edOrgs: [],
+        odsInstances: [],
       });
     });
 
@@ -378,8 +378,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        EdOrgs: [],
-        OdsInstances: [],
+        edOrgs: [],
+        odsInstances: [],
       });
     });
   });

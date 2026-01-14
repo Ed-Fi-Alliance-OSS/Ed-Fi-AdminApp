@@ -609,8 +609,8 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          EdOrgs: [],
-          OdsInstances: [],
+          edOrgs: [],
+          odsInstances: [],
         };
         return [defaultTenant];
       }
@@ -639,8 +639,8 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          EdOrgs: [],
-          OdsInstances: [],
+          edOrgs: [],
+          odsInstances: [],
         };
         return [defaultTenant];
       }
@@ -668,7 +668,7 @@ export class AdminApiServiceV1 {
             return {
               id: tenantId,
               name: tenantId,
-              EdOrgs: details.edOrgs?.map((edOrg: any) => ({
+              edOrgs: details.edOrgs?.map((edOrg: any) => ({
                 educationOrganizationId: edOrg.educationOrganizationId,
                 nameOfInstitution: edOrg.nameOfInstitution,
                 shortNameOfInstitution: edOrg.shortNameOfInstitution,
@@ -677,7 +677,7 @@ export class AdminApiServiceV1 {
                 instanceName: edOrg.instanceName,
                 parentId: edOrg.parentId,
               })) || [],
-              OdsInstances: details.odsInstances?.map((instance: any, index: number) => {
+              odsInstances: details.odsInstances?.map((instance: any, index: number) => {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.odsInstanceId ?? instance.id ?? null,
                   name: instance.name ?? `ODS Instance ${index + 1}`,
@@ -705,8 +705,8 @@ export class AdminApiServiceV1 {
             return {
               id: tenantId,
               name: tenantId,
-              EdOrgs: [],
-              OdsInstances: [],
+              edOrgs: [],
+              odsInstances: [],
             };
           }
         })
@@ -724,8 +724,8 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          EdOrgs: [],
-          OdsInstances: [],
+          edOrgs: [],
+          odsInstances: [],
         };
 
         return [defaultTenant];
