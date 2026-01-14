@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
+import { SbEnvironment } from '@edanalytics/models-server';
 import { AdminApiServiceV1 } from './admin-api.v1.service';
 
 describe('AdminApiServiceV1 - Extension Methods', () => {
@@ -43,11 +43,13 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const mockDetailsResponseOne = {
         edOrgs: [
           {
+            instanceId: 1,
+            instanceName: 'ODS One',
             educationOrganizationId: 255901,
             nameOfInstitution: 'School One',
             shortNameOfInstitution: 'S1',
             discriminator: 'edfi.School',
-            odsInstanceId: 1,
+            parentId: 255900,
           },
         ],
         odsInstances: [
@@ -64,10 +66,11 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const mockDetailsResponseTwo = {
         edOrgs: [
           {
+            instanceId: 2,
+            instanceName: 'ODS Two',
             educationOrganizationId: 255902,
             nameOfInstitution: 'School Two',
             discriminator: 'edfi.School',
-            odsInstanceId: 2,
           },
         ],
         odsInstances: [
@@ -102,11 +105,13 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       });
       expect(result[0].EdOrgs).toHaveLength(1);
       expect(result[0].EdOrgs![0]).toMatchObject({
+        instanceId: 1,
+        instanceName: 'ODS One',
         educationOrganizationId: 255901,
         nameOfInstitution: 'School One',
         shortNameOfInstitution: 'S1',
         discriminator: 'edfi.School',
-        odsInstanceId: 1,
+        parentId: 255900,
       });
       expect(result[0].OdsInstances).toHaveLength(1);
       expect(result[0].OdsInstances![0]).toMatchObject({
@@ -123,6 +128,13 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         name: 'tenant-two',
       });
       expect(result[1].EdOrgs).toHaveLength(1);
+      expect(result[1].EdOrgs![0]).toMatchObject({
+        instanceId: 2,
+        instanceName: 'ODS Two',
+        educationOrganizationId: 255902,
+        nameOfInstitution: 'School Two',
+        discriminator: 'edfi.School',
+      });
       expect(result[1].OdsInstances).toHaveLength(1);
       expect(result[1].OdsInstances![0].id).toBe(2);
     });

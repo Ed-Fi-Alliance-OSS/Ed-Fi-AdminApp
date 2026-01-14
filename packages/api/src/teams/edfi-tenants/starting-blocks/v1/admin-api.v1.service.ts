@@ -633,7 +633,9 @@ export class AdminApiServiceV1 {
                 nameOfInstitution: edOrg.nameOfInstitution,
                 shortNameOfInstitution: edOrg.shortNameOfInstitution,
                 discriminator: edOrg.discriminator,
-                odsInstanceId: edOrg.odsInstanceId,
+                instanceId: edOrg.instanceId,
+                instanceName: edOrg.instanceName,
+                parentId: edOrg.parentId,
               })) || [],
               OdsInstances: details.odsInstances?.map((instance: any, index: number) => {
                 const odsInstance: OdsInstanceDto = {

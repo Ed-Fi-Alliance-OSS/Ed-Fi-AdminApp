@@ -360,11 +360,13 @@ export interface TenantDto {
 }
 
 export interface EducationOrganizationDto {
+  instanceId: number;
+  instanceName: string;
   educationOrganizationId: number;
   nameOfInstitution: string;
   shortNameOfInstitution?: string;
   discriminator: string;
-  odsInstanceId?: number;
+  parentId?: number;
 }
 
 export interface OdsInstanceDto {
