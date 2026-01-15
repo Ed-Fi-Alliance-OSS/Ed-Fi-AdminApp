@@ -682,11 +682,7 @@ export class AdminApiServiceV1 {
                   id: instance.odsInstanceId ?? instance.id ?? null,
                   name: instance.name ?? `ODS Instance ${index + 1}`,
                   instanceType: instance.instanceType,
-                  connectionString: instance.connectionString,
                 };
-                if (instance.created) {
-                  odsInstance.created = new Date(instance.created);
-                }
                 return odsInstance;
               }) || [],
             };

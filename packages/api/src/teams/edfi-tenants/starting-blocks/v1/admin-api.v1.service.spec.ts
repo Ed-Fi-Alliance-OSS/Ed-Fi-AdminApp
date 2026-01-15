@@ -74,8 +74,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
             odsInstanceId: 1,
             name: 'ODS One',
             instanceType: 'Production',
-            connectionString: 'Server=prod;Database=EdFi_Ods;',
-            created: '2024-01-15T10:00:00Z',
           },
         ],
       };
@@ -135,9 +133,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         id: 1,
         name: 'ODS One',
         instanceType: 'Production',
-        connectionString: 'Server=prod;Database=EdFi_Ods;',
       });
-      expect(result[0].odsInstances![0].created).toBeInstanceOf(Date);
 
       // Verify second tenant
       expect(result[1]).toMatchObject({
