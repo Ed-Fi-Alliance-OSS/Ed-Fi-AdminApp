@@ -349,6 +349,29 @@ export class GetApplicationDto {
 
 export const toGetApplicationDto = makeSerializer(GetApplicationDto);
 
+export interface TenantDto {
+  id: string;
+  name: string;
+  edOrgs?: EducationOrganizationDto[];
+  odsInstances?: OdsInstanceDto[];
+}
+
+export interface EducationOrganizationDto {
+  instanceId: number;
+  instanceName: string;
+  educationOrganizationId: number;
+  nameOfInstitution: string;
+  shortNameOfInstitution?: string;
+  discriminator: string;
+  parentId?: number;
+}
+
+export interface OdsInstanceDto {
+  id: number | null;
+  name: string;
+  instanceType?: string;
+}
+
 export type AdminApiMeta = { version: '1.0' | '1.1' | '1.2' | '1.3' | '2.0' };
 export const importantAdminApiVersions: Record<AdminApiMeta['version'], SbaaAdminApiVersion> = {
   '1.0': 'v1',
