@@ -113,7 +113,7 @@ export class EdfiTenantsService {
   async pingAdminApi(edfiTenant: EdfiTenant): Promise<OperationResultDto> {
     const result =
       edfiTenant.sbEnvironment.version === 'v1'
-        ? await this.adminApiServiceV1.logIntoAdminApi(edfiTenant)
+        ? await this.adminApiServiceV1.logIntoAdminApi(edfiTenant.sbEnvironment, edfiTenant.id)
         : edfiTenant.sbEnvironment.version === 'v2'
         ? await this.adminApiServiceV2.login(edfiTenant)
         : undefined;
