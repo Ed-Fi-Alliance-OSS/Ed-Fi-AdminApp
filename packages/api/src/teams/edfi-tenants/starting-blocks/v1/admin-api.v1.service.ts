@@ -41,99 +41,7 @@ export class AdminApiServiceV1 {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
-  async logIntoAdminApi(edfiTenant: EdfiTenant) {
-    const configPublic = edfiTenant.sbEnvironment.configPublic;
-    const configPrivate = edfiTenant.sbEnvironment.configPrivate;
-    const v1Config =
-      'version' in configPublic && configPublic.version === 'v1' ? configPublic.values : undefined;
-    const v1ConfigPrivate =
-      'version' in configPublic && configPublic.version === 'v1'
-        ? (configPrivate as ISbEnvironmentConfigPrivateV1)
-        : undefined;
-
-    const adminApiUrl = edfiTenant.sbEnvironment.adminApiUrl;
-    if (typeof adminApiUrl !== 'string') {
-      Logger.log('No Admin API URL configured for environment.');
-      return {
-        status: 'NO_ADMIN_API_URL' as const,
-      };
-    }
-    const adminApiKey = v1Config?.adminApiKey;
-    if (typeof adminApiKey !== 'string' || adminApiKey.length === 0) {
-      Logger.log('No Admin API key configured for environment.');
-      return {
-        status: 'NO_ADMIN_API_KEY' as const,
-      };
-    }
-    const adminApiSecret = v1ConfigPrivate?.adminApiSecret;
-    if (typeof adminApiSecret !== 'string' || adminApiSecret.length === 0) {
-      Logger.log('No Admin API secret configured for environment.');
-      return {
-        status: 'NO_ADMIN_API_SECRET' as const,
-      };
-    }
-    const accessTokenUri = `${adminApiUrl.replace(/\/$/, '')}/connect/token`;
-    try {
-      new URL(accessTokenUri);
-    } catch (InvalidUrl) {
-      Logger.log(InvalidUrl);
-      return {
-        status: 'INVALID_ADMIN_API_URL' as const,
-      };
-    }
-
-    const reqBody = new URLSearchParams();
-    reqBody.set('client_id', adminApiKey);
-    reqBody.set('client_secret', adminApiSecret);
-    reqBody.set('grant_type', 'client_credentials');
-    reqBody.set('scope', 'edfi_admin_api/full_access');
-
-    const options = {
-      method: 'POST',
-      url: accessTokenUri,
-      headers: {
-        Accept: 'application/json',
-      },
-      data: reqBody,
-    };
-
-    try {
-      await axios.request(options).then((v) => {
-        this.adminApiTokens.set(edfiTenant.id, v.data.access_token, Number(v.data.expires_in) - 60);
-      });
-      return {
-        status: 'SUCCESS' as const,
-      };
-    } catch (LoginFailed) {
-      if (LoginFailed?.code === 'ERR_HTTP2_GOAWAY_SESSION') {
-        Logger.warn('ERR_HTTP2_GOAWAY_SESSION');
-        Logger.warn(LoginFailed);
-        return {
-          status: 'GOAWAY' as const, // TBD what this actually means
-        };
-      } else if (isAxiosError(LoginFailed) && LoginFailed.response?.status === 404) {
-        return {
-          status: 'TOKEN_URI_NOT_FOUND' as const,
-        };
-      } else if (isAxiosError(LoginFailed) && LoginFailed.response?.status === 401) {
-        return {
-          status: 'INVALID_CREDS' as const,
-        };
-      }
-      Logger.warn(LoginFailed);
-      return {
-        status: 'LOGIN_FAILED' as const,
-        message:
-          'body' in LoginFailed &&
-          'error' in LoginFailed.body &&
-          typeof LoginFailed.body.error === 'string'
-            ? LoginFailed.body.error
-            : 'Unknown login failure.',
-      };
-    }
-  }
-
-  async logIntoAdminApiUsingEnv(sbEnvironment: SbEnvironment) {
+  async logIntoAdminApi(sbEnvironment: SbEnvironment, id: number) {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
     const v1Config =
@@ -191,7 +99,7 @@ export class AdminApiServiceV1 {
 
     try {
       await axios.request(options).then((v) => {
-        this.adminApiTokens.set(sbEnvironment.id, v.data.access_token, Number(v.data.expires_in) - 60);
+        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
       });
       return {
         status: 'SUCCESS' as const,
@@ -345,7 +253,7 @@ export class AdminApiServiceV1 {
     return this.createAdminApiClient(
       edfiTenant.sbEnvironment.adminApiUrl,
       edfiTenant.id,
-      () => this.logIntoAdminApi(edfiTenant)
+      () => this.logIntoAdminApi(edfiTenant.sbEnvironment, edfiTenant.id)
     );
   }
 
@@ -353,7 +261,7 @@ export class AdminApiServiceV1 {
     return this.createAdminApiClient(
       sbEnvironment.adminApiUrl,
       sbEnvironment.id,
-      () => this.logIntoAdminApiUsingEnv(sbEnvironment)
+      () => this.logIntoAdminApi(sbEnvironment, sbEnvironment.id)
     );
   }
 
