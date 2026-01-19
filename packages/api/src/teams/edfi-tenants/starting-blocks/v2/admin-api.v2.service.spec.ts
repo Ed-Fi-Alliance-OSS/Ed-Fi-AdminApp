@@ -118,9 +118,9 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       const result = await service.getTenants(environment);
 
       expect(result).toHaveLength(2);
-      expect(mockGet).toHaveBeenCalledWith('v2/tenants');
-      expect(mockGet).toHaveBeenCalledWith('v2/tenant/tenant-one/details');
-      expect(mockGet).toHaveBeenCalledWith('v2/tenant/tenant-two/details');
+      expect(mockGet).toHaveBeenCalledWith('tenants');
+      expect(mockGet).toHaveBeenCalledWith('tenant/tenant-one/details');
+      expect(mockGet).toHaveBeenCalledWith('tenant/tenant-two/details');
 
       // Verify first tenant
       expect(result[0]).toMatchObject({

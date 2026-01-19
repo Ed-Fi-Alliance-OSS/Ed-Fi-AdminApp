@@ -65,9 +65,9 @@ export class AdminApiServiceV2 {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
-  async login(edfiTenant: EdfiTenant) {
-    const configPublic = edfiTenant.sbEnvironment.configPublic;
-    const configPrivate = edfiTenant.sbEnvironment.configPrivate;
+  async login(sbEnvironment: SbEnvironment, id: number, tenantName?: string) {
+    const configPublic = sbEnvironment.configPublic;
+    const configPrivate = sbEnvironment.configPrivate;
     const v2Config =
       'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
     const v2ConfigPrivate =
@@ -80,14 +80,14 @@ export class AdminApiServiceV2 {
         status: 'NO_CONFIG' as const,
       };
     }
-    if (!v2Config?.tenants[edfiTenant.name] || !v2ConfigPrivate?.tenants[edfiTenant.name]) {
+    if (!v2Config?.tenants[tenantName] || !v2ConfigPrivate?.tenants[tenantName]) {
       return {
         status: 'NO_TENANT_CONFIG' as const,
       };
     }
-    const adminApiUrl = edfiTenant.sbEnvironment.adminApiUrl;
-    const adminApiKey = v2Config?.tenants[edfiTenant.name]?.adminApiKey;
-    const adminApiSecret = v2ConfigPrivate?.tenants[edfiTenant.name]?.adminApiSecret;
+    const adminApiUrl = sbEnvironment.adminApiUrl;
+    const adminApiKey = v2Config?.tenants[tenantName]?.adminApiKey;
+    const adminApiSecret = v2ConfigPrivate?.tenants[tenantName]?.adminApiSecret;
 
     if (typeof adminApiUrl !== 'string') {
       return {
@@ -122,19 +122,27 @@ export class AdminApiServiceV2 {
     reqBody.set('grant_type', 'client_credentials');
     reqBody.set('scope', 'edfi_admin_api/full_access');
 
-    const options = {
+    const options = tenantName ? {
       method: 'POST',
       url: accessTokenUri,
       headers: {
         Accept: 'application/json',
-        tenant: edfiTenant.name,
+        tenant: tenantName,
+      },
+      data: reqBody,
+    } : {
+      method: 'POST',
+      url: accessTokenUri,
+    headers: {
+        Accept: 'application/json',
+        tenant: tenantName,
       },
       data: reqBody,
     };
 
     try {
       await axios.request(options).then((v) => {
-        this.adminApiTokens.set(edfiTenant.id, v.data.access_token, Number(v.data.expires_in) - 60);
+        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
       });
       return {
         status: 'SUCCESS' as const,
@@ -239,29 +247,11 @@ export class AdminApiServiceV2 {
   }
 
   private getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
-    const client = axios.create({
-      baseURL: edfiTenant.sbEnvironment.adminApiUrl.replace(/\/$/, '') + '/v2/',
-    });
-    client.interceptors.response.use(
-      notJustData
-        ? (value) => value
-        : (value) => {
-            return value.data;
-          },
-      (err) => {
-        if (err.response?.status === 401) {
-          this.adminApiTokens.del(edfiTenant.id);
-        }
-        this.logger.error(
-          `Unable to create client on ${edfiTenant.sbEnvironment.adminApiUrl}: ${err}`
-        );
-        throw err;
-      }
-    );
+    const client = this.initializeApiClient(edfiTenant.sbEnvironment, notJustData);
     client.interceptors.request.use(async (config) => {
       let token: undefined | string = this.adminApiTokens.get(edfiTenant.id);
       if (token === undefined) {
-        const adminLogin = await this.login(edfiTenant);
+        const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.id, edfiTenant.name);
 
         if (adminLogin.status !== 'SUCCESS') {
           throw new CustomHttpException(
@@ -282,6 +272,30 @@ export class AdminApiServiceV2 {
   }
 
   private getAdminApiClientUsingEnv(environment: SbEnvironment, notJustData?: boolean) {
+    const client = this.initializeApiClient(environment, notJustData);
+    client.interceptors.request.use(async (config) => {
+      let token: undefined | string = this.adminApiTokens.get(environment.id);
+      if (token === undefined) {
+        const adminLogin = await this.login(environment, environment.id);
+
+        if (adminLogin.status !== 'SUCCESS') {
+          throw new CustomHttpException(
+            {
+              title: adminApiLoginStatusMsgs[adminLogin.status],
+              type: 'Error',
+            },
+            500
+          );
+        }
+        token = this.adminApiTokens.get(environment.id);
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+      return config;
+    });
+    return client;
+  }
+
+  private initializeApiClient(environment: SbEnvironment, notJustData: boolean) {
     const client = axios.create({
       baseURL: environment.adminApiUrl.replace(/\/$/, '') + '/v2/',
     });
@@ -289,8 +303,8 @@ export class AdminApiServiceV2 {
       notJustData
         ? (value) => value
         : (value) => {
-            return value.data;
-          },
+          return value.data;
+        },
       (err) => {
         this.logger.error(
           `Unable to create client on ${environment.adminApiUrl}: ${err}`
@@ -298,11 +312,6 @@ export class AdminApiServiceV2 {
         throw err;
       }
     );
-    client.interceptors.request.use(async (config) => {
-      // For environment-based client, we don't need authentication
-      // The environment may not have tenant configuration
-      return config;
-    });
     return client;
   }
 
@@ -983,7 +992,7 @@ export class AdminApiServiceV2 {
     this.logger.log(`Getting tenants for environment: ${environment.name}`);
 
     try {
-      const endpoint = 'v2/tenants';
+      const endpoint = 'tenants';
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await this.getAdminApiClientUsingEnv(environment)
         .get<any, any[]>(endpoint)
@@ -1045,7 +1054,7 @@ export class AdminApiServiceV2 {
           try {
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const details = await this.getAdminApiClientUsingEnv(environment)
-              .get<any, any>(`v2/tenant/${tenantId}/details`)
+              .get<any, any>(`tenant/${tenantId}/details`)
               .catch((err) => {
                 this.logger.error(
                   `Error getting details for tenant ${tenantId}: ${err}`
@@ -1061,7 +1070,7 @@ export class AdminApiServiceV2 {
             return {
               id: tenantId,
               name: tenantId,
-              edOrgs: details.edOrgs?.map((edOrg: any) => ({
+              edOrgs: (details.edOrgs?.map((edOrg: any) => ({
                 educationOrganizationId: edOrg.educationOrganizationId,
                 nameOfInstitution: edOrg.nameOfInstitution,
                 shortNameOfInstitution: edOrg.shortNameOfInstitution,
@@ -1069,15 +1078,15 @@ export class AdminApiServiceV2 {
                 instanceId: edOrg.instanceId,
                 instanceName: edOrg.instanceName,
                 parentId: edOrg.parentId,
-              })) as EducationOrganizationDto[] || [],
-              odsInstances: details.odsInstances?.map((instance: any, index: number) => {
+              })) || []) as EducationOrganizationDto[],
+              odsInstances: (details.odsInstances?.map((instance: any, index: number) => {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.odsInstanceId ?? instance.id ?? null,
                   name: instance.name ?? `ODS Instance ${index + 1}`,
                   instanceType: instance.instanceType,
                 };
                 return odsInstance;
-              }) as OdsInstanceDto[] || [],
+              }) || []) as OdsInstanceDto[],
             };
           } catch (detailsError) {
             const errorMessage = detailsError instanceof Error 
