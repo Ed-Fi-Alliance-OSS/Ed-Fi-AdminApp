@@ -352,7 +352,6 @@ export const toGetApplicationDto = makeSerializer(GetApplicationDto);
 export interface TenantDto {
   id: string;
   name: string;
-  edOrgs?: EducationOrganizationDto[];
   odsInstances?: OdsInstanceDto[];
 }
 
@@ -370,6 +369,7 @@ export interface OdsInstanceDto {
   id: number | null;
   name: string;
   instanceType?: string;
+  edOrgs?: EducationOrganizationDto[];
 }
 
 export type AdminApiMeta = { version: '1.0' | '1.1' | '1.2' | '1.3' | '2.0' };
