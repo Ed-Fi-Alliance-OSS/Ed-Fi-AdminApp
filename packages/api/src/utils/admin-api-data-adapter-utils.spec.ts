@@ -1,12 +1,8 @@
 import 'reflect-metadata';
-import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
+import { SbEnvironment } from '@edanalytics/models-server';
 import {
-  EducationOrganizationDto,
   EdorgType,
-  OdsInstanceDto,
   TenantDto,
-  IOds,
-  IEdorg,
 } from '@edanalytics/models';
 import { transformTenantData } from './admin-api-data-adapter-utils';
 

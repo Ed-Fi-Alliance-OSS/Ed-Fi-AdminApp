@@ -288,7 +288,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       
       const mockTenantsResponse = [{ tenantName: 'tenant-one' }];
       const mockDetailsResponse = {
-        odsInstances: [{}, {}, {}],
+        odsInstances: [{edOrgs: []}, {edOrgs: [],}, {edOrgs: []}],
       };
 
       const mockGet = jest.fn()
