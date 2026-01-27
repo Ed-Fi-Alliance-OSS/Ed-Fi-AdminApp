@@ -517,7 +517,6 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          edOrgs: [],
           odsInstances: [],
         };
         return [defaultTenant];
@@ -547,7 +546,6 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          edOrgs: [],
           odsInstances: [],
         };
         return [defaultTenant];
@@ -576,20 +574,20 @@ export class AdminApiServiceV1 {
             return {
               id: tenantId,
               name: tenantId,
-              edOrgs: details.edOrgs?.map((edOrg: any) => ({
-                educationOrganizationId: edOrg.educationOrganizationId,
-                nameOfInstitution: edOrg.nameOfInstitution,
-                shortNameOfInstitution: edOrg.shortNameOfInstitution,
-                discriminator: edOrg.discriminator,
-                instanceId: edOrg.instanceId,
-                instanceName: edOrg.instanceName,
-                parentId: edOrg.parentId,
-              })) || [],
               odsInstances: details.odsInstances?.map((instance: any, index: number) => {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.odsInstanceId ?? instance.id ?? null,
                   name: instance.name ?? `ODS Instance ${index + 1}`,
                   instanceType: instance.instanceType,
+                  edOrgs: instance.edOrgs?.map((edOrg: any) => ({
+                    educationOrganizationId: edOrg.educationOrganizationId,
+                    nameOfInstitution: edOrg.nameOfInstitution,
+                    shortNameOfInstitution: edOrg.shortNameOfInstitution,
+                    discriminator: edOrg.discriminator,
+                    instanceId: edOrg.instanceId,
+                    instanceName: edOrg.instanceName,
+                    parentId: edOrg.parentId,
+                  })) || [],
                 };
                 return odsInstance;
               }) || [],
@@ -609,7 +607,6 @@ export class AdminApiServiceV1 {
             return {
               id: tenantId,
               name: tenantId,
-              edOrgs: [],
               odsInstances: [],
             };
           }
@@ -628,7 +625,6 @@ export class AdminApiServiceV1 {
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',
-          edOrgs: [],
           odsInstances: [],
         };
 

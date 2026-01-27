@@ -229,7 +229,6 @@ export class AdminApiSyncService {
 - **Key Transformations:**
   - Maps `apiTenant.name` to tenant name field
   - Links tenant to environment via `sbEnvironment.id`
-  - Preserves `organizationDepartment` and `subscriptionId`
   - Handles date conversion with fallback to current date
 - **Schema Compatibility:** Maps v2 multi-tenant structure to existing
   single-tenant database schema

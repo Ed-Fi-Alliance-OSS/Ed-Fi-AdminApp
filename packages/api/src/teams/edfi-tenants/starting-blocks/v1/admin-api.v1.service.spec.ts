@@ -58,41 +58,41 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       ];
 
       const mockDetailsResponseOne = {
-        edOrgs: [
-          {
-            instanceId: 1,
-            instanceName: 'ODS One',
-            educationOrganizationId: 255901,
-            nameOfInstitution: 'School One',
-            shortNameOfInstitution: 'S1',
-            discriminator: 'edfi.School',
-            parentId: 255900,
-          },
-        ],
         odsInstances: [
           {
             odsInstanceId: 1,
             name: 'ODS One',
             instanceType: 'Production',
+            edOrgs: [
+            {
+              instanceId: 1,
+              instanceName: 'ODS One',
+              educationOrganizationId: 255901,
+              nameOfInstitution: 'School One',
+              shortNameOfInstitution: 'S1',
+              discriminator: 'edfi.School',
+              parentId: 255900,
+            },
+            ],
           },
         ],
       };
 
       const mockDetailsResponseTwo = {
-        edOrgs: [
-          {
-            instanceId: 2,
-            instanceName: 'ODS Two',
-            educationOrganizationId: 255902,
-            nameOfInstitution: 'School Two',
-            discriminator: 'edfi.School',
-          },
-        ],
         odsInstances: [
           {
             id: 2,
             name: 'ODS Two',
             instanceType: 'Test',
+            edOrgs: [
+            {
+              instanceId: 2,
+              instanceName: 'ODS Two',
+              educationOrganizationId: 255902,
+              nameOfInstitution: 'School Two',
+              discriminator: 'edfi.School',
+            },
+            ],
           },
         ],
       };
@@ -118,8 +118,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         id: 'tenant-one',
         name: 'tenant-one',
       });
-      expect(result[0].edOrgs).toHaveLength(1);
-      expect(result[0].edOrgs![0]).toMatchObject({
+      expect(result[0].odsInstances[0].edOrgs).toHaveLength(1);
+      expect(result[0].odsInstances[0].edOrgs[0]).toMatchObject({
         instanceId: 1,
         instanceName: 'ODS One',
         educationOrganizationId: 255901,
@@ -140,8 +140,8 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
         id: 'tenant-two',
         name: 'tenant-two',
       });
-      expect(result[1].edOrgs).toHaveLength(1);
-      expect(result[1].edOrgs![0]).toMatchObject({
+      expect(result[1].odsInstances[0].edOrgs).toHaveLength(1);
+      expect(result[1].odsInstances[0].edOrgs[0]).toMatchObject({
         instanceId: 2,
         instanceName: 'ODS Two',
         educationOrganizationId: 255902,
@@ -171,7 +171,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'tenant-one',
         name: 'tenant-one',
-        edOrgs: [],
         odsInstances: [],
       });
     });
@@ -190,7 +189,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        edOrgs: [],
         odsInstances: [],
       });
     });
@@ -226,8 +224,11 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockTenantsResponse = [{ tenantName: 'tenant-one' }];
       const mockDetailsResponse = {
-        edOrgs: [],
-        odsInstances: [],
+        odsInstances: [
+          {
+            edOrgs: [],
+          }
+        ],
       };
 
       const mockGet = jest.fn()
@@ -242,11 +243,11 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       expect(result[0]).toHaveProperty('id');
       expect(result[0]).toHaveProperty('name');
-      expect(result[0]).toHaveProperty('edOrgs');
+      expect(result[0].odsInstances![0]).toHaveProperty('edOrgs');
       expect(result[0]).toHaveProperty('odsInstances');
       expect(typeof result[0].id).toBe('string');
       expect(typeof result[0].name).toBe('string');
-      expect(Array.isArray(result[0].edOrgs)).toBe(true);
+      expect(Array.isArray(result[0].odsInstances[0].edOrgs)).toBe(true);
       expect(Array.isArray(result[0].odsInstances)).toBe(true);
     });
 
@@ -255,10 +256,9 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockTenantsResponse = [{ tenantName: 'tenant-one' }];
       const mockDetailsResponse = {
-        edOrgs: [],
         odsInstances: [
-          { name: 'ODS 1', instanceType: 'Type1' },
-          { name: 'ODS 2', instanceType: 'Type2' },
+          { name: 'ODS 1', instanceType: 'Type1', edOrgs: [], },
+          { name: 'ODS 2', instanceType: 'Type2', edOrgs: [], },
         ],
       };
 
@@ -281,8 +281,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockTenantsResponse = [{ tenantName: 'tenant-one' }];
       const mockDetailsResponse = {
-        edOrgs: [],
-        odsInstances: [{}, {}, {}],
+        odsInstances: [{edOrgs: []}, {edOrgs: []}, {edOrgs: []}],
       };
 
       const mockGet = jest.fn()
@@ -316,7 +315,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        edOrgs: [],
         odsInstances: [],
       });
     });
@@ -333,7 +331,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       ];
 
       const mockDetailsResponse = {
-        edOrgs: [],
         odsInstances: [],
       };
 
@@ -374,7 +371,6 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Test Environment',
-        edOrgs: [],
         odsInstances: [],
       });
     });
