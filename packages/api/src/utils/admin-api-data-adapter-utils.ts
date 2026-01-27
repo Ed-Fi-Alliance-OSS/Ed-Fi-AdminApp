@@ -9,7 +9,6 @@ import {
 } from '@edanalytics/models';
 
 export const transformTenantData = (apiTenants: TenantDto, sbEnvironment: SbEnvironment): Partial<EdfiTenant> => {
-  // Preserves organizationDepartment and subscriptionId?
   return {
     name: apiTenants.name,
     sbEnvironmentId: sbEnvironment.id,

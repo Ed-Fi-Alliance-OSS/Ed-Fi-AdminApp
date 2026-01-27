@@ -1065,8 +1065,6 @@ export class AdminApiServiceV2 {
             );
 
             // Map the response to TenantDto format
-
-            // toca ajustar
             return {
               id: tenantId,
               name: tenantId,
