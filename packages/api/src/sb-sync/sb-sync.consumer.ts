@@ -24,6 +24,7 @@ import {
   SYNC_SCHEDULER_CHNL,
   TENANT_SYNC_CHNL,
 } from './sb-sync.module';
+import { AdminApiSyncService } from './edfi/adminapi-sync.service';
 
 @Injectable()
 export class SbSyncConsumer implements OnModuleInit {
@@ -36,7 +37,8 @@ export class SbSyncConsumer implements OnModuleInit {
     private readonly boss: PgBossInstance,
     private readonly sbServiceV1: StartingBlocksServiceV1,
     private readonly sbServiceV2: StartingBlocksServiceV2,
-    private readonly metadataService: MetadataService
+    private readonly metadataService: MetadataService,
+    private readonly adminapiSyncService: AdminApiSyncService
   ) {}
   public async onModuleDestroy() {
     if (config.DB_ENGINE === 'mssql') {
@@ -129,8 +131,14 @@ export class SbSyncConsumer implements OnModuleInit {
       if (sbEnvironment === null)
         throw new NotFoundException(`No syncable environment found with id ${sbEnvironmentId}`);
 
-      // make some stuff to the environment like getting the tenants. Tenants are getting from a lambda function
-      // maybe we should have a list of tenants in the sbEnvironment react form?
+      const adminApiSyncResult = await this.adminapiSyncService.syncEnvironmentData(sbEnvironment);
+      if (adminApiSyncResult.status !== 'SUCCESS') {
+        throw new BadRequestException(
+          `Failed to sync environment ${sbEnvironment.name} via Admin API: ${adminApiSyncResult.message}`
+        );
+      }
+      return adminApiSyncResult;
+
     } else {
       // Use the lambda function to get metadata
       const sbMeta = await this.metadataService.getMetadata(sbEnvironment);
