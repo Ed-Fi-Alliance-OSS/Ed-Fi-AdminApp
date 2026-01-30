@@ -191,7 +191,20 @@ export class SbSyncConsumer implements OnModuleInit {
     });
     const sbEnvironment = edfiTenant.sbEnvironment;
     const sbMeta = await this.metadataService.getMetadata(sbEnvironment);
-    if (sbMeta.status === 'NO_CONFIG') {
+
+    if (!sbEnvironment.startingBlocks)
+    {
+      const result = await this.adminapiSyncService.syncTenantData(edfiTenant);
+      if (result.status !== 'SUCCESS') {
+        throw new BadRequestException(
+          `Failed to sync tenant ${edfiTenant.name} via Admin API: ${result.message}`
+        );
+      }
+      return result;  
+    }
+    else
+    {
+      if (sbMeta.status === 'NO_CONFIG') {
       throw new CustomHttpException(
         {
           type: 'Error',
@@ -227,6 +240,7 @@ export class SbSyncConsumer implements OnModuleInit {
       throw result;
     } else {
       return result.data;
+    }
     }
   }
 }

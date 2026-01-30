@@ -498,4 +498,345 @@ describe('AdminApiSyncService', () => {
       });
     });
   });
+
+  describe('syncTenantData', () => {
+    const mockEdfiTenantWithEnvironment: Partial<EdfiTenant> & { sbEnvironment: SbEnvironment } = {
+      id: 1,
+      name: 'tenant-one',
+      sbEnvironmentId: 1,
+      created: new Date(),
+      odss: [],
+      sbEnvironment: mockSbEnvironmentV1 as SbEnvironment,
+    };
+
+    const mockTenantDetails = {
+      odsInstances: [
+        {
+          odsInstanceId: 1,
+          id: 1,
+          name: 'ODS One',
+          instanceType: 'Production',
+          edOrgs: [
+            {
+              educationOrganizationId: 255901,
+              nameOfInstitution: 'School One',
+              shortNameOfInstitution: 'S1',
+              discriminator: 'edfi.School',
+              parentId: 255900,
+            },
+          ],
+        },
+      ],
+    };
+
+    beforeEach(() => {
+      // Reset mocks for each test
+      jest.clearAllMocks();
+    });
+
+    describe('validation', () => {
+      it('should return ERROR when tenant not found', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(null);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('ERROR');
+        expect(result.message).toContain('Tenant not found or missing environment');
+      });
+
+      it('should return ERROR when tenant has no environment', async () => {
+        const tenantWithoutEnv = { ...mockEdfiTenant, sbEnvironment: null };
+        edfiTenantsRepository.findOne.mockResolvedValue(tenantWithoutEnv as any);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('ERROR');
+        expect(result.message).toContain('Tenant not found or missing environment');
+      });
+
+      it('should return NO_ADMIN_API_CONFIG when environment has no Admin API URL', async () => {
+        const tenantWithInvalidEnv = {
+          ...mockEdfiTenantWithEnvironment,
+          sbEnvironment: { ...mockSbEnvironmentV1, adminApiUrl: undefined },
+        };
+        edfiTenantsRepository.findOne.mockResolvedValue(tenantWithInvalidEnv as any);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('NO_ADMIN_API_CONFIG');
+        expect(result.message).toContain('Admin API URL is not configured');
+      });
+
+      it('should return INVALID_VERSION when environment has invalid version', async () => {
+        const tenantWithInvalidVersion = {
+          ...mockEdfiTenantWithEnvironment,
+          sbEnvironment: { ...mockSbEnvironmentV1, version: 'v3' as any },
+        };
+        edfiTenantsRepository.findOne.mockResolvedValue(tenantWithInvalidVersion as any);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('INVALID_VERSION');
+        expect(result.message).toContain('Invalid API version');
+      });
+    });
+
+    describe('v1 tenant sync', () => {
+      it('should successfully sync v1 tenant with ODS instances and education organizations', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue(mockTenantDetails),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => {
+          return callback(entityManager);
+        });
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(result.message).toContain('Successfully synced 1 ODS instance');
+        expect(mockApiClient.get).toHaveBeenCalledWith('v1/tenant/tenant-one/details');
+        expect(persistSyncTenantSpy).toHaveBeenCalledWith({
+          em: entityManager,
+          edfiTenant: expect.objectContaining({
+            id: 1,
+            name: 'tenant-one',
+            sbEnvironmentId: 1,
+          }),
+          odss: expect.arrayContaining([
+            expect.objectContaining({
+              id: 1,
+              name: 'ODS One',
+              dbName: 'ODS One',
+              edorgs: expect.arrayContaining([
+                expect.objectContaining({
+                  educationorganizationid: 255901,
+                  nameofinstitution: 'School One',
+                  shortnameofinstitution: 'S1',
+                  discriminator: 'edfi.School',
+                  parent: 255900,
+                }),
+              ]),
+            }),
+          ]),
+        });
+      });
+
+      it('should handle tenant with no ODS instances', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue({ odsInstances: [] }),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(result.message).toContain('No ODS instances to sync');
+      });
+
+      it('should handle null tenant details response', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue(null),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(result.message).toContain('No tenant details found');
+      });
+    });
+
+    describe('v2 tenant sync', () => {
+      const mockEdfiTenantV2WithEnvironment: Partial<EdfiTenant> & { sbEnvironment: SbEnvironment } = {
+        id: 2,
+        name: 'tenant-two',
+        sbEnvironmentId: 2,
+        created: new Date(),
+        odss: [],
+        sbEnvironment: mockSbEnvironmentV2 as SbEnvironment,
+      };
+
+      it('should successfully sync v2 tenant with multiple ODS instances', async () => {
+        const tenantDetailsV2 = {
+          odsInstances: [
+            {
+              odsInstanceId: 1,
+              name: 'ODS One',
+              edOrgs: [
+                {
+                  educationOrganizationId: 255901,
+                  nameOfInstitution: 'School One',
+                  discriminator: 'edfi.School',
+                },
+              ],
+            },
+            {
+              odsInstanceId: 2,
+              name: 'ODS Two',
+              edOrgs: [
+                {
+                  educationOrganizationId: 255902,
+                  nameOfInstitution: 'School Two',
+                  discriminator: 'edfi.LocalEducationAgency',
+                },
+              ],
+            },
+          ],
+        };
+
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue(tenantDetailsV2),
+        };
+
+        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => {
+          return callback(entityManager);
+        });
+
+        const result = await (service as any).syncTenantData({ id: 2, name: 'tenant-two' } as EdfiTenant);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(result.message).toContain('Successfully synced 2 ODS instance');
+        expect(mockApiClient.get).toHaveBeenCalledWith('tenant/tenant-two/details');
+        expect(persistSyncTenantSpy).toHaveBeenCalled();
+      });
+
+      it('should use correct v2 endpoint format', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue({ odsInstances: [] }),
+        };
+
+        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+
+        await (service as any).syncTenantData({ id: 2, name: 'tenant-two' } as EdfiTenant);
+
+        expect(mockApiClient.get).toHaveBeenCalledWith('tenant/tenant-two/details');
+      });
+    });
+
+    describe('error handling', () => {
+      it('should return ERROR when Admin API call fails', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const apiError = new Error('Admin API connection failed');
+        const mockApiClient = {
+          get: jest.fn().mockRejectedValue(apiError),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('ERROR');
+        expect(result.message).toContain('Admin API call failed');
+        expect(result.error).toBe(apiError);
+      });
+
+      it('should return ERROR when persistence fails', async () => {
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue(mockTenantDetails),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const persistError = new Error('Database error');
+        jest.spyOn(syncOds, 'persistSyncTenant').mockRejectedValue(persistError);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => {
+          return callback(entityManager);
+        });
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('ERROR');
+        expect(result.error).toBe(persistError);
+      });
+
+      it('should handle education organizations with missing optional fields', async () => {
+        const detailsWithPartialData = {
+          odsInstances: [
+            {
+              odsInstanceId: 1,
+              name: 'ODS One',
+              edOrgs: [
+                {
+                  educationOrganizationId: 255901,
+                  nameOfInstitution: 'School One',
+                  // Missing shortNameOfInstitution and parentId
+                  discriminator: 'edfi.School',
+                },
+              ],
+            },
+          ],
+        };
+
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantWithEnvironment as EdfiTenant);
+
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue(detailsWithPartialData),
+        };
+
+        (adminApiServiceV1 as any)['getAdminApiClientUsingEnv'] = jest.fn().mockReturnValue(mockApiClient);
+
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => {
+          return callback(entityManager);
+        });
+
+        const result = await (service as any).syncTenantData(mockEdfiTenant as EdfiTenant);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(persistSyncTenantSpy).toHaveBeenCalledWith({
+          em: entityManager,
+          edfiTenant: expect.objectContaining({
+            id: 1,
+            name: 'tenant-one',
+            sbEnvironmentId: 1,
+          }),
+          odss: expect.arrayContaining([
+            expect.objectContaining({
+              edorgs: expect.arrayContaining([
+                expect.objectContaining({
+                  educationorganizationid: 255901,
+                  nameofinstitution: 'School One',
+                  shortnameofinstitution: null,
+                  discriminator: 'edfi.School',
+                  parent: undefined,
+                }),
+              ]),
+            }),
+          ]),
+        });
+      });
+    });
+  });
 });
