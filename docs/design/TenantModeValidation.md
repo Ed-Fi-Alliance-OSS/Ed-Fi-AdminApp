@@ -1,11 +1,9 @@
 # Tenant Mode Validation
 
-At the moment of environment creation we need a way to find out if the Admin Api is running on Single tenant mode or multitenant mode.
+At the moment of environment creation we need a way to find out if the Admin Api is running on Single-Tenant mode or Multi-Tenant mode. And in case it is running on Multi-Tenant mode then include the tenant names as well.
 
 Currently we send a request to Ods Api Discovery Url and based on the presence of the text `tenantIdentifier` we collect that information.
 If the text is part of the response anywhere we assume the environment is multitenant, single tenant otherwise.
-
-The initial approach consists of adding a new field to the info endpoint to indicate if Multi-tenant mode is enabled.
 
 The response looks currently like this:
 
@@ -16,13 +14,32 @@ The response looks currently like this:
 }
 ```
 
-With the new field it will look like this:
+With the new information, a Multi-Tenant response will look like this:
 
 ```json
 {
+  "tenancy": {
+    "multitenantMode": true,
+    "tenants": [
+      "tenant1",
+      "tenant2"
+    ]
+  },
   "version": "2.0",
-  "build": "2.2.3.0",
-  "isMultitenantEnabled": true
+  "build": "0.1.0.0"
+}
+```
+
+While a Single-Tenant will look like this (Notice the empty tenants list):
+
+```json
+{
+  "tenancy": {
+    "multitenantMode": false,
+    "tenants": []
+  },
+  "version": "2.0",
+  "build": "0.1.0.0"
 }
 ```
 
@@ -32,7 +49,7 @@ With the new field it will look like this:
 2. Easy implementation on Admin Api.
 3. No authentication required.
 
-## What about Ods Api 6x
+## What about Ods Api 6x?
 
 For Ods Api 6x the response for the info endpoint won't include the new field given that the concept
 of multitenancy was introduced on Ods Api 7x.
@@ -44,23 +61,27 @@ To implement these changes on Admin Api, we have [ADMINAPI-1329](https://edfi.at
 Create a new class that inherits from `InformationResult`. It might look something like this:
 
 ```Code
-  public class InformationResultV2 : InformationResult
-  {
-      public InformationResultV2(string version, string build, bool multitenantMode) : base(version, build)
-      {
-          MultitenantMode = multitenantMode;
-      }
+public class InformationResultV2 : InformationResult
+{
+    [SwaggerSchema("Tenancy", Nullable = false)]
+    public TenancyInformation tenancy { get; }
 
-      [SwaggerSchema("MultitenantMode", Nullable = false)]
-      public bool MultitenantMode { get; }
-  }
+
+    public InformationResultV2(string version, string build, bool multitenantMode, IList<string> tenants) : base(version, build)
+    {
+
+        tenancy = new TenancyInformation(multitenantMode, multitenantMode ? tenants : new List<string>());
+    }
+}
 ```
 
 And then GetInformation on ReadInformation endpoint implementation might look something like this:
 
 ```Code
-internal static InformationResult GetInformation(IOptions<AppSettings> options)
+internal static async Task<InformationResult> GetInformation(IOptions<AppSettings> options, [FromServices] ITenantsService tenantsService)
 {
+    var tenants = await tenantsService.GetTenantsAsync(true);
+
     if (!Enum.TryParse<AdminApiMode>(options.Value.AdminApiMode, true, out var adminApiMode))
     {
         throw new InvalidOperationException($"Invalid adminApiMode: {options.Value.AdminApiMode}");
@@ -68,9 +89,29 @@ internal static InformationResult GetInformation(IOptions<AppSettings> options)
     return adminApiMode switch
     {
         AdminApiMode.V1 => new InformationResult(V1.Infrastructure.Helpers.ConstantsHelpers.Version, V1.Infrastructure.Helpers.ConstantsHelpers.Build),
-        AdminApiMode.V2 => new InformationResultV2(ConstantsHelpers.Version, ConstantsHelpers.Build, options.Value.MultiTenancy),
+        AdminApiMode.V2 => new InformationResultV2(ConstantsHelpers.Version, ConstantsHelpers.Build, options.Value.MultiTenancy, tenants.Select(t => t.TenantName).ToList()),
         _ => throw new InvalidOperationException($"Invalid adminApiMode: {adminApiMode}")
     };
+}
+```
+
+New TenancyInformation class:
+
+```Code
+public class TenancyInformation
+{
+    public TenancyInformation(bool multitenantMode, IList<string> tenants)
+    {
+        MultitenantMode = multitenantMode;
+        Tenants = tenants;
+    }
+
+    [SwaggerSchema("MultitenantMode", Nullable = false)]
+    public bool MultitenantMode { get; }
+
+
+    [SwaggerSchema("Tenants", Nullable = false)]
+    public IList<string> Tenants { get; }
 }
 ```
 
