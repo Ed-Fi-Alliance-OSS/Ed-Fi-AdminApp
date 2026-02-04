@@ -127,3 +127,7 @@ To implement these changes on Admin App, we have [AC-447](https://edfi.atlassian
    1. This function should receive the response from calling the Admin Api information endpoint.
    2. Which means this call should have had happened previously.
 2. This function is mainly used when creating or editing an environment. On both scenarios we make calls to the info Admin Api endpoint, and the Ods Api discovery endpoint. Make sure these calls happen just once for each Api so we don’t impact performance.
+
+## Implications
+
+**Important:** Once this feature is released on Admin App, this forces the user upgrade Admin Api as well.
