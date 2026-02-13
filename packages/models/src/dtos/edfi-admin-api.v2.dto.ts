@@ -1,16 +1,19 @@
 import { Expose, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
+  IsBoolean,
   IsNotEmpty,
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
+  PostApiClientResponseDtoBase,
   PostApplicationDtoBase,
   PostApplicationFormBase,
   PostApplicationResponseDtoBase,
@@ -77,6 +80,84 @@ export class GetActionDtoV2 {
 }
 
 export const toGetActionDtoV2 = makeSerializer(GetActionDtoV2);
+
+export class GetApiClientDtoV2 {
+  @Expose()
+  id: number;
+  @Expose()
+  name: string;
+  @Expose()
+  key: string;
+  @Expose()
+  isApproved: boolean;
+  @Expose()
+  useSandbox: boolean;
+  @Expose()
+  sandboxType: number;
+  @Expose()
+  applicationId: number;
+  @Expose()
+  keyStatus: string;
+  @Expose()
+  odsInstanceIds: number[];
+
+  get displayName() {
+    return this.name;
+  }
+}
+
+export class PostApiClientDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  key: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+}
+
+export class PutApiClientDtoV2 extends PostApiClientDtoV2 {
+  id: number;
+}
+
+export class PostApiClientResponseDtoV2 extends PostApiClientResponseDtoBase {
+  @Expose()
+  id: number;
+}
+
+export class PostApiClientFormDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  key: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+  
+  @Expose()
+  @IsNumber()
+  odsInstanceId: number;
+}
+
+export class PutApiClientFormDtoV2 extends PostApiClientFormDtoV2 {
+  id: number;
+}
 
 export class GetApplicationDtoV2 {
   @Expose()

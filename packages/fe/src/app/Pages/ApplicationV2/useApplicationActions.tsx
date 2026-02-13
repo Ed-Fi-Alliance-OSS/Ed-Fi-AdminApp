@@ -129,35 +129,48 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
-        ...(canReset
-          ? {
-              Reset: {
-                isPending: resetCreds.isPending,
-                icon: Icons.ShieldX,
-                text: 'Reset creds',
-                title: 'Reset application credentials.',
-                onClick: () => {
-                  resetCreds.mutateAsync(
-                    { entity: { id: application.id }, pathParams: {} },
-                    {
-                      ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: (result) => {
-                        navigate(
-                          `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application?.id}`,
-                          {
-                            state: result,
-                          }
-                        );
-                      },
-                    }
-                  );
-                },
-                confirm: true,
-                confirmBody:
-                  'Are you sure you want to reset the credentials? Anything using the current ones will stop working.',
+          ...{
+              Manage: {
+                isDisabled: false,
+                icon: Icons.Application,
+                text: 'Manage creds',
+                title: 'Manage credentials for ' + application.applicationName,
+                to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`,
+                onClick: () =>
+                  navigate(
+                    `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`
+                  ),
               },
-            }
-          : undefined),
+            },
+        // ...(canReset
+        //   ? {
+        //       Reset: {
+        //         isPending: resetCreds.isPending,
+        //         icon: Icons.ShieldX,
+        //         text: 'Reset creds',
+        //         title: 'Reset application credentials.',
+        //         onClick: () => {
+        //           resetCreds.mutateAsync(
+        //             { entity: { id: application.id }, pathParams: {} },
+        //             {
+        //               ...mutationErrCallback({ popGlobalBanner: popBanner }),
+        //               onSuccess: (result) => {
+        //                 navigate(
+        //                   `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application?.id}`,
+        //                   {
+        //                     state: result,
+        //                   }
+        //                 );
+        //               },
+        //             }
+        //           );
+        //         },
+        //         confirm: true,
+        //         confirmBody:
+        //           'Are you sure you want to reset the credentials? Anything using the current ones will stop working.',
+        //       },
+        //     }
+        //   : undefined),
         ...(canEdit
           ? {
               Edit: {

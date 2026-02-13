@@ -1,6 +1,8 @@
 import {
+  ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
+  GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetClaimsetSingleDtoV2,
@@ -9,10 +11,12 @@ import {
   GetVendorDtoV2,
   Id,
   ImportClaimsetSingleDtoV2,
+  PostApiClientResponseDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
+  PutApiClientDtoV2,
   PutApplicationFormDtoV2,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
@@ -20,6 +24,34 @@ import {
 } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './queries';
+
+export const ApiClientQueriesV2 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'ApiClient',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll('getAll', { ResDto: GetApiClientDtoV2 })
+  .getOne('getOne', { ResDto: GetApiClientDtoV2 })
+  .put('put', { ResDto: GetApiClientDtoV2, ReqDto: PutApiClientDtoV2 })
+  .put(
+    'resetCreds',
+    {
+      ResDto: undefined as unknown as ApiClientResponseV2,
+      ReqDto: Id,
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'api-client',
+        adminApi: true,
+        id: `${base.entity.id}/reset-credential`,
+      })
+  )
+  .post('post', { ResDto: undefined as unknown as ApiClientResponseV2, ReqDto: PostApiClientResponseDtoV2 })
+  .delete('delete')
+  .build();
 
 export const applicationQueriesV2 = new EntityQueryBuilder({
   adminApi: true,

@@ -18,6 +18,13 @@ import {
   applicationsRoute,
 } from './application.routes';
 import {
+  apiClientCreateRoute,
+  apiClientIndexRoute,
+  apiClientRoute,
+  apiClientsIndexRoute,
+  apiClientsRoute,
+} from './apiclients.routes';
+import {
   claimsetCopyRoute,
   claimsetCreateRoute,
   claimsetImportRoute,
@@ -331,6 +338,12 @@ export const authenticatedRoutes: RouteObject = {
     applicationIndexRoute,
     applicationCreateRoute,
 
+    apiClientCreateRoute,
+    apiClientIndexRoute,
+    apiClientRoute,
+    apiClientsIndexRoute,
+    apiClientsRoute,
+    
     vendorsRoute,
     vendorsIndexRoute,
     vendorRoute,
