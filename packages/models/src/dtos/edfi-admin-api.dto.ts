@@ -424,5 +424,4 @@ export type ApplicationResponseV1 = ApplicationYopassResponseDto | PostApplicati
 // Union types for AdminAPI v2 - Yopass Link & ID OR Ed-Fi Application Key & Secret
 export type ApplicationResponseV2 = ApplicationYopassResponseDto | PostApplicationResponseDtoV2;
 
-// Union types for AdminAPI v2 - Yopass Link & ID OR Ed-Fi Application Key & Secret
 export type ApiClientResponseV2 = ApiClientYopassResponseDto | PostApiClientResponseDtoV2;

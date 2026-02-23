@@ -3,11 +3,15 @@ import { GetApiClientDtoV2 } from '@edanalytics/models';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
 import {
   VersioningHoc,
+  getEntityFromQuery,
+  getRelationDisplayName,
   useTeamEdfiTenantNavContextLoaded,
   withLoader,
 } from '../helpers';
 import { ApiClientsPageV2 } from '../Pages/ApiClientV2/ApiClientsPage';
 import { ApiClientPageV2 } from '../Pages/ApiClientV2/ApiClientPage';
+import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { apiClientQueriesV2 } from '../api';
 
 const ApiClientBreadcrumbV2 = () => {
   const params = useParams() as {
@@ -15,21 +19,15 @@ const ApiClientBreadcrumbV2 = () => {
     apiClientId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const application = {
-    data: 
-    {
-        id: Number(params.apiClientId),
-        displayName: 'My app credentials 1',
-        name: 'My app credentials  1',
-        key: 'abc123',
-        isApproved: true,
-        useSandbox: false,
-        keyStatus: "Active",
-        odsInstanceIds: [1],
-    } as GetApiClientDtoV2
-  }
+    const apiClient = useQuery(
+      apiClientQueriesV2.getOne({
+        id: params.apiClientId,
+        edfiTenant,
+        teamId,
+      })
+    );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (application.data.displayName ?? params.apiClientId) as any;
+  return (apiClient.data?.displayName ?? params.apiClientId) as any;
 };
 export const apiClientIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/:applicationId/apiclients/:apiClientId/',
@@ -57,26 +55,21 @@ export const apiClientsRoute: RouteObject = {
 export const ApiClientLinkV2 = (props: {
   id: number | undefined;
   applicationId: number | undefined;
+  query: UseQueryResult<Record<string | number, GetApiClientDtoV2>, unknown>;
   edfiTenantId?: string | number;
 }) => {
-  const apiClient = {
-        id: 1,
-        name: "My app credentials 1",
-        key: "mykey1",
-        isApproved: true,
-        applicationId: 1,
-        odsInstanceIds: [0]
-      } as GetApiClientDtoV2;
+
+  const apiClient = getEntityFromQuery(props.id, props.query);
       
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
 
   return apiClient ? (
     <Link as="span">
       <RouterLink
-        title="Go to application"
+        title="Go to application credentials"
         to={`/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${props.applicationId}/apiclients/${props.id}`}
       >
-        {apiClient.name}
+        {getRelationDisplayName(props.id, props.query)}
       </RouterLink>
     </Link>
   ) : props.id !== null && props.id !== undefined ? (
