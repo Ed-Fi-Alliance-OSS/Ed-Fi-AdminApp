@@ -55,7 +55,7 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
 
 export const apiClientQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
-  name: 'ApiClient',
+  name: 'Apiclient',
   includeEdfiTenant: true,
   includeTeam: TeamOptions.Required,
 })

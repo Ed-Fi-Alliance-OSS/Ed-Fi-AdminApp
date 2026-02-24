@@ -40,7 +40,7 @@ export const apiClientRoute: RouteObject = {
     crumb: withLoader(() => (
       <VersioningHoc v2={<ApiClientBreadcrumbV2 />} />
     )),
-    fallbackCrumb: () => 'Api Client',
+    fallbackCrumb: () => 'Credentials',
   },
 };
 export const apiClientsIndexRoute: RouteObject = {

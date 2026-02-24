@@ -1,12 +1,11 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 
-import { useLocation, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import {
   useTeamEdfiTenantNavContext,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { GetApiClientDtoV2 } from 'packages/models/src/dtos/edfi-admin-api.v2.dto';
-import { useSearchParamsObject } from '../../helpers/useSearch';
 
 export const useSingleApiClientActions = ({
   apiClient,
@@ -17,8 +16,14 @@ export const useSingleApiClientActions = ({
 }): ActionsType => {
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
+  const location = useLocation();
+  const onApiClientPage =
+    apiClient && location.pathname.endsWith(`/apiclients/${apiClient.id}`);
 
   const canView = true;
+  const canReset = true;
+  const canEdit = true;
+  const canDelete = true;
   const to = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/${apiClient?.id}`;
 
   return apiClient === undefined
@@ -34,7 +39,45 @@ export const useSingleApiClientActions = ({
                 onClick: () => navigate(to),
               },
             }
-          : undefined)
+          : undefined),
+          ...(canReset
+          ? {
+              Reset: {
+                isDisabled: false,
+                icon: Icons.Application,
+                text: 'Reset',
+                title: 'Reset ' + apiClient.name,
+                onClick: () =>
+                {}
+            }
+          }
+          : undefined),
+          ...(canEdit
+          ? {
+              Edit: {
+                isDisabled: false,
+                icon: Icons.Edit,
+                text: 'Edit',
+                title: 'Edit ' + apiClient.name,
+                onClick: () =>
+                {}
+            }
+          }
+          : undefined),
+        ...(canDelete
+          ? {
+              Delete: {
+                isPending: false, //deleteApplication.isPending,
+                icon: Icons.Delete,
+                text: 'Delete',
+                title: 'Delete Application credentials',
+                confirmBody:
+                  'All systems using this application to access Ed-Fi will no longer be able to do so. This action cannot be undone, though you will be able to create a new application if you want.',
+                onClick: () =>
+                { }
+              },
+            }
+          : undefined),
       };
 };
 
@@ -46,7 +89,6 @@ export const useMultiApiClientsActions = ({
   teamId: string | number;
   applicationId: number;
 }): ActionsType => {
-  const navigate = useNavigate();
   const { sbEnvironmentId, edfiTenantId } = useTeamEdfiTenantNavContext();
   const to = `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/create`;
   const canCreate = true;
@@ -56,8 +98,7 @@ export const useMultiApiClientsActions = ({
           icon: Icons.Plus,
           text: 'New',
           title: 'New credentials',
-          to,
-          onClick: () => navigate(to),
+          onClick: () => {},
         },
       }
     : {};

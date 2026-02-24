@@ -418,6 +418,19 @@ export class AdminApiServiceV2 {
     );
   }
 
+  async getApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
+    return toGetApiClientDtoV2(
+      (await this.getAdminApiClient(edfiTenant)
+        .get(`apiclients/${apiClientId}`)
+        .catch((err) => {
+          this.logger.error(
+            `Error getting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
+          );
+          throw err;
+        })) as any
+    );
+  }
+
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {
     return toGetAuthStrategyDtoV2(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
