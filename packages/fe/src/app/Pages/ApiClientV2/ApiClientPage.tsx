@@ -67,6 +67,7 @@ export const ApiClientPageContent = () => {
 export const ApiClientPageActions = () => {
 
     const params = useParams() as {
+      applicationId: string;
       apiClientId: string;
     };
     const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
@@ -80,7 +81,7 @@ export const ApiClientPageActions = () => {
   
     const actions = useSingleApiClientActions({
       apiClient,
-      applicationId: Number(params.apiClientId),
+      applicationId: Number(params.applicationId),
     });
     return <PageActions actions={omit(actions, 'View')} />;
 };

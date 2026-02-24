@@ -10,6 +10,7 @@ import {
   GetOdsDto,
 } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
+import { useMemo } from 'react';
 import {
   odsQueries,
 } from '../../api';
@@ -29,25 +30,28 @@ export const ViewApiClient = ({ apiClient }: ViewApiClientProps) => {
       teamId,
     })
   );
-  const odssByInstanceId = {
-    ...odss,
-    data: Object.values(odss.data ?? {}).reduce<Record<string, GetOdsDto>>((map, ods) => {
-      map[ods.odsInstanceId!] = ods;
-      return map;
-    }, {}),
-  };
+  const odsDataByInstanceId = useMemo(
+    () =>
+      Object.values(odss.data ?? {}).reduce<Record<string, GetOdsDto>>((map, ods) => {
+        map[ods.odsInstanceId!] = ods;
+        return map;
+      }, {}),
+    [odss.data]
+  );
+  const odssByInstanceId = useMemo(() => ({ data: odsDataByInstanceId }), [odsDataByInstanceId]);
 
   return apiClient ? (
     <ContentSection>
       <AttributesGrid>
         <Attribute isCopyable label="Name" value={apiClient.name} />
         <AttributeContainer label="ODS">
-          {apiClient.odsInstanceIds
-            .map((odsInstanceId) => (
-              <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
-            ))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .reduce((prev, curr) => [prev, ', ', curr] as any)}
+          {apiClient.odsInstanceIds.length > 0 &&
+            apiClient.odsInstanceIds
+              .map((odsInstanceId) => (
+                <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
+              ))
+              // eslint-disable-next-line @typescript-eslint/no-explicit-any
+              .reduce((prev, curr) => [prev, ', ', curr] as any)}
         </AttributeContainer>{' '}
         <AttributeContainer label="Client id" >
           {apiClient.key}

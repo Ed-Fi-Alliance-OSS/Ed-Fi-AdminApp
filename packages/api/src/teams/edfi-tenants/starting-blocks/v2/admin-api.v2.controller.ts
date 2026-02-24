@@ -713,6 +713,9 @@ export class AdminApiControllerV2 {
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
     validIds: Ids
   ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
     return await this.sbService.getApiClient(edfiTenant, apiClientId);
   }
 
