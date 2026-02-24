@@ -25,6 +25,7 @@ import {
   TenantDto,
   toGetActionDtoV2,
   toGetApplicationDtoV2,
+  toGetApiClientDtoV2,
   toGetAuthStrategyDtoV2,
   toGetClaimsetMultipleDtoV2,
   toGetClaimsetSingleDtoV2,
@@ -402,6 +403,18 @@ export class AdminApiServiceV2 {
           );
           throw err;
         })) as any
+    );
+  }
+
+  async getApiClients(edfiTenant: EdfiTenant, applicationId: number) {
+    return toGetApiClientDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await this.getAdminApiClient(edfiTenant)
+        .get<any, any[]>(`apiclients?offset=0&limit=10000&applicationId=${applicationId}`)
+        .catch((err) => {
+          this.logger.error(`Error getting API clients for tenant ${edfiTenant.id}: ${err}`);
+          throw err;
+        })
     );
   }
 

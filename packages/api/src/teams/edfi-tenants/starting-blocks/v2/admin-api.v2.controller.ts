@@ -669,6 +669,34 @@ export class AdminApiControllerV2 {
   }
 
   //
+  // Api Clients
+  //
+
+  @Get('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClients(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read') validIds: Ids,
+    @Query('applicationId') applicationId?: number,
+  ) {
+    if (applicationId === undefined) {
+      throw new BadRequestException('Query parameter "applicationId" is required.');
+    }
+
+    const allApiClients = await this.sbService.getApiClients(edfiTenant, applicationId);
+    return allApiClients.filter((v) => checkId(v.id, validIds));
+  }
+
+  //
   // Claimsets
   //
 

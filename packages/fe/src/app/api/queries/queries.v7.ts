@@ -1,6 +1,8 @@
 import {
+  ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
+  GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetClaimsetSingleDtoV2,
@@ -9,10 +11,12 @@ import {
   GetVendorDtoV2,
   Id,
   ImportClaimsetSingleDtoV2,
+  PostApiClientResponseDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
+  PutApiClientDtoV2,
   PutApplicationFormDtoV2,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
@@ -46,6 +50,35 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
       })
   )
   .post('post', { ResDto: undefined as unknown as ApplicationResponseV2, ReqDto: PostApplicationFormDtoV2 })
+  .delete('delete')
+  .build();
+
+export const apiClientQueriesV2 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'ApiClient',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll(
+    'getAll',
+    { ResDto: GetApiClientDtoV2 },
+    (base, extras: { applicationId?: number }) => {
+      const query =
+        extras?.applicationId === undefined
+          ? ''
+          : `?applicationId=${extras.applicationId}`;
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: query,
+      });
+    }
+  )
+  .getOne('getOne', { ResDto: GetApiClientDtoV2 })
+  .put('put', { ResDto: GetApiClientDtoV2, ReqDto: PutApiClientDtoV2 })
+  .post('post', { ResDto: undefined as unknown as ApiClientResponseV2, ReqDto: PostApiClientResponseDtoV2 })
   .delete('delete')
   .build();
 
