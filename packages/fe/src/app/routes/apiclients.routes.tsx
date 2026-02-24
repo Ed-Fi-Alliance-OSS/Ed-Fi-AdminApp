@@ -24,7 +24,7 @@ const ApiClientBreadcrumbV2 = () => {
         id: params.apiClientId,
         edfiTenant,
         teamId,
-      })
+      }, {})
     );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (apiClient.data?.displayName ?? params.apiClientId) as any;

@@ -43,7 +43,7 @@ export const ApiClientPageTitle = () => {
       teamId,
       id: params.apiClientId,
       edfiTenant,
-    })
+    }, {})
   ).data;
   return <>{apiClient?.name || 'Credentials'}</>;
 };
@@ -58,7 +58,7 @@ export const ApiClientPageContent = () => {
         teamId,
         id: params.apiClientId,
         edfiTenant,
-      })
+      }, {})
     ).data;
   
     return apiClient ? <ViewApiClient apiClient={apiClient} /> : null;
@@ -76,7 +76,7 @@ export const ApiClientPageActions = () => {
         teamId,
         id: params.apiClientId,
         edfiTenant,
-      })
+      }, {})
     ).data;
   
     const actions = useSingleApiClientActions({
