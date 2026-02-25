@@ -696,6 +696,29 @@ export class AdminApiControllerV2 {
     return allApiClients.filter((v) => checkId(v.id, validIds));
   }
 
+  @Get('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+    return await this.sbService.getApiClient(edfiTenant, apiClientId);
+  }
+
   //
   // Claimsets
   //

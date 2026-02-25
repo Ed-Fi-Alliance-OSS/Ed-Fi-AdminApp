@@ -76,7 +76,16 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       });
     }
   )
-  .getOne('getOne', { ResDto: GetApiClientDtoV2 })
+  .getOne('getOne', { ResDto: GetApiClientDtoV2 },
+    (base) => {
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: base.id,
+      });
+    })
   .put('put', { ResDto: GetApiClientDtoV2, ReqDto: PutApiClientDtoV2 })
   .post('post', { ResDto: undefined as unknown as ApiClientResponseV2, ReqDto: PostApiClientResponseDtoV2 })
   .delete('delete')

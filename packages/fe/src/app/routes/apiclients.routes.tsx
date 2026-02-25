@@ -24,7 +24,7 @@ const ApiClientBreadcrumbV2 = () => {
         id: params.apiClientId,
         edfiTenant,
         teamId,
-      })
+      }, {})
     );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (apiClient.data?.displayName ?? params.apiClientId) as any;
@@ -40,7 +40,7 @@ export const apiClientRoute: RouteObject = {
     crumb: withLoader(() => (
       <VersioningHoc v2={<ApiClientBreadcrumbV2 />} />
     )),
-    fallbackCrumb: () => 'Api Client',
+    fallbackCrumb: () => 'Credentials',
   },
 };
 export const apiClientsIndexRoute: RouteObject = {
