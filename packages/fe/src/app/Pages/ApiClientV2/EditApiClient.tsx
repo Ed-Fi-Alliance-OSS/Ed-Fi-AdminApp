@@ -86,7 +86,10 @@ export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
 
       <FormControl isInvalid={!!errors.isApproved}>
         <FormLabel>Enabled</FormLabel>
-        <Switch {...register('isApproved')} />
+        <Switch
+          {...register('isApproved')}
+          onChange={(e) => setValue('isApproved', e.target.checked)}
+        />
         <FormErrorMessage>{errors.isApproved?.message}</FormErrorMessage>
       </FormControl>
 

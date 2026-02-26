@@ -742,6 +742,16 @@ export class AdminApiControllerV2 {
       throw new NotFoundException();
     }
 
+    const existingApiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    if (
+      existingApiClient &&
+      existingApiClient.applicationId !== apiClient.applicationId
+    ) {
+      throw new BadRequestException(
+        'The applicationId in the request body must match the existing API client applicationId.'
+      );
+    }
+
     return await this.sbService.putApiClient(edfiTenant, apiClientId, apiClient);
   }
 
