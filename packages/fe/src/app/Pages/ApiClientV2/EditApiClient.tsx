@@ -2,31 +2,34 @@ import {
   Button,
   ButtonGroup,
   FormControl,
+  FormErrorMessage,
   FormLabel,
   Input,
   Switch,
   Text,
 } from '@chakra-ui/react';
-import { GetApiClientDtoV2 } from '@edanalytics/models';
+import { GetApiClientDtoV2, PutApiClientDtoV2, PutApiClientFormDtoV2 } from '@edanalytics/models';
+import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { SelectOds } from '../../helpers/EntitySelectors';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { apiClientQueriesV2 } from '../../api';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
-type EditApiClientFormValues = {
-  id: number;
-  name: string;
-  key: string;
-  keyStatus: string;
-  isApproved: boolean;
-  applicationId: number;
-  odsInstanceId: number;
-};
+const resolver = classValidatorResolver(PutApiClientFormDtoV2);
 
 export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
   const { apiClient } = props;
   const { teamId, edfiTenant, edfiTenantId } = useTeamEdfiTenantNavContextLoaded();
+  const popBanner = usePopBanner();
   const navigate = useNavigate();
+  const putApiClient = apiClientQueriesV2.put({
+    edfiTenant,
+    teamId,
+  });
 
   const goToView = () => {
     navigate(
@@ -36,15 +39,16 @@ export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
 
   const {
     register,
+    handleSubmit,
+    setError,
     setValue,
     watch,
-    formState: { isSubmitting },
-  } = useForm<EditApiClientFormValues>({
+    formState: { errors, isSubmitting },
+  } = useForm<PutApiClientFormDtoV2>({
+    resolver,
     defaultValues: {
       id: apiClient.id,
       name: apiClient.name,
-      key: apiClient.key,
-      keyStatus: apiClient.keyStatus,
       isApproved: apiClient.isApproved,
       applicationId: apiClient.applicationId,
       odsInstanceId: apiClient.odsInstanceIds[0],
@@ -52,26 +56,48 @@ export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
   });
 
   const selectedOds = watch('odsInstanceId');
+  const onSubmit = (data: PutApiClientFormDtoV2) => {
+    const payload = Object.assign(new PutApiClientDtoV2(), {
+      id: data.id,
+      name: data.name,
+      isApproved: data.isApproved,
+      applicationId: data.applicationId,
+      odsInstanceIds: [data.odsInstanceId],
+    });
+
+    return putApiClient
+      .mutateAsync(
+        { entity: payload, pathParams: {} },
+        {
+          ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
+          onSuccess: goToView,
+        }
+      )
+      .catch(noop);
+  };
 
   return (
-    <form>
-      <FormControl>
+    <form onSubmit={handleSubmit(onSubmit)}>
+      <FormControl isInvalid={!!errors.name}>
         <FormLabel>Name</FormLabel>
         <Input {...register('name')} />
+        <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
       </FormControl>
 
-      <FormControl>
+      <FormControl isInvalid={!!errors.isApproved}>
         <FormLabel>Enabled</FormLabel>
         <Switch {...register('isApproved')} />
+        <FormErrorMessage>{errors.isApproved?.message}</FormErrorMessage>
       </FormControl>
 
-      <FormControl>
+      <FormControl isInvalid={!!errors.odsInstanceId}>
         <FormLabel>ODS</FormLabel>
         <SelectOds
           useInstanceId
           value={selectedOds}
           onChange={(value) => setValue('odsInstanceId', value)}
         />
+        <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
       </FormControl>
 
       <FormControl>
@@ -85,17 +111,18 @@ export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
       </FormControl>
 
       <ButtonGroup mt={4} colorScheme="primary">
-        <Button isDisabled type="button">
+        <Button isLoading={isSubmitting} type="submit">
           Save
         </Button>
         <Button variant="ghost" isLoading={isSubmitting} type="reset" onClick={goToView}>
           Cancel
         </Button>
       </ButtonGroup>
-
-      <Text mt={4} color="gray.500" fontSize="sm">
-        Saving edits will be enabled in the next step.
-      </Text>
+      {errors.root?.message ? (
+        <Text mt={4} color="red.500">
+          {errors.root?.message}
+        </Text>
+      ) : null}
     </form>
   );
 };
