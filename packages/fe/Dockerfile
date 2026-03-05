@@ -16,7 +16,7 @@ WORKDIR /app
 ARG VITE_BASE_PATH=/adminapp/
 
 ENV NX_VERBOSE_LOGGING=true \
-  NODE_OPTIONS="--max-old-space-size=4096" \
+    NODE_OPTIONS="--max-old-space-size=4096" \
     VITE_BASE_PATH="${VITE_BASE_PATH}"
 
 # Copy only manifest + workspace config for efficient layer caching
