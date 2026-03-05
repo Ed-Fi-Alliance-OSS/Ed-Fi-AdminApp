@@ -13,9 +13,11 @@ FROM node:22-alpine@sha256:b2358485e3e33bc3a33114d2b1bdb18cdbe4df01bd2b257198eb5
 
 WORKDIR /app
 
+ARG VITE_BASE_PATH=/adminapp/
+
 ENV NX_VERBOSE_LOGGING=true \
   NODE_OPTIONS="--max-old-space-size=4096" \
-  VITE_BASE_PATH="./"
+    VITE_BASE_PATH="${VITE_BASE_PATH}"
 
 # Copy only manifest + workspace config for efficient layer caching
 COPY package*.json ./
