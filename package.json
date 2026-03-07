@@ -32,8 +32,8 @@
     "node": ">=22.0.0"
   },
   "dependencies": {
-    "@aws-sdk/client-lambda": "^3.922.0",
-    "@aws-sdk/client-secrets-manager": "^3.922.0",
+    "@aws-sdk/client-lambda": "^3.1004.0",
+    "@aws-sdk/client-secrets-manager": "^3.1004.0",
     "@aws-sdk/util-arn-parser": "^3.893.0",
     "@casl/ability": "^6.7.5",
     "@chakra-ui/icon": "^3.2.0",
