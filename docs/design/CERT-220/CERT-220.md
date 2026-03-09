@@ -1,146 +1,383 @@
-# CERT-220 - Investigation of technical requirements for Certification release 2.1
+# CERT-220 - Technical Brief for Certification Release 2.1 (Phase 1)
 
-Define the task required to accomplish the Certification release 2.1 also known as Phase 1.
+## 1. Purpose
 
-## Context
+This document defines the technical scope and delivery plan for Certification Release 2.1 (Phase 1) in Admin App.
 
-[Certification](https://github.com/Ed-Fi-Alliance-OSS/certification-testing) is a [Bruno](https://docs.usebruno.com/) solution used to validate our users "ODS API" implementation has the  minimun required to run their business. Currently, the user interacts with the implemented ODS API and an Ed-Fi representative Certify the data was properly added, for that the representative use the Certification Bruno solution to send GET requests and validate the data is correct.
+The goal is to deliver a basic but reliable certification experience that allows vendors to run certification checks with minimal outside assistance, aligned with the 2026 project direction to move toward same-day certification.
 
-We need to abstract the Certification (Bruno) solution and give AdminAPP the capabilities to run those Bruno scripts (.bru files) from an User Interface (UI), the UI will asks the user to enter the required autentication and tests parameters, then it will execute the request and handle the response to be displayed in a user-friendly format and guide the user on the process.
+Reference used: [Certifications Project 2026](https://edfi.atlassian.net/wiki/spaces/OTD/pages/1894154241/Certifications+Project+2026) overview (Atlassian summary provided by stakeholder).
 
-To achieve this modernization it is required the completition of three phases. This document defines the requirements (tasks) to acomplish [Phase 1](./CERT-220.md#phase-1).
+## 2. Executive Summary
 
-## Sumary
+Certification currently depends on manual execution and review of Bruno collections from the `certification-testing` [repository](https://github.com/Ed-Fi-Alliance-OSS/certification-testing).
 
-## Index
+Phase 1 modernizes this by integrating Bruno execution into Admin App with a simple user flow:
 
+1. User selects a certification scenario step.
+2. User provides environment and credential inputs.
+3. Admin App validates inputs and allowlisted scenario path.
+4. Admin App runs Bruno for that scenario step.
+5. Admin App returns structured validation results to the UI.
 
-## Arcquitecture
+This phase is intentionally reduced to fit a `2-sprint` window and validate core workflow viability.
 
-### certification-testing
+## 3. Phase 1 Scope Boundaries
 
-The [certification-testing](https://github.com/Ed-Fi-Alliance-OSS/certification-testing) main logic is contained in the `SIS` directory, where the bruno collection resides.
+### In Scope
 
-* ...
-* bruno
-  * SIS
-    * environments
-    * .env
-    * node_modules
-    * v4
-      * \<ScenariosGroups>
-        * \<ScenariosNames>
-          * \<ScenariosSteps>
+- Import Bruno artifacts through a deterministic, versioned contract.
+- Validate artifact integrity using published checksums.
+- Expose scenarios catalog API.
+- Expose scenario validation API.
+- Execute single scenario steps from Bruno in a temporary working folder.
+- Return structured validation results to the frontend.
+- Add frontend pages for scenario list and scenario execution.
 
-### Ed-Fi-AdminApp
+### Out of Scope (Deferred)
 
-The [Ed-Fi-AdminApp](https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp) is distributed in two main applications (`api` and `fe`). The `api` handles the logic required for the `fe` (frontend) to work. Therefore, the new certification feature will be spread in the two applications as shown bellow:
+- Sandbox provisioning.
+- App creation and credential issuance automation.
+- Decentralized ID (DID) validation ([1EdTech Uniform Id](https://www.1edtech.org/standards/uniform-id-framework)).
+- Registry certification approval process.
+- Internal portal decision workflow (approve/reject).
+- Verifiable Credential (VC) issuance.
+- Advanced instance management automation (planned for later phases).
 
-* ...
-* packages
-  * api
-    * src
-      * ...
-      * certification (new certification api)
-        * bruno (new directory to store `bruno` collections)
-  * fe
-    * src
-      * Pages
-        * ...
-        * Certification (new certification frontend)
+## 4. Architecture Overview
 
-## Phase 1
+### Source of truth
 
-For the Phase 1 AdminAPP will allow the user to interact dirrectly with the `Certification` Bruno solution at very basic level.
-In this Phase, AdminAPP has no support for `Instance Management`, it will be added in the Phase 2, therefore,
-the user will provide its own `ODS` environment and configure it in the AdminAPP application. Then, the user will be able to start the certification process.
+- The `certification-testing` repository remains the source of truth for scenario definitions.
+- Admin App consumes a published Bruno artifact; it does not own scenario authoring.
 
-## Notes from the spike
+### Runtime model
 
-* The `certification-testing` repository remains the source of truth for scenario definitions, and no critical modifications will be made to that repository.
+- On startup, Admin App downloads the pinned artifact version.
+- Admin App verifies checksum before extraction.
+- Admin App installs runtime dependencies from lockfile (`npm ci` preferred).
+- On validation request, Admin App creates a temporary working scenario, runs Bruno CLI, parses JSON report, and returns a simplified response.
 
-### Phase 1 certification workflow
-
-#### Currently developed
-
-* User will login into the AdminApp
-* User will create a new `Environment` and its `ODS Instance` configuration
-  * __Required Data:__
-    * Environment Name
-    * ODS API URL
-    * Admin API URL  
-    * Tenant Name (if multitenant)
-    * ODS Database Name
-* User will grant `Owership` of the just created `Environment` as an `ODS` resource type to the corresponding `Team`
-* User will select the correspoding `Team` from the dropdown
-* User will select the desired tenant (if multitenant enabled) from the Environments list
-
-#### Certification 2.1 workflow
-
-* __On startup__ AdminAPP will create a local and termporary copy of `certification-testing`.
-* User will access the new `Certification` feature.
-* AdminAPP will display the list of certification scenarios to validate.
-* User will select any scenario.
-* AdminAPP will ask the user to enter the required scenario parameters.
-* User will input the correspoding values.
-* AdminAPP will update the scenario script (.bru) to use the new parameters values.
-* AdminAPP will execute the requests using Bruno scripts (.bru).
-* AdminAPP will handle the response and displayed to guide the user based on errors (if any).
-
-### Certification 2.1 User Stories
-
-* Phase 1 must stay reduced in scope to fit `1.5 sprints`.
-
-___
-
-#### CERTIFICATION - Export Bruno artifacts
+[![Architecture Overview](https://mermaid.ink/img/pako:eNp1U9tu2zAM_RVBTxuQFE48x7ExDMhywVKsbRAHHVB7D4rNJMJsSdBlbZfk30c5F6wD-mBIPCQPyUNrT0tZAU3pppbP5Y5pS74vC0GIceutZmpHRlXDxUipfFp1Z_xkErR_-ihCZtN8pqWwICqyBFbaMz5azHP8yD0Ye5udwdXdIv-wgkZJzfQr-aqdkGTphOUNkB9S_zKKlfCxjUbCQrztRFu-wQqZdLqE_GKSCTdW87WzXIpL9eUqfwRtEIHqXOdpvniHeAzaLkHJvATPyUvmqboWW-die6bMluM8m2eklHUNpQ8gptRcWfMO6yNCUueng0zFb446NSAuCj1MsosTr16wt0SzKfnc7X45fFutFtnB-z2KbRCPjudEuXXNze7gp_UuL7d3VfJZ1JJVRHHhx9ew-T_Gb8KbeLQpa-0IikQMzlsDMRbUwXf1b8xt9nCPXLg7e-3mUhIX4ErrdFvNuBojZlPaoVvNK5puWG2gQxvQDfM23fvcgtodNFDQFK8biXm2oIU4Yppi4knKhqZIi4lauu3uSuNUxSxMOEOZmyuqUTfQY4k_E037UdiS0HRPX2gaDW4G8TCMguEwCYdhEnXoK017_fgm6CeDJEr6SRAnUf_YoX_assFNPIyDXhgHSfQp6oURZkDFrdR3p9fSPprjX1d5DvU?type=png)](https://mermaid.live/edit#pako:eNp1U9tu2zAM_RVBTxuQFE48x7ExDMhywVKsbRAHHVB7D4rNJMJsSdBlbZfk30c5F6wD-mBIPCQPyUNrT0tZAU3pppbP5Y5pS74vC0GIceutZmpHRlXDxUipfFp1Z_xkErR_-ihCZtN8pqWwICqyBFbaMz5azHP8yD0Ye5udwdXdIv-wgkZJzfQr-aqdkGTphOUNkB9S_zKKlfCxjUbCQrztRFu-wQqZdLqE_GKSCTdW87WzXIpL9eUqfwRtEIHqXOdpvniHeAzaLkHJvATPyUvmqboWW-die6bMluM8m2eklHUNpQ8gptRcWfMO6yNCUueng0zFb446NSAuCj1MsosTr16wt0SzKfnc7X45fFutFtnB-z2KbRCPjudEuXXNze7gp_UuL7d3VfJZ1JJVRHHhx9ew-T_Gb8KbeLQpa-0IikQMzlsDMRbUwXf1b8xt9nCPXLg7e-3mUhIX4ErrdFvNuBojZlPaoVvNK5puWG2gQxvQDfM23fvcgtodNFDQFK8biXm2oIU4Yppi4knKhqZIi4lauu3uSuNUxSxMOEOZmyuqUTfQY4k_E037UdiS0HRPX2gaDW4G8TCMguEwCYdhEnXoK017_fgm6CeDJEr6SRAnUf_YoX_assFNPIyDXhgHSfQp6oURZkDFrdR3p9fSPprjX1d5DvU)
 
 __Description:__
 
-In the `certification-testing` repository it is required to export the content in the [bruno](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/tree/main/bruno) folder as an artifact that AdminAPP can import in [ADMIN APP - API - Import Bruno artifacts](./CERT-220.md#admin-app---api---import-bruno-artifacts) story.
+- `certification-testing` publishes artifacts; Admin App consumes artifacts.
+- Admin App owns orchestration, validation, and response shaping.
+- Vendor ODS remains external and is tested through Bruno CLI.
 
-__Considerations:__
+<details>
+ <summary>Show graph details</summary>
 
-* __Option A - GitHub Release ZIP artifact (recommended)__: Simple distribution model with versioned tags/releases, easy download contract, and straightforward checksum validation.
-* __Option B - Azure Artifacts/NuGet package__: Enterprise-ready distribution/governance option, but requires NuGet packaging conventions and feed management overhead.
-* __Option C - npm package (content bundle)__: Works well with Node tooling and semver, but requires package publishing and careful handling of non-code artifact structure.
-* __Option D - Local folder copy from sibling repo__: Simple for local development, but not deterministic across machines/environments and harder to audit in CI/CD.
-* __Option E - Dedicated Certification Runner API__: Strongest isolation and long-term security boundary, but adds service deployment, auth, monitoring, and contract-management overhead.
+```mermaid
+flowchart LR
+  subgraph AdminApp[Ed-Fi Admin App]
+    FE[Frontend React]
+    API[API NestJS]
+    TMP[(Temporary Bruno Runtime Workspace)]
+  end
 
-__Why Option A is the best fit for Phase 1:__
+  subgraph ArtifactSource[Artifact Distribution]
+    ART[Versioned Bruno ZIP]
+  end
 
-* For the sake of Phase 1, we keep implementation simple by using a versioned artifact download at startup (for example, GitHub Release ZIP artifact).
-* It keeps implementation close to the current POC path while removing local-path coupling.
-* It enables source pinning and artifact integrity checks required by the Phase 1 security gate.
-* It avoids introducing a new production service before core workflow validation is complete.
-* More advanced options (for example, __Option E__ dedicated runner API, __Option B__ NuGet packaging model changes) will be considered in future releases.
+  subgraph CertRepo[certification-testing]
+    SRC[SIS collection scripts]
+  end
 
-__Acceptance Criteria:__
+  subgraph Vendor[Vendor Environment]
+    ODS[Vendor ODS API]
+  end
 
-* The `certification-testing` CI pipeline publishes a versioned artifact for the `bruno` workspace on merge to `main` and on release tags.
-* The published artifact includes the `bruno` content required by AdminAPP (`SIS`, `package.json`, `package-lock.json`, `scripts`, and required config files), and excludes local-only folders (`node_modules`, local cache files).
-* The artifact name and version are deterministic and traceable to source (`artifactVersion`, `gitCommitSha`, and `buildTimestamp`).
-* The pipeline publishes a checksum file (for example, SHA256) alongside the artifact.
-* The artifact location and download contract are documented (feed/release URL pattern, auth method, version format).
-* A consumer validation step confirms AdminAPP can download and extract the artifact using only the published contract.
+  FE <-->|HTTPS| API
+  SRC -->|CI publish| ART
+  API -->|download pinned ref| ART
+  API --> TMP
+  TMP -->|bru run single step| ODS
+  TMP -->|JSON report| API
+  API -->|structured result| FE
+```
 
-___
+</details>
 
-#### ADMIN APP - API - Import Bruno artifacts
+## 5. Certification Lifecycle
+
+[![Certification Lifecycle](https://mermaid.ink/img/pako:eNptVMtu2zAQ_JUFz04g18_oUCC283DeSJOirZwDS61l1hIpkFRiN86_d7VSDB96EShyZnd2huC7UDZFEYtlbt_USroAT7OFAThNnj068DozHrQBaVLwmKMKHp5QFrzxhEaa8AJHR19hktyXaGCKLuilVjJoa6CwaZXjS11wwqhpcvowB4ehclRX5tQ11z4gFVdUzGkLRJW5zZg0ZdKs1dK23yOJVzJsxrCzFlb9LjTBbOqfH29AOUzRBC1zz5pL6WSBAZ1n6hlTz1nWq8x1KgMeCGsp29zKlPHnNX6nDWN38DN55Fmgv9l88uvB0TnrDggt_CJ5cEgKEAIWpXXSbcFVpK5AeLNu7UupGrsuWNdlMrNvpm4OpTaGbJoQ3IKsTZYqMPSSofPkOzq93IJaoVr7quCzOXcvtC9kUKsd_EgmuVVrwA2qipXWA5Ld5K6qnA7bA-kN2a53cJWcbYKjhvvOzNPGU1Y5pEjRk8tKY-PqFUu6TubmD0UGaF7JHNcEsI9vn0RtXNUyr5l5kzxWpp3Va5Pl-J_Ubxh6mzxQZYSrb_d3dLHI1MaVWz69-8zHB1cpWpGFBzE59KU1vrH8jhn3yfMcUu3LXG49afQellLnLJ2tgawiuqGcREdkTqciXtLlwo4o0BWy_hfvdb2FCCsscCFiWi4t9QoLsTAfRCul-WVtIWJSRURnq2y1L1OV9SWcaZmRP_tdVzvsppZui4h7gxEXEfG72Ih4EB0Pe1F0EnXHg6g3HtLhVsRHvWh4PBh-iaLBaNSnT_ejI_5y2-5xjRqf9PvdbjQeRb1hR2Cqg3W3zXPAr8LHP9YNYqQ?type=png)](https://mermaid.live/edit#pako:eNptVMtu2zAQ_JUFz04g18_oUCC283DeSJOirZwDS61l1hIpkFRiN86_d7VSDB96EShyZnd2huC7UDZFEYtlbt_USroAT7OFAThNnj068DozHrQBaVLwmKMKHp5QFrzxhEaa8AJHR19hktyXaGCKLuilVjJoa6CwaZXjS11wwqhpcvowB4ehclRX5tQ11z4gFVdUzGkLRJW5zZg0ZdKs1dK23yOJVzJsxrCzFlb9LjTBbOqfH29AOUzRBC1zz5pL6WSBAZ1n6hlTz1nWq8x1KgMeCGsp29zKlPHnNX6nDWN38DN55Fmgv9l88uvB0TnrDggt_CJ5cEgKEAIWpXXSbcFVpK5AeLNu7UupGrsuWNdlMrNvpm4OpTaGbJoQ3IKsTZYqMPSSofPkOzq93IJaoVr7quCzOXcvtC9kUKsd_EgmuVVrwA2qipXWA5Ld5K6qnA7bA-kN2a53cJWcbYKjhvvOzNPGU1Y5pEjRk8tKY-PqFUu6TubmD0UGaF7JHNcEsI9vn0RtXNUyr5l5kzxWpp3Va5Pl-J_Ubxh6mzxQZYSrb_d3dLHI1MaVWz69-8zHB1cpWpGFBzE59KU1vrH8jhn3yfMcUu3LXG49afQellLnLJ2tgawiuqGcREdkTqciXtLlwo4o0BWy_hfvdb2FCCsscCFiWi4t9QoLsTAfRCul-WVtIWJSRURnq2y1L1OV9SWcaZmRP_tdVzvsppZui4h7gxEXEfG72Ih4EB0Pe1F0EnXHg6g3HtLhVsRHvWh4PBh-iaLBaNSnT_ejI_5y2-5xjRqf9PvdbjQeRb1hR2Cqg3W3zXPAr8LHP9YNYqQ)
 
 __Description:__
 
-Based on the [POC 2 - Bruno Integration](./CERT-220.md#poc-2---bruno-integration) update the api `CertificationService` in AdminAPP, and make all the required adjustments:
+- Steps before execution focus on safety (`allowlist`, payload checks, checksum verification).
+- Execution is limited to one scenario step at a time to keep behavior deterministic.
+- Output is translated into a UI-friendly structure for vendor self-service.
 
-*Artifact Configuration*: Add config entries for certification source reference:
+<details>
+ <summary>Show graph details</summary>
 
-* `CERT_BRUNO_SRC_REF` (tag/commit)
-* `CERT_BRUNO_SRC_CHECKSUM` (optional artifact integrity check)
+```mermaid
+flowchart TD
+  A[User signs in and selects Team and Tenant] --> B[Open Certification module]
+  B --> C[API returns allowlisted scenario catalog]
+  C --> D[User selects scenario step]
+  D --> E[User submits odsURL credentials and parameters]
+  E --> F[API validates allowlist and payload]
+  F -->|invalid| Y[Return 4xx validation error]
+  F -->|valid| G[Prepare temporary runtime workspace]
+  G --> H[Download pinned Bruno artifact]
+  H --> I[Verify checksum]
+  I -->|mismatch| X[Block execution and log security error]
+  I -->|ok| J[Extract artifact and install dependencies]
+  J --> K[Inject env vars and scenario parameter values]
+  K --> L[Run Bruno single scenario step]
+  L --> M[Parse JSON report]
+  M --> N[Return structured validation response]
+  N --> O[UI displays pass fail and error guidance]
+```
 
-*Download Artifact:* AdminAPP api will replace the POC local copy approach with a pinned artifact download contract, generated in [CERTIFICATION - Export artifacts](./CERT-220.md#certification---export-bruno-artifacts).
-*Integrity validation:* Add checksum verification before extraction; block execution on mismatch.
-*Install dependencies:* Then it will install its depedencies (node_modules) from artifact lockfile path (`npm ci` preferred).
-*Initialization:* Bruno requires two files to work propperly. Create the following files with placeholders (actual values will overwwriten in [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#admin-app---api---create-a-scenario-validator-service)):
+</details>
+
+## 6. Phase 1 Certification Workflow (Sequence Diagram)
+
+[![Phase 1 Certification Workflow (Sequence Diagram)](https://mermaid.ink/img/pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k?type=png)](https://mermaid.live/edit#pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k)
+
+__Description:__
+
+- The API is the control point for validation and safety.
+- Bruno runtime is temporary and scoped to execution.
+- User sees structured results, not raw CLI logs.
+
+<details>
+ <summary>Show graph details</summary>
+
+```mermaid
+sequenceDiagram
+  autonumber
+  actor User as Vendor User
+  participant FE as Admin App FE
+  participant API as Admin App API
+  participant Runtime as Bruno Runtime (temp workspace)
+  participant ODS as Vendor ODS API
+
+  User->>FE: Open Certification and select scenario step
+  FE->>API: GET /api/certification/scenarios
+  API-->>FE: Scenario list
+
+  User->>FE: Submit odsURL credentials and parameters
+  FE->>API: POST /api/certification/validate
+  API->>API: Validate allowlist and request payload
+
+  alt Invalid scenarioPath or env data
+    API-->>FE: 4xx error with validation details
+  else Valid request
+    API->>Runtime: Download pinned artifact and verify checksum
+    API->>Runtime: Prepare .env or --env-var values
+    API->>Runtime: Build temporary working scenario with parameters
+    Runtime->>ODS: Execute scenario step via Bruno CLI
+    ODS-->>Runtime: API response payloads
+    Runtime-->>API: Bruno JSON reporter output
+    API->>API: Transform to simplified test results response
+    API-->>FE: scenarioName plus test results plus errors
+    FE-->>User: Display validation outcome and guidance
+  end
+```
+
+</details>
+
+## 7. Comparison: Provided Sequences vs Phase 1 Scope
+
+| Capability / Step | Provided Diagrams (Target State) | Phase 1 (This Brief) | Scope Status |
+| --- | --- | --- | --- |
+| Sandbox provision | Included | Not implemented | Out of scope |
+| App creation | Included | Not implemented | Out of scope |
+| Credential issuance from provisioning flow (DID) | Included | User provides credentials manually | Out of scope |
+| DID validation | Included | Not implemented | Out of scope |
+| Trigger certification tests | Included | Included | In scope |
+| Execute test suite | Full suite model | Single scenario-step execution | Reduced in scope |
+| Submit run results to internal portal | Included | Not implemented | Out of scope |
+| Representative approval / rejection | Included | Not implemented | Out of scope |
+| Registry-backed certificate actions | Included | Not implemented | Out of scope |
+
+__Summary:__
+
+- Phase 1 intentionally focuses on the basic execution loop: select scenario, provide parameters, run validation, return structured results.
+- Platform-level orchestration and registry workflows are deferred to future phases.
+
+## 8. Workstreams and Acceptance Criteria (Synthesized)
+
+### 8.1 Certification - Export Bruno Artifacts
+
+Objective: Publish a deterministic Bruno artifact contract for Admin App consumption.
+
+Acceptance criteria:
+
+- CI publishes versioned Bruno artifact on merge to `main` and on release tags.
+- Artifact includes required `bruno` workspace content and excludes local-only folders.
+- Artifact metadata is traceable (`artifactVersion`, `gitCommitSha`, `buildTimestamp`).
+- Checksum (for example SHA256) is published alongside artifact.
+- Artifact contract is documented (URL pattern, auth model, version format).
+- Consumer validation proves Admin App can download and extract by contract only.
+
+### 8.2 Admin App API - Import Bruno Artifacts
+
+Objective: Replace local sibling-repo copy model with pinned artifact download and verification.
+
+Acceptance criteria:
+
+- Admin App downloads pinned artifact at startup into temporary runtime folder.
+- Integrity verification blocks execution on checksum mismatch with clear logging.
+- Artifact is extracted and dependencies are installed via lockfile (`npm ci` preferred).
+- Imported `SIS` collection can run from Bruno CLI with environment inputs.
+
+### 8.3 Admin App API - Certification Scenarios API
+
+Objective: Expose scenario catalog used by frontend selection UI.
+
+Acceptance criteria:
+
+- Endpoint exposed at `/api/certification/scenarios`.
+- Endpoint returns configured allowlisted scenarios from `certification-scenarios.json`.
+- No pagination or filtering in Phase 1.
+
+### 8.4 Admin App API - Scenario Validator Service
+
+Objective: Validate one scenario step with strict input safety and structured result response.
+
+Acceptance criteria:
+
+- Replace `/api/certification/run` with `/api/certification/validate`.
+- Enforce authorization with `@Authorize(...)`; remove `@Public()`.
+- Reject invalid `scenarioPath` and invalid environment inputs with `4xx` before command execution.
+- Build temporary working scenario with parameter replacements.
+- Execute working scenario from `bruno` collection root.
+- Record execution metadata (`artifactVersion`, `commitSha`, scenario, duration, exitCode).
+- Clean stale temporary work folders based on retention policy.
+- Return structured response with scenario name and test results.
+
+### 8.5 Admin App FE - Certification Module
+
+Objective: Add UI entry point and list view for certification scenarios.
+
+Acceptance criteria:
+
+- Add `Certification` option in left navigation.
+- Show a dedicated Certification page.
+- Display scenarios returned by `/api/certification/scenarios`.
+
+### 8.6 Admin App FE - Certification Process Page
+
+Objective: Let users execute a selected scenario with dynamic inputs and view results.
+
+Acceptance criteria:
+
+- Show Certification Process page for selected scenario.
+- Dynamically render parameter fields from scenario configuration.
+- Send credentials plus required parameters to validation endpoint.
+- Display structured validation response from API.
+
+## 9. Delivery Constraints, Risks, and Mitigations
+
+### Constraints
+
+- Phase 1 development is limited to `2 sprints`. Please note that __team capacity and diluted focus__ could affect our overall delivery velocity.
+- Self-service is a first-order product requirement.
+- Bruno scripts are largely static by design.
+
+### Key risks
+
+- High integration complexity across two incompatible repositories (React and Bruno scripts).
+- Runtime command execution increases operational and security sensitivity.
+- Response normalization from CLI output can be error-prone.
+- Bruno scripts are sensitive to version and structural shifts; small modifications can easily lead to breaking changes.
+- The `certification-testing` solution only supports DataStandard `v4`. A modernization to `v5` is required to support both versions.
+
+### Mitigations
+
+- Reduced scope for Phase 1.
+- Independent runtime workspace inside Admin App for Bruno scripts.
+- Certification scenario validations are delegated to Bruno CLI to reduce breaking-change risk.
+- Keep `certification-testing` as source of truth and consume versioned artifacts.
+- Enforce allowlist and checksum validation before execution.
+- Limit execution to single scenario-step in Phase 1.
+- Log traceability metadata for supportability and audits.
+
+## 10. Technical Decision Summary
+
+Selected approach: Bruno Integrator model (POC 2) with artifact pinning.
+
+Rationale:
+
+- Lowest implementation complexity for Phase 1.
+- Better compatibility with upstream scenario changes.
+- Aligns with reduced-scope objective while preserving future extensibility.
+
+## Appendix A - Retained Story Details (Normalized)
+
+### A.1 Context
+
+The [Certification](https://github.com/Ed-Fi-Alliance-OSS/certification-testing) solution uses [Bruno](https://docs.usebruno.com/) collections to validate ODS API behavior.
+
+Admin App will provide UI-guided execution so users can run scenario validations with required credentials and parameters and receive user-friendly result summaries.
+
+### A.2 Repository Layouts
+
+`certification-testing` Bruno layout (logical):
+
+- `bruno/SIS/environments`
+- `bruno/SIS/.env`
+- `bruno/SIS/v4/<ScenarioGroups>/<ScenarioNames>/<ScenarioSteps>`
+
+Admin App extension points:
+
+- `packages/api/src/certification`
+- `packages/api/src/certification/bruno` (runtime artifact workspace)
+- `packages/fe/src/Pages/Certification`
+
+### A.3 Phase 1 Workflow Inputs Already Available
+
+- User logs into Admin App.
+- User creates Environment and ODS Instance settings.
+- User grants ownership to corresponding Team.
+- User selects Team and tenant (when multitenant).
+
+### A.4 Certification Workflow (Phase 1)
+
+- On startup, Admin App creates a temporary local copy from published artifact.
+- User opens Certification feature.
+- User selects scenario and provides parameters.
+- Admin App updates a temporary working scenario.
+- Admin App executes Bruno request(s).
+- Admin App returns a simplified response based on results and validation errors.
+
+### A.5 Story Detail - Export Bruno Artifacts
+
+__Description:__
+
+- In `certification-testing`, publish Bruno workspace artifacts consumable by Admin App.
+
+__Considered options:__
+
+- Option A: GitHub Release ZIP artifact (recommended for Phase 1).
+- Option B: Azure Artifacts/NuGet package.
+- Option C: npm package content bundle.
+- Option D: Local sibling-repo folder copy.
+- Option E: Dedicated Certification Runner API.
+
+__Why Option A for Phase 1:__
+
+- Simpler startup integration and deterministic version pinning.
+- Supports integrity checks and traceability.
+- Avoids introducing a new production service before workflow validation.
+
+### A.6 Story Detail - Import Bruno Artifacts (Admin App API)
+
+*Artifact Configuration*: Add configuration entries for certification source reference:
+
+- `CERT_BRUNO_SRC_REF` (tag/commit)
+- `CERT_BRUNO_SRC_CHECKSUM` (optional artifact integrity check)
+
+*Download Artifact:* Admin App API will replace the POC local copy approach with a pinned artifact download contract, generated in [CERTIFICATION - Export artifacts](./CERT-220.md#a5-story-detail---export-bruno-artifacts).
+*Integrity Validation:* Add checksum verification before extraction; block execution on mismatch.
+*Install Dependencies:* Install dependencies (`node_modules`) from the artifact lockfile path (`npm ci` preferred).
+*Initialization:* Bruno requires two files to work properly. Create the following files with placeholders (actual values are overwritten in [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#a8-story-detail---scenario-validator-service)):
 
 The `SIS/.env` file:
 
@@ -168,36 +405,21 @@ vars {
 bru run --env-var EDFI_CLIENT_ID=<client_id> --env-var EDFI_CLIENT_SECRET=<secret>
 ```
 
-> __References:__
->
-> * [environment](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/environments/api.ed-fi.org.bru)
-> * [.env](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/.env.example)
-> * [Using Environments Names](https://docs.usebruno.com/bru-cli/runCollection#using-environments-names)
-> * [Secrets Management](https://docs.usebruno.com/secrets-management/dotenv-file)
-> *[Using JSON Environment Files](https://docs.usebruno.com/bru-cli/runCollection#using-json-environment-files)
+__References:__
 
-*Ensure functionality*: The `SIS` collection in runtime path is fully functional from the Bruno CLI. This will require either updating the `.env` and `environment` files with valid data or passing the `--env-var` directly.
+- [Environment example](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/environments/api.ed-fi.org.bru)
+- [.env example](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/.env.example)
+- [Using environment names](https://docs.usebruno.com/bru-cli/runCollection#using-environments-names)
+- [Secrets management](https://docs.usebruno.com/secrets-management/dotenv-file)
+- [Using JSON environment files](https://docs.usebruno.com/bru-cli/runCollection#using-json-environment-files)
 
-__Acceptance Criteria:__
-
-* __On startup__ AdminAPP downloads the pinned artifact version generated in  and stores it in a temporary runtime folder.
-* AdminAPP validates artifact integrity using the published checksum before extraction; if validation fails, execution is blocked and a clear error is logged.
-* AdminAPP extracts the artifact and installs runtime dependencies from the artifact lockfile path (`npm ci` preferred).
-* The imported collection is fully funcional from Bruno CLI. To validate, update parameters, `.env` file, and execute `bru run` from the downloaded bruno collection.
-
-__Dependencies:__
-
-* [CERTIFICATION - Export Bruno artifacts](./CERT-220.md#certification---export-bruno-artifacts)
-
-___
-
-#### ADMIN APP - API - Create a Certification Scenarios API
+### A.7 Story Detail - Certification Scenarios API
 
 __Description:__
 
-It is required a new API to return the frontend a list of the configured certification scenarios from the `certification-scenarios.json`.
+A new API is required to return the list of configured certification scenarios to the frontend from `certification-scenarios.json`.
 
-*Expose new API:* Create a new endpoint `/api/certification/scenarios`. The api will receive no parameters, no pagination, no filtering.
+*Expose New API:* Create a new endpoint `/api/certification/scenarios`. The API receives no parameters, pagination, or filtering.
 *Mapping:* Map the desired certification scenarios configuration in a JSON file `certification-scenarios.json` with the schema below.
 
 ```json
@@ -256,33 +478,32 @@ It is required a new API to return the frontend a list of the configured certifi
 
 __Acceptance Criteria:__
 
-* AdminAPP will expose a new api for the scenario list.
+- Admin App will expose a new API for the scenario list.
 
-___
-
-#### ADMIN APP - API - Create a Scenario Validator Service
+### A.8 Story Detail - Scenario Validator Service
 
 __Description:__
 
-Based on the [POC 2 - Bruno Integration](./CERT-220.md#poc-2---bruno-integration) update the api `CertificationService` in AdminAPP, and make all the required adjustments:
+Based on the [POC 2 - Bruno Integration](./CERT-220.md#poc-2-bruno-integrator-recommended), update the API `CertificationService` in Admin App and make the required adjustments:
 
-*Expose new API:* Replace POC endpoint `/api/certification/run`with `/api/certification/validate` to validate certification scenarios. The api will receive the following parameters:
+*Expose New API:* Replace POC endpoint `/api/certification/run` with `/api/certification/validate` to validate certification scenarios. The API will receive the following parameters:
 
-* odsURL (e.g. https://localhost/v7-multi-api/tenant1)
-* edfiClientId
-* edfiClientSecret
-* scenariosVersion
-* scenariosGroup
-* scenarioStep
-* parameters (e.g. schoolId, studentName, classPeriodId, etc.)
+- odsURL (e.g. https://localhost/v7-multi-api/tenant1)
+- edfiClientId
+- edfiClientSecret
+- scenariosVersion
+- scenariosGroup
+- scenariosName
+- scenarioStep
+- parameters (e.g. schoolId, studentName, classPeriodId, etc.)
 
 *Authorization:* Enforce authorization with `@Authorize(...)`, remove `@Public()`.
 
-*Allowlist params:* Add strict allowlist validation for `scenarioPath` against `certification-scenarios.json`; reject invalid input with `4xx` before command execution. Build the `scenarioPath` from the provided parameters `scenariosVersion`/`scenariosGroup`/`scenariosName`/`scenarioStep`(e.g. v4/MasterSchedule/BellSchedules/01 - Check BellSchedule is valid).
+*Allowlist Params:* Add strict allowlist validation for `scenarioPath` against `certification-scenarios.json`; reject invalid input with `4xx` before command execution. Build the `scenarioPath` from the provided parameters `scenariosVersion`/`scenariosGroup`/`scenariosName`/`scenarioStep` (e.g. v4/MasterSchedule/BellSchedules/01 - Check BellSchedule is valid).
 
 *Configuration:* Update the `SIS/environments/<environment-name>.bru` file. Update the `baseURL` with `odsURL` using the [Bruno CLI setup options](https://docs.usebruno.com/bru-cli/commandOptions#setup-options).
 
-Using the `edfiClientId` and `edfiClientSecret` parameters, the api will update the `SIS/.env` file:
+Using the `edfiClientId` and `edfiClientSecret` parameters, the API will update the `SIS/.env` file:
 
 ``` txt
 EDFI_CLIENT_ID=<replace with edfiClientId parameter>
@@ -291,11 +512,11 @@ EDFI_CLIENT_SECRET=<replace with edfiClientSecret parameter>
 
 > __Alternative:__ Pass the environment variables directly to the Bruno CLI ([Passing Environment Variables](https://docs.usebruno.com/bru-cli/runCollection#passing-environment-variables))
 
-*Authentication:* Either by environment files or `--env-var` commands, the Certification Bruno solution is already prepared to authenticate and generate a new `token`, see [SIS collection](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/collection.bru) file as a reference. Once authenticated the `SIS collection` will cache the `token` generated, no need for token and credentials handling.
+*Authentication:* Either through environment files or `--env-var` commands, the Certification Bruno solution is already prepared to authenticate and generate a new `token` (see [SIS collection](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/blob/main/bruno/SIS/collection.bru)). Once authenticated, the `SIS collection` caches the generated `token`, so no additional token or credential handling is required.
 
-*Validation:* Map the desired certification scenarios configuration in a JSON file `certification-scenarios.json` with the schema defined in [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api).
+*Validation:* Map the desired certification scenarios configuration in `certification-scenarios.json` using the schema defined in [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api).
 
-Bruno CLI will return a report ([Generating Reports](https://docs.usebruno.com/bru-cli/builtInReporters#json-report)) with all assertions and tests statuses among the response data:
+Bruno CLI returns a report ([Generating Reports](https://docs.usebruno.com/bru-cli/builtInReporters#json-report)) with all assertion and test statuses in the response data:
 
 > __Important:__ Some commands like `--output` and `--format` are *DEPRECATED*  [Output & Reporting options](https://docs.usebruno.com/bru-cli/commandOptions#output-&-reporting-options)
 
@@ -353,12 +574,12 @@ Raw response:
     ✓ res.body[0].classPeriods[0].classPeriodReference.classPeriodName: isNotEmpty
 ```
 
-Simplified response: The Certification API will parse and format the Bruno CLI report in a JSON format that AdminAPP can handle:
+Simplified response: The Certification API parses and formats the Bruno CLI report in a JSON format that Admin App can handle:
 
 ```json
   {
     "scenarioStep": "01 - Check BellSchedule is valid",
-    "lastModifiedDate": "00272024-06-07T21:13:41.703707Z",
+    "lastModifiedDate": "2024-06-07T21:13:41.703707Z",
     "isValid": false,
     "successful": 15,
     "errors": 2,
@@ -379,97 +600,88 @@ Simplified response: The Certification API will parse and format the Bruno CLI r
 
 __Acceptance Criteria:__
 
-* AdminAPP will expose a new api for scenario validations.
-* AdminAPP will reject invalid `scenarioPath` inputs with a 4xx response before command execution.
-* AdminAPP rejects invalid `scenarioPath` and `env` inputs with a 4xx response before command execution.
-* AdminAPP rejects invalid `scenarioPath` and `env` inputs with a 4xx response before command execution.
-* AdminAPP generates a temporary `working` scenario with the replaced parameters.
-* AdminAPP executes the`working` scenario from the collection root (`bruno`).
-* AdminAPP records execution metadata (`artifactVersion`, `commitSha`, scenario, duration, exitCode) in logs for traceability.
-* AdminAPP cleans stale temporary work folders based on retention policy (after execution).
-* AdminAPP returns a structured API response with `scenarioName` and `TestsResults`.
+- Admin App will expose a new API for scenario validations.
+- Admin App will reject invalid `scenarioPath` inputs with a 4xx response before command execution.
+- Admin App will reject invalid `scenarioPath` and `env` inputs with a 4xx response before command execution.
+- Admin App will generate a temporary `working` scenario with the replaced parameters.
+- Admin App will execute the `working` scenario from the collection root (`bruno`).
+- Admin App will record execution metadata (`artifactVersion`, `commitSha`, scenario, duration, exitCode) in logs for traceability.
+- Admin App will clean stale temporary work folders based on retention policy (after execution).
+- Admin App will return a structured API response with `scenarioName` and `TestsResults`.
 
 __Dependencies:__
 
-* [ADMIN APP - API - Import Bruno artifacts](./CERT-220.md#admin-app---api---import-bruno-artifacts)
-* [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api)
+- [ADMIN APP - API - Import Bruno artifacts](./CERT-220.md#a6-story-detail---import-bruno-artifacts-admin-app-api)
+- [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api)
 
-___
-
-#### ADMIN APP - FE - Create Certification Module
+### A.9 Story Detail - FE Certification Module
 
 __Description:__
 
-As a user, once I properly configured the `Environment`, `ODS Instance`, `Ownership`, and select the correspoding `Team`, I want: 
+As a user, once I properly configure the `Environment`, `ODS Instance`, and `Ownership`, and select the corresponding `Team`, I want:
 
-* The frontend to display a new `Certification` option in the lateral menu.
-* When the user clicks on the `Certification` option, the frontend will display a new Page to start the certification process.
-* The frontend will display the list of certification scenarios defined in [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api)
+- The frontend to display a new `Certification` option in the lateral menu.
+- When the user clicks on the `Certification` option, the frontend will display a new page to start the certification process.
+- The frontend will display the list of certification scenarios defined in [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api)
 
 __Dependencies:__
 
-* [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api)
+- [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api)
 
-___
-
-#### ADMIN APP - FE - Create Certification Process Page
+### A.10 Story Detail - FE Certification Process Page
 
 __Description:__
 
-As a user, once I select a certification scenario, I want: 
+As a user, once I select a certification scenario, I want:
 
-* The frontend to display a new `Certification Process` page.
-* The frontend will ask the user to enter the required parameters dynamically according to the parameters in the [certification scenarios](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api) list.
-* When the enters the parameters and sends the request, the fronend must send the client credentials and required parameters.
-* The frontend must display the response from the api [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#admin-app---api---create-a-scenario-validator-service)
+- The frontend to display a new `Certification Process` page.
+- The frontend will ask the user to enter the required parameters dynamically according to the parameters in the [certification scenarios](./CERT-220.md#a7-story-detail---certification-scenarios-api) list.
+- When the user enters the parameters and sends the request, the frontend must send the client credentials and required parameters.
+- The frontend must display the response from the API [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#a8-story-detail---scenario-validator-service)
 
 __Dependencies:__
 
-* [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#admin-app---api---create-a-scenario-validator-service)
-* [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#admin-app---api---create-a-certification-scenarios-api)
+- [ADMIN APP - API - Scenario Validator Service](./CERT-220.md#a8-story-detail---scenario-validator-service)
+- [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api)
 
-___
+## Appendix B - POCs and Feasibility Notes
 
-## Impediments
+To overcome the blockers mentioned in the [Delivery Constraints, Risks, and Mitigations](./CERT-220.md#9-delivery-constraints-risks-and-mitigations) section, many POCs were conducted to confirm feasibility and integration between `Ed-Fi-AdminApp` and `certification-testing`. It was determined that the connection is viable in two ways: a Bruno Parser and a Bruno Integrator (recommended option).
 
-* Bruno scripts are static, it means it executes the scripts as they were defined, there is no way to set the requests parameters via Bruno CLI.
+### POC 1 (Bruno Parser)
 
-## Risks
+- Converts `.bru` scripts into executable JavaScript.
+- Pros: high customization and direct parameterization.
+- Cons: tighter coupling to upstream file structure.
 
-* Conecting two diferent repositories and impatible (by nature) repositories is a time demanding effort. For the sake of the Phase 1 many features taken out of scope but the team still has only 1.5 sprints to develop a high complexity feature, this feature will demand a full dedication from the team in charge.
+### POC 2 (Bruno Integrator, recommended)
 
-## Proof of concepts
+- Uses Bruno CLI with temporary working copies and parameter replacement.
+- Pros: lower implementation complexity and better upstream compatibility.
+- Cons: less direct execution control, CLI output handling complexity.
 
-To overcome the blockers mentioned in the [impediments](./CERT-220.md#impediments) section, many POCs were made to confirm feasibility and connection between `Ed-Fi-AdminApp` api and `certification-testing` bruno collection. It was determined the conection is viable in two ways, via a Bruno Parser and a Bruno Integrator (recommended option).
+### Related PRs
 
-### POC 1 - Bruno Parser
+For implementation details, review:
 
-This POC takes the Bruno collection `.bru` files and translates them into Javascript executable code, this ensures parameter injection and total customizable behavior.
+- [Bruno Parser: Ed-Fi-AdminApp](https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/pull/66)
+- [Bruno Integrator: Ed-Fi-AdminApp](https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/pull/68)
+- [Bruno Integrator: certification-testing](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/pull/111)
 
-| PROS | CONS |
-|---------|-------|----------------------------|------------------|
-| Customizable behavior | High dependency on `certification-testing` structure and versioning |
-| Easy parametrization | Minimal structure or version changes may produce breaking changes |
-| More control over execution | More implementation complexity |
-| Less high privileged executions (system commands) |  |
-| No adaptations in `certification-testing` required |  |
+## Appendix B - Certification 2026 sequence workflows
 
-__GitHub PR:__
+### Vendor Sequence diagram
 
-* https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/pull/66
+![Vendor Sequence diagram](./assets/certification-vendor-sequence.png "Vendor Sequence diagram")
 
-### POC 2 - Bruno Integrator (RECOMMENDED)
+### MSP Sequence diagram
 
-This POC still uses the `certification-testing` bruno collection as source of truth, but instead of translating the `.bru` files, it takes advantage of the Bruno CLI, for that, it creates a temporary copy of the bruno collection and replaces the parameters placeholders with the user provided ones in a `working` directory, then the Bruno CLI execute the configured scenario and parses the response.
+![MSP Sequence diagram](./assets/certification-msp-sequence.png "MSP Sequence diagram")
 
-| PROS | CONS |
-|---------|-------|----------------------------|------------------|
-| Scenarios execution is deletegated to the Bruno CLI | Less control over execution |
-| Dependencies are managed by `certification-testing` it self | The response is managed by Bruno CLI |
-| Structure or version updates does not generates breaking changes | Complex logic to format Bruno response |
-| Less implementation complexity | High privileged executions (system commands) |
+### Representative Sequence diagram
 
-__GitHub PRs:__
+![Representative Sequence diagram](./assets/certificatoin-rep-sequence.png "Representative Sequence diagram")
 
-* https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/pull/68
-* https://github.com/Ed-Fi-Alliance-OSS/certification-testing/pull/111
+### FULL Certification Sequence diagram
+
+![Full Certification Sequence diagram](./assets/certification-sequence-full.png "Full Certification Sequence diagram")
