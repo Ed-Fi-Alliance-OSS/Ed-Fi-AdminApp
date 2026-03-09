@@ -1,5 +1,49 @@
 # CERT-220 - Technical Brief for Certification Release 2.1 (Phase 1)
 
+- [1. Purpose](#1-purpose)
+- [2. Executive Summary](#2-executive-summary)
+- [3. Phase 1 Scope Boundaries](#3-phase-1-scope-boundaries)
+- [In Scope](#in-scope)
+- [Out of Scope (Deferred)](#out-of-scope-deferred)
+- [4. Architecture Overview](#4-architecture-overview)
+- [Source of truth](#source-of-truth)
+- [Runtime model](#runtime-model)
+- [5. Certification Lifecycle](#5-certification-lifecycle)
+- [6. Phase 1 Certification Workflow (Sequence Diagram)](#6-phase-1-certification-workflow-sequence-diagram)
+- [7. Comparison: Provided Sequences vs Phase 1 Scope](#7-comparison-provided-sequences-vs-phase-1-scope)
+- [8. Workstreams and Acceptance Criteria (Synthesized)](#8-workstreams-and-acceptance-criteria-synthesized)
+- [8.1 Certification - Export Bruno Artifacts](#81-certification---export-bruno-artifacts)
+- [8.2 Admin App API - Import Bruno Artifacts](#82-admin-app-api---import-bruno-artifacts)
+- [8.3 Admin App API - Certification Scenarios API](#83-admin-app-api---certification-scenarios-api)
+- [8.4 Admin App API - Scenario Validator Service](#84-admin-app-api---scenario-validator-service)
+- [8.5 Admin App FE - Certification Module](#85-admin-app-fe---certification-module)
+- [8.6 Admin App FE - Certification Process Page](#86-admin-app-fe---certification-process-page)
+- [9. Delivery Constraints, Risks, and Mitigations](#9-delivery-constraints-risks-and-mitigations)
+- [Constraints](#constraints)
+- [Key risks](#key-risks)
+- [Mitigations](#mitigations)
+- [10. Technical Decision Summary](#10-technical-decision-summary)
+- [Appendix A - Retained Story Details (Normalized)](#appendix-a---retained-story-details-normalized)
+- [A.1 Context](#a1-context)
+- [A.2 Repository Layouts](#a2-repository-layouts)
+- [A.3 Phase 1 Workflow Inputs Already Available](#a3-phase-1-workflow-inputs-already-available)
+- [A.4 Certification Workflow (Phase 1)](#a4-certification-workflow-phase-1)
+- [A.5 Story Detail - Export Bruno Artifacts](#a5-story-detail---export-bruno-artifacts)
+- [A.6 Story Detail - Import Bruno Artifacts (Admin App API)](#a6-story-detail---import-bruno-artifacts-admin-app-api)
+- [A.7 Story Detail - Certification Scenarios API](#a7-story-detail---certification-scenarios-api)
+- [A.8 Story Detail - Scenario Validator Service](#a8-story-detail---scenario-validator-service)
+- [A.9 Story Detail - FE Certification Module](#a9-story-detail---fe-certification-module)
+- [A.10 Story Detail - FE Certification Process Page](#a10-story-detail---fe-certification-process-page)
+- [Appendix B - POCs and Feasibility Notes](#appendix-b---pocs-and-feasibility-notes)
+- [POC 1 (Bruno Parser)](#poc-1-bruno-parser)
+- [POC 2 (Bruno Integrator, recommended)](#poc-2-bruno-integrator-recommended)
+- [Related PRs](#related-prs)
+- [Appendix C - Certification 2026 sequence workflows](#appendix-c---certification-2026-sequence-workflows)
+- [Vendor Sequence diagram](#vendor-sequence-diagram)
+- [MSP Sequence diagram](#msp-sequence-diagram)
+- [Representative Sequence diagram](#representative-sequence-diagram)
+- [FULL Certification Sequence diagram](#full-certification-sequence-diagram)
+
 ## 1. Purpose
 
 This document defines the technical scope and delivery plan for Certification Release 2.1 (Phase 1) in Admin App.
@@ -668,7 +712,7 @@ For implementation details, review:
 - [Bruno Integrator: Ed-Fi-AdminApp](https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/pull/68)
 - [Bruno Integrator: certification-testing](https://github.com/Ed-Fi-Alliance-OSS/certification-testing/pull/111)
 
-## Appendix B - Certification 2026 sequence workflows
+## Appendix C - Certification 2026 sequence workflows
 
 ### Vendor Sequence diagram
 
