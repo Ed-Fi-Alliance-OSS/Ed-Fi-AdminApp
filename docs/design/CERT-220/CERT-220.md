@@ -3,46 +3,16 @@
 - [1. Purpose](#1-purpose)
 - [2. Executive Summary](#2-executive-summary)
 - [3. Phase 1 Scope Boundaries](#3-phase-1-scope-boundaries)
-- [In Scope](#in-scope)
-- [Out of Scope (Deferred)](#out-of-scope-deferred)
 - [4. Architecture Overview](#4-architecture-overview)
-- [Source of truth](#source-of-truth)
-- [Runtime model](#runtime-model)
 - [5. Certification Lifecycle](#5-certification-lifecycle)
-- [6. Phase 1 Certification Workflow (Sequence Diagram)](#6-phase-1-certification-workflow-sequence-diagram)
-- [7. Comparison: Provided Sequences vs Phase 1 Scope](#7-comparison-provided-sequences-vs-phase-1-scope)
-- [8. Workstreams and Acceptance Criteria (Synthesized)](#8-workstreams-and-acceptance-criteria-synthesized)
-- [8.1 Certification - Export Bruno Artifacts](#81-certification---export-bruno-artifacts)
-- [8.2 Admin App API - Import Bruno Artifacts](#82-admin-app-api---import-bruno-artifacts)
-- [8.3 Admin App API - Certification Scenarios API](#83-admin-app-api---certification-scenarios-api)
-- [8.4 Admin App API - Scenario Validator Service](#84-admin-app-api---scenario-validator-service)
-- [8.5 Admin App FE - Certification Module](#85-admin-app-fe---certification-module)
-- [8.6 Admin App FE - Certification Process Page](#86-admin-app-fe---certification-process-page)
+- [6. Phase 1 Certification Workflow](#6-phase-1-certification-workflow)
+- [7. Comparison: Total Scope vs Phase 1 Scope](#7-comparison-total-scope-vs-phase-1-scope)
+- [8. Work Items and Acceptance Criteria](#8-work-items-and-acceptance-criteria)
 - [9. Delivery Constraints, Risks, and Mitigations](#9-delivery-constraints-risks-and-mitigations)
-- [Constraints](#constraints)
-- [Key risks](#key-risks)
-- [Mitigations](#mitigations)
 - [10. Technical Decision Summary](#10-technical-decision-summary)
-- [Appendix A - Retained Story Details (Normalized)](#appendix-a---retained-story-details-normalized)
-- [A.1 Context](#a1-context)
-- [A.2 Repository Layouts](#a2-repository-layouts)
-- [A.3 Phase 1 Workflow Inputs Already Available](#a3-phase-1-workflow-inputs-already-available)
-- [A.4 Certification Workflow (Phase 1)](#a4-certification-workflow-phase-1)
-- [A.5 Story Detail - Export Bruno Artifacts](#a5-story-detail---export-bruno-artifacts)
-- [A.6 Story Detail - Import Bruno Artifacts (Admin App API)](#a6-story-detail---import-bruno-artifacts-admin-app-api)
-- [A.7 Story Detail - Certification Scenarios API](#a7-story-detail---certification-scenarios-api)
-- [A.8 Story Detail - Scenario Validator Service](#a8-story-detail---scenario-validator-service)
-- [A.9 Story Detail - FE Certification Module](#a9-story-detail---fe-certification-module)
-- [A.10 Story Detail - FE Certification Process Page](#a10-story-detail---fe-certification-process-page)
+- [Appendix A - Retained Story Details](#appendix-a---retained-story-details)
 - [Appendix B - POCs and Feasibility Notes](#appendix-b---pocs-and-feasibility-notes)
-- [POC 1 (Bruno Parser)](#poc-1-bruno-parser)
-- [POC 2 (Bruno Integrator, recommended)](#poc-2-bruno-integrator-recommended)
-- [Related PRs](#related-prs)
 - [Appendix C - Certification 2026 sequence workflows](#appendix-c---certification-2026-sequence-workflows)
-- [Vendor Sequence diagram](#vendor-sequence-diagram)
-- [MSP Sequence diagram](#msp-sequence-diagram)
-- [Representative Sequence diagram](#representative-sequence-diagram)
-- [FULL Certification Sequence diagram](#full-certification-sequence-diagram)
 
 ## 1. Purpose
 
@@ -179,7 +149,7 @@ flowchart TD
 
 </details>
 
-## 6. Phase 1 Certification Workflow (Sequence Diagram)
+## 6. Phase 1 Certification Workflow
 
 [![Phase 1 Certification Workflow (Sequence Diagram)](https://mermaid.ink/img/pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k?type=png)](https://mermaid.live/edit#pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k)
 
@@ -226,7 +196,7 @@ sequenceDiagram
 
 </details>
 
-## 7. Comparison: Provided Sequences vs Phase 1 Scope
+## 7. Comparison: Total Scope vs Phase 1 Scope
 
 | Capability / Step | Provided Diagrams (Target State) | Phase 1 (This Brief) | Scope Status |
 | --- | --- | --- | --- |
@@ -245,7 +215,7 @@ __Summary:__
 - Phase 1 intentionally focuses on the basic execution loop: select scenario, provide parameters, run validation, return structured results.
 - Platform-level orchestration and registry workflows are deferred to future phases.
 
-## 8. Workstreams and Acceptance Criteria (Synthesized)
+## 8. Work Items and Acceptance Criteria
 
 ### 8.1 Certification - Export Bruno Artifacts
 
@@ -353,7 +323,7 @@ Rationale:
 - Better compatibility with upstream scenario changes.
 - Aligns with reduced-scope objective while preserving future extensibility.
 
-## Appendix A - Retained Story Details (Normalized)
+## Appendix A - Retained Story Details
 
 ### A.1 Context
 
