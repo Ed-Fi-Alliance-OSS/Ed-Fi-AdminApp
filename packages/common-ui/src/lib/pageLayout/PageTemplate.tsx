@@ -95,7 +95,7 @@ export const PageTemplate = (props: {
       <ErrorBoundary
         onReset={reset}
         FallbackComponent={(arg) => {
-          const error = standardizeError(arg.error);
+          const error = standardizeError(arg.error as Error);
           return (
             <Box mr="1px">
               <Alert status="error">
