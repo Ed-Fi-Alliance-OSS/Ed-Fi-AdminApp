@@ -230,6 +230,8 @@ Acceptance criteria:
 - Artifact contract is documented (URL pattern, auth model, version format).
 - Consumer validation proves Admin App can download and extract by contract only.
 
+User Story: [CERT-222](https://edfi.atlassian.net/browse/CERT-222)
+
 ### 8.2 Admin App API - Import Bruno Artifacts
 
 Objective: Replace local sibling-repo copy model with pinned artifact download and verification.
@@ -241,6 +243,8 @@ Acceptance criteria:
 - Artifact is extracted and dependencies are installed via lockfile (`npm ci` preferred).
 - Imported `SIS` collection can run from Bruno CLI with environment inputs.
 
+User Story: [AC-462](https://edfi.atlassian.net/browse/AC-462)
+
 ### 8.3 Admin App API - Certification Scenarios API
 
 Objective: Expose scenario catalog used by frontend selection UI.
@@ -250,6 +254,8 @@ Acceptance criteria:
 - Endpoint exposed at `/api/certification/scenarios`.
 - Endpoint returns configured allowlisted scenarios from `certification-scenarios.json`.
 - No pagination or filtering in Phase 1.
+
+User Story: [AC-463](https://edfi.atlassian.net/browse/AC-463)
 
 ### 8.4 Admin App API - Scenario Validator Service
 
@@ -266,6 +272,8 @@ Acceptance criteria:
 - Clean stale temporary work folders based on retention policy.
 - Return structured response with scenario name and test results.
 
+User Story: [AC-466](https://edfi.atlassian.net/browse/AC-466)
+
 ### 8.5 Admin App FE - Certification Module
 
 Objective: Add UI entry point and list view for certification scenarios.
@@ -275,6 +283,8 @@ Acceptance criteria:
 - Add `Certification` option in left navigation.
 - Show a dedicated Certification page.
 - Display scenarios returned by `/api/certification/scenarios`.
+
+User Story: [AC-467](https://edfi.atlassian.net/browse/AC-467)
 
 ### 8.6 Admin App FE - Certification Process Page
 
@@ -286,6 +296,8 @@ Acceptance criteria:
 - Dynamically render parameter fields from scenario configuration.
 - Send credentials plus required parameters to validation endpoint.
 - Display structured validation response from API.
+
+User Story: [AC-465](https://edfi.atlassian.net/browse/AC-465)
 
 ## 9. Delivery Constraints, Risks, and Mitigations
 
