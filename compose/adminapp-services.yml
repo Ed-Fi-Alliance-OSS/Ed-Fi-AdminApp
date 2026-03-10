@@ -107,7 +107,7 @@ services:
       start_period: 40s
 
   memcached:
-    image: memcached
+    image: memcached:1.6@sha256:d99136ed4c1cf2e3fceb498763f2b7fedec7c486a0fe8a57be19f2a0519ce1fa
     restart: always
     networks:
       - edfiadminapp-network
