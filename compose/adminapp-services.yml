@@ -107,13 +107,13 @@ services:
       start_period: 40s
 
   memcached:
-    image: memcached
+    image: memcached:1.6@sha256:d99136ed4c1cf2e3fceb498763f2b7fedec7c486a0fe8a57be19f2a0519ce1fa
     restart: always
     networks:
       - edfiadminapp-network
 
   yopass:
-    image: jhaals/yopass
+    image: jhaals/yopass:12.5.0@sha256:916a1cf45d3665dd7e6a1a2157c7b81a06bfebd87947ace731bca0145418c5b5
     restart: always
     container_name: edfiadminapp-yopass
     ports:
@@ -161,6 +161,8 @@ services:
     build:
       context: ../
       dockerfile: packages/fe/Dockerfile
+    args:
+      VITE_BASE_PATH: ${VITE_BASE_PATH:-/adminapp/}
     environment:
         # Change this to use the nginx proxy URL
         VITE_API_URL: ${VITE_API_URL:-https://localhost/adminapp-api}
