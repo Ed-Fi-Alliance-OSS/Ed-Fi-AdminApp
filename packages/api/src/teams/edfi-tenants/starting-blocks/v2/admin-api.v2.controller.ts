@@ -535,7 +535,7 @@ export class AdminApiControllerV2 {
           sbEnvironmentId: sbEnvironment.id,
         });
       }
-      if (config.USE_YOPASS) {
+      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -637,7 +637,7 @@ export class AdminApiControllerV2 {
         applicationId
       );
 
-      if (config.USE_YOPASS) {
+      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
