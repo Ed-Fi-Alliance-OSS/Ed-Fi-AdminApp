@@ -28,11 +28,12 @@ Certification currently depends on manual execution and review of Bruno collecti
 
 Phase 1 modernizes this by integrating Bruno execution into Admin App with a simple user flow:
 
-1. User selects a certification scenario step.
-2. User provides environment and credential inputs.
-3. Admin App validates inputs and allowlisted scenario path.
-4. Admin App runs Bruno for that scenario step.
-5. Admin App returns structured validation results to the UI.
+1. User selects the environment.
+2. User provides credentials.
+3. User selects a certification scenario step.
+4. Admin App validates inputs and allowlisted scenario path.
+5. Admin App runs Bruno for that scenario step.
+6. Admin App returns structured validation results to the UI.
 
 This phase is intentionally reduced to fit a `2-sprint` window and validate core workflow viability.
 
@@ -72,17 +73,6 @@ This phase is intentionally reduced to fit a `2-sprint` window and validate core
 - Admin App installs runtime dependencies from lockfile (`npm ci` preferred).
 - On validation request, Admin App creates a temporary working scenario, runs Bruno CLI, parses JSON report, and returns a simplified response.
 
-[![Architecture Overview](https://mermaid.ink/img/pako:eNp1U9tu2zAM_RVBTxuQFE48x7ExDMhywVKsbRAHHVB7D4rNJMJsSdBlbZfk30c5F6wD-mBIPCQPyUNrT0tZAU3pppbP5Y5pS74vC0GIceutZmpHRlXDxUipfFp1Z_xkErR_-ihCZtN8pqWwICqyBFbaMz5azHP8yD0Ye5udwdXdIv-wgkZJzfQr-aqdkGTphOUNkB9S_zKKlfCxjUbCQrztRFu-wQqZdLqE_GKSCTdW87WzXIpL9eUqfwRtEIHqXOdpvniHeAzaLkHJvATPyUvmqboWW-die6bMluM8m2eklHUNpQ8gptRcWfMO6yNCUueng0zFb446NSAuCj1MsosTr16wt0SzKfnc7X45fFutFtnB-z2KbRCPjudEuXXNze7gp_UuL7d3VfJZ1JJVRHHhx9ew-T_Gb8KbeLQpa-0IikQMzlsDMRbUwXf1b8xt9nCPXLg7e-3mUhIX4ErrdFvNuBojZlPaoVvNK5puWG2gQxvQDfM23fvcgtodNFDQFK8biXm2oIU4Yppi4knKhqZIi4lauu3uSuNUxSxMOEOZmyuqUTfQY4k_E037UdiS0HRPX2gaDW4G8TCMguEwCYdhEnXoK017_fgm6CeDJEr6SRAnUf_YoX_assFNPIyDXhgHSfQp6oURZkDFrdR3p9fSPprjX1d5DvU?type=png)](https://mermaid.live/edit#pako:eNp1U9tu2zAM_RVBTxuQFE48x7ExDMhywVKsbRAHHVB7D4rNJMJsSdBlbZfk30c5F6wD-mBIPCQPyUNrT0tZAU3pppbP5Y5pS74vC0GIceutZmpHRlXDxUipfFp1Z_xkErR_-ihCZtN8pqWwICqyBFbaMz5azHP8yD0Ye5udwdXdIv-wgkZJzfQr-aqdkGTphOUNkB9S_zKKlfCxjUbCQrztRFu-wQqZdLqE_GKSCTdW87WzXIpL9eUqfwRtEIHqXOdpvniHeAzaLkHJvATPyUvmqboWW-die6bMluM8m2eklHUNpQ8gptRcWfMO6yNCUueng0zFb446NSAuCj1MsosTr16wt0SzKfnc7X45fFutFtnB-z2KbRCPjudEuXXNze7gp_UuL7d3VfJZ1JJVRHHhx9ew-T_Gb8KbeLQpa-0IikQMzlsDMRbUwXf1b8xt9nCPXLg7e-3mUhIX4ErrdFvNuBojZlPaoVvNK5puWG2gQxvQDfM23fvcgtodNFDQFK8biXm2oIU4Yppi4knKhqZIi4lauu3uSuNUxSxMOEOZmyuqUTfQY4k_E037UdiS0HRPX2gaDW4G8TCMguEwCYdhEnXoK017_fgm6CeDJEr6SRAnUf_YoX_assFNPIyDXhgHSfQp6oURZkDFrdR3p9fSPprjX1d5DvU)
-
-__Description:__
-
-- `certification-testing` publishes artifacts; Admin App consumes artifacts.
-- Admin App owns orchestration, validation, and response shaping.
-- Vendor ODS remains external and is tested through Bruno CLI.
-
-<details>
- <summary>Show graph details</summary>
-
 ```mermaid
 flowchart LR
   subgraph AdminApp[Ed-Fi Admin App]
@@ -112,11 +102,34 @@ flowchart LR
   API -->|structured result| FE
 ```
 
-</details>
+__Description:__
+
+- `certification-testing` publishes artifacts; Admin App consumes artifacts.
+- Admin App owns orchestration, validation, and response shaping.
+- Vendor ODS remains external and is tested through Bruno CLI.
 
 ## 5. Certification Lifecycle
 
-[![Certification Lifecycle](https://mermaid.ink/img/pako:eNptVMtu2zAQ_JUFz04g18_oUCC283DeSJOirZwDS61l1hIpkFRiN86_d7VSDB96EShyZnd2huC7UDZFEYtlbt_USroAT7OFAThNnj068DozHrQBaVLwmKMKHp5QFrzxhEaa8AJHR19hktyXaGCKLuilVjJoa6CwaZXjS11wwqhpcvowB4ehclRX5tQ11z4gFVdUzGkLRJW5zZg0ZdKs1dK23yOJVzJsxrCzFlb9LjTBbOqfH29AOUzRBC1zz5pL6WSBAZ1n6hlTz1nWq8x1KgMeCGsp29zKlPHnNX6nDWN38DN55Fmgv9l88uvB0TnrDggt_CJ5cEgKEAIWpXXSbcFVpK5AeLNu7UupGrsuWNdlMrNvpm4OpTaGbJoQ3IKsTZYqMPSSofPkOzq93IJaoVr7quCzOXcvtC9kUKsd_EgmuVVrwA2qipXWA5Ld5K6qnA7bA-kN2a53cJWcbYKjhvvOzNPGU1Y5pEjRk8tKY-PqFUu6TubmD0UGaF7JHNcEsI9vn0RtXNUyr5l5kzxWpp3Va5Pl-J_Ubxh6mzxQZYSrb_d3dLHI1MaVWz69-8zHB1cpWpGFBzE59KU1vrH8jhn3yfMcUu3LXG49afQellLnLJ2tgawiuqGcREdkTqciXtLlwo4o0BWy_hfvdb2FCCsscCFiWi4t9QoLsTAfRCul-WVtIWJSRURnq2y1L1OV9SWcaZmRP_tdVzvsppZui4h7gxEXEfG72Ih4EB0Pe1F0EnXHg6g3HtLhVsRHvWh4PBh-iaLBaNSnT_ejI_5y2-5xjRqf9PvdbjQeRb1hR2Cqg3W3zXPAr8LHP9YNYqQ?type=png)](https://mermaid.live/edit#pako:eNptVMtu2zAQ_JUFz04g18_oUCC283DeSJOirZwDS61l1hIpkFRiN86_d7VSDB96EShyZnd2huC7UDZFEYtlbt_USroAT7OFAThNnj068DozHrQBaVLwmKMKHp5QFrzxhEaa8AJHR19hktyXaGCKLuilVjJoa6CwaZXjS11wwqhpcvowB4ehclRX5tQ11z4gFVdUzGkLRJW5zZg0ZdKs1dK23yOJVzJsxrCzFlb9LjTBbOqfH29AOUzRBC1zz5pL6WSBAZ1n6hlTz1nWq8x1KgMeCGsp29zKlPHnNX6nDWN38DN55Fmgv9l88uvB0TnrDggt_CJ5cEgKEAIWpXXSbcFVpK5AeLNu7UupGrsuWNdlMrNvpm4OpTaGbJoQ3IKsTZYqMPSSofPkOzq93IJaoVr7quCzOXcvtC9kUKsd_EgmuVVrwA2qipXWA5Ld5K6qnA7bA-kN2a53cJWcbYKjhvvOzNPGU1Y5pEjRk8tKY-PqFUu6TubmD0UGaF7JHNcEsI9vn0RtXNUyr5l5kzxWpp3Va5Pl-J_Ubxh6mzxQZYSrb_d3dLHI1MaVWz69-8zHB1cpWpGFBzE59KU1vrH8jhn3yfMcUu3LXG49afQellLnLJ2tgawiuqGcREdkTqciXtLlwo4o0BWy_hfvdb2FCCsscCFiWi4t9QoLsTAfRCul-WVtIWJSRURnq2y1L1OV9SWcaZmRP_tdVzvsppZui4h7gxEXEfG72Ih4EB0Pe1F0EnXHg6g3HtLhVsRHvWh4PBh-iaLBaNSnT_ejI_5y2-5xjRqf9PvdbjQeRb1hR2Cqg3W3zXPAr8LHP9YNYqQ)
+```mermaid
+flowchart TD
+  A[App startup] --> B[Prepare runtime workspace]
+  B --> C[Download pinned Bruno artifact and Verify checksum]
+  C -->|mismatch| D[Block execution and log security error]
+  C -->|ok| E[Extract artifact and install dependencies]
+
+  E --> F[User signs in and selects Environment] 
+  F --> G[Open Certification module]
+  G --> H[API returns allowlisted scenario catalog]
+  H --> I{{User submit credentials, scenario, and parameters}}
+  I --> |valid| K[Inject env vars and scenario parameter values]
+  I -->|invalid| J[Return 4xx validation error]
+  J -->|error| G
+  
+  K --> L[Run Bruno single scenario step]
+  L -->|raw response| M[Parse JSON report]
+  M --> N[Return structured validation response]
+  N -->|formated response| G
+```
 
 __Description:__
 
@@ -124,43 +137,7 @@ __Description:__
 - Execution is limited to one scenario step at a time to keep behavior deterministic.
 - Output is translated into a UI-friendly structure for vendor self-service.
 
-<details>
- <summary>Show graph details</summary>
-
-```mermaid
-flowchart TD
-  A[User signs in and selects Team and Tenant] --> B[Open Certification module]
-  B --> C[API returns allowlisted scenario catalog]
-  C --> D[User selects scenario step]
-  D --> E[User submits odsURL credentials and parameters]
-  E --> F[API validates allowlist and payload]
-  F -->|invalid| Y[Return 4xx validation error]
-  F -->|valid| G[Prepare temporary runtime workspace]
-  G --> H[Download pinned Bruno artifact]
-  H --> I[Verify checksum]
-  I -->|mismatch| X[Block execution and log security error]
-  I -->|ok| J[Extract artifact and install dependencies]
-  J --> K[Inject env vars and scenario parameter values]
-  K --> L[Run Bruno single scenario step]
-  L --> M[Parse JSON report]
-  M --> N[Return structured validation response]
-  N --> O[UI displays pass fail and error guidance]
-```
-
-</details>
-
 ## 6. Phase 1 Certification Workflow
-
-[![Phase 1 Certification Workflow (Sequence Diagram)](https://mermaid.ink/img/pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k?type=png)](https://mermaid.live/edit#pako:eNptVNtuGjEQ_ZWRn1oJSIEFwj4g5UKqVGlAIclDxYuzO4CVXdv1hUuj_HvHZiFA8mbPnjNzZuas31imcmQps_jXo8zwWvC54eVUAnDvlPTlC5p4y5wy8GTRALfwjDKvruGj5saJTGguHdwMA-AiL4WEC63pfoq4GN8eQyhwinnw0okSA-7SeKn2gW8OSw0rZV6t5hl-PyWOricHAsMtZg-woLY-GNwMUxhplHCFRJuJjDuhJHCZg8UCMwc2Q8mNUGAd6sC8GRKP8qTwc_gIZ1yLs-yQfLZj2IAmYL2qM9llKoR1n1RM_EspHKjcPj3cQWYwR2qSFzaKoa54iQ6NPZYwHk2-1LDkhci5w52ECv5chYEXhVoFHTG7CQuns-abQvF8q40XDm5lTLQfwpi7BdAoUS6B8vCAO-oxWa8BjSHIShC0khFGmqPjoojysbC4lbKr_JFnMKiWm8K1WskgB7SQEnMIi52R9aLkJRox20C2wOzV-vLLBGODNDeERpBLkup1OtSX3ARdVPZL0qUXRQ7BWMpws4nuEnL-4YPY2PE-YOdISkQuS2G4xszTmI_MA0vBKwNf3d1ueYSuH1YPv4NBq5WkEVXrOCmx2-U206_J6J4YJJbEgPJO-6NpRuij4dLOlCnBkRRR6oKcgqFLWjqV84Wz-7Kfdrpr4p46Bl14e8yLkbjzSii5k5jB2rRDYXXBN4dGII2ZCn8zbXHuKUovTXSFzFmNzY3IWToj32ONlWhKHu7sLSCmzC2wxClL6UjtBOOwqXwnGv3uf5QqWeqMJ6JRfr7Yp_E6eL56zfZRQwXRXCkaK0v7zfOYhKVvbM3SVtJodZJ-v3OetFvNbqub1NiGpb1GN2n2e81ut9Xu9Cj6XmP_YtkfjX7SayUd-thvtptJu1NjmAt6Jn9v39T4tL7_B3hSz-k)
-
-__Description:__
-
-- The API is the control point for validation and safety.
-- Bruno runtime is temporary and scoped to execution.
-- User sees structured results, not raw CLI logs.
-
-<details>
- <summary>Show graph details</summary>
 
 ```mermaid
 sequenceDiagram
@@ -170,7 +147,9 @@ sequenceDiagram
   participant API as Admin App API
   participant Runtime as Bruno Runtime (temp workspace)
   participant ODS as Vendor ODS API
-
+  
+  API->>Runtime: Download pinned artifact and verify checksum
+  
   User->>FE: Open Certification and select scenario step
   FE->>API: GET /api/certification/scenarios
   API-->>FE: Scenario list
@@ -182,7 +161,6 @@ sequenceDiagram
   alt Invalid scenarioPath or env data
     API-->>FE: 4xx error with validation details
   else Valid request
-    API->>Runtime: Download pinned artifact and verify checksum
     API->>Runtime: Prepare .env or --env-var values
     API->>Runtime: Build temporary working scenario with parameters
     Runtime->>ODS: Execute scenario step via Bruno CLI
@@ -194,7 +172,12 @@ sequenceDiagram
   end
 ```
 
-</details>
+__Description:__
+
+- The API is the control point for validation and safety.
+- Bruno runtime is temporary and scoped to execution.
+- User sees structured results, not raw CLI logs.
+
 
 ## 7. Comparison: Total Scope vs Phase 1 Scope
 
@@ -278,9 +261,15 @@ User Story: [AC-466](https://edfi.atlassian.net/browse/AC-466)
 
 Objective: Add UI entry point and list view for certification scenarios.
 
+Certification Menu:
+![Certification Menu](./assets/certification-menu.png)
+
+Certification Menu:
+![Certification Menu](./assets/certification-scenario-selector.png)
+
 Acceptance criteria:
 
-- Add `Certification` option in left navigation.
+- Add `Certification` option in the selected `Environment` menu.
 - Show a dedicated Certification page.
 - Display scenarios returned by `/api/certification/scenarios`.
 
@@ -288,7 +277,7 @@ User Story: [AC-467](https://edfi.atlassian.net/browse/AC-467)
 
 ### 8.6 Admin App FE - Certification Process Page
 
-Objective: Let users execute a selected scenario with dynamic inputs and view results.
+Objective: Let users execute a selected scenario with dynamic parameter inputs and view results.
 
 Acceptance criteria:
 
@@ -361,14 +350,16 @@ Admin App extension points:
 
 - User logs into Admin App.
 - User creates Environment and ODS Instance settings.
-- User grants ownership to corresponding Team.
-- User selects Team and tenant (when multitenant).
+- User selects Environment.
 
 ### A.4 Certification Workflow (Phase 1)
 
 - On startup, Admin App creates a temporary local copy from published artifact.
 - User opens Certification feature.
-- User selects scenario and provides parameters.
+- User enters credentials.
+- User selects scenario.
+- Admin App displays scenario details (parameters).
+- User provides parameters and submit for validation.
 - Admin App updates a temporary working scenario.
 - Admin App executes Bruno request(s).
 - Admin App returns a simplified response based on results and validation errors.
@@ -644,9 +635,9 @@ __Dependencies:__
 
 __Description:__
 
-As a user, once I properly configure the `Environment`, `ODS Instance`, and `Ownership`, and select the corresponding `Team`, I want:
+As a user, once I properly configure the `Environment`, `ODS Instance`, and `Ownership`, and select the corresponding `Environment`, I want:
 
-- The frontend to display a new `Certification` option in the lateral menu.
+- The frontend to display a new `Certification` option in the `Environment` menu.
 - When the user clicks on the `Certification` option, the frontend will display a new page to start the certification process.
 - The frontend will display the list of certification scenarios defined in [ADMIN APP - API - Create a Certification Scenarios API](./CERT-220.md#a7-story-detail---certification-scenarios-api)
 
