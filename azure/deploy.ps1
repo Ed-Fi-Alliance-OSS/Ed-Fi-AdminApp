@@ -159,6 +159,7 @@ $Shares = @(
 foreach ($share in $Shares) {
     az storage share-rm create `
         --storage-account $StorageAccount `
+        --resource-group $ResourceGroup `
         --name $share `
         --quota 5 `
         --output none
