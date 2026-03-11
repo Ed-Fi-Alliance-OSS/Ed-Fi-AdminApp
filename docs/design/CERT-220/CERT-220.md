@@ -264,8 +264,8 @@ Objective: Add UI entry point and list view for certification scenarios.
 Certification Menu:
 ![Certification Menu](./assets/certification-menu.png)
 
-Certification Menu:
-![Certification Menu](./assets/certification-scenario-selector.png)
+Certification Page with scenario list:
+![Certification Scenario List](./assets/certification-scenario-selector.png)
 
 Acceptance criteria:
 
@@ -278,6 +278,9 @@ User Story: [AC-467](https://edfi.atlassian.net/browse/AC-467)
 ### 8.6 Admin App FE - Certification Process Page
 
 Objective: Let users execute a selected scenario with dynamic parameter inputs and view results.
+
+Certification Page with scenario list:
+![Certification Scenario Validator](./assets/certification-scenario-validator.JPG)
 
 Acceptance criteria:
 
