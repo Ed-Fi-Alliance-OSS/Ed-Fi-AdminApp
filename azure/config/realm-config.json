@@ -1,0 +1,47 @@
+{
+  "realm": "edfi",
+  "enabled": true,
+  "clients": [
+    {
+      "clientId": "edfiadminapp",
+      "name": "Ed-Fi Admin App",
+      "enabled": true,
+      "rootUrl": "{{BASE_URL}}/adminapp",
+      "adminUrl": "{{BASE_URL}}/adminapp",
+      "baseUrl": "{{BASE_URL}}/adminapp",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "{{KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}}",
+      "redirectUris": [
+        "{{BASE_URL}}/adminapp/*",
+        "{{BASE_URL}}/adminapp/auth/callback",
+        "{{BASE_URL}}/adminapp-api/api/auth/callback/1",
+        "{{BASE_URL}}/adminapp-api/api/auth/post-logout"
+      ],
+      "webOrigins": [
+        "{{BASE_URL}}"
+      ],
+      "protocol": "openid-connect"
+    },
+    {
+      "clientId": "edfiadminapp-dev",
+      "name": "Ed-Fi Admin App Dev",
+      "enabled": true,
+      "rootUrl": "{{BASE_URL_DEV}}/",
+      "adminUrl": "{{BASE_URL_DEV}}/",
+      "baseUrl": "{{BASE_URL_DEV}}/",
+      "clientAuthenticatorType": "client-secret",
+      "secret": "{{KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}}",
+      "redirectUris": [
+        "{{BASE_URL_DEV}}/*",
+        "{{BASE_URL_DEV}}/auth/callback",
+        "{{BASE_URL_DEV}}/api/auth/callback/1",
+        "{{BASE_URL_DEV}}/api/auth/callback/2",
+        "{{BASE_URL_DEV}}/api/auth/post-logout"
+      ],
+      "webOrigins": [
+        "{{BASE_URL_DEV}}"
+      ],
+      "protocol": "openid-connect"
+    }
+  ]
+}
