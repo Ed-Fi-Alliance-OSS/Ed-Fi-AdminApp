@@ -114,6 +114,21 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
+        ...(true
+          ? {
+              RequestCertification: {
+                isDisabled: false,
+                icon: Icons.Application,
+                text: 'Request certification',
+                title: 'Request certification for ' + application.applicationName,
+                to: `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${application.id}/request-certification`,
+                onClick: () =>
+                  navigate(
+                    `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${application.id}/request-certification`
+                  ),
+              },
+            }
+          : undefined),
         ...(canReset
           ? {
               Reset: {
