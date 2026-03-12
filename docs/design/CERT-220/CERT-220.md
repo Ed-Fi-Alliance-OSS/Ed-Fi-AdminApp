@@ -280,7 +280,7 @@ User Story: [AC-467](https://edfi.atlassian.net/browse/AC-467)
 Objective: Let users execute a selected scenario with dynamic parameter inputs and view results.
 
 Certification Page with scenario list:
-![Certification Scenario Validator](./assets/certification-scenario-validator.JPG)
+![Certification Scenario Validator](./assets/certification-scenario-validator.png)
 
 Acceptance criteria:
 
