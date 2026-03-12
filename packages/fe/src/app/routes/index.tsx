@@ -32,6 +32,7 @@ import {
   claimsetsIndexRoute,
   claimsetsRoute,
 } from './claimset.routes';
+import { requestCertificationIndexRoute, requestCertificationRoute } from './certification.routes';
 import {
   edfiTenantCreateRoute,
   edfiTenantIndexRoute,
@@ -147,6 +148,7 @@ import { LandingLayoutRouteElement } from '../Layout/LandingLayout';
 export * from './account.routes';
 export * from './application.routes';
 export * from './claimset.routes';
+export * from './certification.routes';
 export * from './edorg.routes';
 export * from './ods.routes';
 export * from './ownership.routes';
@@ -341,6 +343,8 @@ export const authenticatedRoutes: RouteObject = {
     apiClientIndexRoute,
     apiClientsIndexRoute,
     apiClientsRoute,
+    requestCertificationRoute,
+    requestCertificationIndexRoute,
     
     vendorsRoute,
     vendorsIndexRoute,

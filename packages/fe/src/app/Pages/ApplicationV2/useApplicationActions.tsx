@@ -129,19 +129,28 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
-        ...{
-              Manage: {
-                isDisabled: false,
-                icon: Icons.Application,
-                text: 'Manage creds',
-                title: 'Manage credentials for ' + application.applicationName,
-                to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`,
-                onClick: () =>
-                  navigate(
-                    `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`
-                  ),
-              },
-            },
+        RequestCertification: {
+          isDisabled: false,
+          icon: Icons.Application,
+          text: 'Request certification',
+          title: 'Request certification for ' + application.applicationName,
+          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/request-certification`,
+          onClick: () =>
+            navigate(
+              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/request-certification`
+            ),
+        },
+        Manage: {
+          isDisabled: false,
+          icon: Icons.Application,
+          text: 'Manage creds',
+          title: 'Manage credentials for ' + application.applicationName,
+          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`,
+          onClick: () =>
+            navigate(
+              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`
+            ),
+        },
         ...(canEdit
           ? {
               Edit: {
