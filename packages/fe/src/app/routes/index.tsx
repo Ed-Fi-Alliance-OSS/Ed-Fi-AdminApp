@@ -32,7 +32,7 @@ import {
   claimsetsIndexRoute,
   claimsetsRoute,
 } from './claimset.routes';
-import { requestCertificationIndexRoute, requestCertificationRoute } from './certification.routes';
+import { sbEnvironmentGlobalCertRoute } from './certification.routes';
 import {
   edfiTenantCreateRoute,
   edfiTenantIndexRoute,
@@ -343,8 +343,7 @@ export const authenticatedRoutes: RouteObject = {
     apiClientIndexRoute,
     apiClientsIndexRoute,
     apiClientsRoute,
-    requestCertificationRoute,
-    requestCertificationIndexRoute,
+    sbEnvironmentGlobalCertRoute,
     
     vendorsRoute,
     vendorsIndexRoute,
