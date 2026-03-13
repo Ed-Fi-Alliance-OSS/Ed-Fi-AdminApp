@@ -66,6 +66,18 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
+        ...(true
+        ? {
+            RequestCert: {
+              icon: Icons.Data,
+              text: 'Request certification',
+              title: 'Request certification for ' + sbEnvironment.displayName,
+              to: `/sb-environments/${sbEnvironment.id}/request-certification`,
+              onClick: () =>
+                navigate(`/sb-environments/${sbEnvironment.id}/request-certification`),
+            },
+          }
+        : {}),
         ...(canUpdate && sbEnvironment.startingBlocks
           ? {
               EditSbMeta: {

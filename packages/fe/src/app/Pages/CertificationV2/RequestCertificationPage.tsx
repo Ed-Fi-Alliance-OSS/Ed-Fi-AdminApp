@@ -1,27 +1,18 @@
-import { Button, ButtonGroup, FormControl, FormLabel, Select } from '@chakra-ui/react';
-import { PageTemplate } from '@edanalytics/common-ui';
-import { useQuery } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
-import { useNavigate, useParams } from 'react-router-dom';
-import { apiClientQueriesV2 } from '../../api';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import certificationScenarios from './certification-scenarios.json';
 
-const dataStandardOptions = ['v5'];
+import { Button, ButtonGroup, FormControl, FormLabel, Input, Select } from '@chakra-ui/react';
+import { PageTemplate } from '@edanalytics/common-ui';
+import { useMemo, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import certificationScenarios from './certification-scenarios.json';
+import { useNavToParent } from '../../helpers';
+
+const dataStandardOptions = ['v4'];
 
 type CertificationScenario = {
   scenariosGroup?: string;
   scenariosName?: string;
   scenarioStep?: string;
 };
-
-type ApiClientOption = {
-  id?: number;
-  name?: string;
-};
-
-const hasName = (item: ApiClientOption): item is ApiClientOption & { name: string } =>
-  Boolean(item.name?.trim());
 
 const getUniqueOptions = (values: Array<string | undefined>) =>
   Array.from(new Set(values.filter((value): value is string => Boolean(value?.trim())))).sort((a, b) =>
@@ -33,34 +24,12 @@ const areaOrGroupOptions = getUniqueOptions(scenarios.map((item) => item.scenari
 
 export const RequestCertificationPage = () => {
   const navigate = useNavigate();
-  const { applicationId } = useParams() as { applicationId: string };
-  const applicationIdNumber = Number(applicationId);
-  const { asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const [selectedCredential, setSelectedCredential] = useState('');
-  const [selectedDataStandard, setSelectedDataStandard] = useState('v5');
+  const [keyValue, setKeyValue] = useState('');
+  const [secretValue, setSecretValue] = useState('');
+  const [selectedDataStandard, setSelectedDataStandard] = useState('v4');
   const [selectedAreaOrGroup, setSelectedAreaOrGroup] = useState('');
   const [selectedScenario, setSelectedScenario] = useState('');
   const [selectedStep, setSelectedStep] = useState('');
-
-  const apiClients = useQuery(
-    apiClientQueriesV2.getAll(
-      {
-        teamId: asId,
-        edfiTenant,
-      },
-      {
-        applicationId: applicationIdNumber,
-      }
-    )
-  );
-
-  const credentialOptions = useMemo(
-    () =>
-      (Object.values(apiClients?.data || {}) as ApiClientOption[])
-        .filter(hasName)
-        .map((item) => ({ value: String(item.id ?? item.name), label: item.name })),
-    [apiClients?.data]
-  );
 
   const scenarioOptions = useMemo(
     () =>
@@ -85,14 +54,11 @@ export const RequestCertificationPage = () => {
     [selectedAreaOrGroup, selectedScenario]
   );
 
-  const goToApplication = () => {
-    navigate(
-      `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${applicationId}`
-    );
-  };
+  const navToParentOptions = useNavToParent();
 
   const canValidateScenario = Boolean(
-    selectedCredential &&
+    keyValue.trim() &&
+      secretValue.trim() &&
       selectedDataStandard &&
       selectedAreaOrGroup &&
       selectedScenario &&
@@ -103,19 +69,22 @@ export const RequestCertificationPage = () => {
     <PageTemplate title="Request Certification">
       <form>
         <FormControl>
-          <FormLabel>Credentials</FormLabel>
-          <Select
-            placeholder="Select Credentials"
-            value={selectedCredential}
-            isDisabled={apiClients.isLoading}
-            onChange={(event) => setSelectedCredential(event.target.value)}
-          >
-            {credentialOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </Select>
+          <FormLabel>Key</FormLabel>
+          <Input
+            placeholder="Enter key"
+            value={keyValue}
+            onChange={(event) => setKeyValue(event.target.value)}
+          />
+        </FormControl>
+
+        <FormControl>
+          <FormLabel>Secret</FormLabel>
+          <Input
+            placeholder="Enter secret"
+            type="password"
+            value={secretValue}
+            onChange={(event) => setSecretValue(event.target.value)}
+          />
         </FormControl>
 
         <FormControl>
@@ -191,7 +160,14 @@ export const RequestCertificationPage = () => {
           <Button colorScheme="primary" type="button" isDisabled={!canValidateScenario}>
             Validate Scenario
           </Button>
-          <Button variant="ghost" type="button" onClick={goToApplication}>
+          <Button
+            variant="ghost"
+            isLoading={false}
+            type="reset"
+            onClick={() => {
+              navigate(navToParentOptions);
+            }}
+          >
             Cancel
           </Button>
         </ButtonGroup>
