@@ -68,4 +68,7 @@ module.exports = {
   RATE_LIMIT_LIMIT: 10,
 
   USE_PKCE: true,
+
+  // Deliverating set in false since we are using self-signed certificates but in production should be set in true
+  SSL_VERIFICATION: false,
 };

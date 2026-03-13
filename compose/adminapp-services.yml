@@ -139,6 +139,7 @@ services:
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
       - DB_TTL_IN_MINUTES=${DB_TTL_IN_MINUTES:-120}
       - USE_YOPASS=${USE_YOPASS:-true}
+      - SSL_VERIFICATION=${SSL_VERIFICATION:-true}
       - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
