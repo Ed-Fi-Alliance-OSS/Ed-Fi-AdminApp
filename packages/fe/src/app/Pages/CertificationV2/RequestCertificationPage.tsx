@@ -5,6 +5,7 @@ import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import certificationScenarios from './certification-scenarios.json';
 import { useNavToParent } from '../../helpers';
+import { config } from '../../../config/config';
 
 const dataStandardOptions = ['v4'];
 
@@ -23,6 +24,10 @@ const scenarios = certificationScenarios as CertificationScenario[];
 const areaOrGroupOptions = getUniqueOptions(scenarios.map((item) => item.scenariosGroup));
 
 export const RequestCertificationPage = () => {
+  if (!config.showRequestCertification) {
+    return null;
+  }
+
   const navigate = useNavigate();
   const [keyValue, setKeyValue] = useState('');
   const [secretValue, setSecretValue] = useState('');
