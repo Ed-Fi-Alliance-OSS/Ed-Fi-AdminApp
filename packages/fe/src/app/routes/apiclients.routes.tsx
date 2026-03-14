@@ -10,8 +10,15 @@ import {
 } from '../helpers';
 import { ApiClientsPageV2 } from '../Pages/ApiClientV2/ApiClientsPage';
 import { ApiClientPageV2 } from '../Pages/ApiClientV2/ApiClientPage';
+import { CreateApiClientPage } from '../Pages/ApiClientV2/CreateApiClientPage';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { apiClientQueriesV2 } from '../api';
+
+export const apiClientCreateRoute: RouteObject = {
+  path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/:applicationId/apiclients/create',
+  element: <VersioningHoc v2={<CreateApiClientPage />} />,
+  handle: { crumb: () => 'Create Credentials' },
+};
 
 const ApiClientBreadcrumbV2 = () => {
   const params = useParams() as {
@@ -56,25 +63,30 @@ export const ApiClientLinkV2 = (props: {
   id: number | undefined;
   applicationId: number | undefined;
   query: UseQueryResult<Record<string | number, GetApiClientDtoV2>, unknown>;
-  edfiTenantId?: string | number;
 }) => {
-
   const apiClient = getEntityFromQuery(props.id, props.query);
-      
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
 
-  return apiClient ? (
-    <Link as="span">
-      <RouterLink
-        title="Go to application credentials"
-        to={`/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${props.applicationId}/apiclients/${props.id}`}
-      >
-        {getRelationDisplayName(props.id, props.query)}
-      </RouterLink>
-    </Link>
-  ) : props.id !== null && props.id !== undefined ? (
-    <Text title="Credentials may have been deleted, or you lack access." as="i" color="gray.500">
-      can't find &#8220;{props.id}&#8221;
-    </Text>
-  ) : null;
+  if (apiClient) {
+    return (
+      <Link as="span">
+        <RouterLink
+          title="Go to application credentials"
+          to={`/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${props.applicationId}/apiclients/${props.id}`}
+        >
+          {getRelationDisplayName(props.id, props.query)}
+        </RouterLink>
+      </Link>
+    );
+  }
+
+  if (props.id !== null && props.id !== undefined) {
+    return (
+      <Text title="Credentials may have been deleted, or you lack access." as="i" color="gray.500">
+        can't find &#8220;{props.id}&#8221;
+      </Text>
+    );
+  }
+
+  return null;
 };
