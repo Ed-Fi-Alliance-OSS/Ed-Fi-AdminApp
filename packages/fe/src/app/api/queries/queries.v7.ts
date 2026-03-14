@@ -1,5 +1,4 @@
 import {
-  ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
   GetApiClientDtoV2,
@@ -10,8 +9,9 @@ import {
   GetProfileDtoV2,
   GetVendorDtoV2,
   Id,
-  ImportClaimsetSingleDtoV2,
+  PostApiClientDtoV2,
   PostApiClientResponseDtoV2,
+  ImportClaimsetSingleDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
@@ -100,7 +100,14 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   )
   .post(
     'post',
-    { ResDto: undefined as unknown as ApiClientResponseV2, ReqDto: PostApiClientResponseDtoV2 },
+    { ResDto: PostApiClientResponseDtoV2, ReqDto: PostApiClientDtoV2 },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+      })
   )
   .delete(
     'delete',

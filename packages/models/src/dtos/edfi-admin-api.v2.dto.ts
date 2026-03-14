@@ -114,14 +114,17 @@ export class PostApiClientDtoV2 {
   name: string;
 
   @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  key: string;
-
-  @Expose()
   @IsBoolean()
   isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+
+  @Expose()
+  @IsNumber(undefined, { each: true })
+  @ArrayNotEmpty()
+  odsInstanceIds: number[];
 }
 
 export class PutApiClientDtoV2 {
@@ -162,14 +165,12 @@ export class PostApiClientFormDtoV2 {
   name: string;
 
   @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  key: string;
-
-  @Expose()
   @IsBoolean()
   isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
   
   @Expose()
   @IsNumber()
