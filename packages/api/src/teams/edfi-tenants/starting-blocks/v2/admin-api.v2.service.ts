@@ -5,6 +5,7 @@ import {
   Id,
   ImportClaimsetSingleDtoV2,
   OdsInstanceDto,
+  PostApiClientDtoV2,
   PostActionAuthStrategiesDtoV2,
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
@@ -443,6 +444,15 @@ export class AdminApiServiceV2 {
           throw err;
         })) as any
     );
+  }
+
+  async postApiClient(edfiTenant: EdfiTenant, apiClient: PostApiClientDtoV2) {
+    return (await this.getAdminApiClient(edfiTenant)
+      .post(`apiclients`, apiClient)
+      .catch((err) => {
+        this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
+        throw err;
+      })) as any;
   }
 
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {
