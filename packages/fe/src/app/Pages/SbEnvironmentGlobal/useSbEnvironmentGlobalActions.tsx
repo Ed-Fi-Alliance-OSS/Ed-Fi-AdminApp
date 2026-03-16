@@ -67,7 +67,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(config.showRequestCertification
+        ...(config.showRequestCertification && sbEnvironment.version === 'v1'
           ? {
               RequestCert: {
                 icon: Icons.Data,
