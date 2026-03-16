@@ -20,6 +20,7 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
+import { CertificationService } from './certification/certification.service';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
@@ -279,6 +280,17 @@ async function bootstrap() {
     );
   }
   Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
+
+  // Initialize certification runtime workspace (if module present)
+  try {
+    const certService = app.get(CertificationService, { strict: false });
+    if (certService && typeof certService.ensureRuntimeReady === 'function') {
+      await certService.ensureRuntimeReady();
+      Logger.log('Certification runtime ensured');
+    }
+  } catch (err) {
+    Logger.debug(`Certification runtime initialization skipped or failed: ${err}`);
+  }
 
   // Set up global error handlers for AggregateError and other unhandled errors
   process.on('uncaughtException', (error) => {
