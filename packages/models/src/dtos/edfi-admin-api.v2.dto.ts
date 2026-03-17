@@ -10,6 +10,7 @@ import {
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
@@ -227,14 +228,10 @@ export class GetApplicationDtoV2 {
     url.protocol = 'https:';
     if (startingBlocks)
     {
-      const safe = (str: string) =>
-        str
-          .toLowerCase()
-          .replace(/\s/g, '-')
-          .replace(/[^a-z0-9-]/g, '');
+      const appName = sanitizeForUrl(applicationName).slice(0, 40);
+      const pathname = trimTrailingSlashes(url.pathname);
 
-      const appName = safe(applicationName).slice(0, 40);
-      url.pathname = url.pathname.replace(/\/+$/, '') + '/' + tenantName;
+      url.pathname = `${pathname}/${tenantName}`;
       url.hostname = `${appName}.${url.hostname}`;
     }
     return url.toString();
