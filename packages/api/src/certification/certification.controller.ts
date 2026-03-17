@@ -12,28 +12,30 @@ interface RunDto {
 export class CertificationController {
   constructor(private readonly certService: CertificationService) {}
 
-  @Post('run')
-  @Public()
-  async run(@Body() body: RunDto) {
 
-    // ------------------------------------------------------------------------------
-    // @TODO: The run() method was copied from the original POC and will be refactored in Certification 2.2
-    // ------------------------------------------------------------------------------
+  // ------------------------------------------------------------------------------
+  // @TODO: The run() method was copied from the original POC and will be refactored in Certification 2.2
+  // ------------------------------------------------------------------------------
+  // @Post('run')
+  // @Public()
+  // async run(@Body() body: RunDto) {
 
-    if (!body || !body.scenarioPath) {
-      return { error: 'scenarioPath required' };
-    }
 
-    // Ensure runtime exists (without destructive refresh on every request)
-    await this.certService.ensureRuntimeReady();
 
-    const workDir = await this.certService.prepareScenario(body.scenarioPath, body.params || {});
-    const result = await this.certService.runBruno(workDir, body.env);
-    return {
-      scenarioPath: body.scenarioPath,
-      workDir,
-      exitCode: result.exitCode,
-      output: result.output,
-    };
-  }
+  //   if (!body || !body.scenarioPath) {
+  //     return { error: 'scenarioPath required' };
+  //   }
+
+  //   // Ensure runtime exists (without destructive refresh on every request)
+  //   await this.certService.ensureRuntimeReady();
+
+  //   const workDir = await this.certService.prepareScenario(body.scenarioPath, body.params || {});
+  //   const result = await this.certService.runBruno(workDir, body.env);
+  //   return {
+  //     scenarioPath: body.scenarioPath,
+  //     workDir,
+  //     exitCode: result.exitCode,
+  //     output: result.output,
+  //   };
+  // }
 }
