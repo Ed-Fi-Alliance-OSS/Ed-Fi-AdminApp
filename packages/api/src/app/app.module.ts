@@ -30,6 +30,7 @@ import { SbEnvironmentsGlobalModule } from '../sb-environments-global/sb-environ
 import { SbEnvironmentsModule } from '../teams/sb-environments/sb-environments.module';
 import { SbSyncModule } from '../sb-sync/sb-sync.module';
 import { ServicesModule } from './services.module';
+import { CertificationModule } from '../certification/certification.module';
 import { TeamsGlobalModule } from '../teams/teams-global.module';
 import { ThrottlerModule, ThrottlerGuard } from '@nestjs/throttler';
 import { UserTeamMembershipsGlobalModule } from '../user-team-memberships-global/user-team-memberships-global.module';
@@ -80,6 +81,7 @@ import config from 'config';
     SbEnvironmentsModule,
     SbSyncModule,
     ServicesModule,
+    CertificationModule,
     TeamsGlobalModule,
     UsersGlobalModule,
     UsersModule,
