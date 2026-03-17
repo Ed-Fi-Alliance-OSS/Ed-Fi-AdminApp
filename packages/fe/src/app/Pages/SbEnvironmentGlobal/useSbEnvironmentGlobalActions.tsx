@@ -11,6 +11,7 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { Icons } from '@edanalytics/common-ui';
+import { config } from '../../../config/config';
 
 export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto | undefined) => {
   const refreshResources = sbEnvironmentQueriesGlobal.refreshResources({});
@@ -63,6 +64,18 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                 title: 'View ' + sbEnvironment.displayName,
                 to: `/sb-environments/${sbEnvironment.id}`,
                 onClick: () => navigate(`/sb-environments/${sbEnvironment.id}`),
+              },
+            }
+          : {}),
+        ...(config.showRequestCertification && sbEnvironment.version === 'v1'
+          ? {
+              RequestCert: {
+                icon: Icons.Data,
+                text: 'Request certification',
+                title: 'Request certification for ' + sbEnvironment.displayName,
+                to: `/sb-environments/${sbEnvironment.id}/request-certification`,
+                onClick: () =>
+                  navigate(`/sb-environments/${sbEnvironment.id}/request-certification`),
               },
             }
           : {}),
