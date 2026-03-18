@@ -427,7 +427,7 @@ export class AdminApiControllerV1 {
       if (returnRaw) {
         return toPostApplicationResponseDto(adminApiResponse);
       } else {
-        if (config.USE_YOPASS) {
+        if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
           try {
             const yopassResult = await postYopassSecret({
               ...adminApiResponse,
@@ -516,7 +516,7 @@ export class AdminApiControllerV1 {
           edfiTenant,
           applicationId
         );
-        if (config.USE_YOPASS) {
+        if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
           try {
             const yopassResult = await postYopassSecret({
               ...adminApiResponse,
