@@ -67,7 +67,7 @@ jobs:
       # --- TypeScript API and Frontend Build/Pack/Upload ---
       # Install deps once at root, build both API and Frontend via Nx
       - name: Install dependencies (root)
-        run: npm ci
+        run: npm ci --legacy-peer-deps --prefer-offline --no-audit --progress=false
 
       - name: Build API (root)
         run: npm run build:api

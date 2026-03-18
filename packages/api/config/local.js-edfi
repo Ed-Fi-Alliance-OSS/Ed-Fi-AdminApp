@@ -76,5 +76,7 @@ module.exports = {
 
   USE_PKCE: true,
 
+  SSL_VERIFICATION: false,
+
   // There are other defaults you can override if you want to. See default.js.
 };

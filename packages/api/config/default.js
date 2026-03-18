@@ -157,6 +157,9 @@ module.exports = {
   RATE_LIMIT_LIMIT: 100,
 
   USE_PKCE: true,
+  
+  // Default to false for local development, can be overridden in production with environment variable. Set to true to enable SSL verification.
+  SSL_VERIFICATION: false, 
 
   // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
   LOG_LEVEL: 'log',

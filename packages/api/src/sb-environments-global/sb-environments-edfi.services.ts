@@ -26,7 +26,7 @@ import {
 } from '@edanalytics/models';
 import axios from 'axios';
 import { persistSyncTenant, SyncableOds } from '../sb-sync/sync-ods';
-import { randomUUID } from 'crypto';
+import { randomBytes, randomUUID } from 'crypto';
 
 type TenantCredentials = { clientId: string; clientSecret: string; displayName: string };
 type TenantCredentialsMap = Map<string, TenantCredentials>;
@@ -540,13 +540,15 @@ export class SbEnvironmentsEdFiService {
     tenant?: string
   ): Promise<TenantCredentials> {
     const registerUrl = `${createSbEnvironmentDto.adminApiUrl}/connect/register`;
-    const clientSecret = Array.from({ length: 32 }, () =>
-      'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*'.charAt(
-        Math.floor(Math.random() * 70)
-      )
+    const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const secretBytes = randomBytes(32);
+    const clientSecret = Array.from(secretBytes, (byte) => secretCharset[byte % secretCharset.length]).join('');
+    const clientId = `client_${randomUUID()}`;
+    const nameSuffixBytes = randomBytes(4);
+    const displayNameSuffix = Array.from(nameSuffixBytes, (byte) =>
+      (byte % 36).toString(36)
     ).join('');
-    const clientId = `client_${Math.random().toString(36).substring(2, 15)}`;
-    const displayName = `AdminApp-v4-${Math.random().toString(36).substring(2, 8)}`;
+    const displayName = `AdminApp-v4-${displayNameSuffix}`;
     const formData = new URLSearchParams();
     formData.append('ClientId', clientId);
     formData.append('ClientSecret', clientSecret);

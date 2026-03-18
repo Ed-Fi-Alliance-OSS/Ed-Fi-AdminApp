@@ -267,8 +267,7 @@ async function bootstrap() {
     );
   }
 
-  // Not sure if this is the best way to disable SSL verification, but it is necessary for local development
-  if (config.FE_URL.includes('localhost')) {
+  if (config.SSL_VERIFICATION === 'false' || config.SSL_VERIFICATION === false) {
     axios.defaults.httpsAgent = new https.Agent({
       rejectUnauthorized: false,
     });
