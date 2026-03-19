@@ -1,5 +1,21 @@
 
-import { Button, ButtonGroup, FormControl, FormLabel, Input, Select } from '@chakra-ui/react';
+import {
+  Box,
+  Button,
+  ButtonGroup,
+  FormControl,
+  FormLabel,
+  Input,
+  Select,
+  Table,
+  Tbody,
+  Td,
+  Text,
+  Th,
+  Thead,
+  Tr,
+  chakra,
+} from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -7,12 +23,16 @@ import certificationScenarios from './certification-scenarios.json';
 import { useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
 
-const dataStandardOptions = ['v4'];
-
 type CertificationScenario = {
+  id: number;
+  scenariosVersion?: string;
   scenariosGroup?: string;
   scenariosName?: string;
   scenarioStep?: string;
+  parameters?: Array<{
+    name?: string;
+    description?: string;
+  }>;
 };
 
 const getUniqueOptions = (values: Array<string | undefined>) =>
@@ -21,150 +41,145 @@ const getUniqueOptions = (values: Array<string | undefined>) =>
   );
 
 const scenarios = certificationScenarios as CertificationScenario[];
-const areaOrGroupOptions = getUniqueOptions(scenarios.map((item) => item.scenariosGroup));
+const scenarioVersionOptions = getUniqueOptions(scenarios.map((item) => item.scenariosVersion));
 
 export const RequestCertificationPage = () => {
+  const navigate = useNavigate();
+  const [keyValue, setKeyValue] = useState('');
+  const [secretValue, setSecretValue] = useState('');
+  const selectedScenarioVersion = scenarioVersionOptions[0] ?? '';
+  const [selectedAreaOrGroup, setSelectedAreaOrGroup] = useState('');
+
+  const areaOrGroupOptions = useMemo(
+    () =>
+      getUniqueOptions(
+        scenarios
+          .filter((item) => item.scenariosVersion === selectedScenarioVersion)
+          .map((item) => item.scenariosGroup)
+      ),
+    [selectedScenarioVersion]
+  );
+
+  const filteredScenarios = useMemo(
+    () =>
+      scenarios.filter(
+        (item) =>
+          item.scenariosVersion === selectedScenarioVersion &&
+          (selectedAreaOrGroup === '' || item.scenariosGroup === selectedAreaOrGroup)
+      ),
+    [selectedScenarioVersion, selectedAreaOrGroup]
+  );
+
+  const tableScenarios = useMemo(() => {
+    const seen = new Set<string>();
+
+    return filteredScenarios.reduce<Array<Omit<CertificationScenario, 'scenarioStep'>>>((acc, item) => {
+      const key = `${item.scenariosGroup ?? ''}::${item.scenariosName ?? ''}`;
+
+      if (seen.has(key)) {
+        return acc;
+      }
+
+      seen.add(key);
+      const { scenarioStep, ...scenarioWithoutStep } = item;
+      acc.push(scenarioWithoutStep);
+      return acc;
+    }, []);
+  }, [filteredScenarios]);
+
+  const navToParentOptions = useNavToParent();
+
   if (!config.showRequestCertification) {
     return null;
   }
 
-  const navigate = useNavigate();
-  const [keyValue, setKeyValue] = useState('');
-  const [secretValue, setSecretValue] = useState('');
-  const [selectedDataStandard, setSelectedDataStandard] = useState('v4');
-  const [selectedAreaOrGroup, setSelectedAreaOrGroup] = useState('');
-  const [selectedScenario, setSelectedScenario] = useState('');
-  const [selectedStep, setSelectedStep] = useState('');
-
-  const scenarioOptions = useMemo(
-    () =>
-      getUniqueOptions(
-        scenarios
-          .filter((item) => item.scenariosGroup === selectedAreaOrGroup)
-          .map((item) => item.scenariosName)
-      ),
-    [selectedAreaOrGroup]
-  );
-
-  const stepOptions = useMemo(
-    () =>
-      getUniqueOptions(
-        scenarios
-          .filter(
-            (item) =>
-              item.scenariosGroup === selectedAreaOrGroup && item.scenariosName === selectedScenario
-          )
-          .map((item) => item.scenarioStep)
-      ),
-    [selectedAreaOrGroup, selectedScenario]
-  );
-
-  const navToParentOptions = useNavToParent();
-
-  const canValidateScenario = Boolean(
-    keyValue.trim() &&
-      secretValue.trim() &&
-      selectedDataStandard &&
-      selectedAreaOrGroup &&
-      selectedScenario &&
-      selectedStep
-  );
-
   return (
     <PageTemplate title="Request Certification">
-      <form>
-        <FormControl>
-          <FormLabel>Key</FormLabel>
-          <Input
-            placeholder="Enter key"
-            value={keyValue}
-            onChange={(event) => setKeyValue(event.target.value)}
-          />
-        </FormControl>
+      <chakra.form w="full">
+        <Box w="30em" maxW="100%">
+          <FormControl>
+            <FormLabel>Key</FormLabel>
+            <Input
+              placeholder="Enter key"
+              value={keyValue}
+              onChange={(event) => setKeyValue(event.target.value)}
+            />
+          </FormControl>
 
-        <FormControl>
-          <FormLabel>Secret</FormLabel>
-          <Input
-            placeholder="Enter secret"
-            type="password"
-            value={secretValue}
-            onChange={(event) => setSecretValue(event.target.value)}
-          />
-        </FormControl>
+          <FormControl>
+            <FormLabel>Secret</FormLabel>
+            <Input
+              placeholder="Enter secret"
+              type="password"
+              value={secretValue}
+              onChange={(event) => setSecretValue(event.target.value)}
+            />
+          </FormControl>
 
-        <FormControl>
-          <FormLabel>Data Standard</FormLabel>
-          <Select
-            placeholder="Select data standard"
-            value={selectedDataStandard}
-            onChange={(event) => setSelectedDataStandard(event.target.value)}
-          >
-            {dataStandardOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
+          <FormControl>
+            <FormLabel>Scenarios Version</FormLabel>
+            4.0.0
+          </FormControl>
+
+          <FormControl>
+            <FormLabel>Area or Group Filter</FormLabel>
+            <Select
+              placeholder={selectedScenarioVersion ? 'All area or group values' : 'Select version first'}
+              value={selectedAreaOrGroup}
+              isDisabled={!selectedScenarioVersion}
+              onChange={(event) => setSelectedAreaOrGroup(event.target.value)}
+            >
+              {areaOrGroupOptions.map((option) => (
+                <option key={option} value={option}>
+                  {option}
+                </option>
+              ))}
+            </Select>
+          </FormControl>
+        </Box>
+
+        <Table size="sm" mt={4}>
+          <Thead>
+            <Tr>
+              <Th>Area or Group</Th>
+              <Th>Scenario</Th>
+              <Th textAlign="right">Action</Th>
+            </Tr>
+          </Thead>
+          <Tbody>
+            {tableScenarios.map((scenario) => (
+              <Tr key={scenario.id}>
+                <Td>{scenario.scenariosGroup ?? 'N/A'}</Td>
+                <Td>{scenario.scenariosName ?? 'N/A'}</Td>
+                <Td textAlign="right">
+                  <Button
+                    size="sm"
+                    colorScheme="primary"
+                    type="button"
+                    onClick={() => {
+                      navigate('execution', {
+                        state: {
+                          scenario,
+                        },
+                      });
+                    }}
+                  >
+                    Validate Scenario
+                  </Button>
+                </Td>
+              </Tr>
             ))}
-          </Select>
-        </FormControl>
+            {tableScenarios.length === 0 && (
+              <Tr>
+                <Td colSpan={3}>
+                  <Text color="gray.600">No scenarios found for the current filters.</Text>
+                </Td>
+              </Tr>
+            )}
+          </Tbody>
+        </Table>
 
-        <FormControl>
-          <FormLabel>Area or Group</FormLabel>
-          <Select
-            placeholder="Select area or group"
-            value={selectedAreaOrGroup}
-            onChange={(event) => {
-              setSelectedAreaOrGroup(event.target.value);
-              setSelectedScenario('');
-              setSelectedStep('');
-            }}
-          >
-            {areaOrGroupOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl>
-          <FormLabel>Scenario</FormLabel>
-          <Select
-            placeholder={selectedAreaOrGroup ? 'Select scenario' : 'Select area or group first'}
-            value={selectedScenario}
-            isDisabled={!selectedAreaOrGroup}
-            onChange={(event) => {
-              setSelectedScenario(event.target.value);
-              setSelectedStep('');
-            }}
-          >
-            {scenarioOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-
-        <FormControl>
-          <FormLabel>Step</FormLabel>
-          <Select
-            placeholder={selectedScenario ? 'Select step' : 'Select scenario first'}
-            value={selectedStep}
-            isDisabled={!selectedScenario}
-            onChange={(event) => setSelectedStep(event.target.value)}
-          >
-            {stepOptions.map((option) => (
-              <option key={option} value={option}>
-                {option}
-              </option>
-            ))}
-          </Select>
-        </FormControl>
-
-        <ButtonGroup mt={4}>
-          <Button colorScheme="primary" type="button" isDisabled={!canValidateScenario}>
-            Validate Scenario
-          </Button>
+        <ButtonGroup mt={4} colorScheme="primary">
           <Button
             variant="ghost"
             isLoading={false}
@@ -176,7 +191,7 @@ export const RequestCertificationPage = () => {
             Cancel
           </Button>
         </ButtonGroup>
-      </form>
+      </chakra.form>
     </PageTemplate>
   );
 };
