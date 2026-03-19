@@ -48,9 +48,10 @@ export const CreateApiClientPage = () => {
     );
   };
 
-  const goToView = (id: number) => {
+  const goToView = (id: number, options?: { state?: unknown }) => {
     navigate(
-      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationIdNumber}/apiclients/${id}`
+      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationIdNumber}/apiclients/${id}`,
+      options
     );
   };
 
@@ -98,7 +99,7 @@ export const CreateApiClientPage = () => {
 
             const maybeId = (result as PostApiClientResponseDtoV2 | undefined)?.id;
             if (typeof maybeId === 'number') {
-              goToView(maybeId);
+              goToView(maybeId, { state: result });
               return;
             }
             goToList();

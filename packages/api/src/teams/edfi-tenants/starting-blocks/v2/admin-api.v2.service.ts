@@ -39,6 +39,8 @@ import {
   toGetResourceClaimDetailDtoV2,
   toGetVendorDtoV2,
   toPostApplicationResponseDtoV2,
+  PostApiClientResponseDtoV2,
+  toPostApiClientResponseDtoV2,
 } from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -446,13 +448,18 @@ export class AdminApiServiceV2 {
     );
   }
 
-  async postApiClient(edfiTenant: EdfiTenant, apiClient: PostApiClientDtoV2) {
-    return (await this.getAdminApiClient(edfiTenant)
-      .post(`apiclients`, apiClient)
-      .catch((err) => {
-        this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
-        throw err;
-      })) as any;
+  async postApiClient(
+     edfiTenant: EdfiTenant,
+     apiClient: PostApiClientDtoV2
+   ): Promise<PostApiClientResponseDtoV2> {
+     return toPostApiClientResponseDtoV2(
+       (await this.getAdminApiClient(edfiTenant)
+         .post(`apiclients`, apiClient)
+         .catch((err) => {
+           this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
+           throw err;
+         })) as any
+     );
   }
 
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {

@@ -204,6 +204,8 @@ export class PutApiClientFormDtoV2 {
 
 export const toGetApiClientDtoV2 = makeSerializer(GetApiClientDtoV2);
 
+export const toPostApiClientResponseDtoV2 = makeSerializer(PostApiClientResponseDtoV2);
+
 export class GetApplicationDtoV2 {
   @Expose()
   id: number;
