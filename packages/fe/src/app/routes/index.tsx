@@ -18,6 +18,7 @@ import {
   applicationsRoute,
 } from './application.routes';
 import {
+  apiClientCreateRoute,
   apiClientIndexRoute,
   apiClientRoute,
   apiClientsIndexRoute,
@@ -341,6 +342,7 @@ export const authenticatedRoutes: RouteObject = {
 
     apiClientRoute,
     apiClientIndexRoute,
+    apiClientCreateRoute,
     apiClientsIndexRoute,
     apiClientsRoute,
     sbEnvironmentGlobalCertRoute,

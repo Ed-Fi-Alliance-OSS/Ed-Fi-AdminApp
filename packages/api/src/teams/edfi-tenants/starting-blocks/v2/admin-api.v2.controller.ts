@@ -7,6 +7,7 @@ import {
   Ids,
   ImportClaimsetSingleDtoV2,
   PostApplicationDtoV2,
+  PostApiClientDtoV2,
   PostApplicationFormDtoV2,
   PutApiClientDtoV2,
   PostClaimsetDtoV2,
@@ -753,6 +754,31 @@ export class AdminApiControllerV2 {
     }
 
     return await this.sbService.putApiClient(edfiTenant, apiClientId, apiClient);
+  }
+
+  @Post('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() apiClient: PostApiClientDtoV2,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
+    validIds: Ids
+  ) {
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    return await this.sbService.postApiClient(edfiTenant, apiClient);
   }
 
   //

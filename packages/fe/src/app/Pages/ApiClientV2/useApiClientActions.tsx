@@ -24,10 +24,12 @@ export const useSingleApiClientActions = ({
   const inEdit = onApiClientPage && 'edit' in search && search?.edit === 'true';
 
   const canView = true;
+  const canCreate = true;
   const canReset = true;
   const canEdit = true;
   const canDelete = true;
   const toView = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/${apiClient?.id}`;
+  const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/create`;
   const toEdit = `${toView}?edit=true`;
 
   return apiClient === undefined
@@ -41,6 +43,17 @@ export const useSingleApiClientActions = ({
                 title: 'View ' + apiClient.name,
                 to: toView,
                 onClick: () => navigate(toView),
+              },
+            }
+          : undefined),
+        ...(canCreate
+          ? {
+              Create: {
+                icon: Icons.Plus,
+                text: 'New',
+                title: 'New credentials',
+                to: toCreate,
+                onClick: () => navigate(toCreate),
               },
             }
           : undefined),
