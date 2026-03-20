@@ -62,8 +62,8 @@ COPY --from=build --chown=adminapp:nodejs /app/dist/packages/api ./dist/packages
 COPY --chown=adminapp:nodejs packages/api/config/production.js-edfi ./dist/packages/api/config/production.js
 COPY --chown=adminapp:nodejs packages/api/config/custom-environment-variables.js packages/api/config/default.js ./dist/packages/api/config/
 
-# Create logs directory with proper permissions
-RUN mkdir -p logs && chown -R adminapp:nodejs logs
+# Create logs and certification runtime directories with proper permissions
+RUN mkdir -p logs packages/api/certification && chown -R adminapp:nodejs logs packages/api/certification
 
 # Switch to non-root user
 USER adminapp
