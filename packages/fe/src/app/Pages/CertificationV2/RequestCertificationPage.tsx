@@ -88,6 +88,7 @@ export const RequestCertificationPage = () => {
   }, [filteredScenarios]);
 
   const navToParentOptions = useNavToParent();
+  const canValidateScenario = Boolean(keyValue.trim()) && Boolean(secretValue.trim());
 
   if (!config.showRequestCertification) {
     return null;
@@ -138,46 +139,60 @@ export const RequestCertificationPage = () => {
           </FormControl>
         </Box>
 
-        <Table size="sm" mt={4}>
-          <Thead>
-            <Tr>
-              <Th>Area or Group</Th>
-              <Th>Scenario</Th>
-              <Th textAlign="right">Action</Th>
-            </Tr>
-          </Thead>
-          <Tbody>
-            {tableScenarios.map((scenario) => (
-              <Tr key={scenario.id}>
-                <Td>{scenario.scenariosGroup ?? 'N/A'}</Td>
-                <Td>{scenario.scenariosName ?? 'N/A'}</Td>
-                <Td textAlign="right">
-                  <Button
-                    size="sm"
-                    colorScheme="primary"
-                    type="button"
-                    onClick={() => {
-                      navigate('execution', {
-                        state: {
-                          scenario,
-                        },
-                      });
-                    }}
-                  >
-                    Validate Scenario
-                  </Button>
-                </Td>
-              </Tr>
-            ))}
-            {tableScenarios.length === 0 && (
+        <Box
+          mt={6}
+          p={4}
+          border="1px solid"
+          borderColor="gray.200"
+          borderRadius="md"
+          bg="gray.50"
+        >
+          <Text mb={3} fontWeight="semibold">
+            Scenarios
+          </Text>
+
+          <Table size="sm" mt={0}>
+            <Thead>
               <Tr>
-                <Td colSpan={3}>
-                  <Text color="gray.600">No scenarios found for the current filters.</Text>
-                </Td>
+                <Th>Area or Group</Th>
+                <Th>Scenario</Th>
+                <Th textAlign="right">Action</Th>
               </Tr>
-            )}
-          </Tbody>
-        </Table>
+            </Thead>
+            <Tbody>
+              {tableScenarios.map((scenario) => (
+                <Tr key={scenario.id}>
+                  <Td>{scenario.scenariosGroup ?? 'N/A'}</Td>
+                  <Td>{scenario.scenariosName ?? 'N/A'}</Td>
+                  <Td textAlign="right">
+                    <Button
+                      size="sm"
+                      colorScheme="primary"
+                      type="button"
+                      isDisabled={!canValidateScenario}
+                      onClick={() => {
+                        navigate('execution', {
+                          state: {
+                            scenario,
+                          },
+                        });
+                      }}
+                    >
+                      Validate Scenario
+                    </Button>
+                  </Td>
+                </Tr>
+              ))}
+              {tableScenarios.length === 0 && (
+                <Tr>
+                  <Td colSpan={3}>
+                    <Text color="gray.600">No scenarios found for the current filters.</Text>
+                  </Td>
+                </Tr>
+              )}
+            </Tbody>
+          </Table>
+        </Box>
 
         <ButtonGroup mt={4} colorScheme="primary">
           <Button

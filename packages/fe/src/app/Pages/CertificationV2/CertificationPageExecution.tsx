@@ -55,6 +55,8 @@ type ExecutionResult = {
   'validation-errors': ValidationErrorResult[];
 };
 
+type RowExecutionStatus = 'Not executed' | 'Successful' | 'Failed';
+
 export const CertificationPageExecution = () => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
@@ -92,6 +94,26 @@ export const CertificationPageExecution = () => {
 
   const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
+  const [nextExecutionIsSuccess, setNextExecutionIsSuccess] = useState(true);
+  const [rowExecutionStatusById, setRowExecutionStatusById] = useState<
+    Record<number, RowExecutionStatus>
+  >({});
+
+  useEffect(() => {
+    setRowExecutionStatusById((prev) => {
+      let hasChanges = false;
+      const next = { ...prev };
+
+      scenarioRows.forEach((row) => {
+        if (next[row.id] === undefined) {
+          next[row.id] = 'Not executed';
+          hasChanges = true;
+        }
+      });
+
+      return hasChanges ? next : prev;
+    });
+  }, [scenarioRows]);
 
   useEffect(() => {
     if (!validatedScenario) {
@@ -173,14 +195,41 @@ export const CertificationPageExecution = () => {
             <Thead>
               <Tr>
                 <Th>Step</Th>
-                <Th textAlign="right">Action</Th>
+                <Th>Status</Th>
+                <Th>Action</Th>
               </Tr>
             </Thead>
             <Tbody>
               {scenarioRows.map((row) => (
                 <Tr key={row.id}>
                   <Td>{row.scenarioStep ?? 'N/A'}</Td>
-                  <Td textAlign="right">
+                  <Td>
+                    {(() => {
+                      const status = rowExecutionStatusById[row.id] ?? 'Not executed';
+                      const statusColor =
+                        status === 'Successful'
+                          ? 'green.600'
+                          : status === 'Failed'
+                            ? 'red.600'
+                            : 'gray.600';
+                      const dotColor =
+                        status === 'Successful'
+                          ? 'green.500'
+                          : status === 'Failed'
+                            ? 'red.500'
+                            : 'gray.400';
+
+                      return (
+                        <HStack spacing={2}>
+                          <Box w="8px" h="8px" borderRadius="full" bg={dotColor} />
+                          <Text color={statusColor} fontWeight={status === 'Not executed' ? 'normal' : 'medium'}>
+                            {status}
+                          </Text>
+                        </HStack>
+                      );
+                    })()}
+                  </Td>
+                  <Td>
                     <Button
                       size="sm"
                       colorScheme="primary"
@@ -253,7 +302,7 @@ export const CertificationPageExecution = () => {
                 type="button"
                 isDisabled={!canExecuteScenario}
                 onClick={() => {
-                  const hasErrors = Math.random() < 0.5;
+                  const hasErrors = !nextExecutionIsSuccess;
 
                   setExecutionResult({
                     scenarioStep: validatedScenario.scenarioStep ?? '',
@@ -276,6 +325,13 @@ export const CertificationPageExecution = () => {
                         ]
                       : [],
                   });
+
+                  setRowExecutionStatusById((prev) => ({
+                    ...prev,
+                    [validatedScenario.id]: hasErrors ? 'Failed' : 'Successful',
+                  }));
+
+                  setNextExecutionIsSuccess((prev) => !prev);
                 }}
               >
                 Execute Scenario
