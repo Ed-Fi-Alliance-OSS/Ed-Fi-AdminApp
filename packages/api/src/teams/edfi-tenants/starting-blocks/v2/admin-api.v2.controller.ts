@@ -781,6 +781,37 @@ export class AdminApiControllerV2 {
     return await this.sbService.postApiClient(edfiTenant, apiClient);
   }
 
+  @Delete('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async deleteApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:delete')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+
+    const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    return await this.sbService.deleteApiClient(edfiTenant, apiClientId);
+  }
+
   //
   // Claimsets
   //

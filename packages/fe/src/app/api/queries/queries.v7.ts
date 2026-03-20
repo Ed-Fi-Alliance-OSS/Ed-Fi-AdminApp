@@ -112,14 +112,20 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   .delete(
     'delete',
     {},
-    (base) =>
-      standardPath({
-        edfiTenant: base.edfiTenant,
-        teamId: base.teamId,
-        kebabCaseName: 'apiclient',
-        adminApi: true,
-        id: base.id,
-      })
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    {
+      path: (base: any) => {
+        const edfiTenant = base.queryParams?.edfiTenant ?? base.edfiTenant;
+        const teamId = base.queryParams?.teamId ?? base.teamId;
+        return standardPath({
+          edfiTenant,
+          teamId,
+          kebabCaseName: 'apiclient',
+          adminApi: true,
+          id: base.id,
+        });
+      },
+    } as any
   )
   .build();
 
