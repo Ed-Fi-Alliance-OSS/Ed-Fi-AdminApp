@@ -5,6 +5,7 @@ import {
   Id,
   ImportClaimsetSingleDtoV2,
   OdsInstanceDto,
+  PostApiClientDtoV2,
   PostActionAuthStrategiesDtoV2,
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
@@ -14,6 +15,7 @@ import {
   PostOdsInstanceDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
+  PutApiClientDtoV2,
   PutApplicationDtoV2,
   PutClaimsetDtoV2,
   PutClaimsetResourceClaimActionsDtoV2,
@@ -25,6 +27,7 @@ import {
   TenantDto,
   toGetActionDtoV2,
   toGetApplicationDtoV2,
+  toGetApiClientDtoV2,
   toGetAuthStrategyDtoV2,
   toGetClaimsetMultipleDtoV2,
   toGetClaimsetSingleDtoV2,
@@ -36,6 +39,8 @@ import {
   toGetResourceClaimDetailDtoV2,
   toGetVendorDtoV2,
   toPostApplicationResponseDtoV2,
+  PostApiClientResponseDtoV2,
+  toPostApiClientResponseDtoV2,
 } from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -403,6 +408,58 @@ export class AdminApiServiceV2 {
           throw err;
         })) as any
     );
+  }
+
+  async getApiClients(edfiTenant: EdfiTenant, applicationId: number) {
+    return toGetApiClientDtoV2(
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      await this.getAdminApiClient(edfiTenant)
+        .get<any, any[]>(`apiclients?offset=0&limit=10000&applicationId=${applicationId}`)
+        .catch((err) => {
+          this.logger.error(`Error getting API clients for tenant ${edfiTenant.id}: ${err}`);
+          throw err;
+        })
+    );
+  }
+
+  async getApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
+    return toGetApiClientDtoV2(
+      (await this.getAdminApiClient(edfiTenant)
+        .get(`apiclients/${apiClientId}`)
+        .catch((err) => {
+          this.logger.error(
+            `Error getting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
+          );
+          throw err;
+        })) as any
+    );
+  }
+
+  async putApiClient(edfiTenant: EdfiTenant, apiClientId: number, apiClient: PutApiClientDtoV2) {
+    return toGetApiClientDtoV2(
+      (await this.getAdminApiClient(edfiTenant)
+        .put(`apiclients/${apiClientId}`, apiClient)
+        .catch((err) => {
+          this.logger.error(
+            `Error updating API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
+          );
+          throw err;
+        })) as any
+    );
+  }
+
+  async postApiClient(
+     edfiTenant: EdfiTenant,
+     apiClient: PostApiClientDtoV2
+   ): Promise<PostApiClientResponseDtoV2> {
+     return toPostApiClientResponseDtoV2(
+       (await this.getAdminApiClient(edfiTenant)
+         .post(`apiclients`, apiClient)
+         .catch((err) => {
+           this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
+           throw err;
+         })) as any
+     );
   }
 
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {

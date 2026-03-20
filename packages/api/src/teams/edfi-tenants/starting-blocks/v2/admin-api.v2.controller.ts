@@ -7,7 +7,9 @@ import {
   Ids,
   ImportClaimsetSingleDtoV2,
   PostApplicationDtoV2,
+  PostApiClientDtoV2,
   PostApplicationFormDtoV2,
+  PutApiClientDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
@@ -534,7 +536,7 @@ export class AdminApiControllerV2 {
           sbEnvironmentId: sbEnvironment.id,
         });
       }
-      if (config.USE_YOPASS) {
+      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -636,7 +638,7 @@ export class AdminApiControllerV2 {
         applicationId
       );
 
-      if (config.USE_YOPASS) {
+      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -666,6 +668,117 @@ export class AdminApiControllerV2 {
     } else {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
+  }
+
+  //
+  // Api Clients
+  //
+
+  @Get('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClients(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read') validIds: Ids,
+    @Query('applicationId') applicationId?: number,
+  ) {
+    if (applicationId === undefined) {
+      throw new BadRequestException('Query parameter "applicationId" is required.');
+    }
+
+    const allApiClients = await this.sbService.getApiClients(edfiTenant, applicationId);
+    return allApiClients.filter((v) => checkId(v.id, validIds));
+  }
+
+  @Get('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+    return await this.sbService.getApiClient(edfiTenant, apiClientId);
+  }
+
+  @Put('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async putApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @Body() apiClient: PutApiClientDtoV2,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+
+    const existingApiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    if (
+      existingApiClient &&
+      existingApiClient.applicationId !== apiClient.applicationId
+    ) {
+      throw new BadRequestException(
+        'The applicationId in the request body must match the existing API client applicationId.'
+      );
+    }
+
+    return await this.sbService.putApiClient(edfiTenant, apiClientId, apiClient);
+  }
+
+  @Post('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() apiClient: PostApiClientDtoV2,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
+    validIds: Ids
+  ) {
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    return await this.sbService.postApiClient(edfiTenant, apiClient);
   }
 
   //

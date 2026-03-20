@@ -18,6 +18,13 @@ import {
   applicationsRoute,
 } from './application.routes';
 import {
+  apiClientCreateRoute,
+  apiClientIndexRoute,
+  apiClientRoute,
+  apiClientsIndexRoute,
+  apiClientsRoute,
+} from './apiclients.routes';
+import {
   claimsetCopyRoute,
   claimsetCreateRoute,
   claimsetImportRoute,
@@ -26,6 +33,7 @@ import {
   claimsetsIndexRoute,
   claimsetsRoute,
 } from './claimset.routes';
+import { sbEnvironmentGlobalCertRoute } from './certification.routes';
 import {
   edfiTenantCreateRoute,
   edfiTenantIndexRoute,
@@ -141,6 +149,7 @@ import { LandingLayoutRouteElement } from '../Layout/LandingLayout';
 export * from './account.routes';
 export * from './application.routes';
 export * from './claimset.routes';
+export * from './certification.routes';
 export * from './edorg.routes';
 export * from './ods.routes';
 export * from './ownership.routes';
@@ -331,6 +340,13 @@ export const authenticatedRoutes: RouteObject = {
     applicationIndexRoute,
     applicationCreateRoute,
 
+    apiClientRoute,
+    apiClientIndexRoute,
+    apiClientCreateRoute,
+    apiClientsIndexRoute,
+    apiClientsRoute,
+    sbEnvironmentGlobalCertRoute,
+    
     vendorsRoute,
     vendorsIndexRoute,
     vendorRoute,

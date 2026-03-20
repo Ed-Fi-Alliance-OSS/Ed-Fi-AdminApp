@@ -157,7 +157,15 @@ module.exports = {
   RATE_LIMIT_LIMIT: 100,
 
   USE_PKCE: true,
+  
+  // Default to false for local development, can be overridden in production with environment variable. Set to true to enable SSL verification.
+  SSL_VERIFICATION: false, 
 
   // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
   LOG_LEVEL: 'log',
+
+  // Certification artifact configuration
+  CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
+  CERT_BRUNO_SRC_CHECKSUM: '3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef', // SHA-256 checksum of the artifact zip file for integrity verification
+  CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.
 };

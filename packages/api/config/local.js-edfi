@@ -76,5 +76,11 @@ module.exports = {
 
   USE_PKCE: true,
 
+  SSL_VERIFICATION: false,
+  // Certification artifact configuration
+  CERT_BRUNO_SRC_REF: 'commit-b89ea34f4145ab2d519b1d0316d2a8ed82ad2fe1', // Tag name or commit ref
+  CERT_BRUNO_SRC_CHECKSUM: '3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef',
+  CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.
+
   // There are other defaults you can override if you want to. See default.js.
 };

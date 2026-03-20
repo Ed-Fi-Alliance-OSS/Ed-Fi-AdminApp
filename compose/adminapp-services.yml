@@ -107,13 +107,13 @@ services:
       start_period: 40s
 
   memcached:
-    image: memcached
+    image: memcached:1.6@sha256:d99136ed4c1cf2e3fceb498763f2b7fedec7c486a0fe8a57be19f2a0519ce1fa
     restart: always
     networks:
       - edfiadminapp-network
 
   yopass:
-    image: jhaals/yopass
+    image: jhaals/yopass:12.5.0@sha256:916a1cf45d3665dd7e6a1a2157c7b81a06bfebd87947ace731bca0145418c5b5
     restart: always
     container_name: edfiadminapp-yopass
     ports:
@@ -139,7 +139,11 @@ services:
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
       - DB_TTL_IN_MINUTES=${DB_TTL_IN_MINUTES:-120}
       - USE_YOPASS=${USE_YOPASS:-true}
+      - SSL_VERIFICATION=${SSL_VERIFICATION:-true}
       - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
+      - CERT_BRUNO_SRC_REF=${CERT_BRUNO_SRC_REF:-'v2.0.2'}
+      - CERT_BRUNO_SRC_CHECKSUM=${CERT_BRUNO_SRC_CHECKSUM:-'3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef'}
+      - CERT_BRUNO_ON_DOWNLOAD_ERROR=${CERT_BRUNO_ON_DOWNLOAD_ERROR:-'warning'}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped

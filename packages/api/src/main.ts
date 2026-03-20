@@ -20,6 +20,7 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
+import { CertificationService } from './certification/certification.service';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
@@ -267,8 +268,7 @@ async function bootstrap() {
     );
   }
 
-  // Not sure if this is the best way to disable SSL verification, but it is necessary for local development
-  if (config.FE_URL.includes('localhost')) {
+  if (config.SSL_VERIFICATION === 'false' || config.SSL_VERIFICATION === false) {
     axios.defaults.httpsAgent = new https.Agent({
       rejectUnauthorized: false,
     });
@@ -279,6 +279,15 @@ async function bootstrap() {
     );
   }
   Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
+
+  // Initialize certification runtime workspace
+  try {
+    const certService = app.get(CertificationService, { strict: false });
+    await certService.ensureRuntimeReady();
+    Logger.log('Certification runtime ensured');
+  } catch (err) {
+    Logger.error(`Certification runtime failed: ${err}`);
+  }
 
   // Set up global error handlers for AggregateError and other unhandled errors
   process.on('uncaughtException', (error) => {

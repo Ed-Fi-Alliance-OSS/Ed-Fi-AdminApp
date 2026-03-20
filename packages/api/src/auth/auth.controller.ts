@@ -171,7 +171,23 @@ export class AuthController {
       return toGetTeamDto(session?.userTeamMemberships?.map((utm) => utm.team) ?? []);
     }
   }
-  @Get('cache/:teamId?')
+
+  @Get('cache')
+  @Authorize({
+    privilege: 'me:read',
+    subject: {
+      id: '__filtered__',
+    },
+  })
+  async getCacheAll(
+    @Query('edfiTenantId') edfiTenantId: string | undefined,
+    @Query('sbEnvironmentId') sbEnvironmentId: string | undefined,
+    @AuthCache() cache: AuthorizationCache
+  ) {
+  return this.privilegeCache(undefined, edfiTenantId, sbEnvironmentId, cache);
+  }
+
+  @Get('cache/:teamId')
   @Authorize({
     privilege: 'me:read',
     subject: {
@@ -179,11 +195,15 @@ export class AuthController {
     },
   })
   async privilegeCache(
-    @Param('teamId') teamId: string | undefined,
+    @Param('teamId') teamId: string,
     @Query('edfiTenantId') edfiTenantId: string | undefined,
     @Query('sbEnvironmentId') sbEnvironmentId: string | undefined,
     @AuthCache() cache: AuthorizationCache
   ) {
+    return this.handleCache(teamId, cache, sbEnvironmentId, edfiTenantId);
+  }
+
+  private handleCache(teamId: string, cache: AuthorizationCache, sbEnvironmentId: string, edfiTenantId: string) {
     const result: Partial<AuthorizationCache> = {};
     if (teamId === undefined) {
       Object.keys(cache).forEach((privilege: PrivilegeCode) => {

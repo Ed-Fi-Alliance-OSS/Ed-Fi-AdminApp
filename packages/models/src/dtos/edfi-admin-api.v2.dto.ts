@@ -2,15 +2,19 @@ import { Expose, Type } from 'class-transformer';
 import {
   ArrayNotEmpty,
   IsNotEmpty,
+  IsBoolean,
   IsNumber,
   IsOptional,
   IsString,
+  MaxLength,
   MinLength,
   ValidateNested,
 } from 'class-validator';
+import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
+  PostApiClientResponseDtoBase,
   PostApplicationDtoBase,
   PostApplicationFormBase,
   PostApplicationResponseDtoBase,
@@ -78,6 +82,130 @@ export class GetActionDtoV2 {
 
 export const toGetActionDtoV2 = makeSerializer(GetActionDtoV2);
 
+export class GetApiClientDtoV2 {
+  @Expose()
+  id: number;
+  @Expose()
+  name: string;
+  @Expose()
+  key: string;
+  @Expose()
+  isApproved: boolean;
+  @Expose()
+  useSandbox: boolean;
+  @Expose()
+  sandboxType: number;
+  @Expose()
+  applicationId: number;
+  @Expose()
+  keyStatus: string;
+  @Expose()
+  odsInstanceIds: number[];
+
+  get displayName() {
+    return this.name;
+  }
+}
+
+export class PostApiClientDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+
+  @Expose()
+  @IsNumber(undefined, { each: true })
+  @ArrayNotEmpty()
+  odsInstanceIds: number[];
+}
+
+export class PutApiClientDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  id: number;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+
+  @Expose()
+  @IsNumber(undefined, { each: true })
+  @ArrayNotEmpty()
+  odsInstanceIds: number[];
+}
+
+export class PostApiClientResponseDtoV2 extends PostApiClientResponseDtoBase {
+  @Expose()
+  id: number;
+}
+
+export class PostApiClientFormDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+  
+  @Expose()
+  @IsNumber()
+  odsInstanceId: number;
+}
+
+export class PutApiClientFormDtoV2 {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  odsInstanceId: number;
+
+  @Expose()
+  @IsNumber()
+  id: number;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+}
+
+export const toGetApiClientDtoV2 = makeSerializer(GetApiClientDtoV2);
+
+export const toPostApiClientResponseDtoV2 = makeSerializer(PostApiClientResponseDtoV2);
+
 export class GetApplicationDtoV2 {
   @Expose()
   id: number;
@@ -103,14 +231,10 @@ export class GetApplicationDtoV2 {
     url.protocol = 'https:';
     if (startingBlocks)
     {
-      const safe = (str: string) =>
-        str
-          .toLowerCase()
-          .replace(/\s/g, '-')
-          .replace(/[^a-z0-9-]/g, '');
+      const appName = sanitizeForUrl(applicationName).slice(0, 40);
+      const pathname = trimTrailingSlashes(url.pathname);
 
-      const appName = safe(applicationName).slice(0, 40);
-      url.pathname = url.pathname.replace(/\/+$/, '') + '/' + tenantName;
+      url.pathname = `${pathname}/${tenantName}`;
       url.hostname = `${appName}.${url.hostname}`;
     }
     return url.toString();

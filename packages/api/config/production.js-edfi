@@ -68,4 +68,11 @@ module.exports = {
   RATE_LIMIT_LIMIT: 10,
 
   USE_PKCE: true,
+
+  // Deliverating set in false since we are using self-signed certificates but in production should be set in true
+  SSL_VERIFICATION: false,
+  // Certification artifact configuration
+  CERT_BRUNO_SRC_REF: 'v2.1.0',
+  CERT_BRUNO_SRC_CHECKSUM: '3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef',
+  CERT_BRUNO_ON_DOWNLOAD_ERROR: 'warning',
 };
