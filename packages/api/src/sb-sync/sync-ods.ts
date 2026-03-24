@@ -27,17 +27,38 @@ export const computeOdsListDeltas = (
   edfiTenant: EdfiTenant,
   em: EntityManager
 ) => {
+  Logger.log(
+    `computeOdsListDeltas: Processing ${shouldHaveOdss.length} incoming ODS, ${doHaveOdss.length} existing ODS`
+  );
+  
   const odsDeltas = {
     insert: [] as Ods[],
     update: [] as Ods[],
     delete: [] as number[],
   };
 
-  const metaOdss = new Map(shouldHaveOdss.map((o) => [o.dbName, o]));
+  // Match by odsInstanceId (stable identifier) not dbName (can change)
+  const metaOdss = new Map(
+    shouldHaveOdss
+      .filter(o => o.id !== null) // Only include ODS with valid ID
+      .map((o) => [o.id, o])
+  );
 
   /** Initially all ODSs, present ones dynamically removed */
   const odsIdsToDelete = new Set(doHaveOdss.map((o) => o.id));
-  const odsMap = new Map<string, Ods>(doHaveOdss.map((o) => [o.dbName, o]));
+  const odsMap = new Map<number, Ods>(
+    doHaveOdss
+      .filter(o => o.odsInstanceId !== null)
+      .map((o) => [o.odsInstanceId, o])
+  );
+
+  Logger.log(
+    `Existing ODS mapped by odsInstanceId: ${Array.from(odsMap.keys()).join(', ')}`
+  );
+  Logger.log(
+    `Incoming ODS IDs: ${Array.from(metaOdss.keys()).join(', ')}`
+  );
+
   [...metaOdss.values()].forEach((sbOds) => {
     const newOds: DeepPartial<Ods> = {
       sbEnvironmentId: edfiTenant.sbEnvironmentId,
@@ -46,22 +67,42 @@ export const computeOdsListDeltas = (
       odsInstanceId: sbOds.id,
       odsInstanceName: sbOds.name,
     };
-    if (odsMap.has(sbOds.dbName)) {
-      const existingOds = odsMap.get(sbOds.dbName);
+    
+    if (odsMap.has(sbOds.id)) {
+      // ODS exists - update it to capture any changes (name, etc.)
+      const existingOds = odsMap.get(sbOds.id);
       odsIdsToDelete.delete(existingOds.id);
 
-      if (existingOds.odsInstanceId !== sbOds.id) {
+      // Check if any field has changed
+      const hasChanges = 
+        existingOds.dbName !== sbOds.dbName ||
+        existingOds.odsInstanceName !== sbOds.name;
+
+      Logger.log(
+        `ODS ${sbOds.id} comparison: ` +
+        `dbName "${existingOds.dbName}" vs "${sbOds.dbName}", ` +
+        `name "${existingOds.odsInstanceName}" vs "${sbOds.name}", ` +
+        `hasChanges=${hasChanges}`
+      );
+
+      if (hasChanges) {
         Logger.log(
-          `Encountered unexpected case of modified odsInstanceId: ${sbOds.dbName} from ${existingOds.odsInstanceId} to ${sbOds.id}`
+          `Updating ODS instance ${sbOds.id}: dbName="${existingOds.dbName}" -> "${sbOds.dbName}", name="${existingOds.odsInstanceName}" -> "${sbOds.name}"`
         );
         odsDeltas.update.push(Object.assign(existingOds, newOds));
       }
     } else {
+      // New ODS - insert it
+      Logger.log(`Inserting new ODS instance ${sbOds.id}: dbName="${sbOds.dbName}", name="${sbOds.name}"`);
       odsDeltas.insert.push(em.getRepository(Ods).create(newOds));
     }
   });
 
   odsDeltas.delete = [...odsIdsToDelete.values()];
+
+  Logger.log(
+    `computeOdsListDeltas result: ${odsDeltas.insert.length} inserts, ${odsDeltas.update.length} updates, ${odsDeltas.delete.length} deletes`
+  );
 
   return odsDeltas;
 };
@@ -183,6 +224,10 @@ export const persistSyncTenant = async ({
   edfiTenant: EdfiTenant;
   odss: SyncableOds[];
 }) => {
+  Logger.log(
+    `persistSyncTenant: Starting for tenant ${edfiTenant.name} (id=${edfiTenant.id}) with ${odss.length} ODS`
+  );
+  
   const edorgDeltas = {
     insert: [] as Edorg[],
     update: [] as Edorg[],
@@ -193,24 +238,37 @@ export const persistSyncTenant = async ({
     update: [] as Ods[],
     delete: [] as number[],
   };
-  const metaOdss = new Map(odss.map((o) => [o.dbName, o]));
+  
+  // Map incoming ODS by odsInstanceId (stable identifier)
+  const metaOdss = new Map(
+    odss
+      .filter(o => o.id !== null)
+      .map((o) => [o.id, o])
+  );
+  
   const existingOdss = await em.getRepository(Ods).find({
     where: {
       edfiTenantId: edfiTenant.id,
     },
   });
 
+  Logger.log(`  Found ${existingOdss.length} existing ODS in database`);
+
   odsDeltas = computeOdsListDeltas(odss, existingOdss, edfiTenant, em);
 
+  // Map ODS entities by odsInstanceId for lookup after save
   const entityOdss = new Map(
     (await em.getRepository(Ods).find({ where: { edfiTenantId: edfiTenant.id } })).map((o) => [
-      o.dbName,
+      o.odsInstanceId, // Use odsInstanceId instead of dbName
       o,
     ])
   );
+  
+  // Add newly updated/inserted ODS to the map
   [...odsDeltas.insert, ...odsDeltas.update].forEach((o) => {
-    entityOdss.set(o.dbName, o);
+    entityOdss.set(o.odsInstanceId, o);
   });
+  
   const existingEdorgs = await em.getRepository(Edorg).find({
     where: {
       edfiTenantId: edfiTenant.id,
@@ -226,12 +284,19 @@ export const persistSyncTenant = async ({
     return acc;
   }, {} as Record<number, Edorg[]>);
 
-  for (const [dbname, ods] of metaOdss) {
+  // Process edorgs for each ODS, matching by odsInstanceId
+  for (const [odsInstanceId, ods] of metaOdss) {
+    const odsEntity = entityOdss.get(odsInstanceId);
+    if (!odsEntity) {
+      Logger.warn(`Could not find ODS entity for odsInstanceId ${odsInstanceId}, skipping edorg processing`);
+      continue;
+    }
+    
     const odsResult = computeOdsTreeDeltas(
       edfiTenant,
       ods,
-      entityOdss.get(dbname),
-      odsEdorgsMap[entityOdss.get(dbname).id] ?? [],
+      odsEntity,
+      odsEdorgsMap[odsEntity.id] ?? [],
       em
     );
     edorgDeltas.insert.push(...odsResult.insert);
@@ -240,13 +305,21 @@ export const persistSyncTenant = async ({
   }
 
   if (odsDeltas.insert.length || odsDeltas.update.length) {
+    Logger.log(
+      `Saving ODS changes: ${odsDeltas.insert.length} inserts, ${odsDeltas.update.length} updates`
+    );
     const newOdss = await em
       .getRepository(Ods)
       .save([...odsDeltas.insert, ...odsDeltas.update], { chunk: 500 });
-    const newOdsMap = new Map(newOdss.map((o) => [o.dbName, o]));
+    Logger.log(`Successfully saved ${newOdss.length} ODS records`);
+    // Map by odsInstanceId for consistent lookup
+    const newOdsMap = new Map(newOdss.map((o) => [o.odsInstanceId, o]));
     for (const edorg of edorgDeltas.insert) {
-      edorg.ods = newOdsMap.get(edorg.ods.dbName);
+      // Update edorg.ods reference using odsInstanceId
+      edorg.ods = newOdsMap.get(edorg.ods.odsInstanceId);
     }
+  } else {
+    Logger.log('No ODS changes to save');
   }
 
   odsDeltas.delete.length && (await em.getRepository(Ods).delete(odsDeltas.delete));

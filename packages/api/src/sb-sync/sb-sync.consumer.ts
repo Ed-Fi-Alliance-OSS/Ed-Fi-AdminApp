@@ -120,11 +120,11 @@ export class SbSyncConsumer implements OnModuleInit {
       })
       .getOne();
     if (sbEnvironment === null) {
-      //try to find a syncable environment EdFi
+      //try to find a syncable environment EdFi (with Admin API)
       sbEnvironment = await this.sbEnvironmentsRepository
         .createQueryBuilder()
         .select()
-        .where(`"configPublic"->>'type' is not null and id = :id`, {
+        .where(`"configPublic"->>'adminApiUrl' is not null and id = :id`, {
           id: sbEnvironmentId,
         })
         .getOne();
@@ -204,7 +204,6 @@ export class SbSyncConsumer implements OnModuleInit {
         );
       }
       return {
-        tenantsProcessed: result.tenantsProcessed || 0,
         message: result.message,
       };
     }

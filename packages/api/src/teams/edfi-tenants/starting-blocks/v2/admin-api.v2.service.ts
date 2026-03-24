@@ -70,6 +70,14 @@ export class AdminApiServiceV2 {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
+  /**
+   * Generate a composite token key for tenant-specific authentication
+   * This ensures each tenant has its own token in the cache
+   */
+  private getTenantTokenKey(environmentId: number, tenantName: string): string {
+    return `${environmentId}-${tenantName}`;
+  }
+
   async login(sbEnvironment: SbEnvironment, id: number, tenantName?: string) {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
@@ -85,6 +93,26 @@ export class AdminApiServiceV2 {
         status: 'NO_CONFIG' as const,
       };
     }
+
+    // If no tenant name provided, try to find the first available tenant credentials
+    // This is needed for initial tenant discovery in EdFi environments
+    if (!tenantName) {
+      const availableTenants = v2Config.tenants ? Object.keys(v2Config.tenants) : [];
+      
+      if (availableTenants.length === 0) {
+        return {
+          status: 'NO_TENANT_CONFIG' as const,
+        };
+      }
+      
+      // Prefer 'default' tenant if available, otherwise use first tenant
+      tenantName = availableTenants.includes('default') 
+        ? 'default' 
+        : availableTenants[0];
+      
+      this.logger.log(`No tenant specified for login, using tenant: ${tenantName}`);
+    }
+
     if (!v2Config?.tenants[tenantName] || !v2ConfigPrivate?.tenants[tenantName]) {
       return {
         status: 'NO_TENANT_CONFIG' as const,
@@ -147,7 +175,10 @@ export class AdminApiServiceV2 {
 
     try {
       await axios.request(options).then((v) => {
-        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
+        // Use composite key for tenant-specific token storage
+        const tokenKey = this.getTenantTokenKey(id, tenantName);
+        this.adminApiTokens.set(tokenKey, v.data.access_token, Number(v.data.expires_in) - 60);
+        this.logger.log(`Stored token for environment ${id} tenant ${tenantName} at key: ${tokenKey}`);
       });
       return {
         status: 'SUCCESS' as const,
@@ -254,9 +285,11 @@ export class AdminApiServiceV2 {
   private getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
     const client = this.initializeApiClient(edfiTenant.sbEnvironment, notJustData);
     client.interceptors.request.use(async (config) => {
-      let token: undefined | string = this.adminApiTokens.get(edfiTenant.id);
+      // Use composite key for tenant-specific token retrieval
+      const tokenKey = this.getTenantTokenKey(edfiTenant.sbEnvironment.id, edfiTenant.name);
+      let token: undefined | string = this.adminApiTokens.get(tokenKey);
       if (token === undefined) {
-        const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.id, edfiTenant.name);
+        const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.sbEnvironment.id, edfiTenant.name);
 
         if (adminLogin.status !== 'SUCCESS') {
           throw new CustomHttpException(
@@ -267,7 +300,7 @@ export class AdminApiServiceV2 {
             500
           );
         }
-        token = this.adminApiTokens.get(edfiTenant.id);
+        token = this.adminApiTokens.get(tokenKey);
       }
       config.headers.Authorization = `Bearer ${token}`;
       config.headers.tenant = edfiTenant.name;
@@ -1111,16 +1144,45 @@ export class AdminApiServiceV2 {
       const tenantsWithDetails = await Promise.all(
         tenantNames.map(async (tenantName) => {
           try {
-            // Call the tenant details endpoint
+            // Authenticate with tenant-specific credentials
+            this.logger.log(`Authenticating for tenant: ${tenantName}`);
+            const adminLogin = await this.login(environment, environment.id, tenantName);
+            if (adminLogin.status !== 'SUCCESS') {
+              throw new CustomHttpException(
+                {
+                  title: `Failed to authenticate tenant ${tenantName}: ${adminApiLoginStatusMsgs[adminLogin.status]}`,
+                  type: 'Error',
+                },
+                500
+              );
+            }
+
+            // Create a client with tenant header for multi-tenant API calls
+            const client = this.initializeApiClient(environment, true); // Get full response
+            
+            // Retrieve tenant-specific token using composite key
+            const tokenKey = this.getTenantTokenKey(environment.id, tenantName);
+            const token = this.adminApiTokens.get(tokenKey);
+            this.logger.log(`Using token key ${tokenKey} for tenant ${tenantName}`);
+            
+            // Call the tenant details endpoint with tenant header
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const details = await this.getAdminApiClientUsingEnv(environment)
-              .get<any, any>(`tenants/${tenantName}/OdsInstances/edOrgs`)
+            const response = await client
+              .get<any>(`tenants/${tenantName}/OdsInstances/edOrgs`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  tenant: tenantName, // Add tenant header for multi-tenant API
+                },
+              })
               .catch((err) => {
                 this.logger.error(
-                  `Error getting details for tenant ${tenantName}: ${err}`
+                  `Error getting details for tenant ${tenantName}: ${err.message}`
                 );
                 throw err;
               });
+
+            // Extract data from response
+            const details = response.data;
 
             this.logger.log(
               `Retrieved details for tenant ${tenantName} with ${details.odsInstances?.length || 0} ODS instances`

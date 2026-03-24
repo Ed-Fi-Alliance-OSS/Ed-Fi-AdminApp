@@ -38,9 +38,19 @@ export class AdminApiSyncService {
    */
   private async processTenantData(tenantData: TenantDto, sbEnvironment: SbEnvironment): Promise<void> {
     this.logger.log(`Processing tenant: ${tenantData.name}`);
+    this.logger.log(`Tenant has ${tenantData.odsInstances?.length || 0} ODS instances`);
 
     // Transform tenant data to EdfiTenant format
     const transformedData = transformTenantData(tenantData, sbEnvironment);
+
+    this.logger.log(`Transformed data has ${transformedData.odss?.length || 0} ODS instances`);
+    if (transformedData.odss && transformedData.odss.length > 0) {
+      transformedData.odss.forEach((ods, idx) => {
+        this.logger.log(
+          `  ODS ${idx}: id=${ods.odsInstanceId}, name="${ods.odsInstanceName}", dbName="${ods.odsInstanceName}"`
+        );
+      });
+    }
 
     // Find or create tenant in database
     let edfiTenant = await this.edfiTenantsRepository.findOne({
@@ -58,6 +68,16 @@ export class AdminApiSyncService {
         sbEnvironmentId: sbEnvironment.id,
         created: new Date(),
       });
+    } else {
+      this.logger.log(`Found existing tenant: ${tenantData.name} (id=${edfiTenant.id})`);
+      this.logger.log(`  Existing tenant has ${edfiTenant.odss?.length || 0} ODS instances`);
+      if (edfiTenant.odss && edfiTenant.odss.length > 0) {
+        edfiTenant.odss.forEach((ods, idx) => {
+          this.logger.log(
+            `    Existing ODS ${idx}: id=${ods.id}, odsInstanceId=${ods.odsInstanceId}, name="${ods.odsInstanceName}", dbName="${ods.dbName}"`
+          );
+        });
+      }
     }
 
     // Persist ODS instances and education organizations using existing sync logic
@@ -80,6 +100,11 @@ export class AdminApiSyncService {
             parent: edorg.parentId,
           })) || [],
         }));
+
+        this.logger.log(`Calling persistSyncTenant with ${syncableOdss.length} syncable ODS`);
+        syncableOdss.forEach((ods, idx) => {
+          this.logger.log(`  SyncableODS ${idx}: id=${ods.id}, name="${ods.name}", dbName="${ods.dbName}"`);
+        });
 
         await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
       });
@@ -163,14 +188,38 @@ export class AdminApiSyncService {
         tenantsProcessed: processedCount,
       };
     } catch (error) {
+      // Extract detailed error information
+      let errorMessage = 'Unknown error occurred';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check if it's a CustomHttpException with additional details
+        if ('response' in error && typeof error.response === 'object' && error.response !== null) {
+          const response = error.response as any;
+          if (response.message) {
+            errorDetails = Array.isArray(response.message) 
+              ? response.message.join(', ') 
+              : response.message;
+          }
+          if (response.title) {
+            errorMessage = response.title;
+          }
+        }
+      }
+
+      const fullMessage = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+
       this.logger.error(
-        `Failed to sync environment ${sbEnvironment.name}: ${error.message}`,
-        error.stack
+        `Failed to sync environment ${sbEnvironment.name}: ${fullMessage}`,
+        error instanceof Error ? error.stack : String(error)
       );
+      
       return {
         status: 'ERROR',
-        message: error.message,
-        error,
+        message: fullMessage,
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
@@ -297,14 +346,38 @@ export class AdminApiSyncService {
         message: `Successfully synced ${tenantDto.odsInstances?.length || 0} ODS instance(s)`,
       };
     } catch (error) {
+      // Extract detailed error information
+      let errorMessage = 'Unknown error occurred';
+      let errorDetails = '';
+
+      if (error instanceof Error) {
+        errorMessage = error.message;
+        
+        // Check if it's a CustomHttpException with additional details
+        if ('response' in error && typeof error.response === 'object' && error.response !== null) {
+          const response = error.response as any;
+          if (response.message) {
+            errorDetails = Array.isArray(response.message) 
+              ? response.message.join(', ') 
+              : response.message;
+          }
+          if (response.title) {
+            errorMessage = response.title;
+          }
+        }
+      }
+
+      const fullMessage = errorDetails ? `${errorMessage}: ${errorDetails}` : errorMessage;
+
       this.logger.error(
-        `Failed to sync tenant ${edfiTenant.name}: ${error.message}`,
-        error.stack
+        `Failed to sync tenant ${edfiTenant.name}: ${fullMessage}`,
+        error instanceof Error ? error.stack : String(error)
       );
+      
       return {
         status: 'ERROR',
-        message: error.message,
-        error,
+        message: fullMessage,
+        error: error instanceof Error ? error : new Error(String(error)),
       };
     }
   }
