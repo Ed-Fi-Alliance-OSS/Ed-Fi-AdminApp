@@ -290,7 +290,8 @@ export class AdminApiSyncService {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let tenantDetails: any;
       try {
-        tenantDetails = await this.adminApiServiceV2['getAdminApiClientUsingEnv'](sbEnvironment)
+        // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
+        tenantDetails = await this.adminApiServiceV2['getAdminApiClient'](tenantWithEnvironment)
           .get(endpoint);
       } catch (apiError) {
         this.logger.error(
