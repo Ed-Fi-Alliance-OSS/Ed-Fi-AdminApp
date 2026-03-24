@@ -137,7 +137,10 @@ export class SbSyncConsumer implements OnModuleInit {
           `Failed to sync environment ${sbEnvironment.name} via Admin API: ${adminApiSyncResult.message}`
         );
       }
-      return adminApiSyncResult;
+      return {
+        tenantsProcessed: adminApiSyncResult.tenantsProcessed || 0,
+        message: adminApiSyncResult.message,
+      };
 
     } else {
       // Use the lambda function to get metadata
@@ -200,7 +203,10 @@ export class SbSyncConsumer implements OnModuleInit {
           `Failed to sync tenant ${edfiTenant.name} via Admin API: ${result.message}`
         );
       }
-      return result;  
+      return {
+        tenantsProcessed: result.tenantsProcessed || 0,
+        message: result.message,
+      };
     }
     else
     {

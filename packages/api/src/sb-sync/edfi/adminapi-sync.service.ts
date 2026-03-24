@@ -29,6 +29,66 @@ export class AdminApiSyncService {
   }
 
   /**
+   * Private helper method to process and persist a single tenant's data
+   * Handles transformation and database persistence for both new and existing tenants
+   * 
+   * @param tenantData - The tenant data from Admin API
+   * @param sbEnvironment - The parent SB Environment
+   * @returns Promise<void>
+   */
+  private async processTenantData(tenantData: TenantDto, sbEnvironment: SbEnvironment): Promise<void> {
+    this.logger.log(`Processing tenant: ${tenantData.name}`);
+
+    // Transform tenant data to EdfiTenant format
+    const transformedData = transformTenantData(tenantData, sbEnvironment);
+
+    // Find or create tenant in database
+    let edfiTenant = await this.edfiTenantsRepository.findOne({
+      where: {
+        name: tenantData.name,
+        sbEnvironmentId: sbEnvironment.id,
+      },
+      relations: ['odss', 'odss.edorgs'],
+    });
+
+    if (!edfiTenant) {
+      this.logger.log(`Creating new tenant: ${tenantData.name}`);
+      edfiTenant = await this.edfiTenantsRepository.save({
+        name: transformedData.name,
+        sbEnvironmentId: sbEnvironment.id,
+        created: new Date(),
+      });
+    }
+
+    // Persist ODS instances and education organizations using existing sync logic
+    if (transformedData.odss && transformedData.odss.length > 0) {
+      this.logger.log(
+        `Syncing ${transformedData.odss.length} ODS instance(s) for tenant: ${tenantData.name}`
+      );
+
+      await this.entityManager.transaction(async (em) => {
+        // Map to SyncableOds format expected by persistSyncTenant
+        const syncableOdss = transformedData.odss.map(ods => ({
+          id: ods.odsInstanceId,
+          name: ods.odsInstanceName,
+          dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
+          edorgs: ods.edorgs?.map(edorg => ({
+            educationorganizationid: edorg.educationOrganizationId,
+            nameofinstitution: edorg.nameOfInstitution,
+            shortnameofinstitution: edorg.shortNameOfInstitution || null,
+            discriminator: edorg.discriminator,
+            parent: edorg.parentId,
+          })) || [],
+        }));
+
+        await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
+      });
+    }
+
+    this.logger.log(`Successfully processed tenant: ${tenantData.name}`);
+  }
+
+  /**
    * Main entry point for Admin API-based environment synchronization
    * Supports both v1 and v2 Admin API versions
    * 
@@ -82,56 +142,8 @@ export class AdminApiSyncService {
       let processedCount = 0;
       for (const tenantData of tenants) {
         try {
-          this.logger.log(`Processing tenant: ${tenantData.name}`);
-
-          // Transform tenant data to EdfiTenant format
-          const transformedData = transformTenantData(tenantData, sbEnvironment);
-
-          // Find or create tenant in database
-          let edfiTenant = await this.edfiTenantsRepository.findOne({
-            where: {
-              name: tenantData.name,
-              sbEnvironmentId: sbEnvironment.id,
-            },
-            relations: ['odss', 'odss.edorgs'],
-          });
-
-          if (!edfiTenant) {
-            this.logger.log(`Creating new tenant: ${tenantData.name}`);
-            edfiTenant = await this.edfiTenantsRepository.save({
-              name: transformedData.name,
-              sbEnvironmentId: sbEnvironment.id,
-              created: new Date(),
-            });
-          }
-
-          // Persist ODS instances and education organizations using existing sync logic
-          if (transformedData.odss && transformedData.odss.length > 0) {
-            this.logger.log(
-              `Syncing ${transformedData.odss.length} ODS instance(s) for tenant: ${tenantData.name}`
-            );
-
-            await this.entityManager.transaction(async (em) => {
-              // Map to SyncableOds format expected by persistSyncTenant
-              const syncableOdss = transformedData.odss.map(ods => ({
-                id: ods.odsInstanceId,
-                name: ods.odsInstanceName,
-                dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
-                edorgs: ods.edorgs?.map(edorg => ({
-                  educationorganizationid: edorg.educationOrganizationId,
-                  nameofinstitution: edorg.nameOfInstitution,
-                  shortnameofinstitution: edorg.shortNameOfInstitution || null,
-                  discriminator: edorg.discriminator,
-                  parent: edorg.parentId,
-                })) || [],
-              }));
-
-              await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
-            });
-          }
-
+          await this.processTenantData(tenantData, sbEnvironment);
           processedCount++;
-          this.logger.log(`Successfully processed tenant: ${tenantData.name}`);
         } catch (tenantError) {
           this.logger.error(
             `Error processing tenant ${tenantData.name}: ${tenantError.message}`,
@@ -165,7 +177,8 @@ export class AdminApiSyncService {
 
   /**
    * Syncs tenant-specific data including ODS instances and education organizations
-   * Private method for internal tenant processing
+   * Only supports v2 Admin API (multi-tenant mode)
+   * For v1 environments, use syncEnvironmentData instead
    * 
    * @param edfiTenant - The EdFi tenant to sync
    * @returns Promise<SyncResult> - Result containing status and processing details
@@ -209,31 +222,27 @@ export class AdminApiSyncService {
         };
       }
 
-      this.logger.log(`Syncing tenant ${edfiTenant.name} using Admin API version: ${version}`);
+      // V1 is single-tenant, so individual tenant sync is not supported
+      if (version === 'v1') {
+        this.logger.warn(`Tenant sync not supported for v1 environments. Use environment-level sync instead.`);
+        return {
+          status: 'ERROR',
+          message: 'V1 Admin API is single-tenant. Use syncEnvironmentData to sync all data.',
+        };
+      }
 
-      // Select appropriate Admin API service based on version
-      const adminApiService = version === 'v1' ? this.adminApiServiceV1 : this.adminApiServiceV2;
+      this.logger.log(`Syncing tenant ${edfiTenant.name} using Admin API v2`);
 
-      // Retrieve ODS instances with education organizations for the tenant
-      const endpoint = version === 'v1' 
-        ? `v1/tenant/${edfiTenant.name}/details`
-        : `tenant/${edfiTenant.name}/details`;
-
+      // For v2, fetch tenant details from the correct endpoint
+      const endpoint = `tenants/${edfiTenant.name}/OdsInstances/edOrgs`;
+      
       this.logger.log(`Fetching tenant details from Admin API: ${endpoint}`);
 
-      // Use the getAdminApiClient method to make the API call
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       let tenantDetails: any;
       try {
-        if (version === 'v1') {
-          // For v1, we need to use the environment-level client
-          tenantDetails = await (adminApiService as AdminApiServiceV1)['getAdminApiClientUsingEnv'](sbEnvironment)
-            .get(endpoint);
-        } else {
-          // For v2, we need the tenant-level client
-          tenantDetails = await (adminApiService as AdminApiServiceV2)['getAdminApiClient'](tenantWithEnvironment)
-            .get(endpoint);
-        }
+        tenantDetails = await this.adminApiServiceV2['getAdminApiClientUsingEnv'](sbEnvironment)
+          .get(endpoint);
       } catch (apiError) {
         this.logger.error(
           `Failed to retrieve tenant details from Admin API: ${apiError.message}`,
@@ -258,47 +267,34 @@ export class AdminApiSyncService {
         `Retrieved ${tenantDetails.odsInstances?.length || 0} ODS instance(s) for tenant: ${edfiTenant.name}`
       );
 
-      // Transform and store data in existing structures
-      const odsInstances = tenantDetails.odsInstances || [];
-
-      if (odsInstances.length === 0) {
-        this.logger.log(`No ODS instances to sync for tenant: ${edfiTenant.name}`);
-        return {
-          status: 'SUCCESS',
-          message: 'No ODS instances to sync',
-        };
-      }
-
-      // Map to SyncableOds format for persistence
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const syncableOdss = odsInstances.map((instance: any) => ({
-        id: instance.odsInstanceId ?? instance.id ?? null,
-        name: instance.name ?? `ODS Instance`,
-        dbName: instance.name ?? `ods-${instance.odsInstanceId ?? instance.id}`,
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        edorgs: (instance.edOrgs || []).map((edorg: any) => ({
-          educationorganizationid: edorg.educationOrganizationId,
-          nameofinstitution: edorg.nameOfInstitution,
-          shortnameofinstitution: edorg.shortNameOfInstitution || null,
-          discriminator: edorg.discriminator,
-          parent: edorg.parentId,
+      // Transform the v2 response to TenantDto format
+      const tenantDto: TenantDto = {
+        id: tenantDetails.id || edfiTenant.name,
+        name: tenantDetails.name || edfiTenant.name,
+        odsInstances: (tenantDetails.odsInstances || []).map((instance: any) => ({
+          id: instance.id ?? null,
+          name: instance.name || 'Unknown ODS Instance',
+          instanceType: instance.instanceType,
+          edOrgs: (instance.educationOrganizations || []).map((edOrg: any) => ({
+            instanceId: instance.id,
+            instanceName: instance.name,
+            educationOrganizationId: edOrg.educationOrganizationId,
+            nameOfInstitution: edOrg.nameOfInstitution,
+            shortNameOfInstitution: edOrg.shortNameOfInstitution,
+            discriminator: edOrg.discriminator,
+            parentId: edOrg.parentId,
+          })),
         })),
-      }));
+      };
 
-      this.logger.log(
-        `Persisting ${syncableOdss.length} ODS instance(s) with education organizations for tenant: ${edfiTenant.name}`
-      );
-
-      // Persist using transaction
-      await this.entityManager.transaction(async (em) => {
-        await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
-      });
+      // Use the shared helper to process the tenant data
+      await this.processTenantData(tenantDto, sbEnvironment);
 
       this.logger.log(`Successfully synced tenant: ${edfiTenant.name}`);
 
       return {
         status: 'SUCCESS',
-        message: `Successfully synced ${syncableOdss.length} ODS instance(s)`,
+        message: `Successfully synced ${tenantDto.odsInstances?.length || 0} ODS instance(s)`,
       };
     } catch (error) {
       this.logger.error(
