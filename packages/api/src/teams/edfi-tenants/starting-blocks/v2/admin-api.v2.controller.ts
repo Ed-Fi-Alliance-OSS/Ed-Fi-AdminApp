@@ -1,5 +1,6 @@
 import {
   CopyClaimsetDtoV2,
+  GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetSingleDtoV2,
   GetIntegrationAppDto,
@@ -715,10 +716,10 @@ export class AdminApiControllerV2 {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
-          url: GetApplicationDtoV2.apiUrl(
+          url: GetApiClientDtoV2.apiUrl(
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
-            application.applicationName,
+            apiClient.name,
             edfiTenant.name
           ),
         });
@@ -774,7 +775,7 @@ export class AdminApiControllerV2 {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
-          url: GetApplicationDtoV2.apiUrl(
+          url: GetApiClientDtoV2.apiUrl(
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             application.applicationName,
