@@ -91,5 +91,5 @@ export const ApiClientPageActions = () => {
       apiClient,
       applicationId: Number(params.applicationId),
     });
-    return <PageActions actions={omit(actions, 'View')} />;
+    return <PageActions actions={omit(actions, 'View', 'Create')} />;
 };
