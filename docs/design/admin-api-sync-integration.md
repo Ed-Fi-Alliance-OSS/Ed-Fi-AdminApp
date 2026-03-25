@@ -91,17 +91,30 @@ async refreshSbEnvironment(environmentId: number) {
   - Determine API version (v1 or v2) and select appropriate service
   - Discover and sync tenants based on multi-tenant configuration
   - Process tenant data using existing table structures
+- **Return Value:** Returns `SyncResult` object containing status and tenant count for consistency with Starting Blocks sync
 
 • **Tenant Sync Method - `syncTenantData()`:**
 
-- **Purpose:** Syncs tenant-specific data including ODS instances and education
-  organizations
-- **Scope:** Private method for internal tenant processing
+- **Purpose:** Syncs tenant-specific data including ODS instances and education organizations for individual tenants
+- **Scope:** Public method for individual tenant synchronization (v2 only)
 - **Operations:**
+  - Validate tenant has environment with Admin API configuration
+  - Use `getAdminApiClient` with tenant context for proper authentication
   - Retrieve ODS instances for the specified tenant
   - Get education organizations for each ODS instance
   - Transform and store data in existing structures without schema changes
   - Return processed sync result with status
+- **Authentication:** Uses tenant-specific credentials and includes tenant header in API requests
+
+• **Helper Method - `processTenantData()`:**
+
+- **Purpose:** Private helper to process and persist a single tenant's data
+- **Operations:**
+  - Transform tenant data to EdfiTenant format
+  - Find or create tenant in database
+  - Persist ODS instances and education organizations using existing sync logic
+  - Use transaction management for data consistency
+- **Reusability:** Shared by both environment-level and tenant-level sync methods
   
 ```typescript
 
@@ -125,7 +138,73 @@ export class AdminApiSyncService {
 }
 ```
 
-### 3. Extended Admin API Service Methods
+### 3. Authentication and Token Management
+
+#### Tenant-Specific Token Storage
+
+**Multi-Tenant Authentication Pattern:**
+
+• **Composite Token Keys:**
+  - **Pattern:** `${environmentId}-${tenantName}`
+  - **Purpose:** Each tenant maintains its own OAuth token to prevent credential sharing
+  - **Implementation:** `getTenantTokenKey(environmentId, tenantName)` helper method
+  - **Example:** Environment 123 with tenant1 uses key `123-tenant1`
+
+• **Token Cache Management:**
+  - **Storage:** NodeCache with automatic expiration based on token lifetime
+  - **TTL:** Token expiry time minus 60 seconds for refresh buffer
+  - **Isolation:** Prevents token collision between tenants in same environment
+
+• **Login Method Enhancement:**
+  - **Parameter:** `tenantName` parameter added to `login()` method
+  - **Auto-Selection:** When no tenant specified, automatically selects first available tenant (prefers 'default')
+  - **Storage:** Stores token using composite key for tenant-specific authentication
+  - **Logging:** Records token storage with composite key for debugging
+
+#### API Client Methods
+
+**`getAdminApiClient(edfiTenant)`:**
+- **Purpose:** Creates authenticated client for tenant-specific operations
+- **Token Retrieval:** Uses composite key `${sbEnvironment.id}-${tenantName}`
+- **Auto-Authentication:** Automatically logs in if token not found or expired
+- **Headers:** Includes both `Authorization: Bearer {token}` and `tenant: {tenantName}`
+- **Use Case:** All tenant-specific API operations (ODS instances, education organizations, etc.)
+
+**`getAdminApiClientUsingEnv(environment)`:**
+- **Purpose:** Creates authenticated client for environment-level operations
+- **Token Retrieval:** Uses environment ID only
+- **Limited Scope:** Used only for root endpoint (`/`) to check tenancy mode
+- **Note:** Does NOT include tenant header - only for multi-tenant discovery
+
+#### Authentication Flow
+
+**Environment-Level Sync:**
+1. Check tenancy mode using environment-level token (no tenant header)
+2. Discover tenant names from API response
+3. **For each tenant:**
+   - Authenticate separately with tenant-specific credentials
+   - Store token using composite key `${environmentId}-${tenantName}`
+   - Fetch tenant data with tenant-specific token and tenant header
+
+**Tenant-Level Sync:**
+1. Retrieve tenant with environment relationship
+2. Use `getAdminApiClient(tenant)` for automatic tenant-specific authentication
+3. Include tenant header in all API requests
+4. Fetch ODS instances and education organizations with proper tenant context
+
+#### Multi-Tenant API Requirements
+
+• **Tenant Header Requirement:**
+  - **All Tenant-Specific Endpoints:** Must include `tenant: {tenantName}` header
+  - **Examples:** `/tenants/{name}/OdsInstances/edOrgs`, ODS operations, education organizations
+  - **Exception:** Root endpoint (`/`) for tenancy discovery does not require tenant header
+
+• **Authentication Isolation:**
+  - **Per-Tenant Credentials:** Each tenant has separate API key and secret
+  - **Token Separation:** No token sharing between tenants prevents data leakage
+  - **Authorization Boundary:** Each token only authorized for its specific tenant
+
+### 4. Extended Admin API Service Methods
 
 #### AdminApiServiceV1 Extensions
 
@@ -172,17 +251,21 @@ export class AdminApiSyncService {
 
 • **`getTenants()` Method - Primary Difference:**
 
-- **V2 Advantage:** Queries tenants endpoint directly from Admin API
-- **Endpoint:** `/{version}/tenants`
-- **Multi-Tenant Support:** Handles environments with many tenants
+- **V2 Advantage:** Queries tenancy information from root endpoint, then fetches detailed data per tenant
+- **Endpoints:** 
+  - `GET /` - Root endpoint for tenancy mode and tenant list discovery
+  - `GET /v2/tenants/{tenantName}/OdsInstances/edOrgs` - Per-tenant details endpoint
+- **Multi-Tenant Support:** Handles environments with multiple tenants
 - **Parameters:** `environment: SbEnvironment`
-- **Returns:** `Promise<GetTenantDtoV2[]>`
-- **Implementation:**
-  - Makes API call to `/tenants`
-  - Transforms response data using `transformTenantResponse()`
-  - Supports pagination for large tenant lists
-- **Contrast with V1:** V1 creates default tenant from config, V2 fetches actual
-  tenants from API
+- **Returns:** `Promise<TenantDto[]>`
+- **Implementation Steps:**
+  1. Call root endpoint to determine multi-tenant mode and get tenant names
+  2. **Per-Tenant Authentication:** Login separately for each tenant using tenant-specific credentials
+  3. **Parallel Fetch:** Use `Promise.all()` to fetch all tenant details concurrently
+  4. **Tenant Context:** Include `tenant` header in each API request
+  5. Transform response data including ODS instances and education organizations
+- **Error Handling:** Gracefully handles per-tenant failures, returns tenant with empty details on error
+- **Contrast with V1:** V1 creates default tenant from config, V2 fetches actual tenants from API with proper multi-tenant authentication
 
 • **Shared Methods with V1 (Same Implementation Pattern):**
 
@@ -190,23 +273,27 @@ export class AdminApiSyncService {
   - **Same Purpose:** Retrieve education organizations for tenant
   - **Same API Pattern:** Uses `/{version}/educationOrganizations` endpoints
   - **Same Filtering:** Optional ODS instance filtering available
+  - **Authentication:** Uses tenant-specific token via `getAdminApiClient(tenant)`
 
 - **`getOdsInstancesForTenant()` Method:**
   - **Same Purpose:** Retrieve ODS instances for tenant
   - **Same API Pattern:** Uses ODS instances endpoints
   - **Same Data Handling:** Returns instance details with metadata
+  - **Authentication:** Uses tenant-specific token via `getAdminApiClient(tenant)`
 
 • **V1 vs V2 Summary:**
 
 - **Primary Difference:** Tenant discovery (V2 uses API endpoint, V1 uses
   config)
+- **Authentication Model:** V2 requires per-tenant authentication with composite token keys
+- **API Headers:** V2 requires `tenant` header for all tenant-specific operations
 - **Shared Functionality:** Education organizations and ODS instances use
   identical patterns
 - **API Consistency:** Both versions use same endpoint structure for shared
   methods
 - **Data Processing:** Both versions use the same data transformation logic to map API responses to the existing database schema
 
-### 4. Data Transformation and Mapping
+### 5. Data Transformation and Mapping
 
 #### Adapting Admin API Responses to Existing Tables
 
@@ -223,43 +310,68 @@ export class AdminApiSyncService {
 
 - **Purpose:** Transform Admin API tenant response to match EdfiTenant entity
 - **Input Parameters:**
-  - `apiTenant: GetTenantDtoV2` - Admin API tenant response
+  - `tenantDto: TenantDto` - Admin API tenant response with ODS instances and education organizations
   - `sbEnvironment: SbEnvironment` - Environment context
-- **Returns:** `Partial<EdfiTenant>` - Mapped tenant entity
+- **Returns:** `Transformed tenant data` with nested ODS and education organization structures
 - **Key Transformations:**
-  - Maps `apiTenant.name` to tenant name field
+  - Maps `tenantDto.name` to tenant name field
   - Links tenant to environment via `sbEnvironment.id`
+  - Processes ODS instances with their education organizations
   - Handles date conversion with fallback to current date
-- **Schema Compatibility:** Maps v2 multi-tenant structure to existing
-  single-tenant database schema
+- **Schema Compatibility:** Maps v2 multi-tenant structure to existing database schema
 
-• **`transformOdsInstanceData()` Method:**
+• **`transformOdsInstanceData()` / ODS Instance Mapping:**
 
-- **Purpose:** Transform Admin API ODS instance to match existing Ods entity
-  structure
-- **Input:** `apiOds: GetOdsInstanceDetailDtoV2` - Admin API ODS instance
-  response
+- **Purpose:** Transform Admin API ODS instance to match existing Ods entity structure
+- **Input:** ODS instance data from Admin API response
 - **Returns:** `SyncableOds` - Mapped ODS instance entity
 - **Field Mappings:**
-  - Direct mapping: `id`, `name`, `instanceType`
-  - Computed: `dbName` (extracted from education organizations metadata)
-  - Initialized: `edorgs` as empty array (populated separately)
-  - Converted: `created` date from API response
+  - **Stable Identifier:** `odsInstanceId` (used for matching existing records)
+  - Direct mapping: `name` → `odsInstanceName`
+  - Computed: `dbName` (typically matches instance name)
+  - Initialized: `edorgs` array populated from education organizations
+- **Matching Strategy:** Uses `odsInstanceId` as the stable key for identifying existing ODS records
+- **Change Detection:** Compares `odsInstanceName` to detect name changes
+- **Update Logic:** 
+  - Finds existing ODS by `odsInstanceId`
+  - Updates `odsInstanceName` if changed
+  - Preserves `dbName` from original creation
 
 • **`transformEdorgData()` Method:**
 
-- **Purpose:** Transform Admin API education organizations to match existing
-  Edorg entity
-- **Input:** `apiEdorg: GetEducationOrganizationDtoV2` - Admin API education org
-  response
-- **Returns:** `Partial<Edorg>` - Mapped education organization entity
+- **Purpose:** Transform Admin API education organizations to match existing Edorg entity
+- **Input:** Education organization data from API response
+- **Returns:** `Edorg data` - Mapped education organization entity
 - **Field Preservation Strategy:**
   - Core identifiers: `educationOrganizationId`, `discriminator`
   - Institution names: `nameOfInstitution`, `shortNameOfInstitution`
-  - Fallback logic: Uses `nameOfInstitution` if `shortNameOfInstitution`
+  - Hierarchy: `parentId` for organization relationships
+  - Fallback logic: Uses `nameOfInstitution` if `shortNameOfInstitution` missing
 - **Data Integrity:** Preserves all required fields for existing table structure
 
-### 5. Error Handling and Retry Logic
+#### Sync Delta Computation
+
+**ODS Matching and Update Logic:**
+
+• **`computeOdsListDeltas()` Method:**
+  - **Matching Key:** Uses `odsInstanceId` (stable Admin API identifier)
+  - **Change Detection:** Compares names between existing and incoming ODS data
+  - **Operations:**
+    - **New:** Creates ODS instances not found in database
+    - **Update:** Updates existing ODS when `odsInstanceName` changed
+    - **Delete:** Marks ODS as inactive if no longer in Admin API response
+  - **Logging:** Comprehensive logging of all comparisons and detected changes
+
+• **`persistSyncTenant()` Method:**
+  - **Transaction Safety:** All updates wrapped in database transaction
+  - **ODS Matching:** Maps ODS by `odsInstanceId` in three locations
+  - **Save Operations:**
+    - Saves new ODS instances
+    - Updates existing ODS instance names
+    - Processes education organizations for each ODS
+  - **Error Handling:** Rolls back entire transaction on any failure
+
+### 6. Error Handling and Retry Logic
 
 #### Error Types
 
@@ -286,7 +398,7 @@ and server-side API errors (5xx)
 • **Non-Retryable:** Client errors (4xx except
 401/403) and data transformation errors are not retried
 
-### 6. Tenant Management Strategy
+### 7. Tenant Management Strategy
 
 #### Automatic Tenant Discovery
 
@@ -307,9 +419,31 @@ automatically retrieve the latest tenant list from the refreshed cache
 eliminates the need for manual tenant list reloading operations. As a result,
 the `Reload tenants` option will be hidden for `Non-StartingBlocks` environments
 
-### 7. Consolidated list of Admin API endpoints
+### 8. Consolidated list of Admin API endpoints
 
 The following Admin API endpoints are utilized throughout this integration:
+
+#### Root Endpoint (Multi-Tenant Discovery)
+
+• **Tenancy Information:**
+
+- `GET /` - Root endpoint to retrieve tenancy mode and tenant list
+- **Response Fields:**
+  - `tenancy.multitenantMode` (boolean) - Indicates if multi-tenant mode enabled
+  - `tenancy.tenants` (string[]) - Array of tenant names
+- **Usage:** Initial tenant discovery in v2 environments
+- **Authentication:** Requires environment-level token (no tenant header)
+
+#### V2 Multi-Tenant Endpoints
+
+• **Tenant Details:**
+
+- `GET /v2/tenants/{tenantName}/OdsInstances/edOrgs` - Retrieve complete tenant data
+- **Response:** ODS instances with nested education organizations
+- **Headers Required:**
+  - `Authorization: Bearer {tenant-specific-token}`
+  - `tenant: {tenantName}`
+- **Usage:** Primary data retrieval endpoint for tenant synchronization
 
 #### V1 and V2 Common Endpoints
 
@@ -319,18 +453,13 @@ The following Admin API endpoints are utilized throughout this integration:
 - `GET /{version}/educationOrganizations/{instanceId}` - Retrieve education
   organizations for specific ODS instance
 - **Usage:** Core data retrieval for both V1 and V2 implementations
+- **Authentication:** Requires tenant-specific token and tenant header for v2
 
 • **ODS Instances:**
 
 - `GET /{version}/OdsInstances` - Retrieve ODS instances for tenant
 - **Usage:** Instance discovery and metadata retrieval
-
-#### V2-Specific Endpoints
-
-• **Tenants Management:**
-
-- `GET /{version}/tenants` - Retrieve all tenants in multi-tenant environments
-- **Usage:** Primary tenant discovery mechanism for V2 environments
+- **Authentication:** Requires tenant-specific token and tenant header for v2
 
 #### Alternative Endpoints (Future Implementation)
 
@@ -346,8 +475,70 @@ The following Admin API endpoints are utilized throughout this integration:
 
 • **Version Support:** All endpoints support both V1 and V2 API versions via `{version}` parameter
 
-• **Authentication:** All endpoints require proper Admin
-API authentication credentials
+• **Authentication Requirements:**
+  - **Environment-Level:** Root endpoint (`/`) uses environment-level token without tenant header
+  - **Tenant-Specific:** All tenant operations require tenant-specific token using composite key pattern
+  - **Tenant Header:** V2 multi-tenant endpoints require `tenant: {tenantName}` header
+  - **Token Isolation:** Each tenant maintains its own OAuth token to prevent credential sharing
 
-• **Error Handling:** Standard HTTP status codes
-with retry logic for 5xx errors and rate limiting (429)
+• **Error Handling:** 
+  - Standard HTTP status codes with retry logic for 5xx errors and rate limiting (429)
+  - 401 errors trigger re-authentication with tenant-specific credentials
+  - Per-tenant error handling in parallel operations
+
+## Implementation Status
+
+### Completed Features
+
+✅ **Tenant-Specific Authentication**
+- Composite token key pattern (`${environmentId}-${tenantName}`)
+- Per-tenant OAuth token storage and retrieval
+- Automatic login with tenant-specific credentials
+
+✅ **Environment-Level Sync**
+- Multi-tenant discovery via root endpoint
+- Parallel tenant data fetching with per-tenant authentication
+- Comprehensive error handling and logging
+
+✅ **Tenant-Level Sync**
+- Individual tenant synchronization support (v2 only)
+- Proper authentication using `getAdminApiClient(tenant)`
+- Tenant header inclusion in all API requests
+
+✅ **Data Synchronization**
+- ODS instance matching by stable `odsInstanceId`
+- Change detection for ODS name updates
+- Education organization relationship mapping
+- Transaction-safe persistence operations
+
+✅ **User Interface Updates**
+- Sync button visibility for v2 environments
+- Sync queue display for both Starting Blocks and v2 environments
+- Support for both environment and tenant-level sync actions
+
+### Configuration Requirements
+
+**Multi-Tenant Environment Configuration:**
+
+```json
+{
+  "version": "v2",
+  "tenants": {
+    "tenant1": {
+      "adminApiKey": "key_for_tenant1",
+      "adminApiSecret": "secret_for_tenant1",
+      "allowedEdorgs": [...]
+    },
+    "tenant2": {
+      "adminApiKey": "key_for_tenant2",
+      "adminApiSecret": "secret_for_tenant2",
+      "allowedEdorgs": [...]
+    }
+  }
+}
+```
+
+**Key Points:**
+- Each tenant must have separate API credentials
+- Credentials stored in environment configuration (public key, private secret)
+- Tenant names must match those returned by Admin API root endpoint

@@ -74,43 +74,47 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
 
       // Mock tenant details responses (camelCase format)
       const mockDetailsResponseOne = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [
-          {
-            id: 1,
-            name: 'ODS One',
-            instanceType: 'Production',
-            educationOrganizations: [
-              {
-                educationOrganizationId: 255901,
-                nameOfInstitution: 'School One',
-                shortNameOfInstitution: 'S1',
-                discriminator: 'edfi.School',
-                parentId: 255900,
-              },
-            ],
-          },
-        ],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [
+            {
+              id: 1,
+              name: 'ODS One',
+              instanceType: 'Production',
+              educationOrganizations: [
+                {
+                  educationOrganizationId: 255901,
+                  nameOfInstitution: 'School One',
+                  shortNameOfInstitution: 'S1',
+                  discriminator: 'edfi.School',
+                  parentId: 255900,
+                },
+              ],
+            },
+          ],
+        },
       };
 
       const mockDetailsResponseTwo = {
-        id: 'tenant-two',
-        name: 'Tenant Two',
-        odsInstances: [
-          {
-            id: 2,
-            name: 'ODS Two',
-            instanceType: 'Test',
-            educationOrganizations: [
-              {
-                educationOrganizationId: 255902,
-                nameOfInstitution: 'School Two',
-                discriminator: 'edfi.School',
-              },
-            ],
-          },
-        ],
+        data: {
+          id: 'tenant-two',
+          name: 'Tenant Two',
+          odsInstances: [
+            {
+              id: 2,
+              name: 'ODS Two',
+              instanceType: 'Test',
+              educationOrganizations: [
+                {
+                  educationOrganizationId: 255902,
+                  nameOfInstitution: 'School Two',
+                  discriminator: 'edfi.School',
+                },
+              ],
+            },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -119,17 +123,24 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn()
         .mockResolvedValueOnce(mockDetailsResponseOne)
         .mockResolvedValueOnce(mockDetailsResponseTwo);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        if (key === '1-tenant-two') return 'token-tenant-two';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -139,8 +150,18 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
           Authorization: 'Bearer mock-token',
         }),
       }));
-      expect(mockApiGet).toHaveBeenCalledWith('tenants/tenant-one/OdsInstances/edOrgs');
-      expect(mockApiGet).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs');
+      expect(mockApiGet).toHaveBeenCalledWith('tenants/tenant-one/OdsInstances/edOrgs', expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-tenant-one',
+          tenant: 'tenant-one',
+        }),
+      }));
+      expect(mockApiGet).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs', expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-tenant-two',
+          tenant: 'tenant-two',
+        }),
+      }));
 
       // Verify first tenant
       expect(result[0]).toMatchObject({
@@ -197,16 +218,18 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDefaultTenantDetails = {
-        id: 'default',
-        name: 'Default',
-        odsInstances: [
-          {
-            id: 1,
-            name: 'ODS Default',
-            instanceType: 'Production',
-            educationOrganizations: [],
-          },
-        ],
+        data: {
+          id: 'default',
+          name: 'Default',
+          odsInstances: [
+            {
+              id: 1,
+              name: 'ODS Default',
+              instanceType: 'Production',
+              educationOrganizations: [],
+            },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -215,20 +238,31 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDefaultTenantDetails);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-default') return 'token-default';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
       expect(result).toHaveLength(1);
-      expect(mockApiGet).toHaveBeenCalledWith('tenants/default/OdsInstances/edOrgs');
+      expect(mockApiGet).toHaveBeenCalledWith('tenants/default/OdsInstances/edOrgs', expect.objectContaining({
+        headers: expect.objectContaining({
+          Authorization: 'Bearer token-default',
+          tenant: 'default',
+        }),
+      }));
       expect(result[0]).toMatchObject({
         id: 'default',
         name: 'Default',
@@ -255,15 +289,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock tenant details endpoint to fail
       const mockApiGet = jest.fn().mockRejectedValueOnce(new Error('Details endpoint error'));
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -349,15 +389,17 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDetailsResponse = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [
-          {
-            id: 1,
-            name: 'ODS One',
-            educationOrganizations: [],
-          },
-        ],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [
+            {
+              id: 1,
+              name: 'ODS One',
+              educationOrganizations: [],
+            },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -366,15 +408,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -403,12 +451,14 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDetailsResponse = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [
-          { name: 'ODS 1', instanceType: 'Type1', educationOrganizations: [] },
-          { name: 'ODS 2', instanceType: 'Type2', educationOrganizations: [] },
-        ],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [
+            { name: 'ODS 1', instanceType: 'Type1', educationOrganizations: [] },
+            { name: 'ODS 2', instanceType: 'Type2', educationOrganizations: [] },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -417,15 +467,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -448,13 +504,15 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDetailsResponse = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [
-          { id: 1, educationOrganizations: [] },
-          { id: 2, educationOrganizations: [] },
-          { id: 3, educationOrganizations: [] },
-        ],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [
+            { id: 1, educationOrganizations: [] },
+            { id: 2, educationOrganizations: [] },
+            { id: 3, educationOrganizations: [] },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -463,15 +521,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -495,9 +559,11 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDefaultTenantDetails = {
-        id: 'default',
-        name: 'Default',
-        odsInstances: [],
+        data: {
+          id: 'default',
+          name: 'Default',
+          odsInstances: [],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -506,15 +572,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDefaultTenantDetails);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-default') return 'token-default';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
@@ -537,9 +609,11 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDetailsResponse = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -548,29 +622,31 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
-      // Mock admin API client for tenant details
-      const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
-
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
-        get: mockApiGet,
-      });
-
-      // Mock token cache to return undefined first (triggering login), then return token
+      // Mock token cache to return mock-token for root call, then undefined for tenant call (triggering login)
       let tokenCallCount = 0;
-      (service as any).adminApiTokens.get = jest.fn(() => {
+      (service as any).adminApiTokens.get = jest.fn((key: string | number) => {
         tokenCallCount++;
-        if (tokenCallCount === 1) return undefined; // First call returns undefined
-        return 'mock-token'; // Subsequent calls return token
+        // First call for root endpoint (uses environment.id as number)
+        if (tokenCallCount === 1 && key === 1) return 'mock-token';
+        // Second call for tenant authentication - return token after login
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return undefined;
       });
-      (service as any).adminApiTokens.set = jest.fn();
 
       // Mock login method
       const mockLogin = jest.fn().mockResolvedValue({ status: 'SUCCESS' });
       jest.spyOn(service as any, 'login').mockImplementation(mockLogin);
 
+      // Mock admin API client for tenant details
+      const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
+
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
+        get: mockApiGet,
+      });
+
       const result = await service.getTenants(environment);
 
-      expect(mockLogin).toHaveBeenCalledWith(environment, environment.id);
+      expect(mockLogin).toHaveBeenCalledWith(environment, environment.id, 'tenant-one');
       expect(result).toHaveLength(1);
       expect(result[0].id).toBe('tenant-one');
     });
@@ -590,22 +666,24 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       };
 
       const mockDetailsResponse = {
-        id: 'tenant-one',
-        name: 'Tenant One',
-        odsInstances: [
-          {
-            id: 999,
-            name: 'Test ODS',
-            instanceType: 'Production',
-            educationOrganizations: [
-              {
-                educationOrganizationId: 12345,
-                nameOfInstitution: 'Test School',
-                discriminator: 'edfi.School',
-              },
-            ],
-          },
-        ],
+        data: {
+          id: 'tenant-one',
+          name: 'Tenant One',
+          odsInstances: [
+            {
+              id: 999,
+              name: 'Test ODS',
+              instanceType: 'Production',
+              educationOrganizations: [
+                {
+                  educationOrganizationId: 12345,
+                  nameOfInstitution: 'Test School',
+                  discriminator: 'edfi.School',
+                },
+              ],
+            },
+          ],
+        },
       };
 
       // Mock axios client for root endpoint
@@ -614,15 +692,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
         get: mockRootGet,
       });
 
+      // Mock login method to return success
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
       // Mock admin API client for tenant details
       const mockApiGet = jest.fn().mockResolvedValueOnce(mockDetailsResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({
         get: mockApiGet,
       });
 
-      // Mock token cache
-      (service as any).adminApiTokens.get = jest.fn().mockReturnValue('mock-token');
+      // Mock token cache to return tenant-specific tokens
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-one') return 'token-tenant-one';
+        return 'mock-token';
+      });
 
       const result = await service.getTenants(environment);
 
