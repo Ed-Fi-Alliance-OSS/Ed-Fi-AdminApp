@@ -495,6 +495,18 @@ export class AdminApiServiceV2 {
      );
   }
 
+  async deleteApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
+    await this.getAdminApiClient(edfiTenant)
+      .delete(`apiclients/${apiClientId}`)
+      .catch((err) => {
+        this.logger.error(
+          `Error deleting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
+        );
+        throw err;
+      });
+    return undefined;
+  }
+
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {
     return toGetAuthStrategyDtoV2(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
