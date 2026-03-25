@@ -45,7 +45,7 @@ export const useSingleApiClientActions = ({
       subject: {
         edfiTenantId: Number(edfiTenantId),
         teamId: Number(asId),
-        id: apiClient.id,
+        id: '__filtered__',
       },
     }
   );
@@ -107,9 +107,9 @@ export const useSingleApiClientActions = ({
                 isPending: deleteApiClient.isPending,
                 icon: Icons.Delete,
                 text: 'Delete',
-                title: 'Delete Application credentials',
+                title: 'Delete API client credentials',
                 confirmBody:
-                  'All systems using this application to access Ed-Fi will no longer be able to do so. This action cannot be undone, though you will be able to create a new application if you want.',
+                  'All systems using these credentials to access Ed-Fi will no longer be able to do so. This action cannot be undone, but you will be able to create new credentials for this application if you want.',
                 onClick: () =>
                   deleteApiClient.mutate(
                     { id: apiClient.id, pathParams: {} },

@@ -798,10 +798,6 @@ export class AdminApiControllerV2 {
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:delete')
     validIds: Ids
   ) {
-    if (!checkId(apiClientId, validIds)) {
-      throw new NotFoundException();
-    }
-
     const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
     const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
 
