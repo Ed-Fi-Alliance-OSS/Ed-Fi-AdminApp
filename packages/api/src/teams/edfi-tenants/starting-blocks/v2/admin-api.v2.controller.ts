@@ -20,7 +20,9 @@ import {
   PutVendorDtoV2,
   SecretSharingMethod,
   edorgKeyV2,
+  toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
+  toPostApiClientResponseDtoV2,
   toPostApplicationResponseDto,
   toPostApplicationResponseDtoV2,
 } from '@edanalytics/models';
@@ -598,78 +600,6 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Put('applications/:applicationId/reset-credential')
-  @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
-    subject: {
-      id: '__filtered__',
-      edfiTenantId: 'edfiTenantId',
-      teamId: 'teamId',
-    },
-  })
-  async resetApplicationCredentials(
-    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
-    @Param('teamId', new ParseIntPipe()) teamId: number,
-    @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
-    @Param('applicationId', new ParseIntPipe()) applicationId: number,
-    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials')
-    validIds: Ids
-  ) {
-    const application = await this.sbService.getApplication(edfiTenant, applicationId);
-
-    if (this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
-      const integrationProviderApp = await this.integrationAppsTeamService.findOne({
-        applicationId,
-        edfiTenantId,
-      });
-      if (integrationProviderApp) {
-        throw new CustomHttpException(
-          {
-            title: 'Cannot reset credentials for an Integration Provider application.',
-            type: 'Error',
-          },
-          400
-        );
-      }
-
-      const adminApiResponse = await this.sbService.putApplicationResetCredential(
-        edfiTenant,
-        applicationId
-      );
-
-      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
-        try {
-          const yopassResult = await postYopassSecret({
-            ...adminApiResponse,
-            url: GetApplicationDtoV2.apiUrl(
-              sbEnvironment.startingBlocks,
-              sbEnvironment.domain,
-              application.applicationName,
-              edfiTenant.name
-            ),
-          });
-
-          return toApplicationYopassResponseDto({
-            link: yopassResult.link,
-            applicationId: adminApiResponse.id,
-            secretSharingMethod: SecretSharingMethod.Yopass,
-          });
-        } catch (error) {
-          Logger.error('Yopass failed for resetApplicationCredentials:', error);
-          throw error; // Re-throw the original error
-        }
-      } else {
-        return toPostApplicationResponseDtoV2({
-          ...adminApiResponse,
-          secretSharingMethod: SecretSharingMethod.Direct,
-        });
-      }
-    } else {
-      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
-    }
-  }
-
   //
   // Api Clients
   //
@@ -769,6 +699,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @Body() apiClient: PostApiClientDtoV2,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
     validIds: Ids
@@ -778,7 +709,94 @@ export class AdminApiControllerV2 {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
-    return await this.sbService.postApiClient(edfiTenant, apiClient);
+    const adminApiResponse = await this.sbService.postApiClient(edfiTenant, apiClient);
+
+    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      try {
+        const yopassResult = await postYopassSecret({
+          ...adminApiResponse,
+          url: GetApplicationDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
+            sbEnvironment.domain,
+            application.applicationName,
+            edfiTenant.name
+          ),
+        });
+
+        return toApiClientYopassResponseDto({
+          link: yopassResult.link,
+          apiClientId: adminApiResponse.id,
+          secretSharingMethod: SecretSharingMethod.Yopass,
+        });
+      } catch (error) {
+        Logger.error('Yopass failed for postApiClient:', error);
+        throw error;
+      }
+    } else {
+      return toPostApiClientResponseDtoV2({
+        ...adminApiResponse,
+        secretSharingMethod: SecretSharingMethod.Direct,
+      });
+    }
+  }
+
+  @Put('apiclients/:apiclientId/reset-credential')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async resetApiClientCredentials(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials')
+    validIds: Ids
+  ) {
+    const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    const adminApiResponse = await this.sbService.putApiClientResetCredential(
+      edfiTenant,
+      apiClientId
+    );
+
+    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      try {
+        const yopassResult = await postYopassSecret({
+          ...adminApiResponse,
+          url: GetApplicationDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
+            sbEnvironment.domain,
+            application.applicationName,
+            edfiTenant.name
+          ),
+        });
+
+        return toApiClientYopassResponseDto({
+          link: yopassResult.link,
+          apiClientId: adminApiResponse.id,
+          secretSharingMethod: SecretSharingMethod.Yopass,
+        });
+      } catch (error) {
+        Logger.error('Yopass failed for resetApiClientCredentials:', error);
+        throw error;
+      }
+    } else {
+      return toPostApiClientResponseDtoV2({
+        ...adminApiResponse,
+        secretSharingMethod: SecretSharingMethod.Direct,
+      });
+    }
   }
 
   @Delete('apiclients/:apiclientId')
