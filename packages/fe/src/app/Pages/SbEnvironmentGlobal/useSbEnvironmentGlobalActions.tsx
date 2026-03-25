@@ -136,7 +136,8 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canRefreshResources && (sbEnvironment.startingBlocks || sbEnvironment.version === 'v2')
+        ...(canRefreshResources &&
+        (sbEnvironment.startingBlocks || sbEnvironment.version === 'v1' || sbEnvironment.version === 'v2')
           ? {
               RefreshResources: {
                 icon: Icons.Download,

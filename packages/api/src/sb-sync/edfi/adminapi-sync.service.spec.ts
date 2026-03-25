@@ -50,6 +50,9 @@ describe('AdminApiSyncService', () => {
           'tenant-one': {
             adminApiKey: 'key1',
           },
+          'tenant-two': {
+            adminApiKey: 'key2',
+          },
         },
       },
       adminApiUrl: 'https://api.test.com',
@@ -59,6 +62,9 @@ describe('AdminApiSyncService', () => {
       tenants: {
         'tenant-one': {
           adminApiSecret: 'secret1',
+        },
+        'tenant-two': {
+          adminApiSecret: 'secret2',
         },
       },
     } as any,
@@ -107,6 +113,12 @@ describe('AdminApiSyncService', () => {
       getRepository: jest.fn(),
     };
 
+    const mockSbEnvironmentsRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(),
+      find: jest.fn(),
+    };
+
     const mockAdminApiServiceV1 = {
       getTenants: jest.fn(),
     };
@@ -129,6 +141,10 @@ describe('AdminApiSyncService', () => {
         {
           provide: getRepositoryToken(EdfiTenant),
           useValue: mockEdfiTenantsRepository,
+        },
+        {
+          provide: getRepositoryToken(SbEnvironment),
+          useValue: mockSbEnvironmentsRepository,
         },
         {
           provide: EntityManager,

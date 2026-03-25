@@ -1,11 +1,13 @@
-import { Inject, Injectable, Logger } from "@nestjs/common";
-import { InjectEntityManager, InjectRepository } from "@nestjs/typeorm";
-import { EntityManager, Repository } from "typeorm";
-import { EdfiTenant, SbEnvironment } from "@edanalytics/models-server";
-import { TenantDto } from "@edanalytics/models";
-import { AdminApiServiceV1, AdminApiServiceV2 } from "../../teams/edfi-tenants/starting-blocks";
-import { transformTenantData } from "../../utils/admin-api-data-adapter-utils";
-import { persistSyncTenant } from "../sync-ods";
+import { Inject, Injectable, Logger } from '@nestjs/common';
+import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
+import { EntityManager, Repository } from 'typeorm';
+import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
+import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
+import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
+import { persistSyncTenant } from '../sync-ods';
+import axios from 'axios';
+import { randomBytes, randomUUID } from 'crypto';
 
 export interface SyncResult {
   status: 'SUCCESS' | 'ERROR' | 'NO_ADMIN_API_CONFIG' | 'INVALID_VERSION';
@@ -23,6 +25,8 @@ export class AdminApiSyncService {
     @Inject(AdminApiServiceV1) private adminApiServiceV1: AdminApiServiceV1,
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
+    @InjectRepository(SbEnvironment)
+    private sbEnvironmentsRepository: Repository<SbEnvironment>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
   ) {
@@ -53,9 +57,10 @@ export class AdminApiSyncService {
     }
 
     // Find or create tenant in database
+    // Use transformedData.name (normalized) for consistent lookups
     let edfiTenant = await this.edfiTenantsRepository.findOne({
       where: {
-        name: tenantData.name,
+        name: transformedData.name,
         sbEnvironmentId: sbEnvironment.id,
       },
       relations: ['odss', 'odss.edorgs'],
@@ -114,6 +119,164 @@ export class AdminApiSyncService {
   }
 
   /**
+   * Provisions Admin API credentials for newly discovered tenants during sync
+   * For multi-tenant v2 environments, this creates credentials for tenants that don't have them yet
+   * 
+   * @param sbEnvironment - The SB Environment being synced
+   * @param discoveredTenants - Tenants discovered from Admin API
+   */
+  private async provisionCredentialsForNewTenants(
+    sbEnvironment: SbEnvironment,
+    discoveredTenants: TenantDto[]
+  ): Promise<void> {
+    const configPublic = sbEnvironment.configPublic;
+    const configPrivate = sbEnvironment.configPrivate;
+
+    if (configPublic?.version !== 'v2' || !configPublic.values) {
+      return; // Only applicable to v2 environments
+    }
+
+    const v2ConfigPublic = configPublic.values as ISbEnvironmentConfigPublicV2;
+    const v2ConfigPrivate = configPrivate as ISbEnvironmentConfigPrivateV2 | null;
+
+    const existingTenants = Object.keys(v2ConfigPublic.tenants || {});
+    const discoveredTenantNames = discoveredTenants.map(t => t.name);
+
+    // Find tenants that were discovered but don't have credentials yet
+    const newTenants = discoveredTenantNames.filter(name => !existingTenants.includes(name));
+
+    if (newTenants.length === 0) {
+      this.logger.log('No new tenants to provision credentials for');
+      return;
+    }
+
+    this.logger.log(`Provisioning credentials for ${newTenants.length} new tenant(s): ${newTenants.join(', ')}`);
+
+    // Initialize tenant configs if they don't exist
+    if (!v2ConfigPublic.tenants) {
+      v2ConfigPublic.tenants = {};
+    }
+    if (!v2ConfigPrivate?.tenants) {
+      if (!sbEnvironment.configPrivate) {
+        sbEnvironment.configPrivate = { tenants: {} } as ISbEnvironmentConfigPrivateV2;
+      } else {
+        (sbEnvironment.configPrivate as ISbEnvironmentConfigPrivateV2).tenants = {};
+      }
+    }
+
+    // Create credentials for each new tenant
+    for (const tenantName of newTenants) {
+      try {
+        this.logger.log(`Creating credentials for new tenant: ${tenantName}`);
+        const { clientId, clientSecret } = await this.createClientCredentials(
+          sbEnvironment.adminApiUrl!,
+          tenantName,
+          true // isMultiTenant
+        );
+
+        // Store credentials in config
+        v2ConfigPublic.tenants![tenantName] = {
+          adminApiKey: clientId,
+        };
+
+        const privateConfig = sbEnvironment.configPrivate as ISbEnvironmentConfigPrivateV2;
+        if (!privateConfig.tenants) {
+          privateConfig.tenants = {};
+        }
+        privateConfig.tenants[tenantName] = {
+          adminApiSecret: clientSecret,
+        };
+
+        this.logger.log(`Successfully provisioned credentials for tenant: ${tenantName}`);
+      } catch (error) {
+        this.logger.error(
+          `Failed to provision credentials for tenant ${tenantName}: ${error.message}`,
+          error.stack
+        );
+        // Continue with other tenants even if one fails
+      }
+    }
+
+    // Save the updated environment config to database
+    try {
+      await this.sbEnvironmentsRepository.save(sbEnvironment);
+      this.logger.log(`Updated environment config with credentials for ${newTenants.length} new tenant(s)`);
+    } catch (error) {
+      this.logger.error(
+        `Failed to save updated environment config: ${error.message}`,
+        error.stack
+      );
+      throw error;
+    }
+  }
+
+  /**
+   * Creates Admin API client credentials via the /connect/register endpoint
+   * Similar to the method in sb-environments-edfi.services.ts but adapted for sync flow
+   * 
+   * @param adminApiUrl - The Admin API base URL
+   * @param tenantName - The tenant name (for multi-tenant mode)
+   * @param isMultiTenant - Whether this is a multi-tenant environment
+   * @returns Promise with clientId and clientSecret
+   */
+  private async createClientCredentials(
+    adminApiUrl: string,
+    tenantName: string,
+    isMultiTenant: boolean
+  ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
+    const registerUrl = `${adminApiUrl}/connect/register`;
+    
+    // Generate secure random credentials
+    const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
+    const secretBytes = randomBytes(32);
+    const clientSecret = Array.from(secretBytes, (byte) => secretCharset[byte % secretCharset.length]).join('');
+    const clientId = `client_${randomUUID()}`;
+    
+    const nameSuffixBytes = randomBytes(4);
+    const displayNameSuffix = Array.from(nameSuffixBytes, (byte) =>
+      (byte % 36).toString(36)
+    ).join('');
+    const displayName = `AdminApp-v4-${displayNameSuffix}`;
+    
+    const formData = new URLSearchParams();
+    formData.append('ClientId', clientId);
+    formData.append('ClientSecret', clientSecret);
+    formData.append('DisplayName', displayName);
+
+    const headers = isMultiTenant
+      ? {
+          'Content-Type': 'application/x-www-form-urlencoded',
+          tenant: tenantName,
+        }
+      : {
+          'Content-Type': 'application/x-www-form-urlencoded',
+        };
+
+    try {
+      const registerResponse = await axios.post(registerUrl, formData.toString(), {
+        headers: headers,
+      });
+
+      if (!registerResponse.status || registerResponse.status !== 200) {
+        throw new Error(`Registration failed! status: ${registerResponse.status}`);
+      }
+
+      return { clientId, displayName, clientSecret };
+    } catch (error) {
+      this.logger.error(`Failed to register client credentials for tenant ${tenantName}:`, error);
+
+      // Provide helpful error message
+      if (error.response?.status === 400 && isMultiTenant) {
+        throw new Error(
+          `Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`
+        );
+      }
+
+      throw new Error(`Failed to create credentials: ${error.message}`);
+    }
+  }
+
+  /**
    * Main entry point for Admin API-based environment synchronization
    * Supports both v1 and v2 Admin API versions
    * 
@@ -162,6 +325,26 @@ export class AdminApiSyncService {
       }
 
       this.logger.log(`Found ${tenants.length} tenant(s) for environment: ${sbEnvironment.name}`);
+
+      // For v2 multi-tenant environments, provision credentials for newly discovered tenants
+      if (version === 'v2') {
+        const configPublic = sbEnvironment.configPublic;
+        const isMultiTenant = 
+          configPublic?.version === 'v2' &&
+          configPublic.values?.meta?.mode === 'MultiTenant';
+
+        if (isMultiTenant) {
+          await this.provisionCredentialsForNewTenants(sbEnvironment, tenants);
+          
+          // Reload environment with updated config
+          const reloadedEnvironment = await this.sbEnvironmentsRepository.findOne({
+            where: { id: sbEnvironment.id },
+          });
+          if (reloadedEnvironment) {
+            sbEnvironment = reloadedEnvironment;
+          }
+        }
+      }
 
       // Process tenant data using existing table structures
       let processedCount = 0;
@@ -282,6 +465,59 @@ export class AdminApiSyncService {
 
       this.logger.log(`Syncing tenant ${edfiTenant.name} using Admin API v2`);
 
+      // Validate that credentials exist for this tenant in the environment configuration
+      const configPublic = sbEnvironment.configPublic;
+      const configPrivate = sbEnvironment.configPrivate;
+      const v2Config =
+        'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+      const v2ConfigPrivate =
+        'version' in configPublic && configPublic.version === 'v2'
+          ? (configPrivate as ISbEnvironmentConfigPrivateV2)
+          : undefined;
+
+      if (!v2Config || !v2ConfigPrivate) {
+        this.logger.error(`Environment configuration is not v2 format for tenant ${edfiTenant.name}`);
+        return {
+          status: 'ERROR',
+          message: 'Environment is not configured for Admin API v2',
+        };
+      }
+
+      // Check if credentials exist for this specific tenant
+      const tenantConfigPublic = v2Config?.tenants?.[edfiTenant.name];
+      const tenantConfigPrivate = v2ConfigPrivate?.tenants?.[edfiTenant.name];
+
+      if (!tenantConfigPublic || !tenantConfigPrivate) {
+        const availableTenants = Object.keys(v2Config?.tenants || {});
+        this.logger.error(
+          `No credentials found for tenant "${edfiTenant.name}" in environment "${sbEnvironment.name}". ` +
+          `Available tenants with credentials: [${availableTenants.join(', ')}]`
+        );
+        return {
+          status: 'ERROR',
+          message: `Tenant "${edfiTenant.name}" does not have credentials configured in this environment.\n\n` +
+            `Available tenants: ${availableTenants.length > 0 ? availableTenants.join(', ') : '(none)'}\n\n` +
+            `This usually means:\n` +
+            `1. The tenant was discovered from the Admin API but you don't have credentials for it\n` +
+            `2. The tenant name doesn't exactly match the credentials key (check spelling/case)\n` +
+            `3. The tenant was deleted from the Admin API but still exists in the database\n\n` +
+            `To fix this:\n` +
+            `- Add credentials for "${edfiTenant.name}" to your environment configuration\n` +
+            `- Or run environment-level sync to clean up orphaned tenants\n` +
+            `- Or delete this tenant from the database if it no longer exists in the Admin API`,
+        };
+      }
+
+      if (!tenantConfigPublic.adminApiKey || !tenantConfigPrivate.adminApiSecret) {
+        this.logger.error(`Incomplete credentials for tenant ${edfiTenant.name}`);
+        return {
+          status: 'ERROR',
+          message: `Tenant "${edfiTenant.name}" is missing adminApiKey or adminApiSecret in the environment configuration.`,
+        };
+      }
+
+      this.logger.log(`Credentials validated for tenant ${edfiTenant.name}`);
+
       // For v2, fetch tenant details from the correct endpoint
       const endpoint = `tenants/${edfiTenant.name}/OdsInstances/edOrgs`;
       
@@ -354,16 +590,29 @@ export class AdminApiSyncService {
       if (error instanceof Error) {
         errorMessage = error.message;
         
-        // Check if it's a CustomHttpException with additional details
+        // Check if it's a CustomHttpException or HttpException with additional details
         if ('response' in error && typeof error.response === 'object' && error.response !== null) {
           const response = error.response as any;
+          
+          // Extract message details
           if (response.message) {
-            errorDetails = Array.isArray(response.message) 
-              ? response.message.join(', ') 
-              : response.message;
+            if (typeof response.message === 'string') {
+              errorDetails = response.message;
+            } else if (Array.isArray(response.message)) {
+              errorDetails = response.message.join(', ');
+            } else if (typeof response.message === 'object') {
+              errorDetails = JSON.stringify(response.message);
+            }
           }
-          if (response.title) {
+          
+          // Use title as the primary error message if available
+          if (response.title && typeof response.title === 'string') {
             errorMessage = response.title;
+          }
+          
+          // Include type information if available
+          if (response.type && typeof response.type === 'string') {
+            errorMessage = `[${response.type}] ${errorMessage}`;
           }
         }
       }

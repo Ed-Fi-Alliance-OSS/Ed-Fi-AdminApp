@@ -289,18 +289,25 @@ export class AdminApiServiceV2 {
       const tokenKey = this.getTenantTokenKey(edfiTenant.sbEnvironment.id, edfiTenant.name);
       let token: undefined | string = this.adminApiTokens.get(tokenKey);
       if (token === undefined) {
+        this.logger.log(`No cached token found for tenant ${edfiTenant.name}, attempting login...`);
         const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.sbEnvironment.id, edfiTenant.name);
 
         if (adminLogin.status !== 'SUCCESS') {
+          const errorMsg = adminApiLoginStatusMsgs[adminLogin.status];
+          this.logger.error(
+            `Authentication failed for tenant ${edfiTenant.name}: ${adminLogin.status} - ${errorMsg}`
+          );
           throw new CustomHttpException(
             {
-              title: adminApiLoginStatusMsgs[adminLogin.status],
+              title: `Authentication failed for tenant ${edfiTenant.name}`,
               type: 'Error',
+              message: `${adminLogin.status}: ${errorMsg}`,
             },
             500
           );
         }
         token = this.adminApiTokens.get(tokenKey);
+        this.logger.log(`Successfully authenticated tenant ${edfiTenant.name}`);
       }
       config.headers.Authorization = `Bearer ${token}`;
       config.headers.tenant = edfiTenant.name;
@@ -1104,9 +1111,10 @@ export class AdminApiServiceV2 {
         baseURL: environment.adminApiUrl.replace(/\/$/, ''),
       });
       
-      // Add auth token to root client
-      const token = this.adminApiTokens.get(environment.id);
-      if (!token) {
+      // Add auth token to root client (environment-level, no tenant)
+      let authToken = this.adminApiTokens.get(environment.id);
+      if (!authToken) {
+        // Login without tenant parameter to get environment-level token
         const adminLogin = await this.login(environment, environment.id);
         if (adminLogin.status !== 'SUCCESS') {
           throw new CustomHttpException(
@@ -1117,8 +1125,8 @@ export class AdminApiServiceV2 {
             500
           );
         }
+        authToken = this.adminApiTokens.get(environment.id);
       }
-      const authToken = this.adminApiTokens.get(environment.id);
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const tenancyResponse = await rootClient
@@ -1152,6 +1160,32 @@ export class AdminApiServiceV2 {
         this.logger.log('Single-tenant mode detected, using default tenant');
       }
 
+      // Log credential availability for discovered tenants
+      const configPublic = environment.configPublic;
+      const v2Config =
+        'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+      const availableTenants = Object.keys(v2Config?.tenants || {});
+      
+      this.logger.log(
+        `Discovered tenants from Admin API: [${tenantNames.join(', ')}]`
+      );
+      this.logger.log(
+        `Tenants with credentials in environment config: [${availableTenants.join(', ')}]`
+      );
+      
+      // Identify tenants without credentials
+      const tenantsWithoutCredentials = tenantNames.filter(
+        name => !availableTenants.includes(name)
+      );
+      if (tenantsWithoutCredentials.length > 0) {
+        this.logger.warn(
+          `WARNING: The following tenants were discovered but do NOT have credentials configured: ` +
+          `[${tenantsWithoutCredentials.join(', ')}]. ` +
+          `These tenants will be created with empty data. ` +
+          `Add credentials to your environment configuration to sync their data.`
+        );
+      }
+
       // Step 3: Fetch details for each tenant
       const tenantsWithDetails = await Promise.all(
         tenantNames.map(async (tenantName) => {
@@ -1160,10 +1194,17 @@ export class AdminApiServiceV2 {
             this.logger.log(`Authenticating for tenant: ${tenantName}`);
             const adminLogin = await this.login(environment, environment.id, tenantName);
             if (adminLogin.status !== 'SUCCESS') {
+              const errorMsg = adminApiLoginStatusMsgs[adminLogin.status];
+              this.logger.warn(
+                `Failed to authenticate tenant "${tenantName}": ${adminLogin.status} - ${errorMsg}. ` +
+                `This tenant will be created with empty data. ` +
+                `Add credentials for "${tenantName}" to your environment configuration to sync its data.`
+              );
               throw new CustomHttpException(
                 {
-                  title: `Failed to authenticate tenant ${tenantName}: ${adminApiLoginStatusMsgs[adminLogin.status]}`,
+                  title: `Failed to authenticate tenant ${tenantName}`,
                   type: 'Error',
+                  message: `${adminLogin.status}: ${errorMsg}. Add credentials for this tenant to sync its data.`,
                 },
                 500
               );
@@ -1201,9 +1242,10 @@ export class AdminApiServiceV2 {
             );
 
             // Step 4: Map the response to TenantDto format
+            // Use tenantName (URL identifier) as the stable tenant id and name
             const tenant: TenantDto = {
-              id: details.id || tenantName,
-              name: details.name || tenantName,
+              id: tenantName,
+              name: tenantName,
               odsInstances: details.odsInstances?.map((instance: any) => {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.id ?? null,
@@ -1234,8 +1276,22 @@ export class AdminApiServiceV2 {
             const errorStack = detailsError instanceof Error 
               ? detailsError.stack 
               : undefined;
+            
+            // Extract more specific error information
+            let specificReason = errorMessage;
+            if ('response' in detailsError && typeof detailsError.response === 'object') {
+              const response = detailsError.response as any;
+              if (response.message) {
+                specificReason = typeof response.message === 'string' 
+                  ? response.message 
+                  : JSON.stringify(response.message);
+              }
+            }
+            
             this.logger.warn(
-              `Failed to get details for tenant ${tenantName}: ${errorMessage}. Returning tenant with empty details.`,
+              `Failed to get details for tenant "${tenantName}": ${specificReason}. ` +
+              `Returning tenant with empty ODS instances. ` +
+              `This tenant will appear in the database but will have no data until credentials are added.`,
               errorStack
             );
             // Return tenant with empty details if the details endpoint fails

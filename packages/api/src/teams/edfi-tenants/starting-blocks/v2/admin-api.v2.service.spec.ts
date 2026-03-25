@@ -166,7 +166,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       // Verify first tenant
       expect(result[0]).toMatchObject({
         id: 'tenant-one',
-        name: 'Tenant One',
+        name: 'tenant-one',
       });
       expect(result[0].odsInstances).toHaveLength(1);
       expect(result[0].odsInstances![0]).toMatchObject({
@@ -188,7 +188,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       // Verify second tenant
       expect(result[1]).toMatchObject({
         id: 'tenant-two',
-        name: 'Tenant Two',
+        name: 'tenant-two',
       });
       expect(result[1].odsInstances).toHaveLength(1);
       expect(result[1].odsInstances![0].id).toBe(2);
@@ -265,7 +265,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       }));
       expect(result[0]).toMatchObject({
         id: 'default',
-        name: 'Default',
+        name: 'default',
       });
     });
 
