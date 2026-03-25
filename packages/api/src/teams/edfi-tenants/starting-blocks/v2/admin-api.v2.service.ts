@@ -175,10 +175,10 @@ export class AdminApiServiceV2 {
 
     try {
       await axios.request(options).then((v) => {
-        // Use composite key for tenant-specific token storage
-        const tokenKey = this.getTenantTokenKey(id, tenantName);
+        // Store token: environment-level (no tenant) uses just ID, tenant-specific uses composite key
+        const tokenKey = tenantName ? this.getTenantTokenKey(id, tenantName) : id;
         this.adminApiTokens.set(tokenKey, v.data.access_token, Number(v.data.expires_in) - 60);
-        this.logger.log(`Stored token for environment ${id} tenant ${tenantName} at key: ${tokenKey}`);
+        this.logger.log(`Stored token for environment ${id}${tenantName ? ` tenant ${tenantName}` : ' (environment-level)'} at key: ${tokenKey}`);
       });
       return {
         status: 'SUCCESS' as const,
@@ -282,7 +282,15 @@ export class AdminApiServiceV2 {
     );
   }
 
-  private getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
+  /**
+   * Get an authenticated API client for a specific tenant.
+   * Used by sync services to make tenant-specific Admin API calls.
+   * 
+   * @param edfiTenant - The tenant to get the client for
+   * @param notJustData - Whether to return full response or just data
+   * @returns Axios instance configured with tenant authentication
+   */
+  public getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
     const client = this.initializeApiClient(edfiTenant.sbEnvironment, notJustData);
     client.interceptors.request.use(async (config) => {
       // Use composite key for tenant-specific token retrieval

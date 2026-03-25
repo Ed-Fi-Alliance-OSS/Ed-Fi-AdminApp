@@ -527,7 +527,7 @@ export class AdminApiSyncService {
       let tenantDetails: any;
       try {
         // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
-        tenantDetails = await this.adminApiServiceV2['getAdminApiClient'](tenantWithEnvironment)
+        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment)
           .get(endpoint);
       } catch (apiError) {
         this.logger.error(

@@ -167,7 +167,7 @@ export const useEdfiTenantGlobalActions = (
           },
         }
       : {}),
-    ...(canRefreshResources && (sbEnvironment.startingBlocks || sbEnvironment.version === 'v2')
+    ...(canRefreshResources && (sbEnvironment.startingBlocks || adminApiConfigExists)
       ? {
           RefreshResources: {
             icon: Icons.Download,
