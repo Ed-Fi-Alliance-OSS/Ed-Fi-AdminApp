@@ -510,6 +510,19 @@ export class AdminApiServiceV2 {
      );
   }
 
+  async putApiClientResetCredential(edfiTenant: EdfiTenant, apiClientId: number) {
+    return toPostApiClientResponseDtoV2(
+      (await this.getAdminApiClient(edfiTenant)
+        .put(`apiclients/${apiClientId}/reset-credential`)
+        .catch((err) => {
+          this.logger.error(
+            `Error resetting API client credential for API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
+          );
+          throw err;
+        })) as any
+    );
+  }
+
   async deleteApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
     await this.getAdminApiClient(edfiTenant)
       .delete(`apiclients/${apiClientId}`)

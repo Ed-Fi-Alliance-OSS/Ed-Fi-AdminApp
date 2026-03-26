@@ -10,6 +10,7 @@ import {
 } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { apiClientQueriesV2 } from '../../api';
+import { useResetIntegrationApiClientCredentials } from '../../api-v2';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 
@@ -30,6 +31,7 @@ export const useSingleApiClientActions = ({
     edfiTenant,
     teamId: asId,
   });
+  const resetApiClientCredentials = useResetIntegrationApiClientCredentials();
 
   const search = useSearchParamsObject();
   const onApiClientPage = !!apiClientId;
@@ -81,11 +83,25 @@ export const useSingleApiClientActions = ({
         ...(canReset
           ? {
               Reset: {
+                isPending: resetApiClientCredentials.isPending,
                 isDisabled: false,
-                icon: Icons.Application,
-                text: 'Reset',
+                icon: Icons.ShieldX,
+                text: 'Reset creds',
                 title: 'Reset ' + apiClient.name,
-                onClick: () => {},
+                onClick: () => {
+                  resetApiClientCredentials.mutateAsync(
+                    { entity: { id: apiClient.id }, pathParams: {} },
+                    {
+                      ...mutationErrCallback({ popGlobalBanner: popBanner }),
+                      onSuccess: (result) => {
+                        navigate(toView, { state: result });
+                      },
+                    }
+                  );
+                },
+                confirm: true,
+                confirmBody:
+                  'Are you sure you want to reset the credentials? Anything using the current ones will stop working.',
               },
             }
           : undefined),

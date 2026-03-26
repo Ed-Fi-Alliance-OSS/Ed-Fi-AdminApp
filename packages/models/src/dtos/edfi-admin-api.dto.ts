@@ -305,6 +305,11 @@ export const toApplicationYopassResponseDto = makeSerializer<
   Omit<ApplicationYopassResponseDto, 'id'>
 >(ApplicationYopassResponseDto);
 
+export const toApiClientYopassResponseDto = makeSerializer<
+  ApiClientYopassResponseDto,
+  Omit<ApiClientYopassResponseDto, 'id'>
+>(ApiClientYopassResponseDto);
+
 export class PutApplicationDto extends PostApplicationDto {
   @Expose()
   applicationId: number;

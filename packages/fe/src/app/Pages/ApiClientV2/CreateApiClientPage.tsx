@@ -13,7 +13,6 @@ import { PageTemplate } from '@edanalytics/common-ui';
 import {
   PostApiClientDtoV2,
   PostApiClientFormDtoV2,
-  PostApiClientResponseDtoV2,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
@@ -41,12 +40,6 @@ export const CreateApiClientPage = () => {
     edfiTenant,
     teamId,
   });
-
-  const goToList = () => {
-    navigate(
-      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationIdNumber}/apiclients`
-    );
-  };
 
   const goToView = (id: number, options?: { state?: unknown }) => {
     navigate(
@@ -97,12 +90,12 @@ export const CreateApiClientPage = () => {
               ).queryKey,
             });
 
-            const maybeId = (result as PostApiClientResponseDtoV2 | undefined)?.id;
-            if (typeof maybeId === 'number') {
-              goToView(maybeId, { state: result });
+            if (typeof result.id === 'number') {
+              goToView(result.id, { state: result });
               return;
             }
-            goToList();
+
+            navigate(navToParentOptions);
           },
         }
       )

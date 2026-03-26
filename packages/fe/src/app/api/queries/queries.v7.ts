@@ -1,4 +1,5 @@
 import {
+  ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
   GetApiClientDtoV2,
@@ -96,6 +97,21 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
         kebabCaseName: 'apiclient',
         adminApi: true,
         id: base.entity.id,
+      })
+  )
+  .put(
+    'resetCreds',
+    {
+      ResDto: undefined as unknown as ApiClientResponseV2,
+      ReqDto: Id,
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: `${base.entity.id}/reset-credential`,
       })
   )
   .post(
