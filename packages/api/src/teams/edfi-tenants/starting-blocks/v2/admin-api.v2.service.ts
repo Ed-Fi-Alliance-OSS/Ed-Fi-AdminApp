@@ -70,6 +70,14 @@ export class AdminApiServiceV2 {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
+  /**
+   * Generate a composite token key for tenant-specific authentication
+   * This ensures each tenant has its own token in the cache
+   */
+  private getTenantTokenKey(environmentId: number, tenantName: string): string {
+    return `${environmentId}-${tenantName}`;
+  }
+
   async login(sbEnvironment: SbEnvironment, id: number, tenantName?: string) {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
@@ -85,6 +93,26 @@ export class AdminApiServiceV2 {
         status: 'NO_CONFIG' as const,
       };
     }
+
+    // If no tenant name provided, try to find the first available tenant credentials
+    // This is needed for initial tenant discovery in EdFi environments
+    if (!tenantName) {
+      const availableTenants = v2Config.tenants ? Object.keys(v2Config.tenants) : [];
+      
+      if (availableTenants.length === 0) {
+        return {
+          status: 'NO_TENANT_CONFIG' as const,
+        };
+      }
+      
+      // Prefer 'default' tenant if available, otherwise use first tenant
+      tenantName = availableTenants.includes('default') 
+        ? 'default' 
+        : availableTenants[0];
+      
+      this.logger.log(`No tenant specified for login, using tenant: ${tenantName}`);
+    }
+
     if (!v2Config?.tenants[tenantName] || !v2ConfigPrivate?.tenants[tenantName]) {
       return {
         status: 'NO_TENANT_CONFIG' as const,
@@ -147,7 +175,10 @@ export class AdminApiServiceV2 {
 
     try {
       await axios.request(options).then((v) => {
-        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
+        // Store token: environment-level (no tenant) uses just ID, tenant-specific uses composite key
+        const tokenKey = tenantName ? this.getTenantTokenKey(id, tenantName) : id;
+        this.adminApiTokens.set(tokenKey, v.data.access_token, Number(v.data.expires_in) - 60);
+        this.logger.log(`Stored token for environment ${id}${tenantName ? ` tenant ${tenantName}` : ' (environment-level)'} at key: ${tokenKey}`);
       });
       return {
         status: 'SUCCESS' as const,
@@ -251,23 +282,40 @@ export class AdminApiServiceV2 {
     );
   }
 
-  private getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
+  /**
+   * Get an authenticated API client for a specific tenant.
+   * Used by sync services to make tenant-specific Admin API calls.
+   * 
+   * @param edfiTenant - The tenant to get the client for
+   * @param notJustData - Whether to return full response or just data
+   * @returns Axios instance configured with tenant authentication
+   */
+  public getAdminApiClient(edfiTenant: EdfiTenant, notJustData?: boolean) {
     const client = this.initializeApiClient(edfiTenant.sbEnvironment, notJustData);
     client.interceptors.request.use(async (config) => {
-      let token: undefined | string = this.adminApiTokens.get(edfiTenant.id);
+      // Use composite key for tenant-specific token retrieval
+      const tokenKey = this.getTenantTokenKey(edfiTenant.sbEnvironment.id, edfiTenant.name);
+      let token: undefined | string = this.adminApiTokens.get(tokenKey);
       if (token === undefined) {
-        const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.id, edfiTenant.name);
+        this.logger.log(`No cached token found for tenant ${edfiTenant.name}, attempting login...`);
+        const adminLogin = await this.login(edfiTenant.sbEnvironment, edfiTenant.sbEnvironment.id, edfiTenant.name);
 
         if (adminLogin.status !== 'SUCCESS') {
+          const errorMsg = adminApiLoginStatusMsgs[adminLogin.status];
+          this.logger.error(
+            `Authentication failed for tenant ${edfiTenant.name}: ${adminLogin.status} - ${errorMsg}`
+          );
           throw new CustomHttpException(
             {
-              title: adminApiLoginStatusMsgs[adminLogin.status],
+              title: `Authentication failed for tenant ${edfiTenant.name}`,
               type: 'Error',
+              message: `${adminLogin.status}: ${errorMsg}`,
             },
             500
           );
         }
-        token = this.adminApiTokens.get(edfiTenant.id);
+        token = this.adminApiTokens.get(tokenKey);
+        this.logger.log(`Successfully authenticated tenant ${edfiTenant.name}`);
       }
       config.headers.Authorization = `Bearer ${token}`;
       config.headers.tenant = edfiTenant.name;
@@ -1052,7 +1100,12 @@ export class AdminApiServiceV2 {
 
   /**
    * Retrieve all tenants with their ODS instances and education organizations
-   * For each tenant, calls the tenant/{id}/details endpoint to get full details
+   * 
+   * This method:
+   * 1. Calls the root endpoint (GET /) to get tenancy information
+   * 2. Determines tenant names based on multitenantMode setting
+   * 3. For each tenant, calls /v2/tenants/{tenantName}/OdsInstances/edOrgs to get detailed information
+   * 4. Maps the response to TenantDto format
    *
    * @param environment - SB Environment containing configuration
    * @returns Promise resolving to array of tenant objects with EdOrgs and OdsInstances
@@ -1061,100 +1114,169 @@ export class AdminApiServiceV2 {
     this.logger.log(`Getting tenants for environment: ${environment.name}`);
 
     try {
-      const endpoint = 'tenants';
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const response = await this.getAdminApiClientUsingEnv(environment)
-        .get<any, any[]>(endpoint)
-        .catch((err) => {
-          this.logger.error(
-            `Error getting tenants: ${err}`
+      // Step 1: Get tenancy information from root endpoint
+      const rootClient = axios.create({
+        baseURL: environment.adminApiUrl.replace(/\/$/, ''),
+      });
+      
+      // Add auth token to root client (environment-level, no tenant)
+      let authToken = this.adminApiTokens.get(environment.id);
+      if (!authToken) {
+        // Login without tenant parameter to get environment-level token
+        const adminLogin = await this.login(environment, environment.id);
+        if (adminLogin.status !== 'SUCCESS') {
+          throw new CustomHttpException(
+            {
+              title: adminApiLoginStatusMsgs[adminLogin.status],
+              type: 'Error',
+            },
+            500
           );
+        }
+        authToken = this.adminApiTokens.get(environment.id);
+      }
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const tenancyResponse = await rootClient
+        .get<any>('/', {
+          headers: {
+            Authorization: `Bearer ${authToken}`,
+          },
+        })
+        .then((res) => res.data)
+        .catch((err) => {
+          this.logger.error(`Error getting tenancy information: ${err}`);
           throw err;
         });
 
-      // Validate response is an array
-      if (!Array.isArray(response)) {
-        this.logger.error(
-          `Expected array response from tenants endpoint, got ${typeof response}. Falling back to default tenant.`
+      // Step 2: Determine tenant names from tenancy response
+      let tenantNames: string[];
+      
+      if (
+        tenancyResponse?.tenancy?.multitenantMode === true &&
+        Array.isArray(tenancyResponse.tenancy.tenants) &&
+        tenancyResponse.tenancy.tenants.length > 0
+      ) {
+        // Multi-tenant mode
+        tenantNames = tenancyResponse.tenancy.tenants;
+        this.logger.log(
+          `Multi-tenant mode detected with ${tenantNames.length} tenants: ${tenantNames.join(', ')}`
         );
-        const defaultTenant: TenantDto = {
-          id: 'default',
-          name: environment.name || 'Default Tenant',
-          odsInstances: [],
-        };
-        return [defaultTenant];
+      } else {
+        // Single-tenant mode
+        tenantNames = ['default'];
+        this.logger.log('Single-tenant mode detected, using default tenant');
       }
 
+      // Log credential availability for discovered tenants
+      const configPublic = environment.configPublic;
+      const v2Config =
+        'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+      const availableTenants = Object.keys(v2Config?.tenants || {});
+      
       this.logger.log(
-        `Retrieved ${response.length} tenants from Admin API for environment ${environment.name}`
+        `Discovered tenants from Admin API: [${tenantNames.join(', ')}]`
       );
-
-      // Filter out invalid tenant objects and log warnings
-      const validTenants = response.filter((tenant) => {
-        if (!tenant || typeof tenant !== 'object') {
-          this.logger.warn(`Skipping invalid tenant object: ${JSON.stringify(tenant)}`);
-          return false;
-        }
-        if (!tenant.tenantName || typeof tenant.tenantName !== 'string') {
-          this.logger.warn(`Skipping tenant with missing or invalid tenantName: ${JSON.stringify(tenant)}`);
-          return false;
-        }
-        return true;
-      });
-
-      if (validTenants.length === 0) {
+      this.logger.log(
+        `Tenants with credentials in environment config: [${availableTenants.join(', ')}]`
+      );
+      
+      // Identify tenants without credentials
+      const tenantsWithoutCredentials = tenantNames.filter(
+        name => !availableTenants.includes(name)
+      );
+      if (tenantsWithoutCredentials.length > 0) {
         this.logger.warn(
-          `No valid tenants found in response for environment ${environment.name}. Returning default tenant.`
+          `WARNING: The following tenants were discovered but do NOT have credentials configured: ` +
+          `[${tenantsWithoutCredentials.join(', ')}]. ` +
+          `These tenants will be created with empty data. ` +
+          `Add credentials to your environment configuration to sync their data.`
         );
-        const defaultTenant: TenantDto = {
-          id: 'default',
-          name: environment.name || 'Default Tenant',
-          odsInstances: [],
-        };
-        return [defaultTenant];
       }
 
-      // For each tenant, fetch detailed information including EdOrgs and OdsInstances
+      // Step 3: Fetch details for each tenant
       const tenantsWithDetails = await Promise.all(
-        validTenants.map(async (tenant) => {
-          const tenantId = tenant.tenantName;
+        tenantNames.map(async (tenantName) => {
           try {
+            // Authenticate with tenant-specific credentials
+            this.logger.log(`Authenticating for tenant: ${tenantName}`);
+            const adminLogin = await this.login(environment, environment.id, tenantName);
+            if (adminLogin.status !== 'SUCCESS') {
+              const errorMsg = adminApiLoginStatusMsgs[adminLogin.status];
+              this.logger.warn(
+                `Failed to authenticate tenant "${tenantName}": ${adminLogin.status} - ${errorMsg}. ` +
+                `This tenant will be created with empty data. ` +
+                `Add credentials for "${tenantName}" to your environment configuration to sync its data.`
+              );
+              throw new CustomHttpException(
+                {
+                  title: `Failed to authenticate tenant ${tenantName}`,
+                  type: 'Error',
+                  message: `${adminLogin.status}: ${errorMsg}. Add credentials for this tenant to sync its data.`,
+                },
+                500
+              );
+            }
+
+            // Create a client with tenant header for multi-tenant API calls
+            const client = this.initializeApiClient(environment, true); // Get full response
+            
+            // Retrieve tenant-specific token using composite key
+            const tokenKey = this.getTenantTokenKey(environment.id, tenantName);
+            const token = this.adminApiTokens.get(tokenKey);
+            this.logger.log(`Using token key ${tokenKey} for tenant ${tenantName}`);
+            
+            // Call the tenant details endpoint with tenant header
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const details = await this.getAdminApiClientUsingEnv(environment)
-              .get<any, any>(`tenant/${tenantId}/details`)
+            const response = await client
+              .get<any>(`tenants/${tenantName}/OdsInstances/edOrgs`, {
+                headers: {
+                  Authorization: `Bearer ${token}`,
+                  tenant: tenantName, // Add tenant header for multi-tenant API
+                },
+              })
               .catch((err) => {
                 this.logger.error(
-                  `Error getting details for tenant ${tenantId}: ${err}`
+                  `Error getting details for tenant ${tenantName}: ${err.message}`
                 );
                 throw err;
               });
 
+            // Extract data from response
+            const details = response.data;
+
             this.logger.log(
-              `Retrieved details for tenant ${tenantId} with ${details.edOrgs?.length || 0} EdOrgs and ${details.odsInstances?.length || 0} ODS instances`
+              `Retrieved details for tenant ${tenantName} with ${details.odsInstances?.length || 0} ODS instances`
             );
 
-            // Map the response to TenantDto format
-            return {
-              id: tenantId,
-              name: tenantId,
-              odsInstances: (details.odsInstances?.map((instance: any, index: number) => {
+            // Step 4: Map the response to TenantDto format
+            // Use tenantName (URL identifier) as the stable tenant id and name
+            const tenant: TenantDto = {
+              id: tenantName,
+              name: tenantName,
+              odsInstances: details.odsInstances?.map((instance: any) => {
                 const odsInstance: OdsInstanceDto = {
-                  id: instance.odsInstanceId ?? instance.id ?? null,
-                  name: instance.name ?? `ODS Instance ${index + 1}`,
+                  id: instance.id ?? null,
+                  name: instance.name || 'Unknown ODS Instance',
                   instanceType: instance.instanceType,
-                  edOrgs: (instance.edOrgs?.map((edOrg: any) => ({
-                    educationOrganizationId: edOrg.educationOrganizationId,
-                    nameOfInstitution: edOrg.nameOfInstitution,
-                    shortNameOfInstitution: edOrg.shortNameOfInstitution,
-                    discriminator: edOrg.discriminator,
-                    instanceId: edOrg.instanceId,
-                    instanceName: edOrg.instanceName,
-                    parentId: edOrg.parentId,
-                  })) || []) as EducationOrganizationDto[],
+                  edOrgs: instance.educationOrganizations?.map((edOrg: any) => {
+                    const educationOrg: EducationOrganizationDto = {
+                      instanceId: instance.id, // Use ODS instance ID
+                      instanceName: instance.name, // Use ODS instance name
+                      educationOrganizationId: edOrg.educationOrganizationId,
+                      nameOfInstitution: edOrg.nameOfInstitution,
+                      shortNameOfInstitution: edOrg.shortNameOfInstitution,
+                      discriminator: edOrg.discriminator,
+                      parentId: edOrg.parentId,
+                    };
+                    return educationOrg;
+                  }) || [],
                 };
                 return odsInstance;
-              }) || []) as OdsInstanceDto[],
+              }) || [],
             };
+
+            return tenant;
           } catch (detailsError) {
             const errorMessage = detailsError instanceof Error 
               ? detailsError.message 
@@ -1162,14 +1284,28 @@ export class AdminApiServiceV2 {
             const errorStack = detailsError instanceof Error 
               ? detailsError.stack 
               : undefined;
+            
+            // Extract more specific error information
+            let specificReason = errorMessage;
+            if ('response' in detailsError && typeof detailsError.response === 'object') {
+              const response = detailsError.response as any;
+              if (response.message) {
+                specificReason = typeof response.message === 'string' 
+                  ? response.message 
+                  : JSON.stringify(response.message);
+              }
+            }
+            
             this.logger.warn(
-              `Failed to get details for tenant ${tenantId}: ${errorMessage}. Returning tenant with empty details.`,
+              `Failed to get details for tenant "${tenantName}": ${specificReason}. ` +
+              `Returning tenant with empty ODS instances. ` +
+              `This tenant will appear in the database but will have no data until credentials are added.`,
               errorStack
             );
             // Return tenant with empty details if the details endpoint fails
             return {
-              id: tenantId,
-              name: tenantId,
+              id: tenantName,
+              name: tenantName,
               odsInstances: [],
             };
           }
@@ -1182,7 +1318,7 @@ export class AdminApiServiceV2 {
       // This allows older Admin API versions that don't support multi-tenancy to work
       if (isAxiosError(error) && error.response?.status === 404) {
         this.logger.warn(
-          `Tenants endpoint not found for environment ${environment.name} (404). Returning a default tenant for single-tenant API.`
+          `Tenancy endpoint not found for environment ${environment.name} (404). Returning a default tenant for single-tenant API.`
         );
         // V2 API without multi-tenant support, so we create a default tenant from environment data
         const defaultTenant: TenantDto = {
