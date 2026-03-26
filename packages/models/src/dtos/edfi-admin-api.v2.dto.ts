@@ -105,6 +105,20 @@ export class GetApiClientDtoV2 {
   get displayName() {
     return this.name;
   }
+
+  static apiUrl(startingBlocks: boolean, domain: string, apiClientName: string, tenantName: string) {
+    const url = new URL(domain);
+    url.protocol = 'https:';
+    if (startingBlocks)
+    {
+      const appName = sanitizeForUrl(apiClientName).slice(0, 40);
+      const pathname = trimTrailingSlashes(url.pathname);
+
+      url.pathname = `${pathname}/${tenantName}`;
+      url.hostname = `${appName}.${url.hostname}`;
+    }
+    return url.toString();
+  }
 }
 
 export class PostApiClientDtoV2 {
