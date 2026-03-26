@@ -33,6 +33,7 @@ import { OwnershipsGlobalService } from '../ownerships-global/ownerships-global.
 import { RolesGlobalService } from '../roles-global/roles-global.service';
 import { SbEnvironmentsGlobalService } from '../sb-environments-global/sb-environments-global.service';
 import { SbEnvironmentsEdFiService } from '../sb-environments-global/sb-environments-edfi.services';
+import { AdminApiSyncService } from '../sb-sync/edfi/adminapi-sync.service';
 import { SbSyncConsumer } from '../sb-sync/sb-sync.consumer';
 import { EdfiTenantsService } from '../teams/edfi-tenants/edfi-tenants.service';
 import { EdorgsService } from '../teams/edfi-tenants/edorgs/edorgs.service';
@@ -76,6 +77,7 @@ const imports = [
 const providers = [
   AdminApiServiceV1,
   AdminApiServiceV2,
+  AdminApiSyncService,
   AuthService,
   CacheService,
   DatabaseConfigService,
