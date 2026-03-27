@@ -448,6 +448,8 @@ export class SbEnvironmentsEdFiService {
   private createODSObjectV1(tenant: PostSbEnvironmentTenantDTO): SbV1MetaOds[] {
     return (
       tenant.odss?.map((ods) => ({
+        id: ods.id,
+        name: ods.name,
         dbname: ods.dbName,
         edorgs: ods.allowedEdOrgs
           ?.split(',')
@@ -486,8 +488,8 @@ export class SbEnvironmentsEdFiService {
   ) {
     const odss = (metaOds ?? []).map(
       (o): SyncableOds => ({
-        id: null, // V1 doesn't have id
-        name: o.dbname, // Use dbname as name for V1
+        id: o.id ?? null,
+        name: o.name ?? o.dbname,
         dbName: o.dbname,
         edorgs: o.edorgs,
       })

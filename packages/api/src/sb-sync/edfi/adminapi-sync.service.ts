@@ -1,7 +1,7 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
+import { Edorg, EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
 import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
@@ -85,35 +85,39 @@ export class AdminApiSyncService {
       }
     }
 
-    // Persist ODS instances and education organizations using existing sync logic
-    if (transformedData.odss && transformedData.odss.length > 0) {
-      this.logger.log(
-        `Syncing ${transformedData.odss.length} ODS instance(s) for tenant: ${tenantData.name}`
-      );
+    // Always sync ODS and EdOrgs — delete existing data and re-insert fresh from the API.
+    // This ensures stale records are removed when the API returns fewer or different items,
+    // and newly provisioned tenants get their real data on first sync.
+    this.logger.log(
+      `Syncing ${transformedData.odss?.length || 0} ODS instance(s) for tenant: ${tenantData.name}`
+    );
 
-      await this.entityManager.transaction(async (em) => {
-        // Map to SyncableOds format expected by persistSyncTenant
-        const syncableOdss = transformedData.odss.map(ods => ({
-          id: ods.odsInstanceId,
-          name: ods.odsInstanceName,
-          dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
-          edorgs: ods.edorgs?.map(edorg => ({
-            educationorganizationid: edorg.educationOrganizationId,
-            nameofinstitution: edorg.nameOfInstitution,
-            shortnameofinstitution: edorg.shortNameOfInstitution || null,
-            discriminator: edorg.discriminator,
-            parent: edorg.parentId,
-          })) || [],
-        }));
+    await this.entityManager.transaction(async (em) => {
+      // Delete all existing EdOrgs for this tenant first (explicit delete avoids relying on
+      // multi-level FK CASCADE behavior, which differs between PostgreSQL and MSSQL).
+      // The edorg_closure table is cleaned up by DB-level CASCADE (pgsql FK) or MSSQL trigger.
+      await em.getRepository(Edorg).delete({ edfiTenantId: edfiTenant.id });
 
-        this.logger.log(`Calling persistSyncTenant with ${syncableOdss.length} syncable ODS`);
-        syncableOdss.forEach((ods, idx) => {
-          this.logger.log(`  SyncableODS ${idx}: id=${ods.id}, name="${ods.name}", dbName="${ods.dbName}"`);
-        });
+      // Delete all existing ODS for this tenant (EdOrgs are already gone).
+      await em.getRepository(Ods).delete({ edfiTenantId: edfiTenant.id });
 
-        await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
-      });
-    }
+      // Map to SyncableOds format expected by persistSyncTenant
+      const syncableOdss = (transformedData.odss ?? []).map(ods => ({
+        id: ods.odsInstanceId,
+        name: ods.odsInstanceName,
+        dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
+        edorgs: ods.edorgs?.map(edorg => ({
+          educationorganizationid: edorg.educationOrganizationId,
+          nameofinstitution: edorg.nameOfInstitution,
+          shortnameofinstitution: edorg.shortNameOfInstitution || null,
+          discriminator: edorg.discriminator,
+          parent: edorg.parentId,
+        })) || [],
+      }));
+
+      this.logger.log(`Calling persistSyncTenant with ${syncableOdss.length} syncable ODS`);
+      await persistSyncTenant({ em, edfiTenant, odss: syncableOdss });
+    });
 
     this.logger.log(`Successfully processed tenant: ${tenantData.name}`);
   }
@@ -311,9 +315,9 @@ export class AdminApiSyncService {
       // Select appropriate Admin API service based on version
       const adminApiService = version === 'v1' ? this.adminApiServiceV1 : this.adminApiServiceV2;
 
-      // Discover and sync tenants based on multi-tenant configuration
+      // Discover tenants from the Admin API
       this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);
-      const tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
+      let tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
 
       if (!tenants || tenants.length === 0) {
         this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
@@ -326,17 +330,26 @@ export class AdminApiSyncService {
 
       this.logger.log(`Found ${tenants.length} tenant(s) for environment: ${sbEnvironment.name}`);
 
-      // For v2 multi-tenant environments, provision credentials for newly discovered tenants
+      // -----------------------------------------------------------------------
+      // V2 path: use syncTenantData() per tenant so each request goes through
+      // getAdminApiClient() — the only code path that correctly resolves
+      // per-tenant credentials via the request interceptor.  Using getTenants()
+      // bulk data directly caused the "wrong credentials / wrong data" issue
+      // because it uses a manually-constructed client.
+      // -----------------------------------------------------------------------
       if (version === 'v2') {
         const configPublic = sbEnvironment.configPublic;
-        const isMultiTenant = 
+        const isMultiTenant =
           configPublic?.version === 'v2' &&
           configPublic.values?.meta?.mode === 'MultiTenant';
 
         if (isMultiTenant) {
+          // Provision credentials for tenants discovered by the API but not yet
+          // in our config (newly discovered tenants).
           await this.provisionCredentialsForNewTenants(sbEnvironment, tenants);
-          
-          // Reload environment with updated config
+
+          // Reload so syncTenantData (which re-reads sbEnvironment from DB per
+          // tenant) picks up the freshly written credentials.
           const reloadedEnvironment = await this.sbEnvironmentsRepository.findOne({
             where: { id: sbEnvironment.id },
           });
@@ -344,9 +357,76 @@ export class AdminApiSyncService {
             sbEnvironment = reloadedEnvironment;
           }
         }
+
+        // Ensure an EdfiTenant row exists for every tenant the API returned,
+        // then delegate to syncTenantData which uses getAdminApiClient().
+        let processedCount = 0;
+        for (const tenantData of tenants) {
+          try {
+            let edfiTenant = await this.edfiTenantsRepository.findOne({
+              where: { name: tenantData.name, sbEnvironmentId: sbEnvironment.id },
+            });
+            if (!edfiTenant) {
+              this.logger.log(`Creating EdfiTenant row for newly discovered tenant: ${tenantData.name}`);
+              edfiTenant = await this.edfiTenantsRepository.save({
+                name: tenantData.name,
+                sbEnvironmentId: sbEnvironment.id,
+                created: new Date(),
+              });
+            }
+
+            // syncTenantData fetches ODS data via getAdminApiClient() — credentials
+            // and the tenant header are managed by the request interceptor, ensuring
+            // each tenant only receives its own data.
+            const result = await this.syncTenantData(edfiTenant);
+            if (result.status === 'SUCCESS') {
+              processedCount++;
+            } else {
+              this.logger.error(
+                `Sync failed for tenant ${tenantData.name}: ${result.message}`
+              );
+            }
+          } catch (tenantError) {
+            this.logger.error(
+              `Error processing tenant ${tenantData.name}: ${tenantError.message}`,
+              tenantError.stack
+            );
+          }
+        }
+
+        this.logger.log(
+          `Admin API v2 sync completed for environment: ${sbEnvironment.name}. ` +
+          `Processed ${processedCount}/${tenants.length} tenant(s)`
+        );
+
+        // Remove tenants that exist in the DB but were not returned by the API.
+        // Their ODS and EdOrgs cascade-delete via FK (onDelete: 'CASCADE').
+        const apiTenantNamesV2 = new Set(tenants.map(t => t.name));
+        const dbTenantsV2 = await this.edfiTenantsRepository.find({
+          where: { sbEnvironmentId: sbEnvironment.id },
+        }) ?? [];
+        const orphanedV2Ids = dbTenantsV2
+          .filter(t => !apiTenantNamesV2.has(t.name))
+          .map(t => t.id);
+        if (orphanedV2Ids.length > 0) {
+          this.logger.log(
+            `Removing ${orphanedV2Ids.length} orphaned tenant(s): ` +
+            dbTenantsV2.filter(t => !apiTenantNamesV2.has(t.name)).map(t => t.name).join(', ')
+          );
+          await this.edfiTenantsRepository.delete(orphanedV2Ids);
+        }
+
+        return {
+          status: 'SUCCESS',
+          message: `Successfully synced ${processedCount} of ${tenants.length} tenant(s)`,
+          tenantsProcessed: processedCount,
+        };
       }
 
-      // Process tenant data using existing table structures
+      // -----------------------------------------------------------------------
+      // V1 path: single-tenant, use processTenantData directly with the data
+      // already fetched by getTenants() (no per-tenant credential split needed).
+      // -----------------------------------------------------------------------
       let processedCount = 0;
       for (const tenantData of tenants) {
         try {
@@ -357,13 +437,29 @@ export class AdminApiSyncService {
             `Error processing tenant ${tenantData.name}: ${tenantError.message}`,
             tenantError.stack
           );
-          // Continue processing other tenants
         }
       }
 
       this.logger.log(
-        `Admin API sync completed for environment: ${sbEnvironment.name}. Processed ${processedCount}/${tenants.length} tenant(s)`
+        `Admin API v1 sync completed for environment: ${sbEnvironment.name}. ` +
+        `Processed ${processedCount}/${tenants.length} tenant(s)`
       );
+
+      // Remove tenants in DB that the API no longer returns.
+      const apiTenantNames = new Set(tenants.map(t => t.name));
+      const dbTenants = await this.edfiTenantsRepository.find({
+        where: { sbEnvironmentId: sbEnvironment.id },
+      }) ?? [];
+      const orphanedTenantIds = dbTenants
+        .filter(t => !apiTenantNames.has(t.name))
+        .map(t => t.id);
+      if (orphanedTenantIds.length > 0) {
+        this.logger.log(
+          `Removing ${orphanedTenantIds.length} orphaned tenant(s) no longer returned by Admin API: ` +
+          dbTenants.filter(t => !apiTenantNames.has(t.name)).map(t => t.name).join(', ')
+        );
+        await this.edfiTenantsRepository.delete(orphanedTenantIds);
+      }
 
       return {
         status: 'SUCCESS',
