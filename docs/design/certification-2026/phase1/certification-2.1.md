@@ -74,32 +74,45 @@ This phase is intentionally reduced to fit a `2-sprint` window and validate core
 - On validation request, Admin App creates a temporary working scenario, runs Bruno CLI, parses JSON report, and returns a simplified response.
 
 ```mermaid
+---
+config:
+  theme: base
+---
 flowchart LR
-  subgraph AdminApp[Ed-Fi Admin App]
-    FE[Frontend React]
-    API[API NestJS]
-    TMP[(Temporary Bruno Runtime Workspace)]
+ subgraph BRUNO["Bruno"]
+        TMP["Temporary SIS workspace"]
+  end
+ subgraph AdminApp["Admin App"]
+        FE["Frontend"]
+        API["API (Orchestrator)"]
+        BRUNO
+  end
+ subgraph Vendor-API["Vendor"]
+        ODS["ODS API"]
   end
 
-  subgraph ArtifactSource[Artifact Distribution]
-    ART[Versioned Bruno ZIP]
+  subgraph Vendor-APP["Vendor"]
+        APP["Vendor App (external)"]
+  end
+ subgraph ArtifactSource["GitHub: certification-testing"]
+        ART>"Versioned Bruno ZIP"]
+  end
+ subgraph Data["Admin Database"]
+        SCHEMA["Certification schema (scenarios + status)"]
   end
 
-  subgraph CertRepo[certification-testing]
-    SRC[SIS collection scripts]
-  end
+    FE <-- HTTPS --> API
+    ART -- download artifact --> API
+    API -- checksum and install artifact --> TMP
+    API <-- get certification process --> SCHEMA
+    API <-- run scenario --> TMP
+    APP -- send data --> ODS
+    API -- create instance--> ODS
+    TMP <-- validate data --> ODS
 
-  subgraph Vendor[Vendor Environment]
-    ODS[Vendor ODS API]
-  end
-
-  FE <-->|HTTPS| API
-  SRC -->|CI publish| ART
-  API -->|download pinned ref| ART
-  API --> TMP
-  TMP -->|bru run single step| ODS
-  TMP -->|JSON report| API
-  API -->|structured result| FE
+    API@{ shape: diam}
+    ODS@{ shape: diam}
+    SCHEMA@{ shape: cyl}
 ```
 
 __Description:__
