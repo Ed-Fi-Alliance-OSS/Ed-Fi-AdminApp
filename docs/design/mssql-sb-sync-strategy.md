@@ -46,7 +46,7 @@ Implement a **Job Queue Abstraction Layer** that provides a unified interface fo
 ### Design Principles
 
 1. **No UI Changes**: Maintain existing API contracts and response structures
-2. **No New External Dependencies**: Use existing TypeORM infrastructure
+2. **Minimal External Dependencies**: Primarily reuse existing TypeORM infrastructure. For MSSQL only, add a small, well-maintained library (`cron-parser`) for cron expression parsing to replicate pgboss scheduling behavior. PostgreSQL deployments continue using pgboss's built-in cron parsing.
 3. **Preserve Architecture**: Keep the same worker/consumer patterns
 4. **Feature Parity**: Both implementations support the same capabilities
 5. **Transparent Migration**: Automatically select implementation based on `DB_ENGINE` config
@@ -139,9 +139,9 @@ This adapter wraps the existing pgboss implementation to conform to the `IJobQue
 export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
   private boss: PgBoss;
   
-  constructor() {
-    const connectionString = await config.DB_CONNECTION_STRING;
-    this.boss = new PgBoss({ connectionString });
+  // Constructor must remain synchronous - initialization happens in start()
+  constructor(private readonly connectionString: string) {
+    this.boss = new PgBoss({ connectionString: this.connectionString });
   }
   
   async start(): Promise<void> {
@@ -182,6 +182,12 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
 
 This implementation uses TypeORM entities and a polling mechanism to simulate pgboss behavior on MSSQL.
 
+> **📝 Note on Dependencies**: The MSSQL implementation uses `cron-parser` for parsing cron expressions (since we're building a custom scheduler from scratch). This dependency is **only loaded when `DB_ENGINE=mssql`**. PostgreSQL deployments continue using pgboss, which has built-in cron parsing and does not require this package.
+
+**Location:** `packages/api/src/sb-sync/job-queue/mssql-job-queue.service.ts`
+
+This implementation uses TypeORM entities and a polling mechanism to simulate pgboss behavior on MSSQL.
+
 #### 3.1. Database Schema
 
 **Entity:** `packages/models-server/src/entities/job-queue.entity.ts`
@@ -189,7 +195,7 @@ This implementation uses TypeORM entities and a polling mechanism to simulate pg
 ```typescript
 @Entity('job_queue')
 @Index(['name', 'state'])
-@Index(['singletonKey'], { unique: true, where: '"singletonKey" IS NOT NULL AND state IN (\'created\', \'retry\', \'active\')' })
+@Index(['singletonKey'], { unique: true, where: "[singletonKey] IS NOT NULL AND [state] IN ('created', 'retry', 'active')" })
 export class JobQueue {
   @PrimaryColumn('uuid')
   id: string;
@@ -539,7 +545,8 @@ export class MssqlJobQueueService implements IJobQueueService, OnApplicationBoot
         if (config.DB_ENGINE === 'mssql') {
           return new MssqlJobQueueService(jobRepo, scheduleRepo);
         } else {
-          return new PgBossAdapter();
+          const connectionString = await config.DB_CONNECTION_STRING;
+          return new PgBossAdapter(connectionString);
         }
       },
       inject: [getRepositoryToken(JobQueue), getRepositoryToken(JobSchedule)],
@@ -762,7 +769,7 @@ Similar changes apply to:
 - [ ] Implement `MssqlJobQueueService` with polling mechanism
 - [ ] Create conditional view definition for `SbSyncQueue` (MSSQL version)
 - [ ] Generate MSSQL migration to replace materialized view with regular view
-- [ ] Add `cron-parser` dependency to `package.json`
+- [ ] Add `cron-parser` dependency to `package.json` (Note: This dependency is only loaded/used when `DB_ENGINE=mssql`. PostgreSQL deployments using pgboss do not need this package.)
 - [ ] Write unit tests for `MssqlJobQueueService`
   - Test job submission
   - Test singleton key enforcement
