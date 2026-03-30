@@ -285,6 +285,9 @@ export const sbEnvironmentQueriesGlobal = new EntityQueryBuilder({
           ...params.standardQueryKeyParams,
           pathOverride: undefined,
         }),
+        // Invalidate all tenant-scoped queries (ODS, EdOrgs, etc.) since any
+        // tenant in this environment may have been updated by the sync.
+        ['edfi-tenants'],
       ],
     },
     (base) => `${baseUrl}/sb-environments/${base.entity.id}/refresh-resources`
@@ -349,7 +352,25 @@ export const edfiTenantQueriesGlobal = new EntityQueryBuilder({
   )
   .put(
     'refreshResources',
-    { ReqDto: Id, ResDto: SbSyncQueueDto, keysToInvalidate: (params) => [['sb-sync-queues']] },
+    {
+      ReqDto: Id,
+      ResDto: SbSyncQueueDto,
+      keysToInvalidate: (params) => [
+        ['sb-sync-queues'],
+        // Invalidate ODS and EdOrg caches for this specific tenant so the UI
+        // reflects the completed sync immediately without needing a page reload.
+        queryKeyNew({
+          kebabCaseName: 'ods',
+          edfiTenant: params.entity as unknown as GetEdfiTenantDto,
+          id: false,
+        }),
+        queryKeyNew({
+          kebabCaseName: 'edorg',
+          edfiTenant: params.entity as unknown as GetEdfiTenantDto,
+          id: false,
+        }),
+      ],
+    },
     (base) =>
       `${baseUrl}/sb-environments/${base.sbEnvironmentId}/edfi-tenants/${base.entity.id}/refresh-resources`
   )

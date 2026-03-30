@@ -7,6 +7,7 @@ import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto } from '@edanalytics/models';
 import { AdminApiSyncService } from './adminapi-sync.service';
 import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import { CacheService } from '../../app/cache.module';
 import * as adminApiDataAdapterUtils from '../../utils/admin-api-data-adapter-utils';
 import * as syncOds from '../sync-ods';
 
@@ -110,7 +111,9 @@ describe('AdminApiSyncService', () => {
 
     const mockEntityManager = {
       transaction: jest.fn(),
-      getRepository: jest.fn(),
+      getRepository: jest.fn().mockReturnValue({
+        delete: jest.fn().mockResolvedValue({ affected: 0 }),
+      }),
     };
 
     const mockSbEnvironmentsRepository = {
@@ -150,6 +153,10 @@ describe('AdminApiSyncService', () => {
           provide: EntityManager,
           useValue: mockEntityManager,
         },
+        {
+          provide: CacheService,
+          useValue: { flushAll: jest.fn() },
+        },
       ],
     }).compile();
 
@@ -160,6 +167,9 @@ describe('AdminApiSyncService', () => {
       Repository<EdfiTenant>
     >;
     entityManager = module.get(EntityManager) as jest.Mocked<EntityManager>;
+
+    // Default: no tenants in DB (orphan cleanup won't delete anything in most tests)
+    edfiTenantsRepository.find.mockResolvedValue([]);
   });
 
   afterEach(() => {
@@ -282,7 +292,7 @@ describe('AdminApiSyncService', () => {
     });
 
     describe('v2 environment sync', () => {
-      it('should successfully sync v2 environment with multiple tenants', async () => {
+      it('should successfully sync v2 environment by calling syncTenantData per tenant', async () => {
         const environment = mockSbEnvironmentV2 as SbEnvironment;
         const tenants = [
           mockTenantDto,
@@ -290,26 +300,27 @@ describe('AdminApiSyncService', () => {
         ];
 
         adminApiServiceV2.getTenants.mockResolvedValue(tenants);
-        edfiTenantsRepository.findOne.mockResolvedValue(null);
-        edfiTenantsRepository.save.mockResolvedValue(mockEdfiTenant as EdfiTenant);
 
-        jest.spyOn(adminApiDataAdapterUtils, 'transformTenantData').mockReturnValue({
-          name: 'tenant-one',
-          sbEnvironmentId: 2,
-          odss: [],
-        } as any);
+        // findOne: first call in syncEnvironmentData (find-or-create), second in syncTenantData (with relations)
+        edfiTenantsRepository.findOne
+          .mockResolvedValueOnce(mockEdfiTenant as EdfiTenant)  // syncEnvironmentData find for tenant-one
+          .mockResolvedValueOnce(mockEdfiTenant as EdfiTenant)  // syncTenantData reload for tenant-one
+          .mockResolvedValueOnce(null)                          // syncEnvironmentData find for tenant-two (not found)
+          .mockResolvedValueOnce({ ...mockEdfiTenant, id: 2, name: 'tenant-two', sbEnvironment: mockSbEnvironmentV2 } as any); // syncTenantData reload
 
-        jest.spyOn(syncOds, 'persistSyncTenant').mockResolvedValue(undefined);
+        edfiTenantsRepository.save.mockResolvedValue({ ...mockEdfiTenant, id: 2, name: 'tenant-two' } as EdfiTenant);
 
-        entityManager.transaction.mockImplementation(async (callback: any) => {
-          return callback(entityManager);
-        });
+        // Spy on syncTenantData so we don\'t need to wire up the entire Admin API v2 chain
+        const syncTenantDataSpy = jest
+          .spyOn(service as any, 'syncTenantData')
+          .mockResolvedValue({ status: 'SUCCESS', message: 'synced' });
 
         const result = await service.syncEnvironmentData(environment);
 
         expect(result.status).toBe('SUCCESS');
         expect(result.tenantsProcessed).toBe(2);
         expect(adminApiServiceV2.getTenants).toHaveBeenCalledWith(environment);
+        expect(syncTenantDataSpy).toHaveBeenCalledTimes(2);
       });
 
       it('should use v2 service for v2 environment', async () => {
@@ -347,13 +358,12 @@ describe('AdminApiSyncService', () => {
     });
 
     describe('ODS and EdOrg processing', () => {
-      it('should skip ODS sync when tenant has no ODS instances', async () => {
+      it('should call persistSyncTenant even when API returns empty ODS list so stale records are delta-deleted', async () => {
         const environment = mockSbEnvironmentV1 as SbEnvironment;
         const tenantWithoutOds = { ...mockTenantDto, odsInstances: [] };
 
         adminApiServiceV1.getTenants.mockResolvedValue([tenantWithoutOds]);
-        edfiTenantsRepository.findOne.mockResolvedValue(null);
-        edfiTenantsRepository.save.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
 
         jest.spyOn(adminApiDataAdapterUtils, 'transformTenantData').mockReturnValue({
           name: 'tenant-one',
@@ -361,12 +371,24 @@ describe('AdminApiSyncService', () => {
           odss: [],
         } as any);
 
-        const persistSyncTenantSpy = jest.spyOn(syncOds, 'persistSyncTenant');
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => {
+          return callback(entityManager);
+        });
 
         const result = await service.syncEnvironmentData(environment);
 
         expect(result.status).toBe('SUCCESS');
-        expect(persistSyncTenantSpy).not.toHaveBeenCalled();
+        // persistSyncTenant MUST be called even with empty ODS — computeOdsListDeltas inside
+        // it will mark stale existing rows for deletion without explicit bulk deletes.
+        expect(persistSyncTenantSpy).toHaveBeenCalledWith({
+          em: entityManager,
+          edfiTenant: mockEdfiTenant,
+          odss: [],
+        });
       });
 
       it('should sync ODS instances with education organizations', async () => {
@@ -425,6 +447,156 @@ describe('AdminApiSyncService', () => {
             }),
           ]),
         });
+      });
+    });
+
+    describe('orphaned tenant cleanup', () => {
+      it('should delete tenants in DB that are no longer returned by the Admin API', async () => {
+        const environment = mockSbEnvironmentV1 as SbEnvironment;
+        adminApiServiceV1.getTenants.mockResolvedValue([mockTenantDto]); // only tenant-one
+
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+        jest.spyOn(adminApiDataAdapterUtils, 'transformTenantData').mockReturnValue({
+          name: 'tenant-one',
+          sbEnvironmentId: 1,
+          odss: [],
+        } as any);
+
+        jest.spyOn(syncOds, 'persistSyncTenant').mockResolvedValue(undefined);
+        entityManager.transaction.mockImplementation(async (callback: any) => callback(entityManager));
+
+        // DB has two tenants but API only returns one
+        const orphanTenant = { id: 99, name: 'orphan-tenant', sbEnvironmentId: 1 };
+        edfiTenantsRepository.find.mockResolvedValue([
+          mockEdfiTenant as EdfiTenant,
+          orphanTenant as EdfiTenant,
+        ]);
+        edfiTenantsRepository.delete = jest.fn().mockResolvedValue({ affected: 1 });
+
+        const result = await service.syncEnvironmentData(environment);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(edfiTenantsRepository.delete).toHaveBeenCalledWith([99]);
+      });
+
+      it('should not delete any tenants when all DB tenants are returned by the API', async () => {
+        const environment = mockSbEnvironmentV1 as SbEnvironment;
+        adminApiServiceV1.getTenants.mockResolvedValue([mockTenantDto]);
+
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+        jest.spyOn(adminApiDataAdapterUtils, 'transformTenantData').mockReturnValue({
+          name: 'tenant-one',
+          sbEnvironmentId: 1,
+          odss: [],
+        } as any);
+
+        jest.spyOn(syncOds, 'persistSyncTenant').mockResolvedValue(undefined);
+        entityManager.transaction.mockImplementation(async (callback: any) => callback(entityManager));
+
+        // DB has the same tenant as the API returned
+        edfiTenantsRepository.find.mockResolvedValue([mockEdfiTenant as EdfiTenant]);
+        edfiTenantsRepository.delete = jest.fn().mockResolvedValue({ affected: 0 });
+
+        const result = await service.syncEnvironmentData(environment);
+
+        expect(result.status).toBe('SUCCESS');
+        expect(edfiTenantsRepository.delete).not.toHaveBeenCalled();
+      });
+    });
+
+    describe('credential provisioning and re-fetch', () => {
+      const mockSbEnvironmentV2MultiTenant: Partial<SbEnvironment> = {
+        id: 3,
+        name: 'Test Multi-Tenant V2',
+        adminApiUrl: 'https://api.test.com',
+        version: 'v2',
+        configPublic: {
+          version: 'v2',
+          values: {
+            meta: { mode: 'MultiTenant' },
+            tenants: { 'tenant-one': { adminApiKey: 'key1' } },
+          },
+          adminApiUrl: 'https://api.test.com',
+          startingBlocks: false,
+        } as any,
+        configPrivate: {
+          tenants: { 'tenant-one': { adminApiSecret: 'secret1' } },
+        } as any,
+      };
+
+      it('should provision credentials for newly discovered tenants and then call syncTenantData (no second getTenants call)', async () => {
+        const environment = mockSbEnvironmentV2MultiTenant as SbEnvironment;
+
+        // getTenants is called ONCE — new code delegates to syncTenantData per tenant
+        // rather than re-fetching from getTenants
+        const discoveredTenants = [
+          { ...mockTenantDto, name: 'tenant-one' },
+          { ...mockTenantDto, name: 'tenant-two' },
+        ];
+        adminApiServiceV2.getTenants.mockResolvedValue(discoveredTenants as any);
+
+        jest
+          .spyOn(service as any, 'provisionCredentialsForNewTenants')
+          .mockResolvedValue(undefined);
+
+        const sbEnvironmentsRepository = (service as any).sbEnvironmentsRepository;
+        sbEnvironmentsRepository.findOne.mockResolvedValue(environment);
+
+        edfiTenantsRepository.findOne.mockResolvedValue(null);
+        edfiTenantsRepository.save.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+        const syncTenantDataSpy = jest
+          .spyOn(service as any, 'syncTenantData')
+          .mockResolvedValue({ status: 'SUCCESS', message: 'synced' });
+
+        const result = await service.syncEnvironmentData(environment);
+
+        expect(result.status).toBe('SUCCESS');
+        // getTenants called exactly ONCE — credential provisioning no longer triggers a re-fetch
+        expect(adminApiServiceV2.getTenants).toHaveBeenCalledTimes(1);
+        // syncTenantData called once per discovered tenant
+        expect(syncTenantDataSpy).toHaveBeenCalledTimes(2);
+      });
+    });
+
+    describe('delta-based ODS sync per tenant', () => {
+      it('should call persistSyncTenant with mapped syncableOdss — no explicit bulk deletes', async () => {
+        const environment = mockSbEnvironmentV1 as SbEnvironment;
+        adminApiServiceV1.getTenants.mockResolvedValue([mockTenantDto]);
+        edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+        jest.spyOn(adminApiDataAdapterUtils, 'transformTenantData').mockReturnValue({
+          name: 'tenant-one',
+          sbEnvironmentId: 1,
+          odss: [
+            {
+              odsInstanceId: 5,
+              odsInstanceName: 'Fresh ODS',
+              edorgs: [],
+            },
+          ],
+        } as any);
+
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        entityManager.transaction.mockImplementation(async (callback: any) => callback(entityManager));
+
+        await service.syncEnvironmentData(environment);
+
+        // persistSyncTenant is called with the mapped ODS — delta logic inside handles inserts/updates/deletes.
+        expect(persistSyncTenantSpy).toHaveBeenCalledWith({
+          em: entityManager,
+          edfiTenant: mockEdfiTenant,
+          odss: expect.arrayContaining([
+            expect.objectContaining({ id: 5, name: 'Fresh ODS', dbName: 'Fresh ODS' }),
+          ]),
+        });
+        // No explicit bulk deletes should occur outside persistSyncTenant
+        expect(entityManager.getRepository).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'Edorg' }));
       });
     });
 
