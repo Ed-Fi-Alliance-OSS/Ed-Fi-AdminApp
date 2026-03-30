@@ -161,13 +161,12 @@ export interface SyncResult {
 
 • **Helper Method - `processTenantData()`:**
 
-- **Purpose:** Private helper to process and persist a single tenant's data using a clean-slate approach
-- **Strategy:** **Delete-all then re-insert** — explicitly deletes all existing `Edorg` records then all `Ods` records for the tenant before re-inserting from the API response. This ensures stale records are removed when the API returns fewer or different items and newly provisioned tenants receive their real data on first sync.
+- **Purpose:** Private helper to process and persist a single tenant's data using the delta-based sync approach
+- **Strategy:** **Delta-based sync** — delegates entirely to `persistSyncTenant()`, which calls `computeOdsListDeltas()` internally. Only rows that are genuinely absent from the incoming API response are deleted; unchanged rows keep their primary keys, avoiding unintended cascade deletes on tables (e.g. `Ownership`, `IntegrationApp`) that reference `Ods`/`Edorg` via FK. This is the same strategy used by the Starting Blocks Lambda path.
 - **Operations:**
   - Transform tenant data to `EdfiTenant` format via `transformTenantData()`
   - Find or create tenant in database
-  - Within a transaction: delete all EdOrgs, delete all ODS, then call `persistSyncTenant()` with fresh data
-- **Note:** The explicit delete step bypasses relying on multi-level FK CASCADE behavior, which differs between PostgreSQL and MSSQL. The `edorg_closure` table is still cleaned up by DB-level CASCADE (PostgreSQL FK) or MSSQL trigger.
+  - Within a transaction: call `persistSyncTenant()` with the incoming ODS data — delta computation handles inserts, updates, and targeted deletes
 
 • **Private Method - `provisionCredentialsForNewTenants()`:**
 
@@ -458,7 +457,7 @@ Incoming ODS with `id !== null` are matched by `odsInstanceId`; those with `id =
     - Processes education organizations for each ODS using `computeOdsTreeDeltas()`
   - **Error Handling:** Rolls back entire transaction on any failure
 
-> **Note:** When called from `processTenantData()`, all existing EdOrgs and ODS are pre-deleted before `persistSyncTenant()` is invoked, so the delta computation effectively performs a full re-insert in that code path. The delta logic is fully exercised in the legacy Starting Blocks Lambda path.
+> **Note:** The delta logic is exercised in all sync paths — both the Admin API (`processTenantData()`) and the Starting Blocks Lambda path. No pre-deletion of existing rows occurs before `persistSyncTenant()` is called; only rows absent from the incoming data are removed.
 
 ### 6. Error Handling and Retry Logic
 
@@ -628,6 +627,10 @@ The following Admin API endpoints are utilized throughout this integration:
 - Change detection for ODS name updates
 - Education organization relationship mapping
 - Transaction-safe persistence operations
+
+✅ **Post-Sync Cache Invalidation**
+- Team ownership cache (backend `NodeCache`, 30 s TTL) is flushed immediately after a successful sync in both `syncEnvironmentData()` and `syncTenantData()`
+- Frontend TanStack Query caches for ODS and EdOrg lists are invalidated on sync mutation success, so the UI reflects updated data without a page reload
 
 ✅ **User Interface Updates**
 - Sync button visibility for v2 environments
