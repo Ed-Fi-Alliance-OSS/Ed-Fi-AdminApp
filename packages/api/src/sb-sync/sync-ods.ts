@@ -30,36 +30,51 @@ export const computeOdsListDeltas = (
   Logger.log(
     `computeOdsListDeltas: Processing ${shouldHaveOdss.length} incoming ODS, ${doHaveOdss.length} existing ODS`
   );
-  
+
   const odsDeltas = {
     insert: [] as Ods[],
     update: [] as Ods[],
     delete: [] as number[],
   };
 
-  // Match by odsInstanceId (stable identifier) not dbName (can change)
-  const metaOdss = new Map(
+  // Partition incoming ODS: those with an odsInstanceId (V2 / non-SB V1 from form)
+  // vs those without (SB V1 Lambda responses that don't carry an odsInstanceId).
+  const metaOdssById = new Map(
     shouldHaveOdss
-      .filter(o => o.id !== null) // Only include ODS with valid ID
+      .filter(o => o.id !== null)
       .map((o) => [o.id, o])
   );
+  const metaOdssByDbName = new Map(
+    shouldHaveOdss
+      .filter(o => o.id === null)
+      .map((o) => [o.dbName, o])
+  );
 
-  /** Initially all ODSs, present ones dynamically removed */
+  /** Initially all existing ODS — matched ones are removed; remaining are deleted */
   const odsIdsToDelete = new Set(doHaveOdss.map((o) => o.id));
-  const odsMap = new Map<number, Ods>(
+
+  // Existing ODS with a known odsInstanceId → match by odsInstanceId
+  const odsMapById = new Map<number, Ods>(
     doHaveOdss
       .filter(o => o.odsInstanceId !== null)
       .map((o) => [o.odsInstanceId, o])
   );
+  // Existing ODS without odsInstanceId (SB V1 legacy) → match by dbName
+  const odsMapByDbName = new Map<string, Ods>(
+    doHaveOdss
+      .filter(o => o.odsInstanceId === null)
+      .map((o) => [o.dbName, o])
+  );
 
   Logger.log(
-    `Existing ODS mapped by odsInstanceId: ${Array.from(odsMap.keys()).join(', ')}`
+    `Existing ODS: ${odsMapById.size} by odsInstanceId, ${odsMapByDbName.size} by dbName`
   );
   Logger.log(
-    `Incoming ODS IDs: ${Array.from(metaOdss.keys()).join(', ')}`
+    `Incoming ODS: ${metaOdssById.size} by id, ${metaOdssByDbName.size} by dbName`
   );
 
-  [...metaOdss.values()].forEach((sbOds) => {
+  // Process id-based ODS (V2 and non-SB V1 from the admin form)
+  [...metaOdssById.values()].forEach((sbOds) => {
     const newOds: DeepPartial<Ods> = {
       sbEnvironmentId: edfiTenant.sbEnvironmentId,
       edfiTenantId: edfiTenant.id,
@@ -67,33 +82,51 @@ export const computeOdsListDeltas = (
       odsInstanceId: sbOds.id,
       odsInstanceName: sbOds.name,
     };
-    
-    if (odsMap.has(sbOds.id)) {
-      // ODS exists - update it to capture any changes (name, etc.)
-      const existingOds = odsMap.get(sbOds.id);
+
+    if (odsMapById.has(sbOds.id)) {
+      const existingOds = odsMapById.get(sbOds.id);
       odsIdsToDelete.delete(existingOds.id);
 
-      // Check if any field has changed
-      const hasChanges = 
+      const hasChanges =
         existingOds.dbName !== sbOds.dbName ||
         existingOds.odsInstanceName !== sbOds.name;
 
       Logger.log(
-        `ODS ${sbOds.id} comparison: ` +
-        `dbName "${existingOds.dbName}" vs "${sbOds.dbName}", ` +
-        `name "${existingOds.odsInstanceName}" vs "${sbOds.name}", ` +
-        `hasChanges=${hasChanges}`
+        `ODS ${sbOds.id}: dbName "${existingOds.dbName}" vs "${sbOds.dbName}", ` +
+        `name "${existingOds.odsInstanceName}" vs "${sbOds.name}", hasChanges=${hasChanges}`
       );
 
       if (hasChanges) {
-        Logger.log(
-          `Updating ODS instance ${sbOds.id}: dbName="${existingOds.dbName}" -> "${sbOds.dbName}", name="${existingOds.odsInstanceName}" -> "${sbOds.name}"`
-        );
+        Logger.log(`Updating ODS instance ${sbOds.id}: dbName="${existingOds.dbName}" -> "${sbOds.dbName}"`);
         odsDeltas.update.push(Object.assign(existingOds, newOds));
       }
     } else {
-      // New ODS - insert it
       Logger.log(`Inserting new ODS instance ${sbOds.id}: dbName="${sbOds.dbName}", name="${sbOds.name}"`);
+      odsDeltas.insert.push(em.getRepository(Ods).create(newOds));
+    }
+  });
+
+  // Process dbName-based ODS (SB V1 Lambda — no odsInstanceId available)
+  [...metaOdssByDbName.values()].forEach((sbOds) => {
+    const newOds: DeepPartial<Ods> = {
+      sbEnvironmentId: edfiTenant.sbEnvironmentId,
+      edfiTenantId: edfiTenant.id,
+      dbName: sbOds.dbName,
+      odsInstanceId: null,
+      odsInstanceName: sbOds.name,
+    };
+
+    if (odsMapByDbName.has(sbOds.dbName)) {
+      const existingOds = odsMapByDbName.get(sbOds.dbName);
+      odsIdsToDelete.delete(existingOds.id);
+
+      const hasChanges = existingOds.odsInstanceName !== sbOds.name;
+      if (hasChanges) {
+        Logger.log(`Updating SB V1 ODS by dbName "${sbOds.dbName}"`);
+        odsDeltas.update.push(Object.assign(existingOds, newOds));
+      }
+    } else {
+      Logger.log(`Inserting new SB V1 ODS by dbName "${sbOds.dbName}"`);
       odsDeltas.insert.push(em.getRepository(Ods).create(newOds));
     }
   });
@@ -227,7 +260,7 @@ export const persistSyncTenant = async ({
   Logger.log(
     `persistSyncTenant: Starting for tenant ${edfiTenant.name} (id=${edfiTenant.id}) with ${odss.length} ODS`
   );
-  
+
   const edorgDeltas = {
     insert: [] as Edorg[],
     update: [] as Edorg[],
@@ -238,14 +271,11 @@ export const persistSyncTenant = async ({
     update: [] as Ods[],
     delete: [] as number[],
   };
-  
-  // Map incoming ODS by odsInstanceId (stable identifier)
-  const metaOdss = new Map(
-    odss
-      .filter(o => o.id !== null)
-      .map((o) => [o.id, o])
-  );
-  
+
+  // Partition incoming ODS by matching strategy
+  const metaOdssById = new Map(odss.filter(o => o.id !== null).map((o) => [o.id, o]));
+  const metaOdssByDbName = new Map(odss.filter(o => o.id === null).map((o) => [o.dbName, o]));
+
   const existingOdss = await em.getRepository(Ods).find({
     where: {
       edfiTenantId: edfiTenant.id,
@@ -256,17 +286,25 @@ export const persistSyncTenant = async ({
 
   odsDeltas = computeOdsListDeltas(odss, existingOdss, edfiTenant, em);
 
-  // Map ODS entities by odsInstanceId for lookup after save
-  const entityOdss = new Map(
-    (await em.getRepository(Ods).find({ where: { edfiTenantId: edfiTenant.id } })).map((o) => [
-      o.odsInstanceId, // Use odsInstanceId instead of dbName
-      o,
-    ])
+  // Build lookup maps for ODS entities after the delta computation
+  const allCurrentOdss = await em.getRepository(Ods).find({ where: { edfiTenantId: edfiTenant.id } });
+  // id-based ODS (V2 / non-SB V1 from form) — looked up by odsInstanceId
+  const entityOdssByInstanceId = new Map(
+    allCurrentOdss.filter(o => o.odsInstanceId !== null).map((o) => [o.odsInstanceId, o])
   );
-  
-  // Add newly updated/inserted ODS to the map
+  // dbName-based ODS (SB V1 Lambda) — looked up by dbName
+  const entityOdssByDbName = new Map(
+    allCurrentOdss.filter(o => o.odsInstanceId === null).map((o) => [o.dbName, o])
+  );
+
+  // Add newly inserted/updated ODS to the appropriate map so EdOrg processing
+  // has access to entities that are not yet persisted but will be saved together.
   [...odsDeltas.insert, ...odsDeltas.update].forEach((o) => {
-    entityOdss.set(o.odsInstanceId, o);
+    if (o.odsInstanceId !== null) {
+      entityOdssByInstanceId.set(o.odsInstanceId, o);
+    } else {
+      entityOdssByDbName.set(o.dbName, o);
+    }
   });
   
   const existingEdorgs = await em.getRepository(Edorg).find({
@@ -284,14 +322,34 @@ export const persistSyncTenant = async ({
     return acc;
   }, {} as Record<number, Edorg[]>);
 
-  // Process edorgs for each ODS, matching by odsInstanceId
-  for (const [odsInstanceId, ods] of metaOdss) {
-    const odsEntity = entityOdss.get(odsInstanceId);
+  // Process edorgs for id-based ODS (V2 and non-SB V1 from form)
+  for (const [odsInstanceId, ods] of metaOdssById) {
+    const odsEntity = entityOdssByInstanceId.get(odsInstanceId);
     if (!odsEntity) {
       Logger.warn(`Could not find ODS entity for odsInstanceId ${odsInstanceId}, skipping edorg processing`);
       continue;
     }
-    
+
+    const odsResult = computeOdsTreeDeltas(
+      edfiTenant,
+      ods,
+      odsEntity,
+      odsEdorgsMap[odsEntity.id] ?? [],
+      em
+    );
+    edorgDeltas.insert.push(...odsResult.insert);
+    edorgDeltas.update.push(...odsResult.update);
+    edorgDeltas.delete.push(...odsResult.delete);
+  }
+
+  // Process edorgs for dbName-based ODS (SB V1 Lambda — no odsInstanceId)
+  for (const [dbName, ods] of metaOdssByDbName) {
+    const odsEntity = entityOdssByDbName.get(dbName);
+    if (!odsEntity) {
+      Logger.warn(`Could not find ODS entity for dbName "${dbName}", skipping edorg processing`);
+      continue;
+    }
+
     const odsResult = computeOdsTreeDeltas(
       edfiTenant,
       ods,
@@ -312,11 +370,17 @@ export const persistSyncTenant = async ({
       .getRepository(Ods)
       .save([...odsDeltas.insert, ...odsDeltas.update], { chunk: 500 });
     Logger.log(`Successfully saved ${newOdss.length} ODS records`);
-    // Map by odsInstanceId for consistent lookup
-    const newOdsMap = new Map(newOdss.map((o) => [o.odsInstanceId, o]));
+    // Build lookup maps: id-based ODS by odsInstanceId, dbName-based ODS by dbName.
+    const newOdsMapByInstanceId = new Map(
+      newOdss.filter(o => o.odsInstanceId !== null).map((o) => [o.odsInstanceId, o])
+    );
+    const newOdsMapByDbName = new Map(
+      newOdss.filter(o => o.odsInstanceId === null).map((o) => [o.dbName, o])
+    );
     for (const edorg of edorgDeltas.insert) {
-      // Update edorg.ods reference using odsInstanceId
-      edorg.ods = newOdsMap.get(edorg.ods.odsInstanceId);
+      edorg.ods = edorg.ods.odsInstanceId !== null
+        ? newOdsMapByInstanceId.get(edorg.ods.odsInstanceId)
+        : newOdsMapByDbName.get(edorg.ods.dbName);
     }
   } else {
     Logger.log('No ODS changes to save');
