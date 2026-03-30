@@ -5,12 +5,12 @@
 - [3. Certification 2.1 Recap](#3-certification-21-recap)
 - [4. Certification 2.2 Scope Boundaries](#4-certification-22-scope-boundaries)
 - [5. Architecture Overview](#5-architecture-overview)
-- [6. Certification Lifecycle](#6-certification-lifecycle)
-- [7. Phase 2 Certification Workflow](#7-phase-2-certification-workflow)
-- [8. Certification Database Schema](#8-certification-database-schema)
-- [9. Security Gaps and Recommendations](#9-security-gaps-and-recommendations)
-- [10. Additional or Future Nice-to-Have Features](#10-additional-or-future-nice-to-have-features)
-- [11. Delivery Constraints, Risks, and Mitigations](#11-delivery-constraints-risks-and-mitigations)
+- [6. Phase 2 Certification Workflow](#6-phase-2-certification-workflow)
+- [7. Certification Database Schema](#7-certification-database-schema)
+- [8. Security Gaps and Recommendations](#8-security-gaps-and-recommendations)
+- [9. Additional or Future Nice-to-Have Features](#9-additional-or-future-nice-to-have-features)
+- [10. Delivery Constraints, Risks, and Mitigations](#10-delivery-constraints-risks-and-mitigations)
+- [11. Proposed Requirements, Timeline and Milestones](#11-proposed-requirements-timeline-and-milestones)
 - [12. Open Questions](#12-open-questions)
 - [Appendix A - Retained Story Details](#appendix-a---retained-story-details)
 - [Appendix B - POCs and Feasibility Notes](#appendix-b---pocs-and-feasibility-notes)
@@ -168,42 +168,7 @@ __Description:__
 - Logs: The API records run metadata (`artifactVersion`, `commitSha`, `scenarioPath`, `parameters`, timestamps, duration, exitCode)
 - Only allowlisted scenarios and validated payloads are executed and checksum/config mismatches block (or warn per `CERT_BRUNO_ON_DOWNLOAD_ERROR`).
 
-## 6. Certification Lifecycle
-
-```mermaid
-flowchart TD
-  Startup[App startup]
-  Startup --> Download[Download pinned Bruno artifact + verify checksum]
-  Download --> |secure|Prepare[Extract artifact + install dependencies]
-  Download -->|insecure| Block["Block execution (error/warn)"]
-  Prepare -->|error| Block["Block execution (error/warn)"]
-  Prepare -->|success| Extract[Bruno runtime ready]
-
-  User[User signs in & selects Environment/Sandbox]
-  User --> Open[Open Certification module]
-  Open --> List[API reads scenarios list from Database]
-  List --> FE["Frontend shows (allowlisted) scenarios"]
-
-  FE --> Submit[User submits credentials, scenario, parameters]
-  Submit --> Queue[API enqueue -> Bruno validation request]
-  Queue --> Worker[API dequeue -> prepare temporary scenario workspace + params]
-  Worker --> Run["Bruno run scenario step (using --env-var for credentials)"]
-  Run --> Parse[API parses Bruno JSON report]
-  Parse --> Update["API updates scenario status (error/success) in the Database"]
-  Update --> Notify[Return simplified result to FE]
-  Run --> Cleanup[API deletes temporary scenario workspace]
-```
-
-__Description:__
-
-- Startup: On application start the API prepares a containerized runtime workspace by downloading the pinned Bruno artifact, verifying SHA‑256, extracting it, and installing runtime dependencies. Checksum or config issues block execution (or emit warnings per configuration).
-- Scenarios catalog: The API reads allowlisted scenarios and parameter metadata from the `Certification` schema and exposes them to the frontend via `/api/certification/scenarios`.
-- Run lifecycle: When a user submits a validation request the API creates a run record (pending) in the `Certification` schema, enqueues the request, and the worker prepares a per‑run temporary workspace where parameters and per‑run credentials are provided to Bruno via `--env-var`.
-- Execution & persistency: After Bruno completes, the API parses the JSON reporter, updates the run record with status and traceability metadata (`artifactVersion`, `commitSha`, `scenarioPath`, `parameters`, timestamps, duration, exitCode`), and stores operator logs for debugging; the frontend receives a sanitized, structured result.
-- Concurrency & credentials: Requests are queued and processed with a configurable concurrency limit; credentials may be cached (encrypted, opt‑in) or provided per run — always passed to Bruno as environment variables to avoid mutating shared runtime state.
-- Cleanup & retention: Temporary working copies are removed after each run; retained artifacts (run metadata, operator logs) follow a configurable retention policy and are accessible to operators only.
-
-## 7. Phase 2 Certification Workflow
+## 6. Phase 2 Certification Workflow
 
 ```mermaid
 sequenceDiagram
@@ -223,6 +188,7 @@ sequenceDiagram
   User->>FE: Open Certification Process and submit credentials
   FE->>AdminAPI: GET /api/certification/scenarios
   AdminAPI-->>FE: Scenarios lists and process status
+  User->>ODS: [Execute scenario step in Vendor App]
   User->>FE: submit scenario step and parameters
 
   FE->>API: POST /api/certification/validate
@@ -232,23 +198,25 @@ sequenceDiagram
   else Valid request
     API->>API: [Enqueue/Dequeue] Validation request
     API->>Runtime: Build scenario workspace with parameters
-    Runtime->>ODS: Execute scenario step via Bruno CLI
+    Runtime->>ODS: Execute scenario step via Bruno CLI (--env-vars)
     ODS-->>Runtime: API response payloads
     Runtime-->>API: Bruno JSON reporter output
-    API->>API: Parse to simplified response
-    API->>AdminAPI: Register scenario status (error/success)
-    API-->>FE: Scenario results
-    FE-->>User: Display validation outcome and guidance
+    API->>Runtime: Delete temporary scenario workspace
+    API->>AdminAPI: Register scenario status (error/success) and logs
+    API-->>FE: Return simplified scenario results
+    FE-->>User: Display validation outcome
   end
 ```
 
 __Description:__
 
-- The API is the control point for validation and safety.
-- Bruno runtime is temporary and scoped to execution.
-- User sees structured results, not raw CLI logs.
+- The API is the control point for validation and safety; all scenario paths are validated against the allowlist before any process is spawned.
+- At startup, the API downloads the pinned Bruno artifact, verifies SHA‑256, extracts it, and installs runtime dependencies. Certification execution is blocked if the runtime is not ready.
+- When a request is submitted, the API creates a run record, enqueues it, and the worker builds a per‑run temporary workspace where credentials are passed to Bruno via environment variables — never as CLI arguments.
+- After Bruno completes, the API parses the JSON reporter, updates the run record with traceability metadata (`artifactVersion`, `commitSha`, `scenarioPath`, timestamps, duration, `exitCode`), and stores operator-only logs; the frontend receives only the sanitized `ValidationResult` DTO.
+- Temporary workspaces are deleted after each run; retained run metadata and logs follow a configurable retention policy and are accessible to operators only.
 
-## 8. Certification Database Schema
+## 7. Certification Database Schema
 
 In order to keep track of the certification scenarios, their parameters, and the execution status, we will define a new database schema in the Admin API database. There are two proposed designs for the database schema: a catalog-backed design that includes tables for the scenarios catalog and parameters, and a catalog-free design that focuses on runtime tracking of certification processes, scenarios, and steps without static catalog tables. The final decision on which design to implement will be based on factors such as complexity, maintainability, and how well it supports the required features for the certification process.
 
@@ -446,13 +414,13 @@ The Original design included a JSON schema that was transfered to the database s
 }
 ```
 
-## 9. Security Gaps and Recommendations
+## 8. Security Gaps and Recommendations
 
 This section documents security concerns identified during design and early implementation review of Phase 2, mapped against OWASP Top 10 and general secure-systems principles. Each item includes a risk rating, description, and concrete recommendation.
 
 ---
 
-### 9.1 OS Command Injection via `scenarioPath` and Shell Execution
+### 8.1 OS Command Injection via `scenarioPath` and Shell Execution
 
 __Risk: CRITICAL__ | OWASP A03 – Injection
 
@@ -483,7 +451,7 @@ spawnSync(localBru, ['run', scenarioPath, '--env', 'ODS', '--env-var', `edFiClie
 
 ---
 
-### 9.2 Path Traversal in Scenario Workspace Preparation
+### 8.2 Path Traversal in Scenario Workspace Preparation
 
 __Risk: HIGH__ | OWASP A01 – Broken Access Control
 
@@ -510,7 +478,7 @@ if (!resolved.startsWith(path.resolve(this.runtimeRoot, this.collectionRootName)
 
 ---
 
-### 9.3 Zip Slip during Artifact Extraction
+### 8.3 Zip Slip during Artifact Extraction
 
 __Risk: HIGH__ | OWASP A08 – Software and Data Integrity Failures
 
@@ -535,7 +503,7 @@ zip.extractAllTo(tmpDir, true);
 
 ---
 
-### 9.4 Credential Exposure via Process List and Disk
+### 8.4 Credential Exposure via Process List and Disk
 
 __Risk: HIGH__ | OWASP A02 – Cryptographic Failures
 
@@ -560,7 +528,7 @@ spawnSync(localBru, ['run', scenarioPath, '--env', 'ODS'], {
 
 ---
 
-### 9.5 Bypassing Integrity Enforcement via `onDownloadError: 'warning'`
+### 8.5 Bypassing Integrity Enforcement via `onDownloadError: 'warning'`
 
 __Risk: HIGH__ | OWASP A08 – Software and Data Integrity Failures
 
@@ -574,7 +542,7 @@ __Recommendations:__
 
 ---
 
-### 9.6 Broken Access Control – Missing Authorization on Certification Endpoints
+### 8.6 Broken Access Control – Missing Authorization on Certification Endpoints
 
 __Risk: HIGH__ | OWASP A01 – Broken Access Control
 
@@ -592,7 +560,7 @@ __Recommendations:__
 
 ---
 
-### 9.7 Denial of Service – Unbounded Queue and Execution Timeout
+### 8.7 Denial of Service – Unbounded Queue and Execution Timeout
 
 __Risk: MEDIUM__ | OWASP A05 – Security Misconfiguration
 
@@ -609,7 +577,7 @@ __Recommendations:__
 
 ---
 
-### 9.8 Sensitive Data Leakage in API Responses
+### 8.8 Sensitive Data Leakage in API Responses
 
 __Risk: MEDIUM__ | OWASP A02 – Cryptographic Failures / OWASP A09 – Security Logging
 
@@ -627,7 +595,7 @@ __Recommendations:__
 
 ---
 
-### 9.9 Insecure Credential Caching
+### 8.9 Insecure Credential Caching
 
 __Risk: MEDIUM__ | OWASP A02 – Cryptographic Failures
 
@@ -642,7 +610,7 @@ __Recommendations:__
 
 ---
 
-### 9.10 Weak Input Validation on Scenario Parameters
+### 8.10 Weak Input Validation on Scenario Parameters
 
 __Risk: MEDIUM__ | OWASP A03 – Injection
 
@@ -658,20 +626,20 @@ __Recommendations:__
 
 ### Summary Table
 
-| #   | Gap                                        | Severity | OWASP Category               |
-| --- | ------------------------------------------ | -------- | ---------------------------- |
-| 9.1 | OS command injection via shell execution   | Critical | A03 – Injection              |
-| 9.2 | Path traversal in scenario workspace       | High     | A01 – Broken Access Control  |
-| 9.3 | Zip Slip during artifact extraction        | High     | A08 – Integrity Failures     |
-| 9.4 | Credential exposure via process/disk       | High     | A02 – Cryptographic Failures |
-| 9.5 | Integrity bypass via warning mode          | High     | A08 – Integrity Failures     |
-| 9.6 | Missing authorization / tenant isolation   | High     | A01 – Broken Access Control  |
-| 9.7 | Unbounded queue and missing timeout        | Medium   | A05 – Misconfiguration       |
-| 9.8 | Sensitive data in API responses            | Medium   | A02/A09 – Data Exposure      |
-| 9.9 | Insecure credential caching                | Medium   | A02 – Cryptographic Failures |
-| 9.10| Weak parameter input validation            | Medium   | A03 – Injection              |
+| #    | Gap                                        | Severity | OWASP Category               |
+| ---  | ------------------------------------------ | -------- | ---------------------------- |
+| 8.1  | OS command injection via shell execution   | Critical | A03 – Injection              |
+| 8.2  | Path traversal in scenario workspace       | High     | A01 – Broken Access Control  |
+| 8.3  | Zip Slip during artifact extraction        | High     | A08 – Integrity Failures     |
+| 8.4  | Credential exposure via process/disk       | High     | A02 – Cryptographic Failures |
+| 8.5  | Integrity bypass via warning mode          | High     | A08 – Integrity Failures     |
+| 8.6  | Missing authorization / tenant isolation   | High     | A01 – Broken Access Control  |
+| 8.7  | Unbounded queue and missing timeout        | Medium   | A05 – Misconfiguration       |
+| 8.8  | Sensitive data in API responses            | Medium   | A02/A09 – Data Exposure      |
+| 8.9  | Insecure credential caching                | Medium   | A02 – Cryptographic Failures |
+| 8.10 | Weak parameter input validation            | Medium   | A03 – Injection              |
 
-## 10. Additional or Future Nice-to-Have Features
+## 9. Additional or Future Nice-to-Have Features
 
 - Progress bar
   - The progress bar is based on the number of steps defined in the Bruno script for the selected scenario.
@@ -688,7 +656,7 @@ __Recommendations:__
   - UI design for collection selection
   - Validation of selected collection
 
-## 11. Delivery Constraints, Risks, and Mitigations
+## 10. Delivery Constraints, Risks, and Mitigations
 
 ### Constraints
 
@@ -713,146 +681,55 @@ __Recommendations:__
 - Limit execution to single scenario-step in Phase 1.
 - Log traceability metadata for supportability and audits.
 
-## 12. Proposed Requirements, Timeline and Milestones
+## 11. Proposed Requirements, Timeline and Milestones
 
 ### Requirements
 
 #### Functional Requirements
 
-__FR-1 – Scenarios Catalog API:__
+__FR-1 – Scenarios Catalog API:__ The system shall expose `GET /api/certification/scenarios` returning the ordered, allowlisted list of scenarios, required parameters, and execution status scoped to the caller's tenant — sourced from the `Certification` DB schema (see §7).
 
-- The system shall expose `GET /api/certification/scenarios` returning the ordered, allowlisted list of certification scenarios, their required parameters, and current execution status scoped to the authenticated user's tenant.
-- The system shall read scenarios from the `Certification` database schema (see §8 for catalog-backed vs. catalog-free decision).
+__FR-2 – Scenario Validation API:__ The system shall expose `POST /api/certification/validate`, execute a single Bruno CLI step per request, and return a sanitized `ValidationResult` DTO. Each run shall persist traceability metadata (`artifactVersion`, `commitSha`, `scenarioPath`, timestamps, duration, `statusCode`).
 
-__FR-2 – Scenario Validation API:__
+__FR-3 – Bruno Runtime Lifecycle:__ At startup the system shall download the pinned artifact, verify SHA-256, extract it, and install dependencies. All certification execution shall be blocked when `isRuntimeReady` is `false` (see §8.5).
 
-- The system shall expose `POST /api/certification/validate` accepting a scenario path, credentials, and parameters.
-- The system shall validate `scenarioPath` against a server-side allowlist before any process is spawned.
-- The system shall execute a single Bruno CLI scenario step per validation request.
-- The system shall return a sanitized `ValidationResult` DTO to the frontend; raw Bruno output shall not be forwarded.
-- The system shall record a run entry with status and traceability metadata (`artifactVersion`, `commitSha`, `scenarioPath`, `parameters`, timestamps, duration, `exitCode`) in the database.
+__FR-4 – Sandbox Provisioning:__ The system shall allow users to create a sandbox Application and retrieve Credentials. Opt-in credential caching shall use AES-256-GCM with an HKDF-derived key, per-record random IV, 8-hour TTL, and a user-visible revoke option (see §8.9).
 
-__FR-3 – Bruno Runtime Lifecycle:__
+__FR-5 – Data Standard 5 Support:__ Users shall be able to select between Data Standard v4 and v5. The `certification-testing` artifact shall be updated to include DS5 Bruno collections.
 
-- At application startup the system shall download the pinned Bruno artifact, verify its SHA-256 checksum, extract it, and install runtime dependencies.
-- The system shall block all certification execution requests when `isRuntimeReady` is `false`, regardless of `CERT_BRUNO_ON_DOWNLOAD_ERROR` mode.
+__FR-6 – Certification Status Registry:__ The system shall track process, scenario run, and step run statuses (`pending`, `inprogress`, `failed`, `completed`, `success`) per entity defined in §7.
 
-__FR-4 – Sandbox Provisioning:__
-
-- The system shall allow users to create a sandbox Application and retrieve Credentials within Admin App.
-- The system shall support opt-in caching of sandbox credentials using AES-256-GCM with an HKDF-derived key, a unique random IV per record, and an 8-hour TTL bound to the user's session identity.
-- The frontend shall provide a clear affordance for the user to revoke cached credentials at any time.
-
-__FR-5 – Data Standard 5 Support:__
-
-- The `certification-testing` artifact shall be updated to support Data Standard 5 scenarios alongside the existing Data Standard 4 collection.
-- Users shall be able to select between Data Standard v4 and v5 when opening a certification process.
-
-__FR-6 – Certification Status Registry:__
-
-- The system shall track certification process, scenario run, and step run statuses in the database.
-- Statuses shall reflect: `pending`, `inprogress`, `failed`, `completed` / `success` as defined per entity in §8.
-
-__FR-7 – Investigation: AI-Guided Remediation:__ _(research only — implementation deferred to 2.3)_
-
-- The team shall document feasibility findings and potential approaches for AI-guided remediation to inform Certification 2.3 planning.
-
-__FR-8 – Investigation: DID Validation:__ _(research only — implementation deferred to 2.3)_
-
-- The team shall document feasibility findings for DID validation integration to inform Certification 2.3 planning.
+__FR-7 – Investigations: AI Remediation and DID Validation__ _(research only — implementation deferred to 2.3):_ The team shall begin feasibility investigations for AI-guided remediation and DID validation early in the timeline and produce write-ups to inform Certification 2.3 planning.
 
 ---
 
 #### Non-Functional Requirements
 
-__NFR-1 – Security (OWASP):__
+__NFR-1 – Security:__ All certification endpoints and Bruno execution shall comply with the controls in §8 — injection prevention (`shell: false`, array args), path traversal guards, Zip Slip validation, credential isolation via `spawnSync` `env` option, and role-based authorization (`@Authorize(Role.VendorUser)` / `@Authorize(Role.Admin)`) with tenant-scoped DB queries (see §8.1–8.6).
 
-- `spawnSync` / `spawn` shall never use `shell: true` when any user-supplied input is present; the array-argument form is mandatory (OWASP A03).
-- All resolved scenario paths shall be prefix-validated against the collection root before any file I/O; path traversal attempts shall throw `ForbiddenException` (OWASP A01).
-- ZIP entry paths shall be validated against `canonicalTmp` before extraction to prevent Zip Slip (OWASP A08).
-- Credentials shall be passed to Bruno exclusively via `spawnSync`'s `env` option — never as CLI arguments (OWASP A02).
-- All certification endpoints shall use `@Authorize(Role.VendorUser)`; any endpoint exposing raw run logs or traceability metadata shall use `@Authorize(Role.Admin)` (OWASP A01).
-- All database queries shall be scoped by the caller's tenant/user identity; bare integer IDs from request bodies shall never serve as the sole access guard.
+__NFR-2 – Input Validation:__ `RunDto.params` shall be typed `Record<string, string>`, validated against the catalog, with class-validator decorators and `ValidationPipe` on all certification DTOs (see §8.10).
 
-__NFR-2 – Input Validation:__
+__NFR-3 – Reliability:__ The execution queue shall enforce a hard depth cap (e.g., 50 items), returning `429 Too Many Requests` when exceeded. Each Bruno run shall have an absolute timeout (e.g., 120 seconds) (see §8.7).
 
-- The `params` field in `RunDto` shall be typed `Record<string, string>`; requests with undeclared parameter keys shall be rejected (OWASP A03).
-- All certification DTOs shall apply class-validator decorators and the NestJS `ValidationPipe`.
-
-__NFR-3 – Reliability and Capacity:__
-
-- The execution queue shall enforce a hard depth cap (e.g., 50 pending items); excess requests shall return `429 Too Many Requests`.
-- Each Bruno run shall have an absolute execution timeout (e.g., 120 seconds); the child process shall be terminated if the timeout is exceeded.
-
-__NFR-4 – Data Privacy:__
-
-- Bruno raw stdout and stderr shall never be returned to the frontend; stored operator logs shall be accessible only to admin roles.
-- Bruno JSON reporter output shall be scrubbed of credential values before persistence or inclusion in any API response.
-- HTTP Authorization header values shall be stripped from stored `ScenarioStepError` payloads.
+__NFR-4 – Data Privacy:__ Raw Bruno stdout/stderr shall never reach the frontend. Operator logs shall be admin-only. Credential values and Authorization headers shall be scrubbed from all stored payloads (see §8.4, §8.8).
 
 ---
 
 ### Timeline and Milestones
 
-> __Note on capacity:__ Other projects will run in parallel throughout Phase 2. Milestone dates are intentionally loose — they represent target windows, not hard sprint boundaries. Overlap between milestones is expected and planned for.
+> Other projects run in parallel throughout Phase 2. Windows are intentionally loose — they represent target ranges, not hard sprint boundaries.
 
 __Overall window:__ April 2026 – July 15, 2026 (~15 weeks)
 
 | Milestone | Description | Target Window |
 | --- | --- | --- |
-| __M1__ – Foundation & Security | DB schema migration, security hardening (NFR-1 to NFR-4), Bruno startup lifecycle, authorization hardening | April 2026 |
-| __M2__ – Backend Core | Scenarios catalog API, validation API with Bruno CLI execution, bounded queue with timeouts, sanitized response DTOs, run record persistence | May 2026 |
-| __M3__ – Frontend Integration | Real API integration for scenario list and step execution, results display, sandbox provisioning UI | Late May – June 2026 |
-| __M4__ – DS5 & Credential Caching | Data Standard 5 artifact update, v4/v5 selector, AES-256-GCM credential caching with revoke | June 2026 |
-| __M5__ – Stabilization & Investigations | E2E tests, security review, AI remediation research write-up, DID validation research write-up, documentation | Late June – July 15, 2026 |
+| __M1__ – Foundation & Investigations | DB schema decision and migration, Critical/High security fixes (§8.1–8.6), Bruno startup lifecycle, authorization hardening; begin AI/DID feasibility investigations in parallel | April 2026 |
+| __M2__ – Backend Core | Scenarios catalog API, validation API with Bruno CLI execution, bounded queue with timeouts, sanitized response DTOs, run record persistence, Medium security fixes (§8.7–8.10) | May 2026 |
+| __M3__ – Frontend Integration | Real API integration replacing mock data, validation results display, sandbox provisioning UI with credential revoke | Late May – June 2026 |
+| __M4__ – DS5 & Credential Caching | Data Standard 5 artifact update (coordinate with `certification-testing`), v4/v5 selector, AES-256-GCM credential caching | June 2026 |
+| __M5__ – Stabilization | E2E tests, security review pass (§8 gap table), AI/DID research write-ups, documentation | Late June – July 15, 2026 |
 
----
-
-#### Milestone Detail
-
-__M1 – Foundation & Security__ _(Target: April 2026)_
-
-- [ ] Decide on DB schema design: catalog-backed (9 tables) vs. catalog-free (5 tables) — see §8.
-- [ ] Generate and apply TypeORM migration for the chosen schema.
-- [ ] Fix all Critical and High security gaps from §9 (issues 9.1 through 9.6).
-- [ ] Implement Bruno artifact startup: download, SHA-256 verification, extraction, `npm ci`.
-- [ ] Block all certification execution requests when `isRuntimeReady` is `false` (§9.5).
-- [ ] Replace `@Public()` with `@Authorize(Role.VendorUser)` on all certification endpoints.
-- [ ] Scope all certification DB queries by tenant/user identity.
-
-__M2 – Backend Core__ _(Target: May 2026)_
-
-- [ ] Implement `GET /api/certification/scenarios` (real DB data, allowlist enforced, tenant-scoped).
-- [ ] Implement `POST /api/certification/validate` with `spawnSync(..., { shell: false })`.
-- [ ] Implement execution queue with bounded depth cap and per-run absolute timeout.
-- [ ] Implement `ValidationResult` DTO serialization — no raw stdout/stderr exposed to FE.
-- [ ] Persist run records with full traceability metadata after each execution.
-- [ ] Address Medium security gaps from §9 (issues 9.7 through 9.10).
-
-__M3 – Frontend Integration__ _(Target: Late May – June 2026)_
-
-- [ ] Connect scenarios list page to `GET /api/certification/scenarios` (replace static mock data).
-- [ ] Connect scenario step submission form to `POST /api/certification/validate`.
-- [ ] Render structured validation results, per-step status, and error guidance.
-- [ ] Implement sandbox provisioning UI (App creation, Credentials retrieval).
-- [ ] Display cached credential status with a visible revoke option.
-
-__M4 – DS5 & Credential Caching__ _(Target: June 2026)_
-
-- [ ] Update `certification-testing` repository to include Data Standard 5 Bruno collections (separate repository work — coordinate with `certification-testing` maintainers).
-- [ ] Add Data Standard version selector (v4 / v5) to the frontend certification flow.
-- [ ] Implement AES-256-GCM credential caching with HKDF-derived key, per-record random IV, and 8-hour TTL.
-- [ ] Bind cached credentials to session/user identity; reject cross-user access.
-
-__M5 – Stabilization & Investigations__ _(Target: Late June – July 15, 2026)_
-
-- [ ] E2E test coverage for the core certification flow (sandbox creation → scenario selection → step execution → results display).
-- [ ] Security review pass against the §9 gap table; confirm all items addressed or formally accepted.
-- [ ] AI-guided remediation feasibility investigation write-up (for Certification 2.3 planning).
-- [ ] DID validation feasibility investigation write-up (for Certification 2.3 planning).
-- [ ] Documentation and readiness review before the July 15 deadline.
-
-## 13. Open Questions
+## 12. Open Questions
 
 - Should we let the user provide a custom collection for certification testing, or should we enforce using the versioned artifact from `certification-testing`?
   - Allowing custom collections could provide more flexibility but also introduces risks around compatibility and security. We need to weigh the benefits of flexibility against the potential risks and implementation complexity.
