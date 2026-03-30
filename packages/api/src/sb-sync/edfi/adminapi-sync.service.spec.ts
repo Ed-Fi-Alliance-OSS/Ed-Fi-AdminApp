@@ -7,6 +7,7 @@ import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto } from '@edanalytics/models';
 import { AdminApiSyncService } from './adminapi-sync.service';
 import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import { CacheService } from '../../app/cache.module';
 import * as adminApiDataAdapterUtils from '../../utils/admin-api-data-adapter-utils';
 import * as syncOds from '../sync-ods';
 
@@ -151,6 +152,10 @@ describe('AdminApiSyncService', () => {
         {
           provide: EntityManager,
           useValue: mockEntityManager,
+        },
+        {
+          provide: CacheService,
+          useValue: { flushAll: jest.fn() },
         },
       ],
     }).compile();
@@ -353,7 +358,7 @@ describe('AdminApiSyncService', () => {
     });
 
     describe('ODS and EdOrg processing', () => {
-      it('should delete existing ODS/EdOrgs and call persistSyncTenant even when API returns empty ODS list', async () => {
+      it('should call persistSyncTenant even when API returns empty ODS list so stale records are delta-deleted', async () => {
         const environment = mockSbEnvironmentV1 as SbEnvironment;
         const tenantWithoutOds = { ...mockTenantDto, odsInstances: [] };
 
@@ -377,14 +382,13 @@ describe('AdminApiSyncService', () => {
         const result = await service.syncEnvironmentData(environment);
 
         expect(result.status).toBe('SUCCESS');
-        // persistSyncTenant MUST be called even with empty ODS so stale records are wiped
+        // persistSyncTenant MUST be called even with empty ODS — computeOdsListDeltas inside
+        // it will mark stale existing rows for deletion without explicit bulk deletes.
         expect(persistSyncTenantSpy).toHaveBeenCalledWith({
           em: entityManager,
           edfiTenant: mockEdfiTenant,
           odss: [],
         });
-        // delete calls for Edorg and Ods must run before persistSyncTenant
-        expect(entityManager.getRepository).toHaveBeenCalled();
       });
 
       it('should sync ODS instances with education organizations', async () => {
@@ -557,8 +561,8 @@ describe('AdminApiSyncService', () => {
       });
     });
 
-    describe('delete-and-recreate ODS per tenant', () => {
-      it('should delete all existing ODS and EdOrgs before re-inserting fresh data', async () => {
+    describe('delta-based ODS sync per tenant', () => {
+      it('should call persistSyncTenant with mapped syncableOdss — no explicit bulk deletes', async () => {
         const environment = mockSbEnvironmentV1 as SbEnvironment;
         adminApiServiceV1.getTenants.mockResolvedValue([mockTenantDto]);
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
@@ -575,17 +579,24 @@ describe('AdminApiSyncService', () => {
           ],
         } as any);
 
-        jest.spyOn(syncOds, 'persistSyncTenant').mockResolvedValue(undefined);
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
 
-        const mockDeleteFn = jest.fn().mockResolvedValue({ affected: 2 });
-        entityManager.getRepository.mockReturnValue({ delete: mockDeleteFn } as any);
         entityManager.transaction.mockImplementation(async (callback: any) => callback(entityManager));
 
         await service.syncEnvironmentData(environment);
 
-        // delete must be called twice — once for Edorg, once for Ods
-        expect(mockDeleteFn).toHaveBeenCalledWith({ edfiTenantId: mockEdfiTenant.id });
-        expect(mockDeleteFn).toHaveBeenCalledTimes(2);
+        // persistSyncTenant is called with the mapped ODS — delta logic inside handles inserts/updates/deletes.
+        expect(persistSyncTenantSpy).toHaveBeenCalledWith({
+          em: entityManager,
+          edfiTenant: mockEdfiTenant,
+          odss: expect.arrayContaining([
+            expect.objectContaining({ id: 5, name: 'Fresh ODS', dbName: 'Fresh ODS' }),
+          ]),
+        });
+        // No explicit bulk deletes should occur outside persistSyncTenant
+        expect(entityManager.getRepository).not.toHaveBeenCalledWith(expect.objectContaining({ name: 'Edorg' }));
       });
     });
 

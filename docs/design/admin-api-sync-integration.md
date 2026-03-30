@@ -186,7 +186,7 @@ export interface SyncResult {
 - **Parameters:** `adminApiUrl`, `tenantName`, `isMultiTenant`
 - **Returns:** `{ clientId: string; clientSecret: string; displayName: string }`
 - **Credential Generation:**
-  - `clientId`: UUID generated with `randomUUID()`
+  - `clientId`: String of the form `client_${randomUUID()}` (a UUID generated with `randomUUID()` and prefixed with `client_`)
   - `clientSecret`: 32-byte cryptographically random string from an alphanumeric + symbol charset
   - `displayName`: `AdminApp-v4-{4-char-random-suffix}`
 - **Multi-Tenant Header:** Includes `tenant: {tenantName}` header when `isMultiTenant = true`

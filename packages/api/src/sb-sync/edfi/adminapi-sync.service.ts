@@ -1,11 +1,12 @@
 import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { Edorg, EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
+import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
 import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
+import { CacheService } from '../../app/cache.module';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
 
@@ -29,7 +30,18 @@ export class AdminApiSyncService {
     private sbEnvironmentsRepository: Repository<SbEnvironment>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
+    @Inject(CacheService) private readonly cacheService: CacheService,
   ) {
+  }
+
+  /**
+   * Flushes the in-process team ownership cache so that UI requests
+   * immediately reflect ODS/EdOrg changes made by a sync operation.
+   * The cache is keyed by teamId and rebuilt on the next request.
+   */
+  private flushOwnershipCache(): void {
+    this.cacheService.flushAll();
+    this.logger.log('Team ownership cache flushed after sync');
   }
 
   /**
@@ -85,22 +97,15 @@ export class AdminApiSyncService {
       }
     }
 
-    // Always sync ODS and EdOrgs — delete existing data and re-insert fresh from the API.
-    // This ensures stale records are removed when the API returns fewer or different items,
-    // and newly provisioned tenants get their real data on first sync.
+    // Sync ODS and EdOrgs using the delta-based persistSyncTenant approach.
+    // This preserves existing primary keys for unchanged rows and only deletes rows
+    // that are genuinely absent from the incoming data, avoiding unintended cascade deletes
+    // on tables (e.g. Ownership, IntegrationApp) that reference Ods/Edorg via FK.
     this.logger.log(
       `Syncing ${transformedData.odss?.length || 0} ODS instance(s) for tenant: ${tenantData.name}`
     );
 
     await this.entityManager.transaction(async (em) => {
-      // Delete all existing EdOrgs for this tenant first (explicit delete avoids relying on
-      // multi-level FK CASCADE behavior, which differs between PostgreSQL and MSSQL).
-      // The edorg_closure table is cleaned up by DB-level CASCADE (pgsql FK) or MSSQL trigger.
-      await em.getRepository(Edorg).delete({ edfiTenantId: edfiTenant.id });
-
-      // Delete all existing ODS for this tenant (EdOrgs are already gone).
-      await em.getRepository(Ods).delete({ edfiTenantId: edfiTenant.id });
-
       // Map to SyncableOds format expected by persistSyncTenant
       const syncableOdss = (transformedData.odss ?? []).map(ods => ({
         id: ods.odsInstanceId,
@@ -416,6 +421,7 @@ export class AdminApiSyncService {
           await this.edfiTenantsRepository.delete(orphanedV2Ids);
         }
 
+        this.flushOwnershipCache();
         return {
           status: 'SUCCESS',
           message: `Successfully synced ${processedCount} of ${tenants.length} tenant(s)`,
@@ -461,6 +467,7 @@ export class AdminApiSyncService {
         await this.edfiTenantsRepository.delete(orphanedTenantIds);
       }
 
+      this.flushOwnershipCache();
       return {
         status: 'SUCCESS',
         message: `Successfully synced ${processedCount} of ${tenants.length} tenant(s)`,
@@ -673,6 +680,7 @@ export class AdminApiSyncService {
       await this.processTenantData(tenantDto, sbEnvironment);
 
       this.logger.log(`Successfully synced tenant: ${edfiTenant.name}`);
+      this.flushOwnershipCache();
 
       return {
         status: 'SUCCESS',

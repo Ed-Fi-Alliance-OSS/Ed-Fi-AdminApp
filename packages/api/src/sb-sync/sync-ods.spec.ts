@@ -147,16 +147,16 @@ describe('computeOdsListDeltas — dbName-based ODS (SB V1 Lambda)', () => {
     expect(result.delete).toContain(3);
   });
 
-  it('does not cross-contaminate: existing id-based ODS are not deleted by null-id incoming list', () => {
-    // An existing ODS row that has an odsInstanceId belongs to the id-based pool.
-    // An empty null-id incoming list should not cause it to be deleted.
+  it('deletes an existing id-based ODS when there is no incoming counterpart', () => {
+    // An existing ODS row that has an odsInstanceId but no matching incoming entry
+    // should be marked for deletion — it is stale and the API no longer reports it.
     const existingOds = makeOds({ id: 42, odsInstanceId: 7, odsInstanceName: 'Keep Me', dbName: 'keep_db' });
     const incoming: SyncableOds[] = [];
     const em = makeEntityManager();
 
     const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
 
-    // The id-based ODS has no incoming counterpart → should be deleted
+    // No incoming counterpart → should be deleted
     expect(result.delete).toContain(42);
   });
 
