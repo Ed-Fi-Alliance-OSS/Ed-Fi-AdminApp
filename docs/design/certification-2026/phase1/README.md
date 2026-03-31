@@ -705,16 +705,137 @@ For implementation details, review:
 
 ### Vendor Sequence diagram
 
-![Vendor Sequence diagram](./assets/certification-vendor-sequence.png "Vendor Sequence diagram")
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Vendor
+  participant API as Admin App/API (Vendor)
+  participant DID as DID Registry
+  participant Bruno as Bruno (SDK/CLI)
+  participant Portal as Internal Ed-Fi Portal
+
+  Vendor->>API: Provision sandbox
+  API-->>Vendor: Sandbox ready
+  Vendor->>API: Create app
+  API-->>Vendor: Issue creds
+  Vendor->>DID: Publish DID
+  DID-->>Vendor: DID resolvable
+  Vendor->>API: Start tests (productId)
+  API->>Bruno: Run suite
+  Bruno-->>API: Return results
+  API->>Portal: Submit results (runId)
+  Portal-->>API: Ack (runId)
+  API-->>Vendor: Share runId
+```
 
 ### MSP Sequence diagram
 
-![MSP Sequence diagram](./assets/certification-msp-sequence.png "MSP Sequence diagram")
+```mermaid
+sequenceDiagram
+  autonumber
+  actor MSP
+  participant API as Admin App/API (MSP)
+  participant DID as DID Registry
+  participant Portal as Internal Ed-Fi Portal
+
+  MSP->>API: Create instance
+  API-->>MSP: Instance ready (instanceId)
+  MSP->>API: Resolve vendor (vendorDID)
+  API->>DID: Resolve DID
+  DID-->>API: Return DID doc
+  API-->>MSP: Vendor resolved
+  MSP->>API: Sync identity
+  API-->>MSP: Mapping stored
+  MSP->>API: Get cert (productId)
+  API->>Portal: Fetch vcRef
+  Portal-->>API: Return vcRef/status
+  MSP->>DID: Verify VC
+  DID-->>MSP: Return issuer keys
+  MSP-->>MSP: Verification OK
+
+  alt App exists
+    MSP->>API: Lookup app
+    API-->>MSP: Return appId
+  else Create app
+    MSP->>API: Create app
+    API-->>MSP: Return appId
+  end
+```
 
 ### Representative Sequence diagram
 
-![Representative Sequence diagram](./assets/certificatoin-rep-sequence.png "Representative Sequence diagram")
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Rep as Ed-Fi Representative
+  participant Portal as Internal Ed-Fi Portal
+  participant DID as DID Registry
+
+  Rep->>Portal: Open run (runId)
+  Portal-->>Rep: Show report
+  Rep->>Portal: Review + decide
+
+  alt Approve
+    Portal->>DID: Resolve issuer DID
+    DID-->>Portal: Return keys
+    Portal-->>Portal: Sign VC
+    Portal-->>Rep: Issue ref (vcRef)
+  else Reject
+    Portal-->>Rep: Record feedback
+  end
+```
 
 ### FULL Certification Sequence diagram
 
-![Full Certification Sequence diagram](./assets/certification-sequence-full.png "Full Certification Sequence diagram")
+```mermaid
+sequenceDiagram
+  autonumber
+  actor Vendor
+  actor MSP
+  actor Rep as Ed-Fi Representative
+  participant VendorAPI as Admin App/API (Vendor)
+  participant MSPAPI as Admin App/API (MSP)
+  participant Bruno as Bruno Test Suite (SDK/CLI)
+  participant DID as DID Registry
+  participant Portal as Internal Ed-Fi Portal
+
+  Vendor->>VendorAPI: Provision sandbox environment
+  VendorAPI-->>Vendor: Sandbox provisioned
+  Vendor->>VendorAPI: Create application + request credentials
+  VendorAPI-->>Vendor: Client credentials issued (client_id/secret)
+  Vendor->>DID: Register/Publish Vendor DID (SSI Identity)
+  DID-->>Vendor: DID Document available
+  Vendor->>VendorAPI: Trigger certification test run
+  VendorAPI->>Bruno: Invoke test collection (headless via SDK/CLI) with input: creds, endpoints, productId
+  Bruno-->>VendorAPI: Test results (pass/fail + artifacts)
+  VendorAPI->>Portal: Submit results + metadata (vendorDID, appDID, productId, runId, artifacts)
+  Portal-->>VendorAPI: Receipt / tracking ID
+  VendorAPI-->>Vendor: Test run submitted (tracking ID)
+  Rep->>Portal: Review results + notes (human validation)
+  Portal-->>Rep: Reporting view / evidence bundle
+  Rep->>Portal: Approve certification
+  Portal->>DID: Ensure Issuer DID resolvable (for VC verification)
+  DID-->>Portal: Issuer DID Document returned/resolvable
+  Portal-->>Vendor: Issue Certification VC (subject: vendorDID, productId, status, validity)
+  Portal->>Portal: Update certification status (link to VC / credential reference)
+  MSP->>MSPAPI: Create new instance (tenant/runtime for customer or environment)
+  MSPAPI-->>MSP: Instance created (instanceId)
+  MSP->>MSPAPI: Lookup vendor by DID (vendorDID)
+  MSPAPI->>DID: Resolve vendorDID
+  DID-->>MSPAPI: Vendor DID Document (keys, service endpoints, metadata)
+  MSPAPI-->>MSP: Vendor identity resolved
+  MSP->>MSPAPI: Sync vendorDID to local resources (map vendorDID to local vendorId/tenant records)
+  MSPAPI-->>MSP: Local mapping stored/updated
+
+  alt App exists for (vendorDID, productId)
+    MSP->>MSPAPI: Lookup application by vendorDID + productId
+    MSPAPI-->>MSP: Existing application found (appId, credentials ref, status)
+  else App does not exist
+    MSP->>MSPAPI: Create application for vendorDID + productId (associate to instanceId)
+    MSPAPI-->>MSP: Application created (appId, credentials issued/ref)
+  end
+
+  MSP->>DID: Verify Certification VC (resolve issuer DID, validate signature/status)
+  DID-->>MSP: Issuer DID Document (public keys)
+  MSP-->>MSP: VC verified (cryptographic trust) - proceed with enablement/onboarding
+```
