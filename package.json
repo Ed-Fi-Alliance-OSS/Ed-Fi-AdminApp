@@ -80,7 +80,7 @@
     "jose": "^5.10.0",
     "jotai": "^2.19.0",
     "js-cookie": "^3.0.5",
-    "kebab-case": "^1.0.2",
+    "kebab-case": "^2.0.2",
     "lunr": "^2.3.9",
     "mssql": "^11.0.1",
     "node-cache": "^5.1.2",
