@@ -49,10 +49,20 @@ describe('OdssService', () => {
     {
       instanceId: 42,
       instanceName: 'test-ods',
+      educationOrganizationId: 31,
+      nameOfInstitution: 'Grand Bend State',
+      shortNameOfInstitution: null,
+      discriminator: 'edfi.StateEducationAgency',
+      parentId: undefined,
+    },
+    {
+      instanceId: 42,
+      instanceName: 'test-ods',
       educationOrganizationId: 255901,
       nameOfInstitution: 'Grand Bend ISD',
       shortNameOfInstitution: 'GBISD',
       discriminator: 'edfi.LocalEducationAgency',
+      parentId: 31,
     },
   ];
 
@@ -121,8 +131,14 @@ describe('OdssService', () => {
           dbName: mockOds.dbName,
           edorgs: expect.arrayContaining([
             expect.objectContaining({
-              educationorganizationid: 255901,
-              nameofinstitution: 'Grand Bend ISD',
+              educationorganizationid: 31,
+              nameofinstitution: 'Grand Bend State',
+              edorgs: expect.arrayContaining([
+                expect.objectContaining({
+                  educationorganizationid: 255901,
+                  nameofinstitution: 'Grand Bend ISD',
+                }),
+              ]),
             }),
           ]),
         }),
