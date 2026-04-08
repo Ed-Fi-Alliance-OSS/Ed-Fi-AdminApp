@@ -165,7 +165,7 @@
     "cypress": "15.13.0",
     "eslint": "8.57.0",
     "eslint-config-prettier": "10.1.8",
-    "eslint-plugin-cypress": "2.15.2",
+    "eslint-plugin-cypress": "6.2.3",
     "eslint-plugin-import": "2.32.0",
     "eslint-plugin-jest": "^28.6.0",
     "eslint-plugin-jsx-a11y": "6.10.2",
