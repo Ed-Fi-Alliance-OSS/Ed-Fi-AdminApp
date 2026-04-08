@@ -1,10 +1,11 @@
-import { PostOdsDto, PutOdsDto, toGetOdsDto } from '@edanalytics/models';
+import { EdorgType, PostOdsDto, PutOdsDto, toGetOdsDto } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomHttpException, ValidationHttpException } from '../../../utils';
 import { Repository } from 'typeorm';
-import { StartingBlocksServiceV2 } from '../starting-blocks';
+import { persistSyncOds, SyncableOds } from '../../../sb-sync/sync-ods';
+import { AdminApiServiceV2, StartingBlocksServiceV2 } from '../starting-blocks';
 
 @Injectable()
 export class OdssService {
@@ -13,7 +14,8 @@ export class OdssService {
     private odssRepository: Repository<Ods>,
     @InjectRepository(Edorg)
     private edorgsRepository: Repository<Edorg>,
-    private readonly startingBlocksServiceV2: StartingBlocksServiceV2
+    private readonly startingBlocksServiceV2: StartingBlocksServiceV2,
+    private readonly adminApiServiceV2: AdminApiServiceV2
   ) {}
 
   async findAll(edfiTenantId: number) {
@@ -117,5 +119,40 @@ export class OdssService {
     } else {
       throw new NotFoundException('Only v2 environments support row counting.');
     }
+  }
+
+  async syncEdOrgs(
+    _sbEnvironment: SbEnvironment,
+    edfiTenant: EdfiTenant,
+    odsId: number
+  ): Promise<void> {
+    const ods = await this.odssRepository.findOneBy({ id: odsId });
+    if (!ods) {
+      throw new NotFoundException('ODS not found');
+    }
+    if (ods.odsInstanceId === null) {
+      throw new BadRequestException('ODS does not have an Admin API instance ID');
+    }
+
+    const rawEdOrgs = await this.adminApiServiceV2.getEdOrgsForOdsInstance(
+      edfiTenant,
+      ods.odsInstanceId
+    );
+
+    const syncableOds: SyncableOds = {
+      id: ods.odsInstanceId,
+      name: ods.odsInstanceName,
+      dbName: ods.dbName,
+      edorgs: rawEdOrgs.map((edorg) => ({
+        educationorganizationid: edorg.educationOrganizationId,
+        nameofinstitution: edorg.nameOfInstitution,
+        shortnameofinstitution: edorg.shortNameOfInstitution ?? '',
+        discriminator: edorg.discriminator as EdorgType,
+      })),
+    };
+
+    await this.odssRepository.manager.transaction(async (em) => {
+      await persistSyncOds({ em, edfiTenant, ods: syncableOds });
+    });
   }
 }

@@ -733,6 +733,21 @@ export class AdminApiServiceV2 {
     );
   }
 
+  async getEdOrgsForOdsInstance(
+    edfiTenant: EdfiTenant,
+    odsInstanceId: number
+  ): Promise<EducationOrganizationDto[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    return this.getAdminApiClient(edfiTenant)
+      .get<any, EducationOrganizationDto[]>(`odsInstances/${odsInstanceId}/edOrgs`)
+      .catch((err) => {
+        this.logger.error(
+          `Error getting Ed-Orgs for ODS instance ${odsInstanceId} for tenant ${edfiTenant.id}: ${err}`
+        );
+        throw err;
+      });
+  }
+
   async getOdsInstances(edfiTenant: EdfiTenant) {
     return toGetOdsInstanceSummaryDtoV2(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
