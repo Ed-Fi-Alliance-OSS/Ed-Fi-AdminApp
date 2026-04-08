@@ -1354,4 +1354,39 @@ export class AdminApiServiceV2 {
       throw error;
     }
   }
+
+  /**
+   * Get all education organizations across all ODS instances for a tenant
+   * Calls GET odsInstances/edOrgs endpoint which returns Ed-Orgs from all ODS instances
+   *
+   * @param edfiTenant - The tenant to get Ed-Orgs for
+   * @returns Promise resolving to array of EducationOrganizationDto objects
+   */
+  async getAllEdOrgsForTenant(edfiTenant: EdfiTenant): Promise<EducationOrganizationDto[]> {
+    this.logger.log(`Getting all Ed-Orgs for tenant ${edfiTenant.name} (id=${edfiTenant.id})`);
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const response = await this.getAdminApiClient(edfiTenant)
+        .get<any, EducationOrganizationDto[]>('odsInstances/edOrgs')
+        .catch((err) => {
+          this.logger.error(
+            `Error getting Ed-Orgs for tenant ${edfiTenant.id}: ${err.message || err}`,
+            err.stack
+          );
+          throw err;
+        });
+
+      this.logger.log(
+        `Successfully retrieved ${response.length} Ed-Orgs for tenant ${edfiTenant.name}`
+      );
+
+      return response;
+    } catch (error) {
+      this.logger.error(
+        `Failed to get all Ed-Orgs for tenant ${edfiTenant.name}: ${error instanceof Error ? error.message : String(error)}`
+      );
+      throw error;
+    }
+  }
 }
