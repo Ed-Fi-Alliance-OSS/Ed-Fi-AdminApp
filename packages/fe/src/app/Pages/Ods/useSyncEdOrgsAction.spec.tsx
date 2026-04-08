@@ -8,6 +8,11 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('../../helpers', () => ({
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
+  useAuthorize: jest.fn(),
+  teamEdfiTenantAuthConfig: jest.fn((id, edfiTenantId, teamId, privilege) => ({
+    privilege,
+    subject: { id, edfiTenantId, teamId },
+  })),
 }));
 
 jest.mock('../../Layout/FeedbackBanner', () => ({
@@ -21,17 +26,19 @@ jest.mock('../../api', () => ({
 }));
 
 import { useParams } from 'react-router-dom';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useTeamEdfiTenantNavContextLoaded, useAuthorize } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { odsQueries } from '../../api';
 
 const mockUseParams = useParams as jest.Mock;
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
+const mockUseAuthorize = useAuthorize as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;
 const mockSyncEdOrgsQuery = odsQueries.syncEdOrgs as jest.Mock;
 
 const buildSbEnvironment = (version: 'v1' | 'v2' | undefined, startingBlocks = false) => ({
   id: 1,
+  version,
   configPublic: version ? { version, startingBlocks } : undefined,
   startingBlocks,
 });
@@ -44,7 +51,7 @@ const buildMutation = (overrides: object = {}) => ({
   ...overrides,
 });
 
-const setupMocks = (version: 'v1' | 'v2' | undefined, startingBlocks = false) => {
+const setupMocks = (version: 'v1' | 'v2' | undefined, canSyncEdOrgs = true, startingBlocks = false) => {
   mockUseParams.mockReturnValue({ odsId: '5' });
   mockUsePopBanner.mockReturnValue(jest.fn());
   mockUseNavContext.mockReturnValue({
@@ -52,6 +59,7 @@ const setupMocks = (version: 'v1' | 'v2' | undefined, startingBlocks = false) =>
     sbEnvironment: buildSbEnvironment(version, startingBlocks),
     teamId: 1,
   });
+  mockUseAuthorize.mockReturnValue(canSyncEdOrgs && version === 'v2');
   const mutation = buildMutation();
   mockSyncEdOrgsQuery.mockReturnValue(mutation);
   return mutation;
@@ -60,8 +68,8 @@ const setupMocks = (version: 'v1' | 'v2' | undefined, startingBlocks = false) =>
 describe('useSyncEdOrgsAction', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('returns a SyncEdOrgs action entry for v2 environments', () => {
-    setupMocks('v2');
+  it('returns a SyncEdOrgs action entry for v2 environments with create-edorg privilege', () => {
+    setupMocks('v2', true);
 
     const result = useSyncEdOrgsAction();
 
@@ -88,10 +96,18 @@ describe('useSyncEdOrgsAction', () => {
     expect(result).toEqual({});
   });
 
+  it('returns an empty object when user lacks create-edorg privilege', () => {
+    setupMocks('v2', false);
+
+    const result = useSyncEdOrgsAction();
+
+    expect(result).toEqual({});
+  });
+
   it('calls mutateAsync with odsId path param on click', () => {
     const popBanner = jest.fn();
     mockUsePopBanner.mockReturnValue(popBanner);
-    const mutation = setupMocks('v2');
+    const mutation = setupMocks('v2', true);
 
     const result = useSyncEdOrgsAction();
     (result as ActionsType & { SyncEdOrgs: ActionProps }).SyncEdOrgs.onClick();
@@ -103,7 +119,7 @@ describe('useSyncEdOrgsAction', () => {
   });
 
   it('reflects isPending state from the mutation', () => {
-    setupMocks('v2');
+    setupMocks('v2', true);
     mockSyncEdOrgsQuery.mockReturnValue(buildMutation({ isPending: true }));
 
     const result = useSyncEdOrgsAction();

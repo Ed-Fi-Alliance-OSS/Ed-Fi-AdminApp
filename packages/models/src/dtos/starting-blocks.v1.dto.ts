@@ -3,7 +3,7 @@ import { EdorgType } from '../enums';
 export interface SbV1MetaEdorg {
   educationorganizationid: number;
   nameofinstitution: string;
-  shortnameofinstitution: string;
+  shortnameofinstitution: string | null;
   discriminator: EdorgType;
   edorgs?: SbV1MetaEdorg[];
 }

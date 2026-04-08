@@ -150,7 +150,7 @@ export class OdssService {
         {
           educationorganizationid: e.educationOrganizationId,
           nameofinstitution: e.nameOfInstitution,
-          shortnameofinstitution: e.shortNameOfInstitution as string,
+          shortnameofinstitution: e.shortNameOfInstitution ?? null,
           discriminator: e.discriminator as EdorgType,
           edorgs: [],
         },
