@@ -77,6 +77,21 @@ describe('OdssService', () => {
   });
 
   describe('syncEdOrgs', () => {
+    it('should throw NotFoundException for non-v2 environment', async () => {
+      const v1Environment: Partial<SbEnvironment> = { id: 1, version: 'v1' };
+
+      await expect(
+        service.syncEdOrgs(
+          v1Environment as SbEnvironment,
+          mockEdfiTenant as EdfiTenant,
+          mockOds.id
+        )
+      ).rejects.toThrow(NotFoundException);
+
+      expect(odssRepository.findOneBy).not.toHaveBeenCalled();
+      expect(adminApiServiceV2.getEdOrgsForOdsInstance).not.toHaveBeenCalled();
+    });
+
     it('should load ODS, call Admin API, and persist Ed-Orgs', async () => {
       odssRepository.findOneBy.mockResolvedValue(mockOds);
       (adminApiServiceV2.getEdOrgsForOdsInstance as jest.Mock).mockResolvedValue(mockEdOrgs);
@@ -141,6 +156,40 @@ describe('OdssService', () => {
       ).rejects.toThrow(BadRequestException);
 
       expect(adminApiServiceV2.getEdOrgsForOdsInstance).not.toHaveBeenCalled();
+    });
+
+    it('should pass null shortNameOfInstitution through without coercing to empty string', async () => {
+      const edOrgsWithNullShortName: EducationOrganizationDto[] = [
+        {
+          instanceId: 42,
+          instanceName: 'test-ods',
+          educationOrganizationId: 255901,
+          nameOfInstitution: 'Grand Bend ISD',
+          shortNameOfInstitution: null,
+          discriminator: 'edfi.LocalEducationAgency',
+        },
+      ];
+      odssRepository.findOneBy.mockResolvedValue(mockOds);
+      (adminApiServiceV2.getEdOrgsForOdsInstance as jest.Mock).mockResolvedValue(edOrgsWithNullShortName);
+      const mockEm = {};
+      odssRepository.manager.transaction.mockImplementation(async (cb: (em: unknown) => Promise<void>) => cb(mockEm));
+      (syncOdsModule.persistSyncOds as jest.Mock).mockResolvedValue({ status: 'SUCCESS', data: {} });
+
+      await service.syncEdOrgs(
+        mockSbEnvironment as SbEnvironment,
+        mockEdfiTenant as EdfiTenant,
+        mockOds.id
+      );
+
+      expect(syncOdsModule.persistSyncOds).toHaveBeenCalledWith(
+        expect.objectContaining({
+          ods: expect.objectContaining({
+            edorgs: expect.arrayContaining([
+              expect.objectContaining({ shortnameofinstitution: null }),
+            ]),
+          }),
+        })
+      );
     });
 
     it('should propagate error when Admin API call fails', async () => {

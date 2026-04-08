@@ -122,10 +122,13 @@ export class OdssService {
   }
 
   async syncEdOrgs(
-    _sbEnvironment: SbEnvironment,
+    sbEnvironment: SbEnvironment,
     edfiTenant: EdfiTenant,
     odsId: number
   ): Promise<void> {
+    if (sbEnvironment.version !== 'v2') {
+      throw new NotFoundException('Only v2 environments support Ed-Org sync.');
+    }
     const ods = await this.odssRepository.findOneBy({ id: odsId });
     if (!ods) {
       throw new NotFoundException('ODS not found');
@@ -146,7 +149,7 @@ export class OdssService {
       edorgs: rawEdOrgs.map((edorg) => ({
         educationorganizationid: edorg.educationOrganizationId,
         nameofinstitution: edorg.nameOfInstitution,
-        shortnameofinstitution: edorg.shortNameOfInstitution ?? '',
+        shortnameofinstitution: edorg.shortNameOfInstitution as string,
         discriminator: edorg.discriminator as EdorgType,
       })),
     };
