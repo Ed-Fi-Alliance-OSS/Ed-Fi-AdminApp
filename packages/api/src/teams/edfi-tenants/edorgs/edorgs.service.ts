@@ -3,11 +3,10 @@ import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/m
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
-import { CustomHttpException, ValidationHttpException } from '../../../utils';
+import { CustomHttpException, ValidationHttpException, buildEdOrgTree } from '../../../utils';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
 import { persistSyncTenant, SyncableOds } from '../../../sb-sync/sync-ods';
 import { AdminApiServiceV2 } from '../starting-blocks/v2/admin-api.v2.service';
-import { EdorgType } from '@edanalytics/models';
 
 @Injectable()
 export class EdorgsService {
@@ -93,44 +92,6 @@ export class EdorgsService {
   }
 
   /**
-   * Build an EdOrg tree from flat list of EdOrgs with parentId references
-   * Converts flat structure to nested tree structure expected by persistence layer
-   *
-   * @param edOrgs - Flat array of EdOrgs from Admin API
-   * @returns Array of root EdOrg nodes with nested children
-   */
-  private buildEdOrgTree(edOrgs: EducationOrganizationDto[]): SbV1MetaEdorg[] {
-    // Create a map of all EdOrg nodes
-    const edorgNodeMap = new Map<number, SbV1MetaEdorg>(
-      edOrgs.map((e) => [
-        e.educationOrganizationId,
-        {
-          educationorganizationid: e.educationOrganizationId,
-          nameofinstitution: e.nameOfInstitution,
-          shortnameofinstitution: e.shortNameOfInstitution ?? null,
-          discriminator: e.discriminator as EdorgType,
-          edorgs: [], // Will be populated with children
-        },
-      ])
-    );
-
-    // Build tree by nesting children under their parents
-    const edorgRoots: SbV1MetaEdorg[] = [];
-    for (const edOrg of edOrgs) {
-      const node = edorgNodeMap.get(edOrg.educationOrganizationId);
-      if (edOrg.parentId != null && edorgNodeMap.has(edOrg.parentId)) {
-        // This EdOrg has a parent - add it as a child
-        edorgNodeMap.get(edOrg.parentId).edorgs.push(node);
-      } else {
-        // This is a root EdOrg (no parent)
-        edorgRoots.push(node);
-      }
-    }
-
-    return edorgRoots;
-  }
-
-  /**
    * Sync all education organizations across all ODS instances for a tenant
    * Fetches Ed-Orgs from Admin API v2 and persists them to the database
    * Uses persistSyncTenant to handle all ODS instances atomically
@@ -210,7 +171,7 @@ export class EdorgsService {
         );
 
         // Build EdOrg tree preserving parent-child relationships
-        const edOrgTree = this.buildEdOrgTree(edOrgs);
+        const edOrgTree = buildEdOrgTree(edOrgs);
 
         syncableOdsList.push({
           id: odsInstanceId,
