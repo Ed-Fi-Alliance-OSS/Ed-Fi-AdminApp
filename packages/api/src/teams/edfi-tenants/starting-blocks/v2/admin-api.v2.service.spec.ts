@@ -714,4 +714,180 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(result[0].odsInstances![0].edOrgs![0].instanceName).toBe('Test ODS');
     });
   });
+
+  describe('getAllEdOrgsForTenant', () => {
+    const mockEdfiTenant = {
+      id: 1,
+      name: 'test-tenant',
+      sbEnvironmentId: 1,
+      sbEnvironment: mockSbEnvironment as SbEnvironment,
+    } as any;
+
+    it('should successfully fetch all Ed-Orgs for a tenant', async () => {
+      // Mock the API response structure: array of ODS instances with nested educationOrganizations
+      const mockApiResponse = [
+        {
+          id: 1,
+          name: 'ODS One',
+          instanceType: 'Year Specific',
+          educationOrganizations: [
+            {
+              educationOrganizationId: 255901,
+              nameOfInstitution: 'School One',
+              shortNameOfInstitution: 'S1',
+              discriminator: 'edfi.School',
+              parentId: null,
+            },
+          ],
+        },
+        {
+          id: 2,
+          name: 'ODS Two',
+          instanceType: 'District Specific',
+          educationOrganizations: [
+            {
+              educationOrganizationId: 255902,
+              nameOfInstitution: 'School Two',
+              shortNameOfInstitution: 'S2',
+              discriminator: 'edfi.School',
+              parentId: null,
+            },
+          ],
+        },
+      ];
+
+      // Expected flattened result with instanceId and instanceName enriched
+      const expectedResult = [
+        {
+          instanceId: 1,
+          instanceName: 'ODS One',
+          educationOrganizationId: 255901,
+          nameOfInstitution: 'School One',
+          shortNameOfInstitution: 'S1',
+          discriminator: 'edfi.School',
+          parentId: null,
+        },
+        {
+          instanceId: 2,
+          instanceName: 'ODS Two',
+          educationOrganizationId: 255902,
+          nameOfInstitution: 'School Two',
+          shortNameOfInstitution: 'S2',
+          discriminator: 'edfi.School',
+          parentId: null,
+        },
+      ];
+
+      // Mock the getAdminApiClient method
+      const mockGet = jest.fn().mockResolvedValue(mockApiResponse);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({
+        get: mockGet,
+      });
+
+      const result = await service.getAllEdOrgsForTenant(mockEdfiTenant);
+
+      expect(mockGet).toHaveBeenCalledWith('odsInstances/edOrgs');
+      expect(result).toEqual(expectedResult);
+      expect(result).toHaveLength(2);
+      expect(result[0].educationOrganizationId).toBe(255901);
+      expect(result[0].instanceId).toBe(1);
+      expect(result[0].instanceName).toBe('ODS One');
+      expect(result[1].educationOrganizationId).toBe(255902);
+      expect(result[1].instanceId).toBe(2);
+      expect(result[1].instanceName).toBe('ODS Two');
+    });
+
+    it('should return empty array when no Ed-Orgs exist', async () => {
+      // Mock the getAdminApiClient method to return empty array
+      const mockGet = jest.fn().mockResolvedValue([]);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({
+        get: mockGet,
+      });
+
+      const result = await service.getAllEdOrgsForTenant(mockEdfiTenant);
+
+      expect(mockGet).toHaveBeenCalledWith('odsInstances/edOrgs');
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle ODS instances with no educationOrganizations', async () => {
+      const mockApiResponse = [
+        {
+          id: 1,
+          name: 'Empty ODS',
+          instanceType: 'Year Specific',
+          educationOrganizations: [],
+        },
+        {
+          id: 2,
+          name: 'ODS Without EdOrgs',
+          instanceType: 'District Specific',
+          // Missing educationOrganizations property
+        },
+      ];
+
+      const mockGet = jest.fn().mockResolvedValue(mockApiResponse);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({
+        get: mockGet,
+      });
+
+      const result = await service.getAllEdOrgsForTenant(mockEdfiTenant);
+
+      expect(result).toEqual([]);
+      expect(result).toHaveLength(0);
+    });
+
+    it('should handle API errors and rethrow them', async () => {
+      const apiError = new Error('Admin API connection failed');
+
+      // Mock the getAdminApiClient method to throw an error
+      const mockGet = jest.fn().mockRejectedValue(apiError);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({
+        get: mockGet,
+      });
+
+      await expect(service.getAllEdOrgsForTenant(mockEdfiTenant)).rejects.toThrow(
+        'Admin API connection failed'
+      );
+
+      expect(mockGet).toHaveBeenCalledWith('odsInstances/edOrgs');
+    });
+
+    it('should log the fetch operation with correct counts', async () => {
+      const mockApiResponse = [
+        {
+          id: 1,
+          name: 'ODS One',
+          instanceType: 'Year Specific',
+          educationOrganizations: [
+            {
+              educationOrganizationId: 255901,
+              nameOfInstitution: 'School One',
+              shortNameOfInstitution: 'S1',
+              discriminator: 'edfi.School',
+              parentId: null,
+            },
+          ],
+        },
+      ];
+
+      const logSpy = jest.spyOn(service['logger'], 'log');
+
+      // Mock the getAdminApiClient method
+      const mockGet = jest.fn().mockResolvedValue(mockApiResponse);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({
+        get: mockGet,
+      });
+
+      await service.getAllEdOrgsForTenant(mockEdfiTenant);
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Getting all Ed-Orgs for tenant test-tenant')
+      );
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Successfully retrieved 1 Ed-Orgs from 1 ODS instance(s) for tenant test-tenant')
+      );
+    });
+  });
 });

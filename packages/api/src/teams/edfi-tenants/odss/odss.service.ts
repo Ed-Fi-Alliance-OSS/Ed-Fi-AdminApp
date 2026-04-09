@@ -1,8 +1,8 @@
-import { EducationOrganizationDto, EdorgType, PostOdsDto, PutOdsDto, SbV1MetaEdorg, toGetOdsDto } from '@edanalytics/models';
+import { EducationOrganizationDto, PostOdsDto, PutOdsDto, SbV1MetaEdorg, toGetOdsDto } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { CustomHttpException, ValidationHttpException } from '../../../utils';
+import { CustomHttpException, ValidationHttpException, buildEdOrgTree } from '../../../utils';
 import { Repository } from 'typeorm';
 import { persistSyncOds, SyncableOds } from '../../../sb-sync/sync-ods';
 import { AdminApiServiceV2, StartingBlocksServiceV2 } from '../starting-blocks';
@@ -142,29 +142,8 @@ export class OdssService {
       ods.odsInstanceId
     );
 
-    // The Admin API returns a flat list with parentId references.
-    // computeOdsTreeDeltas expects SbV1MetaEdorg tree (children nested in `edorgs`).
-    const edorgNodeMap = new Map<number, SbV1MetaEdorg>(
-      rawEdOrgs.map((e) => [
-        e.educationOrganizationId,
-        {
-          educationorganizationid: e.educationOrganizationId,
-          nameofinstitution: e.nameOfInstitution,
-          shortnameofinstitution: e.shortNameOfInstitution ?? null,
-          discriminator: e.discriminator as EdorgType,
-          edorgs: [],
-        },
-      ])
-    );
-    const edorgRoots: SbV1MetaEdorg[] = [];
-    for (const e of rawEdOrgs) {
-      const node = edorgNodeMap.get(e.educationOrganizationId);
-      if (e.parentId != null && edorgNodeMap.has(e.parentId)) {
-        edorgNodeMap.get(e.parentId).edorgs.push(node);
-      } else {
-        edorgRoots.push(node);
-      }
-    }
+    // Build EdOrg tree from flat API response
+    const edorgRoots = buildEdOrgTree(rawEdOrgs);
 
     const syncableOds: SyncableOds = {
       id: ods.odsInstanceId,

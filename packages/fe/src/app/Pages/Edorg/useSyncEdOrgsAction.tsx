@@ -1,7 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
-import { useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { odsQueries } from '../../api';
+import { edorgQueries } from '../../api';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
@@ -10,11 +9,10 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 export const useSyncEdOrgsAction = (): ActionsType => {
-  const params = useParams() as { odsId: string };
   const { edfiTenant, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
 
-  const syncEdOrgs = odsQueries.syncEdOrgs({ edfiTenant, teamId });
+  const syncEdOrgs = edorgQueries.syncEdOrgs({ edfiTenant, teamId });
 
   const canSyncEdOrgs =
     useAuthorize(
@@ -22,9 +20,11 @@ export const useSyncEdOrgsAction = (): ActionsType => {
         '__filtered__',
         edfiTenant?.id,
         teamId,
-        'team.sb-environment.edfi-tenant.ods:read'
+        'team.sb-environment.edfi-tenant.ods.edorg:read'
       )
-    ) && !sbEnvironment.startingBlocks && sbEnvironment?.version === 'v2';
+    ) &&
+    sbEnvironment?.version === 'v2' &&
+    !sbEnvironment?.startingBlocks;
 
   if (!canSyncEdOrgs) {
     return {};
@@ -38,7 +38,7 @@ export const useSyncEdOrgsAction = (): ActionsType => {
       isPending: syncEdOrgs.isPending,
       onClick: () =>
         syncEdOrgs.mutateAsync(
-          { entity: {}, pathParams: { odsId: params.odsId } },
+          { entity: {}, pathParams: {} },
           {
             ...mutationErrCallback({ popGlobalBanner: popBanner }),
             onSuccess: () => popBanner({ title: 'Ed-Orgs synced successfully', type: 'Success' }),
