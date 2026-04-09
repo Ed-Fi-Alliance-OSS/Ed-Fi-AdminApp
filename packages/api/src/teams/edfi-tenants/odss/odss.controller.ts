@@ -5,6 +5,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -163,5 +164,25 @@ export class OdssController {
       return toOdsRowCountsDto(parsedResult);
     }
     return toOdsRowCountsDto(result);
+  }
+
+  @Post(':odsId/sync-edorgs')
+  @HttpCode(204)
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods:read',
+    subject: {
+      id: 'odsId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async syncEdOrgs(
+    @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant
+  ) {
+    await this.odsService.syncEdOrgs(sbEnvironment, edfiTenant, odsId);
   }
 }
