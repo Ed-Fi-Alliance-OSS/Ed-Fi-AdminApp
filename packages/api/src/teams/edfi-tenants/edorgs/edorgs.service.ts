@@ -1,11 +1,11 @@
-import { AddEdorgDtoV2, EducationOrganizationDto } from '@edanalytics/models';
+import { AddEdorgDtoV2, EducationOrganizationDto, SbV1MetaEdorg } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { DataSource, Repository } from 'typeorm';
 import { CustomHttpException, ValidationHttpException } from '../../../utils';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
-import { persistSyncOds, SyncableOds } from '../../../sb-sync/sync-ods';
+import { persistSyncTenant, SyncableOds } from '../../../sb-sync/sync-ods';
 import { AdminApiServiceV2 } from '../starting-blocks/v2/admin-api.v2.service';
 import { EdorgType } from '@edanalytics/models';
 
@@ -93,15 +93,54 @@ export class EdorgsService {
   }
 
   /**
+   * Build an EdOrg tree from flat list of EdOrgs with parentId references
+   * Converts flat structure to nested tree structure expected by persistence layer
+   *
+   * @param edOrgs - Flat array of EdOrgs from Admin API
+   * @returns Array of root EdOrg nodes with nested children
+   */
+  private buildEdOrgTree(edOrgs: EducationOrganizationDto[]): SbV1MetaEdorg[] {
+    // Create a map of all EdOrg nodes
+    const edorgNodeMap = new Map<number, SbV1MetaEdorg>(
+      edOrgs.map((e) => [
+        e.educationOrganizationId,
+        {
+          educationorganizationid: e.educationOrganizationId,
+          nameofinstitution: e.nameOfInstitution,
+          shortnameofinstitution: e.shortNameOfInstitution ?? null,
+          discriminator: e.discriminator as EdorgType,
+          edorgs: [], // Will be populated with children
+        },
+      ])
+    );
+
+    // Build tree by nesting children under their parents
+    const edorgRoots: SbV1MetaEdorg[] = [];
+    for (const edOrg of edOrgs) {
+      const node = edorgNodeMap.get(edOrg.educationOrganizationId);
+      if (edOrg.parentId != null && edorgNodeMap.has(edOrg.parentId)) {
+        // This EdOrg has a parent - add it as a child
+        edorgNodeMap.get(edOrg.parentId).edorgs.push(node);
+      } else {
+        // This is a root EdOrg (no parent)
+        edorgRoots.push(node);
+      }
+    }
+
+    return edorgRoots;
+  }
+
+  /**
    * Sync all education organizations across all ODS instances for a tenant
    * Fetches Ed-Orgs from Admin API v2 and persists them to the database
+   * Uses persistSyncTenant to handle all ODS instances atomically
    *
-   * @param sbEnvironment - The Starting Blocks environment
+   * @param _sbEnvironment - The Starting Blocks environment (unused but required by interface)
    * @param edfiTenant - The tenant to sync Ed-Orgs for
    * @returns Summary of sync operation with counts
    */
   async syncAllEdOrgs(
-    sbEnvironment: SbEnvironment,
+    _sbEnvironment: SbEnvironment,
     edfiTenant: EdfiTenant
   ): Promise<{ synced: number; skipped: number }> {
     this.logger.log(`Starting Ed-Org sync for tenant ${edfiTenant.name} (id=${edfiTenant.id})`);
@@ -116,8 +155,24 @@ export class EdorgsService {
         return { synced: 0, skipped: 0 };
       }
 
-      // Step 2: Group Ed-Orgs by odsInstanceId
+      // Step 2: Fetch all ODS instances for this tenant ONCE (avoids N+1 queries)
+      const allOdsInstances = await this.odsRepository.find({
+        where: { edfiTenantId: edfiTenant.id },
+      });
+
+      // Build lookup map: odsInstanceId -> ODS entity
+      const odsMap = new Map<number, Ods>(
+        allOdsInstances
+          .filter((ods) => ods.odsInstanceId !== null)
+          .map((ods) => [ods.odsInstanceId, ods])
+      );
+
+      this.logger.log(`Found ${odsMap.size} ODS instance(s) with odsInstanceId in database`);
+
+      // Step 3: Group Ed-Orgs by instanceId
       const edOrgsByInstance = new Map<number, EducationOrganizationDto[]>();
+      let skippedCount = 0;
+
       allEdOrgs.forEach((edOrg) => {
         if (edOrg.instanceId !== null && edOrg.instanceId !== undefined) {
           if (!edOrgsByInstance.has(edOrg.instanceId)) {
@@ -126,26 +181,21 @@ export class EdorgsService {
           edOrgsByInstance.get(edOrg.instanceId).push(edOrg);
         } else {
           this.logger.warn(
-            `Ed-Org ${edOrg.educationOrganizationId} has no instanceId, skipping`
+            `Ed-Org ${edOrg.educationOrganizationId} "${edOrg.nameOfInstitution}" has no instanceId, skipping`
           );
+          skippedCount++;
         }
       });
 
       this.logger.log(
-        `Grouped Ed-Orgs into ${edOrgsByInstance.size} ODS instance(s)`
+        `Grouped Ed-Orgs into ${edOrgsByInstance.size} ODS instance(s), skipped ${skippedCount} Ed-Org(s) without instanceId`
       );
 
-      // Step 3: Find matching ODS entities and sync
-      let syncedCount = 0;
-      let skippedCount = 0;
+      // Step 4: Build SyncableOds array for all ODS instances
+      const syncableOdsList: SyncableOds[] = [];
 
       for (const [odsInstanceId, edOrgs] of edOrgsByInstance.entries()) {
-        const ods = await this.odsRepository.findOne({
-          where: {
-            edfiTenantId: edfiTenant.id,
-            odsInstanceId: odsInstanceId,
-          },
-        });
+        const ods = odsMap.get(odsInstanceId);
 
         if (!ods) {
           this.logger.warn(
@@ -155,44 +205,54 @@ export class EdorgsService {
           continue;
         }
 
-        // Step 4: Persist Ed-Orgs for this ODS instance
         this.logger.log(
-          `Syncing ${edOrgs.length} Ed-Org(s) for ODS instance ${odsInstanceId} (dbName: ${ods.dbName})`
+          `Preparing ${edOrgs.length} Ed-Org(s) for ODS instance ${odsInstanceId} (dbName: ${ods.dbName})`
         );
 
-        const syncableOds: SyncableOds = {
+        // Build EdOrg tree preserving parent-child relationships
+        const edOrgTree = this.buildEdOrgTree(edOrgs);
+
+        syncableOdsList.push({
           id: odsInstanceId,
           name: ods.odsInstanceName,
           dbName: ods.dbName,
-          edorgs: edOrgs.map((edOrg) => ({
-            educationorganizationid: Number(edOrg.educationOrganizationId),
-            nameofinstitution: edOrg.nameOfInstitution,
-            shortnameofinstitution: edOrg.shortNameOfInstitution,
-            discriminator: edOrg.discriminator as EdorgType,
-            edorgs: [], // Flat structure, no nested children from this endpoint
-          })),
-        };
-
-        await this.dataSource.transaction(async (em) => {
-          const result = await persistSyncOds({
-            em,
-            edfiTenant,
-            ods: syncableOds,
-          });
-
-          if (result.status === 'SUCCESS') {
-            const changesCount =
-              result.data.edorg.inserted +
-              result.data.edorg.updated +
-              result.data.edorg.deleted;
-            syncedCount += edOrgs.length;
-            this.logger.log(
-              `Successfully synced ${edOrgs.length} Ed-Org(s) for ODS ${odsInstanceId} ` +
-              `(${result.data.edorg.inserted} inserted, ${result.data.edorg.updated} updated, ${result.data.edorg.deleted} deleted)`
-            );
-          }
+          edorgs: edOrgTree,
         });
       }
+
+      if (syncableOdsList.length === 0) {
+        this.logger.log('No ODS instances matched, nothing to sync');
+        return { synced: 0, skipped: skippedCount };
+      }
+
+      // Step 5: Persist all ODS instances atomically using persistSyncTenant
+      this.logger.log(
+        `Persisting ${syncableOdsList.length} ODS instance(s) with Ed-Org trees`
+      );
+
+      let syncedCount = 0;
+
+      await this.dataSource.transaction(async (em) => {
+        const result = await persistSyncTenant({
+          em,
+          edfiTenant,
+          odss: syncableOdsList,
+        });
+
+        if (result.status === 'SUCCESS') {
+          syncedCount = allEdOrgs.length - skippedCount;
+          
+          this.logger.log(
+            `Successfully synced Ed-Orgs for tenant ${edfiTenant.name}: ` +
+            `${result.data.edorg.inserted} inserted, ` +
+            `${result.data.edorg.updated} updated, ` +
+            `${result.data.edorg.deleted} deleted | ` +
+            `ODS: ${result.data.ods.inserted} inserted, ` +
+            `${result.data.ods.updated} updated, ` +
+            `${result.data.ods.deleted} deleted`
+          );
+        }
+      });
 
       this.logger.log(
         `Ed-Org sync completed for tenant ${edfiTenant.name}: ${syncedCount} synced, ${skippedCount} skipped`

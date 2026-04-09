@@ -22,7 +22,9 @@ export const useSyncEdOrgsAction = (): ActionsType => {
         teamId,
         'team.sb-environment.edfi-tenant.ods.edorg:read'
       )
-    ) && sbEnvironment?.version === 'v2';
+    ) &&
+    sbEnvironment?.version === 'v2' &&
+    !sbEnvironment?.startingBlocks;
 
   if (!canSyncEdOrgs) {
     return {};

@@ -1366,11 +1366,19 @@ export class AdminApiServiceV2 {
     this.logger.log(`Getting all Ed-Orgs for tenant ${edfiTenant.name} (id=${edfiTenant.id})`);
 
     try {
+      type AdminApiEdOrg = {
+        educationOrganizationId: number;
+        nameOfInstitution: string;
+        shortNameOfInstitution?: string | null;
+        discriminator: string;
+        parentId?: number | null;
+      };
+
       type OdsInstanceEdOrgsResponse = {
         id: number;
         name: string;
         instanceType: string | null;
-        educationOrganizations?: any[];
+        educationOrganizations?: AdminApiEdOrg[];
       };
       
       // eslint-disable-next-line @typescript-eslint/no-explicit-any

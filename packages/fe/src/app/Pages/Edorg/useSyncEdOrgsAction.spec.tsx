@@ -35,14 +35,14 @@ const mockUseAuthorize = useAuthorize as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;
 const mockSyncEdOrgsQuery = edorgQueries.syncEdOrgs as jest.Mock;
 
-const buildSbEnvironment = (version: 'v1' | 'v2' | 'startingBlocks' | undefined, startingBlocks = false) => ({
+const buildSbEnvironment = (version: 'v1' | 'v2' | undefined, startingBlocks = false) => ({
   id: 1,
   version,
   configPublic: version ? { version, startingBlocks } : undefined,
   startingBlocks,
 });
 
-const buildEdfiTenant = () => ({ id: 10, sbEnvironment: buildSbEnvironment('v2') });
+const buildEdfiTenant = () => ({ id: 10, sbEnvironment: buildSbEnvironment('v2', true) });
 
 const buildMutation = (overrides: object = {}) => ({
   isPending: false,
@@ -50,14 +50,14 @@ const buildMutation = (overrides: object = {}) => ({
   ...overrides,
 });
 
-const setupMocks = (version: 'v1' | 'v2' | 'startingBlocks' | undefined, canSyncEdOrgs = true, startingBlocks = false) => {
+const setupMocks = (version: 'v1' | 'v2' | undefined, canSyncEdOrgs = true, startingBlocks = false) => {
   mockUsePopBanner.mockReturnValue(jest.fn());
   mockUseNavContext.mockReturnValue({
     edfiTenant: buildEdfiTenant(),
     sbEnvironment: buildSbEnvironment(version, startingBlocks),
     teamId: 1,
   });
-  mockUseAuthorize.mockReturnValue(canSyncEdOrgs && version === 'v2');
+  mockUseAuthorize.mockReturnValue(canSyncEdOrgs && version === 'v2' && !startingBlocks);
   const mutation = buildMutation();
   mockSyncEdOrgsQuery.mockReturnValue(mutation);
   return mutation;
@@ -66,8 +66,8 @@ const setupMocks = (version: 'v1' | 'v2' | 'startingBlocks' | undefined, canSync
 describe('useSyncEdOrgsAction', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('returns a SyncEdOrgs action entry for v2 environments with edorg:read privilege', () => {
-    setupMocks('v2', true);
+  it('returns a SyncEdOrgs action entry for v2 non-startingBlocks environments with read privilege', () => {
+    setupMocks('v2', true, false);
 
     const result = useSyncEdOrgsAction();
 
@@ -82,15 +82,15 @@ describe('useSyncEdOrgsAction', () => {
   });
 
   it('returns an empty object for non-v2 environments', () => {
-    setupMocks('v1');
+    setupMocks('v1', true, false);
 
     const result = useSyncEdOrgsAction();
 
     expect(result).toEqual({});
   });
 
-  it('returns an empty object for startingBlocks environments', () => {
-    setupMocks('startingBlocks' as any);
+  it('returns an empty object for v2 startingBlocks environments', () => {
+    setupMocks('v2', true, true);
 
     const result = useSyncEdOrgsAction();
 
@@ -105,8 +105,8 @@ describe('useSyncEdOrgsAction', () => {
     expect(result).toEqual({});
   });
 
-  it('returns an empty object when user lacks edorg:read privilege', () => {
-    setupMocks('v2', false);
+  it('returns an empty object when user lacks read privilege', () => {
+    setupMocks('v2', false, false);
 
     const result = useSyncEdOrgsAction();
 
@@ -116,7 +116,7 @@ describe('useSyncEdOrgsAction', () => {
   it('calls mutateAsync with empty path params on click', () => {
     const popBanner = jest.fn();
     mockUsePopBanner.mockReturnValue(popBanner);
-    const mutation = setupMocks('v2', true);
+    const mutation = setupMocks('v2', true, false);
 
     const result = useSyncEdOrgsAction();
     (result as ActionsType & { SyncEdOrgs: ActionProps }).SyncEdOrgs.onClick();
@@ -128,7 +128,7 @@ describe('useSyncEdOrgsAction', () => {
   });
 
   it('reflects isPending state from the mutation', () => {
-    setupMocks('v2', true);
+    setupMocks('v2', true, false);
     mockSyncEdOrgsQuery.mockReturnValue(buildMutation({ isPending: true }));
 
     const result = useSyncEdOrgsAction();
