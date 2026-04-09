@@ -49,7 +49,8 @@ import {
   SpecificIds,
   ApplicationResponseV1,
   PostApplicationResponseDto,
-  PutOdsDto
+  PutOdsDto,
+  SyncEdOrgsResponseDto
 } from '@edanalytics/models';
 import { QueryKey, UseQueryOptions, useQueries } from '@tanstack/react-query';
 import kebabCase from 'kebab-case';
@@ -148,6 +149,27 @@ export const edorgQueries = new EntityQueryBuilder({
   .getAll('getAll', { ResDto: GetEdorgDto })
   .post('post', { ReqDto: AddEdorgDtoV2, ResDto: class Nothing {} })
   .delete('delete')
+  .post(
+    'syncEdOrgs',
+    {
+      ReqDto: class {},
+      ResDto: SyncEdOrgsResponseDto,
+      keysToInvalidate: (params) => [
+        queryKey({
+          resourceName: 'Edorg',
+          edfiTenantId: params.edfiTenant.id,
+          id: false,
+        }),
+      ],
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'edorg',
+        id: 'sync-edorgs',
+      })
+  )
   .build();
 
 export const odsQueries = new EntityQueryBuilder({
