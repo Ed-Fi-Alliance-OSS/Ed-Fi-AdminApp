@@ -68,7 +68,7 @@ const setupMocks = (version: 'v1' | 'v2' | undefined, canSyncEdOrgs = true, star
 describe('useSyncEdOrgsAction', () => {
   afterEach(() => jest.clearAllMocks());
 
-  it('returns a SyncEdOrgs action entry for v2 environments with create-edorg privilege', () => {
+  it('returns a SyncEdOrgs action entry for v2 environments with read privilege', () => {
     setupMocks('v2', true);
 
     const result = useSyncEdOrgsAction();
@@ -96,7 +96,7 @@ describe('useSyncEdOrgsAction', () => {
     expect(result).toEqual({});
   });
 
-  it('returns an empty object when user lacks create-edorg privilege', () => {
+  it('returns an empty object when user lacks read privilege', () => {
     setupMocks('v2', false);
 
     const result = useSyncEdOrgsAction();

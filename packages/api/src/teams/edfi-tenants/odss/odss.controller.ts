@@ -169,7 +169,7 @@ export class OdssController {
   @Post(':odsId/sync-edorgs')
   @HttpCode(204)
   @Authorize({
-    privilege: 'team.sb-environment.edfi-tenant.ods:create-edorg',
+    privilege: 'team.sb-environment.edfi-tenant.ods:read',
     subject: {
       id: 'odsId',
       edfiTenantId: 'edfiTenantId',

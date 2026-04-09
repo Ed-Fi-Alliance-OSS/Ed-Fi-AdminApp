@@ -22,7 +22,7 @@ export const useSyncEdOrgsAction = (): ActionsType => {
         '__filtered__',
         edfiTenant?.id,
         teamId,
-        'team.sb-environment.edfi-tenant.ods:create-edorg'
+        'team.sb-environment.edfi-tenant.ods:read'
       )
     ) && sbEnvironment?.version === 'v2';
 
