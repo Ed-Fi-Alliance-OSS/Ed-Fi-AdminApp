@@ -21,7 +21,7 @@ import {
   ReqSbEnvironment,
   SbEnvironmentEdfiTenantInterceptor,
 } from '../../../app/sb-environment-edfi-tenant.interceptor';
-import { Authorize } from '../../../auth/authorization';
+import { Authorize, SbVersion } from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { whereIds } from '../../../auth/helpers/where-ids';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
@@ -166,6 +166,7 @@ export class OdssController {
     return toOdsRowCountsDto(result);
   }
 
+  @SbVersion('v2')
   @Post(':odsId/sync-edorgs')
   @HttpCode(204)
   @Authorize({
