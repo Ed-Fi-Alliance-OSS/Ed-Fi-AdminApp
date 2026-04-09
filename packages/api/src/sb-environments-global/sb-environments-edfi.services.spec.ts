@@ -201,6 +201,42 @@ describe('SbEnvironmentsEdFiService', () => {
       );
       expect(edfiTenantsRepository.delete).not.toHaveBeenCalled();
     });
+
+    it('calls getTenants exactly once with the provisioned environment', async () => {
+      jest
+        .spyOn(service as any, 'ensureDiscoveryBootstrapCredentials')
+        .mockResolvedValue(baseEnvironment);
+
+      const provisionedEnv = { ...baseEnvironment, id: 99 };
+      jest
+        .spyOn(service as any, 'provisionCredentialsForDiscoveredTenants')
+        .mockResolvedValue(provisionedEnv);
+
+      const tenantPayload = [
+        { id: 't1', name: 'tenant-1', odsInstances: [{ id: 99, name: 'ods-1', edOrgs: [] }] },
+      ];
+      adminApiServiceV2.getTenants.mockResolvedValueOnce(tenantPayload);
+
+      const tenantEntity = { id: 11, name: 'tenant-1', sbEnvironmentId: 1 };
+      edfiTenantsRepository.findOne.mockResolvedValue(tenantEntity);
+      edfiTenantsRepository.find.mockResolvedValue([tenantEntity]);
+
+      const syncSpy = jest
+        .spyOn(service as any, 'syncTenantDataFromDiscovery')
+        .mockResolvedValue(undefined);
+
+      await (service as any).syncv2Environment(baseEnvironment, baseCreateDto);
+
+      expect(adminApiServiceV2.getTenants).toHaveBeenCalledTimes(1);
+      expect(adminApiServiceV2.getTenants).toHaveBeenCalledWith(provisionedEnv);
+      expect(syncSpy).toHaveBeenCalledWith(
+        provisionedEnv,
+        baseCreateDto,
+        tenantPayload[0],
+        tenantEntity,
+        undefined
+      );
+    });
   });
 
   describe('phase 2 credential behavior', () => {
@@ -227,6 +263,7 @@ describe('SbEnvironmentsEdFiService', () => {
         ],
       ]);
 
+      edfiTenantsRepository.findOne.mockResolvedValue(null);
       edfiTenantsRepository.save.mockResolvedValue({
         id: 44,
         name: 'tenant-a',
@@ -250,6 +287,71 @@ describe('SbEnvironmentsEdFiService', () => {
         }
       );
       expect(result.id).toBe(1);
+    });
+
+    it('reuses existing tenant rows during bootstrap from tenantCredentialsMap', async () => {
+      const envWithoutTenantCreds = {
+        ...baseEnvironment,
+        configPublic: {
+          ...baseEnvironment.configPublic,
+          values: { ...baseEnvironment.configPublic.values, tenants: {} },
+        },
+      };
+
+      const tenantCredentialsMap = new Map([
+        ['tenant-a', { clientId: 'client-a', clientSecret: 'secret-a', displayName: 'display-a' }],
+      ]);
+
+      const existingTenant = { id: 44, name: 'tenant-a', sbEnvironmentId: 1 };
+      edfiTenantsRepository.findOne.mockResolvedValue(existingTenant);
+      sbEnvironmentsRepository.findOne.mockResolvedValue({ ...envWithoutTenantCreds, id: 1 });
+
+      await (service as any).ensureDiscoveryBootstrapCredentials(
+        envWithoutTenantCreds,
+        baseCreateDto,
+        tenantCredentialsMap
+      );
+
+      expect(edfiTenantsRepository.findOne).toHaveBeenCalledWith({
+        where: { name: 'tenant-a', sbEnvironmentId: 1 },
+      });
+      expect(edfiTenantsRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('reuses existing bootstrap tenant row in single-tenant bootstrap path', async () => {
+      const envWithoutTenantCreds = {
+        ...baseEnvironment,
+        configPublic: {
+          ...baseEnvironment.configPublic,
+          values: { ...baseEnvironment.configPublic.values, tenants: {} },
+        },
+      };
+
+      const singleTenantDto = {
+        ...baseCreateDto,
+        isMultitenant: false,
+        tenants: [{ name: 'default', odss: [] }],
+      };
+
+      const existingBootstrapTenant = { id: 77, name: 'default', sbEnvironmentId: 1 };
+      edfiTenantsRepository.findOne.mockResolvedValue(existingBootstrapTenant);
+
+      jest
+        .spyOn(service as any, 'createClientCredentials')
+        .mockResolvedValue({ clientId: 'c', clientSecret: 's', displayName: 'd' });
+
+      sbEnvironmentsRepository.findOne.mockResolvedValue({ ...envWithoutTenantCreds, id: 1 });
+
+      await (service as any).ensureDiscoveryBootstrapCredentials(
+        envWithoutTenantCreds,
+        singleTenantDto,
+        undefined
+      );
+
+      expect(edfiTenantsRepository.findOne).toHaveBeenCalledWith({
+        where: { name: 'default', sbEnvironmentId: 1 },
+      });
+      expect(edfiTenantsRepository.save).not.toHaveBeenCalled();
     });
 
     it('skips credential creation when tenant already has stored credentials', async () => {
