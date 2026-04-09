@@ -210,6 +210,27 @@ export const odsQueries = new EntityQueryBuilder({
       id: `${odsId}/row-count`,
     })
   )
+  .post(
+    'syncEdOrgs',
+    {
+      ReqDto: class {},
+      ResDto: class {},
+      keysToInvalidate: (params) => [
+        queryKeyNew({
+          kebabCaseName: 'edorg',
+          edfiTenant: params.edfiTenant,
+          id: false,
+        }),
+      ],
+    },
+    (base, { odsId }: { odsId: string }) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'ods',
+        id: `${odsId}/sync-edorgs`,
+      })
+  )
   .build();
 
 export const ownershipQueries = new EntityQueryBuilder({

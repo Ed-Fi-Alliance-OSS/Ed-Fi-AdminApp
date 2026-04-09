@@ -19,6 +19,7 @@ import { OdsEdorgsTable } from './OdsEdorgsTable';
 import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
 import { OdsRowCountsTable } from './OdsRowCountsTable';
+import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
 
 export const OdsPage = () => {
   const params = useParams() as {
@@ -35,6 +36,7 @@ export const OdsPage = () => {
 
   const actions = useOdsActions({ id: Number(params.odsId) });
   const edorgsActions = useEdorgsActions({ ods });
+  const syncEdOrgsActions = useSyncEdOrgsAction();
   return (
     <PageTemplate
       title={ods?.displayName || 'Ods'}
@@ -57,7 +59,7 @@ export const OdsPage = () => {
             }}
           >
             <PageContentCard>
-              <PageSectionActions actions={edorgsActions} />
+              <PageSectionActions actions={{ ...edorgsActions, ...syncEdOrgsActions }} />
               <ContentSection heading="Ed-Orgs">
                 <OdsEdorgsTable />
               </ContentSection>
