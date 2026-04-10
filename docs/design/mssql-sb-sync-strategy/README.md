@@ -153,7 +153,12 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
   }
   
   async send<T>(queueName: string, data: T, options?: JobOptions): Promise<string> {
-    return this.boss.send(queueName, data, options);
+    const id = await this.boss.send(queueName, data, options);
+    // pg-boss v9 returns null when a singleton duplicate is silently deduped (D-14)
+    if (id === null) {
+      return options?.singletonKey ?? 'deduped';
+    }
+    return id;
   }
   
   async schedule(queueName: string, cron: string, data: any, options?: ScheduleOptions): Promise<void> {
@@ -193,136 +198,130 @@ This implementation uses TypeORM entities and a polling mechanism to simulate pg
 **Entity:** `packages/models-server/src/entities/job-queue.entity.ts`
 
 ```typescript
+// Note: The singletonKey filtered unique index is created via raw migration SQL (D-11).
+// Do NOT use the @Index decorator for filtered/conditional indexes on MSSQL — TypeORM DDL
+// generation for filtered WHERE clauses is unreliable across SQL Server versions.
 @Entity('job_queue')
 @Index(['name', 'state'])
-@Index(['singletonKey'], { unique: true, where: "[singletonKey] IS NOT NULL AND [state] IN ('created', 'retry', 'active')" })
 export class JobQueue {
   @PrimaryColumn('uuid')
   id: string;
-  
+
   @Column({ type: 'varchar', length: 255 })
   name: string;
-  
+
   @Column({ type: 'nvarchar', length: 'MAX' })
   data: string; // JSON string
-  
-  @Column({ 
-    type: 'varchar', 
+
+  @Column({
+    type: 'varchar',
     length: 50,
     default: 'created'
   })
   state: JobState;
-  
+
   @Column({ type: 'datetime2', nullable: true })
   createdon: Date;
-  
+
   @Column({ type: 'datetime2', nullable: true })
   startedon: Date;
-  
+
   @Column({ type: 'datetime2', nullable: true })
   completedon: Date;
-  
+
   @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
   output: string; // JSON string
-  
+
   @Column({ type: 'int', default: 0 })
   retrycount: number;
-  
+
   @Column({ type: 'int', default: 3 })
   retrylimit: number;
-  
+
   @Column({ type: 'int', nullable: true })
   retrydelay: number;
-  
+
   @Column({ type: 'bit', default: false })
   retrybackoff: boolean;
-  
+
   @Column({ type: 'datetime2', nullable: true })
   expirein: Date;
-  
+
   @Column({ type: 'varchar', length: 255, nullable: true })
   singletonKey: string;
-  
+
   @Column({ type: 'datetime2', nullable: true })
   keepuntil: Date;
+
+  // Enforces retry delay / backoff. processJobs() only claims rows where availableAt <= now. (D-06)
+  @Column({ type: 'datetime2', nullable: true })
+  availableAt: Date;
+
+  // Lease expiry used for crash recovery. Stale 'active' rows with leaseUntil < now are
+  // requeued by the startup sweeper before the polling loop begins. (D-02)
+  @Column({ type: 'datetime2', nullable: true })
+  leaseUntil: Date;
 }
 
-@Entity('job_schedule')
-export class JobSchedule {
-  @PrimaryColumn('uuid')
-  id: string;
-  
-  @Column({ type: 'varchar', length: 255 })
-  name: string;
-  
-  @Column({ type: 'varchar', length: 100 })
-  cron: string;
-  
-  @Column({ type: 'nvarchar', length: 'MAX', nullable: true })
-  data: string;
-  
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  timezone: string;
-  
-  @Column({ type: 'datetime2', nullable: true })
-  lastrun: Date;
-  
-  @Column({ type: 'datetime2', nullable: true })
-  nextrun: Date;
-}
+// JobSchedule entity is intentionally omitted for v1.
+// Scheduling is handled in-process via cron-parser inside MssqlJobQueueService (D-10).
+// A persistent job_schedule table may be added in Phase 4 if multi-schedule support is needed.
 ```
 
 #### 3.2. Service Implementation
 
 ```typescript
+import { parseExpression } from 'cron-parser'; // pinned to ^3.1.0 (D-13)
+
 @Injectable()
 export class MssqlJobQueueService implements IJobQueueService, OnApplicationBootstrap, OnApplicationShutdown {
   private readonly logger = new Logger(MssqlJobQueueService.name);
   private workers: Map<string, (job: Job) => Promise<void>> = new Map();
-  private pollingInterval: NodeJS.Timer;
-  private scheduleInterval: NodeJS.Timer;
+  // In-process schedule registry — no DB table (D-10)
+  private scheduleRegistry: Map<string, { cron: string; data: any; tz: string }> = new Map();
+  private lastScheduleFire: Map<string, Date> = new Map();
+  private pollingTimer: NodeJS.Timeout;
+  private scheduleTimer: NodeJS.Timeout;
   private isRunning = false;
-  
+  private readonly pollIntervalMs: number;
+  private readonly scheduleIntervalMs: number;
+
   constructor(
-    @InjectRepository(JobQueue) 
+    @InjectRepository(JobQueue)
     private jobRepository: Repository<JobQueue>,
-    @InjectRepository(JobSchedule)
-    private scheduleRepository: Repository<JobSchedule>
-  ) {}
-  
+  ) {
+    // Intervals are configurable via environment variables (D-16)
+    this.pollIntervalMs = config.MSSQL_JOB_POLL_MS ?? 1000;
+    this.scheduleIntervalMs = config.MSSQL_SCHEDULE_POLL_MS ?? 10000;
+  }
+
   async start(): Promise<void> {
     this.isRunning = true;
-    
-    // Poll for jobs every 1 second
-    this.pollingInterval = setInterval(() => this.processJobs(), 1000);
-    
-    // Check scheduled jobs every minute
-    this.scheduleInterval = setInterval(() => this.processSchedules(), 60000);
-    
+    // Recover stale 'active' jobs from any prior crash before polling begins (D-02)
+    await this.recoverStaleJobs();
+    this.runJobLoop();
+    this.runScheduleLoop();
     this.logger.log('MSSQL Job Queue started');
   }
-  
+
   async stop(options?: { graceful?: boolean }): Promise<void> {
     this.isRunning = false;
-    if (this.pollingInterval) clearInterval(this.pollingInterval);
-    if (this.scheduleInterval) clearInterval(this.scheduleInterval);
-    
+    if (this.pollingTimer) clearTimeout(this.pollingTimer);
+    if (this.scheduleTimer) clearTimeout(this.scheduleTimer);
+
     if (options?.graceful) {
-      // Wait for active jobs to complete (with timeout)
-      const timeout = 30000; // 30 seconds
+      const timeout = 30000;
       const start = Date.now();
       while (Date.now() - start < timeout) {
-        const activeCount = await this.jobRepository.count({ 
-          where: { state: 'active' } 
-        });
+        const activeCount = await this.jobRepository.count({ where: { state: 'active' } });
         if (activeCount === 0) break;
         await new Promise(resolve => setTimeout(resolve, 500));
       }
     }
-    
+
     this.logger.log('MSSQL Job Queue stopped');
   }
-  
+
   async send<T>(queueName: string, data: T, options?: JobOptions): Promise<string> {
     const job = new JobQueue();
     job.id = randomUUID();
@@ -334,50 +333,46 @@ export class MssqlJobQueueService implements IJobQueueService, OnApplicationBoot
     job.retrylimit = options?.retryLimit ?? 3;
     job.retrydelay = options?.retryDelay ?? 0;
     job.retrybackoff = options?.retryBackoff ?? false;
-    
+
     if (options?.expireInHours) {
       job.expirein = new Date(Date.now() + options.expireInHours * 3600000);
     }
-    
+
     try {
       await this.jobRepository.save(job);
       this.logger.log(`Job ${job.id} queued for ${queueName}`);
       return job.id;
     } catch (error) {
       if (error.code === '2601' || error.code === '2627') {
-        // Unique constraint violation on singletonKey
         this.logger.warn(`Duplicate job prevented for singleton key: ${options.singletonKey}`);
-        const existing = await this.jobRepository.findOne({ 
-          where: { singletonKey: options.singletonKey } 
+        // Constrain by active states to avoid returning a stale completed/failed row (D-08)
+        const existing = await this.jobRepository.findOne({
+          where: {
+            singletonKey: options.singletonKey,
+            state: In(['created', 'retry', 'active']),
+          },
         });
-        return existing.id;
+        return existing?.id ?? job.id;
       }
       throw error;
     }
   }
-  
+
+  // Registers an in-process cron schedule — no DB persistence needed for v1 (D-10)
   async schedule(queueName: string, cron: string, data: any, options?: ScheduleOptions): Promise<void> {
-    const schedule = new JobSchedule();
-    schedule.id = randomUUID();
-    schedule.name = queueName;
-    schedule.cron = cron;
-    schedule.data = JSON.stringify(data);
-    schedule.timezone = options?.tz ?? 'UTC';
-    schedule.nextrun = this.calculateNextRun(cron, options?.tz);
-    
-    await this.scheduleRepository.save(schedule);
-    this.logger.log(`Scheduled job ${queueName} with cron ${cron}`);
+    this.scheduleRegistry.set(queueName, { cron, data, tz: options?.tz ?? 'UTC' });
+    this.logger.log(`Cron schedule registered in-process for queue: ${queueName} (${cron})`);
   }
-  
+
   async work<T>(queueName: string, handler: (job: Job<T>) => Promise<void>): Promise<void> {
     this.workers.set(queueName, handler as any);
     this.logger.log(`Worker registered for queue: ${queueName}`);
   }
-  
+
   async getJobById(id: string): Promise<Job> {
     const job = await this.jobRepository.findOne({ where: { id } });
     if (!job) throw new NotFoundException(`Job ${id} not found`);
-    
+
     return {
       id: job.id,
       name: job.name,
@@ -390,45 +385,63 @@ export class MssqlJobQueueService implements IJobQueueService, OnApplicationBoot
       retrycount: job.retrycount,
     };
   }
-  
+
   // ---- Private methods ----
-  
-  private async processJobs(): Promise<void> {
+
+  // Guarded loop — next tick only starts after the current one finishes (D-09)
+  private async runJobLoop(): Promise<void> {
     if (!this.isRunning) return;
-    
-    const jobs = await this.jobRepository.find({
-      where: { state: In(['created', 'retry']) },
-      take: 10,
-      order: { createdon: 'ASC' }
-    });
-    
-    for (const job of jobs) {
-      await this.executeJob(job);
+    try {
+      await this.processJobs();
+    } finally {
+      if (this.isRunning) {
+        this.pollingTimer = setTimeout(() => this.runJobLoop(), this.pollIntervalMs);
+      }
     }
   }
-  
+
+  // Guarded loop — prevents overlapping schedule checks (D-09)
+  private async runScheduleLoop(): Promise<void> {
+    if (!this.isRunning) return;
+    try {
+      await this.processSchedules();
+    } finally {
+      if (this.isRunning) {
+        this.scheduleTimer = setTimeout(() => this.runScheduleLoop(), this.scheduleIntervalMs);
+      }
+    }
+  }
+
+  // Atomically claim up to 10 eligible jobs using MSSQL locking hints (D-01)
+  private async processJobs(): Promise<void> {
+    if (!this.isRunning) return;
+
+    const leaseUntil = new Date(Date.now() + 5 * 60 * 1000); // 5-minute lease (D-02)
+
+    const claimed: JobQueue[] = await this.jobRepository.query(`
+      UPDATE TOP (10) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
+      SET state     = 'active',
+          startedon  = GETUTCDATE(),
+          leaseUntil = @0
+      OUTPUT INSERTED.*
+      WHERE state IN ('created', 'retry')
+        AND (availableAt IS NULL OR availableAt <= GETUTCDATE())
+        AND (expirein    IS NULL OR expirein    >  GETUTCDATE())
+    `, [leaseUntil]);
+
+    for (const job of claimed) {
+      // fire-and-forget — each job runs independently without blocking the next poll tick
+      void this.executeJob(job);
+    }
+  }
+
   private async executeJob(job: JobQueue): Promise<void> {
     const handler = this.workers.get(job.name);
     if (!handler) {
       this.logger.warn(`No worker registered for queue: ${job.name}`);
       return;
     }
-    
-    // Check expiration
-    if (job.expirein && new Date() > job.expirein) {
-      await this.jobRepository.update(job.id, { 
-        state: 'expired',
-        completedon: new Date()
-      });
-      return;
-    }
-    
-    // Mark as active
-    await this.jobRepository.update(job.id, { 
-      state: 'active',
-      startedon: new Date()
-    });
-    
+
     try {
       const jobData: Job = {
         id: job.id,
@@ -436,87 +449,114 @@ export class MssqlJobQueueService implements IJobQueueService, OnApplicationBoot
         data: JSON.parse(job.data),
         state: 'active',
         createdon: job.createdon,
-        startedon: job.startedon,
+        startedon: job.startedon ?? new Date(),
         completedon: job.completedon,
         output: job.output ? JSON.parse(job.output) : undefined,
         retrycount: job.retrycount,
       };
-      
+
       await handler(jobData);
-      
-      // Mark as completed
-      await this.jobRepository.update(job.id, { 
+
+      await this.jobRepository.update(job.id, {
         state: 'completed',
         completedon: new Date()
       });
-      
+
       this.logger.log(`Job ${job.id} completed successfully`);
     } catch (error) {
       this.logger.error(`Job ${job.id} failed: ${error.message}`, error.stack);
-      
-      // Retry logic
+
       if (job.retrycount < job.retrylimit) {
-        const nextRetry = job.retrybackoff 
+        const nextRetryMs = job.retrybackoff
           ? Math.pow(2, job.retrycount) * (job.retrydelay || 1000)
           : job.retrydelay || 1000;
-        
+
         await this.jobRepository.update(job.id, {
           state: 'retry',
           retrycount: job.retrycount + 1,
-          output: JSON.stringify({
-            error: error.message,
-            stack: error.stack,
-          })
+          availableAt: new Date(Date.now() + nextRetryMs), // persist delay so poll respects it (D-06)
+          output: JSON.stringify({ error: error.message, stack: error.stack }),
         });
-        
-        this.logger.log(`Job ${job.id} will retry in ${nextRetry}ms`);
+
+        this.logger.log(`Job ${job.id} will retry in ${nextRetryMs}ms`);
       } else {
         await this.jobRepository.update(job.id, {
           state: 'failed',
           completedon: new Date(),
-          output: JSON.stringify({
-            error: error.message,
-            stack: error.stack,
-          })
+          output: JSON.stringify({ error: error.message, stack: error.stack }),
         });
       }
     }
   }
-  
+
+  // In-process cron scheduler; reads registry populated by schedule() (D-10)
+  // Uses sp_getapplock to prevent multi-instance duplicate fires (D-07)
   private async processSchedules(): Promise<void> {
-    if (!this.isRunning) return;
-    
+    if (!this.isRunning || this.scheduleRegistry.size === 0) return;
+
     const now = new Date();
-    const schedules = await this.scheduleRepository.find({
-      where: { nextrun: LessThanOrEqual(now) }
-    });
-    
-    for (const schedule of schedules) {
-      await this.send(
-        schedule.name,
-        schedule.data ? JSON.parse(schedule.data) : null
-      );
-      
-      await this.scheduleRepository.update(schedule.id, {
-        lastrun: now,
-        nextrun: this.calculateNextRun(schedule.cron, schedule.timezone)
-      });
+
+    for (const [queueName, entry] of this.scheduleRegistry.entries()) {
+      const lastFire = this.lastScheduleFire.get(queueName);
+      const nextFire = lastFire
+        ? this.calculateNextRun(entry.cron, entry.tz, lastFire)
+        : new Date(0); // fire immediately on first tick if no prior record
+
+      if (nextFire <= now) {
+        const acquired = await this.tryAcquireSchedulerLock(queueName);
+        if (acquired) {
+          try {
+            await this.send(queueName, entry.data ?? null);
+            this.lastScheduleFire.set(queueName, now);
+          } finally {
+            await this.releaseSchedulerLock(queueName);
+          }
+        }
+      }
     }
   }
-  
-  private calculateNextRun(cron: string, timezone?: string): Date {
-    const parser = require('cron-parser');
-    const interval = parser.parseExpression(cron, {
-      currentDate: new Date(),
-      tz: timezone || 'UTC'
+
+  private calculateNextRun(cron: string, timezone?: string, fromDate?: Date): Date {
+    const interval = parseExpression(cron, {
+      currentDate: fromDate ?? new Date(),
+      tz: timezone ?? 'UTC',
     });
     return interval.next().toDate();
   }
-  
+
+  // Startup sweeper: requeue any 'active' jobs whose lease expired (crash recovery) (D-02)
+  private async recoverStaleJobs(): Promise<void> {
+    const result = await this.jobRepository.query(`
+      UPDATE job_queue
+      SET state = 'retry', retrycount = retrycount + 1
+      WHERE state = 'active' AND leaseUntil < GETUTCDATE()
+    `);
+    const recovered = result?.rowsAffected ?? 0;
+    if (recovered > 0) {
+      this.logger.warn(`Recovered ${recovered} stale active job(s) on startup`);
+    }
+  }
+
+  // Advisory lock via sp_getapplock — ensures only one instance fires a given schedule (D-07)
+  private async tryAcquireSchedulerLock(name: string): Promise<boolean> {
+    const [result] = await this.jobRepository.query(
+      `EXEC sp_getapplock @Resource = @0, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 0`,
+      [`scheduler_${name}`]
+    );
+    return (result?.returnCode ?? -1) >= 0;
+  }
+
+  private async releaseSchedulerLock(name: string): Promise<void> {
+    await this.jobRepository.query(
+      `EXEC sp_releaseapplock @Resource = @0, @LockOwner = 'Session'`,
+      [`scheduler_${name}`]
+    );
+  }
+
   async onApplicationBootstrap() {
     await this.start();
   }
-  
+
   async onApplicationShutdown() {
     await this.stop({ graceful: true });
   }
@@ -532,24 +572,27 @@ export class MssqlJobQueueService implements IJobQueueService, OnApplicationBoot
 ```typescript
 @Global()
 @Module({
+  // Only register MSSQL repositories when running on MSSQL; avoids TypeORM metadata
+  // validation errors on PostgreSQL where these tables do not exist (D-12)
   imports: [
-    TypeOrmModule.forFeature([JobQueue, JobSchedule]),
+    ...(config.DB_ENGINE === 'mssql'
+      ? [TypeOrmModule.forFeature([JobQueue])]
+      : []),
   ],
   providers: [
     {
       provide: 'IJobQueueService',
-      useFactory: async (
-        jobRepo: Repository<JobQueue>,
-        scheduleRepo: Repository<JobSchedule>
-      ) => {
+      useFactory: async (jobRepo?: Repository<JobQueue>) => {
         if (config.DB_ENGINE === 'mssql') {
-          return new MssqlJobQueueService(jobRepo, scheduleRepo);
+          return new MssqlJobQueueService(jobRepo);
         } else {
           const connectionString = await config.DB_CONNECTION_STRING;
           return new PgBossAdapter(connectionString);
         }
       },
-      inject: [getRepositoryToken(JobQueue), getRepositoryToken(JobSchedule)],
+      inject: [
+        ...(config.DB_ENGINE === 'mssql' ? [getRepositoryToken(JobQueue)] : []),
+      ],
     },
   ],
   exports: ['IJobQueueService'],
@@ -562,6 +605,20 @@ export class JobQueueModule {}
 ### 5. Update SbSyncQueue View for MSSQL
 
 The `SbSyncQueue` materialized view currently queries the `pgboss.job` and `pgboss.archive` tables. For MSSQL, it should query the `job_queue` table instead.
+
+> **⚠️ Entity change required (D-03, D-05):** The existing `sb-sync-queue.view.entity.ts` uses
+> `@ViewEntity({ expression: ... })` with PostgreSQL-specific syntax. This must be changed to a
+> plain `@Entity('sb_sync_queue')` so TypeORM treats it as a regular table-like entity on **both**
+> engines. The engine-specific view SQL is created entirely within migrations — TypeORM itself
+> does not generate it.
+>
+> The current MSSQL migration (`1709328882890-v7-changes.ts`) creates a **dummy** `sb_sync_queue`
+> view that returns no rows. A new MSSQL migration must drop this placeholder and create the real
+> view below.
+>
+> **Deserialization:** On MSSQL, `data` and `output` are stored as `nvarchar(max)`. Parse them
+> to objects in the DTO mapping layer (`toSbSyncQueueDto`) using `JSON.parse()` rather than in
+> the entity itself.
 
 **Approach:** Use conditional view definitions in migrations.
 
@@ -658,6 +715,11 @@ export class SbSyncConsumer implements OnModuleInit {
 
     try {
       await this.jobQueue.work(SYNC_SCHEDULER_CHNL, async () => {
+        // ⚠️ PostgreSQL-only JSON operator — must be replaced with a cross-engine helper (D-04)
+        // Use jsonValue() from packages/api/src/utils/db-json-query.ts:
+        //   PostgreSQL: `"configPublic"->>'sbEnvironmentMetaArn' is not null`
+        //   MSSQL:      `JSON_VALUE(configPublic, '$.sbEnvironmentMetaArn') IS NOT NULL`
+        // Replace with: .where(`${jsonValue('configPublic', 'sbEnvironmentMetaArn', config.DB_ENGINE)} IS NOT NULL`)
         const sbEnvironments = await this.sbEnvironmentsRepository
           .createQueryBuilder()
           .select()
@@ -754,28 +816,45 @@ Similar changes apply to:
 ### Phase 1: Abstraction Layer (No Breaking Changes)
 
 - [ ] Create `IJobQueueService` interface in `job-queue.interface.ts`
-- [ ] Implement `PgBossAdapter` to wrap existing pgboss functionality
-- [ ] Create `JobQueueModule` with factory pattern
-- [ ] Update `SbSyncConsumer` to use `IJobQueueService` injection
-- [ ] Update controllers to use `IJobQueueService` injection
-- [ ] **Test thoroughly on PostgreSQL** - ensure no regression
+- [ ] Implement `PgBossAdapter` wrapping existing pgboss functionality
+  - [ ] Handle `null` return from `boss.send()` for singleton deduplication (D-14)
+- [ ] Create `JobQueueModule` with engine-conditional factory and `TypeOrmModule.forFeature` (D-12)
+- [ ] Update `SbSyncConsumer` to inject `IJobQueueService` instead of pgboss directly
+- [ ] Update controllers to inject `IJobQueueService`
+  - [ ] Fix `triggerSync()` call signature and remove pgboss-internal field access (D-15)
+- [ ] **Test thoroughly on PostgreSQL** — ensure no regression
 - [ ] Run all existing unit and integration tests
 - [ ] Verify sync functionality in dev/staging environments
 
 ### Phase 2: MSSQL Implementation
 
-- [ ] Create `JobQueue` and `JobSchedule` entities
-- [ ] Generate MSSQL migration for job queue tables with indexes
-- [ ] Implement `MssqlJobQueueService` with polling mechanism
-- [ ] Create conditional view definition for `SbSyncQueue` (MSSQL version)
-- [ ] Generate MSSQL migration to replace materialized view with regular view
-- [ ] Add `cron-parser` dependency to `package.json` (Note: This dependency is only loaded/used when `DB_ENGINE=mssql`. PostgreSQL deployments using pgboss do not need this package.)
-- [ ] Write unit tests for `MssqlJobQueueService`
-  - Test job submission
-  - Test singleton key enforcement
-  - Test retry logic
-  - Test expiration handling
-  - Test cron scheduling
+- [ ] Create `JobQueue` entity with `availableAt` and `leaseUntil` columns (D-02, D-06)
+  - Remove `@Index` decorator for `singletonKey`; create filtered index via migration SQL (D-11)
+  - No `JobSchedule` entity — scheduling is in-process for v1 (D-10)
+- [ ] Pin `cron-parser@^3.1.0`; use top-level named import (D-13)
+- [ ] Implement `MssqlJobQueueService`:
+  - [ ] Startup sweeper to recover stale `active` jobs on `onApplicationBootstrap` (D-02)
+  - [ ] Atomic job claim using `UPDATE TOP(10) ... WITH (UPDLOCK, ROWLOCK, READPAST) OUTPUT INSERTED.*` (D-01)
+  - [ ] Guarded `setTimeout` polling loop — no overlapping ticks (D-09)
+  - [ ] Persist `availableAt` on retry so delay is actually enforced (D-06)
+  - [ ] In-process cron schedule registry in `schedule()` — no DB table (D-10)
+  - [ ] `sp_getapplock` leader guard in `processSchedules()` (D-07)
+  - [ ] Fix singleton fallback to constrain by active states (D-08)
+  - [ ] Configurable poll intervals via `MSSQL_JOB_POLL_MS` / `MSSQL_SCHEDULE_POLL_MS` (D-16)
+- [ ] Create cross-engine JSON query helper `packages/api/src/utils/db-json-query.ts` (D-04)
+  - [ ] Replace all PostgreSQL-only JSON operators in `sb-sync.consumer.ts`
+- [ ] Fix `SbSyncQueue` entity: replace `@ViewEntity(expression)` with plain `@Entity` (D-03)
+- [ ] Generate new MSSQL migration:
+  - [ ] Create `job_queue` table
+  - [ ] Create filtered unique index `UX_job_queue_singletonKey_active` via raw SQL (D-11)
+  - [ ] Drop dummy `sb_sync_queue` view; create real MSSQL view (D-05)
+- [ ] Write unit tests for `MssqlJobQueueService`:
+  - [ ] Atomic claim — verify no duplicate execution under concurrent poll
+  - [ ] Singleton key enforcement (D-08)
+  - [ ] Retry delay enforcement via `availableAt` (D-06)
+  - [ ] Expiration handling
+  - [ ] Crash-recovery sweeper (D-02)
+  - [ ] In-process cron scheduling
 - [ ] Test MSSQL implementation in isolated environment
 - [ ] Load test to validate performance (100+ jobs)
 
@@ -785,10 +864,14 @@ Similar changes apply to:
 - [ ] Create deployment guide for MSSQL users
 - [ ] Run end-to-end tests with MSSQL database
 - [ ] Verify UI displays job status correctly on MSSQL
-- [ ] Performance comparison between pgboss and MSSQL implementation
-- [ ] Document any behavioral differences (if any)
+- [ ] **Concurrency validation:** confirm atomic claim prevents duplicate job execution (D-01)
+- [ ] **Crash-recovery validation:** simulate process kill mid-job; verify sweeper requeues on restart (D-02)
+- [ ] **Retry delay validation:** confirm `availableAt` is respected and backoff is enforced (D-06)
+- [ ] PostgreSQL regression tests — all existing sync tests pass unchanged
+- [ ] Performance comparison between pgboss and MSSQL implementation (informational, not a gate)
+- [ ] Document MSSQL scheduling jitter (up to `MSSQL_SCHEDULE_POLL_MS`, default 10 s) (D-16)
 - [ ] Final code review and security scan
-- [ ] Update configuration docs for `DB_ENGINE` setting
+- [ ] Update configuration docs for `DB_ENGINE`, `MSSQL_JOB_POLL_MS`, `MSSQL_SCHEDULE_POLL_MS`
 
 ---
 
@@ -967,7 +1050,7 @@ For typical Admin App deployments:
 1. ✅ **Feature Parity:** MSSQL supports all sync operations (scheduled, manual, tenant, environment)
 2. ✅ **No Breaking Changes:** Existing PostgreSQL deployments work without modification
 3. ✅ **No UI Changes:** Frontend code remains identical
-4. ✅ **No New Dependencies:** Only TypeORM and standard libraries
+4. ✅ **Minimal New Dependencies:** One small cron-parsing library (`cron-parser@^3.1.0`) added for the MSSQL path only; no new infrastructure services required (D-17)
 5. ✅ **Performance:** MSSQL sync completes within 2x PostgreSQL time (acceptable tradeoff)
 6. ✅ **Reliability:** Zero data loss, proper retry handling, transaction safety
 7. ✅ **Maintainability:** Clear abstraction, well-documented, testable
