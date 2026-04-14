@@ -22,6 +22,7 @@ import { OdssGlobalModule } from '../edfi-tenants-global/odss-global/odss-global
 import { OdssModule } from '../teams/edfi-tenants/odss/odss.module';
 import { OwnershipsGlobalModule } from '../ownerships-global/ownerships-global.module';
 import { OwnershipsModule } from '../teams/ownerships/ownerships.module';
+import { JobQueueModule } from '../sb-sync/job-queue/job-queue.module';
 import { PgBossModule } from '../sb-sync/pg-boss.module';
 import { RolesGlobalModule } from '../roles-global/roles-global.module';
 import { RolesModule } from '../teams/roles/roles.module';
@@ -75,6 +76,7 @@ import config from 'config';
     OwnershipsGlobalModule,
     OwnershipsModule,
     PgBossModule,
+    JobQueueModule,
     RolesGlobalModule,
     RolesModule,
     SbEnvironmentsGlobalModule,
