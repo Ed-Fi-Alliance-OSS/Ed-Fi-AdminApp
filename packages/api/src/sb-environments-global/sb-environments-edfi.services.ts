@@ -1,4 +1,4 @@
-import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
+import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
   determineTenantModeFromMetadata,
   determineVersionFromMetadata,
@@ -7,7 +7,7 @@ import {
   ValidationHttpException,
 } from '../utils';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
-import { addUserCreating, EdfiTenant, SbEnvironment, Edorg, Ods } from '@edanalytics/models-server';
+import { addUserCreating, EdfiTenant, SbEnvironment, Edorg, Ods, SbSyncQueue } from '@edanalytics/models-server';
 import { EntityManager, Repository } from 'typeorm';
 import {
   StartingBlocksServiceV1,
@@ -23,10 +23,13 @@ import {
   PostSbEnvironmentTenantDTO,
   GetUserDto,
   ISbEnvironmentConfigPublicV2,
+  PgBossJobState,
+  toSbSyncQueueDto,
 } from '@edanalytics/models';
 import axios from 'axios';
 import { persistSyncTenant, SyncableOds } from '../sb-sync/sync-ods';
 import { randomBytes, randomUUID } from 'crypto';
+import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
 
 type TenantCredentials = { clientId: string; clientSecret: string; displayName: string };
 type TenantCredentialsMap = Map<string, TenantCredentials>;
@@ -43,7 +46,11 @@ export class SbEnvironmentsEdFiService {
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    private readonly entityManager: EntityManager,
+    @Inject('PgBossInstance')
+    private readonly boss: PgBossInstance,
+    @InjectRepository(SbSyncQueue)
+    private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
   private errorMessageEnhancer(originalMessage: string): string {
@@ -179,13 +186,8 @@ export class SbEnvironmentsEdFiService {
           });
         }
 
-        // Validate tenants and create credentials for multi-tenant v2 environments
-        let tenantCredentialsMap: TenantCredentialsMap | undefined;
-        if (createSbEnvironmentDto.isMultitenant && createSbEnvironmentDto.version === 'v2') {
-          tenantCredentialsMap = await this.validateTenantsAndCreateCredentials(createSbEnvironmentDto);
-        }
 
-        // Replace the current configPublic logic with this:
+        // Build configPublic based on detected version
         const configPublic =
           createSbEnvironmentDto.version === 'v1'
             ? {
@@ -233,9 +235,10 @@ export class SbEnvironmentsEdFiService {
         );
         if (createSbEnvironmentDto.version === 'v1') {
           await this.syncv1Environment(sbEnvironment, createSbEnvironmentDto);
+          return sbEnvironment;
         } else if (createSbEnvironmentDto.version === 'v2') {
-          // For v2, we need to investigate if applies the same process
-          await this.syncv2Environment(sbEnvironment, createSbEnvironmentDto, tenantCredentialsMap);
+          const syncQueueItem = await this.syncv2Environment(sbEnvironment);
+          return { ...sbEnvironment, syncQueue: toSbSyncQueueDto(syncQueueItem) };
         }
 
         return sbEnvironment;
@@ -279,73 +282,27 @@ export class SbEnvironmentsEdFiService {
     return { status: 'SUCCESS' as const };
   }
 
-  private async syncv2Environment(
-    sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantCredentialsMap?: TenantCredentialsMap
-  ) {
-    if (createSbEnvironmentDto.isMultitenant) {
-      return await this.syncMultiTenantEnvironment(sbEnvironment, createSbEnvironmentDto, tenantCredentialsMap);
-    } else {
-      return await this.syncSingleTenantEnvironment(sbEnvironment, createSbEnvironmentDto);
-    }
-  }
-
-  private async syncMultiTenantEnvironment(
-    sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantCredentialsMap?: TenantCredentialsMap
-  ) {
-    if (!createSbEnvironmentDto.tenants || createSbEnvironmentDto.tenants.length === 0) {
-      throw new ValidationHttpException({
-        field: 'tenants',
-        message: 'At least one tenant is required for multi-tenant deployment',
-      });
-    }
-
-    for (const tenant of createSbEnvironmentDto.tenants) {
-      await this.createAndSyncTenant(sbEnvironment, createSbEnvironmentDto, tenant, tenantCredentialsMap);
-    }
-
-    return { status: 'SUCCESS' as const };
-  }
-
-  private async syncSingleTenantEnvironment(
-    sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto
-  ) {
-    // For single-tenant, use the first tenant from the frontend data
-    if (!createSbEnvironmentDto.tenants || createSbEnvironmentDto.tenants.length === 0) {
-      throw new ValidationHttpException({
-        field: 'tenants',
-        message: 'At least one tenant is required for single-tenant deployment',
-      });
-    }
-
-    const defaultTenantDto = createSbEnvironmentDto.tenants[0];
-
-    // Find or create the default tenant
-    const edfiTenant = await this.findOrCreateTenant(sbEnvironment, defaultTenantDto.name);
-
-    // Sync the tenant data
-    await this.syncTenantData(sbEnvironment, createSbEnvironmentDto, defaultTenantDto, edfiTenant);
-
-    return { status: 'SUCCESS' as const };
-  }
-
-  private async createAndSyncTenant(
-    sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantDto: PostSbEnvironmentTenantDTO,
-    tenantCredentialsMap?: TenantCredentialsMap
-  ) {
-    // Create the tenant in the local database
-    const tenantEntity = await this.edfiTenantsRepository.save({
-      name: tenantDto.name,
-      sbEnvironmentId: sbEnvironment.id,
+  private async syncv2Environment(sbEnvironment: SbEnvironment): Promise<SbSyncQueue> {
+    const id = await this.boss.send(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: sbEnvironment.id },
+      { expireInHours: 2 }
+    );
+    const repo = this.queueRepository;
+    return new Promise((resolve) => {
+      let queueItem: SbSyncQueue;
+      const timer = setInterval(poll, 500);
+      const pendingState: PgBossJobState[] = ['created', 'retry', 'active'];
+      let i = 0;
+      async function poll() {
+        queueItem = await repo.findOneBy({ id });
+        if (i === 20 || !pendingState.includes(queueItem.state)) {
+          clearInterval(timer);
+          resolve(queueItem);
+        }
+        i++;
+      }
     });
-
-    await this.syncTenantData(sbEnvironment, createSbEnvironmentDto, tenantDto, tenantEntity, tenantCredentialsMap);
   }
 
   private async findOrCreateTenant(
@@ -366,61 +323,12 @@ export class SbEnvironmentsEdFiService {
     return existingTenants[0];
   }
 
-  private async syncTenantData(
-    sbEnvironment: SbEnvironment,
-    createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantDto: PostSbEnvironmentTenantDTO,
-    tenantEntity: EdfiTenant,
-    tenantCredentialsMap?: TenantCredentialsMap
-  ) {
-    // Create ODS metadata objects
-    const metaOds: SbV2MetaOds[] = this.createODSObject(tenantDto);
-
-    // Sync ODS and EdOrgs
-    await this.saveSyncableOds(metaOds, tenantEntity);
-
-    // Create Admin API credentials - use cached credentials if available
-    await this.createAdminAPICredentialsV2(createSbEnvironmentDto, tenantEntity, sbEnvironment, tenantCredentialsMap);
-  }
-
   private async syncTenantDataV1(tenantDto: PostSbEnvironmentTenantDTO, tenantEntity: EdfiTenant) {
     // Create V1 ODS metadata objects
     const metaOds: SbV1MetaOds[] = this.createODSObjectV1(tenantDto);
 
     // Sync ODS and EdOrgs using V1 method
     await this.saveSyncableOdsV1(metaOds, tenantEntity);
-  }
-
-  private async createAdminAPICredentialsV2(
-    createSbEnvironmentDto: PostSbEnvironmentDto,
-    tenantEntity: { name: string; sbEnvironmentId: number } & EdfiTenant,
-    sbEnvironment: SbEnvironment,
-    tenantCredentialsMap?: TenantCredentialsMap
-  ) {
-    let clientId: string;
-    let clientSecret: string;
-
-    // Use cached credentials if available, otherwise create new ones
-    if (tenantCredentialsMap && tenantCredentialsMap.has(tenantEntity.name)) {
-      const cachedCredentials = tenantCredentialsMap.get(tenantEntity.name);
-      clientId = cachedCredentials.clientId;
-      clientSecret = cachedCredentials.clientSecret;
-      this.logger.log(`Using cached credentials for tenant: ${tenantEntity.name}`);
-    } else {
-      // Fallback to creating new credentials (for single-tenant or when cache is not available)
-      const credentials = await this.createClientCredentials(
-        createSbEnvironmentDto,
-        tenantEntity.name
-      );
-      clientId = credentials.clientId;
-      clientSecret = credentials.clientSecret;
-    }
-
-    await this.startingBlocksServiceV2.saveAdminApiCredentials(tenantEntity, sbEnvironment, {
-      ClientId: clientId,
-      ClientSecret: clientSecret,
-      url: createSbEnvironmentDto.adminApiUrl,
-    });
   }
 
   private createODSObject(tenant: PostSbEnvironmentTenantDTO): SbV2MetaOds[] {
