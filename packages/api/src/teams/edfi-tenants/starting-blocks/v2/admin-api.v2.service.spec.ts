@@ -145,11 +145,8 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       const result = await service.getTenants(environment);
 
       expect(result).toHaveLength(2);
-      expect(mockRootGet).toHaveBeenCalledWith('/', expect.objectContaining({
-        headers: expect.objectContaining({
-          Authorization: 'Bearer mock-token',
-        }),
-      }));
+      // GET / is publicly accessible — getTenantNames (called by getTenants) sends no Authorization header
+      expect(mockRootGet).toHaveBeenCalledWith('/');
       expect(mockApiGet).toHaveBeenCalledWith('tenants/tenant-one/OdsInstances/edOrgs', expect.objectContaining({
         headers: expect.objectContaining({
           Authorization: 'Bearer token-tenant-one',

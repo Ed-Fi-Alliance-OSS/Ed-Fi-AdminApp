@@ -5,7 +5,7 @@ import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
 import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
-import { persistSyncTenant } from '../sync-ods';
+import { persistSyncTenant, SyncableOds } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
@@ -136,7 +136,7 @@ export class AdminApiSyncService {
    */
   private async provisionCredentialsForNewTenants(
     sbEnvironment: SbEnvironment,
-    discoveredTenants: TenantDto[]
+    discoveredTenants: string[]
   ): Promise<void> {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
@@ -149,7 +149,7 @@ export class AdminApiSyncService {
     const v2ConfigPrivate = configPrivate as ISbEnvironmentConfigPrivateV2 | null;
 
     const existingTenants = Object.keys(v2ConfigPublic.tenants || {});
-    const discoveredTenantNames = discoveredTenants.map(t => t.name);
+    const discoveredTenantNames = discoveredTenants;
 
     // Find tenants that were discovered but don't have credentials yet
     const newTenants = discoveredTenantNames.filter(name => !existingTenants.includes(name));
@@ -179,8 +179,7 @@ export class AdminApiSyncService {
         this.logger.log(`Creating credentials for new tenant: ${tenantName}`);
         const { clientId, clientSecret } = await this.createClientCredentials(
           sbEnvironment.adminApiUrl!,
-          tenantName,
-          true // isMultiTenant
+          tenantName
         );
 
         // Store credentials in config
@@ -230,8 +229,7 @@ export class AdminApiSyncService {
    */
   private async createClientCredentials(
     adminApiUrl: string,
-    tenantName: string,
-    isMultiTenant: boolean
+    tenantName?: string
   ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
     const registerUrl = `${adminApiUrl}/connect/register`;
     
@@ -252,7 +250,7 @@ export class AdminApiSyncService {
     formData.append('ClientSecret', clientSecret);
     formData.append('DisplayName', displayName);
 
-    const headers = isMultiTenant
+    const headers = tenantName != null
       ? {
           'Content-Type': 'application/x-www-form-urlencoded',
           tenant: tenantName,
@@ -275,7 +273,7 @@ export class AdminApiSyncService {
       this.logger.error(`Failed to register client credentials for tenant ${tenantName}:`, error);
 
       // Provide helpful error message
-      if (error.response?.status === 400 && isMultiTenant) {
+      if (tenantName && error.response?.status === 400) {
         throw new Error(
           `Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`
         );
@@ -317,44 +315,32 @@ export class AdminApiSyncService {
 
       this.logger.log(`Environment ${sbEnvironment.name} is using Admin API version: ${version}`);
 
-      // Select appropriate Admin API service based on version
-      const adminApiService = version === 'v1' ? this.adminApiServiceV1 : this.adminApiServiceV2;
-
-      // Discover tenants from the Admin API
-      this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);
-      let tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
-
-      if (!tenants || tenants.length === 0) {
-        this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
-        return {
-          status: 'SUCCESS',
-          message: 'No tenants found to sync',
-          tenantsProcessed: 0,
-        };
-      }
-
-      this.logger.log(`Found ${tenants.length} tenant(s) for environment: ${sbEnvironment.name}`);
-
       // -----------------------------------------------------------------------
-      // V2 path: use syncTenantData() per tenant so each request goes through
-      // getAdminApiClient() — the only code path that correctly resolves
-      // per-tenant credentials via the request interceptor.  Using getTenants()
-      // bulk data directly caused the "wrong credentials / wrong data" issue
-      // because it uses a manually-constructed client.
+      // V2 path — discover tenant names only; ODS data is fetched per-tenant
+      // inside syncTenantData() via getAdminApiClient() so each request uses the
+      // correct per-tenant credentials.  getTenants() is intentionally NOT used
+      // here because it would wastefully re-fetch ODS data that syncTenantData
+      // fetches again anyway, and it uses manual token management that can cause
+      // credential-mismatch issues during a create flow.
       // -----------------------------------------------------------------------
       if (version === 'v2') {
-        const configPublic = sbEnvironment.configPublic;
+        const tenantNames = await this.adminApiServiceV2.getTenantNames(sbEnvironment);
+
+        if (!tenantNames || tenantNames.length === 0) {
+          this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
+          return { status: 'SUCCESS', message: 'No tenants found to sync', tenantsProcessed: 0 };
+        }
+
+        this.logger.log(`Found ${tenantNames.length} tenant(s) for environment: ${sbEnvironment.name}`);
+
         const isMultiTenant =
-          configPublic?.version === 'v2' &&
-          configPublic.values?.meta?.mode === 'MultiTenant';
+          sbEnvironment.configPublic?.version === 'v2' &&
+          sbEnvironment.configPublic.values?.meta?.mode === 'MultiTenant';
 
         if (isMultiTenant) {
-          // Provision credentials for tenants discovered by the API but not yet
-          // in our config (newly discovered tenants).
-          await this.provisionCredentialsForNewTenants(sbEnvironment, tenants);
+          // Provision credentials for any newly-discovered tenants before syncing.
+          await this.provisionCredentialsForNewTenants(sbEnvironment, tenantNames);
 
-          // Reload so syncTenantData (which re-reads sbEnvironment from DB per
-          // tenant) picks up the freshly written credentials.
           const reloadedEnvironment = await this.sbEnvironmentsRepository.findOne({
             where: { id: sbEnvironment.id },
           });
@@ -363,37 +349,30 @@ export class AdminApiSyncService {
           }
         }
 
-        // Ensure an EdfiTenant row exists for every tenant the API returned,
-        // then delegate to syncTenantData which uses getAdminApiClient().
         let processedCount = 0;
-        for (const tenantData of tenants) {
+        for (const tenantName of tenantNames) {
           try {
             let edfiTenant = await this.edfiTenantsRepository.findOne({
-              where: { name: tenantData.name, sbEnvironmentId: sbEnvironment.id },
+              where: { name: tenantName, sbEnvironmentId: sbEnvironment.id },
             });
             if (!edfiTenant) {
-              this.logger.log(`Creating EdfiTenant row for newly discovered tenant: ${tenantData.name}`);
+              this.logger.log(`Creating EdfiTenant row for newly discovered tenant: ${tenantName}`);
               edfiTenant = await this.edfiTenantsRepository.save({
-                name: tenantData.name,
+                name: tenantName,
                 sbEnvironmentId: sbEnvironment.id,
                 created: new Date(),
               });
             }
 
-            // syncTenantData fetches ODS data via getAdminApiClient() — credentials
-            // and the tenant header are managed by the request interceptor, ensuring
-            // each tenant only receives its own data.
             const result = await this.syncTenantData(edfiTenant);
             if (result.status === 'SUCCESS') {
               processedCount++;
             } else {
-              this.logger.error(
-                `Sync failed for tenant ${tenantData.name}: ${result.message}`
-              );
+              this.logger.error(`Sync failed for tenant ${tenantName}: ${result.message}`);
             }
           } catch (tenantError) {
             this.logger.error(
-              `Error processing tenant ${tenantData.name}: ${tenantError.message}`,
+              `Error processing tenant ${tenantName}: ${tenantError.message}`,
               tenantError.stack
             );
           }
@@ -401,22 +380,23 @@ export class AdminApiSyncService {
 
         this.logger.log(
           `Admin API v2 sync completed for environment: ${sbEnvironment.name}. ` +
-          `Processed ${processedCount}/${tenants.length} tenant(s)`
+          `Processed ${processedCount}/${tenantNames.length} tenant(s)`
         );
 
-        // Remove tenants that exist in the DB but were not returned by the API.
-        // Their ODS and EdOrgs cascade-delete via FK (onDelete: 'CASCADE').
-        const apiTenantNamesV2 = new Set(tenants.map(t => t.name));
-        const dbTenantsV2 = await this.edfiTenantsRepository.find({
+        const apiTenantNamesV2 = new Set(tenantNames);
+        const dbTenantsV2 = (await this.edfiTenantsRepository.find({
           where: { sbEnvironmentId: sbEnvironment.id },
-        }) ?? [];
+        })) ?? [];
         const orphanedV2Ids = dbTenantsV2
-          .filter(t => !apiTenantNamesV2.has(t.name))
-          .map(t => t.id);
+          .filter((t) => !apiTenantNamesV2.has(t.name))
+          .map((t) => t.id);
         if (orphanedV2Ids.length > 0) {
           this.logger.log(
             `Removing ${orphanedV2Ids.length} orphaned tenant(s): ` +
-            dbTenantsV2.filter(t => !apiTenantNamesV2.has(t.name)).map(t => t.name).join(', ')
+            dbTenantsV2
+              .filter((t) => !apiTenantNamesV2.has(t.name))
+              .map((t) => t.name)
+              .join(', ')
           );
           await this.edfiTenantsRepository.delete(orphanedV2Ids);
         }
@@ -424,15 +404,24 @@ export class AdminApiSyncService {
         this.flushOwnershipCache();
         return {
           status: 'SUCCESS',
-          message: `Successfully synced ${processedCount} of ${tenants.length} tenant(s)`,
+          message: `Successfully synced ${processedCount} of ${tenantNames.length} tenant(s)`,
           tenantsProcessed: processedCount,
         };
       }
 
       // -----------------------------------------------------------------------
-      // V1 path: single-tenant, use processTenantData directly with the data
-      // already fetched by getTenants() (no per-tenant credential split needed).
+      // V1 path — single-tenant; use processTenantData with the full TenantDto
+      // returned by getTenants() (no per-tenant credential split needed).
       // -----------------------------------------------------------------------
+      const tenants = await this.adminApiServiceV1.getTenants(sbEnvironment);
+
+      if (!tenants || tenants.length === 0) {
+        this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
+        return { status: 'SUCCESS', message: 'No tenants found to sync', tenantsProcessed: 0 };
+      }
+
+      this.logger.log(`Found ${tenants.length} tenant(s) for environment: ${sbEnvironment.name}`);
+
       let processedCount = 0;
       for (const tenantData of tenants) {
         try {
@@ -621,20 +610,16 @@ export class AdminApiSyncService {
 
       this.logger.log(`Credentials validated for tenant ${edfiTenant.name}`);
 
-      // For v2, fetch tenant details from the correct endpoint
-      const endpoint = `tenants/${edfiTenant.name}/OdsInstances/edOrgs`;
-      
-      this.logger.log(`Fetching tenant details from Admin API: ${endpoint}`);
-
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let tenantDetails: any;
+      // Fetch and persist ODS data using getTenantOdsInstances(), which calls
+      // getAdminApiClient() internally — the same mechanism used by all other
+      // tenant-scoped API calls in AdminApiServiceV2.
+      this.logger.log(`Fetching ODS instances for tenant: ${edfiTenant.name}`);
+      let syncableOdss: SyncableOds[];
       try {
-        // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
-        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment)
-          .get(endpoint);
+        syncableOdss = await this.adminApiServiceV2.getTenantOdsInstances(tenantWithEnvironment);
       } catch (apiError) {
         this.logger.error(
-          `Failed to retrieve tenant details from Admin API: ${apiError.message}`,
+          `Failed to retrieve ODS instances from Admin API: ${apiError.message}`,
           apiError.stack
         );
         return {
@@ -644,47 +629,19 @@ export class AdminApiSyncService {
         };
       }
 
-      if (!tenantDetails) {
-        this.logger.warn(`No details returned for tenant: ${edfiTenant.name}`);
-        return {
-          status: 'SUCCESS',
-          message: 'No tenant details found',
-        };
-      }
-
       this.logger.log(
-        `Retrieved ${tenantDetails.odsInstances?.length || 0} ODS instance(s) for tenant: ${edfiTenant.name}`
+        `Persisting ${syncableOdss.length} ODS instance(s) for tenant: ${edfiTenant.name}`
       );
-
-      // Transform the v2 response to TenantDto format
-      const tenantDto: TenantDto = {
-        id: tenantDetails.id || edfiTenant.name,
-        name: tenantDetails.name || edfiTenant.name,
-        odsInstances: (tenantDetails.odsInstances || []).map((instance: any) => ({
-          id: instance.id ?? null,
-          name: instance.name || 'Unknown ODS Instance',
-          instanceType: instance.instanceType,
-          edOrgs: (instance.educationOrganizations || []).map((edOrg: any) => ({
-            instanceId: instance.id,
-            instanceName: instance.name,
-            educationOrganizationId: edOrg.educationOrganizationId,
-            nameOfInstitution: edOrg.nameOfInstitution,
-            shortNameOfInstitution: edOrg.shortNameOfInstitution,
-            discriminator: edOrg.discriminator,
-            parentId: edOrg.parentId,
-          })),
-        })),
-      };
-
-      // Use the shared helper to process the tenant data
-      await this.processTenantData(tenantDto, sbEnvironment);
+      await this.entityManager.transaction(async (em) => {
+        await persistSyncTenant({ em, edfiTenant: tenantWithEnvironment, odss: syncableOdss });
+      });
 
       this.logger.log(`Successfully synced tenant: ${edfiTenant.name}`);
       this.flushOwnershipCache();
 
       return {
         status: 'SUCCESS',
-        message: `Successfully synced ${tenantDto.odsInstances?.length || 0} ODS instance(s)`,
+        message: `Successfully synced ${syncableOdss.length} ODS instance(s)`,
       };
     } catch (error) {
       // Extract detailed error information

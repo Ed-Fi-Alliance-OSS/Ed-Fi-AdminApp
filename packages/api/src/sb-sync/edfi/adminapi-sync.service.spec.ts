@@ -128,6 +128,8 @@ describe('AdminApiSyncService', () => {
 
     const mockAdminApiServiceV2 = {
       getTenants: jest.fn(),
+      getTenantNames: jest.fn(),
+      getTenantOdsInstances: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -294,19 +296,12 @@ describe('AdminApiSyncService', () => {
     describe('v2 environment sync', () => {
       it('should successfully sync v2 environment by calling syncTenantData per tenant', async () => {
         const environment = mockSbEnvironmentV2 as SbEnvironment;
-        const tenants = [
-          mockTenantDto,
-          { ...mockTenantDto, id: 'tenant-2', name: 'tenant-two' },
-        ];
+        adminApiServiceV2.getTenantNames.mockResolvedValue(['tenant-one', 'tenant-two']);
 
-        adminApiServiceV2.getTenants.mockResolvedValue(tenants);
-
-        // findOne: first call in syncEnvironmentData (find-or-create), second in syncTenantData (with relations)
+        // findOne: syncEnvironmentData does one find-or-create per tenant name
         edfiTenantsRepository.findOne
-          .mockResolvedValueOnce(mockEdfiTenant as EdfiTenant)  // syncEnvironmentData find for tenant-one
-          .mockResolvedValueOnce(mockEdfiTenant as EdfiTenant)  // syncTenantData reload for tenant-one
-          .mockResolvedValueOnce(null)                          // syncEnvironmentData find for tenant-two (not found)
-          .mockResolvedValueOnce({ ...mockEdfiTenant, id: 2, name: 'tenant-two', sbEnvironment: mockSbEnvironmentV2 } as any); // syncTenantData reload
+          .mockResolvedValueOnce(mockEdfiTenant as EdfiTenant)  // find for tenant-one (found)
+          .mockResolvedValueOnce(null);                         // find for tenant-two (not found)
 
         edfiTenantsRepository.save.mockResolvedValue({ ...mockEdfiTenant, id: 2, name: 'tenant-two' } as EdfiTenant);
 
@@ -319,17 +314,17 @@ describe('AdminApiSyncService', () => {
 
         expect(result.status).toBe('SUCCESS');
         expect(result.tenantsProcessed).toBe(2);
-        expect(adminApiServiceV2.getTenants).toHaveBeenCalledWith(environment);
+        expect(adminApiServiceV2.getTenantNames).toHaveBeenCalledWith(environment);
         expect(syncTenantDataSpy).toHaveBeenCalledTimes(2);
       });
 
       it('should use v2 service for v2 environment', async () => {
         const environment = mockSbEnvironmentV2 as SbEnvironment;
-        adminApiServiceV2.getTenants.mockResolvedValue([]);
+        adminApiServiceV2.getTenantNames.mockResolvedValue([]);
 
         await service.syncEnvironmentData(environment);
 
-        expect(adminApiServiceV2.getTenants).toHaveBeenCalledWith(environment);
+        expect(adminApiServiceV2.getTenantNames).toHaveBeenCalledWith(environment);
         expect(adminApiServiceV1.getTenants).not.toHaveBeenCalled();
       });
     });
@@ -529,13 +524,8 @@ describe('AdminApiSyncService', () => {
       it('should provision credentials for newly discovered tenants and then call syncTenantData (no second getTenants call)', async () => {
         const environment = mockSbEnvironmentV2MultiTenant as SbEnvironment;
 
-        // getTenants is called ONCE — new code delegates to syncTenantData per tenant
-        // rather than re-fetching from getTenants
-        const discoveredTenants = [
-          { ...mockTenantDto, name: 'tenant-one' },
-          { ...mockTenantDto, name: 'tenant-two' },
-        ];
-        adminApiServiceV2.getTenants.mockResolvedValue(discoveredTenants as any);
+        // getTenantNames is called ONCE — credential provisioning no longer triggers a re-fetch
+        adminApiServiceV2.getTenantNames.mockResolvedValue(['tenant-one', 'tenant-two']);
 
         jest
           .spyOn(service as any, 'provisionCredentialsForNewTenants')
@@ -554,8 +544,8 @@ describe('AdminApiSyncService', () => {
         const result = await service.syncEnvironmentData(environment);
 
         expect(result.status).toBe('SUCCESS');
-        // getTenants called exactly ONCE — credential provisioning no longer triggers a re-fetch
-        expect(adminApiServiceV2.getTenants).toHaveBeenCalledTimes(1);
+        // getTenantNames called exactly ONCE — credential provisioning no longer triggers a re-fetch
+        expect(adminApiServiceV2.getTenantNames).toHaveBeenCalledTimes(1);
         // syncTenantData called once per discovered tenant
         expect(syncTenantDataSpy).toHaveBeenCalledTimes(2);
       });
@@ -802,42 +792,20 @@ describe('AdminApiSyncService', () => {
       };
 
       it('should successfully sync v2 tenant with multiple ODS instances', async () => {
-        const tenantDetailsV2 = {
-          odsInstances: [
-            {
-              id: 1,
-              name: 'ODS One',
-              instanceType: 'Production',
-              educationOrganizations: [
-                {
-                  educationOrganizationId: 255901,
-                  nameOfInstitution: 'School One',
-                  discriminator: 'edfi.School',
-                },
-              ],
-            },
-            {
-              id: 2,
-              name: 'ODS Two',
-              instanceType: 'Production',
-              educationOrganizations: [
-                {
-                  educationOrganizationId: 255902,
-                  nameOfInstitution: 'School Two',
-                  discriminator: 'edfi.LocalEducationAgency',
-                },
-              ],
-            },
-          ],
-        };
+        const syncableOdss = [
+          {
+            id: 1, name: 'ODS One', dbName: 'ODS One',
+            edorgs: [{ educationorganizationid: 255901, nameofinstitution: 'School One', shortnameofinstitution: null, discriminator: 'edfi.School', parent: undefined }],
+          },
+          {
+            id: 2, name: 'ODS Two', dbName: 'ODS Two',
+            edorgs: [{ educationorganizationid: 255902, nameofinstitution: 'School Two', shortnameofinstitution: null, discriminator: 'edfi.LocalEducationAgency', parent: undefined }],
+          },
+        ];
 
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
-
-        const mockApiClient = {
-          get: jest.fn().mockResolvedValue(tenantDetailsV2),
-        };
-
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        adminApiServiceV2.getTenantOdsInstances.mockResolvedValue(syncableOdss as any);
 
         const persistSyncTenantSpy = jest
           .spyOn(syncOds, 'persistSyncTenant')
@@ -851,22 +819,17 @@ describe('AdminApiSyncService', () => {
 
         expect(result.status).toBe('SUCCESS');
         expect(result.message).toContain('Successfully synced 2 ODS instance');
-        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs');
+        expect(adminApiServiceV2.getTenantOdsInstances).toHaveBeenCalledWith(mockEdfiTenantV2WithEnvironment);
         expect(persistSyncTenantSpy).toHaveBeenCalled();
       });
 
-      it('should use correct v2 endpoint format', async () => {
+      it('should call getTenantOdsInstances with the loaded tenant entity', async () => {
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
-
-        const mockApiClient = {
-          get: jest.fn().mockResolvedValue({ odsInstances: [] }),
-        };
-
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+        adminApiServiceV2.getTenantOdsInstances.mockResolvedValue([]);
 
         await (service as any).syncTenantData({ id: 2, name: 'tenant-two' } as EdfiTenant);
 
-        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs');
+        expect(adminApiServiceV2.getTenantOdsInstances).toHaveBeenCalledWith(mockEdfiTenantV2WithEnvironment);
       });
     });
 
@@ -875,11 +838,7 @@ describe('AdminApiSyncService', () => {
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
 
         const apiError = new Error('Admin API connection failed');
-        const mockApiClient = {
-          get: jest.fn().mockRejectedValue(apiError),
-        };
-
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+        adminApiServiceV2.getTenantOdsInstances.mockRejectedValue(apiError);
 
         const result = await (service as any).syncTenantData({ id: 2, name: 'tenant-two' } as EdfiTenant);
 
@@ -889,30 +848,12 @@ describe('AdminApiSyncService', () => {
       });
 
       it('should return ERROR when persistence fails', async () => {
-        const tenantDetailsV2 = {
-          odsInstances: [
-            {
-              id: 1,
-              name: 'ODS One',
-              instanceType: 'Production',
-              educationOrganizations: [
-                {
-                  educationOrganizationId: 255901,
-                  nameOfInstitution: 'School One',
-                  discriminator: 'edfi.School',
-                },
-              ],
-            },
-          ],
-        };
+        const syncableOdss = [
+          { id: 1, name: 'ODS One', dbName: 'ODS One', edorgs: [] },
+        ];
 
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
-
-        const mockApiClient = {
-          get: jest.fn().mockResolvedValue(tenantDetailsV2),
-        };
-
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockReturnValue(mockApiClient);
+        adminApiServiceV2.getTenantOdsInstances.mockResolvedValue(syncableOdss);
 
         const persistError = new Error('Database error');
         jest.spyOn(syncOds, 'persistSyncTenant').mockRejectedValue(persistError);
@@ -927,34 +868,27 @@ describe('AdminApiSyncService', () => {
         expect(result.error).toBe(persistError);
       });
 
-      it('should handle education organizations with missing optional fields', async () => {
-        const detailsWithPartialData = {
-          odsInstances: [
-            {
-              id: 1,
-              name: 'ODS One',
-              instanceType: 'Production',
-              educationOrganizations: [
-                {
-                  educationOrganizationId: 255901,
-                  nameOfInstitution: 'School One',
-                  // Missing shortNameOfInstitution and parentId
-                  discriminator: 'edfi.School',
-                },
-              ],
-            },
-          ],
-        };
+      it('should pass getTenantOdsInstances result directly to persistSyncTenant', async () => {
+        const syncableOdss = [
+          {
+            id: 1,
+            name: 'ODS One',
+            dbName: 'ODS One',
+            edorgs: [
+              {
+                educationorganizationid: 255901,
+                nameofinstitution: 'School One',
+                shortnameofinstitution: null,
+                discriminator: 'edfi.School',
+                parent: undefined,
+              },
+            ],
+          },
+        ];
 
         edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenantV2WithEnvironment as EdfiTenant);
-
-        const mockApiClient = {
-          get: jest.fn().mockResolvedValue(detailsWithPartialData),
-        };
-
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockImplementation((tenant) => {
-          return mockApiClient;
-        });
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        adminApiServiceV2.getTenantOdsInstances.mockResolvedValue(syncableOdss as any);
 
         const persistSyncTenantSpy = jest
           .spyOn(syncOds, 'persistSyncTenant')
@@ -968,8 +902,7 @@ describe('AdminApiSyncService', () => {
 
         expect(result.status).toBe('SUCCESS');
         expect(persistSyncTenantSpy).toHaveBeenCalled();
-        
-        // Verify the call arguments
+
         const callArgs = persistSyncTenantSpy.mock.calls[0][0];
         expect(callArgs.em).toBe(entityManager);
         expect(callArgs.edfiTenant).toMatchObject({
