@@ -229,7 +229,13 @@ export class SbSyncController {
       let i = 0;
       async function poll() {
         job = await jobQueue.getJobById(id);
-        if (i === 120 || job.completedon !== null) {
+        if (
+          i === 120 ||
+          job.state === 'completed' ||
+          job.state === 'failed' ||
+          job.state === 'cancelled' ||
+          job.state === 'expired'
+        ) {
           clearInterval(timer);
           r(
             toOperationResultDto(
@@ -242,7 +248,10 @@ export class SbSyncController {
                 ? {
                     type: 'Error',
                     title: 'Failed to queue sync',
-                    data: _.omit(job.output as object, 'stack'),
+                    data:
+                      typeof job.output === 'object' && job.output !== null
+                        ? _.omit(job.output as object, 'stack')
+                        : undefined,
                   }
                 : {
                     type: 'Warning',

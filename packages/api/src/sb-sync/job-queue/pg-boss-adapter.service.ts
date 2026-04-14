@@ -14,8 +14,10 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     await this.boss.stop(options);
   }
 
-  async send<T = object>(queueName: string, data: T, options?: JobOptions): Promise<string> {
-    const id = await this.boss.send(queueName, data as object, {
+  async send<T = object>(queueName: string, data: T | null, options?: JobOptions): Promise<string> {
+    // Normalize null/undefined to an empty object — pg-boss expects an object payload.
+    const payload = (data ?? {}) as object;
+    const id = await this.boss.send(queueName, payload, {
       ...(options?.singletonKey !== undefined && { singletonKey: options.singletonKey }),
       ...(options?.expireInHours !== undefined && { expireInHours: options.expireInHours }),
       ...(options?.retryLimit !== undefined && { retryLimit: options.retryLimit }),
@@ -35,7 +37,9 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     data: unknown,
     options?: ScheduleOptions
   ): Promise<void> {
-    await this.boss.schedule(queueName, cron, data as object, { tz: options?.tz });
+    // Normalize null/undefined to an empty object — pg-boss expects an object payload.
+    const payload = (data ?? {}) as object;
+    await this.boss.schedule(queueName, cron, payload, { tz: options?.tz });
   }
 
   async work<T = object>(

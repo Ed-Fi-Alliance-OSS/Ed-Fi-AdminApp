@@ -1,4 +1,4 @@
-# Design Decisions & Required Improvements (Cluade Sonnet 4.6)
+# Design Decisions & Required Improvements (Claude Sonnet 4.6)
 ## MSSQL SB Sync Strategy — Consolidated Review
 
 > **Source documents:**

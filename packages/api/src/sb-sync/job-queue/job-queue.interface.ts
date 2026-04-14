@@ -34,7 +34,7 @@ export interface ScheduleOptions {
 export interface IJobQueueService {
   start(): Promise<void>;
   stop(options?: { graceful?: boolean; destroy?: boolean }): Promise<void>;
-  send<T = object>(queueName: string, data: T, options?: JobOptions): Promise<string>;
+  send<T = object>(queueName: string, data: T | null, options?: JobOptions): Promise<string>;
   schedule(
     queueName: string,
     cron: string,
