@@ -41,7 +41,8 @@ import {
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { SbEnvironmentsGlobalService } from '../sb-environments-global/sb-environments-global.service';
-import { PgBossInstance, TENANT_SYNC_CHNL } from '../sb-sync/sb-sync.module';
+import { TENANT_SYNC_CHNL } from '../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import { adminApiSelfRegisterFailureMsgs } from '../teams/edfi-tenants/adminApiLoginFailureMsgs';
 import { EdfiTenantsService } from '../teams/edfi-tenants/edfi-tenants.service';
 import {
@@ -63,8 +64,8 @@ export class EdfiTenantsGlobalController {
     private readonly startingBlocksServiceV1: StartingBlocksServiceV1,
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
-    @Inject('PgBossInstance')
-    private readonly boss: PgBossInstance,
+    @Inject('IJobQueueService')
+    private readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
@@ -136,7 +137,7 @@ export class EdfiTenantsGlobalController {
     },
   })
   async refreshResources(@Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number) {
-    const id = await this.boss.send(
+    const id = await this.jobQueue.send(
       TENANT_SYNC_CHNL,
       { edfiTenantId: edfiTenantId },
       { expireInHours: 2 }

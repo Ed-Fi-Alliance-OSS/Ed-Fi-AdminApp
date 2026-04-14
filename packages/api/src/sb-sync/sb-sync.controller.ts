@@ -23,10 +23,10 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
-import PgBoss from 'pg-boss';
 import { Between, FindOptionsWhere, LessThan, MoreThan, Repository } from 'typeorm';
 import { Authorize } from '../auth/authorization';
-import { PgBossInstance, SYNC_SCHEDULER_CHNL } from './sb-sync.module';
+import { SYNC_SCHEDULER_CHNL } from './sb-sync.module';
+import { IJobQueueService, Job } from './job-queue/job-queue.interface';
 
 const sortCols = ['type', 'name', 'dataText', 'state', 'hasChanges', 'createdon', 'completedon'];
 
@@ -124,8 +124,8 @@ export class ParseFilterQueryParamPipe implements PipeTransform {
 @Controller()
 export class SbSyncController {
   constructor(
-    @Inject('PgBossInstance')
-    private readonly boss: PgBossInstance,
+    @Inject('IJobQueueService')
+    private readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
@@ -221,14 +221,14 @@ export class SbSyncController {
     },
   })
   async triggerSync() {
-    const boss = this.boss;
-    const id = await boss.send({ name: SYNC_SCHEDULER_CHNL });
+    const jobQueue = this.jobQueue;
+    const id = await jobQueue.send(SYNC_SCHEDULER_CHNL, null);
     return new Promise((r) => {
-      let job: PgBoss.JobWithMetadata<object>;
+      let job: Job;
       const timer = setInterval(poll, 500);
       let i = 0;
       async function poll() {
-        job = await boss.getJobById(id);
+        job = await jobQueue.getJobById(id);
         if (i === 120 || job.completedon !== null) {
           clearInterval(timer);
           r(
@@ -242,22 +242,17 @@ export class SbSyncController {
                 ? {
                     type: 'Error',
                     title: 'Failed to queue sync',
-                    data: _.omit(job.output, 'stack'),
+                    data: _.omit(job.output as object, 'stack'),
                   }
                 : {
                     type: 'Warning',
                     title: 'Unknown issue',
                     data: _.pick(job, [
                       'state',
-                      'retrylimit',
                       'retrycount',
-                      'retrydelay',
-                      'retrybackoff',
                       'startedon',
-                      'expirein',
                       'createdon',
                       'completedon',
-                      'keepuntil',
                       'output',
                     ]),
                   }

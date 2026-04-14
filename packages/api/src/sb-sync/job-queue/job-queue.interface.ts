@@ -43,7 +43,7 @@ export interface IJobQueueService {
   ): Promise<void>;
   work<T = object>(
     queueName: string,
-    handler: (job: Job<T>) => Promise<void>
+    handler: (job: Job<T>) => Promise<unknown>
   ): Promise<void>;
   getJobById(id: string): Promise<Job>;
 }

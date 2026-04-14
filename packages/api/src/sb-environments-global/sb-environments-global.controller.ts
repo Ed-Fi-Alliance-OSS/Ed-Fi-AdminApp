@@ -39,7 +39,8 @@ import {
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
-import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
+import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import {
   CustomHttpException,
   determineTenantModeFromMetadata,
@@ -64,8 +65,8 @@ export class SbEnvironmentsGlobalController {
     @InjectRepository(SbEnvironment)
     private sbEnvironmentsRepository: Repository<SbEnvironment>,
     private startingBlocksServiceV2: StartingBlocksServiceV2,
-    @Inject('PgBossInstance')
-    private readonly boss: PgBossInstance,
+    @Inject('IJobQueueService')
+    private readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
 
@@ -144,7 +145,7 @@ export class SbEnvironmentsGlobalController {
           user
         )
       );
-      const id = await this.boss.send(
+      const id = await this.jobQueue.send(
         ENV_SYNC_CHNL,
         { sbEnvironmentId: sbEnvironment.id },
         { expireInHours: 2 }
@@ -362,7 +363,7 @@ export class SbEnvironmentsGlobalController {
     },
   })
   async refreshResources(@Param('sbEnvironmentId', new ParseIntPipe()) sbEnvironmentId: number) {
-    const id = await this.boss.send(
+    const id = await this.jobQueue.send(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: sbEnvironmentId },
       { expireInHours: 2 }

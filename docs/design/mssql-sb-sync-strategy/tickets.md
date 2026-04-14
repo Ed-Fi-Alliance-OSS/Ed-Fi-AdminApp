@@ -5,14 +5,14 @@
 
 ---
 
-## Phase 1 — Abstraction Layer
+## Phase 1 — Abstraction Layer ✅ COMPLETED
 
 Goal: Introduce the `IJobQueueService` interface and wrap pgboss behind it with zero regression
 on PostgreSQL. No MSSQL-specific code ships in this phase.
 
 ---
 
-### T1-01 — Create `IJobQueueService` Abstraction Interface
+### T1-01 — Create `IJobQueueService` Abstraction Interface ✅
 
 **Summary**
 Define the shared contract that both the pgboss adapter (PostgreSQL) and the custom table-based
@@ -25,22 +25,22 @@ implementation, a typed interface must exist so both implementations can be inje
 interchangeably via NestJS dependency injection.
 
 **Acceptance Criteria**
-- [ ] File `packages/api/src/sb-sync/job-queue/job-queue.interface.ts` exists and exports:
+- [x] File `packages/api/src/sb-sync/job-queue/job-queue.interface.ts` exists and exports:
   - `IJobQueueService` interface with methods: `start`, `stop`, `send`, `schedule`, `work`, `getJobById`
   - `Job<T>` type with fields: `id`, `name`, `data`, `state`, `createdon`, `startedon`, `completedon`, `output`, `retrycount`
   - `JobOptions` type with fields: `singletonKey`, `expireInHours`, `retryLimit`, `retryDelay`, `retryBackoff`
   - `JobState` union type covering: `created`, `retry`, `active`, `completed`, `expired`, `cancelled`, `failed`
   - `ScheduleOptions` type with field: `tz`
-- [ ] All types are exported from the package index or directly importable
-- [ ] No runtime code — interface file only
-- [ ] TypeScript compiles with no errors
+- [x] All types are exported from the package index or directly importable
+- [x] No runtime code — interface file only
+- [x] TypeScript compiles with no errors
 
 **Dependencies**
 None
 
 ---
 
-### T1-02 — Implement `PgBossAdapter` (PostgreSQL Wrapper)
+### T1-02 — Implement `PgBossAdapter` (PostgreSQL Wrapper) ✅
 
 **Summary**
 Wrap the existing pgboss instance behind `IJobQueueService` so the rest of the application uses
@@ -57,20 +57,29 @@ any pgboss behavior. Lifecycle (`start`, `stop`) and scheduling (`schedule`) con
 handled by pgboss internally.
 
 **Acceptance Criteria**
-- [ ] File `packages/api/src/sb-sync/job-queue/pg-boss-adapter.service.ts` exists
-- [ ] `PgBossAdapter` implements `IJobQueueService` and `OnApplicationShutdown`
-- [ ] `send()` handles `null` return: when pgboss returns null (singleton deduped) the adapter returns `options?.singletonKey ?? 'deduped'` instead of propagating null
-- [ ] `send()` return type is `Promise<string>` — no TypeScript errors
-- [ ] All other methods delegate directly to the pgboss instance
-- [ ] `onApplicationShutdown` calls `stop()` gracefully
-- [ ] Existing PostgreSQL sync functionality is unaffected
+- [x] File `packages/api/src/sb-sync/job-queue/pg-boss-adapter.service.ts` exists
+- [x] `PgBossAdapter` implements `IJobQueueService` and `OnApplicationShutdown`
+- [x] `send()` handles `null` return: when pgboss returns null (singleton deduped) the adapter returns `options?.singletonKey ?? 'deduped'` instead of propagating null
+- [x] `send()` return type is `Promise<string>` — no TypeScript errors
+- [x] All other methods delegate directly to the pgboss instance
+- [x] `onApplicationShutdown` calls `stop()` gracefully
+- [x] Existing PostgreSQL sync functionality is unaffected
+
+**Implementation Notes**
+- `PgBossAdapter` wraps the existing `PgBossInstance` injected via the `'PgBossInstance'` token
+  (from `PgBossModule`) rather than creating a new `PgBoss` instance from a connection string.
+  This avoids duplicate boss instances during Phase 1 while `PgBossModule` still co-exists.
+- `work()` uses `{ includeMetadata: true }` to map `PgBoss.JobWithMetadata<T>` → `Job<T>`.
+- A minimal `JobQueue` entity stub was added to `packages/models-server/src/entities/job-queue.entity.ts`
+  to support the conditional `TypeOrmModule.forFeature([JobQueue])` in T1-03. Full columns are
+  added in Phase 2 (T2-01).
 
 **Dependencies**
 - T1-01
 
 ---
 
-### T1-03 — Create `JobQueueModule` with Engine-Conditional Factory
+### T1-03 — Create `JobQueueModule` with Engine-Conditional Factory ✅
 
 **Summary**
 Create a NestJS module that selects the correct `IJobQueueService` implementation at startup
@@ -86,12 +95,12 @@ For Phase 1, the MSSQL branch of the factory can return a placeholder or simply 
 ahead of the Phase 2 implementation.
 
 **Acceptance Criteria**
-- [ ] File `packages/api/src/sb-sync/job-queue/job-queue.module.ts` exists
-- [ ] `TypeOrmModule.forFeature([JobQueue])` is imported **only** when `DB_ENGINE === 'mssql'`
-- [ ] Factory provides `'IJobQueueService'` token with the correct implementation per engine
-- [ ] `PgBossAdapter` is instantiated and returned for `DB_ENGINE !== 'mssql'`
-- [ ] Module is marked `@Global()` and exports `'IJobQueueService'`
-- [ ] PostgreSQL integration tests pass without `job_queue` table existing
+- [x] File `packages/api/src/sb-sync/job-queue/job-queue.module.ts` exists
+- [x] `TypeOrmModule.forFeature([JobQueue])` is imported **only** when `DB_ENGINE === 'mssql'`
+- [x] Factory provides `'IJobQueueService'` token with the correct implementation per engine
+- [x] `PgBossAdapter` is instantiated and returned for `DB_ENGINE !== 'mssql'`
+- [x] Module is marked `@Global()` and exports `'IJobQueueService'`
+- [x] PostgreSQL integration tests pass without `job_queue` table existing
 
 **Dependencies**
 - T1-01
@@ -99,7 +108,7 @@ ahead of the Phase 2 implementation.
 
 ---
 
-### T1-04 — Update `SbSyncConsumer` to Inject `IJobQueueService`
+### T1-04 — Update `SbSyncConsumer` to Inject `IJobQueueService` ✅
 
 **Summary**
 Replace the direct pgboss injection in `SbSyncConsumer` with the `IJobQueueService` abstraction
@@ -112,20 +121,20 @@ PostgreSQL-only JSON operators that will be addressed in Phase 2 (T2-09); add a 
 comment at those lines to track the work.
 
 **Acceptance Criteria**
-- [ ] `SbSyncConsumer` injects `@Inject('IJobQueueService') private readonly jobQueue: IJobQueueService`
-- [ ] All `boss.*` calls replaced with `this.jobQueue.*` equivalents
-- [ ] `onModuleInit` calls `this.jobQueue.schedule(...)` and `this.jobQueue.work(...)` unchanged in behavior
-- [ ] `onModuleDestroy` calls `this.jobQueue.stop()`
-- [ ] PostgreSQL-only JSON operators (`.where("configPublic"->>'...')`) left in place with `// TODO(T2-09)` comment
-- [ ] All existing unit tests for `SbSyncConsumer` pass
-- [ ] End-to-end PostgreSQL sync works in a dev environment
+- [x] `SbSyncConsumer` injects `@Inject('IJobQueueService') private readonly jobQueue: IJobQueueService`
+- [x] All `boss.*` calls replaced with `this.jobQueue.*` equivalents
+- [x] `onModuleInit` calls `this.jobQueue.schedule(...)` and `this.jobQueue.work(...)` unchanged in behavior
+- [x] `onModuleDestroy` calls `this.jobQueue.stop()`
+- [x] PostgreSQL-only JSON operators (`.where("configPublic"->>'...')`) left in place with `// TODO(T2-09)` comment
+- [x] All existing unit tests for `SbSyncConsumer` pass
+- [x] End-to-end PostgreSQL sync works in a dev environment
 
 **Dependencies**
 - T1-03
 
 ---
 
-### T1-05 — Update Controllers to Use `IJobQueueService`
+### T1-05 — Update Controllers to Use `IJobQueueService` ✅
 
 **Summary**
 Replace direct pgboss references in `sb-sync.controller.ts`,
@@ -140,12 +149,12 @@ options?)` signature. It also accesses pgboss-internal fields (`retrylimit`, `re
 `IJobQueueService.Job`. These must be removed from the polling response.
 
 **Acceptance Criteria**
-- [ ] All three controllers inject `@Inject('IJobQueueService') private readonly jobQueue: IJobQueueService`
-- [ ] `triggerSync()` calls `this.jobQueue.send(SYNC_SCHEDULER_CHNL, null)` (standard interface signature)
-- [ ] The polling response in `triggerSync()` only accesses fields defined on `IJobQueueService.Job`: `id`, `name`, `data`, `state`, `createdon`, `startedon`, `completedon`, `output`, `retrycount`
-- [ ] pgboss-internal fields (`retrylimit`, `retrydelay`, `retrybackoff`, `expirein`, `keepuntil`) are removed from the polling response DTO
-- [ ] No TypeScript compilation errors
-- [ ] Existing controller unit tests pass
+- [x] All three controllers inject `@Inject('IJobQueueService') private readonly jobQueue: IJobQueueService`
+- [x] `triggerSync()` calls `this.jobQueue.send(SYNC_SCHEDULER_CHNL, null)` (standard interface signature)
+- [x] The polling response in `triggerSync()` only accesses fields defined on `IJobQueueService.Job`: `id`, `name`, `data`, `state`, `createdon`, `startedon`, `completedon`, `output`, `retrycount`
+- [x] pgboss-internal fields (`retrylimit`, `retrydelay`, `retrybackoff`, `expirein`, `keepuntil`) are removed from the polling response DTO
+- [x] No TypeScript compilation errors
+- [x] Existing controller unit tests pass
 
 **Dependencies**
 - T1-03
