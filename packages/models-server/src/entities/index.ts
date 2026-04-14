@@ -4,6 +4,7 @@ export * from './edorg_closure.entity';
 export * from './env-nav.entity';
 export * from './integration-app.entity';
 export * from './integration-provider.entity';
+export * from './job-queue.entity';
 export * from './ods.entity';
 export * from './oidc.entity';
 export * from './ownership-view.entity';
