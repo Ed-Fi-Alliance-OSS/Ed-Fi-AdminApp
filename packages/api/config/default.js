@@ -166,6 +166,6 @@ module.exports = {
 
   // Certification artifact configuration
   CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
-  CERT_BRUNO_SRC_CHECKSUM: '3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef', // SHA-256 checksum of the artifact zip file for integrity verification
+  CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6', // SHA-256 checksum of the artifact zip file for integrity verification
   CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.
 };
