@@ -32,7 +32,6 @@ import { randomBytes, randomUUID } from 'crypto';
 import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
 
 type TenantCredentials = { clientId: string; clientSecret: string; displayName: string };
-type TenantCredentialsMap = Map<string, TenantCredentials>;
 
 @Injectable()
 export class SbEnvironmentsEdFiService {
@@ -408,43 +407,6 @@ export class SbEnvironmentsEdFiService {
     );
   }
 
-  private async validateTenantsAndCreateCredentials(
-    createSbEnvironmentDto: PostSbEnvironmentDto
-  ): Promise<TenantCredentialsMap> {
-    const credentialsMap = new Map<string, TenantCredentials>();
-    const failedTenants: string[] = [];
-
-    if (!createSbEnvironmentDto.tenants || createSbEnvironmentDto.tenants.length === 0) {
-      throw new ValidationHttpException({
-        field: 'tenants',
-        message: 'At least one tenant is required for multi-tenant deployment',
-      });
-    }
-
-    // Validate all tenants by creating credentials for each
-    for (const tenant of createSbEnvironmentDto.tenants) {
-      try {
-        const credentials = await this.createClientCredentials(createSbEnvironmentDto, tenant.name);
-        credentialsMap.set(tenant.name, credentials);
-        this.logger.log(`Successfully validated tenant: ${tenant.name}`);
-      } catch (error) {
-        this.logger.error(`Failed to validate tenant: ${tenant.name}`, error);
-        failedTenants.push(tenant.name);
-      }
-    }
-
-    // If any tenants failed, throw an error with all failed tenant names
-    if (failedTenants.length > 0) {
-      const failedTenantList = failedTenants.join(', ');
-      throw new ValidationHttpException({
-        field: 'tenants',
-        message: `The following tenant(s) do not exist or are not properly configured in the Admin API: ${failedTenantList}`,
-      });
-    }
-
-    return credentialsMap;
-  }
-
   private async createClientCredentials(
     createSbEnvironmentDto: PostSbEnvironmentDto,
     tenant?: string
@@ -559,84 +521,24 @@ export class SbEnvironmentsEdFiService {
         }
       }
 
-      if (hasUrlUpdates && isV2Environment && isCurrentlyMultiTenant) {
-        this.logger.log(`Validating tenant credentials for v2 multi-tenant environment update. Existing tenants: ${existingEnvironment.edfiTenants?.map(t => t.name).join(', ') || 'none'}`);
+      // Handle credential recreation for v1 environments when Admin API URL changes
+      if (hasUrlUpdates && updateDto.adminApiUrl && isV1Environment) {
+        this.logger.log('Admin API URL changed for v1 environment - recreating credentials');
 
-        // Extract current ODS API URL from the environment
-        const currentOdsApiUrl = this.extractOdsApiUrlFromEnvironment(existingEnvironment);
+        const { clientId, clientSecret } = await this.createClientCredentials({
+          adminApiUrl: updateDto.adminApiUrl,
+          isMultitenant: false,
+          version: 'v1'
+        } as PostSbEnvironmentDto);
 
-        // Create a temporary DTO for validation that includes the existing tenants
-        const validationDto: PostSbEnvironmentDto = {
-          name: updateDto.name,
-          adminApiUrl: updateDto.adminApiUrl || existingEnvironment.configPublic?.adminApiUrl || '',
-          odsApiDiscoveryUrl: updateDto.odsApiDiscoveryUrl || currentOdsApiUrl || '',
-          version: 'v2' as const,
-          startingBlocks: false,
-          isMultitenant: isCurrentlyMultiTenant, // Use current mode since mode changes are not allowed
-          tenants: updateDto.tenants || existingEnvironment.edfiTenants?.map(tenant => ({
-            name: tenant.name,
-            odss: tenant.odss?.map(ods => ({
-              id: ods.id,
-              name: ods.odsInstanceName || ods.dbName,
-              dbName: ods.dbName,
-              allowedEdOrgs: ods.edorgs?.map(edorg => edorg.educationOrganizationId).join(', ') || '',
-            })) || [],
-          })) || [],
+        const credentials = {
+          ClientId: clientId,
+          ClientSecret: clientSecret,
+          url: updateDto.adminApiUrl,
         };
 
-        // Validate that all existing tenants are valid in the Admin API
-        try {
-          await this.validateTenantsAndCreateCredentials(validationDto);
-          this.logger.log('Tenant validation passed for update operation');
-        } catch (error) {
-          this.logger.error('Tenant validation failed during update:', error);
-          throw error; // Re-throw the validation error
-        }
-      }
-
-      // Handle credential recreation for single-tenant environments when Admin API URL changes
-      if (hasUrlUpdates && updateDto.adminApiUrl && !isCurrentlyMultiTenant) {
-        this.logger.log(`Admin API URL changed for ${isV1Environment ? 'v1' : 'v2 single-tenant'} environment - recreating credentials`);
-
-        if (isV1Environment) {
-          // For v1 single-tenant: recreate credentials using v1 method
-          const { clientId, clientSecret } = await this.createClientCredentials({
-            adminApiUrl: updateDto.adminApiUrl,
-            isMultitenant: false,
-            version: 'v1'
-          } as PostSbEnvironmentDto);
-
-          const credentials = {
-            ClientId: clientId,
-            ClientSecret: clientSecret,
-            url: updateDto.adminApiUrl,
-          };
-
-          // Save new credentials for v1 environment
-          await this.startingBlocksServiceV1.saveAdminApiCredentials(existingEnvironment, credentials);
-          this.logger.log('V1 credentials recreated successfully');
-
-        } else if (isV2Environment) {
-          // For v2 single-tenant: recreate credentials for the default tenant
-          const defaultTenant = existingEnvironment.edfiTenants?.[0];
-          if (defaultTenant) {
-            const { clientId, clientSecret } = await this.createClientCredentials({
-              adminApiUrl: updateDto.adminApiUrl,
-              isMultitenant: false,
-              version: 'v2'
-            } as PostSbEnvironmentDto);
-
-            // Save new credentials for v2 single-tenant
-            await this.startingBlocksServiceV2.saveAdminApiCredentials(defaultTenant, existingEnvironment, {
-              ClientId: clientId,
-              ClientSecret: clientSecret,
-              url: updateDto.adminApiUrl,
-            });
-            this.logger.log('V2 single-tenant credentials recreated successfully');
-          } else {
-            this.logger.warn('No default tenant found for v2 single-tenant environment');
-          }
-        }
+        await this.startingBlocksServiceV1.saveAdminApiCredentials(existingEnvironment, credentials);
+        this.logger.log('V1 credentials recreated successfully');
       }
 
       // Update basic environment properties
@@ -691,17 +593,41 @@ export class SbEnvironmentsEdFiService {
       }
 
       const updatedEnvironment = await this.sbEnvironmentsRepository.save(updatedProperties);
+      let syncQueue;
 
-      // Handle tenant and ODS updates if provided
-      if (updateDto.tenants && Array.isArray(updateDto.tenants)) {
+      // For v2 environments, delegate tenant/ODS/EdOrg sync to the background job.
+      // For v1 environments, apply tenant updates from the form data directly.
+      if (isV2Environment) {
+
+        // print the updated environment configuration for debugging
+        this.logger.debug(`Updated environment configuration for sync:\n${JSON.stringify(updatedEnvironment, null, 2)}`);
+
+        const syncQueueItem = await this.syncv2Environment(updatedEnvironment);
+        syncQueue = toSbSyncQueueDto(syncQueueItem);
+
+        // print a message indicating that the sync job has been triggered
+        this.logger.log(`Triggered v2 sync job for environment ID ${updatedEnvironment.id} after update`);
+        
+      } else if (updateDto.tenants && Array.isArray(updateDto.tenants)) {
         await this.updateEnvironmentTenants(updatedEnvironment, updateDto.tenants);
       }
 
       // Reload the environment with updated relations
-      return await this.sbEnvironmentsRepository.findOne({
+      const reloadedEnvironment = await this.sbEnvironmentsRepository.findOne({
         where: { id },
         relations: ['edfiTenants', 'edfiTenants.odss', 'edfiTenants.odss.edorgs'],
       });
+
+      if (!reloadedEnvironment) {
+        throw new ValidationHttpException({
+          field: 'environment',
+          message: 'Environment not found after update',
+        });
+      }
+
+      return syncQueue
+        ? { ...reloadedEnvironment, syncQueue }
+        : reloadedEnvironment;
     } catch (error) {
       this.logger.error('Error updating environment:', error);
       throw error;
