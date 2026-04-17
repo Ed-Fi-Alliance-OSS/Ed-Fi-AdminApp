@@ -24,6 +24,7 @@ import {
   Delete,
   Get,
   Inject,
+  InternalServerErrorException,
   Param,
   ParseIntPipe,
   Post,
@@ -74,8 +75,9 @@ export class SbEnvironmentsGlobalController {
    * Creates a detailed response object for SbEnvironment with computed properties and tenant/ODS data
    * Used by both findOne and update methods to maintain consistency
    */
-  private createDetailedEnvironmentResponse(environment: SbEnvironment) {
+  private createDetailedEnvironmentResponse(environment: SbEnvironment | (SbEnvironment & { syncQueue?: unknown })) {
     const dto = toGetSbEnvironmentDto(environment);
+    const syncQueue = 'syncQueue' in environment ? environment.syncQueue : undefined;
 
     return {
       id: environment.id,
@@ -112,6 +114,7 @@ export class SbEnvironmentsGlobalController {
       adminApiUrl: dto.adminApiUrl,
       startingBlocks: dto.startingBlocks,
       multiTenant: dto.multiTenant,
+      syncQueue,
     };
   }
 
@@ -150,15 +153,30 @@ export class SbEnvironmentsGlobalController {
         { sbEnvironmentId: sbEnvironment.id },
         { expireInHours: 2 }
       );
+
+      if (!id) {
+        throw new InternalServerErrorException('Failed to enqueue environment sync job');
+      }
+
       const repo = this.queueRepository;
       return new Promise((r) => {
-        let queueItem: SbSyncQueue;
+        let queueItem: SbSyncQueue | null = null;
         const timer = setInterval(poll, 500);
-        const pendingState: PgBossJobState[] = ['created', 'retry', 'active'];
+        const pendingState = new Set<PgBossJobState>(['created', 'retry', 'active']);
         let i = 0;
         async function poll() {
           queueItem = await repo.findOneBy({ id });
-          if (i === 20 || !pendingState.includes(queueItem.state)) {
+
+          if (!queueItem) {
+            if (i === 20) {
+              clearInterval(timer);
+              r(toPostSbEnvironmentResponseDto({ id: sbEnvironment.id }));
+            }
+            i++;
+            return;
+          }
+
+          if (i === 20 || !pendingState.has(queueItem.state)) {
             clearInterval(timer);
             r(
               toPostSbEnvironmentResponseDto({
@@ -246,6 +264,7 @@ export class SbEnvironmentsGlobalController {
 
     if (!environment) {
       throwNotFound(new Error(`Environment with id ${sbEnvironmentId} not found`));
+      return;
     }
 
     return this.createDetailedEnvironmentResponse(environment);
@@ -264,11 +283,24 @@ export class SbEnvironmentsGlobalController {
     @Body() updateSbEnvironmentDto: PutSbEnvironmentDto,
     @ReqUser() user: GetSessionDataDto
   ) {
+    const existingEnvironment = await this.sbEnvironmentsRepository.findOne({
+      where: { id: sbEnvironmentId },
+    });
+
+    if (!existingEnvironment) {
+      throwNotFound(new Error(`Environment with id ${sbEnvironmentId} not found`));
+      return;
+    }
+
     // Check if this includes tenant updates or URL/configuration updates
     const hasTenantUpdates = updateSbEnvironmentDto.tenants && updateSbEnvironmentDto.tenants.length > 0;
     const hasUrlUpdates = updateSbEnvironmentDto.odsApiDiscoveryUrl || updateSbEnvironmentDto.adminApiUrl || updateSbEnvironmentDto.environmentLabel || updateSbEnvironmentDto.isMultitenant !== undefined;
 
-    if (hasTenantUpdates || hasUrlUpdates) {
+    const isAdminApiV2Environment =
+      existingEnvironment.configPublic?.version === 'v2' &&
+      !existingEnvironment.configPublic?.startingBlocks;
+
+    if (hasTenantUpdates || hasUrlUpdates || isAdminApiV2Environment) {
       // Use the enhanced update method for tenant/ODS updates
       const updatedEnvironment = await this.sbEnvironmentEdFiService.updateEnvironment(
         sbEnvironmentId,
@@ -368,15 +400,34 @@ export class SbEnvironmentsGlobalController {
       { sbEnvironmentId: sbEnvironmentId },
       { expireInHours: 2 }
     );
+
+    if (!id) {
+      throw new InternalServerErrorException('Failed to enqueue environment sync job');
+    }
+
     const repo = this.queueRepository;
-    return new Promise((r) => {
-      let queueItem: SbSyncQueue;
+    return new Promise((r, reject) => {
+      let queueItem: SbSyncQueue | null = null;
       const timer = setInterval(poll, 500);
-      const pendingState: PgBossJobState[] = ['created', 'retry', 'active'];
+      const pendingState = new Set<PgBossJobState>(['created', 'retry', 'active']);
       let i = 0;
       async function poll() {
         queueItem = await repo.findOneBy({ id });
-        if (i === 20 || !pendingState.includes(queueItem.state)) {
+
+        if (!queueItem) {
+          if (i === 20) {
+            clearInterval(timer);
+            reject(
+              new InternalServerErrorException(
+                `Timed out waiting for sync queue item for job '${id}'`
+              )
+            );
+          }
+          i++;
+          return;
+        }
+
+        if (i === 20 || !pendingState.has(queueItem.state)) {
           clearInterval(timer);
           r(toSbSyncQueueDto(queueItem));
         }
