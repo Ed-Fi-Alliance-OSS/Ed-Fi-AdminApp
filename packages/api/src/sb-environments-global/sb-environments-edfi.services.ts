@@ -23,13 +23,13 @@ import {
   PostSbEnvironmentTenantDTO,
   GetUserDto,
   ISbEnvironmentConfigPublicV2,
-  PgBossJobState,
   toSbSyncQueueDto,
 } from '@edanalytics/models';
 import axios from 'axios';
 import { persistSyncTenant, SyncableOds } from '../sb-sync/sync-ods';
 import { randomBytes, randomUUID } from 'crypto';
-import { ENV_SYNC_CHNL, PgBossInstance } from '../sb-sync/sb-sync.module';
+import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 
 type TenantCredentials = { clientId: string; clientSecret: string; displayName: string };
 
@@ -46,8 +46,8 @@ export class SbEnvironmentsEdFiService {
     private edfiTenantsRepository: Repository<EdfiTenant>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
-    @Inject('PgBossInstance')
-    private readonly boss: PgBossInstance,
+    @Inject('IJobQueueService')
+    private readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue)
     private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
@@ -282,26 +282,33 @@ export class SbEnvironmentsEdFiService {
   }
 
   private async syncv2Environment(sbEnvironment: SbEnvironment): Promise<SbSyncQueue> {
-    const id = await this.boss.send(
+    const id = await this.jobQueue.send(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: sbEnvironment.id },
       { expireInHours: 2 }
     );
-    const repo = this.queueRepository;
-    return new Promise((resolve) => {
-      let queueItem: SbSyncQueue;
-      const timer = setInterval(poll, 500);
-      const pendingState: PgBossJobState[] = ['created', 'retry', 'active'];
-      let i = 0;
-      async function poll() {
-        queueItem = await repo.findOneBy({ id });
-        if (i === 20 || !pendingState.includes(queueItem.state)) {
-          clearInterval(timer);
-          resolve(queueItem);
-        }
-        i++;
+
+    const pendingStates = new Set(['created', 'retry', 'active']);
+    const maxAttempts = 20;
+    const pollIntervalMs = 500;
+
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
+      const queueItem = await this.queueRepository.findOneBy({ id });
+      if (queueItem && !pendingStates.has(queueItem.state)) {
+        return queueItem;
       }
-    });
+    }
+
+    // Timeout: return whatever state the job is in (or a synthetic item if still null)
+    const queueItem = await this.queueRepository.findOneBy({ id });
+    if (queueItem) return queueItem;
+
+    // Fallback: job row never appeared in the tracking table
+    const fallback = new SbSyncQueue();
+    fallback.id = id;
+    fallback.state = 'active';
+    return fallback;
   }
 
   private async findOrCreateTenant(
@@ -609,19 +616,14 @@ export class SbEnvironmentsEdFiService {
       const updatedEnvironment = await this.sbEnvironmentsRepository.save(updatedProperties);
       let syncQueue;
 
-      // For v2 environments, delegate tenant/ODS/EdOrg sync to the background job.
-      // For v1 environments, apply tenant updates from the form data directly.
-      if (isV2Environment) {
-
-        // print the updated environment configuration for debugging
-        this.logger.debug(`Updated environment configuration for sync:\n${JSON.stringify(updatedEnvironment, null, 2)}`);
-
+      // For v2 environments, delegate tenant/ODS/EdOrg sync to the background job —
+      // but only when fields that affect the sync result actually changed.
+      // Name-only edits don't require a re-sync and would add unnecessary latency.
+      const v2SyncTriggered = isV2Environment && hasUrlUpdates;
+      if (v2SyncTriggered) {
         const syncQueueItem = await this.syncv2Environment(updatedEnvironment);
         syncQueue = toSbSyncQueueDto(syncQueueItem);
-
-        // print a message indicating that the sync job has been triggered
         this.logger.log(`Triggered v2 sync job for environment ID ${updatedEnvironment.id} after update`);
-        
       } else if (updateDto.tenants && Array.isArray(updateDto.tenants)) {
         await this.updateEnvironmentTenants(updatedEnvironment, updateDto.tenants);
       }
@@ -639,9 +641,7 @@ export class SbEnvironmentsEdFiService {
         });
       }
 
-      return syncQueue
-        ? { ...reloadedEnvironment, syncQueue }
-        : reloadedEnvironment;
+      return { environment: reloadedEnvironment, syncQueue };
     } catch (error) {
       this.logger.error('Error updating environment:', error);
       throw error;

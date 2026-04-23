@@ -264,12 +264,13 @@ export class SbEnvironmentsGlobalController {
     @Body() updateSbEnvironmentDto: PutSbEnvironmentDto,
     @ReqUser() user: GetSessionDataDto
   ) {
-    const response = await this.sbEnvironmentEdFiService.updateEnvironment(
+    const { environment, syncQueue } = await this.sbEnvironmentEdFiService.updateEnvironment(
       sbEnvironmentId,
       updateSbEnvironmentDto,
       user
     );
-    return toPostSbEnvironmentResponseDto(response);
+    const detailed = this.createDetailedEnvironmentResponse(environment);
+    return syncQueue ? { ...detailed, syncQueue } : detailed;
   }
 
   @Delete(':sbEnvironmentId')
