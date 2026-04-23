@@ -586,6 +586,20 @@ export class SbEnvironmentsEdFiService {
           ...updatedProperties.configPublic || existingEnvironment.configPublic,
           adminApiUrl: updateDto.adminApiUrl,
         };
+
+        // When the Admin API URL changes on a v2 environment, the stored credentials
+        // are invalid for the new endpoint. Clear them so the pg_boss job's bootstrap
+        // logic re-registers fresh credentials against the new URL.
+        const adminApiUrlChanged = updateDto.adminApiUrl !== existingEnvironment.adminApiUrl;
+        if (isV2Environment && adminApiUrlChanged) {
+          this.logger.log(
+            `Admin API URL changed for v2 environment ${id} — clearing tenant credentials for re-bootstrap`
+          );
+          if (updatedProperties.configPublic?.values) {
+            (updatedProperties.configPublic.values as ISbEnvironmentConfigPublicV2).tenants = {};
+          }
+          updatedProperties.configPrivate = { tenants: {} };
+        }
       }
 
       if (updateDto.environmentLabel !== undefined) {
@@ -783,29 +797,4 @@ export class SbEnvironmentsEdFiService {
     });
   }
 
-  /**
-   * Extract ODS API URL from environment configuration
-   */
-  private extractOdsApiUrlFromEnvironment(environment: SbEnvironment): string | undefined {
-    const configPublic = environment.configPublic;
-    if (!configPublic?.values) {
-      return undefined;
-    }
-
-    // Handle v1 environments
-    if (configPublic.version === 'v1' && 'edfiHostname' in configPublic.values) {
-      const hostname = configPublic.values.edfiHostname;
-      return hostname?.startsWith('http') ? hostname : `https://${hostname}`;
-    }
-
-    // Handle v2 environments
-    if (configPublic.version === 'v2' && 'meta' in configPublic.values) {
-      const meta = configPublic.values.meta;
-      if (meta?.domainName) {
-        return meta.domainName.startsWith('http') ? meta.domainName : `https://${meta.domainName}`;
-      }
-    }
-
-    return undefined;
-  }
 }
