@@ -10,7 +10,6 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-import PgBoss from 'pg-boss';
 import { Repository } from 'typeorm';
 import {
   StartingBlocksServiceV1,
@@ -20,11 +19,11 @@ import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.
 import { CustomHttpException } from '../utils/customExceptions';
 import {
   ENV_SYNC_CHNL,
-  PgBossInstance,
   SYNC_SCHEDULER_CHNL,
   TENANT_SYNC_CHNL,
 } from './sb-sync.module';
 import { AdminApiSyncService } from './edfi/adminapi-sync.service';
+import { IJobQueueService, Job } from './job-queue/job-queue.interface';
 
 @Injectable()
 export class SbSyncConsumer implements OnModuleInit {
@@ -33,29 +32,19 @@ export class SbSyncConsumer implements OnModuleInit {
     private sbEnvironmentsRepository: Repository<SbEnvironment>,
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
-    @Inject('PgBossInstance')
-    private readonly boss: PgBossInstance,
+    @Inject('IJobQueueService')
+    private readonly jobQueue: IJobQueueService,
     private readonly sbServiceV1: StartingBlocksServiceV1,
     private readonly sbServiceV2: StartingBlocksServiceV2,
     private readonly metadataService: MetadataService,
     private readonly adminapiSyncService: AdminApiSyncService
   ) {}
   public async onModuleDestroy() {
-    if (config.DB_ENGINE === 'mssql') {
-      // mssql is not yet supported
-      return null;
-    }
-    await this.boss.stop();
+    await this.jobQueue.stop();
   }
   public async onModuleInit() {
-    if (config.DB_ENGINE === 'mssql') {
-      // mssql is not yet supported
-      return null;
-    }
-    this.boss.on('error', (error) => Logger.error(error));
-
     try {
-      await this.boss.schedule(SYNC_SCHEDULER_CHNL, config.SB_SYNC_CRON, null, {
+      await this.jobQueue.schedule(SYNC_SCHEDULER_CHNL, config.SB_SYNC_CRON, null, {
         tz: 'America/Chicago',
       });
       Logger.log('Sync scheduler job scheduled successfully');
@@ -71,7 +60,10 @@ export class SbSyncConsumer implements OnModuleInit {
     }
 
     try {
-      await this.boss.work(SYNC_SCHEDULER_CHNL, async () => {
+      await this.jobQueue.work(SYNC_SCHEDULER_CHNL, async () => {
+        // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
+        // PostgreSQL: `"configPublic"->>'sbEnvironmentMetaArn' is not null`
+        // MSSQL:      `JSON_VALUE(configPublic, '$.sbEnvironmentMetaArn') IS NOT NULL`
         const sbEnvironments = await this.sbEnvironmentsRepository
           .createQueryBuilder()
           .select()
@@ -81,7 +73,7 @@ export class SbSyncConsumer implements OnModuleInit {
         Logger.log(`Starting sync for ${sbEnvironments.length} environments.`);
         await Promise.all(
           sbEnvironments.map((sbEnvironment) =>
-            this.boss.send(
+            this.jobQueue.send(
               ENV_SYNC_CHNL,
               { sbEnvironmentId: sbEnvironment.id },
               { singletonKey: String(sbEnvironment.id), expireInHours: 1 }
@@ -90,11 +82,11 @@ export class SbSyncConsumer implements OnModuleInit {
         );
       });
 
-      await this.boss.work(ENV_SYNC_CHNL, async (job: PgBoss.Job<{ sbEnvironmentId: number }>) => {
+      await this.jobQueue.work(ENV_SYNC_CHNL, async (job: Job<{ sbEnvironmentId: number }>) => {
         return this.refreshSbEnvironment(job.data.sbEnvironmentId);
       });
 
-      await this.boss.work(TENANT_SYNC_CHNL, async (job: PgBoss.Job<{ edfiTenantId: number }>) => {
+      await this.jobQueue.work(TENANT_SYNC_CHNL, async (job: Job<{ edfiTenantId: number }>) => {
         return this.refreshEdfiTenant(job.data.edfiTenantId);
       });
 
@@ -112,6 +104,7 @@ export class SbSyncConsumer implements OnModuleInit {
   }
 
   async refreshSbEnvironment(sbEnvironmentId: number) {
+    // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
     let sbEnvironment = await this.sbEnvironmentsRepository
       .createQueryBuilder()
       .select()
@@ -121,6 +114,7 @@ export class SbSyncConsumer implements OnModuleInit {
       .getOne();
     if (sbEnvironment === null) {
       //try to find a syncable environment EdFi (with Admin API)
+      // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
       sbEnvironment = await this.sbEnvironmentsRepository
         .createQueryBuilder()
         .select()

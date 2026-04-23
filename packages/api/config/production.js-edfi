@@ -73,6 +73,6 @@ module.exports = {
   SSL_VERIFICATION: false,
   // Certification artifact configuration
   CERT_BRUNO_SRC_REF: 'v2.1.0',
-  CERT_BRUNO_SRC_CHECKSUM: '3d8581ef136e5624622b1bf58babfcc88e9d0d426225777f68a0eff07eebfaef',
+  CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6',
   CERT_BRUNO_ON_DOWNLOAD_ERROR: 'warning',
 };
