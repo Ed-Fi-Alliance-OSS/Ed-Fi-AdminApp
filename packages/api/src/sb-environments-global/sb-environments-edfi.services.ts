@@ -2,8 +2,10 @@ import { Injectable, InternalServerErrorException, Logger } from '@nestjs/common
 import {
   determineTenantModeFromMetadata,
   determineVersionFromMetadata,
+  fetchAdminApiInfo,
   fetchOdsApiMetadata,
   validateAdminApiUrl,
+  validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
@@ -151,6 +153,7 @@ export class SbEnvironmentsEdFiService {
       try {
         // Declare variables in the outer scope so they can be used later
         let odsApiMetaResponse;
+        let adminApiInfo;
         let detectedVersion;
         let tenantMode;
 
@@ -159,17 +162,39 @@ export class SbEnvironmentsEdFiService {
           // Fetch ODS API metadata
           odsApiMetaResponse = await fetchOdsApiMetadata(createSbEnvironmentDto);
 
+          // Fetch Admin API info if URL provided (to get multitenantMode field)
+          if (createSbEnvironmentDto.adminApiUrl) {
+            try {
+              adminApiInfo = await fetchAdminApiInfo(createSbEnvironmentDto.adminApiUrl);
+            } catch (adminApiError) {
+              this.logger.warn('Failed to fetch Admin API info, will fall back to ODS API detection:', adminApiError.message);
+              // Don't fail here - we can still determine mode from ODS API
+            }
+          }
+
           // Auto-detect version from metadata
           detectedVersion = determineVersionFromMetadata(odsApiMetaResponse);
 
           // Override the version with detected version
           createSbEnvironmentDto.version = detectedVersion;
 
-          // Determine tenant mode
-          tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
+          // Determine tenant mode - pass both ODS and Admin API info, function prioritizes Admin API field
+          tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, adminApiInfo);
           createSbEnvironmentDto.isMultitenant = tenantMode === 'MultiTenant';
 
+          // Validate tenant mode compatibility if both APIs are available
+          if (adminApiInfo) {
+            const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
+            const adminTenantMode = adminApiInfo?.tenancy?.multitenantMode ? 'MultiTenant' : 'SingleTenant';
+            validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+          }
+
         } catch (metadataError) {
+          // Re-throw validation exceptions without wrapping (e.g., tenant mode compatibility errors)
+          if (metadataError instanceof ValidationHttpException) {
+            throw metadataError;
+          }
+
           // Handle ODS Discovery URL specific errors
           this.logger.error('ODS metadata fetch error:', metadataError);
 

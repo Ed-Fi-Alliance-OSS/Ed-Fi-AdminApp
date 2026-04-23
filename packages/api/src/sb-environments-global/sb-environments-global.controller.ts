@@ -24,6 +24,7 @@ import {
   Delete,
   Get,
   Inject,
+  Logger,
   Param,
   ParseIntPipe,
   Post,
@@ -45,9 +46,11 @@ import {
   CustomHttpException,
   determineTenantModeFromMetadata,
   determineVersionFromMetadata,
+  fetchAdminApiInfo,
   fetchOdsApiMetadata,
   throwNotFound,
   validateAdminApiUrl,
+  validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
@@ -195,18 +198,36 @@ export class SbEnvironmentsGlobalController {
     },
   })
   async checkEdFiVersionAndTenantMode(
-    @Body() body: { odsApiDiscoveryUrl: string }
+    @Body() body: { odsApiDiscoveryUrl: string; adminApiUrl?: string }
   ) {
-    const { odsApiDiscoveryUrl } = body;
+    const { odsApiDiscoveryUrl, adminApiUrl } = body;
     // Fetch ODS API metadata
     const odsApiMetaResponse = await fetchOdsApiMetadata({ odsApiDiscoveryUrl } as PostSbEnvironmentDto);
 
     // Auto-detect version from metadata
     const detectedVersion = determineVersionFromMetadata(odsApiMetaResponse);
 
-    // Auto-detect tenant mode from metadata
-    const tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
+    // Fetch Admin API info if URL provided (to get multitenantMode field)
+    let adminApiInfo;
+    if (adminApiUrl) {
+      try {
+        adminApiInfo = await fetchAdminApiInfo(adminApiUrl);
+      } catch (adminApiError) {
+        // Log warning but don't fail - we can still determine mode from ODS API
+        Logger.warn('Failed to fetch Admin API info for tenant mode detection, falling back to ODS API:', adminApiError.message);
+      }
+    }
+
+    // Auto-detect tenant mode from metadata - prioritizes Admin API field
+    const tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, adminApiInfo);
     const isMultiTenant = tenantMode === 'MultiTenant';
+
+    // Validate tenant mode compatibility if both APIs are available
+    if (adminApiUrl && adminApiInfo) {
+      const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
+      const adminTenantMode = adminApiInfo?.tenancy?.multitenantMode ? 'MultiTenant' : 'SingleTenant';
+      validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+    }
 
     return {
       version: detectedVersion,
