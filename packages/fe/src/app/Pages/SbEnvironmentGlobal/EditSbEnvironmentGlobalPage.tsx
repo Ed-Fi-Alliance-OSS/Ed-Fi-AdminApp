@@ -223,11 +223,6 @@ export const EditSbEnvironmentGlobalPage = () => {
     return Boolean(tenants?.length && tenants[0]?.odss?.length);
   };
 
-  // Helper function to validate basic tenant structure exists
-  const validateTenantsExist = (tenants: PostSbEnvironmentTenantDTO[] | undefined): boolean => {
-    return Boolean(tenants?.length);
-  };
-
   // Manual validation function
   const validateForm = (data: PutSbEnvironmentDto): boolean => {
     let isValid = true;
@@ -274,24 +269,10 @@ export const EditSbEnvironmentGlobalPage = () => {
           setError('tenants.0.odss', { message: 'At least one ODS instance is required for v1 deployment' });
           isValid = false;
         }
-      } else if (currentVersion === 'v2') {
-        // For v2, validate based on isMultitenant setting from form
-        if (data.isMultitenant && !validateTenantsExist(data.tenants)) {
-          setError('tenants', { message: 'At least one tenant is required for multi-tenant deployment' });
-          isValid = false;
-        }
-
-        // For single-tenant v2, ensure we have at least one ODS instance in the default tenant
-        if (!data.isMultitenant) {
-          if (!validateFirstTenantHasOds(data.tenants)) {
-            setError('tenants.0.odss', { message: 'At least one ODS instance is required for single-tenant deployment' });
-            isValid = false;
-          }
-        }
       }
 
-      // Validate tenant data for both v1 and v2
-      if (currentVersion === 'v1' || currentVersion === 'v2') {
+      // Validate tenant data for v1
+      if (currentVersion === 'v1') {
         data.tenants?.forEach((tenant, tenantIndex) => {
           if (!tenant.name || tenant.name.trim() === '') {
             setError(`tenants.${tenantIndex}.name`, { message: 'Tenant name is required' });
@@ -531,14 +512,10 @@ export const EditSbEnvironmentGlobalPage = () => {
               )}
 
               {/* Tenant Management Section */}
-              {(currentVersion === 'v1' || currentVersion === 'v2') && (
+              {currentVersion === 'v1' && (
                 <Box mb={4}>
                   <EditTenantManagementSection
-                    isMultitenant={
-                      currentVersion === 'v2'
-                        ? (isMultitenant || sbEnvironment?.multiTenant || false)
-                        : false
-                    }
+                    isMultitenant={false}
                     tenants={
                       tenants.length > 0
                         ? tenants
