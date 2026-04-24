@@ -214,13 +214,13 @@ export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<any> => {
  * Validates the Management API Discovery URL.
  * @param adminApiUrl The URL to validate.
  * @param odsApiDiscoveryUrl The ODS API URL for version comparison (optional if odsApiMeta provided).
- * @returns A promise that resolves if the URL is valid, or rejects with a ValidationHttpException if it is not.
+ * @returns The fetched Admin API metadata if validation succeeds, so it can be reused to avoid duplicate network calls.
  */
 
 export const validateAdminApiUrl = async (
   adminApiUrl: string,
   odsApiDiscoveryUrl: string
-): Promise<void> => {
+): Promise<any> => {
   try {
     // Fetch Admin API info (reuses shared fetch function)
     const metadata = await fetchAdminApiInfo(adminApiUrl);
@@ -267,6 +267,9 @@ export const validateAdminApiUrl = async (
     } else {
       Logger.log('Admin API does not provide multitenantMode field, skipping tenant mode compatibility check');
     }
+
+    // Return the fetched metadata so callers can reuse it and avoid a duplicate network call
+    return metadata;
   } catch (error) {
     Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
     // Re-throw ValidationHttpException errors to preserve specific error messages

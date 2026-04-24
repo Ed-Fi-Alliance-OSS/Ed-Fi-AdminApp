@@ -150,8 +150,10 @@ export class SbEnvironmentsEdFiService {
 
   async create(createSbEnvironmentDto: PostSbEnvironmentDto, user: GetUserDto | undefined) {
     // First validate the Admin API URL before proceeding with any operations
+    // validateAdminApiUrl returns the fetched Admin API metadata to avoid duplicate network calls
+    let adminApiInfo;
     if (createSbEnvironmentDto.adminApiUrl) {
-      await validateAdminApiUrl(createSbEnvironmentDto.adminApiUrl, createSbEnvironmentDto.odsApiDiscoveryUrl);
+      adminApiInfo = await validateAdminApiUrl(createSbEnvironmentDto.adminApiUrl, createSbEnvironmentDto.odsApiDiscoveryUrl);
     }
 
     // Validate ODS Discovery URL if provided
@@ -159,7 +161,6 @@ export class SbEnvironmentsEdFiService {
       try {
         // Declare variables in the outer scope so they can be used later
         let odsApiMetaResponse;
-        let adminApiInfo;
         let detectedVersion;
         let tenantMode;
 
@@ -167,16 +168,6 @@ export class SbEnvironmentsEdFiService {
         try {
           // Fetch ODS API metadata
           odsApiMetaResponse = await fetchOdsApiMetadata(createSbEnvironmentDto);
-
-          // Fetch Admin API info if URL provided (to get multitenantMode field)
-          if (createSbEnvironmentDto.adminApiUrl) {
-            try {
-              adminApiInfo = await fetchAdminApiInfo(createSbEnvironmentDto.adminApiUrl);
-            } catch (adminApiError) {
-              this.logger.warn('Failed to fetch Admin API info, will fall back to ODS API detection:', adminApiError.message);
-              // Don't fail here - we can still determine mode from ODS API
-            }
-          }
 
           // Auto-detect version from metadata
           detectedVersion = determineVersionFromMetadata(odsApiMetaResponse);
