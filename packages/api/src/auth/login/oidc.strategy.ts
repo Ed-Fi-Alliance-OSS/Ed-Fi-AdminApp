@@ -3,6 +3,7 @@ import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import { BaseClient, Issuer, Strategy, TokenSet } from 'openid-client';
+import https from 'https';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
@@ -19,6 +20,15 @@ export class RegisterOidcIdpsService {
       oidcs.forEach(async (oidcConfig) => {
         let client: BaseClient;
         try {
+          // For self-signed certificates in development, configure a permissive HTTPS agent
+          if (config.SSL_VERIFICATION === 'false' || config.SSL_VERIFICATION === false) {
+            // Set the global HTTPS agent to not reject unauthorized certificates
+            https.globalAgent = new https.Agent({
+              rejectUnauthorized: false,
+            });
+            Logger.warn('SSL verification disabled for OIDC discovery');
+          }
+
           const TrustIssuer = await Issuer.discover(
             `${oidcConfig.issuer}/.well-known/openid-configuration`
           );
