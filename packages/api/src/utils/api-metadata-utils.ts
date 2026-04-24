@@ -58,25 +58,16 @@ export const determineVersionFromMetadata = (odsApiMeta: OdsApiMeta): 'v1' | 'v2
 };
 
 /**
- * Determines the tenant mode (MultiTenant or SingleTenant)
- * Prioritizes Admin API multitenantMode field, falls back to ODS API URL pattern detection
+ * Determines the tenant mode from ODS API metadata alone (URL pattern detection)
+ * Does not use Admin API info, ensuring ODS mode is independent.
  *
  * @param odsApiMeta ODS API metadata containing version and URL information
- * @param adminApiInfo Optional Admin API info response containing tenancy.multitenantMode
  * @returns 'MultiTenant' or 'SingleTenant'
  */
-export const determineTenantModeFromMetadata = (
-  odsApiMeta: OdsApiMeta,
-  adminApiInfo?: { tenancy?: { multitenantMode?: boolean } }
+export const determineTenantModeFromOdsMetadata = (
+  odsApiMeta: OdsApiMeta
 ): 'MultiTenant' | 'SingleTenant' => {
   try {
-    // Priority 1: Use Admin API multitenantMode field if available
-    if (adminApiInfo?.tenancy?.multitenantMode !== undefined) {
-      Logger.log(`Using multitenantMode from Admin API: ${adminApiInfo.tenancy.multitenantMode}`);
-      return adminApiInfo.tenancy.multitenantMode ? 'MultiTenant' : 'SingleTenant';
-    }
-
-    // Priority 2: Fall back to ODS API URL pattern detection
     const urls = odsApiMeta.urls;
 
     if (!urls) {
@@ -96,12 +87,51 @@ export const determineTenantModeFromMetadata = (
       return 'SingleTenant';
     }
   } catch (error) {
-    Logger.warn('Error determining tenant mode from metadata:', error);
+    Logger.warn('Error determining tenant mode from ODS metadata:', error);
     throw new ValidationHttpException({
       field: 'odsApiDiscoveryUrl',
       message: `Unable to determine tenant mode from ODS API metadata.`,
     });
   }
+};
+
+/**
+ * Extracts the tenant mode from Admin API metadata (explicit multitenantMode field)
+ * Returns undefined if the field is not present (older API versions without this field)
+ *
+ * @param adminApiInfo Admin API info response containing optional tenancy.multitenantMode
+ * @returns 'MultiTenant' or 'SingleTenant' if field is present, undefined if absent
+ */
+export const getAdminApiTenantMode = (
+  adminApiInfo?: { tenancy?: { multitenantMode?: boolean } }
+): 'MultiTenant' | 'SingleTenant' | undefined => {
+  if (adminApiInfo?.tenancy?.multitenantMode !== undefined) {
+    Logger.log(`Using multitenantMode from Admin API: ${adminApiInfo.tenancy.multitenantMode}`);
+    return adminApiInfo.tenancy.multitenantMode ? 'MultiTenant' : 'SingleTenant';
+  }
+  return undefined;
+};
+
+/**
+ * Determines the tenant mode (MultiTenant or SingleTenant)
+ * Prioritizes Admin API multitenantMode field, falls back to ODS API URL pattern detection
+ *
+ * @param odsApiMeta ODS API metadata containing version and URL information
+ * @param adminApiInfo Optional Admin API info response containing tenancy.multitenantMode
+ * @returns 'MultiTenant' or 'SingleTenant'
+ */
+export const determineTenantModeFromMetadata = (
+  odsApiMeta: OdsApiMeta,
+  adminApiInfo?: { tenancy?: { multitenantMode?: boolean } }
+): 'MultiTenant' | 'SingleTenant' => {
+  // Priority 1: Use Admin API multitenantMode field if available
+  const adminMode = getAdminApiTenantMode(adminApiInfo);
+  if (adminMode !== undefined) {
+    return adminMode;
+  }
+
+  // Priority 2: Fall back to ODS API URL pattern detection
+  return determineTenantModeFromOdsMetadata(odsApiMeta);
 };
 
 /**
@@ -227,10 +257,16 @@ export const validateAdminApiUrl = async (
       });
     }
 
-    // Validate tenant mode compatibility - determine modes from both APIs
-    const odsTenantMode = determineTenantModeFromMetadata(odsMetadata, metadata);
-    const adminTenantMode = determineTenantModeFromMetadata(odsMetadata, metadata);
-    validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+    // Validate tenant mode compatibility - only if Admin API explicitly defines multitenantMode
+    const odsTenantMode = determineTenantModeFromOdsMetadata(odsMetadata);
+    const adminTenantMode = getAdminApiTenantMode(metadata);
+
+    // Only validate compatibility if Admin API provides an explicit multitenantMode field
+    if (adminTenantMode !== undefined) {
+      validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+    } else {
+      Logger.log('Admin API does not provide multitenantMode field, skipping tenant mode compatibility check');
+    }
   } catch (error) {
     Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
     // Re-throw ValidationHttpException errors to preserve specific error messages

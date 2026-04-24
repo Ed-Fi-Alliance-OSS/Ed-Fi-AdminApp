@@ -224,9 +224,14 @@ export class SbEnvironmentsGlobalController {
 
     // Validate tenant mode compatibility if both APIs are available
     if (adminApiUrl && adminApiInfo) {
-      const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
-      const adminTenantMode = adminApiInfo?.tenancy?.multitenantMode ? 'MultiTenant' : 'SingleTenant';
-      validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+      // Only validate if Admin API explicitly defines multitenantMode
+      if (adminApiInfo?.tenancy?.multitenantMode !== undefined) {
+        const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
+        const adminTenantMode = adminApiInfo.tenancy.multitenantMode ? 'MultiTenant' : 'SingleTenant';
+        validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+      } else {
+        Logger.log('Admin API does not provide multitenantMode field, skipping tenant mode compatibility check');
+      }
     }
 
     return {
