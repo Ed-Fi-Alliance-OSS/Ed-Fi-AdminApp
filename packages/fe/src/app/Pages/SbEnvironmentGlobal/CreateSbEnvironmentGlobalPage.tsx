@@ -42,7 +42,6 @@ export const CreateSbEnvironmentGlobalPage = () => {
       metaArn: undefined,
       version: undefined,
       startingBlocks: false,
-      isMultitenant: true,
       tenants: []
     }),
   });
@@ -50,7 +49,6 @@ export const CreateSbEnvironmentGlobalPage = () => {
   // Watch form values
   const isStartingBlocks = watch('startingBlocks');
   const currentVersion = watch('version');
-  const isMultitenant = watch('isMultitenant');
   const tenants = watch('tenants') || [];
 
   const handleSwitchChange = (checked: boolean) => {
@@ -65,12 +63,10 @@ export const CreateSbEnvironmentGlobalPage = () => {
       setValue('adminApiUrl', undefined);
       setValue('environmentLabel', undefined);
       setValue('edOrgIds', '');
-      setValue('isMultitenant', true);
       setValue('tenants', []);
     } else {
       setValue('metaArn', undefined);
       setValue('version', undefined);
-      setValue('isMultitenant', true);
       setValue('tenants', []);
     }
   };
@@ -132,11 +128,6 @@ export const CreateSbEnvironmentGlobalPage = () => {
     return Boolean(tenants?.length && tenants[0]?.odss?.length);
   };
 
-  // Helper function to validate basic tenant structure exists
-  const validateTenantsExist = (tenants: PostSbEnvironmentTenantDTO[] | undefined): boolean => {
-    return Boolean(tenants?.length);
-  };
-
   // Manual validation function
   const validateForm = (data: PostSbEnvironmentDto): boolean => {
     let isValid = true;
@@ -181,24 +172,10 @@ export const CreateSbEnvironmentGlobalPage = () => {
           setError('tenants.0.odss', { message: 'At least one ODS instance is required for v1 deployment' });
           isValid = false;
         }
-      } else if (currentVersion === 'v2') {
-        // Validate v2 specific fields
-        if (data.isMultitenant && !validateTenantsExist(tenants)) {
-          setError('tenants', { message: 'At least one tenant is required for multi-tenant deployment' });
-          isValid = false;
-        }
-
-        // For single-tenant v2, ensure we have at least one ODS instance in the default tenant
-        if (!data.isMultitenant) {
-          if (!validateFirstTenantHasOds(tenants)) {
-            setError('tenants.0.odss', { message: 'At least one ODS instance is required for single-tenant deployment' });
-            isValid = false;
-          }
-        }
       }
 
-      // Validate tenant data for both v1 and v2
-      if (currentVersion === 'v1' || currentVersion === 'v2') {
+      // Validate tenant data for v1
+      if (currentVersion === 'v1') {
         tenants.forEach((tenant, tenantIndex) => {
           if (!tenant.name || tenant.name.trim() === '') {
             setError(`tenants.${tenantIndex}.name`, { message: 'Tenant name is required' });
@@ -374,9 +351,9 @@ export const CreateSbEnvironmentGlobalPage = () => {
                 <FormErrorMessage>{errors.environmentLabel?.message}</FormErrorMessage>
               </FormControl>
               {
-                (currentVersion === 'v1' || currentVersion === 'v2') ? (
+                currentVersion === 'v1' ? (
                   <TenantManagementSection
-                    isMultitenant={currentVersion === 'v2' ? (isMultitenant || false) : false}
+                    isMultitenant={false}
                     tenants={tenants}
                     register={register}
                     setValue={setValue}

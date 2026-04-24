@@ -286,7 +286,89 @@ export class AdminApiSyncService {
   }
 
   /**
-   * Main entry point for Admin API-based environment synchronization
+   * Bootstraps Admin API credentials for a brand-new v2 environment that has no
+   * tenant credentials yet.  This is needed because getTenants() requires a login
+   * token, which in turn requires at least one set of stored credentials.
+   *
+   * For single-tenant environments: registers one credential (no tenant header)
+   * stored under the key 'default'.
+   * For multi-tenant environments: discovers tenant names from an unauthenticated
+   * GET to the Admin API root, then registers a credential per tenant.
+   *
+   * No-ops when the environment already has at least one tenant credential.
+   */
+  private async bootstrapEnvironmentCredentials(sbEnvironment: SbEnvironment): Promise<void> {
+    const configPublic = sbEnvironment.configPublic;
+    if (configPublic?.version !== 'v2' || !configPublic.values) return;
+
+    const v2ConfigPublic = configPublic.values as ISbEnvironmentConfigPublicV2;
+    if (Object.keys(v2ConfigPublic?.tenants || {}).length > 0) {
+      this.logger.log(`Environment ${sbEnvironment.name} already has credentials, skipping bootstrap`);
+      return;
+    }
+
+    const isMultiTenant = v2ConfigPublic?.meta?.mode === 'MultiTenant';
+    let tenantNames: string[];
+
+    if (isMultiTenant) {
+      try {
+        const rootClient = axios.create({
+          baseURL: sbEnvironment.adminApiUrl!.replace(/\/$/, ''),
+        });
+        const rootResponse = await rootClient.get<{ tenancy?: { multitenantMode?: boolean; tenants?: string[] } }>('/').then(r => r.data);
+
+        if (
+          rootResponse?.tenancy?.multitenantMode === true &&
+          Array.isArray(rootResponse.tenancy.tenants) &&
+          rootResponse.tenancy.tenants.length > 0
+        ) {
+          tenantNames = rootResponse.tenancy.tenants;
+          this.logger.log(`Bootstrap: discovered tenants from root: [${tenantNames.join(', ')}]`);
+        } else {
+          tenantNames = ['default'];
+          this.logger.log('Bootstrap: root endpoint did not return tenant list, falling back to default');
+        }
+      } catch (error) {
+        this.logger.error(`Bootstrap: failed to reach Admin API root: ${error.message}`);
+        return;
+      }
+    } else {
+      tenantNames = ['default'];
+    }
+
+    // Initialize config structures if absent
+    if (!sbEnvironment.configPrivate) {
+      sbEnvironment.configPrivate = { tenants: {} } as ISbEnvironmentConfigPrivateV2;
+    }
+    if (!v2ConfigPublic.tenants) {
+      v2ConfigPublic.tenants = {};
+    }
+
+    for (const tenantName of tenantNames) {
+      try {
+        const { clientId, clientSecret } = await this.createClientCredentials(
+          sbEnvironment.adminApiUrl!,
+          tenantName,
+          isMultiTenant
+        );
+
+        v2ConfigPublic.tenants![tenantName] = { adminApiKey: clientId };
+
+        const privateConfig = sbEnvironment.configPrivate as ISbEnvironmentConfigPrivateV2;
+        if (!privateConfig.tenants) privateConfig.tenants = {};
+        privateConfig.tenants[tenantName] = { adminApiSecret: clientSecret };
+
+        this.logger.log(`Bootstrap: registered credentials for tenant '${tenantName}'`);
+      } catch (error) {
+        this.logger.error(`Bootstrap: failed to register credentials for tenant '${tenantName}': ${error.message}`);
+      }
+    }
+
+    await this.sbEnvironmentsRepository.save(sbEnvironment);
+    this.logger.log(`Bootstrap complete for environment: ${sbEnvironment.name}`);
+  }
+
+  /**
    * Supports both v1 and v2 Admin API versions
    * 
    * @param sbEnvironment - The SB Environment to sync
@@ -319,6 +401,15 @@ export class AdminApiSyncService {
 
       // Select appropriate Admin API service based on version
       const adminApiService = version === 'v1' ? this.adminApiServiceV1 : this.adminApiServiceV2;
+
+      // For brand-new v2 environments (no stored credentials yet), register
+      // credentials first so getTenants() can authenticate successfully.
+      if (version === 'v2') {
+        await this.bootstrapEnvironmentCredentials(sbEnvironment);
+        // Reload to pick up any newly-saved credentials
+        const reloaded = await this.sbEnvironmentsRepository.findOne({ where: { id: sbEnvironment.id } });
+        if (reloaded) sbEnvironment = reloaded;
+      }
 
       // Discover tenants from the Admin API
       this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);

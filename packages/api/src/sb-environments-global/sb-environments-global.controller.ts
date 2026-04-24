@@ -75,7 +75,7 @@ export class SbEnvironmentsGlobalController {
 
   /**
    * Creates a detailed response object for SbEnvironment with computed properties and tenant/ODS data
-   * Used by both findOne and update methods to maintain consistency
+   * Used by findOne method
    */
   private createDetailedEnvironmentResponse(environment: SbEnvironment) {
     const dto = toGetSbEnvironmentDto(environment);
@@ -285,29 +285,13 @@ export class SbEnvironmentsGlobalController {
     @Body() updateSbEnvironmentDto: PutSbEnvironmentDto,
     @ReqUser() user: GetSessionDataDto
   ) {
-    // Check if this includes tenant updates or URL/configuration updates
-    const hasTenantUpdates = updateSbEnvironmentDto.tenants && updateSbEnvironmentDto.tenants.length > 0;
-    const hasUrlUpdates = updateSbEnvironmentDto.odsApiDiscoveryUrl || updateSbEnvironmentDto.adminApiUrl || updateSbEnvironmentDto.environmentLabel || updateSbEnvironmentDto.isMultitenant !== undefined;
-
-    if (hasTenantUpdates || hasUrlUpdates) {
-      // Use the enhanced update method for tenant/ODS updates
-      const updatedEnvironment = await this.sbEnvironmentEdFiService.updateEnvironment(
-        sbEnvironmentId,
-        updateSbEnvironmentDto,
-        user
-      );
-
-      // Return the same detailed response as the findOne method for consistency
-      return this.createDetailedEnvironmentResponse(updatedEnvironment);
-    } else {
-      // Use the simple update method for name-only updates
-      return toGetSbEnvironmentDto(
-        await this.sbEnvironmentService.update(
-          sbEnvironmentId,
-          addUserModifying(updateSbEnvironmentDto, user)
-        )
-      );
-    }
+    const { environment, syncQueue } = await this.sbEnvironmentEdFiService.updateEnvironment(
+      sbEnvironmentId,
+      updateSbEnvironmentDto,
+      user
+    );
+    const detailed = this.createDetailedEnvironmentResponse(environment);
+    return syncQueue ? { ...detailed, syncQueue } : detailed;
   }
 
   @Delete(':sbEnvironmentId')
