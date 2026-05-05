@@ -86,6 +86,7 @@ import { UniqueClientId1747424374434 as MssqlUniqueClientId1747424374434 } from 
 import { CreateIntegrationApps1744933017953 as MssqlCreateIntegrationApps1744933017953 } from './migrations/mssql/1744933017953-CreateIntegrationApps';
 import { CreateDetailedIntegrationAppsView1745533840578 as MssqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/mssql/1745533840578-CreateDetailedIntegrationAppsView';
 import { RemoveUserConfig1764429283532 as MssqlRemoveUserConfig1764429283532 } from './migrations/mssql/1764429283532-remove-user-config';
+import { JobQueueAndSyncView1764929283532 as MssqlJobQueueAndSyncView1764929283532 } from './migrations/mssql/1764929283532-JobQueueAndSyncView';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -154,6 +155,7 @@ const getMSSQLMigrations = () => [
   MssqlCreateDetailedIntegrationAppsView1745533840578,
   MssqlUniqueClientId1747424374434,
   MssqlRemoveUserConfig1764429283532,
+  MssqlJobQueueAndSyncView1764929283532,
 ];
 
 const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {

@@ -83,6 +83,11 @@ declare module 'config' {
     USE_PKCE: boolean;
 
     LOG_LEVEL: LogLevel;
+
+    /** Polling interval for MSSQL job queue in milliseconds (default: 1000) */
+    MSSQL_JOB_POLL_MS?: number;
+    /** Polling interval for MSSQL schedule loop in milliseconds (default: 10000) */
+    MSSQL_SCHEDULE_POLL_MS?: number;
   }
 
   const config: IConfig;

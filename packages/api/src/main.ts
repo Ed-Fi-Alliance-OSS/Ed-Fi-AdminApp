@@ -111,7 +111,7 @@ async function setupDatabaseSession(connectionStr: string, engine: string) {
 
       const pool = await createMssqlConnection(mssqlConfig);
       try {
-        await pool.query(`IF (SELECT OBJECT_ID('${table}')) IS NULL
+        await pool.query(`IF OBJECT_ID('${table}') IS NULL
 BEGIN
     CREATE TABLE [dbo].[${table}](
         [sid] [nvarchar](255) NOT NULL PRIMARY KEY,
@@ -124,10 +124,25 @@ END`);
       }
 
       Logger.log('Using MSSQL session store');
-      return new mssqlSession.default(mssqlConfig, {
+      const store = new mssqlSession.default(mssqlConfig, {
         table,
         ttl: DB_TTL_IN_SECONDS,
+        // connect-mssql-v2 connects lazily on first use. With the default retries:0, a race
+        // condition between the initial pool.connect() and concurrent session reads (e.g. OIDC
+        // state stored then read back) causes "Connection is closed" errors that drop session
+        // data and break the OIDC login flow. Retries with backoff absorb this timing window.
+        retries: 5,
+        retryDelay: 500,
       });
+
+      // Pre-warm the connection so it's ready before the first real request arrives.
+      // This avoids the race condition where concurrent session operations during OIDC login
+      // hit the store before the pool has finished its first connect() call.
+      await new Promise<void>((resolve) => {
+        store.get('__warmup__', () => resolve());
+      });
+
+      return store;
     } else {
       // PostgreSQL setup (existing logic)
       const pgClient = new Client({ connectionString: connectionStr });
