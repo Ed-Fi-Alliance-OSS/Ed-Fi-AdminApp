@@ -29,6 +29,14 @@ type AttributeBaseProps = {
   isMasked?: boolean;
 } & StyleProps;
 
+type AttributeProps = AttributeBaseProps & {
+  isUrl?: boolean;
+  isUrlExternal?: boolean;
+  isDate?: boolean;
+  defaultDateFmt?: DateFormat;
+  value: string | Date | undefined | null | boolean | number;
+};
+
 export enum DateFormat {
   Short = 0,
   Long = 1,
@@ -57,44 +65,10 @@ export const AttributeContainer = chakraForwardRef<{ label: string } & StyleProp
 );
 
 function _Attribute(
-  props: AttributeBaseProps & {
-    isUrl: true;
-    isUrlExternal?: boolean;
-    value: string | undefined;
-  },
+  props: AttributeProps,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    isDate: true;
-    defaultDateFmt?: DateFormat;
-    value: Date | undefined | null;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    value: string | undefined | null | boolean | number;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    isUrl?: boolean | undefined;
-    isUrlExternal?: boolean | undefined;
-    isDate?: boolean | undefined;
-    defaultDateFmt?: DateFormat;
-    value: string | Date | undefined | null | boolean | number;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-) {
+): ReactElement {
   const {
     isUrl,
     isUrlExternal,
@@ -224,7 +198,7 @@ export function CopyButton(
     </Popover>
   );
 }
-export const Attribute = forwardRef(_Attribute) as typeof _Attribute;
+export const Attribute = forwardRef<any, AttributeProps>(_Attribute);
 
 export const DateValue = (props: { value: Date; defaultDateFmt?: DateFormat }) => {
   const [fmt, setFmt] = useState(props.defaultDateFmt ?? 0);

@@ -45,14 +45,14 @@ export const ToggleButtonGroup: React.FC<{
   return (
     <ButtonGroup {...groupProps}>
       {React.Children.map(children as React.ReactElement[], (CHILD) => {
-        console.log(CHILD?.props?.value, value, CHILD?.props?.value === value);
+        const child = CHILD as React.ReactElement<any>;
 
-        return React.cloneElement(CHILD, {
+        return React.cloneElement(child, {
           onClick: () => {
-            if (value === CHILD?.props?.value) return;
-            onChange(CHILD?.props?.value);
+            if (value === child.props?.value) return;
+            onChange(child.props?.value);
           },
-          ...(value !== CHILD?.props?.value ? { sx: inactiveStyles } : { colorScheme: 'teal' }),
+          ...(value !== child.props?.value ? { sx: inactiveStyles } : { colorScheme: 'teal' }),
         });
       })}
     </ButtonGroup>

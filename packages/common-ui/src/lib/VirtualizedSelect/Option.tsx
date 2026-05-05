@@ -6,7 +6,6 @@ import { useSize } from './utils';
 import type { Size } from './utils';
 import { MenuIcon, useColorModeValue, Text } from '@chakra-ui/react';
 import { OptionProps } from 'chakra-react-select';
-import type { ThemeObject } from 'chakra-react-select';
 import { CheckIcon } from './CheckIcon';
 
 export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<Option>>(
@@ -33,7 +32,7 @@ export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<
 
   const size = useSize(sizeProp);
 
-  const menuItemStyles: ThemeObject = useMultiStyleConfig('Menu').item;
+  const menuItemStyles = useMultiStyleConfig('Menu').item;
 
   const paddings: Record<Size, string> = {
     sm: '0.3rem 0.6rem',
@@ -67,13 +66,13 @@ export const Option = <Option, IsMulti extends boolean, Group extends GroupBase<
     textAlign: 'start',
     fontSize: size,
     padding: paddings[size],
-    ...(isFocused && menuItemStyles._focus),
+    ...(isFocused && (menuItemStyles as any)._focus),
     ...(shouldHighlight && {
       bg: selectedBg,
       color: selectedColor,
       _active: { bg: selectedBg },
     }),
-    ...(isDisabled && menuItemStyles._disabled),
+    ...(isDisabled && (menuItemStyles as any)._disabled),
     ...(isDisabled && { _active: {} }),
   };
 
