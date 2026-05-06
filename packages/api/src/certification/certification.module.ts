@@ -1,10 +1,12 @@
 import { Module } from '@nestjs/common';
-import { CertificationService } from './certification.service';
+import { ArtifactModule } from './artifact/artifact.module';
+import { CatalogModule } from './catalog/catalog.module';
 import { CertificationController } from './certification.controller';
+import { CertificationService } from './certification.service';
 
 @Module({
-  providers: [CertificationService],
+  imports: [ArtifactModule, CatalogModule],
   controllers: [CertificationController],
-  exports: [CertificationService],
+  providers: [CertificationService],
 })
 export class CertificationModule {}

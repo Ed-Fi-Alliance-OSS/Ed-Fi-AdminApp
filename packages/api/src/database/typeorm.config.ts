@@ -1,4 +1,9 @@
 import {
+  AreaCatalog,
+  CatalogVersion,
+  CertificationOdsApi,
+  CertificationProcess,
+  CertificationProcessScenario,
   EdfiTenant,
   Edorg,
   EnvNav,
@@ -12,6 +17,11 @@ import {
   Role,
   SbEnvironment,
   SbSyncQueue,
+  ScenarioCatalog,
+  ScenarioStep,
+  ScenarioStepError,
+  StepCatalog,
+  StepParameterCatalog,
   Team,
   User,
   UserTeamMembership,
@@ -53,6 +63,7 @@ import { UniqueClientId1747424374434 as PgsqlUniqueClientId1747424374434 } from 
 import { CreateIntegrationApps1744933017953 as PgsqlCreateIntegrationApps1744933017953 } from './migrations/pgsql/1744933017953-CreateIntegrationApps';
 import { CreateDetailedIntegrationAppsView1745533840578 as PgsqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/pgsql/1745533840578-CreateDetailedIntegrationAppsView';
 import { RemoveUserConfig1764429283532 as PgsqlRemoveUserConfig1764429283532 } from './migrations/pgsql/1764429283532-remove-user-config';
+import { CertificationSchema1778026000000 as PgsqlCertificationSchema1778026000000 } from './migrations/pgsql/1778026000000-CertificationSchema';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -87,6 +98,7 @@ import { CreateIntegrationApps1744933017953 as MssqlCreateIntegrationApps1744933
 import { CreateDetailedIntegrationAppsView1745533840578 as MssqlCreateDetailedIntegrationAppsView1745533840578 } from './migrations/mssql/1745533840578-CreateDetailedIntegrationAppsView';
 import { RemoveUserConfig1764429283532 as MssqlRemoveUserConfig1764429283532 } from './migrations/mssql/1764429283532-remove-user-config';
 import { JobQueueAndSyncView1764929283532 as MssqlJobQueueAndSyncView1764929283532 } from './migrations/mssql/1764929283532-JobQueueAndSyncView';
+import { CertificationSchema1778026000000 as MssqlCertificationSchema1778026000000 } from './migrations/mssql/1778026000000-CertificationSchema';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -121,6 +133,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlCreateDetailedIntegrationAppsView1745533840578,
   PgsqlUniqueClientId1747424374434,
   PgsqlRemoveUserConfig1764429283532,
+  PgsqlCertificationSchema1778026000000,
 ];
 
 const getMSSQLMigrations = () => [
@@ -156,6 +169,7 @@ const getMSSQLMigrations = () => [
   MssqlUniqueClientId1747424374434,
   MssqlRemoveUserConfig1764429283532,
   MssqlJobQueueAndSyncView1764929283532,
+  MssqlCertificationSchema1778026000000,
 ];
 
 const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {
@@ -176,6 +190,16 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
     Team,
     User,
     UserTeamMembership,
+    CatalogVersion,
+    AreaCatalog,
+    ScenarioCatalog,
+    StepCatalog,
+    StepParameterCatalog,
+    CertificationOdsApi,
+    CertificationProcess,
+    CertificationProcessScenario,
+    ScenarioStep,
+    ScenarioStepError,
   ];
 
   const baseConfig = {

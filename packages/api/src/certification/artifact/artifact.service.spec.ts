@@ -1,9 +1,9 @@
-﻿import { Test } from '@nestjs/testing';
+import { Test } from '@nestjs/testing';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { createHash } from 'crypto';
-import { CertificationService } from './certification.service';
+import { ArtifactService } from './artifact.service';
 
 jest.mock('config', () => ({
   __esModule: true,
@@ -32,10 +32,10 @@ function sha256(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex');
 }
 
-function buildService(envOverrides: NodeJS.ProcessEnv = {}): CertificationService {
+function buildService(envOverrides: NodeJS.ProcessEnv = {}): ArtifactService {
   // Apply env overrides before constructing
   Object.assign(process.env, envOverrides);
-  return new CertificationService();
+  return new ArtifactService();
 }
 
 const VALID_ENV: NodeJS.ProcessEnv = {
@@ -71,41 +71,41 @@ afterEach(() => {
 // Constructor validation
 // ---------------------------------------------------------------------------
 
-describe('CertificationService: constructor validation', () => {
+describe('ArtifactService: constructor validation', () => {
   it('throws when source ref is not configured (error mode)', () => {
     process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR = 'error';
     process.env.CERT_BRUNO_SRC_CHECKSUM = 'aabbcc';
-    expect(() => new CertificationService()).toThrow(/CERT_BRUNO_SRC_REF/);
+    expect(() => new ArtifactService()).toThrow(/CERT_BRUNO_SRC_REF/);
   });
 
   it('only warns when source ref is not configured (warning mode)', () => {
     process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR = 'warning';
     process.env.CERT_BRUNO_SRC_CHECKSUM = 'aabbcc';
-    expect(() => new CertificationService()).not.toThrow();
+    expect(() => new ArtifactService()).not.toThrow();
   });
 
   it('throws when checksum is missing (error mode)', () => {
     process.env.CERT_BRUNO_SRC_REF = 'v2.1.0';
     process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR = 'error';
-    expect(() => new CertificationService()).toThrow(/CERT_BRUNO_SRC_CHECKSUM/);
+    expect(() => new ArtifactService()).toThrow(/CERT_BRUNO_SRC_CHECKSUM/);
   });
 
   it('only warns when checksum is missing (warning mode)', () => {
     process.env.CERT_BRUNO_SRC_REF = 'v2.1.0';
     process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR = 'warning';
-    expect(() => new CertificationService()).not.toThrow();
+    expect(() => new ArtifactService()).not.toThrow();
   });
 
   it('uses CERT_BRUNO_SRC_REF as targetDownloadRef', () => {
     Object.assign(process.env, VALID_ENV);
-    const svc = new CertificationService();
+    const svc = new ArtifactService();
     expect((svc as any).targetDownloadRef).toBe('v2.1.0');
   });
 
   it('defaults onDownloadError to "error" when not set', () => {
     Object.assign(process.env, VALID_ENV);
     delete process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR;
-    const svc = new CertificationService();
+    const svc = new ArtifactService();
     expect((svc as any).onDownloadError).toBe('error');
   });
 });
@@ -114,16 +114,16 @@ describe('CertificationService: constructor validation', () => {
 // handleDownloadError
 // ---------------------------------------------------------------------------
 
-describe('CertificationService: handleDownloadError', () => {
+describe('ArtifactService: handleDownloadError', () => {
   it('throws in error mode', () => {
     Object.assign(process.env, VALID_ENV);
-    const svc = new CertificationService();
+    const svc = new ArtifactService();
     expect(() => (svc as any).handleDownloadError('boom')).toThrow('boom');
   });
 
   it('does not throw in warning mode', () => {
     Object.assign(process.env, { ...VALID_ENV, CERT_BRUNO_ON_DOWNLOAD_ERROR: 'warning' });
-    const svc = new CertificationService();
+    const svc = new ArtifactService();
     expect(() => (svc as any).handleDownloadError('soft fail')).not.toThrow();
   });
 });
@@ -132,8 +132,8 @@ describe('CertificationService: handleDownloadError', () => {
 // downloadArtifact - fetch mocking
 // ---------------------------------------------------------------------------
 
-describe('CertificationService: downloadArtifact', () => {
-  let svc: CertificationService;
+describe('ArtifactService: downloadArtifact', () => {
+  let svc: ArtifactService;
   const fakeZip = makeZipBuffer();
   const correctHash = sha256(fakeZip);
 
@@ -142,7 +142,7 @@ describe('CertificationService: downloadArtifact', () => {
       ...VALID_ENV,
       CERT_BRUNO_SRC_CHECKSUM: correctHash,
     });
-    svc = new CertificationService();
+    svc = new ArtifactService();
   });
 
   it('returns a Buffer when metadata and zip fetch succeed and checksums match', async () => {
@@ -199,7 +199,7 @@ describe('CertificationService: downloadArtifact', () => {
   it('returns null (no throw) in warning mode when fetch fails', async () => {
     Object.assign(process.env, { CERT_BRUNO_ON_DOWNLOAD_ERROR: 'warning' });
     // Re-create service with warning mode
-    const warnSvc = new CertificationService();
+    const warnSvc = new ArtifactService();
     global.fetch = jest.fn().mockResolvedValueOnce({ ok: false, status: 503 });
 
     const result = await (warnSvc as any).downloadArtifact();
@@ -211,15 +211,15 @@ describe('CertificationService: downloadArtifact', () => {
 // ensureRuntimeReady - ref-based - skip logic
 // ---------------------------------------------------------------------------
 
-describe('CertificationService: ensureRuntimeReady ref-check', () => {
-  let svc: CertificationService;
+describe('ArtifactService: ensureRuntimeReady ref-check', () => {
+  let svc: ArtifactService;
   const runtimeRoot = path.join(os.tmpdir(), `cert-test-${Date.now()}`);
 
   beforeEach(() => {
     Object.assign(process.env, {
       ...VALID_ENV,
     });
-    svc = new CertificationService();
+    svc = new ArtifactService();
     (svc as any).runtimeRoot = runtimeRoot;
   });
 
