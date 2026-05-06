@@ -15,7 +15,7 @@ jest.mock('config', () => ({
   },
   get CERT_BRUNO_ON_DOWNLOAD_ERROR() {
     return process.env.CERT_BRUNO_ON_DOWNLOAD_ERROR;
-  }
+  },
 }));
 
 // ---------------------------------------------------------------------------
@@ -224,7 +224,11 @@ describe('ArtifactService: ensureRuntimeReady ref-check', () => {
   });
 
   afterEach(() => {
-    try { fs.rmSync(runtimeRoot, { recursive: true, force: true }); } catch (_) { /* ignore */ }
+    try {
+      fs.rmSync(runtimeRoot, { recursive: true, force: true });
+    } catch (_) {
+      /* ignore */
+    }
   });
 
   it('skips download when persisted ref matches target download ref and node_modules exists', async () => {

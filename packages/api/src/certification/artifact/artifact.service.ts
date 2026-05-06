@@ -12,7 +12,8 @@ export class ArtifactService {
   private readonly logger = new Logger(ArtifactService.name);
   private readonly runtimeRoot: string;
   private readonly collectionRootName = 'SIS';
-  private readonly BASE_URL = 'https://github.com/Ed-Fi-Alliance-OSS/certification-testing/releases/download';
+  private readonly BASE_URL =
+    'https://github.com/Ed-Fi-Alliance-OSS/certification-testing/releases/download';
   private readonly brunoEnv = 'ODS';
 
   // GitHub release ref used for artifact download and runtime cache matching.
@@ -40,14 +41,14 @@ export class ArtifactService {
 
   constructor() {
     this.runtimeRoot = path.resolve(process.cwd(), 'packages', 'api', 'certification', 'bruno');
-    this.targetDownloadRef = config.CERT_BRUNO_SRC_REF ? String(config.CERT_BRUNO_SRC_REF).trim() : undefined;
+    this.targetDownloadRef = config.CERT_BRUNO_SRC_REF
+      ? String(config.CERT_BRUNO_SRC_REF).trim()
+      : undefined;
     this.expectedChecksum = config.CERT_BRUNO_SRC_CHECKSUM;
     this.onDownloadError = config.CERT_BRUNO_ON_DOWNLOAD_ERROR || 'error';
 
     if (!this.targetDownloadRef) {
-      const msg =
-        'Certification artifact ref is not configured. ' +
-        'Set CERT_BRUNO_SRC_REF.';
+      const msg = 'Certification artifact ref is not configured. ' + 'Set CERT_BRUNO_SRC_REF.';
       if (this.onDownloadError !== 'warning') {
         throw new Error(msg);
       }
@@ -91,7 +92,9 @@ export class ArtifactService {
 
   private async ensureRuntime(): Promise<void> {
     this.logger.log(
-      `Downloading Bruno artifact (ref: ${this.targetDownloadRef ?? 'unset'}) to ${this.runtimeRoot}`
+      `Downloading Bruno artifact (ref: ${this.targetDownloadRef ?? 'unset'}) to ${
+        this.runtimeRoot
+      }`
     );
 
     const zipBuffer = await this.downloadArtifact();
@@ -117,12 +120,12 @@ export class ArtifactService {
     fs.writeFileSync(
       bruFile,
       'vars {\n' +
-      '  baseUrl: https://localhost/v7-multi-api/tenant1\n' +
-      '  resourceBaseUrl: {{baseUrl}}/data/v3\n' +
-      '  oauthUrl: {{baseUrl}}/oauth/token\n' +
-      '  edFiClientId: <replace_with_edfiClientId_parameter>\n' +
-      '  edFiClientSecret: <replace_with_edfiClientSecret_parameter>\n' +
-      '}\n',
+        '  baseUrl: https://localhost/v7-multi-api/tenant1\n' +
+        '  resourceBaseUrl: {{baseUrl}}/data/v3\n' +
+        '  oauthUrl: {{baseUrl}}/oauth/token\n' +
+        '  edFiClientId: <replace_with_edfiClientId_parameter>\n' +
+        '  edFiClientSecret: <replace_with_edfiClientSecret_parameter>\n' +
+        '}\n',
       'utf8'
     );
     this.logger.log(`Created environment placeholders: ${bruFile}`);
@@ -264,13 +267,11 @@ export class ArtifactService {
 
       // The ZIP contains a top-level bruno/ directory — locate it
       const entries = fs.readdirSync(tmpDir, { withFileTypes: true });
-      const brunoEntry = entries.find(
-        (e) => e.isDirectory() && e.name.toLowerCase() === 'bruno'
-      );
+      const brunoEntry = entries.find((e) => e.isDirectory() && e.name.toLowerCase() === 'bruno');
       if (!brunoEntry) {
         throw new Error(
           `Expected a 'bruno/' directory inside the artifact ZIP, but none was found. ` +
-          `Contents: ${entries.map((e) => e.name).join(', ')}`
+            `Contents: ${entries.map((e) => e.name).join(', ')}`
         );
       }
 

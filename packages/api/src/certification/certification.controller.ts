@@ -1,4 +1,4 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Controller } from '@nestjs/common';
 // import { Public } from '../auth/authorization/public.decorator';
 // import { CertificationService } from './certification.service';
 // import { ArtifactService } from './artifact/artifact.service';
@@ -11,10 +11,9 @@ import { Body, Controller, Post } from '@nestjs/common';
 
 @Controller('certification')
 export class CertificationController {
-  constructor(
-    // private readonly certificationService: CertificationService,
-    // private readonly artifactService: ArtifactService,
-  ) {}
+  // TODO: — inject CertificationService and ArtifactService
+  // Moved out of the constructor to avoid prettier formatting issues in CI.
+  constructor() {}
 
   // // ------------------------------------------------------------------------------
   // // @TODO: The run() method was copied from the original POC and will be refactored in Certification 2.2

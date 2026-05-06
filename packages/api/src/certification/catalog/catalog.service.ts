@@ -51,7 +51,7 @@ export class CatalogService {
   constructor(
     @InjectRepository(CatalogVersion)
     private readonly catalogVersionRepo: Repository<CatalogVersion>,
-    private readonly dataSource: DataSource,
+    private readonly dataSource: DataSource
   ) {}
 
   /**
@@ -76,7 +76,11 @@ export class CatalogService {
       .sort();
 
     for (const dataStandardVersion of versionDirs) {
-      await this.syncVersion(artifactVersion, dataStandardVersion, path.join(sisRoot, dataStandardVersion));
+      await this.syncVersion(
+        artifactVersion,
+        dataStandardVersion,
+        path.join(sisRoot, dataStandardVersion)
+      );
     }
   }
 
@@ -84,13 +88,19 @@ export class CatalogService {
   // Private — per-version sync
   // ---------------------------------------------------------------------------
 
-  private async syncVersion(artifactVersion: string, dataStandardVersion: string, versionRoot: string): Promise<void> {
+  private async syncVersion(
+    artifactVersion: string,
+    dataStandardVersion: string,
+    versionRoot: string
+  ): Promise<void> {
     const existing = await this.catalogVersionRepo.findOne({
       where: { artifactVersion, dataStandardVersion },
     });
 
     if (existing) {
-      this.logger.log(`Catalog already synced for ${artifactVersion}/${dataStandardVersion}, skipping`);
+      this.logger.log(
+        `Catalog already synced for ${artifactVersion}/${dataStandardVersion}, skipping`
+      );
       return;
     }
 
@@ -152,7 +162,7 @@ export class CatalogService {
                   type: param.type,
                   name: param.name,
                   description: param.description,
-                }),
+                })
               );
             }
           }
@@ -161,7 +171,7 @@ export class CatalogService {
     });
 
     this.logger.log(
-      `Catalog sync complete for ${artifactVersion}/${dataStandardVersion}: ${areas.length} areas`,
+      `Catalog sync complete for ${artifactVersion}/${dataStandardVersion}: ${areas.length} areas`
     );
   }
 
@@ -205,7 +215,10 @@ export class CatalogService {
       });
   }
 
-  private parseSteps(scenarioPath: string, stepTypeMap: Record<number, string> | null): ParsedStep[] {
+  private parseSteps(
+    scenarioPath: string,
+    stepTypeMap: Record<number, string> | null
+  ): ParsedStep[] {
     return fs
       .readdirSync(scenarioPath)
       .filter((f) => f.endsWith('.bru') && f !== 'folder.bru')
@@ -248,7 +261,9 @@ export class CatalogService {
     const docsMatch = content.match(/^docs \{([\s\S]*?)\n\}/m);
     if (!docsMatch) return null;
     const map: Record<number, string> = {};
-    for (const [, seq, type] of docsMatch[1].matchAll(/^\s*(\d+)\.\s*__(CREATE|UPDATE|DELETE)__/gm)) {
+    for (const [, seq, type] of docsMatch[1].matchAll(
+      /^\s*(\d+)\.\s*__(CREATE|UPDATE|DELETE)__/gm
+    )) {
       map[parseInt(seq, 10)] = type;
     }
     return Object.keys(map).length > 0 ? map : null;
@@ -288,7 +303,11 @@ export class CatalogService {
       const value = trimmed.slice(colonIdx + 1).trim();
 
       if (/^\[ENTER/i.test(value)) {
-        const description = value.replace(/^\[ENTER[\s_]*/i, '').replace(/]$/, '').trim() || null;
+        const description =
+          value
+            .replace(/^\[ENTER[\s_]*/i, '')
+            .replace(/]$/, '')
+            .trim() || null;
         params.push({ name, type: 'input', description });
       }
     }
@@ -316,7 +335,11 @@ export class CatalogService {
 
       if (/^\{\{/.test(value)) {
         const varName = value.replace(/^\{\{|\}\}$/g, '').trim();
-        params.push({ name, type: 'context', description: `Resolved from Bruno context variable: ${varName}` });
+        params.push({
+          name,
+          type: 'context',
+          description: `Resolved from Bruno context variable: ${varName}`,
+        });
       }
     }
     return params;
@@ -344,10 +367,12 @@ export class CatalogService {
     const varMatch = lastSegment.match(/^\{\{(.+?)\}\}$/);
     if (!varMatch) return [];
 
-    return [{
-      name: varMatch[1],
-      type: 'reference',
-      description: `Resource identifier captured from the CREATE step and provided automatically by the App`,
-    }];
+    return [
+      {
+        name: varMatch[1],
+        type: 'reference',
+        description: `Resource identifier captured from the CREATE step and provided automatically by the App`,
+      },
+    ];
   }
 }
