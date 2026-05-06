@@ -99,6 +99,10 @@ export class SbSyncConsumer implements OnModuleInit {
         throw error;
       }
     }
+
+    // Explicitly start the queue after workers are registered. This is safe to call even if
+    // onApplicationBootstrap already started it — start() is idempotent.
+    await this.jobQueue.start();
   }
 
   async refreshSbEnvironment(sbEnvironmentId: number) {

@@ -19,6 +19,7 @@ export class MssqlJobQueueService
   private pollingTimer: NodeJS.Timeout | undefined;
   private scheduleTimer: NodeJS.Timeout | undefined;
   private isRunning = false;
+  private lastDiagnosticLog = 0; // timestamp of last diagnostic log to avoid spam
   private readonly pollIntervalMs: number;
   private readonly scheduleIntervalMs: number;
 
@@ -31,6 +32,7 @@ export class MssqlJobQueueService
   }
 
   async start(): Promise<void> {
+    if (this.isRunning) return; // idempotent — safe to call from both onModuleInit and onApplicationBootstrap
     this.isRunning = true;
     await this.recoverStaleJobs();
     void this.runJobLoop();
@@ -56,25 +58,36 @@ export class MssqlJobQueueService
   }
 
   async send<T = object>(queueName: string, data: T | null, options?: JobOptions): Promise<string> {
-    const job = new JobQueue();
-    job.id = randomUUID();
-    job.name = queueName;
-    job.data = JSON.stringify(data ?? {});
-    job.state = 'created';
-    job.createdon = new Date();
-    job.singletonKey = options?.singletonKey ?? null;
-    job.retrylimit = options?.retryLimit ?? 3;
-    job.retrydelay = options?.retryDelay ?? 0;
-    job.retrybackoff = options?.retryBackoff ?? false;
-
-    if (options?.expireInHours) {
-      job.expirein = new Date(Date.now() + options.expireInHours * 3_600_000);
-    }
+    const id = randomUUID();
+    const jobData = JSON.stringify(data ?? {});
+    const singletonKey = options?.singletonKey ?? null;
+    const retrylimit = options?.retryLimit ?? 3;
+    const retrydelay = options?.retryDelay ?? 0;
+    const retrybackoff = (options?.retryBackoff ?? false) ? 1 : 0;
 
     try {
-      await this.jobRepository.save(job);
-      this.logger.log(`Job ${job.id} queued for ${queueName}`);
-      return job.id;
+      if (options?.expireInHours != null) {
+        // Use server-side DATEADD so expirein uses the same clock as GETUTCDATE() comparisons.
+        // Node.js Date.now() and the SQL Server clock can differ; using SQL functions eliminates
+        // the mismatch entirely.
+        await this.jobRepository.query(
+          `INSERT INTO job_queue
+             (id, name, data, state, createdon, singletonKey, retrylimit, retrydelay, retrybackoff, expirein)
+           VALUES
+             (@0, @1, @2, 'created', GETUTCDATE(), @3, @4, @5, @6, DATEADD(HOUR, @7, GETUTCDATE()))`,
+          [id, queueName, jobData, singletonKey, retrylimit, retrydelay, retrybackoff, options.expireInHours]
+        );
+      } else {
+        await this.jobRepository.query(
+          `INSERT INTO job_queue
+             (id, name, data, state, createdon, singletonKey, retrylimit, retrydelay, retrybackoff)
+           VALUES
+             (@0, @1, @2, 'created', GETUTCDATE(), @3, @4, @5, @6)`,
+          [id, queueName, jobData, singletonKey, retrylimit, retrydelay, retrybackoff]
+        );
+      }
+      this.logger.log(`Job ${id} queued for ${queueName}`);
+      return id;
     } catch (error) {
       // MSSQL unique constraint violation codes: 2601 (duplicate key row) or 2627 (unique constraint)
       const code = (error as { number?: number })?.number;
@@ -87,7 +100,7 @@ export class MssqlJobQueueService
             state: In(['created', 'retry', 'active']),
           },
         });
-        return existing?.id ?? job.id;
+        return existing?.id ?? id;
       }
       throw error;
     }
@@ -143,6 +156,8 @@ export class MssqlJobQueueService
     if (!this.isRunning) return;
     try {
       await this.processJobs();
+    } catch (err) {
+      this.logger.error(`processJobs error: ${(err as Error).message}`, (err as Error).stack);
     } finally {
       if (this.isRunning) {
         this.pollingTimer = setTimeout(() => void this.runJobLoop(), this.pollIntervalMs);
@@ -155,6 +170,8 @@ export class MssqlJobQueueService
     if (!this.isRunning) return;
     try {
       await this.processSchedules();
+    } catch (err) {
+      this.logger.error(`processSchedules error: ${(err as Error).message}`, (err as Error).stack);
     } finally {
       if (this.isRunning) {
         this.scheduleTimer = setTimeout(() => void this.runScheduleLoop(), this.scheduleIntervalMs);
@@ -166,31 +183,74 @@ export class MssqlJobQueueService
   private async processJobs(): Promise<void> {
     if (!this.isRunning) return;
 
-    const leaseUntil = new Date(Date.now() + 5 * 60 * 1000); // 5-minute lease (D-02)
+    const leaseMinutes = 5;
 
+    // Use GETUTCDATE() + server-side DATEADD for leaseUntil so it uses the same clock
+    // as the expirein/availableAt comparisons — avoids Node.js vs SQL Server clock skew.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const claimed: JobQueue[] = await this.jobRepository.query(
       `UPDATE TOP (10) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
        SET state      = 'active',
            startedon  = GETUTCDATE(),
-           leaseUntil = @0
+           leaseUntil = DATEADD(MINUTE, ${leaseMinutes}, GETUTCDATE())
        OUTPUT INSERTED.*
        WHERE state IN ('created', 'retry')
          AND (availableAt IS NULL OR availableAt <= GETUTCDATE())
          AND (expirein    IS NULL OR expirein    >  GETUTCDATE())`,
-      [leaseUntil]
+      []
     );
 
     for (const job of claimed) {
+      this.logger.log(`Claimed job ${job.id} (${job.name}) — running handler`);
       // fire-and-forget — each job runs independently without blocking the next poll tick
       void this.executeJob(job);
+    }
+
+    if (claimed.length === 0) {
+      // Throttled diagnostic: show actual DB values vs GETDATE() once every 10s
+      const now = Date.now();
+      if (now - this.lastDiagnosticLog > 10_000) {
+        this.lastDiagnosticLog = now;
+        const diagnostic: Array<{
+          id: string;
+          name: string;
+          state: string;
+          availableAt: Date | null;
+          expirein: Date | null;
+          serverNow: Date;
+          availableOk: number;
+          expireOk: number;
+        }> = await this.jobRepository.query(`
+          SELECT TOP 5
+            id, name, state, availableAt, expirein,
+            GETUTCDATE() as serverNow,
+            CASE WHEN availableAt IS NULL OR availableAt <= GETUTCDATE() THEN 1 ELSE 0 END as availableOk,
+            CASE WHEN expirein    IS NULL OR expirein    >  GETUTCDATE() THEN 1 ELSE 0 END as expireOk
+          FROM job_queue
+          WHERE state IN ('created', 'retry')
+        `);
+        if (diagnostic.length > 0) {
+          for (const row of diagnostic) {
+            this.logger.warn(
+              `Unclaimed job ${row.id} (${row.name}): state=${row.state}, ` +
+                `availableAt=${row.availableAt?.toISOString() ?? 'null'} (ok=${row.availableOk}), ` +
+                `expirein=${row.expirein?.toISOString() ?? 'null'} (ok=${row.expireOk}), ` +
+                `serverNow=${row.serverNow?.toISOString()}`
+            );
+          }
+        }
+      }
     }
   }
 
   private async executeJob(job: JobQueue): Promise<void> {
     const handler = this.workers.get(job.name);
     if (!handler) {
-      this.logger.warn(`No worker registered for queue: ${job.name}`);
+      this.logger.warn(`No worker registered for queue: ${job.name} — marking job ${job.id} as failed`);
+      await this.jobRepository.query(
+        `UPDATE job_queue SET state='failed', completedon=GETUTCDATE(), output=@1 WHERE id=@0`,
+        [job.id, JSON.stringify({ error: `No worker registered for queue: ${job.name}` })]
+      );
       return;
     }
 
@@ -209,10 +269,10 @@ export class MssqlJobQueueService
 
       await handler(jobData);
 
-      await this.jobRepository.update(job.id, {
-        state: 'completed',
-        completedon: new Date(),
-      });
+      await this.jobRepository.query(
+        `UPDATE job_queue SET state='completed', completedon=GETUTCDATE() WHERE id=@0`,
+        [job.id]
+      );
 
       this.logger.log(`Job ${job.id} completed successfully`);
     } catch (error) {
@@ -224,20 +284,20 @@ export class MssqlJobQueueService
           ? Math.pow(2, job.retrycount) * (job.retrydelay || 1000)
           : job.retrydelay || 1000;
 
-        await this.jobRepository.update(job.id, {
-          state: 'retry',
-          retrycount: job.retrycount + 1,
-          availableAt: new Date(Date.now() + nextRetryMs), // persist delay so poll respects it (D-06)
-          output: JSON.stringify({ error: err.message, stack: err.stack }),
-        });
+        // Use server-side DATEADD for availableAt to avoid Node.js vs SQL Server clock skew (D-06)
+        await this.jobRepository.query(
+          `UPDATE job_queue SET state='retry', retrycount=@1, output=@2,
+             availableAt=DATEADD(MILLISECOND, @3, GETUTCDATE())
+           WHERE id=@0`,
+          [job.id, job.retrycount + 1, JSON.stringify({ error: err.message, stack: err.stack }), nextRetryMs]
+        );
 
         this.logger.log(`Job ${job.id} will retry in ${nextRetryMs}ms`);
       } else {
-        await this.jobRepository.update(job.id, {
-          state: 'failed',
-          completedon: new Date(),
-          output: JSON.stringify({ error: err.message, stack: err.stack }),
-        });
+        await this.jobRepository.query(
+          `UPDATE job_queue SET state='failed', completedon=GETUTCDATE(), output=@1 WHERE id=@0`,
+          [job.id, JSON.stringify({ error: err.message, stack: err.stack })]
+        );
       }
     }
   }
