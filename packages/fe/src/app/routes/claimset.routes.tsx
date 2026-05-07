@@ -25,7 +25,7 @@ const ClaimsetBreadcrumbV1 = () => {
       edfiTenant,
     })
   );
-  return (claimset.data?.displayName ?? params.claimsetId) as unknown as JSX.Element;
+  return claimset.data?.displayName ?? params.claimsetId;
 };
 
 const ClaimsetBreadcrumbV2 = () => {
@@ -40,7 +40,7 @@ const ClaimsetBreadcrumbV2 = () => {
       teamId,
     })
   );
-  return (claimset.data?.displayName ?? params.claimsetId) as unknown as JSX.Element;
+  return claimset.data?.displayName ?? params.claimsetId;
 };
 export const claimsetCreateRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/claimsets/create',
