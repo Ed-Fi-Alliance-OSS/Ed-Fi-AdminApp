@@ -24,6 +24,13 @@ const inactiveStyles = {
   _active: { bg: 'gray.200' },
 };
 
+type ToggleChildProps = {
+  value?: string;
+  onClick?: () => void;
+  sx?: unknown;
+  colorScheme?: string;
+};
+
 /**
  * @example (
  * <ToggleButtonGroup onChange={handleChangeValue} value={value}>
@@ -40,20 +47,39 @@ export const ToggleButtonGroup: React.FC<{
   groupProps?: ButtonGroupProps;
   children?: React.ReactNode;
 }> = ({ onChange, value, children, groupProps }) => {
-  if (!children) throw new Error('Children required');
+  if (!children) throw new Error('ToggleButtonGroup requires children');
+
+  const childNodes = React.Children.toArray(children);
+
+  if (childNodes.length === 0) {
+    throw new Error('ToggleButtonGroup requires at least one child element');
+  }
+
   // iterate over array of child nodes to apply extended props
   return (
     <ButtonGroup {...groupProps}>
-      {React.Children.map(children as React.ReactElement[], (CHILD) => {
-        const child = CHILD as React.ReactElement<any>;
+      {childNodes.map((childNode) => {
+        if (!React.isValidElement<ToggleChildProps>(childNode)) {
+          throw new TypeError(
+            'ToggleButtonGroup children must be valid React elements, for example <Button value="example">Label</Button>'
+          );
+        }
 
-        return React.cloneElement(child, {
+        const childValue = childNode.props?.value;
+
+        if (typeof childValue !== 'string') {
+          throw new TypeError('ToggleButtonGroup child elements must include a string value prop');
+        }
+
+        const updatedProps: Partial<ToggleChildProps> = {
           onClick: () => {
-            if (value === child.props?.value) return;
-            onChange(child.props?.value);
+            if (value === childValue) return;
+            onChange(childValue);
           },
-          ...(value !== child.props?.value ? { sx: inactiveStyles } : { colorScheme: 'teal' }),
-        });
+          ...(value === childValue ? { colorScheme: 'teal' } : { sx: inactiveStyles }),
+        };
+
+        return React.cloneElement(childNode, updatedProps);
       })}
     </ButtonGroup>
   );

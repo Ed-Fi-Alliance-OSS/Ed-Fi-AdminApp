@@ -8,8 +8,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { Icons } from '@edanalytics/common-ui';
-import { ReactNode } from 'react';
-import { useEffect } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 export interface INavButtonProps {
   route: string;
