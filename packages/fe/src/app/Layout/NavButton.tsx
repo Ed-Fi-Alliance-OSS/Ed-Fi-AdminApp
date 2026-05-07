@@ -8,7 +8,7 @@ import {
   useDisclosure,
 } from '@chakra-ui/react';
 import { Icons } from '@edanalytics/common-ui';
-import { useEffect } from 'react';
+import { ReactNode, useEffect } from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 export interface INavButtonProps {
   route: string;
@@ -17,7 +17,7 @@ export interface INavButtonProps {
   childItems?: INavButtonProps[];
   depth?: number;
   isActive?: boolean;
-  rightElement?: JSX.Element;
+  rightElement?: ReactNode;
 }
 
 // TODO: The "resource explorer"-style tree component should probably be its own nice abstraction, with navigation links just implementing the interface. With the expectation of that eventually happening, not much effort has been put into making the existing setup very elegant.

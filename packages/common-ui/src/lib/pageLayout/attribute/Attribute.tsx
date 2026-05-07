@@ -29,6 +29,31 @@ type AttributeBaseProps = {
   isMasked?: boolean;
 } & StyleProps;
 
+type AttributeCommonProps = AttributeBaseProps & {
+  defaultDateFmt?: DateFormat;
+  isUrlExternal?: boolean;
+};
+
+type AttributeUrlProps = AttributeCommonProps & {
+  isUrl: true;
+  isDate?: false;
+  value: string | undefined | null;
+};
+
+type AttributeDateProps = AttributeCommonProps & {
+  isUrl?: false;
+  isDate: true;
+  value: Date | undefined | null;
+};
+
+type AttributeDefaultProps = AttributeCommonProps & {
+  isUrl?: false;
+  isDate?: false;
+  value: string | undefined | null | boolean | number;
+};
+
+type AttributeProps = AttributeUrlProps | AttributeDateProps | AttributeDefaultProps;
+
 export enum DateFormat {
   Short = 0,
   Long = 1,
@@ -57,44 +82,10 @@ export const AttributeContainer = chakraForwardRef<{ label: string } & StyleProp
 );
 
 function _Attribute(
-  props: AttributeBaseProps & {
-    isUrl: true;
-    isUrlExternal?: boolean;
-    value: string | undefined;
-  },
+  props: AttributeProps,
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    isDate: true;
-    defaultDateFmt?: DateFormat;
-    value: Date | undefined | null;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    value: string | undefined | null | boolean | number;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-): JSX.Element;
-
-function _Attribute(
-  props: AttributeBaseProps & {
-    isUrl?: boolean | undefined;
-    isUrlExternal?: boolean | undefined;
-    isDate?: boolean | undefined;
-    defaultDateFmt?: DateFormat;
-    value: string | Date | undefined | null | boolean | number;
-  },
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  ref: any
-) {
+): ReactElement {
   const {
     isUrl,
     isUrlExternal,
@@ -135,30 +126,37 @@ function _Attribute(
     }
   }, []);
 
+  let valueContent: ReactElement;
+
+  if (resultValue === undefined) {
+    valueContent = <span>&nbsp;-&nbsp;</span>;
+  } else if (isDate && showSecret.isOpen && value instanceof Date) {
+    valueContent = <DateValue value={value} defaultDateFmt={defaultDateFmt} />;
+  } else if (isUrl && showSecret.isOpen && typeof value === 'string') {
+    valueContent = isUrlExternal ? (
+      <Link color="blue.500" href={value} target="_blank" rel="noopener noreferrer">
+        {maskedValue}
+      </Link>
+    ) : (
+      <Link color="blue.500" as={RouterLink} to={value}>
+        {maskedValue}
+      </Link>
+    );
+  } else {
+    valueContent = (
+      <chakra.span letterSpacing={showSecret.isOpen ? undefined : '2.7px'}>
+        {maskedValue}
+      </chakra.span>
+    );
+  }
+
   return (
     <AttributeContainer ref={ref} {...styles} label={label}>
       <chakra.div display="inline-block" lineHeight={1} maxWidth="100%">
         {isCopyable && resultValue !== undefined ? (
           <CopyButton isMasked={isMasked} value={clipValue} />
         ) : null}
-        {resultValue === undefined ? (
-          <span>&nbsp;-&nbsp;</span>
-        ) : isDate && showSecret.isOpen ? (
-          <DateValue value={value as Date} defaultDateFmt={defaultDateFmt} />
-        ) : isUrl && showSecret.isOpen ? (
-          <Link
-            color="blue.500"
-            {...(isUrlExternal
-              ? { href: value as string, target: '_blank', rel: 'noopener noreferrer' }
-              : { as: RouterLink, to: value as string })}
-          >
-            {maskedValue}
-          </Link>
-        ) : (
-          <chakra.span letterSpacing={showSecret.isOpen ? undefined : '2.7px'}>
-            {maskedValue}
-          </chakra.span>
-        )}
+        {valueContent}
         {isMasked && resultValue !== undefined ? (
           <Button
             fontWeight="medium"
@@ -224,7 +222,7 @@ export function CopyButton(
     </Popover>
   );
 }
-export const Attribute = forwardRef(_Attribute) as typeof _Attribute;
+export const Attribute = forwardRef<any, AttributeProps>(_Attribute);
 
 export const DateValue = (props: { value: Date; defaultDateFmt?: DateFormat }) => {
   const [fmt, setFmt] = useState(props.defaultDateFmt ?? 0);
