@@ -1,8 +1,8 @@
 import { parseExpression } from 'cron-parser'; // pinned to ^3.1.0 (D-13)
 import { Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
-import { InjectRepository } from '@nestjs/typeorm';
+import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { In, Repository } from 'typeorm';
+import { DataSource, In, Repository } from 'typeorm';
 import config from 'config';
 import { JobQueue } from '@edanalytics/models-server';
 import { IJobQueueService, Job, JobOptions, ScheduleOptions } from './job-queue.interface';
@@ -25,7 +25,9 @@ export class MssqlJobQueueService
 
   constructor(
     @InjectRepository(JobQueue)
-    private readonly jobRepository: Repository<JobQueue>
+    private readonly jobRepository: Repository<JobQueue>,
+    @InjectDataSource()
+    private readonly dataSource: DataSource
   ) {
     this.pollIntervalMs = config.MSSQL_JOB_POLL_MS ?? 1000;
     this.scheduleIntervalMs = config.MSSQL_SCHEDULE_POLL_MS ?? 10000;
@@ -316,15 +318,10 @@ export class MssqlJobQueueService
         : new Date(0); // fire immediately on first tick if no prior record
 
       if (nextFire <= now) {
-        const acquired = await this.tryAcquireSchedulerLock(queueName);
-        if (acquired) {
-          try {
-            await this.send(queueName, entry.data ?? null);
-            this.lastScheduleFire.set(queueName, now);
-          } finally {
-            await this.releaseSchedulerLock(queueName);
-          }
-        }
+        await this.withSchedulerLock(queueName, async () => {
+          await this.send(queueName, entry.data ?? null);
+          this.lastScheduleFire.set(queueName, now);
+        });
       }
     }
   }
@@ -351,22 +348,31 @@ export class MssqlJobQueueService
     }
   }
 
-  // Advisory lock via sp_getapplock — ensures only one instance fires a given schedule (D-07)
-  private async tryAcquireSchedulerLock(name: string): Promise<boolean> {
-    const result = await this.jobRepository.query(
-      `DECLARE @ret INT;
-       EXEC @ret = sp_getapplock @Resource = @0, @LockMode = 'Exclusive', @LockOwner = 'Session', @LockTimeout = 0;
-       SELECT @ret AS returnCode;`,
-      [`scheduler_${name}`]
-    );
-    const returnCode: number = Array.isArray(result) && result[0] ? result[0].returnCode : -1;
-    return returnCode >= 0;
-  }
-
-  private async releaseSchedulerLock(name: string): Promise<void> {
-    await this.jobRepository.query(
-      `EXEC sp_releaseapplock @Resource = @0, @LockOwner = 'Session'`,
-      [`scheduler_${name}`]
-    );
+  // Advisory lock via sp_getapplock with @LockOwner='Transaction' (D-07).
+  // A dedicated QueryRunner ensures acquire, work, and implicit release all happen on the
+  // same SQL Server session. The lock is released automatically when the transaction ends,
+  // so there is no risk of leaving a stale lock on a pooled connection.
+  private async withSchedulerLock(name: string, fn: () => Promise<void>): Promise<void> {
+    const qr = this.dataSource.createQueryRunner();
+    await qr.connect();
+    await qr.startTransaction();
+    try {
+      const result: Array<{ returnCode: number }> = await qr.query(
+        `DECLARE @ret INT;
+         EXEC @ret = sp_getapplock @Resource = @0, @LockMode = 'Exclusive', @LockOwner = 'Transaction', @LockTimeout = 0;
+         SELECT @ret AS returnCode;`,
+        [`scheduler_${name}`]
+      );
+      const returnCode: number = Array.isArray(result) && result[0] ? result[0].returnCode : -1;
+      if (returnCode >= 0) {
+        await fn();
+      }
+      await qr.commitTransaction();
+    } catch (err) {
+      await qr.rollbackTransaction();
+      throw err;
+    } finally {
+      await qr.release();
+    }
   }
 }
