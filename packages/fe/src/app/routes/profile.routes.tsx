@@ -8,7 +8,7 @@ import {
   withLoader,
 } from '../helpers';
 import { Link, Text } from '@chakra-ui/react';
-import { profileQueriesV2 } from '../api/queries/queries.v7';
+import { profileQueriesV2 } from '../api/queries/queries.v2';
 import { ProfilesPage } from '../Pages/Profile/ProfilesPage';
 import { ProfilePageV2 } from '../Pages/Profile/ProfilePage';
 import { CreateProfile } from '../Pages/Profile/CreateProfilePage';
