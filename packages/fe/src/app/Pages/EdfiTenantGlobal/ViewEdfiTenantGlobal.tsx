@@ -48,7 +48,7 @@ export const ViewEdfiTenantGlobal = withLoader((props: { edfiTenant: GetEdfiTena
         <PageContentCard>
           <ContentSection heading="Sync queue">
             <SbSyncQueuesTable
-              defaultFilters={[{ id: 'dataText', value: `{"edfiTenantId": ${edfiTenant.id}}` }]}
+              defaultFilters={[{ id: 'edfiTenantId', value: edfiTenant.id }]}
             />
           </ContentSection>
         </PageContentCard>

@@ -40,6 +40,14 @@ type PossibleFilterValue =
       value: string;
     }
   | {
+      id: 'sbEnvironmentId';
+      value: number;
+    }
+  | {
+      id: 'edfiTenantId';
+      value: number;
+    }
+  | {
       id: 'state';
       value: PgBossJobState;
     }
@@ -63,6 +71,10 @@ const constructWhereClause = (filter: PossibleFilterValue[]): FindOptionsWhere<S
       whereClause.type = filter.value;
     } else if (filter?.id === 'dataText') {
       whereClause.dataText = filter.value;
+    } else if (filter?.id === 'sbEnvironmentId') {
+      whereClause.sbEnvironmentId = Number(filter.value);
+    } else if (filter?.id === 'edfiTenantId') {
+      whereClause.edfiTenantId = Number(filter.value);
     } else if (filter?.id === 'state') {
       whereClause.state = filter.value;
     } else if (filter?.id === 'hasChanges') {
