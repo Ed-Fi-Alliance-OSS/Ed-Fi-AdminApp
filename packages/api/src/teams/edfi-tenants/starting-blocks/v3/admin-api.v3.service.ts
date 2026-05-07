@@ -1,46 +1,46 @@
 import {
-  CopyClaimsetDtoV2,
+  CopyClaimsetDtoV3,
   EducationOrganizationDto,
   ISbEnvironmentConfigPrivateV2,
   Id,
-  ImportClaimsetSingleDtoV2,
+  ImportClaimsetSingleDtoV3,
   OdsInstanceDto,
-  PostApiClientDtoV2,
-  PostActionAuthStrategiesDtoV2,
-  PostApplicationDtoV2,
-  PostClaimsetDtoV2,
-  PostClaimsetResourceClaimActionsDtoV2,
-  PostOdsInstanceContextDtoV2,
-  PostOdsInstanceDerivativeDtoV2,
-  PostOdsInstanceDtoV2,
-  PostProfileDtoV2,
-  PostVendorDtoV2,
-  PutApiClientDtoV2,
-  PutApplicationDtoV2,
-  PutClaimsetDtoV2,
-  PutClaimsetResourceClaimActionsDtoV2,
-  PutOdsInstanceContextDtoV2,
-  PutOdsInstanceDerivativeDtoV2,
-  PutOdsInstanceDtoV2,
-  PutProfileDtoV2,
-  PutVendorDtoV2,
+  PostApiClientDtoV3,
+  PostActionAuthStrategiesDtoV3,
+  PostApplicationDtoV3,
+  PostClaimsetDtoV3,
+  PostClaimsetResourceClaimActionsDtoV3,
+  PostOdsInstanceContextDtoV3,
+  PostOdsInstanceDerivativeDtoV3,
+  PostOdsInstanceDtoV3,
+  PostProfileDtoV3,
+  PostVendorDtoV3,
+  PutApiClientDtoV3,
+  PutApplicationDtoV3,
+  PutClaimsetDtoV3,
+  PutClaimsetResourceClaimActionsDtoV3,
+  PutOdsInstanceContextDtoV3,
+  PutOdsInstanceDerivativeDtoV3,
+  PutOdsInstanceDtoV3,
+  PutProfileDtoV3,
+  PutVendorDtoV3,
   TenantDto,
-  toGetActionDtoV2,
-  toGetApplicationDtoV2,
-  toGetApiClientDtoV2,
-  toGetAuthStrategyDtoV2,
-  toGetClaimsetMultipleDtoV2,
-  toGetClaimsetSingleDtoV2,
-  toGetOdsInstanceContextDtoV2,
-  toGetOdsInstanceDerivativeDtoV2,
-  toGetOdsInstanceDetailDtoV2,
-  toGetOdsInstanceSummaryDtoV2,
-  toGetProfileDtoV2,
-  toGetResourceClaimDetailDtoV2,
-  toGetVendorDtoV2,
-  toPostApplicationResponseDtoV2,
-  PostApiClientResponseDtoV2,
-  toPostApiClientResponseDtoV2,
+  toGetActionDtoV3,
+  toGetApplicationDtoV3,
+  toGetApiClientDtoV3,
+  toGetAuthStrategyDtoV3,
+  toGetClaimsetMultipleDtoV3,
+  toGetClaimsetSingleDtoV3,
+  toGetOdsInstanceContextDtoV3,
+  toGetOdsInstanceDerivativeDtoV3,
+  toGetOdsInstanceDetailDtoV3,
+  toGetOdsInstanceSummaryDtoV3,
+  toGetProfileDtoV3,
+  toGetResourceClaimDetailDtoV3,
+  toGetVendorDtoV3,
+  toPostApplicationResponseDtoV3,
+  PostApiClientResponseDtoV3,
+  toPostApiClientResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger } from '@nestjs/common';
@@ -369,7 +369,7 @@ export class AdminApiServiceV3 {
   }
 
   async getActions(edfiTenant: EdfiTenant) {
-    return toGetActionDtoV2(
+    return toGetActionDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`actions?offset=0&limit=10000`)
@@ -381,7 +381,7 @@ export class AdminApiServiceV3 {
   }
 
   async getApplications(edfiTenant: EdfiTenant) {
-    return toGetApplicationDtoV2(
+    return toGetApplicationDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`applications?offset=0&limit=10000`)
@@ -392,8 +392,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async postApplication(edfiTenant: EdfiTenant, application: PostApplicationDtoV2) {
-    return toPostApplicationResponseDtoV2(
+  async postApplication(edfiTenant: EdfiTenant, application: PostApplicationDtoV3) {
+    return toPostApplicationResponseDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`applications`, application)
         .catch((err) => {
@@ -404,7 +404,7 @@ export class AdminApiServiceV3 {
   }
 
   async getApplication(edfiTenant: EdfiTenant, applicationId: number) {
-    return toGetApplicationDtoV2(
+    return toGetApplicationDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`applications/${applicationId}`)
         .catch((err) => {
@@ -419,9 +419,9 @@ export class AdminApiServiceV3 {
   async putApplication(
     edfiTenant: EdfiTenant,
     applicationId: number,
-    application: PutApplicationDtoV2
+    application: PutApplicationDtoV3
   ) {
-    return toGetApplicationDtoV2(
+    return toGetApplicationDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`applications/${applicationId}`, application)
         .catch((err) => {
@@ -446,7 +446,7 @@ export class AdminApiServiceV3 {
   }
 
   async putApplicationResetCredential(edfiTenant: EdfiTenant, applicationId: number) {
-    return toPostApplicationResponseDtoV2(
+    return toPostApplicationResponseDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`applications/${applicationId}/reset-credential`)
         .catch((err) => {
@@ -459,7 +459,7 @@ export class AdminApiServiceV3 {
   }
 
   async getApiClients(edfiTenant: EdfiTenant, applicationId: number) {
-    return toGetApiClientDtoV2(
+    return toGetApiClientDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`apiclients?offset=0&limit=10000&applicationId=${applicationId}`)
@@ -471,7 +471,7 @@ export class AdminApiServiceV3 {
   }
 
   async getApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
-    return toGetApiClientDtoV2(
+    return toGetApiClientDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`apiclients/${apiClientId}`)
         .catch((err) => {
@@ -483,8 +483,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async putApiClient(edfiTenant: EdfiTenant, apiClientId: number, apiClient: PutApiClientDtoV2) {
-    return toGetApiClientDtoV2(
+  async putApiClient(edfiTenant: EdfiTenant, apiClientId: number, apiClient: PutApiClientDtoV3) {
+    return toGetApiClientDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`apiclients/${apiClientId}`, apiClient)
         .catch((err) => {
@@ -498,9 +498,9 @@ export class AdminApiServiceV3 {
 
   async postApiClient(
      edfiTenant: EdfiTenant,
-     apiClient: PostApiClientDtoV2
-   ): Promise<PostApiClientResponseDtoV2> {
-     return toPostApiClientResponseDtoV2(
+     apiClient: PostApiClientDtoV3
+   ): Promise<PostApiClientResponseDtoV3> {
+     return toPostApiClientResponseDtoV3(
        (await this.getAdminApiClient(edfiTenant)
          .post(`apiclients`, apiClient)
          .catch((err) => {
@@ -511,7 +511,7 @@ export class AdminApiServiceV3 {
   }
 
   async putApiClientResetCredential(edfiTenant: EdfiTenant, apiClientId: number) {
-    return toPostApiClientResponseDtoV2(
+    return toPostApiClientResponseDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`apiclients/${apiClientId}/reset-credential`)
         .catch((err) => {
@@ -536,7 +536,7 @@ export class AdminApiServiceV3 {
   }
 
   async getAuthorizationStrategies(edfiTenant: EdfiTenant) {
-    return toGetAuthStrategyDtoV2(
+    return toGetAuthStrategyDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`authorizationStrategies?offset=0&limit=10000`)
@@ -550,7 +550,7 @@ export class AdminApiServiceV3 {
   }
 
   async getClaimsets(edfiTenant: EdfiTenant) {
-    return toGetClaimsetMultipleDtoV2(
+    return toGetClaimsetMultipleDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`claimSets?offset=0&limit=10000`)
@@ -561,8 +561,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async postClaimset(edfiTenant: EdfiTenant, claimSet: PostClaimsetDtoV2) {
-    return toGetClaimsetSingleDtoV2(
+  async postClaimset(edfiTenant: EdfiTenant, claimSet: PostClaimsetDtoV3) {
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`claimSets`, claimSet)
         .catch((err) => {
@@ -573,7 +573,7 @@ export class AdminApiServiceV3 {
   }
 
   async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`claimSets/${claimSetId}`)
         .catch((err) => {
@@ -585,8 +585,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async putClaimset(edfiTenant: EdfiTenant, claimSetId: number, claimSet: PutClaimsetDtoV2) {
-    return toGetClaimsetSingleDtoV2(
+  async putClaimset(edfiTenant: EdfiTenant, claimSetId: number, claimSet: PutClaimsetDtoV3) {
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`claimSets/${claimSetId}`, claimSet)
         .catch((err) => {
@@ -613,9 +613,9 @@ export class AdminApiServiceV3 {
   async postClaimsetResourceClaimAction(
     edfiTenant: EdfiTenant,
     claimSetId: number,
-    resourceClaimAction: PostClaimsetResourceClaimActionsDtoV2
+    resourceClaimAction: PostClaimsetResourceClaimActionsDtoV3
   ) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`claimSets/${claimSetId}/resourceClaimActions`, resourceClaimAction)
         .catch((err) => {
@@ -631,9 +631,9 @@ export class AdminApiServiceV3 {
     edfiTenant: EdfiTenant,
     claimSetId: number,
     resourceClaimId: number,
-    resourceClaimAction: PutClaimsetResourceClaimActionsDtoV2
+    resourceClaimAction: PutClaimsetResourceClaimActionsDtoV3
   ) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`claimSets/${claimSetId}/resourceClaimActions/${resourceClaimId}`, resourceClaimAction)
         .catch((err) => {
@@ -649,9 +649,9 @@ export class AdminApiServiceV3 {
     edfiTenant: EdfiTenant,
     claimSetId: number,
     resourceClaimId: number,
-    overrideAuthorizationStrategy: PostActionAuthStrategiesDtoV2
+    overrideAuthorizationStrategy: PostActionAuthStrategiesDtoV3
   ) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(
           `claimSets/${claimSetId}/resourceClaimActions/${resourceClaimId}/overrideAuthorizationStrategy`,
@@ -671,7 +671,7 @@ export class AdminApiServiceV3 {
     claimSetId: number,
     resourceClaimId: number
   ) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(
           `claimSets/${claimSetId}/resourceClaimActions/${resourceClaimId}/resetAuthorizationStrategies`
@@ -690,7 +690,7 @@ export class AdminApiServiceV3 {
     claimSetId: number,
     resourceClaimId: number
   ) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .delete(`claimSets/${claimSetId}/resourceClaimActions/${resourceClaimId}`)
         .catch((err) => {
@@ -702,7 +702,7 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async copyClaimset(edfiTenant: EdfiTenant, copyClaimset: CopyClaimsetDtoV2) {
+  async copyClaimset(edfiTenant: EdfiTenant, copyClaimset: CopyClaimsetDtoV3) {
     const { headers } = await this.getAdminApiClient(edfiTenant, true)
       .post(`claimSets/copy`, copyClaimset)
       .catch((err) => {
@@ -712,7 +712,7 @@ export class AdminApiServiceV3 {
     return new Id(Number(headers.location.match(/\d+$/)[0]));
   }
 
-  async importClaimset(edfiTenant: EdfiTenant, importClaimset: ImportClaimsetSingleDtoV2) {
+  async importClaimset(edfiTenant: EdfiTenant, importClaimset: ImportClaimsetSingleDtoV3) {
     const { headers } = await this.getAdminApiClient(edfiTenant, true)
       .post(`claimSets/import`, importClaimset)
       .catch((err) => {
@@ -723,7 +723,7 @@ export class AdminApiServiceV3 {
   }
 
   async exportClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
-    return toGetClaimsetSingleDtoV2(
+    return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`claimSets/${claimSetId}/export`)
         .catch((err) => {
@@ -756,7 +756,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstances(edfiTenant: EdfiTenant) {
-    return toGetOdsInstanceSummaryDtoV2(
+    return toGetOdsInstanceSummaryDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`odsInstances?offset=0&limit=10000`)
@@ -767,8 +767,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async postOdsInstance(edfiTenant: EdfiTenant, odsInstance: PostOdsInstanceDtoV2) {
-    return toGetOdsInstanceDetailDtoV2(
+  async postOdsInstance(edfiTenant: EdfiTenant, odsInstance: PostOdsInstanceDtoV3) {
+    return toGetOdsInstanceDetailDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`odsInstances`, odsInstance)
         .catch((err) => {
@@ -779,7 +779,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstance(edfiTenant: EdfiTenant, odsInstanceId: number) {
-    return toGetOdsInstanceDetailDtoV2(
+    return toGetOdsInstanceDetailDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`odsInstances/${odsInstanceId}`)
         .catch((err) => {
@@ -794,9 +794,9 @@ export class AdminApiServiceV3 {
   async putOdsInstance(
     edfiTenant: EdfiTenant,
     odsInstanceId: number,
-    odsInstance: PutOdsInstanceDtoV2
+    odsInstance: PutOdsInstanceDtoV3
   ) {
-    return toGetOdsInstanceDetailDtoV2(
+    return toGetOdsInstanceDetailDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`odsInstances/${odsInstanceId}`, odsInstance)
         .catch((err) => {
@@ -821,7 +821,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstanceApplications(edfiTenant: EdfiTenant, odsInstanceId: number) {
-    return toGetApplicationDtoV2(
+    return toGetApplicationDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`odsInstances/${odsInstanceId}/applications?offset=0&limit=10000`)
@@ -835,7 +835,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstanceContexts(edfiTenant: EdfiTenant) {
-    return toGetOdsInstanceContextDtoV2(
+    return toGetOdsInstanceContextDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`odsInstanceContexts?offset=0&limit=10000`)
@@ -850,9 +850,9 @@ export class AdminApiServiceV3 {
 
   async postOdsInstanceContext(
     edfiTenant: EdfiTenant,
-    odsInstanceContext: PostOdsInstanceContextDtoV2
+    odsInstanceContext: PostOdsInstanceContextDtoV3
   ) {
-    return toGetOdsInstanceContextDtoV2(
+    return toGetOdsInstanceContextDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`odsInstanceContexts`, odsInstanceContext)
         .catch((err) => {
@@ -865,7 +865,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstanceContext(edfiTenant: EdfiTenant, odsInstanceContextId: number) {
-    return toGetOdsInstanceContextDtoV2(
+    return toGetOdsInstanceContextDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`odsInstanceContexts/${odsInstanceContextId}`)
         .catch((err) => {
@@ -880,9 +880,9 @@ export class AdminApiServiceV3 {
   async putOdsInstanceContext(
     edfiTenant: EdfiTenant,
     odsInstanceContextId: number,
-    odsInstanceContext: PutOdsInstanceContextDtoV2
+    odsInstanceContext: PutOdsInstanceContextDtoV3
   ) {
-    return toGetOdsInstanceContextDtoV2(
+    return toGetOdsInstanceContextDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`odsInstanceContexts/${odsInstanceContextId}`, odsInstanceContext)
         .catch((err) => {
@@ -907,7 +907,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstanceDerivatives(edfiTenant: EdfiTenant) {
-    return toGetOdsInstanceDerivativeDtoV2(
+    return toGetOdsInstanceDerivativeDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`odsInstanceDerivatives?offset=0&limit=10000`)
@@ -922,9 +922,9 @@ export class AdminApiServiceV3 {
 
   async postOdsInstanceDerivative(
     edfiTenant: EdfiTenant,
-    odsInstanceDerivative: PostOdsInstanceDerivativeDtoV2
+    odsInstanceDerivative: PostOdsInstanceDerivativeDtoV3
   ) {
-    return toGetOdsInstanceDerivativeDtoV2(
+    return toGetOdsInstanceDerivativeDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .post(`odsInstanceDerivatives`, odsInstanceDerivative)
         .catch((err) => {
@@ -937,7 +937,7 @@ export class AdminApiServiceV3 {
   }
 
   async getOdsInstanceDerivative(edfiTenant: EdfiTenant, odsInstanceDerivativeId: number) {
-    return toGetOdsInstanceDerivativeDtoV2(
+    return toGetOdsInstanceDerivativeDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`odsInstanceDerivatives/${odsInstanceDerivativeId}`)
         .catch((err) => {
@@ -952,9 +952,9 @@ export class AdminApiServiceV3 {
   async putOdsInstanceDerivative(
     edfiTenant: EdfiTenant,
     odsInstanceDerivativeId: number,
-    odsInstanceDerivative: PutOdsInstanceDerivativeDtoV2
+    odsInstanceDerivative: PutOdsInstanceDerivativeDtoV3
   ) {
-    return toGetOdsInstanceDerivativeDtoV2(
+    return toGetOdsInstanceDerivativeDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`odsInstanceDerivatives/${odsInstanceDerivativeId}`, odsInstanceDerivative)
         .catch((err) => {
@@ -979,7 +979,7 @@ export class AdminApiServiceV3 {
   }
 
   async getProfiles(edfiTenant: EdfiTenant) {
-    return toGetProfileDtoV2(
+    return toGetProfileDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`profiles?offset=0&limit=10000`)
@@ -990,7 +990,7 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async postProfile(edfiTenant: EdfiTenant, profile: PostProfileDtoV2) {
+  async postProfile(edfiTenant: EdfiTenant, profile: PostProfileDtoV3) {
     const { headers } = await this.getAdminApiClient(edfiTenant, true)
       .post(`profiles`, profile)
       .catch((err) => {
@@ -1001,7 +1001,7 @@ export class AdminApiServiceV3 {
   }
 
   async getProfile(edfiTenant: EdfiTenant, profileId: number) {
-    return toGetProfileDtoV2(
+    return toGetProfileDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`profiles/${profileId}`)
         .catch((err) => {
@@ -1013,8 +1013,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async putProfile(edfiTenant: EdfiTenant, profileId: number, profile: PutProfileDtoV2) {
-    return toGetProfileDtoV2(
+  async putProfile(edfiTenant: EdfiTenant, profileId: number, profile: PutProfileDtoV3) {
+    return toGetProfileDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`profiles/${profileId}`, profile)
         .catch((err) => {
@@ -1039,7 +1039,7 @@ export class AdminApiServiceV3 {
   }
 
   async getResourceClaims(edfiTenant: EdfiTenant) {
-    return toGetResourceClaimDetailDtoV2(
+    return toGetResourceClaimDetailDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`resourceClaims?offset=0&limit=10000`)
@@ -1051,7 +1051,7 @@ export class AdminApiServiceV3 {
   }
 
   async getResourceClaim(edfiTenant: EdfiTenant, resourceClaimId: number) {
-    return toGetResourceClaimDetailDtoV2(
+    return toGetResourceClaimDetailDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`resourceClaims/${resourceClaimId}`)
         .catch((err) => {
@@ -1064,7 +1064,7 @@ export class AdminApiServiceV3 {
   }
 
   async getVendors(edfiTenant: EdfiTenant) {
-    return toGetVendorDtoV2(
+    return toGetVendorDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`vendors?offset=0&limit=10000`)
@@ -1075,7 +1075,7 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async postVendor(edfiTenant: EdfiTenant, vendor: PostVendorDtoV2) {
+  async postVendor(edfiTenant: EdfiTenant, vendor: PostVendorDtoV3) {
     const { headers } = await this.getAdminApiClient(edfiTenant, true)
       .post(`vendors`, vendor)
       .catch((err) => {
@@ -1086,7 +1086,7 @@ export class AdminApiServiceV3 {
   }
 
   async getVendor(edfiTenant: EdfiTenant, vendorId: number) {
-    return toGetVendorDtoV2(
+    return toGetVendorDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .get(`vendors/${vendorId}`)
         .catch((err) => {
@@ -1096,8 +1096,8 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async putVendor(edfiTenant: EdfiTenant, vendorId: number, vendor: PutVendorDtoV2) {
-    return toGetVendorDtoV2(
+  async putVendor(edfiTenant: EdfiTenant, vendorId: number, vendor: PutVendorDtoV3) {
+    return toGetVendorDtoV3(
       (await this.getAdminApiClient(edfiTenant)
         .put(`vendors/${vendorId}`, vendor)
         .catch((err) => {
@@ -1120,7 +1120,7 @@ export class AdminApiServiceV3 {
   }
 
   async getVendorApplications(edfiTenant: EdfiTenant, vendorId: number) {
-    return toGetApplicationDtoV2(
+    return toGetApplicationDtoV3(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
         .get<any, any[]>(`vendors/${vendorId}/applications?offset=0&limit=10000`)
@@ -1440,3 +1440,4 @@ export class AdminApiServiceV3 {
     }
   }
 }
+

@@ -1,5 +1,6 @@
 export * from './edfi-admin-api.dto';
 export * from './edfi-admin-api.v2.dto';
+export * from './edfi-admin-api.v3.dto';
 export * from './edfi-tenant.dto';
 export * from './edorg.dto';
 export * from './env-nav.dto';
