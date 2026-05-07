@@ -94,7 +94,7 @@
     "pg-boss": "^9.0.3",
     "re-resizable": "^6.11.2",
     "react": "19.2.5",
-    "react-dom": "19.2.5",
+    "react-dom": "19.2.6",
     "react-error-boundary": "^6.0.0",
     "react-hook-form": "^7.74.0",
     "react-icons": "^4.10.1",
