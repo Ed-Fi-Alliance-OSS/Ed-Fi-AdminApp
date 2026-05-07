@@ -110,11 +110,24 @@ The existing testing documentation provides a solid foundation but lacks impleme
 
 ## Follow-up Tickets
 
+### AC-509 Parent Jira Task Mapping
+
+| Jira Task | Scope in this document |
+|-----------|------------------------|
+| **AC-510** (Backend) Create unit test | BE-001, BE-003 |
+| **AC-511** (Backend) Create e2e test - bruno | BE-004 |
+| **AC-512** (Backend) Include the unit tests and e2e in the github actions | INFRA-001 (backend scope) |
+| **AC-513** (Frontend) Create unit tests | FE-001, FE-002, FE-003 |
+| **AC-514** (Frontend) Create e2e test - MCP playwright | E2E-001, E2E-002, E2E-003 |
+| **AC-515** (Frontend) Include unit test and e2e in the github actions | New ticket definition below |
+
+Tickets that are not mapped above remain backlog candidates and can be created later if needed.
+
 ### Phase 1: Foundation (Immediate - Weeks 1-4)
 
 #### Backend Foundation Tickets
 
-**TICKET BE-001: Enhanced Unit Testing Framework Setup**
+**AC-510 (Backend) Create unit test - Enhanced Unit Testing Framework Setup (BE-001)**
 - **Priority**: P0 (Critical)
 - **Effort**: 5 days
 - **Description**: Set up comprehensive Jest testing infrastructure for Node.js backend
@@ -141,7 +154,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - [ ] Multi-tenant database testing support
 - **Dependencies**: BE-001
 
-**TICKET BE-003: API Endpoint Unit Tests**
+**AC-510 (Backend) Create unit test - API Endpoint Unit Tests (BE-003)**
 - **Priority**: P0 (Critical)
 - **Effort**: 10 days
 - **Description**: Implement comprehensive unit tests for all API controllers and services
@@ -157,7 +170,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
 
 #### Frontend Foundation Tickets
 
-**TICKET FE-001: React Testing Library Setup**
+**AC-513 (Frontend) Create unit tests - React Testing Library Setup (FE-001)**
 - **Priority**: P0 (Critical)
 - **Effort**: 3 days
 - **Description**: Configure React Testing Library with Jest for component testing
@@ -171,7 +184,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - `packages/fe/src/test-utils/`
   - `jest.config.js` (frontend-specific)
 
-**TICKET FE-002: Component Test Infrastructure**
+**AC-513 (Frontend) Create unit tests - Component Test Infrastructure (FE-002)**
 - **Priority**: P0 (Critical)
 - **Effort**: 5 days
 - **Description**: Create testing infrastructure for React components
@@ -183,7 +196,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - [ ] State management test helpers (Jotai)
 - **Dependencies**: FE-001
 
-**TICKET FE-003: Core Component Unit Tests**
+**AC-513 (Frontend) Create unit tests - Core Component Unit Tests (FE-003)**
 - **Priority**: P0 (Critical)
 - **Effort**: 12 days
 - **Description**: Implement unit tests for core UI components
@@ -198,7 +211,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
 
 #### Infrastructure Foundation Tickets
 
-**TICKET INFRA-001: GitHub Actions Testing Workflow**
+**AC-512 (Backend) Include the unit tests and e2e in the github actions - GitHub Actions Testing Workflow (INFRA-001)**
 - **Priority**: P0 (Critical)
 - **Effort**: 4 days
 - **Description**: Update GitHub Actions with comprehensive testing workflow
@@ -208,6 +221,19 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - [ ] Test result artifacts
   - [ ] Failed test notification
   - [ ] Performance regression detection
+- **Files to Update**:
+  - `.github/workflows/on-pullrequest.yml`
+
+**AC-515 (Frontend) Include unit test and e2e in the github actions**
+- **Priority**: P0 (Critical)
+- **Effort**: 4 days
+- **Description**: Add frontend unit test and MCP Playwright E2E execution to GitHub Actions
+- **Acceptance Criteria**:
+  - [ ] Frontend unit tests execute on pull requests
+  - [ ] Playwright E2E tests execute in CI with required environment setup
+  - [ ] Playwright artifacts (trace/screenshots/videos) are published on failures
+  - [ ] CI status clearly separates frontend unit and E2E results
+  - [ ] v3 specification and CMS frontend scenarios are included in CI test execution scope
 - **Files to Update**:
   - `.github/workflows/on-pullrequest.yml`
 
@@ -226,7 +252,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
 
 #### Backend Integration Tickets
 
-**TICKET BE-004: Bruno API Test Collection**
+**AC-511 (Backend) Create e2e test - bruno (BE-004)**
 - **Priority**: P1 (High)
 - **Effort**: 8 days
 - **Description**: Create comprehensive Bruno API test collections
@@ -247,6 +273,8 @@ The existing testing documentation provides a solid foundation but lacks impleme
 - **Acceptance Criteria**:
   - [ ] Database integration tests
   - [ ] External service integration (Keycloak, ODS/API)
+  - [ ] v3 specification compatibility scenarios for supported API contracts
+  - [ ] CMS-dependent integration scenarios where applicable
   - [ ] Multi-tenant scenarios
   - [ ] Error condition testing
   - [ ] 75% integration coverage achieved
@@ -292,7 +320,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
 
 #### E2E Testing Tickets
 
-**TICKET E2E-001: Playwright Setup & Configuration**
+**AC-514 (Frontend) Create e2e test - MCP playwright: Playwright Setup & Configuration (E2E-001)**
 - **Priority**: P1 (High)
 - **Effort**: 4 days
 - **Description**: Set up Playwright for cross-browser E2E testing
@@ -306,7 +334,7 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - `playwright.config.ts`
   - `e2e/` directory structure
 
-**TICKET E2E-002: Core User Journey Tests**
+**AC-514 (Frontend) Create e2e test - MCP playwright: Core User Journey Tests (E2E-002)**
 - **Priority**: P1 (High)
 - **Effort**: 10 days
 - **Description**: Automate critical user journeys from Gherkin scenarios
@@ -315,10 +343,12 @@ The existing testing documentation provides a solid foundation but lacks impleme
   - [ ] Environment creation and management
   - [ ] Vendor and application management
   - [ ] Team and permission management
+  - [ ] v3 specification-specific user journeys where behavior differs
+  - [ ] CMS workflows covered where CMS affects user-visible behavior
   - [ ] Multi-tenant workflows
 - **Dependencies**: E2E-001
 
-**TICKET E2E-003: Visual Regression Testing**
+**AC-514 (Frontend) Create e2e test - MCP playwright: Visual Regression Testing (E2E-003)**
 - **Priority**: P2 (Medium)
 - **Effort**: 6 days
 - **Description**: Implement visual regression testing with Playwright
@@ -386,9 +416,11 @@ The existing testing documentation provides a solid foundation but lacks impleme
 - **Effort**: 8 days
 - **Description**: Test compatibility across Ed-Fi API versions
 - **Acceptance Criteria**:
+  - [ ] Ed-Fi API v3 specification compatibility
   - [ ] Ed-Fi API v7.1 compatibility
   - [ ] Ed-Fi API v7.2 compatibility  
   - [ ] Ed-Fi API v7.3 compatibility
+  - [ ] CMS compatibility scenarios documented and validated
   - [ ] Automated version detection
   - [ ] Feature compatibility matrix
 

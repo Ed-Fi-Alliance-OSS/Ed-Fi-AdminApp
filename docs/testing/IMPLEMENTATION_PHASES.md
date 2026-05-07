@@ -1,6 +1,6 @@
 # Testing Implementation Phases
 
-This document outlines the implementation phases for comprehensive testing of Ed-Fi Admin App 4.0, including detailed timelines, technologies, and deliverables.
+This document outlines the implementation phases for comprehensive testing of Ed-Fi Admin App 4.0, including detailed timelines, technologies, and deliverables. The plan explicitly includes Ed-Fi v3 specification coverage and CMS-related testing scenarios.
 
 ## Phase Overview
 
@@ -72,6 +72,8 @@ gantt
 - **Test fixtures** - Reusable test data sets
 - **Data cleanup utilities** - Test isolation
 - **Environment snapshots** - Quick environment reset
+- **Versioned compatibility fixtures** - Reusable data for v3 and v7+ scenario coverage
+- **CMS scenario fixtures** - Reusable setup for CMS-dependent workflows
 
 **Deliverables:**
 - Test data management framework
@@ -130,6 +132,8 @@ describe('VendorService', () => {
 - **Keycloak authentication** testing
 - **ODS/API integration** testing
 - **Starting Blocks metadata** integration
+- **CMS integration** testing for CMS-dependent behavior
+- **v3 specification compatibility** validation for supported endpoint and payload contracts
 
 **Implementation Example:**
 ```typescript
@@ -178,8 +182,12 @@ bruno/
 │   ├── applications/
 │   ├── claimsets/
 │   └── ods-instances/
-└── admin-api-v2/
-    └── [future endpoints]
+├── admin-api-v2/
+│   └── [future endpoints]
+├── admin-api-v3/
+│   └── [v3 specification compatibility scenarios]
+└── cms/
+    └── [cms-dependent scenarios]
 ```
 
 **Implementation Features:**
@@ -311,6 +319,12 @@ test.describe('Vendor Management', () => {
 - **Authentication bypass** testing
 - **Input validation** testing
 
+## Cross-Version and CMS Coverage Requirements
+
+- **Version matrix validation** must include v3 specification scenarios alongside currently supported versions.
+- **CMS-aware coverage** is required in backend integration tests, frontend E2E tests, and CI pipelines where CMS affects behavior.
+- **Compatibility assertions** should verify API contracts and user-facing workflows for each relevant version/CMS path.
+
 ## Coverage Targets
 
 | Test Level | Frontend Target | Backend Target |
@@ -334,6 +348,7 @@ test.describe('Vendor Management', () => {
 - Coverage thresholds must be met
 - Security scans must pass
 - Performance baselines must be maintained
+- v3 specification and CMS compatibility checks must pass for in-scope workflows
 
 ## Tools and Technologies Summary
 
