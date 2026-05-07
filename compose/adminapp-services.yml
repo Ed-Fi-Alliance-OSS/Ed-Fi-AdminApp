@@ -84,7 +84,7 @@ services:
       - '127.0.0.1:${MSSQL_PORT_EXPOSED:-1433}:1433'
     environment:
       ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
-      SA_PASSWORD: ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd}
+      SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       MSSQL_DB: ${ADMIN_APP_DB_NAME:-sbaa}
       MSSQL_PID: ${MSSQL_PID:-Express}
     command:
@@ -93,14 +93,14 @@ services:
       - |
         /opt/mssql/bin/sqlservr &
         sleep 30s
-        /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd} -Q "IF DB_ID(N'${MSSQL_DB:-sbaa}') IS NULL CREATE DATABASE [${MSSQL_DB:-sbaa}];"
+        /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  ${MSSQL_SA_PASSWORD} -Q "IF DB_ID(N'${MSSQL_DB:-sbaa}') IS NULL CREATE DATABASE [${MSSQL_DB:-sbaa}];"
         wait
     volumes:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
       - edfiadminapp-network
     healthcheck:
-      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${MSSQL_SA_PASSWORD:-YourStrong!Passw0rd} -Q "SELECT 1" -b -l 10']
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -Q "SELECT 1" -b -l 10']
       interval: 15s
       timeout: 5s
       retries: 10
