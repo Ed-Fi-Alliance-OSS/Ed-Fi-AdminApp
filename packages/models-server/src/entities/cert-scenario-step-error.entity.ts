@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { ScenarioStep } from './cert-scenario-step.entity';
 
 @Entity({ schema: 'cert', name: 'scenario_step_error' })
@@ -7,6 +7,7 @@ export class ScenarioStepError {
   errorId: number;
 
   @ManyToOne(() => ScenarioStep, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'stepRunId' })
   stepRun: ScenarioStep;
 
   @Column()

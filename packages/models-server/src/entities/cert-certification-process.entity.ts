@@ -1,4 +1,12 @@
-import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
+import {
+  Column,
+  CreateDateColumn,
+  Entity,
+  JoinColumn,
+  ManyToOne,
+  PrimaryGeneratedColumn,
+  UpdateDateColumn,
+} from 'typeorm';
 import { CatalogVersion } from './cert-catalog-version.entity';
 import { CertificationOdsApi } from './cert-certification-ods-api.entity';
 
@@ -8,12 +16,14 @@ export class CertificationProcess {
   certificationProcessId: number;
 
   @ManyToOne(() => CertificationOdsApi, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'odsId' })
   ods: CertificationOdsApi;
 
   @Column()
   odsId: number;
 
   @ManyToOne(() => CatalogVersion, { onDelete: 'RESTRICT' })
+  @JoinColumn({ name: 'catalogVersionId' })
   catalogVersion: CatalogVersion;
 
   @Column()

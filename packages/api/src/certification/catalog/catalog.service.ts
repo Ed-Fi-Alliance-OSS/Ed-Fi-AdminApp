@@ -287,16 +287,36 @@ export class CatalogService {
     ];
   }
 
+  private extractQueryParamsBlock(bruContent: string): string | null {
+    const startMatch = /^params:query\s*\{/m.exec(bruContent);
+    if (!startMatch) return null;
+
+    const startBraceIndex = startMatch.index + startMatch[0].lastIndexOf('{');
+    let depth = 1;
+
+    for (let i = startBraceIndex + 1; i < bruContent.length; i++) {
+      const ch = bruContent[i];
+      if (ch === '{') depth++;
+      if (ch === '}') depth--;
+
+      if (depth === 0) {
+        return bruContent.slice(startBraceIndex + 1, i);
+      }
+    }
+
+    return null;
+  }
+
   /**
    * `input` params — lines in `params:query` with `[ENTER ...]` values.
    * These are filled in directly by the user.
    */
   private extractInputParams(bruContent: string): ParsedParam[] {
-    const paramsMatch = bruContent.match(/^params:query \{([^}]+)\}/m);
-    if (!paramsMatch) return [];
+    const paramsBlock = this.extractQueryParamsBlock(bruContent);
+    if (!paramsBlock) return [];
 
     const params: ParsedParam[] = [];
-    for (const line of paramsMatch[1].split('\n')) {
+    for (const line of paramsBlock.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
       const colonIdx = trimmed.indexOf(':');
@@ -323,11 +343,11 @@ export class CatalogService {
    * from a prior step result and injects the encoded value.
    */
   private extractContextParams(bruContent: string): ParsedParam[] {
-    const paramsMatch = bruContent.match(/^params:query \{([^}]+)\}/m);
-    if (!paramsMatch) return [];
+    const paramsBlock = this.extractQueryParamsBlock(bruContent);
+    if (!paramsBlock) return [];
 
     const params: ParsedParam[] = [];
-    for (const line of paramsMatch[1].split('\n')) {
+    for (const line of paramsBlock.split('\n')) {
       const trimmed = line.trim();
       if (!trimmed || trimmed.startsWith('#')) continue;
       const colonIdx = trimmed.indexOf(':');

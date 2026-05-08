@@ -21,6 +21,10 @@ export class CertificationSchema1778026000000 implements MigrationInterface {
         CONSTRAINT [PK_cert_catalog_version] PRIMARY KEY ([catalogVersionId])
       )
     `);
+    await queryRunner.query(`
+      CREATE UNIQUE INDEX [UQ_cert_catalog_version_artifact_dataStandard]
+      ON [cert].[catalog_version] ([artifactVersion], [dataStandardVersion])
+    `);
 
     // 3. area_catalog
     await queryRunner.query(`

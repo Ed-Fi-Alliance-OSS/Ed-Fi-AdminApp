@@ -1,4 +1,4 @@
-import { Column, Entity, ManyToOne, PrimaryColumn } from 'typeorm';
+import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn } from 'typeorm';
 import { CertificationProcess } from './cert-certification-process.entity';
 import { ScenarioCatalog } from './cert-scenario-catalog.entity';
 
@@ -11,9 +11,11 @@ export class CertificationProcessScenario {
   scenarioId: number;
 
   @ManyToOne(() => CertificationProcess, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'certificationProcessId' })
   certificationProcess: CertificationProcess;
 
   @ManyToOne(() => ScenarioCatalog, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'scenarioId' })
   scenario: ScenarioCatalog;
 
   @Column({ type: 'varchar', length: 50 })

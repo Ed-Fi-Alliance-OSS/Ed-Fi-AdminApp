@@ -233,6 +233,7 @@ describe('CatalogService', () => {
       'params:query {',
       '  localEducationAgencyId: [ENTER LEA ID]',
       '  schoolId: {{school_id}}',
+      '  schoolYear: [ENTER school year]',
       '  # comment',
       '}',
     ].join('\n');
@@ -241,6 +242,7 @@ describe('CatalogService', () => {
 
     expect(result).toEqual([
       { name: 'localEducationAgencyId', type: 'input', description: 'LEA ID' },
+      { name: 'schoolYear', type: 'input', description: 'school year' },
     ]);
   });
 
@@ -249,6 +251,7 @@ describe('CatalogService', () => {
       'params:query {',
       '  schoolId: {{school_id}}',
       '  localEducationAgencyId: [ENTER LEA ID]',
+      '  sessionId: {{session_id}}',
       '}',
     ].join('\n');
 
@@ -259,6 +262,11 @@ describe('CatalogService', () => {
         name: 'schoolId',
         type: 'context',
         description: 'Resolved from Bruno context variable: school_id',
+      },
+      {
+        name: 'sessionId',
+        type: 'context',
+        description: 'Resolved from Bruno context variable: session_id',
       },
     ]);
   });
