@@ -167,20 +167,20 @@ jobs:
         run: |
           ACTUAL="${{ steps.proj.outputs.actual }}"
           echo "Running unit tests for $ACTUAL with coverage"
-          npm run test:$ACTUAL -- --coverage --watchAll=false --coverageReporters=lcov,text-summary
+          npm run test:$ACTUAL -- --coverage --coverageDirectory=coverage-$ACTUAL --coverageReporters=lcov,text-summary --watchAll=false
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v4
         with:
-          flags: ${{ matrix.package }}
-          file: ./coverage/lcov.info
+          flags: ${{ steps.proj.outputs.actual }}
+          file: ./coverage-${{ steps.proj.outputs.actual }}/lcov.info
           fail_ci_if_error: false
 
       - name: Upload coverage artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: coverage-${{ matrix.package }}
-          path: coverage/
+          name: coverage-${{ steps.proj.outputs.actual }}
+          path: coverage-${{ steps.proj.outputs.actual }}/
 
   # New: Integration testing
   integration_tests:
@@ -222,6 +222,22 @@ jobs:
         run: npm run test:integration
         env:
           DATABASE_URL: postgresql://postgres:postgres@localhost:5432/testdb
+
+      - name: Publish integration test results
+        uses: EnricoMi/publish-unit-test-result-action@v2
+        if: always() && hashFiles('test-results/junit.xml') != ''
+        with:
+          files: test-results/junit.xml
+          check_name: 'Integration Tests'
+
+      - name: Upload integration artifacts
+        uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: integration-test-results
+          path: |
+            test-results/
+            coverage-integration/
 
   # Enhanced build with health checks
   build_and_test:
@@ -495,18 +511,16 @@ jobs:
           echo "" >> $GITHUB_STEP_SUMMARY
           
           # Unit test results
-          if [ -d "coverage-fe" ] || [ -d "coverage-api" ]; then
+          if compgen -G "coverage-*/" > /dev/null; then
             echo "### Unit Test Coverage" >> $GITHUB_STEP_SUMMARY
             echo "| Package | Coverage |" >> $GITHUB_STEP_SUMMARY
             echo "|---------|----------|" >> $GITHUB_STEP_SUMMARY
             
             for dir in coverage-*/; do
-              if [ -d "$dir" ]; then
-                package=$(echo $dir | sed 's/coverage-//' | sed 's|/||')
-                if [ -f "$dir/coverage-summary.json" ]; then
-                  coverage=$(cat "$dir/coverage-summary.json" | jq -r '.total.lines.pct')
-                  echo "| $package | $coverage% |" >> $GITHUB_STEP_SUMMARY
-                fi
+              if [ -f "$dir/coverage-summary.json" ]; then
+                package=$(basename "$dir" | sed 's/coverage-//; s|/||')
+                coverage=$(jq -r '.total.lines.pct' "$dir/coverage-summary.json" 2>/dev/null || echo "N/A")
+                echo "| $package | $coverage% |" >> $GITHUB_STEP_SUMMARY
               fi
             done
             echo "" >> $GITHUB_STEP_SUMMARY
@@ -523,6 +537,19 @@ jobs:
           if [ -d "bruno-test-results" ]; then
             echo "### API Test Results" >> $GITHUB_STEP_SUMMARY
             echo "Bruno API test results available in artifacts" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+          fi
+
+          # Integration test results
+          if [ -d "integration-test-results" ]; then
+            echo "### Integration Test Results" >> $GITHUB_STEP_SUMMARY
+            if [ -f "integration-test-results/test-results/junit.xml" ]; then
+              echo "JUnit report available in integration-test-results artifact" >> $GITHUB_STEP_SUMMARY
+            fi
+            if [ -f "integration-test-results/coverage-integration/coverage-summary.json" ]; then
+              coverage=$(cat integration-test-results/coverage-integration/coverage-summary.json | jq -r '.total.lines.pct')
+              echo "Coverage: $coverage%" >> $GITHUB_STEP_SUMMARY
+            fi
             echo "" >> $GITHUB_STEP_SUMMARY
           fi
 ```
@@ -746,7 +773,7 @@ jobs:
 ```json
 {
   "scripts": {
-    "test:integration": "jest --config jest.integration.config.js",
+    "test:integration": "cross-env JEST_JUNIT_OUTPUT_DIR=test-results JEST_JUNIT_OUTPUT_NAME=junit.xml jest --config jest.integration.config.js --coverage --coverageDirectory=coverage-integration --coverageReporters=lcov --coverageReporters=text-summary --reporters=default --reporters=jest-junit",
     "test:e2e": "playwright test",
     "test:e2e:ui": "playwright test --ui",
     "test:visual": "playwright test --grep visual",
