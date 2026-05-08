@@ -17,7 +17,8 @@ ARG VITE_BASE_PATH=/adminapp/
 
 ENV NX_VERBOSE_LOGGING=true \
     NODE_OPTIONS="--max-old-space-size=4096" \
-    VITE_BASE_PATH="${VITE_BASE_PATH}"
+    VITE_BASE_PATH="${VITE_BASE_PATH}" \
+    CYPRESS_INSTALL_BINARY=0
 
 # Copy only manifest + workspace config for efficient layer caching
 COPY package*.json ./

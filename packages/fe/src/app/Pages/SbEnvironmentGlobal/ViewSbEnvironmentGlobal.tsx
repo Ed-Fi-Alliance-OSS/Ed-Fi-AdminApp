@@ -90,7 +90,7 @@ export const ViewSbEnvironmentGlobal = (props: { sbEnvironment: GetSbEnvironment
             <ContentSection heading="Sync queue">
               <SbSyncQueuesTable
                 defaultFilters={[
-                  { id: 'dataText', value: `{"sbEnvironmentId": ${sbEnvironment.id}}` },
+                  { id: 'sbEnvironmentId', value: sbEnvironment.id },
                 ]}
               />
             </ContentSection>

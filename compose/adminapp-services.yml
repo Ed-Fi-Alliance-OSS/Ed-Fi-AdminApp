@@ -136,6 +136,7 @@ services:
       - NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/app/ssl/server.crt}
       - DB_SSL=${DB_SSL:-true}
       - DB_ENGINE=${DB_ENGINE:-pgsql}
+      - DB_SECRET_VALUE=${DB_SECRET_VALUE}
       - DB_TRUST_CERTIFICATE=${DB_TRUST_CERTIFICATE:-false}
       - DB_TTL_IN_MINUTES=${DB_TTL_IN_MINUTES:-120}
       - USE_YOPASS=${USE_YOPASS:-true}
@@ -150,6 +151,10 @@ services:
     depends_on:
       edfiadminapp-postgres:
         condition: service_healthy
+        required: false
+      edfiadminapp-mssql:
+        condition: service_healthy
+        required: false
       edfiadminapp-keycloak:
         condition: service_healthy
     healthcheck:

@@ -17,6 +17,7 @@ import {
 } from '../teams/edfi-tenants/starting-blocks';
 import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.service';
 import { CustomHttpException } from '../utils/customExceptions';
+import { jsonValue } from '../utils/db-json-query';
 import {
   ENV_SYNC_CHNL,
   SYNC_SCHEDULER_CHNL,
@@ -61,13 +62,10 @@ export class SbSyncConsumer implements OnModuleInit {
 
     try {
       await this.jobQueue.work(SYNC_SCHEDULER_CHNL, async () => {
-        // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
-        // PostgreSQL: `"configPublic"->>'sbEnvironmentMetaArn' is not null`
-        // MSSQL:      `JSON_VALUE(configPublic, '$.sbEnvironmentMetaArn') IS NOT NULL`
         const sbEnvironments = await this.sbEnvironmentsRepository
           .createQueryBuilder()
           .select()
-          .where(`"configPublic"->>'sbEnvironmentMetaArn' is not null`)
+          .where(`${jsonValue('configPublic', 'sbEnvironmentMetaArn', config.DB_ENGINE)} is not null`)
           .getMany();
 
         Logger.log(`Starting sync for ${sbEnvironments.length} environments.`);
@@ -101,24 +99,26 @@ export class SbSyncConsumer implements OnModuleInit {
         throw error;
       }
     }
+
+    // Explicitly start the queue after workers are registered. This is safe to call even if
+    // onApplicationBootstrap already started it — start() is idempotent.
+    await this.jobQueue.start();
   }
 
   async refreshSbEnvironment(sbEnvironmentId: number) {
-    // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
     let sbEnvironment = await this.sbEnvironmentsRepository
       .createQueryBuilder()
       .select()
-      .where(`"configPublic"->>'sbEnvironmentMetaArn' is not null and id = :id`, {
+      .where(`${jsonValue('configPublic', 'sbEnvironmentMetaArn', config.DB_ENGINE)} is not null and id = :id`, {
         id: sbEnvironmentId,
       })
       .getOne();
     if (sbEnvironment === null) {
       //try to find a syncable environment EdFi (with Admin API)
-      // TODO(T2-09): PostgreSQL-only JSON operator — replace with cross-engine helper (D-04)
       sbEnvironment = await this.sbEnvironmentsRepository
         .createQueryBuilder()
         .select()
-        .where(`"configPublic"->>'adminApiUrl' is not null and id = :id`, {
+        .where(`${jsonValue('configPublic', 'adminApiUrl', config.DB_ENGINE)} is not null and id = :id`, {
           id: sbEnvironmentId,
         })
         .getOne();
