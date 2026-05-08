@@ -13,15 +13,15 @@ export class AreaCatalog {
   @Column()
   catalogVersionId: number;
 
-  @Column({ type: 'character varying', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   name: string;
 
-  @Column({ type: 'character varying', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   displayName: string | null;
 
   @Column()
   displayOrder: number;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ default: true })
   isEnabled: boolean;
 }

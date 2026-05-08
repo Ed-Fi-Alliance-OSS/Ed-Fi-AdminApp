@@ -26,9 +26,9 @@ export class ScenarioStep {
   @Column()
   stepId: number;
 
-  @Column({ type: 'character varying', length: 50 })
+  @Column({ type: 'varchar', length: 50 })
   status: string;
 
-  @Column({ type: 'timestamp', nullable: true })
+  @Column({ nullable: true })
   runAt: Date | null;
 }

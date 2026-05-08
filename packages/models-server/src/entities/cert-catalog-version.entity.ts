@@ -5,15 +5,15 @@ export class CatalogVersion {
   @PrimaryGeneratedColumn()
   catalogVersionId: number;
 
-  @Column({ type: 'character varying', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   artifactVersion: string;
 
-  @Column({ type: 'character varying', length: 10 })
+  @Column({ type: 'varchar', length: 10 })
   dataStandardVersion: string;
 
-  @Column({ type: 'timestamp', default: () => 'now()' })
+  @Column({ default: () => 'CURRENT_TIMESTAMP' })
   importedAt: Date;
 
-  @Column({ type: 'boolean', default: false })
+  @Column({ default: false })
   isActive: boolean;
 }

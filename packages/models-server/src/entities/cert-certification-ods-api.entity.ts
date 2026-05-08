@@ -5,9 +5,9 @@ export class CertificationOdsApi {
   @PrimaryGeneratedColumn()
   odsId: number;
 
-  @Column({ type: 'character varying', length: 2048 })
+  @Column({ type: 'varchar', length: 2048 })
   odsUrl: string;
 
-  @Column({ type: 'character varying', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   clientId: string;
 }

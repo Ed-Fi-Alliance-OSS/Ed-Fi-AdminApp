@@ -113,7 +113,10 @@ export class CatalogService {
         .createQueryBuilder()
         .update(CatalogVersion)
         .set({ isActive: false })
-        .where('"dataStandardVersion" = :dsv AND "isActive" = true', { dsv: dataStandardVersion })
+        .where('dataStandardVersion = :dsv AND isActive = :isActive', {
+          dsv: dataStandardVersion,
+          isActive: true,
+        })
         .execute();
 
       const catalogVersion = manager.create(CatalogVersion, {

@@ -13,18 +13,18 @@ export class StepCatalog {
   @Column()
   scenarioId: number;
 
-  @Column({ type: 'character varying', length: 255 })
+  @Column({ type: 'varchar', length: 255 })
   stepName: string;
 
-  @Column({ type: 'character varying', length: 255, nullable: true })
+  @Column({ type: 'varchar', length: 255, nullable: true })
   displayName: string | null;
 
-  @Column({ type: 'character varying', length: 50 })
+  @Column({ type: 'varchar', length: 50 })
   stepType: string;
 
   @Column()
   displayOrder: number;
 
-  @Column({ type: 'boolean', default: true })
+  @Column({ default: true })
   isEnabled: boolean;
 }

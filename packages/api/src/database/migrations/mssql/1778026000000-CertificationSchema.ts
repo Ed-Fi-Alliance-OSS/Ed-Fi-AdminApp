@@ -161,7 +161,7 @@ export class CertificationSchema1778026000000 implements MigrationInterface {
         ADD CONSTRAINT [FK_cert_process_scenario_scenario]
         FOREIGN KEY ([scenarioId])
         REFERENCES [cert].[scenario_catalog]([scenarioId])
-        ON DELETE NO ACTION
+        ON DELETE CASCADE
     `);
 
     // 10. scenario_step

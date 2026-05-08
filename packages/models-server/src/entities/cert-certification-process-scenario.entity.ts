@@ -16,6 +16,6 @@ export class CertificationProcessScenario {
   @ManyToOne(() => ScenarioCatalog, { onDelete: 'CASCADE' })
   scenario: ScenarioCatalog;
 
-  @Column({ type: 'character varying', length: 50 })
+  @Column({ type: 'varchar', length: 50 })
   status: string;
 }

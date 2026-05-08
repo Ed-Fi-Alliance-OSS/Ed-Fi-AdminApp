@@ -19,12 +19,12 @@ export class CertificationProcess {
   @Column()
   catalogVersionId: number;
 
-  @Column({ type: 'character varying', length: 50 })
+  @Column({ type: 'varchar', length: 50 })
   status: string;
 
-  @CreateDateColumn({ type: 'timestamp' })
+  @CreateDateColumn()
   createdAt: Date;
 
-  @UpdateDateColumn({ type: 'timestamp' })
+  @UpdateDateColumn()
   updatedAt: Date;
 }
