@@ -20,7 +20,8 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
-import { CertificationService } from './certification/certification.service';
+import { ArtifactService } from './certification/artifact/artifact.service';
+import { CatalogService } from './certification/catalog/catalog.service';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
@@ -297,11 +298,20 @@ async function bootstrap() {
 
   // Initialize certification runtime workspace
   try {
-    const certService = app.get(CertificationService, { strict: false });
-    await certService.ensureRuntimeReady();
-    Logger.log('Certification runtime ensured');
+    const artifactService = app.get(ArtifactService, { strict: false });
+    await artifactService.ensureRuntimeReady();
+    if (artifactService.isRunTimeReady) {
+      Logger.log('Certification runtime ensured');
+
+      const catalogService = app.get(CatalogService, { strict: false });
+      await catalogService.sync(artifactService.currentRef, artifactService.sisRoot);
+      Logger.log('Certification catalog sync complete');
+    } else {
+      Logger.warn('Certification runtime is not ready; skipping catalog sync');
+    }
   } catch (err) {
-    Logger.error(`Certification runtime failed: ${err}`);
+    const details = err instanceof Error ? err.stack ?? err.message : String(err);
+    Logger.error(`Certification runtime failed: ${details}`);
   }
 
   // Set up global error handlers for AggregateError and other unhandled errors
