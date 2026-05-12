@@ -1,6 +1,6 @@
 import { SbEnvironment } from '@edanalytics/models-server';
 import { BaseMgmtServiceV3 } from './base-mgmt-service';
-import { ISbEnvironmentConfigPublicV2, PostEdfiTenantDto } from '@edanalytics/models';
+import { ISbEnvironmentConfigPublicV3, PostEdfiTenantDto } from '@edanalytics/models';
 
 export class TenantMgmtServiceV3 extends BaseMgmtServiceV3 {
   constructor() {
@@ -61,7 +61,7 @@ export class TenantMgmtServiceV3 extends BaseMgmtServiceV3 {
       TenantName: name,
       DisplayName: `SBAA-${
         // the lambda overwrites creds if DisplayName is already taken, so need it to be unique per deployment/sb-environment
-        (sbEnvironment.configPublic?.values as ISbEnvironmentConfigPublicV2)?.adminApiUuid
+        (sbEnvironment.configPublic?.values as ISbEnvironmentConfigPublicV3)?.adminApiUuid
       }`,
     });
     if (result.status === 'SUCCESS') {

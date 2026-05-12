@@ -1,7 +1,7 @@
 import {
   CopyClaimsetDtoV3,
   EducationOrganizationDto,
-  ISbEnvironmentConfigPrivateV2,
+  ISbEnvironmentConfigPrivateV3,
   Id,
   ImportClaimsetSingleDtoV3,
   OdsInstanceDto,
@@ -81,14 +81,14 @@ export class AdminApiServiceV3 {
   async login(sbEnvironment: SbEnvironment, id: number, tenantName?: string) {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
-    const v2Config =
-      'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
-    const v2ConfigPrivate =
-      'version' in configPublic && configPublic.version === 'v2'
-        ? (configPrivate as ISbEnvironmentConfigPrivateV2)
+    const v3Config =
+      'version' in configPublic && configPublic.version === 'v3' ? configPublic.values : undefined;
+    const v3ConfigPrivate =
+      'version' in configPublic && configPublic.version === 'v3'
+        ? (configPrivate as ISbEnvironmentConfigPrivateV3)
         : undefined;
 
-    if (!v2Config || !v2ConfigPrivate) {
+    if (!v3Config || !v3ConfigPrivate) {
       return {
         status: 'NO_CONFIG' as const,
       };
@@ -97,7 +97,7 @@ export class AdminApiServiceV3 {
     // If no tenant name provided, try to find the first available tenant credentials
     // This is needed for initial tenant discovery in EdFi environments
     if (!tenantName) {
-      const availableTenants = v2Config.tenants ? Object.keys(v2Config.tenants) : [];
+      const availableTenants = v3Config.tenants ? Object.keys(v3Config.tenants) : [];
       
       if (availableTenants.length === 0) {
         return {
@@ -113,14 +113,14 @@ export class AdminApiServiceV3 {
       this.logger.log(`No tenant specified for login, using tenant: ${tenantName}`);
     }
 
-    if (!v2Config?.tenants[tenantName] || !v2ConfigPrivate?.tenants[tenantName]) {
+    if (!v3Config?.tenants[tenantName] || !v3ConfigPrivate?.tenants[tenantName]) {
       return {
         status: 'NO_TENANT_CONFIG' as const,
       };
     }
     const adminApiUrl = sbEnvironment.adminApiUrl;
-    const adminApiKey = v2Config?.tenants[tenantName]?.adminApiKey;
-    const adminApiSecret = v2ConfigPrivate?.tenants[tenantName]?.adminApiSecret;
+    const adminApiKey = v3Config?.tenants[tenantName]?.adminApiKey;
+    const adminApiSecret = v3ConfigPrivate?.tenants[tenantName]?.adminApiSecret;
 
     if (typeof adminApiUrl !== 'string') {
       return {
@@ -211,10 +211,10 @@ export class AdminApiServiceV3 {
 
   async selfRegisterAdminApi(edfiTenant: EdfiTenant) {
     const configPublic = edfiTenant.sbEnvironment.configPublic;
-    const v2Config =
-      'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+    const v3Config =
+      'version' in configPublic && configPublic.version === 'v3' ? configPublic.values : undefined;
 
-    if (!v2Config) {
+    if (!v3Config) {
       return {
         status: 'NO_CONFIG' as const,
       };
@@ -350,7 +350,7 @@ export class AdminApiServiceV3 {
 
   private initializeApiClient(environment: SbEnvironment, notJustData: boolean) {
     const client = axios.create({
-      baseURL: environment.adminApiUrl.replace(/\/$/, '') + '/v2/',
+      baseURL: environment.adminApiUrl.replace(/\/$/, '') + '/v3/',
     });
     client.interceptors.response.use(
       notJustData
@@ -1139,7 +1139,7 @@ export class AdminApiServiceV3 {
    * This method:
    * 1. Calls the root endpoint (GET /) to get tenancy information
    * 2. Determines tenant names based on multitenantMode setting
-   * 3. For each tenant, calls /v2/tenants/{tenantName}/OdsInstances/edOrgs to get detailed information
+   * 3. For each tenant, calls /v/tenants/{tenantName}/OdsInstances/edOrgs to get detailed information
    * 4. Maps the response to TenantDto format
    *
    * @param environment - SB Environment containing configuration
@@ -1205,9 +1205,9 @@ export class AdminApiServiceV3 {
 
       // Log credential availability for discovered tenants
       const configPublic = environment.configPublic;
-      const v2Config =
-        'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
-      const availableTenants = Object.keys(v2Config?.tenants || {});
+      const v3Config =
+        'version' in configPublic && configPublic.version === 'v3' ? configPublic.values : undefined;
+      const availableTenants = Object.keys(v3Config?.tenants || {});
       
       this.logger.log(
         `Discovered tenants from Admin API: [${tenantNames.join(', ')}]`
@@ -1355,7 +1355,7 @@ export class AdminApiServiceV3 {
         this.logger.warn(
           `Tenancy endpoint not found for environment ${environment.name} (404). Returning a default tenant for single-tenant API.`
         );
-        // V2 API without multi-tenant support, so we create a default tenant from environment data
+        // V3 API without multi-tenant support, so we create a default tenant from environment data
         const defaultTenant: TenantDto = {
           id: 'default',
           name: environment.name || 'Default Tenant',

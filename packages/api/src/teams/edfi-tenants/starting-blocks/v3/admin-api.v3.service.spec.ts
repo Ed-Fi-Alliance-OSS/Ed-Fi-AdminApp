@@ -14,7 +14,7 @@ describe('AdminApiServiceV3 - Extension Methods', () => {
     name: 'Test Environment',
     adminApiUrl: 'https://api.test.com',
     configPublic: {
-      version: 'v2',
+      version: 'v3',
       values: {
         tenants: {
           'test-tenant': {
@@ -24,7 +24,7 @@ describe('AdminApiServiceV3 - Extension Methods', () => {
       },
     } as any,
     configPrivate: {
-      version: 'v2',
+      version: 'v3',
       tenants: {
         'test-tenant': {
           adminApiSecret: 'test-secret',

@@ -79,9 +79,13 @@ export interface ISbEnvironmentConfigPrivateV1 {
 export interface ISbEnvironmentConfigPrivateV2 {
   tenants?: Record<string, { adminApiSecret: string }>;
 }
+export interface ISbEnvironmentConfigPrivateV3 {
+  tenants?: Record<string, { adminApiSecret: string }>;
+}
 export type SbEnvironmentConfigPrivate =
   | ISbEnvironmentConfigPrivateV1
-  | ISbEnvironmentConfigPrivateV2;
+  | ISbEnvironmentConfigPrivateV2
+  | ISbEnvironmentConfigPrivateV3;
 
 export interface ISbEnvironment extends IEntityBase {
   ownerships: IOwnership[];

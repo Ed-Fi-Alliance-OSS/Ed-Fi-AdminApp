@@ -164,6 +164,9 @@ export class AdminApiControllerV2 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.vendor:read') validIds: Ids
   ) {
+    /// console log to verify that this code is being called for v2 environments and not v3 environments
+    console.log('Fetching vendors for v2 environment:', edfiTenant.id);
+    
     const allVendors = await this.sbService.getVendors(edfiTenant);
     return allVendors.filter((v) => checkId(v.id, validIds));
   }

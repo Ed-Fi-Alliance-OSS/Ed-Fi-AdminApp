@@ -102,7 +102,7 @@ export class StartingBlocksServiceV3 {
 
   async saveSbEnvironmentMeta(sbEnvironment: SbEnvironment, meta: SbV2MetaEnv) {
     const configPublic = sbEnvironment.configPublic;
-    configPublic.version = 'v2';
+    configPublic.version = 'v3';
     const oldConfigValues = configPublic.values as ISbEnvironmentConfigPublicV2;
     configPublic.values = {
       ...oldConfigValues,
@@ -343,7 +343,7 @@ export class StartingBlocksServiceV3 {
       'adminApiKey' in sbEnvironment.configPublic.values
     ) {
       // just to narrow types
-      throw new Error('Error: bad code calling v2 logic for v1 environment');
+      throw new Error('Error: bad code calling v3 logic for v1 environment');
     }
     if (credentials.url !== undefined) {
       sbEnvironment.configPublic.adminApiUrl = credentials.url;

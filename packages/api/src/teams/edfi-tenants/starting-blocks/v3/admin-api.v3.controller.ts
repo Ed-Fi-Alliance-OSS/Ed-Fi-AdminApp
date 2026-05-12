@@ -24,7 +24,6 @@ import {
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV3,
-  toPostApplicationResponseDto,
   toPostApplicationResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
@@ -82,7 +81,7 @@ class AdminApiV3Interceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler) {
     const request = context.switchToHttp().getRequest();
     const configPublic = request.sbEnvironment.configPublic;
-    if (!('version' in configPublic && configPublic.version === 'v2')) {
+    if (!('version' in configPublic && configPublic.version === 'v3')) {
       throw new NotFoundException(
         `Requested Admin API version not correct for this EdfiTenant. Use "${request.sbEnvironment.configPublic.adminApiVersion}" instead.`
       );
@@ -164,6 +163,9 @@ export class AdminApiControllerV3 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.vendor:read') validIds: Ids
   ) {
+    /// console log to verify that this code is being called for v3 environments and not v2 environments
+    console.log('Fetching vendors for v3 environment:', edfiTenant.id);
+    
     const allVendors = await this.sbService.getVendors(edfiTenant);
     return allVendors.filter((v) => checkId(v.id, validIds));
   }

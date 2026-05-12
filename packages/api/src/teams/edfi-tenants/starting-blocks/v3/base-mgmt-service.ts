@@ -1,11 +1,11 @@
 import { InvokeCommand, LambdaClient } from '@aws-sdk/client-lambda';
 import { parse } from '@aws-sdk/util-arn-parser';
-import { ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
+import { ISbEnvironmentConfigPublicV3 } from '@edanalytics/models';
 import { SbEnvironment } from '@edanalytics/models-server';
 import { Logger } from '@nestjs/common';
 
 type MgmtArnKey = keyof Pick<
-  ISbEnvironmentConfigPublicV2['meta'],
+  ISbEnvironmentConfigPublicV3['meta'],
   | 'odsManagementFunctionArn'
   | 'tenantManagementFunctionArn'
   | 'edorgManagementFunctionArn'
@@ -31,9 +31,9 @@ export class BaseMgmtServiceV3 {
     } = { errorMessage: string; errorType: string; requestId: string; stackTrace?: string[] }
   >(sbEnvironment: SbEnvironment, payload: object) {
     const configPublic = sbEnvironment.configPublic;
-    const v2Config =
-      'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
-    const arnStr = v2Config?.meta?.[this.arnPropertyName];
+    const v3Config =
+      'version' in configPublic && configPublic.version === 'v3' ? configPublic.values : undefined;
+    const arnStr = v3Config?.meta?.[this.arnPropertyName];
     if (arnStr) {
       const arn = parse(arnStr);
       const client = new LambdaClient({
