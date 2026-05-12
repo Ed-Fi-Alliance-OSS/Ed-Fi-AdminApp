@@ -8,6 +8,7 @@ import { vendorQueriesV1, vendorQueriesV2 } from '../api';
 import {
   VersioningHoc,
   getRelationDisplayName,
+  useEdfiTenantNavContextLoaded,
   useTeamEdfiTenantNavContextLoaded,
   withLoader,
 } from '../helpers';
@@ -16,6 +17,13 @@ import { CreateVendor } from '../Pages/Vendor/CreateVendorPage';
 import { VendorPageV2 } from '../Pages/VendorV2/VendorPage';
 import { VendorsPageV2 } from '../Pages/VendorV2/VendorsPage';
 import { CreateVendorV2 } from '../Pages/VendorV2/CreateVendorPage';
+import { CreateVendorV3 } from '../Pages/VendorV3/CreateVendorPage';
+
+const VendorsPageByAdminApiVersion = () => {
+  const { sbEnvironment } = useEdfiTenantNavContextLoaded();
+  const adminApiVersion = sbEnvironment.version ?? 'v3';
+  return <VendorsPageV2 version={adminApiVersion} />;
+};
 
 const VendorBreadcrumbV1 = () => {
   const params = useParams() as {
@@ -49,7 +57,7 @@ const VendorBreadcrumbV2 = () => {
 };
 export const vendorCreateRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/create',
-  element: <VersioningHoc v1={<CreateVendor />} v2={<CreateVendorV2 />} />,
+  element: <VersioningHoc v1={<CreateVendor />} v2={<CreateVendorV2 />} v3={<CreateVendorV3 />} />,
   handle: { crumb: () => 'Create Vendor' },
 };
 export const vendorIndexRoute: RouteObject = {
@@ -67,7 +75,7 @@ export const vendorRoute: RouteObject = {
 };
 export const vendorsIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/',
-  element: <VersioningHoc v1={<VendorsPage />} v2={<VendorsPageV2 />} />,
+  element: <VersioningHoc v1={<VendorsPage />} v2={<VendorsPageByAdminApiVersion />} v3={<VendorsPageByAdminApiVersion />} />,
 };
 export const vendorsRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors',
