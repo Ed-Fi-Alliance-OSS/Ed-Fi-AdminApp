@@ -12,7 +12,6 @@ import { wait } from '@edanalytics/utils';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
-import pLimit from 'p-limit';
 import { EntityManager, In, Repository } from 'typeorm';
 import {
   DeltaCounts,
@@ -27,8 +26,36 @@ import { TenantMgmtServiceV2 } from './tenant-mgmt.v2.service';
 import { randomUUID } from 'crypto';
 import { OdsRowCountService } from './ods-rowcount.service';
 
+function createConcurrencyLimiter(concurrency: number) {
+  let activeCount = 0;
+  const queue: Array<() => void> = [];
+
+  const next = () => {
+    activeCount -= 1;
+    const run = queue.shift();
+    if (run) {
+      run();
+    }
+  };
+
+  return function limit<T>(fn: () => Promise<T>): Promise<T> {
+    return new Promise((resolve, reject) => {
+      const run = () => {
+        activeCount += 1;
+        fn().then(resolve).catch(reject).finally(next);
+      };
+
+      if (activeCount < concurrency) {
+        run();
+      } else {
+        queue.push(run);
+      }
+    });
+  };
+}
+
 // TODO eventually need to limit concurrency per-environment (to 1) but across envs we can run in parallel
-const limit = pLimit(1);
+const limit = createConcurrencyLimiter(1);
 
 /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 @Injectable()
