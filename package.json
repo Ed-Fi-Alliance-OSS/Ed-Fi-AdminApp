@@ -113,7 +113,7 @@
     "@babel/preset-typescript": "7.28.5",
     "@chakra-ui/cli": "^2.4.1",
     "@chakra-ui/storybook-addon": "^5.2.5",
-    "@eslint/compat": "^1.4.1",
+    "@eslint/compat": "^2.1.0",
     "@faker-js/faker": "^10.4.0",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.19",
