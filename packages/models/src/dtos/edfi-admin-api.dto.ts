@@ -414,13 +414,14 @@ export interface OdsInstanceDto {
   edOrgs?: EducationOrganizationDto[];
 }
 
-export type AdminApiMeta = { version: '1.0' | '1.1' | '1.2' | '1.3' | '2.0' };
+export type AdminApiMeta = { version: '1.0' | '1.1' | '1.2' | '1.3' | '2.0' | '2.4' };
 export const importantAdminApiVersions: Record<AdminApiMeta['version'], SbaaAdminApiVersion> = {
   '1.0': 'v1',
   '1.1': 'v1',
   '1.2': 'v1',
   '1.3': 'v1',
   '2.0': 'v2',
+  '2.4': 'v3',
 };
 
 // Union types for AdminAPI v1 - Yopass Link & ID OR Ed-Fi Application Key & Secret
@@ -430,3 +431,10 @@ export type ApplicationResponseV1 = ApplicationYopassResponseDto | PostApplicati
 export type ApplicationResponseV2 = ApplicationYopassResponseDto | PostApplicationResponseDtoV2;
 
 export type ApiClientResponseV2 = ApiClientYopassResponseDto | PostApiClientResponseDtoV2;
+
+// Union types for AdminAPI v3 - Yopass Link & ID OR Ed-Fi Application Key & Secret
+// Re-exported from edfi-admin-api.v3.dto.ts for use in type annotations
+import { PostApplicationResponseDtoV3, PostApiClientResponseDtoV3 } from './edfi-admin-api.v3.dto';
+export type ApplicationResponseV3 = ApplicationYopassResponseDto | PostApplicationResponseDtoV3;
+
+export type ApiClientResponseV3 = ApiClientYopassResponseDto | PostApiClientResponseDtoV3;

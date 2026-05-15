@@ -136,7 +136,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canRefreshResources && !sbEnvironment.startingBlocks && sbEnvironment.version === 'v2'
+        ...(canRefreshResources && !sbEnvironment.startingBlocks && (sbEnvironment.version === 'v2' || sbEnvironment.version === 'v3')
           ? {
               RefreshResources: {
                 icon: Icons.Download,
@@ -160,7 +160,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        ...(canUpdate && sbEnvironment.version === 'v2' && sbEnvironment.startingBlocks
+        ...(canUpdate && (sbEnvironment.version === 'v2' || sbEnvironment.version === 'v3') && sbEnvironment.startingBlocks
           ? {
               Restart: {
                 isPending: reloadTenants.isPending,

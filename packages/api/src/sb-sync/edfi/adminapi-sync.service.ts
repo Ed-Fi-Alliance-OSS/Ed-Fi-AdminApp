@@ -3,7 +3,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2 } from '@edanalytics/models';
-import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import { AdminApiServiceV1, AdminApiServiceV2, AdminApiServiceV3 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
@@ -24,6 +24,7 @@ export class AdminApiSyncService {
   constructor(
     @Inject(AdminApiServiceV2) private adminApiServiceV2: AdminApiServiceV2,
     @Inject(AdminApiServiceV1) private adminApiServiceV1: AdminApiServiceV1,
+    @Inject(AdminApiServiceV3) private adminApiServiceV3: AdminApiServiceV3,
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
     @InjectRepository(SbEnvironment)
@@ -129,7 +130,7 @@ export class AdminApiSyncService {
 
   /**
    * Provisions Admin API credentials for newly discovered tenants during sync
-   * For multi-tenant v2 environments, this creates credentials for tenants that don't have them yet
+    * For multi-tenant v2/v3 environments, this creates credentials for tenants that don't have them yet
    * 
    * @param sbEnvironment - The SB Environment being synced
    * @param discoveredTenants - Tenants discovered from Admin API
@@ -141,8 +142,8 @@ export class AdminApiSyncService {
     const configPublic = sbEnvironment.configPublic;
     const configPrivate = sbEnvironment.configPrivate;
 
-    if (configPublic?.version !== 'v2' || !configPublic.values) {
-      return; // Only applicable to v2 environments
+    if ((configPublic?.version !== 'v2' && configPublic?.version !== 'v3') || !configPublic.values) {
+      return; // Only applicable to v2/v3 environments
     }
 
     const v2ConfigPublic = configPublic.values as ISbEnvironmentConfigPublicV2;
@@ -286,7 +287,7 @@ export class AdminApiSyncService {
   }
 
   /**
-   * Bootstraps Admin API credentials for a brand-new v2 environment that has no
+   * Bootstraps Admin API credentials for a brand-new v2/v3 environment that has no
    * tenant credentials yet.  This is needed because getTenants() requires a login
    * token, which in turn requires at least one set of stored credentials.
    *
@@ -299,7 +300,7 @@ export class AdminApiSyncService {
    */
   private async bootstrapEnvironmentCredentials(sbEnvironment: SbEnvironment): Promise<void> {
     const configPublic = sbEnvironment.configPublic;
-    if (configPublic?.version !== 'v2' || !configPublic.values) return;
+    if ((configPublic?.version !== 'v2' && configPublic?.version !== 'v3') || !configPublic.values) return;
 
     const v2ConfigPublic = configPublic.values as ISbEnvironmentConfigPublicV2;
     if (Object.keys(v2ConfigPublic?.tenants || {}).length > 0) {
@@ -387,24 +388,36 @@ export class AdminApiSyncService {
         };
       }
 
-      // Determine API version (v1 or v2) and select appropriate service
+      // Determine API version (v1, v2, or v3) and select appropriate service
       const version = sbEnvironment.version;
-      if (!version || (version !== 'v1' && version !== 'v2')) {
+      if (!version || (version !== 'v1' && version !== 'v2' && version !== 'v3')) {
         this.logger.error(`Environment ${sbEnvironment.name} has invalid or missing version: ${version}`);
         return {
           status: 'INVALID_VERSION',
-          message: `Invalid API version: ${version}. Expected 'v1' or 'v2'`,
+          message: `Invalid API version: ${version}. Expected 'v1', 'v2', or 'v3'`,
         };
       }
 
       this.logger.log(`Environment ${sbEnvironment.name} is using Admin API version: ${version}`);
 
       // Select appropriate Admin API service based on version
-      const adminApiService = version === 'v1' ? this.adminApiServiceV1 : this.adminApiServiceV2;
+      /// change this to a swtich if more versions are added in the future
+      let adminApiService;
+      switch (version) {
+        case 'v1':
+          adminApiService = this.adminApiServiceV1;
+          break;
+        case 'v2':
+          adminApiService = this.adminApiServiceV2;
+          break;
+        case 'v3':
+          adminApiService = this.adminApiServiceV3;
+          break;
+      }
 
       // For brand-new v2 environments (no stored credentials yet), register
       // credentials first so getTenants() can authenticate successfully.
-      if (version === 'v2') {
+      if (version === 'v2' || version === 'v3') {
         await this.bootstrapEnvironmentCredentials(sbEnvironment);
         // Reload to pick up any newly-saved credentials
         const reloaded = await this.sbEnvironmentsRepository.findOne({ where: { id: sbEnvironment.id } });
@@ -433,10 +446,10 @@ export class AdminApiSyncService {
       // bulk data directly caused the "wrong credentials / wrong data" issue
       // because it uses a manually-constructed client.
       // -----------------------------------------------------------------------
-      if (version === 'v2') {
+      if (version === 'v2' || version === 'v3') {
         const configPublic = sbEnvironment.configPublic;
         const isMultiTenant =
-          configPublic?.version === 'v2' &&
+          (configPublic?.version === 'v2' || configPublic?.version === 'v3') &&
           configPublic.values?.meta?.mode === 'MultiTenant';
 
         if (isMultiTenant) {
@@ -640,11 +653,11 @@ export class AdminApiSyncService {
 
       // Determine API version (v1 or v2) and select appropriate service
       const version = sbEnvironment.version;
-      if (!version || (version !== 'v1' && version !== 'v2')) {
+      if (!version || (version !== 'v1' && version !== 'v2' && version !== 'v3')) {
         this.logger.error(`Environment for tenant ${edfiTenant.name} has invalid version: ${version}`);
         return {
           status: 'INVALID_VERSION',
-          message: `Invalid API version: ${version}. Expected 'v1' or 'v2'`,
+          message: `Invalid API version: ${version}. Expected 'v1', 'v2', or 'v3'`,
         };
       }
 
@@ -657,15 +670,15 @@ export class AdminApiSyncService {
         };
       }
 
-      this.logger.log(`Syncing tenant ${edfiTenant.name} using Admin API v2`);
+      this.logger.log(`Syncing tenant ${edfiTenant.name} using Admin API v2/v3`);
 
       // Validate that credentials exist for this tenant in the environment configuration
       const configPublic = sbEnvironment.configPublic;
       const configPrivate = sbEnvironment.configPrivate;
       const v2Config =
-        'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+        'version' in configPublic && (configPublic.version === 'v2' || configPublic.version === 'v3') ? configPublic.values : undefined;
       const v2ConfigPrivate =
-        'version' in configPublic && configPublic.version === 'v2'
+        'version' in configPublic && (configPublic.version === 'v2' || configPublic.version === 'v3')
           ? (configPrivate as ISbEnvironmentConfigPrivateV2)
           : undefined;
 

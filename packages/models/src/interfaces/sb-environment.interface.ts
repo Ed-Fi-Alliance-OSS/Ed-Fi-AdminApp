@@ -2,7 +2,7 @@ import { IEdfiTenant, IIntegrationApp, IOwnership } from '.';
 import { SbV2MetaSaved } from '../dtos/starting-blocks.v2.dto';
 import { IEntityBase } from '../utils/entity-base.interface';
 
-export type SbaaAdminApiVersion = 'v1' | 'v2';
+export type SbaaAdminApiVersion = 'v1' | 'v2' | 'v3';
 
 export type OdsApiMeta = {
   version: string;
@@ -45,11 +45,21 @@ export type SbEnvironmentConfigPublic = {
       values: ISbEnvironmentConfigPublicV2;
     }
   | {
+      version: 'v3';
+      values: ISbEnvironmentConfigPublicV3;
+    }
+  | {
       version?: undefined;
       values?: undefined;
     }
 );
 
+export interface ISbEnvironmentConfigPublicV3 {
+  meta: SbV2MetaSaved;
+  /** UUID to ensure different SBAA instances don't overwrite each others' creds in SB */
+  adminApiUuid?: string;
+  tenants?: Record<string, { adminApiKey?: string; allowedEdorgs?: number[] }>;
+}
 export interface ISbEnvironmentConfigPublicV2 {
   meta: SbV2MetaSaved;
   /** UUID to ensure different SBAA instances don't overwrite each others' creds in SB */
@@ -69,9 +79,13 @@ export interface ISbEnvironmentConfigPrivateV1 {
 export interface ISbEnvironmentConfigPrivateV2 {
   tenants?: Record<string, { adminApiSecret: string }>;
 }
+export interface ISbEnvironmentConfigPrivateV3 {
+  tenants?: Record<string, { adminApiSecret: string }>;
+}
 export type SbEnvironmentConfigPrivate =
   | ISbEnvironmentConfigPrivateV1
-  | ISbEnvironmentConfigPrivateV2;
+  | ISbEnvironmentConfigPrivateV2
+  | ISbEnvironmentConfigPrivateV3;
 
 export interface ISbEnvironment extends IEntityBase {
   ownerships: IOwnership[];

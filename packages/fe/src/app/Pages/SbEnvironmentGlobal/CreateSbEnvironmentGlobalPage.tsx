@@ -85,8 +85,8 @@ export const CreateSbEnvironmentGlobalPage = () => {
               const version = response.version;
               const isMultiTenant = response.isMultiTenant;
 
-              if (version === 'v1' || version === 'v2') {
-                setValue('version', version as 'v1' | 'v2');
+              if (version === 'v1' || version === 'v2' || version === 'v3') {
+                setValue('version', version as 'v1' | 'v2' | 'v3');
                 setValue('isMultitenant', isMultiTenant);
                 clearErrors(['odsApiDiscoveryUrl']);
               } else {
@@ -217,6 +217,9 @@ export const CreateSbEnvironmentGlobalPage = () => {
   };
 
   const onSubmit = (data: PostSbEnvironmentDto) => {
+    /// print on console for debugging
+    console.log('Form data on submit:', data);
+
     // Manual validation
     if (!validateForm(data)) {
       return;
@@ -230,6 +233,10 @@ export const CreateSbEnvironmentGlobalPage = () => {
         { entity: data },
         {
           onSuccess: (result) => {
+            
+            /// print on console for debugging
+            console.log('Successfully created environment:', result);
+
             navigate(`/sb-environments/${result.id}`);
             result.syncQueue &&
               popSyncBanner({

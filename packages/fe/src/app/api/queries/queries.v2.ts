@@ -22,6 +22,7 @@ import {
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
   PutVendorDtoV2,
+  GetVendorDtoV3,
 } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './queries';

@@ -1,31 +1,30 @@
 import {
-  CopyClaimsetDtoV2,
-  GetApiClientDtoV2,
-  GetApplicationDtoV2,
-  GetClaimsetSingleDtoV2,
+  CopyClaimsetDtoV3,
+  GetApiClientDtoV3,
+  GetApplicationDtoV3,
+  GetClaimsetSingleDtoV3,
   GetIntegrationAppDto,
   Id,
   Ids,
-  ImportClaimsetSingleDtoV2,
-  PostApplicationDtoV2,
-  PostApiClientDtoV2,
-  PostApplicationFormDtoV2,
-  PutApiClientDtoV2,
-  PostClaimsetDtoV2,
-  PostProfileDtoV2,
-  PostVendorDtoV2,
-  PutApplicationDtoV2,
-  PutApplicationFormDtoV2,
-  PutClaimsetDtoV2,
-  PutProfileDtoV2,
-  PutVendorDtoV2,
+  ImportClaimsetSingleDtoV3,
+  PostApplicationDtoV3,
+  PostApiClientDtoV3,
+  PostApplicationFormDtoV3,
+  PutApiClientDtoV3,
+  PostClaimsetDtoV3,
+  PostProfileDtoV3,
+  PostVendorDtoV3,
+  PutApplicationDtoV3,
+  PutApplicationFormDtoV3,
+  PutClaimsetDtoV3,
+  PutProfileDtoV3,
+  PutVendorDtoV3,
   SecretSharingMethod,
   edorgKeyV2,
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
-  toPostApiClientResponseDtoV2,
-  toPostApplicationResponseDto,
-  toPostApplicationResponseDtoV2,
+  toPostApiClientResponseDtoV3,
+  toPostApplicationResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
 import {
@@ -73,16 +72,16 @@ import {
   postYopassSecret,
 } from '../../../../utils';
 import { AdminApiV1xExceptionFilter } from '../v1/admin-api-v1x-exception.filter';
-import { AdminApiServiceV2 } from './admin-api.v2.service';
+import { AdminApiServiceV3 } from './admin-api.v3.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
 import config from 'config';
 
 @Injectable()
-class AdminApiV2Interceptor implements NestInterceptor {
+class AdminApiV3Interceptor implements NestInterceptor {
   async intercept(context: ExecutionContext, next: CallHandler) {
     const request = context.switchToHttp().getRequest();
     const configPublic = request.sbEnvironment.configPublic;
-    if (!('version' in configPublic && configPublic.version === 'v2')) {
+    if (!('version' in configPublic && configPublic.version === 'v3')) {
       throw new NotFoundException(
         `Requested Admin API version not correct for this EdfiTenant. Use "${request.sbEnvironment.configPublic.adminApiVersion}" instead.`
       );
@@ -92,21 +91,21 @@ class AdminApiV2Interceptor implements NestInterceptor {
 }
 
 @UseFilters(new AdminApiV1xExceptionFilter())
-@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, AdminApiV2Interceptor)
-@ApiTags('Admin API Resources - v2.x')
+@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, AdminApiV3Interceptor)
+@ApiTags('Admin API Resources - v2.4')
 @Controller()
-export class AdminApiControllerV2 {
+export class AdminApiControllerV3 {
   private downloadCache = new NodeCache({ stdTTL: 60 * 5 /* 5 minutes */ });
   constructor(
     private readonly integrationAppsTeamService: IntegrationAppsTeamService,
-    private readonly sbService: AdminApiServiceV2,
+    private readonly sbService: AdminApiServiceV3,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
   ) { }
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
-    application: Pick<GetApplicationDtoV2, 'educationOrganizationIds' | 'odsInstanceIds'>,
+    application: Pick<GetApplicationDtoV3, 'educationOrganizationIds' | 'odsInstanceIds'>,
     validIds: Ids
   ) {
     return application.odsInstanceIds.some((odsInstanceId) =>
@@ -128,7 +127,7 @@ export class AdminApiControllerV2 {
    * quirks in the SBAA auth system design.
    */
   private checkApplicationEdorgsForUnsafeOperations(
-    application: Pick<GetApplicationDtoV2, 'educationOrganizationIds' | 'odsInstanceIds'>,
+    application: Pick<GetApplicationDtoV3, 'educationOrganizationIds' | 'odsInstanceIds'>,
     validIds: Ids
   ) {
     return application.odsInstanceIds.every((odsInstanceId) =>
@@ -164,8 +163,8 @@ export class AdminApiControllerV2 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.vendor:read') validIds: Ids
   ) {
-    /// console log to verify that this code is being called for v2 environments and not v3 environments
-    console.log('Fetching vendors for v2 environment:', edfiTenant.id);
+    /// console log to verify that this code is being called for v3 environments and not v2 environments
+    console.log('Fetching vendors for v3 environment:', edfiTenant.id);
     
     const allVendors = await this.sbService.getVendors(edfiTenant);
     return allVendors.filter((v) => checkId(v.id, validIds));
@@ -203,7 +202,7 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
-    @Body() vendor: PutVendorDtoV2
+    @Body() vendor: PutVendorDtoV3
   ) {
     return this.sbService.putVendor(edfiTenant, vendorId, vendor);
   }
@@ -221,7 +220,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() vendor: PostVendorDtoV2
+    @Body() vendor: PostVendorDtoV3
   ) {
     return this.sbService.postVendor(edfiTenant, vendor);
   }
@@ -279,7 +278,7 @@ export class AdminApiControllerV2 {
         ...idToAppsMap.get(application.id),
         ...application,
         id: application.id,
-      })) as (GetApplicationDtoV2 & GetIntegrationAppDto)[];
+      })) as (GetApplicationDtoV3 & GetIntegrationAppDto)[];
   }
 
   @Get('applications/:applicationId')
@@ -335,11 +334,11 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
-    @Body() application: PutApplicationFormDtoV2,
+    @Body() application: PutApplicationFormDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
     validIds: Ids
   ) {
-    let claimset: GetClaimsetSingleDtoV2;
+    let claimset: GetClaimsetSingleDtoV3;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
     } catch (claimsetNotFound) {
@@ -367,7 +366,7 @@ export class AdminApiControllerV2 {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
-    const dto = plainToInstance(PutApplicationDtoV2, {
+    const dto = plainToInstance(PutApplicationDtoV3, {
       ...instanceToPlain(application),
       claimSetName: claimset.name,
       odsInstanceIds: [odsInstanceId],
@@ -481,11 +480,11 @@ export class AdminApiControllerV2 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @Query('returnRaw') returnRaw: boolean | undefined,
-    @Body() application: PostApplicationFormDtoV2,
+    @Body() application: PostApplicationFormDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:create')
     validIds: Ids
   ) {
-    let claimset: GetClaimsetSingleDtoV2;
+    let claimset: GetClaimsetSingleDtoV3;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
     } catch (claimsetNotFound) {
@@ -513,7 +512,7 @@ export class AdminApiControllerV2 {
     }
 
     const dto = plainToInstance(
-      PostApplicationDtoV2,
+      PostApplicationDtoV3,
       {
         ...instanceToPlain(application),
         claimSetName: claimset.name,
@@ -546,7 +545,7 @@ export class AdminApiControllerV2 {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
-            url: GetApplicationDtoV2.apiUrl(
+            url: GetApplicationDtoV3.apiUrl(
               sbEnvironment.startingBlocks,
               sbEnvironment.domain,
               application.applicationName,
@@ -564,7 +563,7 @@ export class AdminApiControllerV2 {
           throw error; // Re-throw the original error
         }
       } else {
-        return toPostApplicationResponseDtoV2({
+        return toPostApplicationResponseDtoV3({
           ...adminApiResponse,
           secretSharingMethod: SecretSharingMethod.Direct,
         });
@@ -669,7 +668,7 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
-    @Body() apiClient: PutApiClientDtoV2,
+    @Body() apiClient: PutApiClientDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
     validIds: Ids
   ) {
@@ -704,7 +703,7 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
-    @Body() apiClient: PostApiClientDtoV2,
+    @Body() apiClient: PostApiClientDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
     validIds: Ids
   ) {
@@ -719,7 +718,7 @@ export class AdminApiControllerV2 {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
-          url: GetApiClientDtoV2.apiUrl(
+          url: GetApiClientDtoV3.apiUrl(
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             apiClient.name,
@@ -737,7 +736,7 @@ export class AdminApiControllerV2 {
         throw error;
       }
     } else {
-      return toPostApiClientResponseDtoV2({
+      return toPostApiClientResponseDtoV3({
         ...adminApiResponse,
         secretSharingMethod: SecretSharingMethod.Direct,
       });
@@ -778,7 +777,7 @@ export class AdminApiControllerV2 {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
-          url: GetApiClientDtoV2.apiUrl(
+          url: GetApiClientDtoV3.apiUrl(
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             application.applicationName,
@@ -796,7 +795,7 @@ export class AdminApiControllerV2 {
         throw error;
       }
     } else {
-      return toPostApiClientResponseDtoV2({
+      return toPostApiClientResponseDtoV3({
         ...adminApiResponse,
         secretSharingMethod: SecretSharingMethod.Direct,
       });
@@ -951,7 +950,7 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
-    @Body() claimset: PutClaimsetDtoV2
+    @Body() claimset: PutClaimsetDtoV3
   ) {
     return await this.sbService.putClaimset(edfiTenant, claimsetId, claimset);
   }
@@ -969,7 +968,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: PostClaimsetDtoV2
+    @Body() claimset: PostClaimsetDtoV3
   ) {
     return await this.sbService.postClaimset(edfiTenant, claimset);
   }
@@ -986,7 +985,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: CopyClaimsetDtoV2
+    @Body() claimset: CopyClaimsetDtoV3
   ) {
     try {
       return await this.sbService.copyClaimset(edfiTenant, claimset);
@@ -1027,7 +1026,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: ImportClaimsetSingleDtoV2
+    @Body() claimset: ImportClaimsetSingleDtoV3
   ) {
     return this.sbService.importClaimset(edfiTenant, claimset);
   }
@@ -1131,7 +1130,7 @@ export class AdminApiControllerV2 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('profileId', new ParseIntPipe()) profileId: number,
-    @Body() profile: PutProfileDtoV2
+    @Body() profile: PutProfileDtoV3
   ) {
     {
       try {
@@ -1160,7 +1159,7 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() profile: PostProfileDtoV2
+    @Body() profile: PostProfileDtoV3
   ) {
     try {
       return await this.sbService.postProfile(edfiTenant, profile);
@@ -1193,3 +1192,4 @@ export class AdminApiControllerV2 {
     return undefined;
   }
 }
+

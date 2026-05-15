@@ -40,9 +40,11 @@ import { EdorgsService } from '../teams/edfi-tenants/edorgs/edorgs.service';
 import { OdssService } from '../teams/edfi-tenants/odss/odss.service';
 import {
   AdminApiServiceV1,
-  StartingBlocksServiceV2,
-  StartingBlocksServiceV1,
   AdminApiServiceV2,
+  AdminApiServiceV3,
+  StartingBlocksServiceV1,
+  StartingBlocksServiceV2,
+  StartingBlocksServiceV3,
 } from '../teams/edfi-tenants/starting-blocks';
 import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.service';
 import { OwnershipsService } from '../teams/ownerships/ownerships.service';
@@ -77,6 +79,7 @@ const imports = [
 const providers = [
   AdminApiServiceV1,
   AdminApiServiceV2,
+  AdminApiServiceV3,
   AdminApiSyncService,
   AuthService,
   CacheService,
@@ -100,6 +103,7 @@ const providers = [
   SessionSerializer,
   StartingBlocksServiceV1,
   StartingBlocksServiceV2,
+  StartingBlocksServiceV3,
   TeamsGlobalService,
   UserTeamMembershipsGlobalService,
   UserTeamMembershipsService,

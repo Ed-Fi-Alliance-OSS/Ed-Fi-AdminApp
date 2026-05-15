@@ -345,6 +345,7 @@ export const authenticatedRoutes: RouteObject = {
     apiClientCreateRoute,
     apiClientsIndexRoute,
     apiClientsRoute,
+
     sbEnvironmentGlobalCertRoute,
     sbEnvironmentGlobalCertExecutionRoute,
     

@@ -256,7 +256,7 @@ export class SbEnvironmentsEdFiService {
         if (createSbEnvironmentDto.version === 'v1') {
           await this.syncv1Environment(sbEnvironment, createSbEnvironmentDto);
           return sbEnvironment;
-        } else if (createSbEnvironmentDto.version === 'v2') {
+        } else if (createSbEnvironmentDto.version === 'v2' || createSbEnvironmentDto.version === 'v3') {
           const syncQueueItem = await this.syncv2Environment(sbEnvironment);
           return { ...sbEnvironment, syncQueue: toSbSyncQueueDto(syncQueueItem) };
         }

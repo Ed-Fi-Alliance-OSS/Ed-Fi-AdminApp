@@ -11,24 +11,24 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
-import { Id, PostVendorDtoV2 } from '@edanalytics/models';
+import { Id, PostVendorDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { vendorQueriesV2 } from '../../api';
+import { vendorQueriesV3 } from '../../api';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
-const resolver = classValidatorResolver(PostVendorDtoV2);
+const resolver = classValidatorResolver(PostVendorDtoV3);
 
-export const CreateVendorV2 = () => {
+export const CreateVendorV3 = () => {
 
   /// print statement for debugging
-  console.log('Rendering CreateVendorV2 component');
-
+  console.log('Rendering CreateVendorV3 component');
+  
   const { teamId, edfiTenant, edfiTenantId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
 
@@ -39,7 +39,7 @@ export const CreateVendorV2 = () => {
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/vendors/${id}`
     );
   const parentPath = useNavToParent();
-  const postVendor = vendorQueriesV2.post({
+  const postVendor = vendorQueriesV3.post({
     edfiTenant,
     teamId,
   });
@@ -49,7 +49,7 @@ export const CreateVendorV2 = () => {
     setError,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<PostVendorDtoV2>({ resolver, defaultValues: {} });
+  } = useForm<PostVendorDtoV3>({ resolver, defaultValues: {} });
 
   return (
     <PageTemplate constrainWidth title={'Create new vendor'} actions={undefined}>
@@ -74,13 +74,13 @@ export const CreateVendorV2 = () => {
           )}
         >
           <FormControl isInvalid={!!errors.company}>
-            <FormLabel>Company</FormLabel>
+            <FormLabel>Company V3</FormLabel>
             <Input {...register('company')} />
             <FormErrorMessage>{errors.company?.message}</FormErrorMessage>
           </FormControl>
           <FormControl isInvalid={!!errors.namespacePrefixes}>
             <FormLabel>
-              Namespace prefixes{' '}
+              Namespace prefixes V3{' '}
               <Tooltip
                 label="Vendors can be associated with multiple namespaces. Please enter all possible namespace associations for this vendor, separated by commas."
                 hasArrow
@@ -94,12 +94,12 @@ export const CreateVendorV2 = () => {
             <FormErrorMessage>{errors.namespacePrefixes?.message}</FormErrorMessage>
           </FormControl>
           <FormControl isInvalid={!!errors.contactName}>
-            <FormLabel>Contact name</FormLabel>
+            <FormLabel>Contact name V3</FormLabel>
             <Input {...register('contactName')} />
             <FormErrorMessage>{errors.contactName?.message}</FormErrorMessage>
           </FormControl>
           <FormControl isInvalid={!!errors.contactEmailAddress}>
-            <FormLabel>Contact email address</FormLabel>
+            <FormLabel>Contact email address V3</FormLabel>
             <Input {...register('contactEmailAddress')} />
             <FormErrorMessage>{errors.contactEmailAddress?.message}</FormErrorMessage>
           </FormControl>

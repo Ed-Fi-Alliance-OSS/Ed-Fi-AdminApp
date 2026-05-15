@@ -8,13 +8,13 @@ import config from 'config';
 /**
  * Determines the API version (v1 or v2) from Admin API metadata version string
  */
-export const determineVersionFromAdminApiMetadata = (adminApiVersion: string): 'v1' | 'v2' => {
+export const determineVersionFromAdminApiMetadata = (adminApiVersion: string): 'v1' | 'v2' | 'v3' => {
   try {
     // Admin API version format: "1.1", "2.0", etc.
     const majorVersion = parseInt(adminApiVersion.split('.')[0], 10);
 
     if (majorVersion >= 2) {
-      return 'v2';
+      return 'v3'; /// AC-508: v3 just for testing.
     } else {
       return 'v1';
     }
@@ -27,7 +27,7 @@ export const determineVersionFromAdminApiMetadata = (adminApiVersion: string): '
 /**
  * Determines the API version (v1 or v2) from ODS API metadata
  */
-export const determineVersionFromMetadata = (odsApiMeta: OdsApiMeta): 'v1' | 'v2' => {
+export const determineVersionFromMetadata = (odsApiMeta: OdsApiMeta): 'v1' | 'v2' | 'v3' => {
   try {
     // Extract version from metadata
     const version = odsApiMeta.version;
@@ -43,8 +43,9 @@ export const determineVersionFromMetadata = (odsApiMeta: OdsApiMeta): 'v1' | 'v2
     // Parse the major version number correctly from semantic version string
     const majorVersion = parseInt(version.split('.')[0], 10);
 
+    /// AC-508: Is this condition still valid? majorVersion >= 7 could mean v2 or v3 specifications.
     if (majorVersion >= 7) {
-      return 'v2';
+      return 'v3'; /// AC-508: v3 just for testing.
     } else {
       return 'v1';
     }
@@ -269,6 +270,8 @@ export const validateAdminApiUrl = async (
     }
 
     // Return the fetched metadata so callers can reuse it and avoid a duplicate network call
+    /// print on console for debugging
+    Logger.debug(`Successfully validated Admin API URL. Detected version: ${adminDetectedVersion}, Tenant Mode: ${adminTenantMode ?? 'Unknown (field not provided)'}`);
     return metadata;
   } catch (error) {
     Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
