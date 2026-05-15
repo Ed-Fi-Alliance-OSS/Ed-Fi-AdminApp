@@ -8,7 +8,7 @@ import {
   SbV2TenantResourceTree,
 } from '@edanalytics/models';
 import { EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
-import { wait } from '@edanalytics/utils';
+import { createConcurrencyLimiter, wait } from '@edanalytics/utils';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
@@ -25,34 +25,6 @@ import { OdsMgmtServiceV2 } from './ods-mgmt.v2.service';
 import { TenantMgmtServiceV2 } from './tenant-mgmt.v2.service';
 import { randomUUID } from 'crypto';
 import { OdsRowCountService } from './ods-rowcount.service';
-
-function createConcurrencyLimiter(concurrency: number) {
-  let activeCount = 0;
-  const queue: Array<() => void> = [];
-
-  const next = () => {
-    activeCount -= 1;
-    const run = queue.shift();
-    if (run) {
-      run();
-    }
-  };
-
-  return function limit<T>(fn: () => Promise<T>): Promise<T> {
-    return new Promise((resolve, reject) => {
-      const run = () => {
-        activeCount += 1;
-        fn().then(resolve).catch(reject).finally(next);
-      };
-
-      if (activeCount < concurrency) {
-        run();
-      } else {
-        queue.push(run);
-      }
-    });
-  };
-}
 
 // TODO eventually need to limit concurrency per-environment (to 1) but across envs we can run in parallel
 const limit = createConcurrencyLimiter(1);
