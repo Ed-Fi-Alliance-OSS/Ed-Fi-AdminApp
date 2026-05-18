@@ -33,11 +33,10 @@ state education agency (SEA)-driven support. Data Hubs are regional deployments
 that leverage state data collection requirements to drive vendor integrations
 while providing data services directly to the local education agencies (LEA).
 
-In practice, this means there is strategic importance to supporting deployments
-that store data for multiple LEAs at the same time, with separate ODS databases
-per LEA. These separate ODS database may be managed through shared
-administrative databases (single-tenant mode) or separated administrative
-databases (multi-tenant mode).
+In practice, this requires supporting deployments that store data for multiple
+LEAs at the same time, with separate ODS databases per LEA. These separate ODS
+databases may be managed through shared administrative databases (single-tenant
+mode) or separated administrative databases (multi-tenant mode).
 
 The current Ed-Fi tools (ODS Admin App and Sandbox Admin) were built to satisfy
 the LEA market and SEA vendor certification requirements, respectively. Both
@@ -75,7 +74,7 @@ reporting. This system administrator is in a hybrid IT role, serving both as a
 programmer and an IT administrator. They are responsible for deployment and
 maintenance of the Ed-Fi Technology Suite running on either Windows Server
 on-premises or have recently moved to a cloud provider. They may be interested
-in Docker but likely have little practical experience with it at this time.
+in Docker but likely have little practical experience with it.
 
 **Primary motivations**
 
@@ -181,7 +180,7 @@ ensuring that they are up-to-date and properly configured.
 #### Vendor Application Administrator
 
 Typically, an LEA has an application operator who manages the LEA's deployment
-of the third-party application that needs to integrated with the Ed-Fi API. This
+of the third-party application that needs to integrate with the Ed-Fi API. This
 person has the direct responsibility for entering client credentials in to that
 application. In some cases, the work might be deferred back to the vendor's IT
 delivery team.
@@ -189,7 +188,7 @@ delivery team.
 **Primary Motivations**
 
 - Receive client credentials for connecting to a given Ed-Fi API deployment.
-- Keep those credentials safe, so that malicious actors do no perform illicit actions with them.
+- Keep those credentials safe, so that malicious actors do not perform illicit actions with them.
 
 **Technical Depth**
 
@@ -266,16 +265,16 @@ Administrator
 
 ## 2. Enterprise Architecture
 
-The Ed-Fi Admin App application is intended to integrate with one or more
-deployments of the set (Ed-Fi ODS/API, Ed-Fi Admin API). These applications can
-operate in a multi-tenant mode, where the tenant definitions are in the
-applications' respective configuration files. A single tenant has one pair of
-(`EdFi_Admin`, `EdFi_Security`) database and one to many `EdFi_Ods_{0}`
-databases. The Ed-Fi ODS/API and Ed-Fi Admin API each have mechanisms for
-routing incoming HTTP requests to the right databases.
+The Ed-Fi Admin App is intended to integrate with one or more deployments of the
+set (Ed-Fi ODS/API, Ed-Fi Admin API). These applications can operate in a
+multi-tenant mode, where the tenant definitions are in the applications'
+respective configuration files. A single tenant has one pair of (`EdFi_Admin`,
+`EdFi_Security`) database and one to many `EdFi_Ods_{0}` databases. The Ed-Fi
+ODS/API and Ed-Fi Admin API each have mechanisms for routing incoming HTTP
+requests to the right databases.
 
-The application will utilize an external Open ID Connect (OIDC) compatible
-identity provider (IdP) for provision of signed JSON Web Tokens (JWT).
+The application will utilize an external OpenID Connect (OIDC) compatible
+identity provider (IdP) to issue signed JSON Web Tokens (JWT).
 
 Ed-Fi Admin App will require its own database for storing information such as
 OIDC parameters, allowed users, and connection information for the ODS/API and
@@ -473,7 +472,7 @@ C4Context
   - Creating a second application and decommissioning the first after the
     integrating system is updated.
 - **FR-APP-8**: To disable an application without deleting it, the user SHALL
-  reset its credentials and withhold the new `client_secret`.
+  reset the application's credentials and withhold the new `client_secret`.
 
 ### User Interface and Navigation
 
@@ -551,9 +550,9 @@ C4Context
   retention).
 - **NFR-OBS-3**: Administrators SHALL be able to monitor application health,
   performance metrics, security events, and database performance.
-- **FR-OBS-4**: The frontend SHALL expose a health probe endpoint
+- **NFR-OBS-4**: The frontend SHALL expose a health probe endpoint
   (`GET /api/healthcheck`) for querying application readiness.
-- **FR-OBS-5**: The application shall use the following log levels, with
+- **NFR-OBS-5**: The application shall use the following log levels, with
   appropriate use of each level for different types of events:
   - **ERROR**: an unexpected _system_ error occurred that impacts user
     functionality, such as a database communication failure. Do not use for
@@ -588,7 +587,7 @@ C4Context
 - **NFR-SDLC-2**: The application SHALL achieve 100% unit test coverage of business logic.
 - **NFR-SDLC-3**: The application SHALL cover all happy paths and common failure scenarios in integration tests.
 - **NFR-SDLC-4**: The application SHALL have automated integration builds and push-button package management.
-- **NFR-SDLC-5**: The application SHALL be shipped in native packaging format and as production-ready images (OCI-compliant). |
+- **NFR-SDLC-5**: The application SHALL be shipped in native packaging format and as production-ready images (OCI-compliant).
 
 ## 5. System Architecture
 
