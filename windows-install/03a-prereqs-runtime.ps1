@@ -88,8 +88,13 @@ $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [En
 $existingJava = Get-Command java -ErrorAction SilentlyContinue
 $existingJavaMajor = 0
 if ($existingJava) {
-    # `java -version` writes to stderr in the form: openjdk version "21.0.2" ...
-    $javaVerLine = & java -version 2>&1 | Select-Object -First 1
+    # `java -version` writes to stderr. Route the merge through cmd.exe rather
+    # than PowerShell's `2>&1`, because in Windows PowerShell 5.1 redirecting a
+    # native command's stderr inside PS wraps each line as a NativeCommandError
+    # ErrorRecord, which is fatal under the parent script's
+    # $ErrorActionPreference='Stop'. cmd /c merges the streams before PS ever
+    # sees them, so the output arrives as plain strings.
+    $javaVerLine = (& cmd /c "java -version 2>&1") | Select-Object -First 1
     if ($javaVerLine -match 'version "(\d+)') {
         $existingJavaMajor = [int]$Matches[1]
     } elseif ($javaVerLine -match 'version "1\.(\d+)') {

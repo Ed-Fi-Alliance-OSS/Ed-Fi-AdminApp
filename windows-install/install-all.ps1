@@ -30,8 +30,31 @@ If you'd rather build manually or run Keycloak in a foreground terminal, use
 -SkipPhase2 and handle those yourself before re-running with -SkipPhase1
 -SkipPhase2.
 
+.PARAMETER DbEngine
+'mssql' (default) or 'pgsql'. Drives which DB prereq path runs and how
+production.js gets patched. 'mssql' requires -SaPassword. 'pgsql' requires
+-PostgresAppPassword.
+
+.PARAMETER UsePostgresDocker
+Switch. When -DbEngine is 'pgsql', also start the docker-compose Postgres in
+windows-install\docker\ before deploying. Generates a docker .env from the
+postgres defaults in production.js-edfi + the passwords you provide.
+
+.PARAMETER PostgresAppPassword
+Required when -DbEngine is 'pgsql'. Becomes ADMIN_APP_DB_PASSWORD in the
+docker .env (when -UsePostgresDocker) and DB_PASSWORD in production.js.
+
+.PARAMETER PostgresSuperuserPassword
+Required when -UsePostgresDocker is set. Becomes POSTGRES_PASSWORD in the
+docker .env -- used only by docker-entrypoint and the init script that
+provisions the dedicated app user.
+
+.PARAMETER PostgresHost / -PostgresPort / -PostgresAppUser
+PostgreSQL connection details written into production.js. Defaults match the
+docker-compose setup ('localhost', 5432, 'edfiadminapp').
+
 .PARAMETER SaPassword
-SQL Server sa password.
+SQL Server sa password. Required when -DbEngine is 'mssql' (the default).
 
 .PARAMETER KeycloakAdminPassword
 Password for the master-realm Keycloak admin user. Used as the bootstrap admin
@@ -84,16 +107,36 @@ e.g. -YopassUrl 'http://yopass.internal:8082' to enable it against a
 pre-existing deployment; the install scripts do not stand up Yopass for you.
 
 .EXAMPLE
+# MSSQL (default)
 .\install-all.ps1 `
   -SaPassword 'EdFi-Local!2026' `
+  -KeycloakAdminPassword 'admin' `
+  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -TestUserPassword 'TestUser123!'
+
+.EXAMPLE
+# PostgreSQL via the bundled docker-compose
+.\install-all.ps1 `
+  -DbEngine pgsql `
+  -UsePostgresDocker `
+  -PostgresSuperuserPassword 'PgSuper!2026' `
+  -PostgresAppPassword 'PgApp!2026' `
   -KeycloakAdminPassword 'admin' `
   -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!'
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    [ValidateSet('mssql','pgsql')]
+    [string]$DbEngine = 'mssql',
+    [switch]$UsePostgresDocker,
+
     [string]$SaPassword,
+    [string]$PostgresAppPassword,
+    [string]$PostgresSuperuserPassword,
+    [string]$PostgresHost = "localhost",
+    [int]$PostgresPort = 5432,
+    [string]$PostgresAppUser = "edfiadminapp",
 
     [Parameter(Mandatory = $true)]
     [string]$KeycloakAdminPassword,
@@ -124,6 +167,22 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
+
+# Engine-specific required-arg validation. SaPassword was previously a top-level
+# Mandatory parameter; it's now conditionally required so the same script can
+# drive either engine without prompting for irrelevant credentials.
+if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
+    throw "-SaPassword is required when -DbEngine is 'mssql' (the default)."
+}
+if ($DbEngine -eq 'pgsql' -and -not $PostgresAppPassword) {
+    throw "-PostgresAppPassword is required when -DbEngine is 'pgsql'."
+}
+if ($UsePostgresDocker -and $DbEngine -ne 'pgsql') {
+    throw "-UsePostgresDocker only applies when -DbEngine is 'pgsql'."
+}
+if ($UsePostgresDocker -and -not $PostgresSuperuserPassword) {
+    throw "-PostgresSuperuserPassword is required when -UsePostgresDocker is set."
+}
 
 function Write-Phase {
     param([string]$Title)
@@ -157,7 +216,7 @@ if (-not $SkipPreflightCheck) {
     & "$scriptDir\00a-fix-node.ps1" @fixNodeArgs
 
     Write-Phase "Pre-flight check (00-check-prereqs.ps1)"
-    & "$scriptDir\00-check-prereqs.ps1" -SourcePath $SourcePath -DatabaseName $DatabaseName
+    & "$scriptDir\00-check-prereqs.ps1" -SourcePath $SourcePath -DatabaseName $DatabaseName -DbEngine $DbEngine
     $preflightExit = $LASTEXITCODE
     if ($preflightExit -eq 1) {
         throw "Pre-flight check failed. Fix the [FAIL] items above and re-run, or pass -SkipPreflightCheck to bypass (not recommended)."
@@ -182,8 +241,85 @@ if (-not $SkipPreflightCheck) {
 
 # ---------- Phase 1 — Prereqs ----------
 if (-not $SkipPhase1) {
-    Write-Phase "Phase 1.1: SQL Server prereqs (01-prereqs-sql.ps1)"
-    & "$scriptDir\01-prereqs-sql.ps1" -SaPassword $SaPassword -DatabaseName $DatabaseName
+    if ($DbEngine -eq 'mssql') {
+        Write-Phase "Phase 1.1: SQL Server prereqs (01-prereqs-sql.ps1)"
+        & "$scriptDir\01-prereqs-sql.ps1" -SaPassword $SaPassword -DatabaseName $DatabaseName
+    } else {
+        Write-Phase "Phase 1.1: PostgreSQL prereqs"
+        if ($UsePostgresDocker) {
+            # Generate windows-install\docker\.env from the postgres defaults of
+            # production.js-edfi (so the docker container, the app config, and
+            # the documented defaults all agree on user/db/port), then bring
+            # the container up and wait for it to accept connections.
+            $dockerDir = Join-Path $scriptDir "docker"
+            if (-not (Test-Path "$dockerDir\docker-compose.yml")) {
+                throw "docker-compose.yml not found at $dockerDir. Expected the docker folder to ship alongside the install scripts."
+            }
+            if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+                throw "docker is not on PATH. Install Docker Desktop and ensure 'docker compose' works before re-running with -UsePostgresDocker."
+            }
+
+            $envPath = Join-Path $dockerDir ".env"
+            $envBody = @"
+# Generated by install-all.ps1 -- do not edit by hand. Values mirror
+# DB_SECRET_VALUE postgres defaults in production.js-edfi and the args
+# passed to install-all.
+POSTGRES_USER=postgres
+POSTGRES_PASSWORD=$PostgresSuperuserPassword
+ADMIN_APP_DB_NAME=$DatabaseName
+ADMIN_APP_DB_USER=$PostgresAppUser
+ADMIN_APP_DB_PASSWORD=$PostgresAppPassword
+POSTGRES_PORT_EXPOSED=$PostgresPort
+"@
+            Set-Content -Path $envPath -Value $envBody -Encoding UTF8
+            Write-Host "Wrote $envPath"
+
+            Push-Location $dockerDir
+            try {
+                Write-Host "Starting docker compose (postgres)..."
+                & docker compose up -d
+                if ($LASTEXITCODE -ne 0) {
+                    throw "docker compose up failed (exit code $LASTEXITCODE)."
+                }
+
+                Write-Host "Waiting for postgres to accept connections..."
+                $ready = $false
+                for ($i = 0; $i -lt 30; $i++) {
+                    & docker exec edfiadminapp-postgres pg_isready -U postgres -d $DatabaseName 2>&1 | Out-Null
+                    if ($LASTEXITCODE -eq 0) { $ready = $true; break }
+                    Start-Sleep -Seconds 2
+                }
+                if (-not $ready) {
+                    throw "postgres container did not become ready within ~60 seconds. Check 'docker compose logs postgres'."
+                }
+                Write-Host "Postgres is ready." -ForegroundColor Green
+
+                # Idempotent re-run safety: docker compose only runs init/*.sh
+                # on a FRESH data volume, so a persistent volume from an earlier
+                # install attempt keeps the old edfiadminapp password and
+                # whatever ownership/grants TypeORM left behind. Force-align the
+                # password and grant the app user full access to existing AND
+                # future objects in public, run as the postgres superuser.
+                Write-Host "Synchronizing $PostgresAppUser password + privileges (idempotent)..."
+                $syncSql = @"
+ALTER USER "$PostgresAppUser" WITH PASSWORD '$PostgresAppPassword';
+GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$PostgresAppUser";
+GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$PostgresAppUser";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "$PostgresAppUser";
+ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAppUser";
+"@
+                $syncSql | & docker exec -i -e "PGPASSWORD=$PostgresSuperuserPassword" edfiadminapp-postgres psql -U postgres -d $DatabaseName 2>&1 | Out-Null
+                if ($LASTEXITCODE -ne 0) {
+                    throw "Failed to sync $PostgresAppUser credentials/privileges (psql exit $LASTEXITCODE). Check that -PostgresSuperuserPassword matches the superuser password the docker container was first initialized with."
+                }
+                Write-Host "$PostgresAppUser password and privileges synced." -ForegroundColor Green
+            } finally {
+                Pop-Location
+            }
+        } else {
+            Write-Host "Skipping docker bring-up (-UsePostgresDocker not set). Ensure an external Postgres is reachable at ${PostgresHost}:${PostgresPort} with user '$PostgresAppUser' and the password you passed via -PostgresAppPassword." -ForegroundColor Yellow
+        }
+    }
 
     Write-Phase "Phase 1.2: IIS prereqs (02-prereqs-iis.ps1)"
     & "$scriptDir\02-prereqs-iis.ps1"
@@ -245,13 +381,22 @@ if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
 & "$scriptDir\06-keycloak-bootstrap.ps1" @kcArgs
 
 Write-Phase "Phase 3.2: Deploy API (04-deploy-api.ps1)"
-& "$scriptDir\04-deploy-api.ps1" `
-    -SourcePath $SourcePath `
-    -SaPassword $SaPassword `
-    -DatabaseName $DatabaseName `
-    -KeycloakClientSecret $KeycloakClientSecret `
-    -AdminUsername $AdminUsername `
-    -YopassUrl $YopassUrl
+$apiArgs = @{
+    SourcePath           = $SourcePath
+    DatabaseName         = $DatabaseName
+    KeycloakClientSecret = $KeycloakClientSecret
+    AdminUsername        = $AdminUsername
+    DbEngine             = $DbEngine
+}
+if ($DbEngine -eq 'mssql') {
+    $apiArgs.SaPassword = $SaPassword
+} else {
+    $apiArgs.PgDbHost     = $PostgresHost
+    $apiArgs.PgDbPort     = $PostgresPort
+    $apiArgs.PgDbUsername = $PostgresAppUser
+    $apiArgs.PgDbPassword = $PostgresAppPassword
+}
+& "$scriptDir\04-deploy-api.ps1" @apiArgs
 
 Write-Phase "Phase 3.3: Deploy FE (05-deploy-fe.ps1)"
 & "$scriptDir\05-deploy-fe.ps1" -SourcePath "$SourcePath\dist\packages\fe"
@@ -294,14 +439,35 @@ if ($apiOk) {
     # Wait for the [user] table to exist. TypeORM migrations run during Nest
     # bootstrap, which is triggered by the smoke test, but the smoke test gets
     # its 401 response before TypeORM necessarily finishes the seed migration.
-    # Poll for the table for up to 30 seconds.
+    # Poll for the table for up to 30 seconds. Probe via the engine that
+    # production.js is actually pointing at.
     Write-Host "Waiting for migrations to finish creating the [user] table..."
     $userTableReady = $false
     for ($i = 0; $i -lt 15; $i++) {
         $prev = $ErrorActionPreference
         $ErrorActionPreference = 'Continue'
         try {
-            & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q "SET NOCOUNT ON; SELECT TOP 1 1 FROM [user];" 2>&1 | Out-Null
+            if ($DbEngine -eq 'mssql') {
+                & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q "SET NOCOUNT ON; SELECT TOP 1 1 FROM [user];" 2>&1 | Out-Null
+            } else {
+                # Probe via the container's psql (postgres-only -- avoids
+                # requiring psql.exe on the host) when docker is in play;
+                # otherwise rely on psql being on PATH.
+                # Pipe SQL via stdin instead of using -c, because PowerShell's
+                # native-arg passing eats the double quotes around "user" (a
+                # reserved word in postgres that has to stay quoted).
+                $probeSql = 'SELECT 1 FROM "user" LIMIT 1;'
+                if ($UsePostgresDocker) {
+                    $probeSql | & docker exec -i -e "PGPASSWORD=$PostgresAppPassword" edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 2>&1 | Out-Null
+                } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
+                    $env:PGPASSWORD = $PostgresAppPassword
+                    $probeSql | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName 2>&1 | Out-Null
+                } else {
+                    # No way to probe -- assume ready and fall through to the upsert,
+                    # which will surface any real failure.
+                    $LASTEXITCODE = 0
+                }
+            }
         } finally {
             $ErrorActionPreference = $prev
         }
@@ -320,19 +486,47 @@ if ($apiOk) {
     #   3. The user exists but with NULL roleId (auth-flow auto-create path) --
     #      UPDATE corrects it.
     Write-Host "Ensuring '$AdminUsername' exists with admin role..."
-    $upsertQuery = @"
+    if ($DbEngine -eq 'mssql') {
+        $upsertQuery = @"
 IF NOT EXISTS (SELECT 1 FROM [user] WHERE username = '$AdminUsername')
     INSERT INTO [user] (username, roleId, isActive) VALUES ('$AdminUsername', 2, 1);
 UPDATE [user] SET roleId = 2, isActive = 1
     WHERE username = '$AdminUsername' AND (roleId IS NULL OR isActive = 0);
 "@
-    & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q $upsertQuery 1>$null 2>$null
-    if ($LASTEXITCODE -eq 0) {
-        Write-Host "Admin user present with roleId=2." -ForegroundColor Green
+        & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q $upsertQuery 1>$null 2>$null
+        $upsertExit = $LASTEXITCODE
     } else {
-        Write-Host "Couldn't ensure admin user automatically (sqlcmd exit $LASTEXITCODE)." -ForegroundColor Yellow
-        Write-Host "If login loops, run this manually:" -ForegroundColor Yellow
-        Write-Host "  sqlcmd -S `"(local)`" -U sa -P '<pw>' -d $DatabaseName -Q `"INSERT INTO [user] (username, roleId, isActive) VALUES ('$AdminUsername', 2, 1);`""
+        # Postgres equivalent. The "user" identifier is a reserved word, so it
+        # has to stay quoted; the column names "roleId"/"isActive" are
+        # case-sensitive because TypeORM creates them with double quotes.
+        $upsertQuery = @"
+INSERT INTO "user" (username, "roleId", "isActive")
+    VALUES ('$AdminUsername', 2, true)
+    ON CONFLICT (username) DO NOTHING;
+UPDATE "user" SET "roleId" = 2, "isActive" = true
+    WHERE username = '$AdminUsername' AND ("roleId" IS NULL OR "isActive" = false);
+"@
+        # Pipe SQL via stdin: PowerShell's native-arg passing strips the
+        # inner double quotes around "user" / "roleId" / "isActive" when they
+        # ride along on `-c`, which makes psql see `user` (a reserved word)
+        # and fail with a syntax error.
+        if ($UsePostgresDocker) {
+            $upsertQuery | & docker exec -i -e "PGPASSWORD=$PostgresAppPassword" edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
+            $upsertExit = $LASTEXITCODE
+        } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
+            $env:PGPASSWORD = $PostgresAppPassword
+            $upsertQuery | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
+            $upsertExit = $LASTEXITCODE
+        } else {
+            Write-Host "No psql available (and -UsePostgresDocker not set). Skipping admin-user upsert -- run it manually if login loops." -ForegroundColor Yellow
+            $upsertExit = -1
+        }
+    }
+    if ($upsertExit -eq 0) {
+        Write-Host "Admin user present with roleId=2." -ForegroundColor Green
+    } elseif ($upsertExit -gt 0) {
+        Write-Host "Couldn't ensure admin user automatically (exit $upsertExit)." -ForegroundColor Yellow
+        Write-Host "If login loops, run an INSERT into the [user] / `"user`" table manually with roleId=2 for '$AdminUsername'." -ForegroundColor Yellow
     }
 } else {
     Write-Host "API is NOT responding after ~60s of retries." -ForegroundColor Red
@@ -346,6 +540,33 @@ UPDATE [user] SET roleId = 2, isActive = 1
 
 # ---------- Done ----------
 Write-Phase "INSTALL COMPLETE"
+
+# Build the DB-specific section of the summary first so the main here-string
+# below stays simple.
+if ($DbEngine -eq 'mssql') {
+    $dbSummary = @"
+SQL Server
+  Server:             (local) / tcp:localhost,1433
+  Login:              sa
+  Password:           $SaPassword
+  Database:           $DatabaseName
+"@
+} else {
+    $dockerLines = if ($UsePostgresDocker) {
+@"
+
+  Container:          edfiadminapp-postgres (docker compose at $scriptDir\docker)
+  Superuser password: $PostgresSuperuserPassword
+"@
+    } else { "" }
+    $dbSummary = @"
+PostgreSQL
+  Host:               ${PostgresHost}:${PostgresPort}
+  Database:           $DatabaseName
+  App user:           $PostgresAppUser
+  App password:       $PostgresAppPassword$dockerLines
+"@
+}
 
 $summary = @"
 Ed-Fi Admin App -- Install Summary
@@ -368,11 +589,7 @@ Keycloak (Identity Provider)
   edfi realm:         http://localhost:8080/realms/edfi/
   Client secret:      $KeycloakClientSecret
 
-SQL Server
-  Server:             (local) / tcp:localhost,1433
-  Login:              sa
-  Password:           $SaPassword
-  Database:           $DatabaseName
+$dbSummary
 
 Notes
   - The HTTPS cert is self-signed and was added to Trusted Root by 02-prereqs-iis.ps1.

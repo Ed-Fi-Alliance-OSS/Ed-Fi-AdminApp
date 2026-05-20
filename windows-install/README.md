@@ -52,9 +52,9 @@ A summary with all URLs and credentials is saved to `install-summary.txt` in the
 - **`-KeycloakClientSecret`**: Secret for the `edfiadminapp` Keycloak client. Keycloak itself accepts any non-empty string, but **32+ alphanumeric characters is recommended** for entropy. The same value goes into both Keycloak and `production.js`.
 - **`-TestUserPassword`**: Password for the seeded `admin@example.com` user in the `edfi` realm. This is what you type on the Keycloak login screen to enter the AdminApp.
 
----
+#### Database engine selection
 
-## What each script does
+- **`-DbEngine`**: `mssql` (default) or `pgsql`. Drives which Phase 1.1 path runs and how `production.js` gets patched. Everything else (IIS, Node, Keycloak, build, deploy) is identical between the two.
 
 | Script | Purpose |
 |---|---|
@@ -96,6 +96,10 @@ See `Get-Help .\uninstall.ps1 -Full` for the full flag list (`-KeepDatabase`, `-
 2. **Node version check** (`00a-fix-node.ps1`) — no-op when Node is missing or already at the floor; otherwise prompts to upgrade via nvm-windows. Skipped with `-SkipPreflightCheck`.
 3. **Pre-flight check** (`00-check-prereqs.ps1`) — aborts on FAIL; prompts on RISK (unless `-AcceptRisks`).
 4. **Phase 1**: SQL config + creates `sbaa`; IIS prereqs + cert + HTTPS binding; Node + JDK + npm cache override + Keycloak download.
+**Phase 1.1**: database prereqs.
+   - `-DbEngine mssql` -> SQL Server Mixed Mode + TCP/IP + `sa` + creates `sbaa`.
+   - `-DbEngine pgsql -UsePostgresDocker` -> writes `docker\.env` from your args, runs `docker compose up -d`, waits for `pg_isready`.
+   - `-DbEngine pgsql` without `-UsePostgresDocker` -> no DB action; you're expected to point `-PostgresHost`/`-PostgresPort` at an existing Postgres.
 5. **Phase 2**: `npm ci` + builds; start Keycloak detached with bootstrap admin.
 6. **Phase 3**: Keycloak realm/client/user; deploy API; deploy FE.
 7. **Smoke test**: hits `https://localhost/adminapp-api/api/teams` (expects 401).
@@ -194,10 +198,14 @@ If a too-old Node is detected, `00a-fix-node.ps1` offers to set up nvm-windows +
 
 Most paths and URLs have sensible defaults you can override on `install-all.ps1`:
 
-| Parameter | Default |
-|---|---|
-| `-SourcePath` | Parent of `windows-install\` (auto-resolved — typically `C:\Ed-Fi\Ed-Fi-AdminApp`) |
-| `-DatabaseName` | `sbaa` |
-| `-AdminUsername` | `admin@example.com` |
+| Parameter             | Default                                                    |
+| --------------------- | ---------------------------------------------------------- |
+| `-DbEngine`           | `mssql`                                                    |
+| `-SourcePath`         | Auto-resolved to parent of `windows-install\` (typically `C:\Ed-Fi\Ed-Fi-AdminApp`) |
+| `-DatabaseName`       | `sbaa`                                                     |
+| `-AdminUsername`      | `admin@example.com`                                        |
+| `-PostgresHost`       | `localhost` *(pgsql only)*                                 |
+| `-PostgresPort`       | `5432` *(pgsql only)*                                      |
+| `-PostgresAppUser`    | `edfiadminapp` *(pgsql only; matches the docker init script)* |
 
 Per-script parameters (cert hostnames, Keycloak install path, ports, etc.) all have defaults documented in each script's `param()` block — run `Get-Help .\<script>.ps1 -Full` for the full list.

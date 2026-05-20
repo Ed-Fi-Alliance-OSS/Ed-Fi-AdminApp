@@ -85,10 +85,27 @@ param(
     [string]$AppAlias = "adminapp-api",
     [int]$StandalonePort = 3333,
 
-    [Parameter(Mandatory = $true)]
+    # Which database engine production.js should be configured for.
+    # 'mssql' -> requires -SaPassword.
+    # 'pgsql' -> requires -PgDbPassword (host/port/user/db default to the
+    # docker-compose setup under windows-install\docker\). Engine-specific
+    # password validation is enforced in the body of the script; -DbEngine
+    # itself has a default, so it should not be Mandatory.
+    [ValidateSet('mssql','pgsql')]
+    [string]$DbEngine = 'mssql',
+
+    # SQL Server sa password. Required only when -DbEngine is 'mssql'.
     [string]$SaPassword,
 
     [string]$DatabaseName = "sbaa",
+
+    # PostgreSQL connection details. Required only when -DbEngine is 'pgsql'.
+    # Defaults match the docker-compose setup at windows-install\docker\ where
+    # the dedicated app user 'edfiadminapp' is provisioned by init/01-...sh.
+    [string]$PgDbHost = "localhost",
+    [int]$PgDbPort = 5432,
+    [string]$PgDbUsername = "edfiadminapp",
+    [string]$PgDbPassword,
 
     [string]$KeycloakIssuer = "http://localhost:8080/realms/edfi",
     [string]$KeycloakClientId = "edfiadminapp",
@@ -116,6 +133,15 @@ param(
 
 $ErrorActionPreference = 'Stop'
 Import-Module WebAdministration
+
+# Engine-specific required arg validation. Each engine needs its own password
+# parameter; the other one is irrelevant and ignored.
+if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
+    throw "-SaPassword is required when -DbEngine is 'mssql'."
+}
+if ($DbEngine -eq 'pgsql' -and -not $PgDbPassword) {
+    throw "-PgDbPassword is required when -DbEngine is 'pgsql'."
+}
 
 $apiBuildDir = "$SourcePath\dist\packages\api"
 if (-not (Test-Path "$apiBuildDir\main.js")) {
@@ -238,18 +264,37 @@ if (Test-Path $prodJsTemplate) {
     throw "Neither production.js nor production.js-edfi found in deployed config folder."
 }
 
-# Patch production.js -- only write if any replacement actually changed something
+# Patch production.js -- only write if any replacement actually changed something.
+# Engine-aware: mssql replaces DB_ENGINE+MSSQL_DB_* defaults, pgsql replaces
+# the postgres defaults inside DB_SECRET_VALUE (and sets DB_SSL: false because
+# the docker-compose postgres uses a self-signed cert that TypeORM's
+# verify-full mode rejects -- see windows-install\docker\README.md).
 $prodJsChanged = $false
 if (Test-Path $prodJs) {
     $original = Get-Content $prodJs -Raw
     $c = $original
-    # JS-escape single quotes in the password
-    $jsPw = $SaPassword.Replace("'", "\'")
-    $c = $c.Replace("DB_ENGINE: 'pgsql',",                                  "DB_ENGINE: 'mssql',")
-    $c = $c.Replace("DB_TRUST_CERTIFICATE: false,",                         "DB_TRUST_CERTIFICATE: true,")
-    $c = $c.Replace("MSSQL_DB_HOST: 'edfiadminapp-mssql',",                 "MSSQL_DB_HOST: 'localhost',")
-    $c = $c.Replace("MSSQL_DB_DATABASE: 'sbaa',",                           "MSSQL_DB_DATABASE: '$DatabaseName',")
-    $c = $c.Replace("MSSQL_DB_PASSWORD: 'YourStrong!Passw0rd',",            "MSSQL_DB_PASSWORD: '$jsPw',")
+
+    if ($DbEngine -eq 'mssql') {
+        # JS-escape single quotes in the password
+        $jsPw = $SaPassword.Replace("'", "\'")
+        $c = $c.Replace("DB_ENGINE: 'pgsql',",                                  "DB_ENGINE: 'mssql',")
+        $c = $c.Replace("DB_TRUST_CERTIFICATE: false,",                         "DB_TRUST_CERTIFICATE: true,")
+        $c = $c.Replace("MSSQL_DB_HOST: 'edfiadminapp-mssql',",                 "MSSQL_DB_HOST: 'localhost',")
+        $c = $c.Replace("MSSQL_DB_DATABASE: 'sbaa',",                           "MSSQL_DB_DATABASE: '$DatabaseName',")
+        $c = $c.Replace("MSSQL_DB_PASSWORD: 'YourStrong!Passw0rd',",            "MSSQL_DB_PASSWORD: '$jsPw',")
+    } else {
+        # pgsql: leave DB_ENGINE alone (template already says 'pgsql'), turn
+        # off DB_SSL for the docker self-signed cert, patch the postgres
+        # defaults inside DB_SECRET_VALUE.
+        $jsPgPw = $PgDbPassword.Replace("'", "\'")
+        $c = $c.Replace("DB_SSL: true,",                                        "DB_SSL: false,")
+        $c = $c.Replace("DB_HOST: 'edfiadminapp-postgres',",                    "DB_HOST: '$PgDbHost',")
+        $c = $c.Replace("DB_PORT: 5432,",                                       "DB_PORT: $PgDbPort,")
+        $c = $c.Replace("DB_USERNAME: 'postgres',",                             "DB_USERNAME: '$PgDbUsername',")
+        $c = $c.Replace("DB_DATABASE: 'sbaa',",                                 "DB_DATABASE: '$DatabaseName',")
+        $c = $c.Replace("DB_PASSWORD: 'postgres',",                             "DB_PASSWORD: '$jsPgPw',")
+    }
+
     $c = $c.Replace("API_PORT: 3333,",                                      "API_PORT: process.env.PORT || 3333,")
     $c = $c.Replace("MY_URL: 'https://localhost/adminapp-api',",            "MY_URL: '$ApiUrl',")
     $c = $c.Replace("const FE_URL = 'https://localhost/adminapp';",         "const FE_URL = '$FeUrl';")
@@ -272,7 +317,7 @@ if (Test-Path $prodJs) {
 
     if ($c -ne $original) {
         Set-Content -Path $prodJs -Value $c -Encoding UTF8
-        Write-Host "production.js patched."
+        Write-Host "production.js patched ($DbEngine)."
         $prodJsChanged = $true
     } else {
         Write-Host "production.js already has the desired values — not rewriting."

@@ -32,7 +32,11 @@ Default: C:\keycloak.
 param(
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
     [string]$DatabaseName = "sbaa",
-    [string]$KeycloakInstallPath = "C:\keycloak"
+    [string]$KeycloakInstallPath = "C:\keycloak",
+    # Which DB engine the install will target. 'mssql' enables the SQL Server
+    # checks below; 'pgsql' replaces them with a docker-availability check.
+    [ValidateSet('mssql','pgsql')]
+    [string]$DbEngine = 'mssql'
 )
 
 $ErrorActionPreference = 'Continue'
@@ -118,13 +122,28 @@ if ($w3svc) {
     Write-Check FAIL "IIS not installed" "Run: Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer, IIS-WebServerManagementTools -All"
 }
 
-# SQL Server engine installed
+# SQL Server engine installed -- only required when -DbEngine is 'mssql'.
+# When the target is 'pgsql' instead, check for Docker so the docker-compose
+# postgres can come up.
 $sqlService = Get-Service MSSQLSERVER -ErrorAction SilentlyContinue
-if ($sqlService) {
-    $verKey = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server" -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "MSSQL*.MSSQLSERVER" } | Select-Object -First 1
-    Write-Check PASS "SQL Server installed" "$($verKey.PSChildName), service status: $($sqlService.Status)"
+if ($DbEngine -eq 'mssql') {
+    if ($sqlService) {
+        $verKey = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server" -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "MSSQL*.MSSQLSERVER" } | Select-Object -First 1
+        Write-Check PASS "SQL Server installed" "$($verKey.PSChildName), service status: $($sqlService.Status)"
+    } else {
+        Write-Check FAIL "SQL Server not installed" "Run: winget install Microsoft.SQLServer.2022.Developer (or pass -DbEngine pgsql to use Postgres instead)"
+    }
 } else {
-    Write-Check FAIL "SQL Server not installed" "Run: winget install Microsoft.SQLServer.2022.Developer"
+    if ($sqlService) {
+        Write-Check INFO "SQL Server present but unused (-DbEngine pgsql)" "Service status: $($sqlService.Status). No SQL Server config will be touched."
+    } else {
+        Write-Check PASS "SQL Server skipped (-DbEngine pgsql)"
+    }
+    if (Get-Command docker -ErrorAction SilentlyContinue) {
+        Write-Check PASS "Docker on PATH" "Required for -UsePostgresDocker"
+    } else {
+        Write-Check INFO "Docker not on PATH" "Required only if running install-all with -UsePostgresDocker; for an external Postgres, ignore this"
+    }
 }
 
 # Git installed
@@ -251,7 +270,7 @@ if ($kcBat) {
 Write-Section "CONFIGURED STATE (scripts will (re)apply these)"
 # ============================================================
 
-if ($sqlService -and $sqlService.Status -eq 'Running') {
+if ($DbEngine -eq 'mssql' -and $sqlService -and $sqlService.Status -eq 'Running') {
     # SQL Mixed Mode
     $verKey = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server" -ErrorAction SilentlyContinue | Where-Object { $_.PSChildName -like "MSSQL*.MSSQLSERVER" } | Select-Object -First 1
     if ($verKey) {
@@ -359,8 +378,9 @@ Write-Section "EXISTING STATE THAT WILL BE MODIFIED (collision risk check)"
 # SQL Server instance is shared with other databases?
 # 01-prereqs-sql.ps1 flips Mixed Mode, enables sa, forces TCP/IP on 1433, and
 # restarts the MSSQLSERVER service. If the instance is hosting other apps,
-# they'll feel all three.
-if ($sqlService) {
+# they'll feel all three. Skip the entire RISK probe when -DbEngine pgsql --
+# the SQL Server install won't be touched at all in that mode.
+if ($DbEngine -eq 'mssql' -and $sqlService) {
     $userDbs = & sqlcmd -S "(local)" -E -h-1 -W -Q "SET NOCOUNT ON; SELECT name FROM sys.databases WHERE database_id > 4 AND name <> N'$DatabaseName'" 2>$null |
         Where-Object { $_ -and $_.Trim() -ne '' -and $_ -notmatch '^\(' }
     if ($userDbs -and $userDbs.Count -gt 0) {
