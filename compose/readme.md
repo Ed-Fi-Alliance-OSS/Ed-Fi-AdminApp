@@ -292,10 +292,14 @@ These are the default URLs. The last path segment must match your environment va
 
 | App                                    | URL                                                                          |
 | -------------------------------------- | ---------------------------------------------------------------------------- |
-| Multi-Tenant ODS/API 7.x               | [https://localhost/odsv7-adminv2-multi-api](https://localhost/odsv7-adminv2-multi-api)             |
-| Multi-tenant Admin API 2.x in v2 mode  | [https://localhost/odsv7-adminv2-multi-adminapi](https://localhost/odsv7-adminv2-multi-adminapi)   |
-| Single-Tenant ODS/API 7.x              | [https://localhost/odsv7-adminv2-single-api](https://localhost/odsv7-adminv2-single-api)           |
-| Single-Tenant Admin API 2.x in v2 mode | [https://localhost/odsv7-adminv2-single-adminapi](https://localhost/odsv7-adminv2-single-adminapi) |
+| Multi-Tenant ODS/API 7.x (v2)          | [https://localhost/odsv7-adminv2-multi-api](https://localhost/odsv7-adminv2-multi-api)             |
+| Multi-tenant Admin API 2.x (v2 mode)   | [https://localhost/odsv7-adminv2-multi-adminapi](https://localhost/odsv7-adminv2-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x (v2)         | [https://localhost/odsv7-adminv2-single-api](https://localhost/odsv7-adminv2-single-api)           |
+| Single-Tenant Admin API 2.x (v2 mode)  | [https://localhost/odsv7-adminv2-single-adminapi](https://localhost/odsv7-adminv2-single-adminapi) |
+| Multi-Tenant ODS/API 7.x (v3)          | [https://localhost/odsv7-adminv3-multi-api](https://localhost/odsv7-adminv3-multi-api)             |
+| Multi-tenant Admin API 2.x (v3 mode)   | [https://localhost/odsv7-adminv3-multi-adminapi](https://localhost/odsv7-adminv3-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x (v3)         | [https://localhost/odsv7-adminv3-single-api](https://localhost/odsv7-adminv3-single-api)           |
+| Single-Tenant Admin API 2.x (v3 mode)  | [https://localhost/odsv7-adminv3-single-adminapi](https://localhost/odsv7-adminv3-single-adminapi) |
 | ODS/API 6.x                            | [https://localhost/v6-api](https://localhost/v6-api)                         |
 | Admin API 2.x in v1 mode               | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)               |
 | Keycloak                               | [https://localhost/auth](https://localhost/auth)                             |
