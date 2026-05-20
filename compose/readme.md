@@ -2,7 +2,7 @@
 
 ## About
 
-This directory includes a Docker Compose file for starting a collection of services needed for running and testing Ed-Fi Admin App. It includes a deployment of ODS/API 7.3 and Admin API 2.2 in multi-tenant mode, and a deployment of ODS/API 6.2 and Admin API 1.4 in district-specific mode.
+This directory includes a Docker Compose file for starting a collection of services needed for running and testing Ed-Fi Admin App. It includes deployments of ODS/API 7.3 with Admin API v2 and Admin API v3 topologies, and a deployment of ODS/API 6.2 and Admin API 1.4 in district-specific mode.
 
 ### Containers for Supporting Ed-Fi Admin App
 
@@ -27,9 +27,9 @@ graph TD
 
 ```mermaid
 graph TD
-    subgraph Multi-tenant
+   subgraph Multi-tenant (Admin API v2)
         odsV7-adminV2-tenant1-db-ods
-        v7-tenant2db-ods
+      odsV7-adminV2-tenant2-db-ods
         odsV7-adminV2-tenant1-db-admin
         odsV7-adminV2-tenant2-db-admin
         odsV7-adminV2-multi-api --> odsV7-adminV2-tenant1-db-ods
@@ -40,7 +40,7 @@ graph TD
         odsV7-adminV2-multi-adminapi --> odsV7-adminV2-tenant2-db-admin
     end
 
-    subgraph Single-tenant
+   subgraph Single-tenant (Admin API v2)
         odsV7-adminV2-single-db-ods
         odsV7-adminV2-single-db-admin
         odsV7-adminV2-single-api
@@ -54,11 +54,41 @@ graph TD
 
   v7-nginx --> odsV7-adminV2-single-api
   v7-nginx --> odsV7-adminV2-single-adminapi
+
+      subgraph Multi-tenant (Admin API v3)
+            odsV7-adminV3-tenant1-db-ods
+            odsV7-adminV3-tenant2-db-ods
+            odsV7-adminV3-tenant1-db-admin
+            odsV7-adminV3-tenant2-db-admin
+            odsV7-adminV3-multi-api --> odsV7-adminV3-tenant1-db-ods
+            odsV7-adminV3-multi-api --> odsV7-adminV3-tenant2-db-ods
+            odsV7-adminV3-multi-api --> odsV7-adminV3-tenant1-db-admin
+            odsV7-adminV3-multi-api --> odsV7-adminV3-tenant2-db-admin
+            odsV7-adminV3-multi-adminapi --> odsV7-adminV3-tenant1-db-admin
+            odsV7-adminV3-multi-adminapi --> odsV7-adminV3-tenant2-db-admin
+      end
+
+      subgraph Single-tenant (Admin API v3)
+            odsV7-adminV3-single-db-ods
+            odsV7-adminV3-single-db-admin
+            odsV7-adminV3-single-api
+            odsV7-adminV3-single-api --> odsV7-adminV3-single-db-ods
+            odsV7-adminV3-single-api --> odsV7-adminV3-single-db-admin
+            odsV7-adminV3-single-adminapi --> odsV7-adminV3-single-db-admin
+      end
+
+   v7-nginx --> odsV7-adminV3-multi-api
+   v7-nginx --> odsV7-adminV3-multi-adminapi
+
+   v7-nginx --> odsV7-adminV3-single-api
+   v7-nginx --> odsV7-adminV3-single-adminapi
 ```
 
-- Two ODS/API instances, supporting single and multi-tenant configurations.
+- Four ODS/API 7.3 instances are available: v2 and v3, each with single and multi-tenant configurations.
 - The multi-tenant configuration includes two tenancies, each with own combination of "ODS" and "Admin" databases.
 - **NGiNX** serves as a reverse proxy.
+
+For v3 route and healthcheck configuration, see the `ODS_V7_ADMIN_V3_*` entries in `.env.example`.
 
 ### Containers for ODS/API 6.2
 

@@ -170,6 +170,48 @@ server {
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
     }
 
+    location /${ODS_V7_ADMIN_V3_MULTI_API_VIRTUAL_NAME} {
+        resolver 127.0.0.11;
+        set $path ${ODS_V7_ADMIN_V3_MULTI_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /${ODS_V7_ADMIN_V3_MULTI_ADMIN_API_VIRTUAL_NAME} {
+        client_max_body_size 20M;
+        resolver 127.0.0.11;
+        set $path ${ODS_V7_ADMIN_V3_MULTI_ADMIN_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /${ODS_V7_ADMIN_V3_SINGLE_API_VIRTUAL_NAME} {
+        resolver 127.0.0.11;
+        set $path ${ODS_V7_ADMIN_V3_SINGLE_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
+    location /${ODS_V7_ADMIN_V3_SINGLE_ADMIN_API_VIRTUAL_NAME} {
+        client_max_body_size 20M;
+        resolver 127.0.0.11;
+        set $path ${ODS_V7_ADMIN_V3_SINGLE_ADMIN_API_VIRTUAL_NAME};
+        proxy_pass http://$path;
+        proxy_set_header X-Forwarded-Proto $scheme;
+        proxy_set_header X-Forwarded-Host $host;
+        proxy_set_header X-Forwarded-Port ${EXTERNAL_PORT};
+        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+    }
+
     # ODS/API v6 support
     location /${ODS_v6_VIRTUAL_NAME}{
         resolver 127.0.0.11;
