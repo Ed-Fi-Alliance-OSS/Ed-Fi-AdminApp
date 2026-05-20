@@ -28,32 +28,32 @@ graph TD
 ```mermaid
 graph TD
     subgraph Multi-tenant
-        v7-tenant1-db-ods
+        odsV7-adminV2-tenant1-db-ods
         v7-tenant2db-ods
-        v7-tenant1-db-admin
-        v7-tenant2-db-admin
-        v7-multi-api --> v7-tenant1-db-ods
-        v7-multi-api --> v7-tenant2-db-ods
-        v7-multi-api --> v7-tenant1-db-admin
-        v7-multi-api --> v7-tenant2-db-admin
-        v7-multi-adminapi --> v7-tenant1-db-admin
-        v7-multi-adminapi --> v7-tenant2-db-admin
+        odsV7-adminV2-tenant1-db-admin
+        odsV7-adminV2-tenant2-db-admin
+        odsV7-adminV2-multi-api --> odsV7-adminV2-tenant1-db-ods
+        odsV7-adminV2-multi-api --> odsV7-adminV2-tenant2-db-ods
+        odsV7-adminV2-multi-api --> odsV7-adminV2-tenant1-db-admin
+        odsV7-adminV2-multi-api --> odsV7-adminV2-tenant2-db-admin
+        odsV7-adminV2-multi-adminapi --> odsV7-adminV2-tenant1-db-admin
+        odsV7-adminV2-multi-adminapi --> odsV7-adminV2-tenant2-db-admin
     end
 
     subgraph Single-tenant
-        v7-single-db-ods
-        v7-single-db-admin
-        v7-single-api
-        v7-single-api --> v7-single-db-ods
-        v7-single-api --> v7-single-db-admin
-        v7-single-adminapi --> v7-single-db-admin
+        odsV7-adminV2-single-db-ods
+        odsV7-adminV2-single-db-admin
+        odsV7-adminV2-single-api
+        odsV7-adminV2-single-api --> odsV7-adminV2-single-db-ods
+        odsV7-adminV2-single-api --> odsV7-adminV2-single-db-admin
+        odsV7-adminV2-single-adminapi --> odsV7-adminV2-single-db-admin
     end
 
-  v7-nginx --> v7-multi-api
-  v7-nginx --> v7-multi-adminapi
+  v7-nginx --> odsV7-adminV2-multi-api
+  v7-nginx --> odsV7-adminV2-multi-adminapi
 
-  v7-nginx --> v7-single-api
-  v7-nginx --> v7-single-adminapi
+  v7-nginx --> odsV7-adminV2-single-api
+  v7-nginx --> odsV7-adminV2-single-adminapi
 ```
 
 - Two ODS/API instances, supporting single and multi-tenant configurations.
@@ -262,10 +262,10 @@ These are the default URLs. The last path segment must match your environment va
 
 | App                                    | URL                                                                          |
 | -------------------------------------- | ---------------------------------------------------------------------------- |
-| Multi-Tenant ODS/API 7.x               | [https://localhost/v7-multi-api](https://localhost/v7-multi-api)             |
-| Multi-tenant Admin API 2.x in v2 mode  | [https://localhost/v7-multi-adminapi](https://localhost/v7-multi-adminapi)   |
-| Single-Tenant ODS/API 7.x              | [https://localhost/v7-single-api](https://localhost/v7-single-api)           |
-| Single-Tenant Admin API 2.x in v2 mode | [https://localhost/v7-single-adminapi](https://localhost/v7-single-adminapi) |
+| Multi-Tenant ODS/API 7.x               | [https://localhost/odsv7-adminv2-multi-api](https://localhost/odsv7-adminv2-multi-api)             |
+| Multi-tenant Admin API 2.x in v2 mode  | [https://localhost/odsv7-adminv2-multi-adminapi](https://localhost/odsv7-adminv2-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x              | [https://localhost/odsv7-adminv2-single-api](https://localhost/odsv7-adminv2-single-api)           |
+| Single-Tenant Admin API 2.x in v2 mode | [https://localhost/odsv7-adminv2-single-adminapi](https://localhost/odsv7-adminv2-single-adminapi) |
 | ODS/API 6.x                            | [https://localhost/v6-api](https://localhost/v6-api)                         |
 | Admin API 2.x in v1 mode               | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)               |
 | Keycloak                               | [https://localhost/auth](https://localhost/auth)                             |
