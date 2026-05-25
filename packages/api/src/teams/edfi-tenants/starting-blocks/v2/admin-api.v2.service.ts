@@ -324,6 +324,14 @@ export class AdminApiServiceV2 {
     return client;
   }
 
+  /**
+   * Get an authenticated API client for a specific environment (no tenant header).
+   * Used for environment-level endpoints such as EdOrg refresh and job status polling.
+   * Always unwraps response `.data`; use `getAdminApiClientUsingEnv` directly if raw response is needed.
+   *
+   * @param sbEnvironment - The Starting Blocks environment to authenticate against
+   * @returns Axios instance configured with environment-level authentication
+   */
   public getAdminApiClientForEnvironment(sbEnvironment: SbEnvironment) {
     return this.getAdminApiClientUsingEnv(sbEnvironment);
   }
