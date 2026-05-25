@@ -1008,10 +1008,12 @@ describe('AdminApiSyncService', () => {
     it('should return null when the response has no jobId', async () => {
       const mockClient = { post: jest.fn().mockResolvedValue({}) };
       adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
 
       const result = await (service as any).triggerEdOrgRefresh(env);
 
       expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing jobId'));
     });
 
     it('should return null and log a warning when the Admin API call throws', async () => {
