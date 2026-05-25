@@ -1029,4 +1029,75 @@ describe('AdminApiSyncService', () => {
       );
     });
   });
+
+  describe('pollJobStatus', () => {
+    const env = mockSbEnvironmentV2 as SbEnvironment;
+    const jobId = 'job-abc-123';
+
+    it('should return "completed" when the job completes on the first poll', async () => {
+      const mockClient = {
+        get: jest.fn().mockResolvedValue({ status: 'completed' }),
+      };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+
+      const result = await (service as any).pollJobStatus(env, jobId);
+
+      expect(mockClient.get).toHaveBeenCalledWith(`jobs/${jobId}`);
+      expect(result).toBe('completed');
+    });
+
+    it('should return "completed" after a few "running" responses', async () => {
+      const mockClient = {
+        get: jest.fn()
+          .mockResolvedValueOnce({ status: 'running' })
+          .mockResolvedValueOnce({ status: 'running' })
+          .mockResolvedValueOnce({ status: 'completed' }),
+      };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+
+      const result = await (service as any).pollJobStatus(env, jobId);
+
+      expect(mockClient.get).toHaveBeenCalledTimes(3);
+      expect(result).toBe('completed');
+    });
+
+    it('should return "failed" when the Admin API reports the job failed', async () => {
+      const mockClient = {
+        get: jest.fn().mockResolvedValue({ status: 'failed' }),
+      };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+
+      const result = await (service as any).pollJobStatus(env, jobId);
+
+      expect(result).toBe('failed');
+    });
+
+    it('should return "timeout" after exhausting max poll attempts', async () => {
+      // testing.js sets ADMINAPI_REFRESH_POLL_ATTEMPTS to 3, so after 3 "running" responses it times out
+      const mockClient = {
+        get: jest.fn().mockResolvedValue({ status: 'running' }),
+      };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
+
+      const result = await (service as any).pollJobStatus(env, jobId);
+
+      expect(mockClient.get).toHaveBeenCalledTimes(3);
+      expect(result).toBe('timeout');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('did not complete'));
+    });
+
+    it('should return "timeout" and log an error when the poll HTTP call throws', async () => {
+      const mockClient = {
+        get: jest.fn().mockRejectedValue(new Error('Connection refused')),
+      };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+      const errorSpy = jest.spyOn((service as any).logger, 'error');
+
+      const result = await (service as any).pollJobStatus(env, jobId);
+
+      expect(result).toBe('timeout');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Poll attempt'));
+    });
+  });
 });

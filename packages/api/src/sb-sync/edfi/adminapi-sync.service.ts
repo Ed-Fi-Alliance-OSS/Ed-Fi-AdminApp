@@ -9,6 +9,7 @@ import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
+import config from 'config';
 
 export interface SyncResult {
   status: 'SUCCESS' | 'ERROR' | 'NO_ADMIN_API_CONFIG' | 'INVALID_VERSION';
@@ -387,6 +388,38 @@ export class AdminApiSyncService {
       );
       return null;
     }
+  }
+
+  private async pollJobStatus(
+    sbEnvironment: SbEnvironment,
+    jobId: string
+  ): Promise<'completed' | 'failed' | 'timeout'> {
+    const maxAttempts: number = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
+    const intervalMs: number = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
+    const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await client.get(`jobs/${jobId}`);
+        const status = (response as unknown as { status?: string })?.status;
+        if (status === 'completed') return 'completed';
+        if (status === 'failed') return 'failed';
+      } catch (error) {
+        this.logger.error(
+          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
+        );
+        return 'timeout';
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    this.logger.warn(
+      `Job ${jobId} did not complete after ${maxAttempts} poll attempts for environment ${sbEnvironment.name}`
+    );
+    return 'timeout';
   }
 
   /**
