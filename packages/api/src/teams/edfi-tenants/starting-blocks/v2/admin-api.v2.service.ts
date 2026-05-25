@@ -324,6 +324,10 @@ export class AdminApiServiceV2 {
     return client;
   }
 
+  public getAdminApiClientForEnvironment(sbEnvironment: SbEnvironment) {
+    return this.getAdminApiClientUsingEnv(sbEnvironment);
+  }
+
   private getAdminApiClientUsingEnv(environment: SbEnvironment, notJustData?: boolean) {
     const client = this.initializeApiClient(environment, notJustData);
     client.interceptors.request.use(async (config) => {
