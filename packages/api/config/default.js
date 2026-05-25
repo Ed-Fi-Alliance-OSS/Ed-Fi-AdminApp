@@ -24,6 +24,7 @@ module.exports = {
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
+  // Admin API EdOrg refresh polling
   ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
   ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   TYPEORM_LOGGING: undefined,

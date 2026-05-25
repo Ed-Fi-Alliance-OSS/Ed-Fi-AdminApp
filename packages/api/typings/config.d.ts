@@ -56,9 +56,9 @@ declare module 'config' {
     YOPASS_URL: string;
     API_PORT: number;
     SB_SYNC_CRON: string;
-    /** Max number of poll attempts before treating an EdOrg refresh job as timed out */
+    /** Max number of poll attempts before treating an EdOrg refresh job as timed out (default: 10) */
     ADMINAPI_REFRESH_POLL_ATTEMPTS: number;
-    /** Milliseconds to wait between EdOrg refresh job poll attempts */
+    /** Milliseconds to wait between EdOrg refresh job poll attempts (default: 5000) */
     ADMINAPI_REFRESH_POLL_INTERVAL_MS: number;
 
     SAMPLE_OIDC_CONFIG?: {
