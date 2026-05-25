@@ -24,6 +24,8 @@ module.exports = {
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
+  ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
+  ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   TYPEORM_LOGGING: undefined,
   // TypeORM database resilience configuration
   TYPEORM_RETRY_ATTEMPTS: 3,
