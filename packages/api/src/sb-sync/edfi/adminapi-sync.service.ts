@@ -368,6 +368,27 @@ export class AdminApiSyncService {
     this.logger.log(`Bootstrap complete for environment: ${sbEnvironment.name}`);
   }
 
+  private async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
+    try {
+      const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
+      const response = await client.post('odsInstances/edOrgs/refresh');
+      const jobId = (response as { jobId?: string })?.jobId ?? null;
+      if (!jobId) {
+        this.logger.warn(
+          `EdOrg refresh response missing jobId for environment ${sbEnvironment.name}`
+        );
+        return null;
+      }
+      this.logger.log(`EdOrg refresh triggered for ${sbEnvironment.name}, jobId: ${jobId}`);
+      return jobId;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to trigger EdOrg refresh for environment ${sbEnvironment.name}: ${(error as Error).message}`
+      );
+      return null;
+    }
+  }
+
   /**
    * Supports both v1 and v2 Admin API versions
    * 

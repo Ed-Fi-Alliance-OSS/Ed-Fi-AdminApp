@@ -128,6 +128,7 @@ describe('AdminApiSyncService', () => {
 
     const mockAdminApiServiceV2 = {
       getTenants: jest.fn(),
+      getAdminApiClientForEnvironment: jest.fn(),
     };
 
     const module: TestingModule = await Test.createTestingModule({
@@ -987,6 +988,43 @@ describe('AdminApiSyncService', () => {
           parent: undefined,
         });
       });
+    });
+  });
+
+  describe('triggerEdOrgRefresh', () => {
+    const env = mockSbEnvironmentV2 as SbEnvironment;
+
+    it('should return the jobId when the refresh endpoint succeeds', async () => {
+      const mockClient = { post: jest.fn().mockResolvedValue({ jobId: 'job-abc-123' }) };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+
+      const result = await (service as any).triggerEdOrgRefresh(env);
+
+      expect(adminApiServiceV2.getAdminApiClientForEnvironment).toHaveBeenCalledWith(env);
+      expect(mockClient.post).toHaveBeenCalledWith('odsInstances/edOrgs/refresh');
+      expect(result).toBe('job-abc-123');
+    });
+
+    it('should return null when the response has no jobId', async () => {
+      const mockClient = { post: jest.fn().mockResolvedValue({}) };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+
+      const result = await (service as any).triggerEdOrgRefresh(env);
+
+      expect(result).toBeNull();
+    });
+
+    it('should return null and log a warning when the Admin API call throws', async () => {
+      const mockClient = { post: jest.fn().mockRejectedValue(new Error('Network error')) };
+      adminApiServiceV2.getAdminApiClientForEnvironment = jest.fn().mockReturnValue(mockClient);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
+
+      const result = await (service as any).triggerEdOrgRefresh(env);
+
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to trigger EdOrg refresh')
+      );
     });
   });
 });
