@@ -247,6 +247,22 @@ include an optional feature for distributing an anonymously-accessed URL (that
 is, no sign-in required) with one-time display of credentials. When not used,
 the one-time display of credentials will only be accessible to the signed-in
 user.
+### JTBD 5: Transfer Claimsets Between Environments
+
+**Personas:** SEA System Administrator, Managed Service Provider System
+Administrator
+
+**When** I have a claimset that is configured correctly in one environment, \
+**I want** to transfer that claimset to another environment, \
+**so that** I can avoid manual claimset configuration and reduce the risk of errors when setting up a new environment.
+
+**How Admin App Helps:** The v4.0 PRD included claimset export and import behavior without providing context for when and why an administrator would use it. Version 4.1 clarifies the user value of this behavior and provides more human-readable claimset details to help users understand what they are transferring.
+
+**Examples**:
+
+1. Configure claimset in the Staging environment, then export and import to Production (all personas).
+2. Export claimset used in one Tenant and copy to another tenant (Data Hub Operator persona). 
+
 
 ## 2. Enterprise Architecture
 
