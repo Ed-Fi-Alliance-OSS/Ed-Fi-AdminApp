@@ -517,6 +517,22 @@ export class AdminApiSyncService {
           }
         }
 
+        // Trigger EdOrg refresh and poll for completion before fetching tenant data.
+        // This is non-blocking: if the refresh fails or times out we still proceed.
+        const refreshJobId = await this.triggerEdOrgRefresh(sbEnvironment);
+        if (refreshJobId) {
+          const jobStatus = await this.pollJobStatus(sbEnvironment, refreshJobId);
+          if (jobStatus === 'failed') {
+            this.logger.error(
+              `EdOrg refresh job ${refreshJobId} failed — syncing with potentially stale data`
+            );
+          } else if (jobStatus === 'timeout') {
+            this.logger.warn(
+              `EdOrg refresh job ${refreshJobId} timed out — proceeding with sync`
+            );
+          }
+        }
+
         // Ensure an EdfiTenant row exists for every tenant the API returned,
         // then delegate to syncTenantData which uses getAdminApiClient().
         let processedCount = 0;

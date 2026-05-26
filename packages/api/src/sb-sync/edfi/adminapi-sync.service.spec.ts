@@ -333,6 +333,81 @@ describe('AdminApiSyncService', () => {
         expect(adminApiServiceV2.getTenants).toHaveBeenCalledWith(environment);
         expect(adminApiServiceV1.getTenants).not.toHaveBeenCalled();
       });
+
+      describe('EdOrg refresh integration', () => {
+        it('should call triggerEdOrgRefresh and pollJobStatus before syncing tenants in a v2 environment', async () => {
+          const environment = mockSbEnvironmentV2 as SbEnvironment;
+          const tenants = [mockTenantDto];
+
+          adminApiServiceV2.getTenants.mockResolvedValue(tenants);
+          edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+          const triggerSpy = jest
+            .spyOn(service as any, 'triggerEdOrgRefresh')
+            .mockResolvedValue('job-xyz');
+          const pollSpy = jest
+            .spyOn(service as any, 'pollJobStatus')
+            .mockResolvedValue('completed');
+          const syncTenantDataSpy = jest
+            .spyOn(service as any, 'syncTenantData')
+            .mockResolvedValue({ status: 'SUCCESS' });
+
+          await service.syncEnvironmentData(environment);
+
+          // Both refresh methods and syncTenantData should have been called
+          expect(triggerSpy).toHaveBeenCalledWith(expect.objectContaining({ id: environment.id }));
+          expect(pollSpy).toHaveBeenCalledWith(expect.objectContaining({ id: environment.id }), 'job-xyz');
+          expect(syncTenantDataSpy).toHaveBeenCalled();
+        });
+
+        it('should still sync tenants when triggerEdOrgRefresh returns null (refresh unavailable)', async () => {
+          const environment = mockSbEnvironmentV2 as SbEnvironment;
+          adminApiServiceV2.getTenants.mockResolvedValue([mockTenantDto]);
+          edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+          jest.spyOn(service as any, 'triggerEdOrgRefresh').mockResolvedValue(null);
+          const pollSpy = jest.spyOn(service as any, 'pollJobStatus');
+          jest.spyOn(service as any, 'syncTenantData').mockResolvedValue({ status: 'SUCCESS' });
+
+          const result = await service.syncEnvironmentData(environment);
+
+          expect(pollSpy).not.toHaveBeenCalled();
+          expect(result.status).toBe('SUCCESS');
+        });
+
+        it('should still sync tenants when the refresh job fails', async () => {
+          const environment = mockSbEnvironmentV2 as SbEnvironment;
+          adminApiServiceV2.getTenants.mockResolvedValue([mockTenantDto]);
+          edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+
+          jest.spyOn(service as any, 'triggerEdOrgRefresh').mockResolvedValue('job-fail');
+          jest.spyOn(service as any, 'pollJobStatus').mockResolvedValue('failed');
+          jest.spyOn(service as any, 'syncTenantData').mockResolvedValue({ status: 'SUCCESS' });
+          const errorSpy = jest.spyOn((service as any).logger, 'error');
+
+          const result = await service.syncEnvironmentData(environment);
+
+          expect(result.status).toBe('SUCCESS');
+          expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('EdOrg refresh job'));
+        });
+
+        it('should not call triggerEdOrgRefresh for v1 environments', async () => {
+          const environment = mockSbEnvironmentV1 as SbEnvironment;
+          adminApiServiceV1.getTenants.mockResolvedValue([mockTenantDto]);
+          edfiTenantsRepository.findOne.mockResolvedValue(mockEdfiTenant as EdfiTenant);
+          jest
+            .spyOn(adminApiDataAdapterUtils, 'transformTenantData')
+            .mockReturnValue({ name: 'tenant-one', sbEnvironmentId: 1, odss: [] } as any);
+          jest.spyOn(syncOds, 'persistSyncTenant').mockResolvedValue(undefined);
+          entityManager.transaction.mockImplementation(async (cb: any) => cb(entityManager));
+
+          const triggerSpy = jest.spyOn(service as any, 'triggerEdOrgRefresh');
+
+          await service.syncEnvironmentData(environment);
+
+          expect(triggerSpy).not.toHaveBeenCalled();
+        });
+      });
     });
 
     describe('tenant discovery', () => {
