@@ -401,8 +401,10 @@ export class AdminApiSyncService {
     sbEnvironment: SbEnvironment,
     jobId: string
   ): Promise<'completed' | 'failed' | 'timeout'> {
-    const maxAttempts: number = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
-    const intervalMs: number = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
+    const rawMaxAttempts = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
+    const rawIntervalMs = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
+    const maxAttempts: number = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 ? rawMaxAttempts : 10;
+    const intervalMs: number = Number.isFinite(rawIntervalMs) && rawIntervalMs >= 0 ? rawIntervalMs : 5000;
     const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
 
     for (let attempt = 1; attempt <= maxAttempts; attempt++) {
