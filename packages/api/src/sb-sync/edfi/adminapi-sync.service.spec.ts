@@ -315,6 +315,7 @@ describe('AdminApiSyncService', () => {
         const syncTenantDataSpy = jest
           .spyOn(service as any, 'syncTenantData')
           .mockResolvedValue({ status: 'SUCCESS', message: 'synced' });
+        jest.spyOn(service as any, 'triggerEdOrgRefresh').mockResolvedValue(null);
 
         const result = await service.syncEnvironmentData(environment);
 
@@ -626,6 +627,7 @@ describe('AdminApiSyncService', () => {
         const syncTenantDataSpy = jest
           .spyOn(service as any, 'syncTenantData')
           .mockResolvedValue({ status: 'SUCCESS', message: 'synced' });
+        jest.spyOn(service as any, 'triggerEdOrgRefresh').mockResolvedValue(null);
 
         const result = await service.syncEnvironmentData(environment);
 
