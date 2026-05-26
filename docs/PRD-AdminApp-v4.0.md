@@ -527,8 +527,8 @@ C4Context
 
 ### Security
 
-- **NFR-SEC-2**: The application SHALL implement rate limiting on API endpoints.
-- **NFR-SEC-4**: The application SHALL encrypt sensitive data at rest using a
+- **NFR-SEC-1**: The application SHALL implement rate limiting on API endpoints.
+- **NFR-SEC-2**: The application SHALL encrypt sensitive data at rest using a
   configurable 32-character encryption key.
 
 > [!NOTE]
