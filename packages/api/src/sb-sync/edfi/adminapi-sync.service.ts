@@ -390,6 +390,13 @@ export class AdminApiSyncService {
     }
   }
 
+  /**
+   * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
+   * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
+   * @param sbEnvironment - The environment whose Admin API client to use
+   * @param jobId - The job ID returned by triggerEdOrgRefresh()
+   * @returns 'completed' | 'failed' | 'timeout'
+   */
   private async pollJobStatus(
     sbEnvironment: SbEnvironment,
     jobId: string
@@ -405,6 +412,8 @@ export class AdminApiSyncService {
         if (status === 'completed') return 'completed';
         if (status === 'failed') return 'failed';
       } catch (error) {
+        // Bail immediately on HTTP error — if the Admin API is unreachable,
+        // further polling attempts are unlikely to succeed.
         this.logger.error(
           `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
         );
