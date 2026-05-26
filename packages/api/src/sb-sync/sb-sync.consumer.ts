@@ -86,7 +86,7 @@ export class SbSyncConsumer implements OnModuleInit {
           .andWhere(`${jsonValue('configPublic', 'sbEnvironmentMetaArn', config.DB_ENGINE)} is null`)
           .getMany();
 
-        Logger.log(`Starting Admin API refresh for ${adminApiEnvironments.length} environment(s).`);
+        Logger.log(`Starting Admin API refresh for ${adminApiEnvironments.length} environments.`);
         await Promise.all(
           adminApiEnvironments.map((env) =>
             this.jobQueue.send(
