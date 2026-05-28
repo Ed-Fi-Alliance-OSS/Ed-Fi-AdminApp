@@ -11,6 +11,9 @@ module.exports = {
   USE_YOPASS: true,
   YOPASS_URL: 'http://edfiadminapp-yopass:80',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+  // Admin API EdOrg refresh polling (overrides default.js values if needed)
+  ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
+  ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   DB_ENGINE: 'pgsql',// 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: false, // For MSSQL local development using self-signed certs, set to true
   DB_TTL_IN_MINUTES: 120, // Time to live for DB sessions in minutes

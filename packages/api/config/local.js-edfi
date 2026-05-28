@@ -77,6 +77,9 @@ module.exports = {
   USE_PKCE: true,
 
   SSL_VERIFICATION: false,
+  // Admin API EdOrg refresh polling (overrides default.js values if needed)
+  ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
+  ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   // Certification artifact configuration
   CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
   CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6',

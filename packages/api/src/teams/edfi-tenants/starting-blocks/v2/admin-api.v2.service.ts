@@ -324,12 +324,38 @@ export class AdminApiServiceV2 {
     return client;
   }
 
-  private getAdminApiClientUsingEnv(environment: SbEnvironment, notJustData?: boolean) {
+  /**
+   * Get an authenticated API client for a specific environment.
+   * For multi-tenant environments, uses the first available tenant's credentials
+   * and includes the tenant header so environment-level endpoints (e.g. EdOrg refresh,
+   * job status polling) are accepted by the Admin API.
+   *
+   * @param sbEnvironment - The Starting Blocks environment to authenticate against
+   * @returns Axios instance configured with environment-level authentication
+   */
+  public getAdminApiClientForEnvironment(sbEnvironment: SbEnvironment) {
+    const configPublic = sbEnvironment.configPublic;
+    const v2Config =
+      'version' in configPublic && configPublic.version === 'v2' ? configPublic.values : undefined;
+    const availableTenants = v2Config?.tenants ? Object.keys(v2Config.tenants) : [];
+    const tenantName =
+      availableTenants.length > 0
+        ? availableTenants.includes('default')
+          ? 'default'
+          : availableTenants[0]
+        : undefined;
+    return this.getAdminApiClientUsingEnv(sbEnvironment, undefined, tenantName);
+  }
+
+  private getAdminApiClientUsingEnv(environment: SbEnvironment, notJustData?: boolean, tenantName?: string) {
     const client = this.initializeApiClient(environment, notJustData);
     client.interceptors.request.use(async (config) => {
-      let token: undefined | string = this.adminApiTokens.get(environment.id);
+      const tokenKey = tenantName
+        ? this.getTenantTokenKey(environment.id, tenantName)
+        : environment.id;
+      let token: undefined | string = this.adminApiTokens.get(tokenKey);
       if (token === undefined) {
-        const adminLogin = await this.login(environment, environment.id);
+        const adminLogin = await this.login(environment, environment.id, tenantName);
 
         if (adminLogin.status !== 'SUCCESS') {
           throw new CustomHttpException(
@@ -340,9 +366,12 @@ export class AdminApiServiceV2 {
             500
           );
         }
-        token = this.adminApiTokens.get(environment.id);
+        token = this.adminApiTokens.get(tokenKey);
       }
       config.headers.Authorization = `Bearer ${token}`;
+      if (tenantName) {
+        config.headers.tenant = tenantName;
+      }
       return config;
     });
     return client;
