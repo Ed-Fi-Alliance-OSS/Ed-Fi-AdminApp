@@ -78,6 +78,24 @@ export class SbSyncConsumer implements OnModuleInit {
             )
           )
         );
+
+        const adminApiEnvironments = await this.sbEnvironmentsRepository
+          .createQueryBuilder()
+          .select()
+          .where(`${jsonValue('configPublic', 'adminApiUrl', config.DB_ENGINE)} is not null`)
+          .andWhere(`${jsonValue('configPublic', 'sbEnvironmentMetaArn', config.DB_ENGINE)} is null`)
+          .getMany();
+
+        Logger.log(`Starting Admin API refresh for ${adminApiEnvironments.length} environments.`);
+        await Promise.all(
+          adminApiEnvironments.map((env) =>
+            this.jobQueue.send(
+              ENV_SYNC_CHNL,
+              { sbEnvironmentId: env.id },
+              { singletonKey: String(env.id), expireInHours: 1 }
+            )
+          )
+        );
       });
 
       await this.jobQueue.work(ENV_SYNC_CHNL, async (job: Job<{ sbEnvironmentId: number }>) => {
