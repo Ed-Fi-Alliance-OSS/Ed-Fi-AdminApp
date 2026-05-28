@@ -30,6 +30,11 @@ Steps (each best-effort, continues past individual failures):
        edfiadminapp-postgres container exists. Without the -v, the volume
        persists with the OLD edfiadminapp password and TypeORM-created
        tables, which causes auth/permission failures on the next install.
+  4b. Yopass docker teardown (best-effort): `docker compose -f
+     docker-compose.yopass.yml down -v` so the Yopass + memcached containers and
+     their volumes are removed. Skipped when docker is absent or the
+     edfiadminapp-yopass container was never created. Not gated by
+     -KeepDatabase.
   5. Filesystem + env teardown:
      - Delete C:\keycloak (unless -KeepKeycloakDownload).
      - Delete C:\npm-cache (unless -KeepNpmCache).
@@ -180,6 +185,7 @@ if (-not $KeepDatabase)         {
     Write-Host "  - SQL database [$DatabaseName] (if MSSQLSERVER is running)"
     Write-Host "  - Docker postgres container + volumes (if edfiadminapp-postgres exists)"
 }
+Write-Host "  - Docker Yopass stack (edfiadminapp-yopass + memcached) and its volumes (if present)"
 if (-not $KeepKeycloakDownload) { Write-Host "  - $KeycloakInstallPath (Keycloak install dir)" }
 if (-not $KeepNpmCache)         { Write-Host "  - $NpmCachePath (npm cache dir)" }
 Write-Host "  - Machine env vars NPM_CONFIG_CACHE and JAVA_HOME"
@@ -520,6 +526,44 @@ END
             } finally {
                 Pop-Location
             }
+        }
+    }
+}
+
+# ========================================================
+Write-Section "4b. Yopass (docker stack)"
+# ========================================================
+# Tear down the dockerized Yopass stack if it was ever brought up (by
+# 03d-yopass-docker.ps1 / install-all -SetupYopassDocker). Best-effort and
+# idempotent: SKIPs cleanly when docker is absent or the container was never
+# created. Not gated by -KeepDatabase -- Yopass is not the AdminApp database.
+# `down -v` also removes the memcached-backed secret store volume(s).
+$yopassCompose = Join-Path (Join-Path $PSScriptRoot "docker") "docker-compose.yopass.yml"
+if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
+    Record "Docker yopass down -v" "SKIP" "docker not on PATH"
+} elseif (-not (Test-Path $yopassCompose)) {
+    Record "Docker yopass down -v" "SKIP" "docker-compose.yopass.yml not found"
+} else {
+    $yopassExists = $false
+    try {
+        $found = & docker ps -a --filter "name=^edfiadminapp-yopass$" --format "{{.Names}}" 2>$null
+        if ($found -match 'edfiadminapp-yopass') { $yopassExists = $true }
+    } catch { }
+    if (-not $yopassExists) {
+        Record "Docker yopass down -v" "SKIP" "edfiadminapp-yopass container not present"
+    } else {
+        Push-Location (Split-Path $yopassCompose -Parent)
+        try {
+            & docker compose -f $yopassCompose down -v 2>&1 | Out-Null
+            if ($LASTEXITCODE -eq 0) {
+                Record "Docker yopass down -v" "OK" "Yopass + memcached containers/volumes removed"
+            } else {
+                Record "Docker yopass down -v" "FAIL" "docker compose exit $LASTEXITCODE"
+            }
+        } catch {
+            Record "Docker yopass down -v" "FAIL" $_.Exception.Message
+        } finally {
+            Pop-Location
         }
     }
 }

@@ -36,7 +36,13 @@ param(
     # Which DB engine the install will target. 'mssql' enables the SQL Server
     # checks below; 'pgsql' replaces them with a docker-availability check.
     [ValidateSet('mssql','pgsql')]
-    [string]$DbEngine = 'mssql'
+    [string]$DbEngine = 'mssql',
+
+    # Yopass docker mode. When the install will run with -SetupYopassDocker,
+    # also verify Docker is RUNNING (not just installed) and the publish port
+    # is free, since the Yopass + memcached containers can't otherwise start.
+    [switch]$SetupYopassDocker,
+    [int]$YopassPort = 8082
 )
 
 $ErrorActionPreference = 'Continue'
@@ -143,6 +149,46 @@ if ($DbEngine -eq 'mssql') {
         Write-Check PASS "Docker on PATH" "Required for -UsePostgresDocker"
     } else {
         Write-Check INFO "Docker not on PATH" "Required only if running install-all with -UsePostgresDocker; for an external Postgres, ignore this"
+    }
+}
+
+# Yopass docker mode -- only checked when the install will run with
+# -SetupYopassDocker. Standing up Yopass needs a RUNNING Linux Docker engine and
+# a free host port to publish on; both are blocking for this mode (FAIL), but
+# only fire when the mode is requested so default installs are unaffected.
+if ($SetupYopassDocker) {
+    $dockerCmd = Get-Command docker -ErrorAction SilentlyContinue
+    if (-not $dockerCmd) {
+        Write-Check FAIL "Docker not on PATH (needed for -SetupYopassDocker)" "Install Docker Desktop, or drop -SetupYopassDocker (use -YopassUrl for an existing Yopass, or leave Yopass disabled)"
+    } else {
+        # `docker info` exits non-zero when the engine isn't running. OSType
+        # confirms the Linux engine is active (yopass/memcached are Linux images).
+        $osType = & docker info --format '{{.OSType}}' 2>$null
+        if ($LASTEXITCODE -ne 0) {
+            Write-Check FAIL "Docker engine not running (needed for -SetupYopassDocker)" "Start Docker Desktop, wait until it reports 'running', then re-run"
+        } else {
+            Write-Check PASS "Docker engine running" "OSType: $osType"
+            if ($osType -and $osType -ne 'linux') {
+                Write-Check FAIL "Docker is in '$osType' container mode" "Yopass + memcached are Linux images -- switch Docker Desktop to Linux containers"
+            }
+            # Publish port free? Allow the case where OUR yopass container is
+            # already publishing it (idempotent re-run). Note: on Docker Desktop
+            # a published port shows as owned by com.docker.backend, so we can't
+            # tell ours apart by process name -- ask docker which ports our
+            # container actually publishes.
+            $listener = Get-NetTCPConnection -LocalPort $YopassPort -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+            if (-not $listener) {
+                Write-Check PASS "Yopass port $YopassPort is free"
+            } else {
+                $ourPorts = & docker ps --filter "name=^edfiadminapp-yopass$" --format "{{.Ports}}" 2>$null
+                if ($ourPorts -match ":$YopassPort->") {
+                    Write-Check PASS "Yopass port $YopassPort in use by existing edfiadminapp-yopass" "Idempotent re-run -- compose up will reuse it"
+                } else {
+                    $procName = (Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue).ProcessName
+                    Write-Check FAIL "Yopass port $YopassPort already in use ($procName)" "Pass a free port: install-all ... -SetupYopassDocker -YopassPort <port>"
+                }
+            }
+        }
     }
 }
 

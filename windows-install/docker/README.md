@@ -114,6 +114,22 @@ docker compose down -v         # stop AND delete both volumes (fresh init + new 
 
 Because init scripts only run on a **fresh** data directory, changes to `init/*.sh` only take effect after `docker compose down -v` (or by removing the `vol-edfiadminapp-db` volume manually). Likewise the cert is regenerated only after the `vol-edfiadminapp-certs` volume is removed.
 
+## Yopass (separate compose file)
+
+`docker-compose.yopass.yml` in this folder is an independent stack (compose project `edfiadminapp-yopass`) that runs [Yopass](https://github.com/jhaals/yopass) + memcached for one-time sharing of newly-created Ed-Fi API client credentials. It is unrelated to the database above and works with either DB engine.
+
+```powershell
+# Stand it up on host port 8082 (mapped to the container's port 80, pinned to
+# jhaals/yopass:12.5.0 to match the AdminApp project's own compose):
+$env:YOPASS_PORT = "8082"; docker compose -f docker-compose.yopass.yml up -d
+# or, easier, let the installer do it:
+.\..\install-all.ps1 ... -SetupYopassDocker -YopassPort 8082
+# tear down (also removes the secret store):
+docker compose -f docker-compose.yopass.yml down -v
+```
+
+Configure the AdminApp with `USE_YOPASS=true` and `YOPASS_URL=http://localhost:8082` (the installer does this for you). HTTP-only and meant to sit behind localhost / an internal network — front it with TLS for real use.
+
 ## Notes and scope
 
 - **Self-signed SSL.** Good enough for local dev, not for production. For production, replace `vol-edfiadminapp-certs` with a bind mount to org-issued CA-signed cert/key, or pre-populate the volume.

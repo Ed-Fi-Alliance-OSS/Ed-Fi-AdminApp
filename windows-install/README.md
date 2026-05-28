@@ -18,6 +18,7 @@ Then open an **elevated PowerShell** and `cd C:\Ed-Fi\Ed-Fi-AdminApp\windows-ins
 - **Windows 10/11 Pro or Windows Server**, with **administrator rights** (every command below runs in an *elevated* PowerShell — right-click → "Run as administrator").
 - **Internet access** — the scripts download Node, Keycloak, and npm packages.
 - **~10 GB free disk**.
+- **Docker Desktop** — *only* if you use `-UsePostgresDocker` or `-SetupYopassDocker`. It must be **installed, running, and in Linux-container mode** (the Postgres/Yopass/memcached images are Linux). The pre-flight check verifies this when those flags are set; without them, Docker isn't needed at all.
 - **Allow 15–20 minutes** for a fresh end-to-end install (the build phase alone takes several minutes).
 - The passwords below are **yours to choose** — wherever you see `'your-…'`, replace it with a password you pick. SQL Server doesn't enforce complexity here (the script sets `CHECK_POLICY = OFF`), but pick something you'd be willing to reuse.
 
@@ -67,10 +68,11 @@ A summary with all URLs and credentials is saved to `install-summary.txt` in the
 | `03a-prereqs-runtime.ps1` | Node.js install (if missing). For Java: uses any existing JDK ≥17 already on PATH (respects users on JDK 25/26); only installs OpenJDK 21 if Java is missing or older than 17. npm cache override. Keycloak download to `C:\keycloak`. |
 | `03b-keycloak-start.ps1` | Starts Keycloak in the background with `KC_BOOTSTRAP_ADMIN_*` env vars so the master admin is auto-created on first run. Waits for readiness. |
 | `03c-build-project.ps1` | `npm ci --legacy-peer-deps`, then `build:api` and `build:fe`. Skips if artifacts are already current (override with `-Force`). |
+| `03d-yopass-docker.ps1` | Optional. Stands up a local Yopass + memcached stack via `docker\docker-compose.yopass.yml` and waits for it to respond. Only runs when `install-all.ps1 -SetupYopassDocker` is used (or run it directly). Prints the `YOPASS_URL` to configure. |
 | `04-deploy-api.ps1` | Deploys the API to `C:\inetpub\Ed-Fi\adminapp-api` as an IIS application under the `Ed-Fi` site. Seeds `production.js` from the `-edfi` template, patches it with bare-metal values, writes `web.config` with the right iisnode + URL rewrite setup, sets App Pool config and permissions. |
 | `05-deploy-fe.ps1` | Deploys the FE to `C:\inetpub\Ed-Fi\adminapp` as an IIS application under the `Ed-Fi` site with a SPA-fallback `web.config`. |
 | `06-keycloak-bootstrap.ps1` | Creates the `edfi` realm, the `edfiadminapp` client (with all the required URIs/origins), and the test user. |
-| `uninstall.ps1` | Reverses the install: stops Keycloak, tears down IIS App Pool / site / bindings / deployed files, removes the self-signed cert, drops the `sbaa` DB, deletes `C:\keycloak` + `C:\npm-cache`, unsets `JAVA_HOME` and `NPM_CONFIG_CACHE`. Leaves Node.js, JDK, SQL Server, IIS engine, URL Rewrite, iisnode, and the source repo alone. Best-effort with a per-step OK/SKIP/WARN/FAIL ledger and a final summary. |
+| `uninstall.ps1` | Reverses the install: stops Keycloak, tears down IIS App Pool / site / bindings / deployed files, removes the self-signed cert, drops the `sbaa` DB, tears down the docker Postgres and Yopass stacks (`down -v`), deletes `C:\keycloak` + `C:\npm-cache`, unsets `JAVA_HOME` and `NPM_CONFIG_CACHE`. Leaves Node.js, JDK, SQL Server, IIS engine, URL Rewrite, iisnode, and the source repo alone. Best-effort with a per-step OK/SKIP/WARN/FAIL ledger and a final summary. |
 
 ---
 
@@ -100,6 +102,7 @@ See `Get-Help .\uninstall.ps1 -Full` for the full flag list (`-KeepDatabase`, `-
    - `-DbEngine mssql` -> SQL Server Mixed Mode + TCP/IP + `sa` + creates `sbaa`.
    - `-DbEngine pgsql -UsePostgresDocker` -> writes `docker\.env` from your args, runs `docker compose up -d`, waits for `pg_isready`.
    - `-DbEngine pgsql` without `-UsePostgresDocker` -> no DB action; you're expected to point `-PostgresHost`/`-PostgresPort` at an existing Postgres.
+**Phase 1.4** *(only with `-SetupYopassDocker`)*: brings up the Yopass + memcached docker stack and waits for it to respond.
 5. **Phase 2**: `npm ci` + builds; start Keycloak detached with bootstrap admin.
 6. **Phase 3**: Keycloak realm/client/user; deploy API; deploy FE.
 7. **Smoke test**: hits `https://localhost/adminapp-api/api/teams` (expects 401).
@@ -121,7 +124,12 @@ Re-running on a working install is mostly a no-op — most steps detect existing
 
 You don't need any of these for a working AdminApp install — they enable integrations and Keycloak features used by specific testing or production setups.
 
-- `-YopassUrl '<url>'` — point the AdminApp at a pre-existing Yopass service for one-time-sharing of newly-created Ed-Fi API client credentials. Default is empty: Yopass is disabled and credentials are shown inline (the AdminApp's documented fallback when `USE_YOPASS=false`). The install scripts do not stand up Yopass for you — pass a URL only if a deployment already exists.
+- **Yopass** (one-time-sharing of newly-created Ed-Fi API client credentials) has three modes, selected by which flag you pass:
+  - **Disabled (default)** — pass neither flag. `USE_YOPASS=false`; credentials are shown inline in the UI (the AdminApp's documented fallback).
+  - **Existing deployment** — `-YopassUrl '<url>'` points the AdminApp at a Yopass you already run (e.g. `-YopassUrl 'http://yopass.internal:8082'`). Sets `USE_YOPASS=true` + `YOPASS_URL`.
+  - **Set one up for you** — `-SetupYopassDocker` stands up a local Yopass + memcached via `docker\docker-compose.yopass.yml` during Phase 1.4 and points the AdminApp at `http://localhost:<YopassPort>`. `-YopassPort` defaults to `8082`. Requires **Docker Desktop running in Linux-container mode**; the pre-flight check verifies Docker is up and the port is free (pass a different `-YopassPort` if `8082` is taken — e.g. Docker Desktop itself can occupy it).
+
+  `-YopassUrl` and `-SetupYopassDocker` are mutually exclusive. The chosen mode is recorded in `install-summary.txt`. See the [Yopass administrator's guide](https://docs.ed-fi.org/reference/admin-app/system-administrators/yopass-administrators-guide/) for what Yopass does.
 - `-IncludeAudienceMapper` — adds a Keycloak protocol mapper that injects `aud: "edfiadminapp-api"` into access tokens. Needed only for **direct bearer-token API access** (Postman / curl / CI hitting the API with a Keycloak-issued token, where the API enforces audience). The browser UI login flow doesn't need this — the AdminApp validates `client_id`, not `aud`.
 - `-EnableDirectAccessGrants` — enables the OAuth password grant on the Keycloak client, letting you POST username+password to Keycloak's token endpoint directly without the OIDC redirect flow. Useful for scripted API tests; explicitly an anti-pattern in production. **Testing only.**
 
@@ -188,7 +196,7 @@ If a too-old Node is detected, `00a-fix-node.ps1` offers to set up nvm-windows +
 ### What these scripts don't do
 
 - **Cert distribution** beyond the local machine — clients on other machines won't trust the cert.
-- **Production hardening** — these target a local dev install. Production would want real certs, Yopass for credential sharing, secrets management, log rotation, etc.
+- **Production hardening** — these target a local dev install. Production would want real certs, secrets management, log rotation, etc. The optional dockerized Yopass (`-SetupYopassDocker`) runs HTTP-only behind localhost and is **not** production-hardened — front it with TLS and lock down access for real use.
 - **Keycloak as a Windows service** — started in the background via `Start-Process`. To survive a reboot, use `nssm` or another service wrapper.
 - **Secret rotation** — Keycloak supports client-secret rotation as a preview feature; it's not enabled here. The AdminApp doesn't have automation to pick up rotated secrets, so enabling rotation without that complementary work would break login when the old secret expires.
 

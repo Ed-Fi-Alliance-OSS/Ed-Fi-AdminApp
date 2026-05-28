@@ -100,11 +100,22 @@ confirmation and proceed with nvm-windows + Node LTS setup automatically.
 For non-interactive runs. Passed through as -AssumeYes to 00a-fix-node.ps1.
 
 .PARAMETER YopassUrl
-URL of a Yopass service to use for sharing newly-created Ed-Fi API client
-credentials. Default empty — Yopass is disabled and the AdminApp falls back
-to displaying credentials inline (a supported AdminApp configuration). Pass
-e.g. -YopassUrl 'http://yopass.internal:8082' to enable it against a
-pre-existing deployment; the install scripts do not stand up Yopass for you.
+URL of an EXISTING Yopass service to use for sharing newly-created Ed-Fi API
+client credentials. Default empty — Yopass is disabled and the AdminApp falls
+back to displaying credentials inline (a supported AdminApp configuration).
+Pass e.g. -YopassUrl 'http://yopass.internal:8082' to enable it against a
+pre-existing deployment. Mutually exclusive with -SetupYopassDocker.
+
+.PARAMETER SetupYopassDocker
+Switch — stand up a local Yopass service (Yopass + memcached) via the bundled
+docker\docker-compose.yopass.yml during phase 1, then point the AdminApp at it
+(USE_YOPASS=true, YOPASS_URL=http://localhost:<YopassPort>). Requires Docker
+Desktop. Mutually exclusive with -YopassUrl. This is the "set up Yopass for me"
+path; without either flag Yopass stays disabled.
+
+.PARAMETER YopassPort
+Host port to publish the dockerized Yopass on when -SetupYopassDocker is set.
+Default 8082. Becomes the YOPASS_URL the API is configured with.
 
 .EXAMPLE
 # MSSQL (default)
@@ -124,6 +135,24 @@ pre-existing deployment; the install scripts do not stand up Yopass for you.
   -KeycloakAdminPassword 'admin' `
   -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!'
+
+.EXAMPLE
+# MSSQL + stand up a local dockerized Yopass for one-time credential links
+.\install-all.ps1 `
+  -SaPassword 'EdFi-Local!2026' `
+  -KeycloakAdminPassword 'admin' `
+  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -TestUserPassword 'TestUser123!' `
+  -SetupYopassDocker
+
+.EXAMPLE
+# Use an EXISTING Yopass deployment instead of standing one up
+.\install-all.ps1 `
+  -SaPassword 'EdFi-Local!2026' `
+  -KeycloakAdminPassword 'admin' `
+  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -TestUserPassword 'TestUser123!' `
+  -YopassUrl 'http://yopass.internal:8082'
 #>
 
 param(
@@ -162,7 +191,13 @@ param(
     [switch]$AcceptRisks,
     [switch]$AutoUpgradeNode,
 
-    [string]$YopassUrl = ""
+    # Yopass: three modes.
+    #   (neither flag)        -> disabled, USE_YOPASS=false (credentials inline)
+    #   -YopassUrl <url>      -> enable against an existing Yopass
+    #   -SetupYopassDocker    -> stand up a local Yopass via docker, auto-URL
+    [string]$YopassUrl = "",
+    [switch]$SetupYopassDocker,
+    [int]$YopassPort = 8082
 )
 
 $ErrorActionPreference = 'Stop'
@@ -183,6 +218,15 @@ if ($UsePostgresDocker -and $DbEngine -ne 'pgsql') {
 if ($UsePostgresDocker -and -not $PostgresSuperuserPassword) {
     throw "-PostgresSuperuserPassword is required when -UsePostgresDocker is set."
 }
+# Yopass: -SetupYopassDocker (stand one up) and -YopassUrl (use an existing one)
+# are two ways to set the same YOPASS_URL, so they can't both be given.
+if ($SetupYopassDocker -and $YopassUrl) {
+    throw "-SetupYopassDocker and -YopassUrl are mutually exclusive: the first stands up a Yopass and derives its URL, the second points at an existing one. Pass at most one (or neither, to leave Yopass disabled)."
+}
+# Resolve the effective YOPASS_URL up front so phase 3 can configure the API
+# regardless of which phases run. -SetupYopassDocker implies http://localhost:<port>;
+# the actual container is brought up in phase 1 below.
+$EffectiveYopassUrl = if ($SetupYopassDocker) { "http://localhost:$YopassPort" } else { $YopassUrl }
 
 function Write-Phase {
     param([string]$Title)
@@ -216,7 +260,7 @@ if (-not $SkipPreflightCheck) {
     & "$scriptDir\00a-fix-node.ps1" @fixNodeArgs
 
     Write-Phase "Pre-flight check (00-check-prereqs.ps1)"
-    & "$scriptDir\00-check-prereqs.ps1" -SourcePath $SourcePath -DatabaseName $DatabaseName -DbEngine $DbEngine
+    & "$scriptDir\00-check-prereqs.ps1" -SourcePath $SourcePath -DatabaseName $DatabaseName -DbEngine $DbEngine -SetupYopassDocker:$SetupYopassDocker -YopassPort $YopassPort
     $preflightExit = $LASTEXITCODE
     if ($preflightExit -eq 1) {
         throw "Pre-flight check failed. Fix the [FAIL] items above and re-run, or pass -SkipPreflightCheck to bypass (not recommended)."
@@ -331,6 +375,14 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAp
         & "$scriptDir\03a-prereqs-runtime.ps1"
     }
 
+    # Phase 1.4: stand up Yopass (only when asked). The derived URL was already
+    # computed into $EffectiveYopassUrl; this just brings the container up so it
+    # is ready by the time phase 3 configures and smoke-tests the API.
+    if ($SetupYopassDocker) {
+        Write-Phase "Phase 1.4: Yopass via docker (03d-yopass-docker.ps1)"
+        & "$scriptDir\03d-yopass-docker.ps1" -YopassPort $YopassPort | Out-Null
+    }
+
     Write-Host ""
     Write-Host "Phase 1 complete." -ForegroundColor Green
 
@@ -387,6 +439,9 @@ $apiArgs = @{
     KeycloakClientSecret = $KeycloakClientSecret
     AdminUsername        = $AdminUsername
     DbEngine             = $DbEngine
+    # Yopass: empty string -> 04 sets USE_YOPASS=false; a URL -> USE_YOPASS=true.
+    # (Previously this wasn't forwarded, so -YopassUrl on install-all was a no-op.)
+    YopassUrl            = $EffectiveYopassUrl
 }
 if ($DbEngine -eq 'mssql') {
     $apiArgs.SaPassword = $SaPassword
@@ -568,6 +623,30 @@ PostgreSQL
 "@
 }
 
+# Yopass section: reflect which of the three modes was configured.
+if ($SetupYopassDocker) {
+    $yopassSummary = @"
+
+Yopass (one-time credential links)
+  Mode:               Dockerized (docker compose at $scriptDir\docker, file docker-compose.yopass.yml)
+  URL:                $EffectiveYopassUrl
+  Container:          edfiadminapp-yopass (+ edfiadminapp-yopass-memcached)
+"@
+} elseif ($EffectiveYopassUrl) {
+    $yopassSummary = @"
+
+Yopass (one-time credential links)
+  Mode:               External (pre-existing deployment)
+  URL:                $EffectiveYopassUrl
+"@
+} else {
+    $yopassSummary = @"
+
+Yopass (one-time credential links)
+  Mode:               Disabled (USE_YOPASS=false) -- credentials shown inline in the UI
+"@
+}
+
 $summary = @"
 Ed-Fi Admin App -- Install Summary
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -590,6 +669,7 @@ Keycloak (Identity Provider)
   Client secret:      $KeycloakClientSecret
 
 $dbSummary
+$yopassSummary
 
 Notes
   - The HTTPS cert is self-signed and was added to Trusted Root by 02-prereqs-iis.ps1.
