@@ -794,7 +794,7 @@ export class AdminApiSyncService {
       this.logger.log(`Credentials validated for tenant ${edfiTenant.name}`);
 
       // For v2, fetch tenant details from the correct endpoint
-      const endpoint = `tenants/${edfiTenant.name}/OdsInstances/edOrgs`;
+      const endpoint = `tenants/${edfiTenant.name}/odsInstances/edOrgs`;
       
       this.logger.log(`Fetching tenant details from Admin API: ${endpoint}`);
 
