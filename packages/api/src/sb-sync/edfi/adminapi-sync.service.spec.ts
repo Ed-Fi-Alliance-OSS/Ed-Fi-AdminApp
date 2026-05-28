@@ -929,7 +929,7 @@ describe('AdminApiSyncService', () => {
 
         expect(result.status).toBe('SUCCESS');
         expect(result.message).toContain('Successfully synced 2 ODS instance');
-        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs');
+        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/odsInstances/edOrgs');
         expect(persistSyncTenantSpy).toHaveBeenCalled();
       });
 
@@ -944,7 +944,7 @@ describe('AdminApiSyncService', () => {
 
         await (service as any).syncTenantData({ id: 2, name: 'tenant-two' } as EdfiTenant);
 
-        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/OdsInstances/edOrgs');
+        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/odsInstances/edOrgs');
       });
     });
 
