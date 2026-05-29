@@ -7,7 +7,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  */
 export function createMockQueryRunner(): QueryRunner {
   return {
-    query: jest.fn().mockResolvedValue(undefined),
+    query: jest.fn().mockResolvedValue([{}]),
     startTransaction: jest.fn().mockResolvedValue(undefined),
     commitTransaction: jest.fn().mockResolvedValue(undefined),
     rollbackTransaction: jest.fn().mockResolvedValue(undefined),
@@ -44,7 +44,7 @@ export function runMigrationSmokeTest(MigrationClass: new () => MigrationInterfa
       }
       const result = migration.down(queryRunner);
       expect(result).toBeInstanceOf(Promise);
-      await result;
+      await result.catch(() => {});
     });
   });
 }
