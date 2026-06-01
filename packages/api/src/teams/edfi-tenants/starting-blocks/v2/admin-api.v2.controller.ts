@@ -35,6 +35,7 @@ import {
   Controller,
   Delete,
   ExecutionContext,
+  ForbiddenException,
   Get,
   HttpException,
   Injectable,
@@ -863,11 +864,22 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Query('id') _ids: string[] | string
+    @Query('id') _ids: string[] | string,
+    @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids
   ) {
     const ids = Array.isArray(_ids) ? _ids : [_ids];
+    const parsedIds = ids.map((id) => {
+      const trimmed = id.trim();
+      const n = parseInt(trimmed, 10);
+      if (isNaN(n) || n <= 0 || n.toString() !== trimmed)
+        throw new BadRequestException(`Invalid claimset ID: ${id}`);
+      return n;
+    });
+    for (const id of parsedIds) {
+      if (!checkId(id, validIds)) throw new ForbiddenException(`Access denied to claimset ID: ${id}`);
+    }
     const claimsets = await Promise.all(
-      ids.map((id) => this.sbService.exportClaimset(edfiTenant, Number(id)))
+      parsedIds.map((id) => this.sbService.exportClaimset(edfiTenant, id))
     );
     const title =
       claimsets.length === 1 ? claimsets[0].name : `${edfiTenant.sbEnvironment.envLabel} claimsets`;

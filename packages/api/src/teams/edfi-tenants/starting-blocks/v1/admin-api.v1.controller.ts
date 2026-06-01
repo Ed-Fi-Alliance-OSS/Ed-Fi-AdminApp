@@ -580,12 +580,22 @@ export class AdminApiControllerV1 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Query('id') _ids: string[] | string,
+    @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids,
     @Res() res: Response
   ) {
-    // TODO: transformation probably shouldn't happen here, but but TBD. Possibly.
     const ids = Array.isArray(_ids) ? _ids : [_ids];
+    const parsedIds = ids.map((id) => {
+      const trimmed = id.trim();
+      const n = parseInt(trimmed, 10);
+      if (isNaN(n) || n <= 0 || n.toString() !== trimmed)
+        throw new BadRequestException(`Invalid claimset ID: ${id}`);
+      return n;
+    });
+    for (const id of parsedIds) {
+      if (!checkId(id, validIds)) throw new ForbiddenException(`Access denied to claimset ID: ${id}`);
+    }
     const claimsets = await Promise.all(
-      ids.map((id) => this.sbService.getClaimsetRaw(edfiTenant, Number(id)))
+      parsedIds.map((id) => this.sbService.getClaimsetRaw(edfiTenant, id))
     );
     const title =
       claimsets.length === 1 ? claimsets[0].name : `${edfiTenant.sbEnvironment.envLabel} claimsets`;
