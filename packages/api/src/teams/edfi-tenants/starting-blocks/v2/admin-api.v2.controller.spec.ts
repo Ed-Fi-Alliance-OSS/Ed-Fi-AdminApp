@@ -75,6 +75,14 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
     expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
   });
 
+  it('throws BadRequestException when no id is provided (undefined)', async () => {
+    const validIds: Ids = true;
+    await expect(
+      controller.exportClaimset(1, 1, mockEdfiTenant, undefined, validIds)
+    ).rejects.toThrow(new BadRequestException('At least one claimset ID must be provided'));
+    expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
+  });
+
   it('throws BadRequestException for a zero ID', async () => {
     const validIds: Ids = true;
     await expect(

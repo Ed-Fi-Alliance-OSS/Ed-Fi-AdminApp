@@ -583,6 +583,7 @@ export class AdminApiControllerV1 {
     @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids,
     @Res() res: Response
   ) {
+    if (_ids === undefined) throw new BadRequestException('At least one claimset ID must be provided');
     const ids = Array.isArray(_ids) ? _ids : [_ids];
     const parsedIds = ids.map((id) => {
       const trimmed = id.trim();
