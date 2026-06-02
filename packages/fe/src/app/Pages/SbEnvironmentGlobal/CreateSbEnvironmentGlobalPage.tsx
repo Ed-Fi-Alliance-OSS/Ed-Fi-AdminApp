@@ -360,6 +360,7 @@ export const CreateSbEnvironmentGlobalPage = () => {
                     getValues={getValues}
                     errors={errors}
                     clearErrors={clearErrors}
+                    setError={setError}
                   />
                 ) : null
               }

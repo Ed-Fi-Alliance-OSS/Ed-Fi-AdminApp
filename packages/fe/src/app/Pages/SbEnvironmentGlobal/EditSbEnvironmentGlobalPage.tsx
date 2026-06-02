@@ -526,6 +526,7 @@ export const EditSbEnvironmentGlobalPage = () => {
                     getValues={getValues}
                     errors={errors}
                     clearErrors={clearErrors}
+                    setError={setError}
                   />
                 </Box>
               )}
