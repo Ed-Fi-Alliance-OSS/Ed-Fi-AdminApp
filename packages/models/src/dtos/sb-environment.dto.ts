@@ -71,7 +71,7 @@ export class GetSbEnvironmentDto
     const values =
       this.configPublic && 'values' in this.configPublic ? this.configPublic.values : undefined;
     if (values) {
-      return 'edfiHostname' in values ? 'v1' : 'v2';
+      return 'meta' in values ? 'v2' : 'v1';
     }
     return undefined;
   }

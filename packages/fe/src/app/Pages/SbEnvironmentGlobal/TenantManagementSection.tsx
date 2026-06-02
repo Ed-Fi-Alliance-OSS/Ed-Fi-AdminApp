@@ -277,9 +277,9 @@ export const TenantManagementSection = ({
                                                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                                                 const fieldPath = `tenants.${index}.odss.${odsIndex}.allowedEdOrgs` as any;
                                                 if (!val || val.trim() === '') {
-                                                  setError(fieldPath, { type: 'required', message: 'Education Organization Identifier(s) is required.' });
+                                                  setError(fieldPath, { type: 'required', message: 'Education Organization Identifier(s) is required' });
                                                 } else if (!ED_ORG_PATTERN.test(val)) {
-                                                  setError(fieldPath, { type: 'pattern', message: 'Ed Org Identifier(s) must be a comma-separated list of numbers.' });
+                                                  setError(fieldPath, { type: 'pattern', message: 'Education Organization Identifier(s) must be numbers separated by commas (e.g., "1, 255901, 25590100")' });
                                                 } else {
                                                   clearErrors(fieldPath);
                                                 }
@@ -475,9 +475,9 @@ export const TenantManagementSection = ({
                               // eslint-disable-next-line @typescript-eslint/no-explicit-any
                               const fieldPath = `tenants.0.odss.${odsIndex}.allowedEdOrgs` as any;
                               if (!val || val.trim() === '') {
-                                setError(fieldPath, { type: 'required', message: 'Education Organization Identifier(s) is required.' });
+                                setError(fieldPath, { type: 'required', message: 'Education Organization Identifier(s) is required' });
                               } else if (!ED_ORG_PATTERN.test(val)) {
-                                setError(fieldPath, { type: 'pattern', message: 'Ed Org Identifier(s) must be a comma-separated list of numbers.' });
+                                setError(fieldPath, { type: 'pattern', message: 'Education Organization Identifier(s) must be numbers separated by commas (e.g., "1, 255901, 25590100")' });
                               } else {
                                 clearErrors(fieldPath);
                               }
