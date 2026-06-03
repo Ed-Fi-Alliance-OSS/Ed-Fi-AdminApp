@@ -13,14 +13,15 @@
 
 | Metric | Value |
 | -- | -- |
-| Total dev story points | 115 |
+| Total dev story points (estimated) | 176 |
 | Completed (tracked in this roadmap) | 0 pts |
-| **Remaining dev points** | **115 pts** |
+| **Remaining dev points (estimated)** | **176 pts** |
 | Effective velocity (60% capacity) | 21 pts/sprint |
-| Sprints needed | 6 |
-| **Projected dev ETA** | **September 2, 2026** |
-| With QA buffer sprint | September 16, 2026 |
-| Development tickets in scope | 31 |
+| Sprints needed (estimated scope) | 9 |
+| **Projected dev ETA (estimated scope)** | **October 14, 2026** |
+| With QA buffer sprint | October 28, 2026 |
+| Development tickets in scope | 54 |
+| Unestimated tickets | 5 (AC-408 epic) |
 
 ## Jobs to Be Done
 
@@ -44,6 +45,7 @@
 | AC-506 | Instance Management Integration | 17 |
 | AC-408 | Enhanced User Interface Functionality | TBD |
 | ADMINAPI-1344 | Managing Ed-Fi ODS database instances using the Admin API | 6 |
+| ADMINAPI-1439 | Claim Set Export - Import API Design - V3 | 12 |
 | ADMINAPI-1251 | Improve AdminAPI-2 Test Coverage | 31 |
 
 ## Sprints
@@ -53,10 +55,17 @@
 | Sprint 61 | May 27th | Jun 10th |
 | Sprint 62 | Jun 10th | Jun 24th |
 | Sprint 63 | Jun 24th | Jul 8th |
-| Sprint 64 | Jul 8th | Jul 22th |
-| Sprint 66 | Jul 22th | Aug 5th |
-| Sprint 67 | Aug 5th | Aug 19th |
-| Sprint 68 | Aug 19th | Set 2nd |
+| Sprint 64 | Jul 8th | Jul 22nd |
+| Sprint 65 | Jul 22nd | Aug 5th |
+| Sprint 66 | Aug 5th | Aug 19th |
+| Sprint 67 | Aug 19th | Sep 2nd |
+| Sprint 68 | Sep 2nd | Sep 16th |
+| Sprint 69 | Sep 16th | Sep 30th |
+| Sprint 70 | Sep 30th | Oct 14th |
+| Sprint 71 | Oct 14th | Oct 28th |
+| Sprint 72 | Oct 28th | Nov 11th |
+| Sprint 73 | Nov 11th | Nov 25th |
+| Sprint 74 | Nov 25th | Dec 9th |
 
 ## Pending tickets per epic
 
@@ -73,11 +82,17 @@
 | https://edfi.atlassian.net/browse/AC-516 | None | Completed | 0 |
 | https://edfi.atlassian.net/browse/AC-510 | None | Completed | 0 |
 | https://edfi.atlassian.net/browse/AC-511 | AC-516 | Open | 8 |
-| https://edfi.atlassian.net/browse/AC-512 | AC-516 | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-512 | AC-516/AC-510 | Open | 2 |
 | https://edfi.atlassian.net/browse/AC-513 | AC-516 | Open | 8 |
 | https://edfi.atlassian.net/browse/AC-514 | AC-516 | Open | 5 |
-| https://edfi.atlassian.net/browse/AC-515 | AC-516 | Open | 3 |
-| https://edfi.atlassian.net/browse/AC-536 | AC-516/AC-511 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-515 | AC-516/AC-514/AC-513/AC-547 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-536 | AC-516/AC-524 | Open | 8 |
+| https://edfi.atlassian.net/browse/AC-544 | AC-516 | Open | 8 |
+| https://edfi.atlassian.net/browse/AC-545 | AC-516/AC-524 | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-546 | AC-516/AC-511/AC-544 | Open | 8 |
+| https://edfi.atlassian.net/browse/AC-547 | AC-516 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-548 | AC-516/AC-522 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-549 | AC-516/AC-522 | Open | 5 |
 
 ### AC-522 Admin App supports Admin Api with V3 specification
 
@@ -129,6 +144,15 @@
 | https://edfi.atlassian.net/browse/ADMINAPI-1417 | None | Open | 3 |
 | https://edfi.atlassian.net/browse/ADMINAPI-1436 | ADMINAPI-1417 | Open | 3 |
 
+### ADMINAPI-1439 Claim Set Export - Import API Design - V3
+
+| Link | Dependencies | Status | Story Points |
+| -- | -- | -- | -- |
+| https://edfi.atlassian.net/browse/ADMINAPI-1440 | None | Open | 3 |
+| https://edfi.atlassian.net/browse/ADMINAPI-1441 | ADMINAPI-1440 | Open | 3 |
+| https://edfi.atlassian.net/browse/ADMINAPI-1442 | ADMINAPI-1440/ADMINAPI-1441 | Open | 3 |
+| https://edfi.atlassian.net/browse/ADMINAPI-1443 | ADMINAPI-1440/ADMINAPI-1441 | Open | 3 |
+
 ### ADMINAPI-1251 Improve AdminAPI-2 Test Coverage
 
 | Link | Dependencies | Status | Story Points |
@@ -173,6 +197,7 @@ gantt
 	ADMINAPI-1397                                   :a1397, 2026-06-24, 2026-07-08
 	ADMINAPI-1254                                   :a1254, 2026-06-24, 2026-07-08
 	AC-524                                          :ac524, 2026-06-24, 2026-07-08
+	ADMINAPI-1383                                   :a1383, 2026-06-24, 2026-07-08
 
 	section Sprint 64 - Jul 8 to Jul 22 (~22 pts)
 	AC-541                                          :ac541, 2026-07-08, 2026-07-22
@@ -180,30 +205,47 @@ gantt
 	AC-512                                          :ac512, 2026-07-08, 2026-07-22
 	ADMINAPI-1256                                   :a1256, 2026-07-08, 2026-07-22
 	ADMINAPI-1398                                   :a1398, 2026-07-08, 2026-07-22
+	AC-503                                          :ac503, 2026-07-08, 2026-07-22
 
-	section Sprint 66 - Jul 22 to Aug 5 (~22 pts)
+	section Sprint 65 - Jul 22 to Aug 5 (~22 pts)
 	AC-542                                          :ac542, 2026-07-22, 2026-08-05
 	AC-513                                          :ac513, 2026-07-22, 2026-08-05
 	AC-514                                          :ac514, 2026-07-22, 2026-08-05
 	ADMINAPI-1399                                   :a1399, 2026-07-22, 2026-08-05
 	ADMINAPI-1255                                   :a1255, 2026-07-22, 2026-08-05
 
-	section Sprint 67 - Aug 5 to Aug 19 (~22 pts)
+	section Sprint 66 - Aug 5 to Aug 19 (~22 pts)
 	AC-543                                          :ac543, 2026-08-05, 2026-08-19
-	AC-515                                          :ac515, 2026-08-05, 2026-08-19
 	AC-526                                          :ac526, 2026-08-05, 2026-08-19
 	AC-527                                          :ac527, 2026-08-05, 2026-08-19
-	AC-528                                          :ac528, 2026-08-05, 2026-08-19
 	AC-529                                          :ac529, 2026-08-05, 2026-08-19
+	ADMINAPI-1257                                   :a1257, 2026-08-05, 2026-08-19
+	ADMINAPI-1380                                   :a1380, 2026-08-05, 2026-08-19
+	AC-504                                          :ac504, 2026-08-05, 2026-08-19
 
-	section Sprint 68 - Aug 19 to Sep 2 (~6 pts)
+	section Sprint 67 - Aug 19 to Sep 2 (~22 pts)
+	AC-528                                          :ac528, 2026-08-19, 2026-09-02
 	AC-530                                          :ac530, 2026-08-19, 2026-09-02
-	AC-536                                          :ac536, 2026-08-19, 2026-09-02
+	AC-547                                          :ac547, 2026-08-19, 2026-09-02
+	ADMINAPI-1382                                   :a1382, 2026-08-19, 2026-09-02
+	ADMINAPI-1440                                   :a1440, 2026-08-19, 2026-09-02
+	ADMINAPI-1441                                   :a1441, 2026-08-19, 2026-09-02
 
-	section QA Buffer
-	QA Sign-off                                     :crit, qa, 2026-09-03, 2026-09-16
+	section Post-ETA Backlog (Not in Sep 2 target)
+	AC-515                                          :ac515, 2026-09-03, 2026-09-16
+	AC-536                                          :ac536, 2026-09-03, 2026-09-16
+	AC-544                                          :ac544, 2026-09-03, 2026-09-16
+	AC-545                                          :ac545, 2026-09-03, 2026-09-16
+	AC-546                                          :ac546, 2026-09-03, 2026-09-16
+	AC-548                                          :ac548, 2026-09-03, 2026-09-16
+	AC-549                                          :ac549, 2026-09-03, 2026-09-16
+	ADMINAPI-1442                                   :a1442, 2026-09-03, 2026-09-16
+	ADMINAPI-1443                                   :a1443, 2026-09-03, 2026-09-16
 
-	section Backlog (Not in 115 pts)
+	section Unestimated Backlog
 	AC-408                                          :ac408, 2026-08-05, 2026-09-16
 	ADMINAPI-1365                                   :a1365, 2026-08-05, 2026-09-16
+
+	section QA Buffer (Optional)
+	QA Sign-off                                     :crit, qa, 2026-09-17, 2026-10-01
 ```
