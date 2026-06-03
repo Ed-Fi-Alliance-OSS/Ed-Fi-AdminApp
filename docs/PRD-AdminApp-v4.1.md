@@ -36,7 +36,7 @@ the next release, but they will not be described in this document.
      Application ||--|{ Credentials : has
    ```
 
-2. Synchronize Admin App data with non-Starting Blocks Ed-Fi deployments.
+2. Synchronize Admin App data with non-Starting Blocks Ed-Fi API v7+ deployments.
    1. ODS Instances and related data
    2. Education organizations
 3. Create and manage database instances from a database template.
@@ -89,7 +89,7 @@ management screens and actions.
 **Personas:** SEA System Administrator, Managed Service Provider System
 Administrator
 
-**When** Admin App is connected to an Ed-Fi ODS/API and Admin API deployment, \
+**When** Admin App is connected to an Ed-Fi ODS/API v7+ and ODS Admin API deployment, \
 **I want** to synchronize its database with current environment, tenant,
 ODS instance, and education organization data, \
 **so that** Admin App reflects the deployment I am administering without
@@ -163,7 +163,7 @@ drilldown behavior.
 ### Synchronization of Environments
 
 The application SHALL support synchronization between the Admin
-App database and running Ed-Fi ODS/API and Admin API instances that are not
+App database and running Ed-Fi ODS/API v7+ and ODS Admin API instances that are not
 Starting Blocks environments through the following detailed requirements:
 
 - **FR-SYNC-1:** The synchronization user experience SHALL avoid Starting Blocks
@@ -181,6 +181,15 @@ Starting Blocks environments through the following detailed requirements:
   fetching dependent synchronized data.
 - **FR-SYNC-6:** The application SHALL make synchronization progress and waiting
   states understandable to the user when a refresh job is still running.
+
+> [!NOTE]
+>
+> - Out-of-scope: Support for Ed-Fi ODS/API prior to version 7, which does not
+>   have the necessary ODS Admin API capabilities to support synchronization.
+> - Nice-to-have: Support for Ed-Fi API v8 will be experimental; the new
+>   Configuration Management Service will have Management API compatibility that
+>   _should_ support synchronization without further code changes, but the Admin
+>   App v4.1 can go to market without complete support for the v8 platform.
 
 ### Environment Configuration and Tenant-Mode Validation
 
@@ -274,6 +283,8 @@ following product-level architecture implications:
 
 - AI-generated explanations that require sending customer deployment data to a
   hosted third-party AI service.
+- New functionality may be limited for Ed-Fi ODS/API v6 and earlier where the
+  necessary ODS Admin API capabilities are not present.
 
 ## 7. Glossary Additions
 

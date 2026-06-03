@@ -399,7 +399,7 @@ C4Context
 - **FR-ODS-1**: Users with appropriate permissions SHALL be able to create new
   ODS instances within a tenant, specifying ODS name, connection/database
   configuration, academic year, and data standards version.
-- **FR-ODS-2**: _(Known Limitation — Admin API v2 mode)_ Creating applications
+- **FR-ODS-2**: _(Known Limitation — Admin API v2 mode)_ Creating ODS Instances
   in Admin API v2 mode requires manual population of the `odsinstances` and
   `odsinstancecontexts` tables before applications can be registered. This
   manual step will be automated in a future release.
@@ -584,7 +584,7 @@ C4Context
 ### Software Development Lifecycle
 
 - **NFR-SDLC-1**: The application SHALL maintain consistent code quality through formatting and linting.
-- **NFR-SDLC-2**: The application SHALL achieve 100% unit test coverage of business logic.
+- **NFR-SDLC-2**: The application SHALL achieve 100% unit test coverage of business logic, exclusive of I/O operations at the API and query layers.
 - **NFR-SDLC-3**: The application SHALL cover all happy paths and common failure scenarios in integration tests.
 - **NFR-SDLC-4**: The application SHALL have automated integration builds and push-button package management.
 - **NFR-SDLC-5**: The application SHALL be shipped in native packaging format and as production-ready images (OCI-compliant).
