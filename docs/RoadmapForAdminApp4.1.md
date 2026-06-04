@@ -7,7 +7,7 @@
 
 ## References
 
-[PRD-AdminApp-v4.1.md document](https://github.com/Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/tree/main/docs)
+[PRD-AdminApp-v4.1.md document](./PRD-AdminApp-v4.1.md)
 
 ## Summary
 
@@ -38,10 +38,7 @@
 
 | Id | Title | Pending Story Points |
 | -- | -- | -- |
-| AC-363 | Non-Starting Blocks Synchronization Process | 3 |
-| AC-509 | Implement E2E and unit test in Admin App | 32 |
-| AC-522 | Admin App supports Admin Api with V3 specification | 26 |
-| AC-506 | Instance Management Integration | 17 |
+| AC-522 | Admin App supports Admin API with V3 specification | 26 |
 | AC-408 | Enhanced User Interface Functionality | TBD |
 | ADMINAPI-1344 | Managing Ed-Fi ODS database instances using the Admin API | 6 |
 | ADMINAPI-1251 | Improve AdminAPI-2 Test Coverage | 31 |
@@ -53,10 +50,10 @@
 | Sprint 61 | May 27th | Jun 10th |
 | Sprint 62 | Jun 10th | Jun 24th |
 | Sprint 63 | Jun 24th | Jul 8th |
-| Sprint 64 | Jul 8th | Jul 22th |
-| Sprint 66 | Jul 22th | Aug 5th |
+| Sprint 64 | Jul 8th | Jul 22nd |
+| Sprint 66 | Jul 22nd | Aug 5th |
 | Sprint 67 | Aug 5th | Aug 19th |
-| Sprint 68 | Aug 19th | Set 2nd |
+| Sprint 68 | Aug 19th | Sep 2nd |
 
 ## Pending tickets per epic
 
@@ -79,7 +76,7 @@
 | https://edfi.atlassian.net/browse/AC-515 | AC-516 | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-536 | AC-516/AC-511 | Open | 3 |
 
-### AC-522 Admin App supports Admin Api with V3 specification
+### AC-522 Admin App supports Admin API with V3 specification
 
 | Link | Dependencies | Status | Story Points |
 | -- | -- | -- | -- |
