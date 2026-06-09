@@ -91,7 +91,7 @@
     "passport-local": "^1.0.0",
     "path-browserify": "^1.0.1",
     "pg": "^8.21.0",
-    "pg-boss": "^9.0.3",
+    "pg-boss": "^12.18.2",
     "re-resizable": "^6.11.2",
     "react": "19.2.7",
     "react-dom": "19.2.7",
