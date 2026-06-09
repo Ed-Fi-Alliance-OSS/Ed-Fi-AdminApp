@@ -35,12 +35,30 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
       ...(options?.retryDelay !== undefined && { retryDelay: options.retryDelay }),
       ...(options?.retryBackoff !== undefined && { retryBackoff: options.retryBackoff }),
     });
-    // pg-boss v9 returns null when a singleton duplicate is silently deduped (D-14)
-    if (id === null) {
-      return options?.singletonKey ?? 'deduped';
+
+    if (id !== null) {
+      this.queueNamesByJobId.set(id, queueName);
+      return id;
     }
-    this.queueNamesByJobId.set(id, queueName);
-    return id;
+
+    // pg-boss returns null when a job is silently deduped (singleton/exclusive queue
+    // policy, or matching singletonKey).  Attempt to resolve the real UUID so that a
+    // subsequent getJobById() call has a valid map entry and a valid pg-boss id.
+    const singletonKey = options?.singletonKey;
+    const findOptions = singletonKey !== undefined ? { key: singletonKey } : {};
+    const existing = await this.boss.findJobs(queueName, findOptions);
+    if (existing.length > 0) {
+      const realId = existing[0].id;
+      this.queueNamesByJobId.set(realId, queueName);
+      return realId;
+    }
+
+    // Rare race: job completed between send() and findJobs().  Store the sentinel so
+    // getJobById() can at least attempt a pg-boss lookup rather than failing instantly
+    // on a missing map entry.
+    const sentinel = singletonKey ?? 'deduped';
+    this.queueNamesByJobId.set(sentinel, queueName);
+    return sentinel;
   }
 
   async schedule(
@@ -79,6 +97,13 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     );
   }
 
+  private static readonly TERMINAL_STATES = new Set<string>([
+    'completed',
+    'failed',
+    'cancelled',
+    'expired',
+  ]);
+
   async getJobById(id: string): Promise<Job> {
     const queueName = this.queueNamesByJobId.get(id);
     if (!queueName) {
@@ -87,6 +112,11 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     const pgJob = await this.boss.getJobById(queueName, id);
     if (!pgJob) {
       throw new NotFoundException(`Job ${id} not found`);
+    }
+    // Clean up map entry once the job reaches a terminal state so the map does not
+    // grow without bound for the process lifetime.
+    if (PgBossAdapter.TERMINAL_STATES.has(pgJob.state)) {
+      this.queueNamesByJobId.delete(id);
     }
     return {
       id: pgJob.id,
