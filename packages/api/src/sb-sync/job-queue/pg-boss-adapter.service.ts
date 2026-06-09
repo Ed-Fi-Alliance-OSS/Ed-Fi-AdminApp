@@ -1,6 +1,9 @@
 import { Injectable, NotFoundException, OnApplicationShutdown } from '@nestjs/common';
-import PgBoss from 'pg-boss';
+import { JobWithMetadata, PgBoss } from 'pg-boss';
+import { ENV_SYNC_CHNL, SYNC_SCHEDULER_CHNL, TENANT_SYNC_CHNL } from '../sb-sync.module';
 import { IJobQueueService, Job, JobOptions, ScheduleOptions } from './job-queue.interface';
+
+const SYNC_QUEUE_NAMES = [SYNC_SCHEDULER_CHNL, ENV_SYNC_CHNL, TENANT_SYNC_CHNL] as const;
 
 @Injectable()
 export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
@@ -11,7 +14,10 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
   }
 
   async stop(options?: { graceful?: boolean; destroy?: boolean }): Promise<void> {
-    await this.boss.stop(options);
+    await this.boss.stop({
+      graceful: options?.graceful,
+      close: options?.destroy,
+    });
   }
 
   async send<T = object>(queueName: string, data: T | null, options?: JobOptions): Promise<string> {
@@ -49,24 +55,33 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     await this.boss.work<T>(
       queueName,
       { includeMetadata: true },
-      async (pgJob: PgBoss.JobWithMetadata<T>) => {
-        await handler({
-          id: pgJob.id,
-          name: pgJob.name,
-          data: pgJob.data,
-          state: pgJob.state,
-          createdon: pgJob.createdon,
-          startedon: pgJob.startedon,
-          completedon: pgJob.completedon ?? undefined,
-          output: pgJob.output,
-          retrycount: pgJob.retrycount,
-        });
+      async (pgJobs: JobWithMetadata<T>[]) => {
+        for (const pgJob of pgJobs) {
+          await handler({
+            id: pgJob.id,
+            name: pgJob.name,
+            data: pgJob.data,
+            state: pgJob.state,
+            createdon: pgJob.createdOn,
+            startedon: pgJob.startedOn,
+            completedon: pgJob.completedOn ?? undefined,
+            output: pgJob.output,
+            retrycount: pgJob.retryCount,
+          });
+        }
       }
     );
   }
 
   async getJobById(id: string): Promise<Job> {
-    const pgJob = await this.boss.getJobById(id);
+    let pgJob: JobWithMetadata | null = null;
+    for (const queueName of SYNC_QUEUE_NAMES) {
+      pgJob = await this.boss.getJobById(queueName, id);
+      if (pgJob) {
+        break;
+      }
+    }
+
     if (!pgJob) {
       throw new NotFoundException(`Job ${id} not found`);
     }
@@ -75,11 +90,11 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
       name: pgJob.name,
       data: pgJob.data,
       state: pgJob.state,
-      createdon: pgJob.createdon,
-      startedon: pgJob.startedon,
-      completedon: pgJob.completedon ?? undefined,
+      createdon: pgJob.createdOn,
+      startedon: pgJob.startedOn,
+      completedon: pgJob.completedOn ?? undefined,
       output: pgJob.output,
-      retrycount: pgJob.retrycount,
+      retrycount: pgJob.retryCount,
     };
   }
 
