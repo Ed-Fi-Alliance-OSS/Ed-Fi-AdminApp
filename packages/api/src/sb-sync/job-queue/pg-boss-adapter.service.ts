@@ -1,9 +1,11 @@
 import { Injectable, NotFoundException, OnApplicationShutdown } from '@nestjs/common';
-import PgBoss from 'pg-boss';
+import { PgBoss } from 'pg-boss';
 import { IJobQueueService, Job, JobOptions, ScheduleOptions } from './job-queue.interface';
 
 @Injectable()
 export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
+  private readonly queueNamesByJobId = new Map<string, string>();
+
   constructor(private readonly boss: PgBoss) {}
 
   async start(): Promise<void> {
@@ -14,7 +16,16 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     await this.boss.stop(options);
   }
 
-  async send<T = object>(queueName: string, data: T | null, options?: JobOptions): Promise<string> {
+  /** Idempotently create the named queue in pgboss.queue (required by pg-boss v12). */
+  async createQueue(name: string): Promise<void> {
+    await this.boss.createQueue(name);
+  }
+
+  async send<T = object>(
+    queueName: string,
+    data: T | null,
+    options?: JobOptions
+  ): Promise<string> {
     // Normalize null/undefined to an empty object — pg-boss expects an object payload.
     const payload = (data ?? {}) as object;
     const id = await this.boss.send(queueName, payload, {
@@ -28,6 +39,7 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     if (id === null) {
       return options?.singletonKey ?? 'deduped';
     }
+    this.queueNamesByJobId.set(id, queueName);
     return id;
   }
 
@@ -49,37 +61,43 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     await this.boss.work<T>(
       queueName,
       { includeMetadata: true },
-      async (pgJob: PgBoss.JobWithMetadata<T>) => {
-        await handler({
-          id: pgJob.id,
-          name: pgJob.name,
-          data: pgJob.data,
-          state: pgJob.state,
-          createdon: pgJob.createdon,
-          startedon: pgJob.startedon,
-          completedon: pgJob.completedon ?? undefined,
-          output: pgJob.output,
-          retrycount: pgJob.retrycount,
-        });
+      async (pgJobs) => {
+        for (const pgJob of pgJobs) {
+          await handler({
+            id: pgJob.id,
+            name: pgJob.name,
+            data: pgJob.data,
+            state: pgJob.state,
+            createdon: pgJob.createdOn,
+            startedon: pgJob.startedOn,
+            completedon: pgJob.completedOn ?? undefined,
+            output: pgJob.output,
+            retrycount: pgJob.retryCount,
+          });
+        }
       }
     );
   }
 
   async getJobById(id: string): Promise<Job> {
-    const pgJob = await this.boss.getJobById(id);
+    const queueName = this.queueNamesByJobId.get(id);
+    if (!queueName) {
+      throw new NotFoundException(`Job ${id} not found`);
+    }
+    const pgJob = await this.boss.getJobById(queueName, id);
     if (!pgJob) {
       throw new NotFoundException(`Job ${id} not found`);
     }
     return {
       id: pgJob.id,
       name: pgJob.name,
-      data: pgJob.data,
+      data: pgJob.data as object,
       state: pgJob.state,
-      createdon: pgJob.createdon,
-      startedon: pgJob.startedon,
-      completedon: pgJob.completedon ?? undefined,
+      createdon: pgJob.createdOn,
+      startedon: pgJob.startedOn,
+      completedon: pgJob.completedOn ?? undefined,
       output: pgJob.output,
-      retrycount: pgJob.retrycount,
+      retrycount: pgJob.retryCount,
     };
   }
 
