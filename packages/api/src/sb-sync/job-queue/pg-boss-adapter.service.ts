@@ -48,9 +48,18 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     const findOptions = singletonKey !== undefined ? { key: singletonKey } : {};
     const existing = await this.boss.findJobs(queueName, findOptions);
     if (existing.length > 0) {
-      const realId = existing[0].id;
-      this.queueNamesByJobId.set(realId, queueName);
-      return realId;
+      // Sort: non-terminal jobs first (they are the relevant in-flight jobs),
+      // then newest createdOn first within each group.  This avoids selecting a
+      // stale historical completed/failed job when a fresher in-flight one exists.
+      const sorted = [...existing].sort((a, b) => {
+        const aIsTerminal = PgBossAdapter.TERMINAL_STATES.has(a.state) ? 1 : 0;
+        const bIsTerminal = PgBossAdapter.TERMINAL_STATES.has(b.state) ? 1 : 0;
+        if (aIsTerminal !== bIsTerminal) return aIsTerminal - bIsTerminal;
+        return new Date(b.createdOn).getTime() - new Date(a.createdOn).getTime();
+      });
+      const best = sorted[0];
+      this.queueNamesByJobId.set(best.id, queueName);
+      return best.id;
     }
 
     // Rare race: job completed between send() and findJobs().  Store the sentinel so
@@ -104,9 +113,18 @@ export class PgBossAdapter implements IJobQueueService, OnApplicationShutdown {
     'expired',
   ]);
 
+  private static readonly UUID_REGEX =
+    /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
+
   async getJobById(id: string): Promise<Job> {
     const queueName = this.queueNamesByJobId.get(id);
     if (!queueName) {
+      throw new NotFoundException(`Job ${id} not found`);
+    }
+    // Non-UUID sentinel values must never reach pg-boss – the DB will throw a UUID
+    // parse error. Treat as NotFound and evict the stale map entry.
+    if (!PgBossAdapter.UUID_REGEX.test(id)) {
+      this.queueNamesByJobId.delete(id);
       throw new NotFoundException(`Job ${id} not found`);
     }
     const pgJob = await this.boss.getJobById(queueName, id);
