@@ -124,6 +124,9 @@ from sb_environment
 select job."id",
 case when job."name" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     "type",
 coalesce(sb_environment."name", edfi_tenant."name", 'resource no longer exists') "name",
+coalesce(sb_environment."id", edfi_tenant."sbEnvironmentId")                     "sbEnvironmentId",
+edfi_tenant."id"                                                                 "edfiTenantId",
+"data"::text                                                                     "dataText",
 data,
 state,
 createdon,
@@ -139,7 +142,7 @@ left join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.
           'public',
           'MATERIALIZED_VIEW',
           'sb_sync_queue',
-          "with job as (select id, name, data, state, createdon, completedon, output\n    from pgboss.job\n    where name in ('sbe-sync', 'edfi-tenant-sync')\n    union\n    select id, name, data, state, createdon, completedon, output\n    from pgboss.archive\n    where name in ('sbe-sync', 'edfi-tenant-sync'))\nselect job.\"id\",\ncase when job.\"name\" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     \"type\",\ncoalesce(sb_environment.\"name\", edfi_tenant.\"name\", 'resource no longer exists') \"name\",\ndata,\nstate,\ncreatedon,\ncompletedon,\noutput,\n(job.output -> 'hasChanges')::bool                                               \"hasChanges\"\nfrom job\nleft join public.sb_environment on (job.data -> 'sbEnvironmentId')::int = sb_environment.id\nleft join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.id",
+          "with job as (select id, name, data, state, createdon, completedon, output\n    from pgboss.job\n    where name in ('sbe-sync', 'edfi-tenant-sync')\n    union\n    select id, name, data, state, createdon, completedon, output\n    from pgboss.archive\n    where name in ('sbe-sync', 'edfi-tenant-sync'))\nselect job.\"id\",\ncase when job.\"name\" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     \"type\",\ncoalesce(sb_environment.\"name\", edfi_tenant.\"name\", 'resource no longer exists') \"name\",\ncoalesce(sb_environment.\"id\", edfi_tenant.\"sbEnvironmentId\")                     \"sbEnvironmentId\",\nedfi_tenant.\"id\"                                                                 \"edfiTenantId\",\n\"data\"::text                                                                     \"dataText\",\ndata,\nstate,\ncreatedon,\ncompletedon,\noutput,\n(job.output -> 'hasChanges')::bool                                               \"hasChanges\"\nfrom job\nleft join public.sb_environment on (job.data -> 'sbEnvironmentId')::int = sb_environment.id\nleft join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.id",
         ]
       );
     } else {
@@ -150,6 +153,9 @@ left join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.
 select job."id",
 case when job."name" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     "type",
 coalesce(sb_environment."name", edfi_tenant."name", 'resource no longer exists') "name",
+coalesce(sb_environment."id", edfi_tenant."sbEnvironmentId")                     "sbEnvironmentId",
+edfi_tenant."id"                                                                 "edfiTenantId",
+"data"::text                                                                     "dataText",
 data,
 state,
 createdon,
@@ -165,7 +171,7 @@ left join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.
           'public',
           'MATERIALIZED_VIEW',
           'sb_sync_queue',
-          "with job as (select id, name, data, state, created_on as createdon, completed_on as completedon, output\n    from pgboss.job\n    where name in ('sbe-sync', 'edfi-tenant-sync'))\nselect job.\"id\",\ncase when job.\"name\" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     \"type\",\ncoalesce(sb_environment.\"name\", edfi_tenant.\"name\", 'resource no longer exists') \"name\",\ndata,\nstate,\ncreatedon,\ncompletedon,\noutput,\n(job.output -> 'hasChanges')::bool                                               \"hasChanges\"\nfrom job\nleft join public.sb_environment on (job.data -> 'sbEnvironmentId')::int = sb_environment.id\nleft join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.id",
+          "with job as (select id, name, data, state, created_on as createdon, completed_on as completedon, output\n    from pgboss.job\n    where name in ('sbe-sync', 'edfi-tenant-sync'))\nselect job.\"id\",\ncase when job.\"name\" = 'sbe-sync' then 'SbEnvironment' else 'EdfiTenant' end     \"type\",\ncoalesce(sb_environment.\"name\", edfi_tenant.\"name\", 'resource no longer exists') \"name\",\ncoalesce(sb_environment.\"id\", edfi_tenant.\"sbEnvironmentId\")                     \"sbEnvironmentId\",\nedfi_tenant.\"id\"                                                                 \"edfiTenantId\",\n\"data\"::text                                                                     \"dataText\",\ndata,\nstate,\ncreatedon,\ncompletedon,\noutput,\n(job.output -> 'hasChanges')::bool                                               \"hasChanges\"\nfrom job\nleft join public.sb_environment on (job.data -> 'sbEnvironmentId')::int = sb_environment.id\nleft join public.edfi_tenant on (job.data -> 'edfiTenantId')::int = edfi_tenant.id",
         ]
       );
     }
