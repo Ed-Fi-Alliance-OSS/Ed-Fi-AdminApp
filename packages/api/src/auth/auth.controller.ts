@@ -286,13 +286,16 @@ export class AuthController {
         });
       });
 
-      if (oidcId === undefined) {
-        // Session predates provider tracking or the user was never logged in
+      // Sessions created before provider tracking carry no oidcId; fall back
+      // to the only registered provider when unambiguous
+      const loginOidcId = oidcId ?? this.registerOidcIdpsService.getSoleOidcId();
+
+      if (loginOidcId === undefined) {
         Logger.warn('No login provider tracked on session, skipping IdP logout');
         return response.redirect(config.FE_URL);
       }
 
-      const endSessionUrl = this.registerOidcIdpsService.getEndSessionUrl(oidcId, idToken);
+      const endSessionUrl = this.registerOidcIdpsService.getEndSessionUrl(loginOidcId, idToken);
 
       if (endSessionUrl) {
         // Full RP-Initiated Logout against the provider the user logged in with
