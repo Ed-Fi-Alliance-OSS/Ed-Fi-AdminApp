@@ -44,6 +44,9 @@ describe('EnvNav1710178189458 legacy branch', () => {
       expect(matViewCall).toContain('from pgboss.archive');
       expect(matViewCall).toContain('union');
       expect(matViewCall).not.toContain('created_on as createdon');
+      expect(matViewCall).toContain('"sbEnvironmentId"');
+      expect(matViewCall).toContain('"edfiTenantId"');
+      expect(matViewCall).toContain('"dataText"');
     });
 
     it('creates the v12 sb_sync_queue materialized view when pgboss.archive does not exist', async () => {
@@ -61,6 +64,9 @@ describe('EnvNav1710178189458 legacy branch', () => {
       expect(matViewCall).not.toContain('from pgboss.archive');
       expect(matViewCall).toContain('created_on as createdon');
       expect(matViewCall).toContain('completed_on as completedon');
+      expect(matViewCall).toContain('"sbEnvironmentId"');
+      expect(matViewCall).toContain('"edfiTenantId"');
+      expect(matViewCall).toContain('"dataText"');
     });
 
     it('always creates the env_nav view regardless of branch', async () => {
