@@ -43,6 +43,18 @@ export class RegisterOidcIdpsService implements OnModuleInit {
   }
 
   /**
+   * Returns the id of the only registered provider when exactly one exists.
+   * Used as a logout fallback for sessions created before the login provider
+   * was tracked on the session.
+   */
+  getSoleOidcId(): number | undefined {
+    if (this.oidcClients.size === 1) {
+      return this.oidcClients.keys().next().value;
+    }
+    return undefined;
+  }
+
+  /**
    * Builds the RP-Initiated Logout URL for the provider the user logged in with,
    * based on the end_session_endpoint discovered from the provider's metadata.
    * Returns null when the provider does not expose an end_session_endpoint

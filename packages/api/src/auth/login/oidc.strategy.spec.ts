@@ -105,6 +105,12 @@ describe('RegisterOidcIdpsService', () => {
     });
   });
 
+  describe('getSoleOidcId', () => {
+    it('returns undefined when more than one provider is registered', () => {
+      expect(service.getSoleOidcId()).toBeUndefined();
+    });
+  });
+
   describe('when discovery fails for one provider', () => {
     beforeEach(async () => {
       jest.spyOn(Issuer, 'discover').mockImplementation((url: string) => {
@@ -123,6 +129,10 @@ describe('RegisterOidcIdpsService', () => {
     it('still registers the providers that discovered successfully', () => {
       expect(service.getEndSessionUrl(keycloakOidcRow.id, 'token')).not.toBeNull();
       expect(service.getEndSessionUrl(googleOidcRow.id, 'token')).toBeNull();
+    });
+
+    it('treats the single surviving provider as the sole provider', () => {
+      expect(service.getSoleOidcId()).toBe(keycloakOidcRow.id);
     });
   });
 });
