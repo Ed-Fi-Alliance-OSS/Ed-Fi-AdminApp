@@ -76,7 +76,7 @@ export const AppBar = () => {
           <MenuList>
             <MenuItem
               onClick={() => {
-                // This ensures proper logout from both AdminApp and Keycloak, then redirects to login page
+                // This ensures proper logout from both AdminApp and the identity provider, then redirects to login page
                 window.location.href = `${apiClient.defaults.baseURL}/auth/logout`;
               }}
             >
