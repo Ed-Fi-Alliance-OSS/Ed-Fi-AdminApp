@@ -99,7 +99,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        package: [fe, be, models-server, utils]
+        package: [fe, be, models, models-server, utils]
     steps:
       - name: Checkout
         uses: actions/checkout@b4ffde65f46336ab88eb53be808477a3936bae11 # v4.1.1
@@ -133,7 +133,14 @@ jobs:
         run: |
           ACTUAL="${{ steps.proj.outputs.actual }}"
           echo "Running tests for $ACTUAL"
-          npm run test:$ACTUAL
+          npm run test:$ACTUAL -- --reporters=default --reporters=jest-junit
+ 
+      - name: Publish Unit Test Results
+        if: always() && hashFiles('test-results/junit-*.xml') != ''
+        uses: EnricoMi/publish-unit-test-result-action@f355d34d53ad4e7f506f699478db2dd71da9de5f  # v2.15.1
+        with:
+          files: test-results/junit-*.xml
+          check_name: Unit Test Results (${{ matrix.package }})
 
   docker_analysis:
     name: Docker Analysis
