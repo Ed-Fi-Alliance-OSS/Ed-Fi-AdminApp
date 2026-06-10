@@ -49,7 +49,8 @@ export class RegisterOidcIdpsService {
 
               try {
                 const user: User = await this.authService.validateUser({ username });
-                const isEaUser = username.includes('edanalytics.org');
+                const emailDomain = username.substring(username.lastIndexOf('@') + 1).toLowerCase();
+                const isEaUser = emailDomain === 'edanalytics.org';
                 if (user === null) {
                   if (!isEaUser) {
                     Logger.warn(`LOGIN_ERROR User [${username}] not found in database`);

@@ -55,7 +55,13 @@ function App() {
       <FeedbackBannerProvider>
         <ChakraProvider theme={theme}>
           <MutationIndicator />
-          <ErrorBoundary onReset={reset} fallbackRender={({ resetErrorBoundary, error }) => error}>
+          <ErrorBoundary onReset={reset} fallbackRender={({ resetErrorBoundary, error }) => (
+            <Box p={4}>
+              <div>Something went wrong:</div>
+              <pre>{error instanceof Error ? error.message : String(error)}</pre>
+              <button onClick={resetErrorBoundary}>Try again</button>
+            </Box>
+          )}>
             <Routes />
           </ErrorBoundary>
         </ChakraProvider>

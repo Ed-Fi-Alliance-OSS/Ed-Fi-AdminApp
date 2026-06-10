@@ -47,6 +47,7 @@ declare module 'config' {
     DB_ENGINE: 'mssql' | 'pgsql';
     DB_SSL: boolean;
     DB_TRUST_CERTIFICATE: boolean;
+    DB_TTL_IN_MINUTES: number;
     DB_RUN_MIGRATIONS: boolean;
     DB_SYNCHRONIZE: boolean;
     FE_URL: string;
@@ -55,6 +56,10 @@ declare module 'config' {
     YOPASS_URL: string;
     API_PORT: number;
     SB_SYNC_CRON: string;
+    /** Max number of poll attempts before treating an EdOrg refresh job as timed out (default: 10) */
+    ADMINAPI_REFRESH_POLL_ATTEMPTS: number;
+    /** Milliseconds to wait between EdOrg refresh job poll attempts (default: 5000) */
+    ADMINAPI_REFRESH_POLL_INTERVAL_MS: number;
 
     SAMPLE_OIDC_CONFIG?: {
       issuer: string;
@@ -82,6 +87,11 @@ declare module 'config' {
     USE_PKCE: boolean;
 
     LOG_LEVEL: LogLevel;
+
+    /** Polling interval for MSSQL job queue in milliseconds (default: 1000) */
+    MSSQL_JOB_POLL_MS?: number;
+    /** Polling interval for MSSQL schedule loop in milliseconds (default: 10000) */
+    MSSQL_SCHEDULE_POLL_MS?: number;
   }
 
   const config: IConfig;

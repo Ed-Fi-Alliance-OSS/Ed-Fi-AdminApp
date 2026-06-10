@@ -56,29 +56,6 @@ export const useSingleApplicationActions = ({
       : undefined
   );
 
-  const resetCreds = applicationQueriesV2.resetCreds({
-    edfiTenant: edfiTenant,
-    teamId: asId,
-  });
-
-  const canReset = useAuthorize(
-    application && !application.integrationProviderId
-      ? application.odsInstanceIds.flatMap((odsInstanceId) =>
-          application.educationOrganizationIds.map((educationOrganizationIds) => ({
-            privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
-            subject: {
-              edfiTenantId: Number(edfiTenantId),
-              teamId: Number(asId),
-              id: edorgKeyV2({
-                edorg: educationOrganizationIds,
-                ods: odsInstanceId,
-              }),
-            },
-          }))
-        )
-      : undefined
-  );
-
   // TODO add "or" option to multi-configured useAuthorize
   const canView = true; /* useAuthorize(
     application && {
@@ -129,35 +106,17 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
-        ...(canReset
-          ? {
-              Reset: {
-                isPending: resetCreds.isPending,
-                icon: Icons.ShieldX,
-                text: 'Reset creds',
-                title: 'Reset application credentials.',
-                onClick: () => {
-                  resetCreds.mutateAsync(
-                    { entity: { id: application.id }, pathParams: {} },
-                    {
-                      ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: (result) => {
-                        navigate(
-                          `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application?.id}`,
-                          {
-                            state: result,
-                          }
-                        );
-                      },
-                    }
-                  );
-                },
-                confirm: true,
-                confirmBody:
-                  'Are you sure you want to reset the credentials? Anything using the current ones will stop working.',
-              },
-            }
-          : undefined),
+        Manage: {
+          isDisabled: false,
+          icon: Icons.Application,
+          text: 'Manage creds',
+          title: 'Manage credentials for ' + application.applicationName,
+          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`,
+          onClick: () =>
+            navigate(
+              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`
+            ),
+        },
         ...(canEdit
           ? {
               Edit: {

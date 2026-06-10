@@ -193,4 +193,23 @@ export class EdorgsController {
       String(edorg.educationOrganizationId)
     );
   }
+
+  @SbVersion('v2')
+  @Post('sync-edorgs')
+  @Authorize({
+    privilege: EDORG_PRIVILEGES.READ,
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async syncEdOrgs(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment
+  ) {
+    return this.edorgService.syncAllEdOrgs(sbEnvironment, edfiTenant);
+  }
 }

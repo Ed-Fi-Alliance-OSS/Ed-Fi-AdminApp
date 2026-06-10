@@ -52,7 +52,7 @@ export const MenuList = <Option, IsMulti extends boolean, Group extends GroupBas
 
   const childrenArr = React.Children.toArray(children);
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  const scrollRef: any = useRef<HTMLDivElement>();
+  const scrollRef: any = useRef<HTMLDivElement | null>(null);
 
   const virtualizer = useVirtualizer({
     count: childrenArr.length,

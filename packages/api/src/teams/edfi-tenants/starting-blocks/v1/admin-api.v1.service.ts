@@ -1,6 +1,8 @@
 import {
+  EducationOrganizationDto,
   GetClaimsetDto,
   ISbEnvironmentConfigPrivateV1,
+  OdsInstanceDto,
   PostApplicationDto,
   PostApplicationResponseDto,
   PostClaimsetDto,
@@ -8,6 +10,7 @@ import {
   PutApplicationDto,
   PutClaimsetDto,
   PutVendorDto,
+  TenantDto,
   toGetApplicationDto,
   toGetClaimsetDto,
   toGetVendorDto,
@@ -38,9 +41,9 @@ export class AdminApiServiceV1 {
     this.adminApiTokens = new NodeCache({ checkperiod: 60 });
   }
 
-  async logIntoAdminApi(edfiTenant: EdfiTenant) {
-    const configPublic = edfiTenant.sbEnvironment.configPublic;
-    const configPrivate = edfiTenant.sbEnvironment.configPrivate;
+  async logIntoAdminApi(sbEnvironment: SbEnvironment, id: number) {
+    const configPublic = sbEnvironment.configPublic;
+    const configPrivate = sbEnvironment.configPrivate;
     const v1Config =
       'version' in configPublic && configPublic.version === 'v1' ? configPublic.values : undefined;
     const v1ConfigPrivate =
@@ -48,7 +51,7 @@ export class AdminApiServiceV1 {
         ? (configPrivate as ISbEnvironmentConfigPrivateV1)
         : undefined;
 
-    const adminApiUrl = edfiTenant.sbEnvironment.adminApiUrl;
+    const adminApiUrl = sbEnvironment.adminApiUrl;
     if (typeof adminApiUrl !== 'string') {
       Logger.log('No Admin API URL configured for environment.');
       return {
@@ -96,7 +99,7 @@ export class AdminApiServiceV1 {
 
     try {
       await axios.request(options).then((v) => {
-        this.adminApiTokens.set(edfiTenant.id, v.data.access_token, Number(v.data.expires_in) - 60);
+        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
       });
       return {
         status: 'SUCCESS' as const,
@@ -194,9 +197,13 @@ export class AdminApiServiceV1 {
     );
   }
 
-  private getAdminApiClient(edfiTenant: EdfiTenant) {
+  private createAdminApiClient(
+    adminApiUrl: string,
+    cacheId: number,
+    loginFn: () => Promise<{ status: string }>
+  ) {
     const client = axios.create({
-      baseURL: edfiTenant.sbEnvironment.adminApiUrl,
+      baseURL: adminApiUrl,
     });
     client.interceptors.response.use(
       (value) => {
@@ -214,16 +221,16 @@ export class AdminApiServiceV1 {
       },
       (err: AxiosError) => {
         if (err.status === 401) {
-          this.adminApiTokens.del(edfiTenant.id);
+          this.adminApiTokens.del(cacheId);
         }
-        Logger.error(`Unable to create client on ${edfiTenant.sbEnvironment.adminApiUrl}: ${err}`);
+        Logger.error(`Unable to create client on ${adminApiUrl}: ${err}`);
         throw err;
       }
     );
     client.interceptors.request.use(async (config) => {
-      let token: undefined | string = this.adminApiTokens.get(edfiTenant.id);
+      let token: undefined | string = this.adminApiTokens.get(cacheId);
       if (token === undefined) {
-        const adminLogin = await this.logIntoAdminApi(edfiTenant);
+        const adminLogin = await loginFn();
 
         if (adminLogin.status !== 'SUCCESS') {
           throw new CustomHttpException(
@@ -234,12 +241,28 @@ export class AdminApiServiceV1 {
             500
           );
         }
-        token = this.adminApiTokens.get(edfiTenant.id);
+        token = this.adminApiTokens.get(cacheId);
       }
       config.headers.Authorization = `Bearer ${token}`;
       return config;
     });
     return client;
+  }
+
+  private getAdminApiClient(edfiTenant: EdfiTenant) {
+    return this.createAdminApiClient(
+      edfiTenant.sbEnvironment.adminApiUrl,
+      edfiTenant.id,
+      () => this.logIntoAdminApi(edfiTenant.sbEnvironment, edfiTenant.id)
+    );
+  }
+
+  private getAdminApiClientUsingEnv(sbEnvironment: SbEnvironment) {
+    return this.createAdminApiClient(
+      sbEnvironment.adminApiUrl,
+      sbEnvironment.id,
+      () => this.logIntoAdminApi(sbEnvironment, sbEnvironment.id)
+    );
   }
 
   async getVendors(edfiTenant: EdfiTenant) {
@@ -463,5 +486,68 @@ export class AdminApiServiceV1 {
         })
         .then(() => undefined)
     );
+  }
+  /**
+   * Retrieve tenants with their ODS instances.
+   * V1 API is single-tenant, so returns a default tenant with ODS instances.
+   *
+   * @param environment - SB Environment containing configuration
+   * @returns Promise resolving to array with a single default tenant containing ODS instances
+   */
+  async getTenants(environment: SbEnvironment): Promise<TenantDto[]> {
+    Logger.log(`Getting ODS instances for environment: ${environment.name}`);
+
+    try {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      const odsInstances = await this.getAdminApiClientUsingEnv(environment)
+        .get<any, any[]>('v1/odsInstances')
+        .catch((err) => {
+          Logger.error(`Error getting ODS instances for environment ${environment.name}: ${err}`);
+          throw err;
+        });
+
+      // Validate response is an array
+      if (!Array.isArray(odsInstances)) {
+        Logger.error(
+          `Expected array response from odsInstances endpoint, got ${typeof odsInstances}`
+        );
+        throw new CustomHttpException(
+          {
+            title: 'Invalid response from ODS instances endpoint',
+            type: 'Error',
+          },
+          500
+        );
+      }
+
+      Logger.log(
+        `Retrieved ${odsInstances.length} ODS instances for environment ${environment.name}`
+      );
+
+      // Map ODS instances to the expected format
+      const mappedOdsInstances: OdsInstanceDto[] = odsInstances.map((instance: any) => ({
+        id: instance.id ?? null,
+        name: instance.name ?? 'Unknown',
+        instanceType: instance.instanceType,
+        edOrgs: [], // EdOrgs are not available in V1 API yet
+      }));
+
+      // V1 API is single-tenant, create default tenant with ODS instances
+      const defaultTenant: TenantDto = {
+        id: 'default',
+        name: environment.name || 'Default Tenant',
+        odsInstances: mappedOdsInstances,
+      };
+
+      return [defaultTenant];
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : String(error);
+      const errorStack = error instanceof Error ? error.stack : undefined;
+      Logger.error(
+        `Failed to get tenants for environment ${environment.name}: ${errorMessage}`,
+        errorStack
+      );
+      throw error;
+    }
   }
 }

@@ -20,9 +20,13 @@ module.exports = {
   DB_SYNCHRONIZE: false,
   DB_ENGINE: 'pgsql', // Default to PostgreSQL, can be 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: false, // For MSSQL, whether to trust the server certificate
+  DB_TTL_IN_MINUTES: 120, // Default to 120 minutes
   API_PORT: 5000,
   // min hr day mo yr
   SB_SYNC_CRON: '0 2 * * *',
+  // Admin API EdOrg refresh polling
+  ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
+  ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   TYPEORM_LOGGING: undefined,
   // TypeORM database resilience configuration
   TYPEORM_RETRY_ATTEMPTS: 3,
@@ -156,7 +160,15 @@ module.exports = {
   RATE_LIMIT_LIMIT: 100,
 
   USE_PKCE: true,
+  
+  // Default to false for local development, can be overridden in production with environment variable. Set to true to enable SSL verification.
+  SSL_VERIFICATION: false, 
 
   // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
   LOG_LEVEL: 'log',
+
+  // Certification artifact configuration
+  CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
+  CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6', // SHA-256 checksum of the artifact zip file for integrity verification
+  CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.
 };
