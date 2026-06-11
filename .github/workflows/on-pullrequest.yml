@@ -168,3 +168,13 @@ jobs:
 
       - name: Docker Build
         run: docker build -t adminapp-${{ matrix.package }}-ci -f packages/${{ matrix.package }}/Dockerfile .
+  
+  event_file:
+    name: "Event File"
+    runs-on: ubuntu-latest
+    steps:
+    - name: Upload
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: Event File
+        path: ${{ github.event_path }}
