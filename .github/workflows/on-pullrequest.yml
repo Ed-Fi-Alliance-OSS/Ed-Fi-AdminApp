@@ -139,9 +139,7 @@ jobs:
           ACTUAL="${{ steps.proj.outputs.actual }}"
           echo "Running tests for $ACTUAL"
           mkdir -p test-results
-          JEST_JUNIT_OUTPUT_DIR=test-results \
-          JEST_JUNIT_OUTPUT_NAME=junit-${ACTUAL}.xml \
-          npm run test:$ACTUAL -- --reporters=default --reporters=jest-junit
+          npm run test:$ACTUAL
  
       - name: Upload Unit Test Results
         if: always() && hashFiles('test-results/junit-*.xml') != ''
