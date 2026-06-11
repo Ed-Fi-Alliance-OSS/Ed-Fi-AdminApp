@@ -226,22 +226,24 @@ export const validateAdminApiUrl = async (
       });
     }
 
-    try {
-      // Parse the major version number correctly from semantic version string
-      const majorOdsDetectedVersion = parseInt(odsDetectedVersion.split('.')[0], 10);
+    // Parse the major version number correctly from semantic version string
+    const majorOdsDetectedVersion = parseInt(odsDetectedVersion.split('.')[0], 10);
 
-      if ((majorOdsDetectedVersion >= 7 && adminDetectedVersion == 'v1') 
-          || (majorOdsDetectedVersion < 7 && (adminDetectedVersion == 'v2' || adminDetectedVersion == 'v3'))) {
-        throw  new ValidationHttpException({
-        field: 'adminApiUrl',
-        message: `Management API version (${adminDetectedVersion}) does not match Ed-Fi API version. Expected APIs to be compatible versions.`,
-      });
-      }
-    } catch (error) {
-      Logger.warn('Failed to parse ODS API version from metadata:', error);
+     if (Number.isNaN(majorOdsDetectedVersion)) {
+       Logger.warn(`Failed to parse ODS API version from metadata: ${odsDetectedVersion}`);
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `ODS API metadata does not contain a valid version.`,
+      });
+    }
+
+    if (
+      (majorOdsDetectedVersion >= 7 && adminDetectedVersion === 'v1') ||
+      (majorOdsDetectedVersion < 7 && (adminDetectedVersion === 'v2' || adminDetectedVersion === 'v3'))
+    ) {
+      throw new ValidationHttpException({
+        field: 'adminApiUrl',
+        message: `Management API version (${adminDetectedVersion}) does not match Ed-Fi API version. Expected APIs to be compatible versions.`,
       });
     }
 

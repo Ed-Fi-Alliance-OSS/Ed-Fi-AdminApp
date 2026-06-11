@@ -167,6 +167,13 @@ export class SbEnvironmentsEdFiService {
           // Fetch ODS API metadata
           odsApiMetaResponse = await fetchOdsApiMetadata(createSbEnvironmentDto);
 
+          if (!adminApiInfo?.specificationVersion) {
+            throw new ValidationHttpException({
+              field: 'adminApiUrl',
+              message: 'Management API Discovery URL is required to determine API version.',
+            });
+          }
+
           detectedVersion = adminApiInfo.specificationVersion;
 
           // Override the version with detected version

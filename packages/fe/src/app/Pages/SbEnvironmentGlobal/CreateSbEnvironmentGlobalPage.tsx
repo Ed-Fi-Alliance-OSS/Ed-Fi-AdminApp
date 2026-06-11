@@ -73,10 +73,17 @@ export const CreateSbEnvironmentGlobalPage = () => {
 
   const validateVersionAndTenantMode = (odsApiDiscoveryUrl: string) => {
     const errorMessage = 'Could not fetch version from API Discovery URL. Please check the URL and try again.';
-    if (!isStartingBlocks && odsApiDiscoveryUrl && odsApiDiscoveryUrl.trim() !== '') {
+    const adminApiUrl = getValues('adminApiUrl');
+    if (
+      !isStartingBlocks &&
+      odsApiDiscoveryUrl &&
+      odsApiDiscoveryUrl.trim() !== '' &&
+      adminApiUrl &&
+      adminApiUrl.trim() !== ''
+    ) {
       // To perform the version check
       checkEdFiVersionAndTenantMode.mutateAsync(
-        { entity: { odsApiDiscoveryUrl: odsApiDiscoveryUrl, adminApiUrl: getValues('adminApiUrl') }, pathParams: null },
+        { entity: { odsApiDiscoveryUrl: odsApiDiscoveryUrl, adminApiUrl }, pathParams: null },
         {
           onSuccess: (result) => {
             if (result) {
@@ -153,7 +160,8 @@ export const CreateSbEnvironmentGlobalPage = () => {
         isValid = false;
       }
       else {
-        if (!currentVersion) {
+        const adminApiUrl = data.adminApiUrl?.trim();
+        if (!currentVersion && adminApiUrl) {
             validateVersionAndTenantMode(data.odsApiDiscoveryUrl);
         }
       }
@@ -333,6 +341,11 @@ export const CreateSbEnvironmentGlobalPage = () => {
                     // Validate API URL if not Starting Blocks and value is present
                     if (!isStartingBlocks && value.trim() !== '') {
                       validateAdminApiUrl(value);
+
+                      const odsApiDiscoveryUrl = getValues('odsApiDiscoveryUrl');
+                      if (odsApiDiscoveryUrl?.trim()) {
+                        validateVersionAndTenantMode(odsApiDiscoveryUrl);
+                      }
                     }
                   }}
                 />
