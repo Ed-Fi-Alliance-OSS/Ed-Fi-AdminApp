@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
 name: On Pull Request
 
 on:
@@ -129,7 +134,7 @@ jobs:
             echo "No build step for $ACTUAL; skipping build."
           fi
 
-      - name: Test
+      - name: Unit Test
         run: |
           ACTUAL="${{ steps.proj.outputs.actual }}"
           echo "Running tests for $ACTUAL"
@@ -138,12 +143,13 @@ jobs:
           JEST_JUNIT_OUTPUT_NAME=junit-${ACTUAL}.xml \
           npm run test:$ACTUAL -- --reporters=default --reporters=jest-junit
  
-      - name: Publish Unit Test Results
+      - name: Upload Unit Test Results
         if: always() && hashFiles('test-results/junit-*.xml') != ''
-        uses: EnricoMi/publish-unit-test-result-action@f355d34d53ad4e7f506f699478db2dd71da9de5f  # v2.15.1
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5
         with:
-          files: test-results/junit-*.xml
-          check_name: Unit Test Results (${{ matrix.package }})
+          name: junit-tests
+          path: "test-results/junit-*.xml"
+          retention-days: 5
 
   docker_analysis:
     name: Docker Analysis
