@@ -145,8 +145,8 @@ jobs:
         if: always() && hashFiles('test-results/junit-*.xml') != ''
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5
         with:
-          name: junit-tests
-          path: "test-results/junit-*.xml"
+          name: junit-tests-${{ matrix.package }}
+          path: "test-results"
           retention-days: 5
 
   docker_analysis:
