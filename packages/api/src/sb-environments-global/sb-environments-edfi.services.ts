@@ -1,8 +1,6 @@
 import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
   determineTenantModeFromMetadata,
-  determineVersionFromMetadata,
-  fetchAdminApiInfo,
   fetchOdsApiMetadata,
   validateAdminApiUrl,
   validateTenantModeCompatibility,
@@ -169,8 +167,7 @@ export class SbEnvironmentsEdFiService {
           // Fetch ODS API metadata
           odsApiMetaResponse = await fetchOdsApiMetadata(createSbEnvironmentDto);
 
-          // Auto-detect version from metadata
-          detectedVersion = determineVersionFromMetadata(odsApiMetaResponse);
+          detectedVersion = adminApiInfo.specificationVersion;
 
           // Override the version with detected version
           createSbEnvironmentDto.version = detectedVersion;

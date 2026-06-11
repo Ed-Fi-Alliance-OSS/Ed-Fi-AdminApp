@@ -76,7 +76,7 @@ export const CreateSbEnvironmentGlobalPage = () => {
     if (!isStartingBlocks && odsApiDiscoveryUrl && odsApiDiscoveryUrl.trim() !== '') {
       // To perform the version check
       checkEdFiVersionAndTenantMode.mutateAsync(
-        { entity: { odsApiDiscoveryUrl: odsApiDiscoveryUrl }, pathParams: null },
+        { entity: { odsApiDiscoveryUrl: odsApiDiscoveryUrl, adminApiUrl: getValues('adminApiUrl') }, pathParams: null },
         {
           onSuccess: (result) => {
             if (result) {
@@ -85,8 +85,8 @@ export const CreateSbEnvironmentGlobalPage = () => {
               const version = response.version;
               const isMultiTenant = response.isMultiTenant;
 
-              if (version === 'v1' || version === 'v2') {
-                setValue('version', version as 'v1' | 'v2');
+              if (version === 'v1' || version === 'v2' || version === 'v3') {
+                setValue('version', version as 'v1' | 'v2' | 'v3');
                 setValue('isMultitenant', isMultiTenant);
                 clearErrors(['odsApiDiscoveryUrl']);
               } else {
