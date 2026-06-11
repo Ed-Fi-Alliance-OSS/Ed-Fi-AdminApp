@@ -35,11 +35,13 @@ export const ViewAccount = () => {
           <Attribute label="Team" value={utmArr[0].team.displayName} />
         ) : null}
 
-        <AttributeContainer label="Account Management">
-          <Link href={IDP_ACCOUNT_URL} isExternal color="blue.500" target="_blank">
-            Manage your account in Identity Provider <ExternalLinkIcon mx="2px" />
-          </Link>
-        </AttributeContainer>
+        {IDP_ACCOUNT_URL ? (
+          <AttributeContainer label="Account Management">
+            <Link href={IDP_ACCOUNT_URL} isExternal color="blue.500" target="_blank">
+              Manage your account in Identity Provider <ExternalLinkIcon mx="2px" />
+            </Link>
+          </AttributeContainer>
+        ) : null}
       </AttributesGrid>
     </ContentSection>
   ) : null;
