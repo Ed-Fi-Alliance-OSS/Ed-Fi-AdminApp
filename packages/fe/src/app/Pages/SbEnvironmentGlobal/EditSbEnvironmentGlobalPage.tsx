@@ -118,69 +118,70 @@ export const EditSbEnvironmentGlobalPage = () => {
     const errorMessage = 'Could not fetch version from API Discovery URL. Please check the URL and try again.';
 
     if (!sbEnvironment?.startingBlocks && normalizedUrl) {
+      try {
         const result = await checkEdFiVersionAndTenantMode.mutateAsync(
           { entity: { odsApiDiscoveryUrl: normalizedUrl, adminApiUrl: getValues('adminApiUrl') }, pathParams: null },
           {
-            onSuccess: (result) => {
-              if (result) {
-                // Handle the new response structure with version and isMultiTenant
-                const response = result as { version: string; isMultiTenant: boolean };
-                const version = response.version;
-                const isMultiTenant = response.isMultiTenant;
-
-                if (version === 'v1' || version === 'v2' || version === 'v3') {
-                  // Validate that the version hasn't changed
-                  if (originalVersion && originalVersion !== version) {
-                    setError('odsApiDiscoveryUrl', {
-                      message: `Version mismatch: This environment was originally ${originalVersion} but the new URL returns ${version}. Version cannot be changed.`
-                    });
-                    return false;
-                  } else if (version === 'v2' || version === 'v3') {
-                    // For v2, validate that tenant mode hasn't changed
-                    const originalMultiTenant = sbEnvironment?.multiTenant;
-                    if (originalMultiTenant !== undefined && originalMultiTenant !== isMultiTenant) {
-                      const originalMode = originalMultiTenant ? 'multi-tenant' : 'single-tenant';
-                      const newMode = isMultiTenant ? 'multi-tenant' : 'single-tenant';
-                      setError('odsApiDiscoveryUrl', {
-                        message: `Tenant mode mismatch: This environment was originally ${originalMode} but the new URL requires ${newMode} mode. Tenant mode cannot be changed after creation.`
-                      });
-                      return false;
-                    } else {
-                      setValue('isMultitenant', isMultiTenant);
-                      clearErrors(['odsApiDiscoveryUrl']);
-                      // Update the form with normalized URL
-                      setValue('odsApiDiscoveryUrl', normalizedUrl);
-                      return true;
-                    }
-                  } else {
-                    // For v1, just clear errors since v1 is always single-tenant
-                    clearErrors(['odsApiDiscoveryUrl']);
-                    // Update the form with normalized URL
-                    setValue('odsApiDiscoveryUrl', normalizedUrl);
-                    return true;
-                  }
-                } else {
-                  setError('odsApiDiscoveryUrl', { message: errorMessage });
-                  return false;
-                }
-              }
-            },
             ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
           }
-        ).catch((error) => {
-          if (isFormValidationError(error)) {
-            // Errors are already set in the form
-            return false;
-          } else {
-            console.error('Error validating Ed-Fi version and tenant mode:', error);
-            setError('odsApiDiscoveryUrl', { message: errorMessage });
+        );
+
+        if (!result) {
+          setError('odsApiDiscoveryUrl', { message: errorMessage });
+          return false;
+        }
+
+        // Handle the new response structure with version and isMultiTenant
+        const response = result as { version: string; isMultiTenant: boolean };
+        const version = response.version;
+        const isMultiTenant = response.isMultiTenant;
+
+        if (version !== 'v1' && version !== 'v2' && version !== 'v3') {
+          setError('odsApiDiscoveryUrl', { message: errorMessage });
+          return false;
+        }
+
+        // Validate that the version hasn't changed
+        if (originalVersion && originalVersion !== version) {
+          setError('odsApiDiscoveryUrl', {
+            message: `Version mismatch: This environment was originally ${originalVersion} but the new URL returns ${version}. Version cannot be changed.`,
+          });
+          return false;
+        }
+
+        if (version === 'v2' || version === 'v3') {
+          // For v2/v3, validate that tenant mode hasn't changed
+          const originalMultiTenant = sbEnvironment?.multiTenant;
+          if (originalMultiTenant !== undefined && originalMultiTenant !== isMultiTenant) {
+            const originalMode = originalMultiTenant ? 'multi-tenant' : 'single-tenant';
+            const newMode = isMultiTenant ? 'multi-tenant' : 'single-tenant';
+            setError('odsApiDiscoveryUrl', {
+              message: `Tenant mode mismatch: This environment was originally ${originalMode} but the new URL requires ${newMode} mode. Tenant mode cannot be changed after creation.`,
+            });
             return false;
           }
-        });
-        return Boolean(result);
+
+          setValue('isMultitenant', isMultiTenant);
+        }
+
+        // For v1 or valid v2/v3 checks, clear errors and update form with normalized URL
+        clearErrors(['odsApiDiscoveryUrl']);
+        setValue('odsApiDiscoveryUrl', normalizedUrl);
+        return true;
+      } catch (error) {
+        if (isFormValidationError(error as Parameters<typeof isFormValidationError>[0])) {
+          // Errors are already set in the form
+          return false;
+        }
+
+        console.error('Error validating Ed-Fi version and tenant mode:', error);
+        setError('odsApiDiscoveryUrl', { message: errorMessage });
+        return false;
+      }
     }
+
     return true;
-  }
+  };
 
   const validateAdminApiUrl = async (adminApiUrl: string): Promise<boolean> => {
     const normalizedUrl = normalizeUrl(adminApiUrl);
@@ -190,33 +191,44 @@ export const EditSbEnvironmentGlobalPage = () => {
 
     if (!sbEnvironment?.startingBlocks && normalizedUrl) {
       try {
-        checkAdminApiUrl.mutateAsync(
+        const result = await checkAdminApiUrl.mutateAsync(
           {
-            entity: { adminApiUrl: adminApiUrl, odsApiDiscoveryUrl: normalizedOdsUrl },
+            entity: { adminApiUrl: normalizedUrl, odsApiDiscoveryUrl: normalizedOdsUrl },
             pathParams: null,
           },
           {
-            onSuccess: (result) => {
-              if (result) {
-                const response = result as { valid: boolean; message: string };
-                // If valid, just clear any existing errors - no other action needed
-                if (response.valid) {
-                  clearErrors(['adminApiUrl', 'odsApiDiscoveryUrl']);
-                  return true;
-                }
-              }
-            },
             ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
           }
         );
+
+        if (!result) {
+          setError('adminApiUrl', { message: errorMessage });
+          return false;
+        }
+
+        const response = result as { valid: boolean; message: string };
+        if (!response.valid) {
+          setError('adminApiUrl', { message: response.message || errorMessage });
+          return false;
+        }
+
+        clearErrors(['adminApiUrl']);
+        setValue('adminApiUrl', normalizedUrl);
+        return true;
       } catch (error) {
+        if (isFormValidationError(error as Parameters<typeof isFormValidationError>[0])) {
+          // Errors are already set in the form
+          return false;
+        }
+
         setError('adminApiUrl', { message: errorMessage });
         console.error('Error validating Admin API URL:', error);
         return false;
       }
     }
+
     return true; // No validation needed for Starting Blocks
-  }
+  };
 
   // Helper function to validate that the first tenant has at least one ODS instance
   const validateFirstTenantHasOds = (tenants: PostSbEnvironmentTenantDTO[] | undefined): boolean => {
@@ -331,12 +343,9 @@ export const EditSbEnvironmentGlobalPage = () => {
 
       if (odsUrlChanged || adminUrlChanged) {
         try {
-          // Validate ODS API URL if changed
-          if (odsUrlChanged) {
-            const isValid = await validateVersionAndTenantMode(normalizedOdsUrl);
-            if (!isValid) {
-              return; // Stop submission if validation failed
-            }
+          const isValid = await validateVersionAndTenantMode(normalizedOdsUrl);
+          if (!isValid) {
+            return; // Stop submission if validation failed
           }
 
           // Validate Admin API URL if changed
