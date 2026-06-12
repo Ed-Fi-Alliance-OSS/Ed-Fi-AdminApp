@@ -18,8 +18,8 @@ The runner script uses these environment variables (with defaults for local deve
 ```powershell
 # Keycloak/OIDC Configuration
 $env:OIDC_ISSUER = 'https://localhost/auth/realms/edfi'          # Keycloak issuer URL
-$env:OIDC_CLIENT_ID = 'edfiadminapp-dev'                         # Client ID
-$env:OIDC_CLIENT_SECRET = 'big-secret-123'                       # Client secret
+$env:OIDC_CLIENT_ID = 'edfiadminapp-machine'                     # Client ID
+$env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'              # Client secret
 $env:OIDC_USERNAME = 'edfi-admin'                                # Test user username
 $env:OIDC_PASSWORD = '123'                                       # Test user password
 $env:OIDC_ADMIN_USER = 'admin'                                   # Keycloak admin user
@@ -88,18 +88,18 @@ powershell -File tests/api/run-bruno.ps1 -Env local -GrantType password
 
 ## Available Requests
 
-### App Collection
+### App Collection (`tests/api/collections/app/`)
 
 | Request | Description | Tag | Auth |
 |---------|-------------|-----|------|
 | `app-healthcheck` | GET `/healthcheck` — API health check | App | None |
 | `app-secret` | GET `/secret/{id}` — Secret retrieval | App | None |
 
-### Auth Collection
+### Auth Collection (`tests/api/collections/auth/`)
 
 | Request | Description | Tag | Auth |
 |---------|-------------|-----|------|
-| `auth-me-with-token` | GET `/auth/me` with Bearer token | Auth | Required |
+| `auth-me` | GET `/auth/me` with Bearer token | Auth | Required |
 | `auth-me-no-token` | GET `/auth/me` without token (negative test) | Auth | None |
 | `auth-my-teams` | GET `/auth/my-teams` — User's team list | Auth | Required |
 | `auth-cache` | GET `/auth/cache` — Cache status | Auth | Required |
@@ -112,8 +112,8 @@ powershell -File tests/api/run-bruno.ps1 -Env local -GrantType password
 Automatically called by the runner with `-BootstrapAuth`:
 
 1. **Acquires admin token** from Keycloak (`admin-cli` client)
-2. **Creates/updates client** `edfiadminapp-dev` with appropriate grants
-3. **Upserts test user** `edfi-admin` (password: `123`)
+2. **Creates/updates client** `edfiadminapp-machine` with service-account and `login:app` scope configuration
+3. **Upserts test users** for the browser login (`edfi-admin`) and machine client (`edfiadminapp-machine`)
 4. **Seeds test data** via API (teams, memberships)
 
 ### Idempotency
@@ -126,9 +126,9 @@ All bootstrap operations are idempotent:
 ### Fallback Behavior
 
 If Keycloak or API is unavailable:
-- Bootstrap continues with data seeding via API
+- Machine-user seeding still happens through direct database upsert
 - API seed failures are logged but do not stop the test run
-- SQL fallback is available via `-EnableSqlFallback` (not yet implemented)
+- `-EnableSqlFallback` keeps the SQL path explicit for future provider work
 
 ## Troubleshooting
 
@@ -159,7 +159,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 **Causes:**
 - Keycloak not running
 - Wrong `OIDC_CLIENT_SECRET`
-- Client `edfiadminapp-dev` not configured in Keycloak
+- Client `edfiadminapp-machine` not configured in Keycloak
 
 **Solutions:**
 1. Verify Keycloak is running: `docker ps | grep keycloak`

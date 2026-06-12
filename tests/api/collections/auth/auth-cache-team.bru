@@ -1,7 +1,7 @@
 meta {
-  name: auth-my-teams
+  name: auth-cache-team
   type: http
-  seq: 3
+  seq: 5
   tags: Auth
 }
 
@@ -10,12 +10,12 @@ headers {
 }
 
 get {
-  url: {{BASE_URL}}/auth/my-teams
+  url: {{BASE_URL}}/auth/cache/{{TEAM_ID}}
 }
 
 tests {
   test("endpoint responds", function() {
     const status = res.getStatus();
-    expect(status).to.be.a('number');
+    expect([200, 204, 404]).to.include(status);
   });
 }

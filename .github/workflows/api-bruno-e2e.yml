@@ -49,8 +49,8 @@ jobs:
           pwsh -File eng/bootstrap-keycloak-for-tests.ps1
         env:
           OIDC_ISSUER: https://localhost/auth/realms/edfi
-          OIDC_CLIENT_ID: edfiadminapp-dev
-          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'big-secret-123' }}
+          OIDC_CLIENT_ID: edfiadminapp-machine
+          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'edfi-machine-secret-456' }}
           OIDC_USERNAME: edfi-admin
           OIDC_PASSWORD: '123'
           OIDC_ADMIN_USER: admin
@@ -62,8 +62,8 @@ jobs:
           pwsh -File tests/api/run-bruno.ps1 -Env ci -Tag ${{ matrix.tag }}
         env:
           OIDC_ISSUER: https://localhost/auth/realms/edfi
-          OIDC_CLIENT_ID: edfiadminapp-dev
-          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'big-secret-123' }}
+          OIDC_CLIENT_ID: edfiadminapp-machine
+          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'edfi-machine-secret-456' }}
           OIDC_USERNAME: edfi-admin
           OIDC_PASSWORD: '123'
           OIDC_ADMIN_USER: admin

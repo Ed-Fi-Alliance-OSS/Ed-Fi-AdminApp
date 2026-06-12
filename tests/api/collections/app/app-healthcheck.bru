@@ -12,7 +12,6 @@ get {
 tests {
   test("endpoint responds", function() {
     const status = res.getStatus();
-    // Accept any response (connection errors return 0, API unavailable returns 502/503)
-    expect(status).to.be.a('number');
+    expect([200, 204]).to.include(status);
   });
 }

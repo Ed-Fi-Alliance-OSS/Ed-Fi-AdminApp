@@ -54,6 +54,46 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+$teamIdFile = Join-Path $PSScriptRoot '..\..\eng\team-id.txt'
+
+function Import-TeamIdFromFile {
+  if (Test-Path $teamIdFile) {
+    $teamId = (Get-Content $teamIdFile -Raw).Trim()
+    if ($teamId) {
+      $env:TEAM_ID = $teamId
+    }
+  }
+}
+
+function Invoke-SeedDataOnly {
+  Write-Host "Seeding test data..." -ForegroundColor Cyan
+  & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
+  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+
+  Import-TeamIdFromFile
+  if (-not $env:TEAM_ID) {
+    throw 'Unable to determine TEAM_ID after seeding.'
+  }
+
+  Write-Host "Data seeded successfully." -ForegroundColor Green
+}
+
+function Invoke-InsecureRestMethod {
+  param(
+    [Parameter(Mandatory = $true)]
+    [hashtable]$Parameters
+  )
+
+  if ($PSVersionTable.PSVersion.Major -ge 7) {
+    return Invoke-RestMethod @Parameters -SkipCertificateCheck
+  }
+
+  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+  return Invoke-RestMethod @Parameters
+}
+
+Import-TeamIdFromFile
+
 # Step 1: Start docker compose services if requested
 if ($StartServices) {
   Write-Host "Starting docker compose services..." -ForegroundColor Cyan
@@ -67,6 +107,7 @@ if ($BootstrapAuth) {
   Write-Host "Running Keycloak bootstrap..." -ForegroundColor Cyan
   & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  Import-TeamIdFromFile
   Write-Host "Keycloak bootstrap complete." -ForegroundColor Green
 }
 
@@ -75,10 +116,10 @@ if (-not $env:OIDC_ISSUER) {
   $env:OIDC_ISSUER = 'https://localhost/auth/realms/edfi'
 }
 if (-not $env:OIDC_CLIENT_ID) {
-  $env:OIDC_CLIENT_ID = 'edfiadminapp-dev'
+  $env:OIDC_CLIENT_ID = 'edfiadminapp-machine'
 }
 if (-not $env:OIDC_CLIENT_SECRET) {
-  $env:OIDC_CLIENT_SECRET = 'big-secret-123'
+  $env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'
 }
 if (-not $env:OIDC_USERNAME) {
   $env:OIDC_USERNAME = 'edfi-admin'
@@ -108,39 +149,67 @@ $body = if ($GrantType -eq 'client_credentials') {
 }
 
 try {
-  # Create WebRequest for certificate bypass on older PowerShell
-  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-  
-  $tokenResponse = Invoke-RestMethod -Method Post -Uri $tokenEndpoint -Body $body -ContentType 'application/x-www-form-urlencoded' -ErrorAction Stop
+  $tokenResponse = Invoke-InsecureRestMethod @{
+    Method = 'Post'
+    Uri = $tokenEndpoint
+    Body = $body
+    ContentType = 'application/x-www-form-urlencoded'
+    ErrorAction = 'Stop'
+  }
   $token = $tokenResponse.access_token
   if (-not $token) { throw 'No access token in response.' }
   $env:ACCESS_TOKEN = $token
-  Write-Host "Token acquired successfully." -ForegroundColor Green
+  Write-Host "Token acquired successfully with $GrantType grant." -ForegroundColor Green
 } catch {
   Write-Host "Failed to acquire token: $_" -ForegroundColor Red
   Write-Host "Proceeding without token. Tests may fail if authentication is required." -ForegroundColor Yellow
 }
 
-# Step 4: Seed data if requested
-if ($SeedData) {
-  Write-Host "Seeding test data..." -ForegroundColor Cyan
-  & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  Write-Host "Data seeded successfully." -ForegroundColor Green
+if ($SeedData -and -not $BootstrapAuth) {
+  Invoke-SeedDataOnly
+}
+
+if (-not $env:TEAM_ID -and ($Tag -eq 'Auth' -or $Request -eq 'auth-cache-team')) {
+  Invoke-SeedDataOnly
 }
 
 # Step 5: Build Bruno command with filters
 $workspacePath = Resolve-Path (Join-Path $PSScriptRoot '.')
-$bruArgs = @('run', '.', '--env', $Env, '--insecure')
+$targetPath = '.'
+$runRecursive = $true
 
 if ($Tag) {
-  $bruArgs += @('--tags', $Tag)
+  switch ($Tag) {
+    'App' { $targetPath = 'collections/app' }
+    'Auth' { $targetPath = 'collections/auth' }
+  }
 }
+
 if ($Collection) {
-  $bruArgs += @('--tags', $Collection)
+  $targetPath = $Collection
 }
+
 if ($Request) {
-  $bruArgs += @('--tags', $Request)
+  $requestFile = Get-ChildItem -Path $workspacePath.Path -Recurse -Filter "$Request.bru" | Select-Object -First 1
+  if (-not $requestFile) {
+    throw "Request '$Request' was not found under $workspacePath."
+  }
+
+  $targetPath = $requestFile.FullName.Substring($workspacePath.Path.Length + 1)
+  $runRecursive = $false
+}
+
+$bruArgs = @('run', $targetPath, '--env', $Env, '--insecure')
+if ($env:ACCESS_TOKEN) {
+  $bruArgs += '--env-var'
+  $bruArgs += "ACCESS_TOKEN=$env:ACCESS_TOKEN"
+}
+if ($env:TEAM_ID) {
+  $bruArgs += '--env-var'
+  $bruArgs += "TEAM_ID=$env:TEAM_ID"
+}
+if ($runRecursive) {
+  $bruArgs += '-r'
 }
 
 # Step 6: Run Bruno tests from the workspace directory

@@ -12,7 +12,6 @@ get {
 tests {
   test("endpoint responds without token", function() {
     const status = res.getStatus();
-    // Should return 401/403 when no token, or other error
-    expect(status).to.be.a('number');
+    expect([401, 403]).to.include(status);
   });
 }
