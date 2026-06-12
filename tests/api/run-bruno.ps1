@@ -131,7 +131,7 @@ if ($SeedData) {
 
 # Step 5: Build Bruno command with filters
 $workspacePath = Resolve-Path (Join-Path $PSScriptRoot '.')
-$bruArgs = @('run', '.', '--env', $Env)
+$bruArgs = @('run', '.', '--env', $Env, '--insecure')
 
 if ($Tag) {
   $bruArgs += @('--tags', $Tag)
