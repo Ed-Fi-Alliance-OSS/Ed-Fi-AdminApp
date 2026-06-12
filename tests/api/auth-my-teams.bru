@@ -1,0 +1,21 @@
+meta {
+  name: auth-my-teams
+  type: http
+  seq: 3
+  tags: Auth
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+get {
+  url: {{BASE_URL}}/auth/my-teams
+}
+
+tests {
+  test("endpoint responds", function() {
+    const status = res.getStatus();
+    expect(status).to.be.a('number');
+  });
+}

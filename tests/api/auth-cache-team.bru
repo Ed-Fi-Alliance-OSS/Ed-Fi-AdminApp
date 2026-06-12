@@ -1,0 +1,21 @@
+meta {
+  name: auth-cache-team
+  type: http
+  seq: 5
+  tags: Auth
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+get {
+  url: {{BASE_URL}}/auth/cache/{{TEAM_ID}}
+}
+
+tests {
+  test("endpoint responds", function() {
+    const status = res.getStatus();
+    expect(status).to.be.a('number');
+  });
+}

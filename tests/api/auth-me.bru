@@ -1,0 +1,21 @@
+meta {
+  name: auth-me-with-token
+  type: http
+  seq: 1
+  tags: Auth
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+get {
+  url: {{BASE_URL}}/auth/me
+}
+
+tests {
+  test("endpoint responds", function() {
+    const status = res.getStatus();
+    expect(status).to.be.a('number');
+  });
+}

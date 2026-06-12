@@ -1,0 +1,21 @@
+meta {
+  name: auth-cache
+  type: http
+  seq: 4
+  tags: Auth
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+get {
+  url: {{BASE_URL}}/auth/cache
+}
+
+tests {
+  test("endpoint responds", function() {
+    const status = res.getStatus();
+    expect(status).to.be.a('number');
+  });
+}
