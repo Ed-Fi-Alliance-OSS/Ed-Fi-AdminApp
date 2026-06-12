@@ -35,7 +35,7 @@ export class AppController {
         checks: {
           api: {
             status: 'healthy',
-            message: 'API is responding'
+            message: 'API is responding correctly'
           },
           database: {
             status: 'unhealthy',
