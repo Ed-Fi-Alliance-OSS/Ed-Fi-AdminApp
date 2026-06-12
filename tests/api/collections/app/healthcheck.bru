@@ -1,5 +1,5 @@
 meta {
-  name: app-healthcheck
+  name: app/healthcheck - OK (200)
   type: http
   seq: 1
   tags: App
@@ -10,8 +10,8 @@ get {
 }
 
 tests {
-  test("endpoint responds", function() {
+  test("app/healthcheck - OK (200)", function() {
     const status = res.getStatus();
-    expect([200, 204]).to.include(status);
+    expect(status).to.equal(200);
   });
 }

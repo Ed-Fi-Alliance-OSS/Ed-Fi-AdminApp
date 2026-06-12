@@ -1,5 +1,5 @@
 meta {
-  name: auth-cache-team
+  name: auth/cache/<team_id> - OK (200)
   type: http
   seq: 5
   tags: Auth
@@ -14,8 +14,8 @@ get {
 }
 
 tests {
-  test("endpoint responds", function() {
+  test("auth/cache/<team_id> - OK (200)", function() {
     const status = res.getStatus();
-    expect([200, 204, 404]).to.include(status);
+    expect(status).to.equal(200);
   });
 }

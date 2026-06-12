@@ -1,7 +1,7 @@
 meta {
-  name: auth-cache
+  name: auth/me - OK (200)
   type: http
-  seq: 4
+  seq: 1
   tags: Auth
 }
 
@@ -10,12 +10,12 @@ headers {
 }
 
 get {
-  url: {{BASE_URL}}/auth/cache
+  url: {{BASE_URL}}/auth/me
 }
 
 tests {
-  test("endpoint responds", function() {
+  test("auth/me - OK (200)", function() {
     const status = res.getStatus();
-    expect([200, 204]).to.include(status);
+    expect(status).to.equal(200);
   });
 }
