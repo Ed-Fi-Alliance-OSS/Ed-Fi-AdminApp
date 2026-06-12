@@ -1,0 +1,284 @@
+# API Bruno E2E Tests
+
+Bruno CLI-driven end-to-end test suite for Admin App API App/Auth endpoints with Keycloak OIDC authentication bootstrap and local runner automation.
+
+## Prerequisites
+
+- **Bruno CLI** installed and available in PATH
+- **PowerShell** (Core or Windows PowerShell 5.1+)
+- **Docker & Docker Compose** for running services locally
+- Local development environment set up via `compose/start-services.ps1`
+
+## Configuration
+
+### Environment Variables
+
+The runner script uses these environment variables (with defaults for local development):
+
+```powershell
+# Keycloak/OIDC Configuration
+$env:OIDC_ISSUER = 'https://localhost/auth/realms/edfi'          # Keycloak issuer URL
+$env:OIDC_CLIENT_ID = 'edfiadminapp-machine'                     # Client ID
+$env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'              # Client secret
+$env:OIDC_USERNAME = 'edfi-admin'                                # Test user username
+$env:OIDC_PASSWORD = '123'                                       # Test user password
+$env:OIDC_ADMIN_USER = 'admin'                                   # Keycloak admin user
+$env:OIDC_ADMIN_PASSWORD = 'admin'                               # Keycloak admin password
+
+# API Configuration
+$env:API_BASE_URL = 'https://localhost/adminapp-api/api'         # Admin App API base URL
+$env:BASE_URL = 'https://localhost/adminapp-api/api'             # Alternative API base (set by runner)
+$env:ACCESS_TOKEN = ''                                           # Bearer token (acquired by runner)
+$env:TEAM_ID = ''                                                # Test team ID (set by bootstrap)
+$env:TENANT = ''                                                 # Multi-tenant identifier (if needed)
+```
+
+### Environments
+
+Two Bruno environment configurations are provided:
+
+- **`environments/local.bru`** — Local development defaults
+- **`environments/ci.bru`** — CI/CD defaults (non-secret values)
+
+## Quick Start
+
+### Run All Tests
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local
+```
+
+### Run Tests with Services & Bootstrap
+
+Starts Docker Compose, bootstraps Keycloak, seeds test data, and runs all tests:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local -StartServices -BootstrapAuth -SeedData
+```
+
+### Run by Tag
+
+Run only App endpoints:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local -Tag App
+```
+
+Run only Auth endpoints:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local -Tag Auth
+```
+
+### Run Specific Request
+
+Run a single request by name:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local -Request auth-me
+```
+
+### Custom OIDC Grant Type
+
+Use password grant instead of client_credentials:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local -GrantType password
+```
+
+## Available Requests
+
+### App Collection (`tests/api/collections/app/`)
+
+| Request | Description | Tag | Auth |
+|---------|-------------|-----|------|
+| `app-healthcheck` | GET `/healthcheck` — API health check | App | None |
+| `app-secret` | GET `/secret/{id}` — Secret retrieval | App | None |
+
+### Auth Collection (`tests/api/collections/auth/`)
+
+| Request | Description | Tag | Auth |
+|---------|-------------|-----|------|
+| `auth-me` | GET `/auth/me` with Bearer token | Auth | Required |
+| `auth-me-no-token` | GET `/auth/me` without token (negative test) | Auth | None |
+| `auth-my-teams` | GET `/auth/my-teams` — User's team list | Auth | Required |
+| `auth-cache` | GET `/auth/cache` — Cache status | Auth | Required |
+| `auth-cache-team` | GET `/auth/cache/{teamId}` — Team cache status | Auth | Required |
+
+## Bootstrap & Seed Process
+
+### Keycloak Bootstrap (`eng/bootstrap-keycloak-for-tests.ps1`)
+
+Automatically called by the runner with `-BootstrapAuth`:
+
+1. **Acquires admin token** from Keycloak (`admin-cli` client)
+2. **Creates/updates client** `edfiadminapp-machine` with service-account and `login:app` scope configuration
+3. **Upserts test users** for the browser login (`edfi-admin`) and machine client (`edfiadminapp-machine`)
+4. **Seeds test data** via API (teams, memberships)
+
+### Idempotency
+
+All bootstrap operations are idempotent:
+- Existing clients and users are detected and skipped
+- Team creation checks for duplicates by name
+- Membership creation handles "already exists" errors gracefully
+
+### Fallback Behavior
+
+If Keycloak or API is unavailable:
+- Machine-user seeding still happens through direct database upsert
+- API seed failures are logged but do not stop the test run
+- `-EnableSqlFallback` keeps the SQL path explicit for future provider work
+
+## Troubleshooting
+
+### Services Not Running
+
+**Error:** `Failed to acquire token: Unable to connect to the remote server`
+
+**Solution:** Start services first:
+
+```powershell
+powershell -File compose/start-services.ps1 -Rebuild
+```
+
+### BASE_URL Not Resolved
+
+**Error:** `app-healthcheck` request fails with URL resolution error
+
+**Solution:** Ensure the environment file is loaded:
+
+```powershell
+powershell -File tests/api/run-bruno.ps1 -Env local
+```
+
+### Token Acquisition Fails
+
+**Error:** `Failed to acquire access token: ...`
+
+**Causes:**
+- Keycloak not running
+- Wrong `OIDC_CLIENT_SECRET`
+- Client `edfiadminapp-machine` not configured in Keycloak
+
+**Solutions:**
+1. Verify Keycloak is running: `docker ps | grep keycloak`
+2. Run bootstrap: `powershell -File tests/api/run-bruno.ps1 -BootstrapAuth`
+3. Check Keycloak admin console at `https://localhost/auth/`
+
+### Tests Failing with 502 Bad Gateway
+
+**Cause:** API is not running or misconfigured
+
+**Solution:**
+```powershell
+# Rebuild and restart services
+powershell -File compose/start-services.ps1 -Rebuild
+
+# Wait a few seconds for services to be ready
+Start-Sleep -Seconds 10
+
+# Run tests
+powershell -File tests/api/run-bruno.ps1 -Env local
+```
+
+### Access Token Invalid or Expired
+
+**Error:** Tests fail with 401/403
+
+**Solution:** Token is automatically acquired fresh for each run. If persisting, clear and retry:
+
+```powershell
+# Clear cached token
+$env:ACCESS_TOKEN = ''
+
+# Run again (acquires new token)
+powershell -File tests/api/run-bruno.ps1 -Env local
+```
+
+## Runner Script Options
+
+```powershell
+-Env <string>
+    Environment: 'local' or 'ci'. Default: 'local'
+
+-StartServices
+    Start Docker Compose services before running tests.
+
+-BootstrapAuth
+    Bootstrap Keycloak: create client, user, acquire token.
+
+-SeedData
+    Seed test data (teams, memberships) via API after bootstrap.
+
+-GrantType <string>
+    OAuth grant: 'client_credentials' or 'password'. Default: 'client_credentials'
+
+-Tag <string>
+    Filter by tag: 'App' or 'Auth'. Default: all requests
+
+-Request <string>
+    Run single request by name (e.g., 'auth-me')
+
+-Collection <string>
+    Run requests in a collection/folder
+```
+
+## Development
+
+### Adding New Tests
+
+1. Create a new `.bru` file in `tests/api/`:
+   ```
+   meta {
+     name: unique-name
+     type: http
+     seq: <number>
+     tags: App   # or Auth
+   }
+   
+   <METHOD> {
+     url: {{BASE_URL}}/<endpoint>
+   }
+   
+   tests {
+     test("description", function() { ... });
+   }
+   ```
+
+2. Run the test:
+   ```powershell
+   powershell -File tests/api/run-bruno.ps1 -Env local -Request unique-name
+   ```
+
+### Modifying Bootstrap Logic
+
+Edit `eng/bootstrap-keycloak-for-tests.ps1`:
+- Keycloak client configuration (step 2)
+- Test user creation (step 3)
+- API team/membership seeding (step 4)
+
+### Environment Variables
+
+Add new variables to:
+- `tests/api/environments/local.bru` (local defaults)
+- `tests/api/environments/ci.bru` (CI defaults)
+- Runner script initialization (for computed values like `ACCESS_TOKEN`)
+
+## Integration with CI/CD
+
+See `.github/workflows/api-bruno-e2e.yml` for GitHub Actions workflow that:
+1. Checks out code
+2. Starts services with Docker Compose
+3. Runs bootstrap and seed
+4. Executes all tests by tag
+5. Publishes test results
+
+The workflow uses the same `run-bruno.ps1` script with `--env ci` flag.
+
+## References
+
+- **Bruno CLI Docs:** https://docs.usebruno.com
+- **Admin App API:** `/adminapp-api/api` (local URL)
+- **Keycloak Admin:** `https://localhost/auth/` (admin / admin)
+- **Architecture:** See `docs/design/2026-06-12-bruno-api-e2e-design.md`
