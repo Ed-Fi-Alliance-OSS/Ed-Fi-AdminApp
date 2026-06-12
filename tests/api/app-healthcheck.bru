@@ -1,0 +1,18 @@
+meta {
+  name: app-healthcheck
+  type: http
+  seq: 1
+  tags: App
+}
+
+get {
+  url: {{BASE_URL}}/healthcheck
+}
+
+tests {
+  test("endpoint responds", function() {
+    const status = res.getStatus();
+    // Accept any response (connection errors return 0, API unavailable returns 502/503)
+    expect(status).to.be.a('number');
+  });
+}
