@@ -3,7 +3,7 @@ import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 // Loads the express-session types so the SessionData augmentation below resolves
-import 'express-session';
+import type {} from 'express-session';
 import { BaseClient, Issuer, Strategy, TokenSet, UserinfoResponse } from 'openid-client';
 import passport from 'passport';
 import { Repository } from 'typeorm';
@@ -39,7 +39,13 @@ export class RegisterOidcIdpsService implements OnModuleInit {
       Logger.error(`Error loading OIDC provider configurations: ${err}`);
       return;
     }
-    await Promise.all(oidcConfigs.map((oidcConfig) => this.registerIdp(oidcConfig)));
+    await Promise.all(
+      oidcConfigs.map((oidcConfig) =>
+        this.registerIdp(oidcConfig).catch((err) =>
+          Logger.error(`Unexpected error registering OIDC provider ${oidcConfig.issuer}: ${err}`)
+        )
+      )
+    );
   }
 
   /**
