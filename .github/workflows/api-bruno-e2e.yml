@@ -1,0 +1,86 @@
+name: API Bruno E2E
+
+on:
+  workflow_dispatch:
+    inputs:
+      environment:
+        description: 'Environment to test against'
+        required: true
+        default: 'ci'
+        type: choice
+        options:
+          - ci
+          - local
+
+jobs:
+  bruno-e2e:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      fail-fast: false
+      matrix:
+        tag: [App, Auth]
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Set up PowerShell Core
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y powershell
+      
+      - name: Install Bruno CLI
+        run: |
+          npm install -g @usebruno/cli
+      
+      - name: Start Docker Compose services
+        run: |
+          cd compose
+          docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --env-file ".env" --profile postgresql --profile adminapp up -d
+      
+      - name: Wait for services to be ready
+        run: |
+          sleep 30
+          curl -k https://localhost/health || echo "Services starting..."
+      
+      - name: Bootstrap Keycloak and seed test data
+        run: |
+          pwsh -File eng/bootstrap-keycloak-for-tests.ps1
+        env:
+          OIDC_ISSUER: https://localhost/auth/realms/edfi
+          OIDC_CLIENT_ID: edfiadminapp-dev
+          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'big-secret-123' }}
+          OIDC_USERNAME: edfi-admin
+          OIDC_PASSWORD: '123'
+          OIDC_ADMIN_USER: admin
+          OIDC_ADMIN_PASSWORD: admin
+          API_BASE_URL: https://localhost/adminapp-api/api
+      
+      - name: Run Bruno E2E tests by tag
+        run: |
+          pwsh -File tests/api/run-bruno.ps1 -Env ci -Tag ${{ matrix.tag }}
+        env:
+          OIDC_ISSUER: https://localhost/auth/realms/edfi
+          OIDC_CLIENT_ID: edfiadminapp-dev
+          OIDC_CLIENT_SECRET: ${{ secrets.OIDC_CLIENT_SECRET || 'big-secret-123' }}
+          OIDC_USERNAME: edfi-admin
+          OIDC_PASSWORD: '123'
+          OIDC_ADMIN_USER: admin
+          OIDC_ADMIN_PASSWORD: admin
+          API_BASE_URL: https://localhost/adminapp-api/api
+          NODE_EXTRA_CA_CERTS: /etc/ssl/certs/ca-certificates.crt
+      
+      - name: Publish test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: bruno-test-results-${{ matrix.tag }}
+          path: tests/api/test-results/
+          retention-days: 30
+      
+      - name: Stop services
+        if: always()
+        run: |
+          cd compose
+          docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml down
