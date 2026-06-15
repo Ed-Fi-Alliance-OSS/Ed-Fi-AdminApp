@@ -365,12 +365,12 @@ try {
     Write-Check INFO "Keycloak not responding at :8080" "Start it via idp-keycloak-start.ps1"
 }
 
-# npm cache override
-$npmCache = [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")
-if ($npmCache -and (Test-Path $npmCache)) {
-    Write-Check PASS "NPM_CONFIG_CACHE set" "$npmCache"
+# npm cache folder (05-deploy-api sets NPM_CONFIG_CACHE on the App Pool, not machine-wide)
+$npmCache = "C:\npm-cache"
+if (Test-Path $npmCache) {
+    Write-Check PASS "npm cache folder present" "$npmCache"
 } else {
-    Write-Check INFO "NPM_CONFIG_CACHE not set" "03-prereqs-node.ps1 will set to C:\npm-cache"
+    Write-Check INFO "npm cache folder not present" "05-deploy-api.ps1 will create it and set NPM_CONFIG_CACHE on the App Pool"
 }
 
 # Build artifacts present? Nx outputs to dist\packages\<project>\, not the repo root.
@@ -488,12 +488,6 @@ foreach ($pc in $portChecks) {
         $procName = (Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue).ProcessName
         Write-Check RISK "Port $($pc.Port) ($($pc.Role)) already in use ($procName)" "05/06-deploy will fail to bind the '$($pc.Site)' site -- free the port first"
     }
-}
-
-# NPM_CONFIG_CACHE already set to something other than what 03-prereqs-node uses?
-$existingNpmCache = [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")
-if ($existingNpmCache -and $existingNpmCache -ne 'C:\npm-cache') {
-    Write-Check RISK "NPM_CONFIG_CACHE = $existingNpmCache" "03-prereqs-node will overwrite the Machine value to C:\npm-cache"
 }
 
 # iisnode installed but at a version other than the one 01-prereqs-iis expects?

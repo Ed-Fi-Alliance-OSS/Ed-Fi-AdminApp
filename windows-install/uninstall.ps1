@@ -28,9 +28,9 @@ Steps (each best-effort, continues past individual failures):
      their volumes are removed. Skipped when docker is absent or the
      edfiadminapp-yopass container was never created. Not gated by
      -KeepDatabase.
-  3. Filesystem + env teardown:
-     - Delete C:\npm-cache (unless -KeepNpmCache).
-     - Unset Machine env var NPM_CONFIG_CACHE.
+  3. Filesystem teardown:
+     - Delete C:\npm-cache (unless -KeepNpmCache). The NPM_CONFIG_CACHE override
+       is set on the App Pool by 05-deploy-api and is removed with the pool.
   4. Detect Keycloak leftovers (C:\keycloak, JAVA_HOME, a running Keycloak
      process) and, if any are found, suggest running uninstall-keycloak.ps1.
      Informational only -- this step does not stop or delete anything.
@@ -150,7 +150,6 @@ if (-not $KeepDatabase)         {
 }
 Write-Host "  - Docker Yopass stack (edfiadminapp-yopass + memcached) and its volumes (if present)"
 if (-not $KeepNpmCache)         { Write-Host "  - $NpmCachePath (npm cache dir)" }
-Write-Host "  - Machine env var NPM_CONFIG_CACHE"
 if ($RemoveSummary)             { Write-Host "  - $SummaryPath" }
 Write-Host ""
 Write-Host "Leaves alone: Node.js, JDK, SQL Server, IIS, URL Rewrite, iisnode, source repo." -ForegroundColor DarkGray
@@ -389,9 +388,11 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # ========================================================
-Write-Section "3. Filesystem + env vars"
+Write-Section "3. Filesystem"
 # ========================================================
-# npm cache
+# npm cache. The NPM_CONFIG_CACHE override is set on the App Pool by
+# 05-deploy-api and is removed with the App Pool above; nothing machine-wide
+# to unset here.
 if ($KeepNpmCache) {
     Record "Delete $NpmCachePath" "SKIP" "-KeepNpmCache"
 } elseif (Test-Path $NpmCachePath) {
@@ -403,21 +404,6 @@ if ($KeepNpmCache) {
     }
 } else {
     Record "Delete $NpmCachePath" "SKIP" "Not present"
-}
-
-# Env vars
-foreach ($var in @('NPM_CONFIG_CACHE')) {
-    try {
-        $cur = [Environment]::GetEnvironmentVariable($var, "Machine")
-        if ($cur) {
-            [Environment]::SetEnvironmentVariable($var, $null, "Machine")
-            Record "Unset Machine env $var" "OK" "Was: $cur"
-        } else {
-            Record "Unset Machine env $var" "SKIP" "Not set"
-        }
-    } catch {
-        Record "Unset Machine env $var" "FAIL" $_.Exception.Message
-    }
 }
 
 # Optional: install-summary.txt
@@ -473,6 +459,5 @@ if ($fail -gt 0) {
     exit 1
 } else {
     Write-Host "Uninstall complete." -ForegroundColor Green
-    Write-Host "Open a fresh PowerShell window to pick up the cleared env vars before re-installing." -ForegroundColor Yellow
     exit 0
 }

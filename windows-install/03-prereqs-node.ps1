@@ -1,8 +1,8 @@
 ﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-Installs/verifies Node.js and sets up the npm cache override the Admin App needs
-under iisnode. Remediates a too-old Node via nvm-windows when necessary.
+Installs/verifies Node.js, remediating a too-old version via nvm-windows when
+necessary.
 
 .DESCRIPTION
 This is the only runtime prerequisite the generic Admin App install needs. Java
@@ -15,18 +15,14 @@ Order of operations (all idempotent):
      The required major is auto-detected from the repo's package.json
      engines.node when available.
   2. If Node is missing, install Node.js LTS via winget.
-  3. Create the npm cache folder and set the Machine env var NPM_CONFIG_CACHE so
-     npm under iisnode doesn't write to the system profile. The App Pool
-     permission grant is deferred to 05-deploy-api.ps1 (the pool doesn't exist
-     yet).
+
+The npm cache override the App Pool needs under iisnode is configured by
+05-deploy-api.ps1 (scoped to the App Pool), not here.
 
 .PARAMETER SourcePath
 The cloned AdminApp repo. When package.json exists there, engines.node is parsed
 and used as the floor + nvm install target. Defaults to the parent of the script
 directory (this script lives in <repo>\windows-install\).
-
-.PARAMETER NpmCachePath
-Folder to use for npm cache. Default: C:\npm-cache.
 
 .PARAMETER MinNodeMajor
 Floor enforced when package.json detection fails. Default: 22.
@@ -47,7 +43,6 @@ non-interactive runs (CI, install-all -AutoUpgradeNode).
 
 param(
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
-    [string]$NpmCachePath = "C:\npm-cache",
     [int]$MinNodeMajor = 22,
     [string]$NodeLtsVersion = "22",
     [switch]$AssumeYes
@@ -302,16 +297,6 @@ if ($node) {
     Write-Host "Node installed."
 }
 
-# npm cache override -- create the folder and set the machine env var here.
-# The App Pool permission grant is deferred to 05-deploy-api.ps1 because the
-# App Pool itself doesn't exist yet.
-if (-not (Test-Path $NpmCachePath)) {
-    New-Item -ItemType Directory -Path $NpmCachePath -Force | Out-Null
-    Write-Host "Created $NpmCachePath"
-}
-[Environment]::SetEnvironmentVariable("NPM_CONFIG_CACHE", $NpmCachePath, "Machine")
-Write-Host "NPM_CONFIG_CACHE = $NpmCachePath (Machine env var)"
-
 Write-Host ""
 Write-Host "SUCCESS: Node runtime prepared." -ForegroundColor Green
-Write-Host "Open a fresh PowerShell window to pick up the new PATH / env vars."
+Write-Host "Open a fresh PowerShell window to pick up the new PATH."

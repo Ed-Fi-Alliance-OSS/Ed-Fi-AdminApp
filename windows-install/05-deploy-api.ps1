@@ -69,6 +69,9 @@ param(
     [string]$AppPoolName = "EdFi-AdminApp-API",
     # The API deploys as a standalone HTTP site named $AppPoolName on this port.
     [int]$StandalonePort = 3333,
+    # npm cache folder, granted to the App Pool identity and set as the pool's
+    # NPM_CONFIG_CACHE so npm under iisnode writes there (not the unwritable profile).
+    [string]$NpmCachePath = "C:\npm-cache",
 
     # Which database engine production.js should be configured for.
     # 'mssql' -> requires -SaPassword.
@@ -125,14 +128,6 @@ try {
     Import-Module WebAdministration -ErrorAction Stop
 } catch {
     throw "IIS / the WebAdministration module isn't available. Ensure IIS is installed (setup-vm-prereqs.ps1) and run 01-prereqs-iis.ps1 before deploying."
-}
-
-# Precondition: the npm cache override must be set (03-prereqs-node.ps1 sets it).
-# Without it, npm under the locked-down App Pool identity tries to write its cache
-# to the user profile (which that account can't write) and the app pool fails to
-# start under iisnode. Fail early instead of leaving a cryptic runtime error.
-if (-not [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")) {
-    throw "NPM_CONFIG_CACHE (Machine) is not set. Run 03-prereqs-node.ps1 first so npm under iisnode has a writable cache."
 }
 
 # Engine-specific required arg validation. Each engine needs its own password
@@ -321,15 +316,18 @@ $iisnodeDir = "$DestPath\iisnode"
 New-Item -ItemType Directory -Path $iisnodeDir -Force | Out-Null
 & icacls $iisnodeDir /grant "${appPoolIdentity}:(OI)(CI)F" /T | Out-Null
 
-# npm cache override -- the folder was created in 03a, but the App Pool user
-# didn't exist yet. Grant access now so npm under iisnode can write to it.
-$npmCache = [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")
-if ($npmCache -and (Test-Path $npmCache)) {
-    & icacls $npmCache /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
-    Write-Host "Permissions granted to $appPoolIdentity (app folder + npm cache)."
-} else {
-    Write-Host "Permissions granted to $appPoolIdentity (app folder)."
+# npm cache override, scoped to THIS App Pool (not machine-wide, so the user's
+# other npm usage is unaffected). Create the cache folder, grant the App Pool
+# identity Modify, and set NPM_CONFIG_CACHE on the pool's environment so npm
+# under iisnode writes there instead of the (unwritable) profile cache.
+if (-not (Test-Path $NpmCachePath)) {
+    New-Item -ItemType Directory -Path $NpmCachePath -Force | Out-Null
 }
+& icacls $NpmCachePath /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
+$envVarsFilter = "system.applicationHost/applicationPools/add[@name='$AppPoolName']/environmentVariables"
+Remove-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -AtElement @{ name = 'NPM_CONFIG_CACHE' } -ErrorAction SilentlyContinue
+Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -Value @{ name = 'NPM_CONFIG_CACHE'; value = $NpmCachePath }
+Write-Host "Permissions granted to $appPoolIdentity; NPM_CONFIG_CACHE set on App Pool -> $NpmCachePath."
 
 # Trigger startup only if something actually changed
 if ($webConfigChanged -or $prodJsChanged) {
