@@ -7,19 +7,13 @@ engines installed; removes only the AdminApp's own state.
 .DESCRIPTION
 Steps (each best-effort, continues past individual failures):
 
-  1. IIS teardown (surgical by default — see -RemoveParentEdFiSite):
+  1. IIS teardown:
+     - Remove the standalone sites 'EdFi-AdminApp-API' and 'EdFi-AdminApp-FE'.
      - Stop+remove App Pool 'EdFi-AdminApp-API'.
-     - Remove sub-applications /adminapp and /adminapp-api from the parent site.
-     - Delete C:\inetpub\Ed-Fi\adminapp and \adminapp-api only.
-     - Remove standalone site 'EdFi-AdminApp-FE' if present.
-     With -RemoveParentEdFiSite, also:
-     - Remove the parent site 'Ed-Fi' and its HTTPS:443 binding.
-     - Remove SSL binding 0.0.0.0:443.
-     - Delete the entire C:\inetpub\Ed-Fi tree.
-     - Remove the 'Ed-Fi Dev Cert' from LocalMachine\My and \Root.
-  2. Cert teardown: only when -RemoveParentEdFiSite is set (otherwise the cert
-     may still be bound by sibling sites under the same parent).
-  3. Database teardown (both engines, best-effort per engine):
+     - Scrub a leftover global iisnode-all handler from applicationHost.config.
+     - Delete C:\inetpub\Ed-Fi\adminapp and \adminapp-api (and the parent dir
+       if it ends up empty).
+  2. Database teardown (both engines, best-effort per engine):
      - MSSQL: DROP DATABASE [sbaa] using SQL Auth (sa + -SaPassword) if
        provided, else Windows Auth. Skipped when MSSQLSERVER isn't running.
        Leaves Mixed Mode / sa / TCP:1433 alone (instance-wide settings other
@@ -29,18 +23,18 @@ Steps (each best-effort, continues past individual failures):
        edfiadminapp-postgres container exists. Without the -v, the volume
        persists with the OLD edfiadminapp password and TypeORM-created
        tables, which causes auth/permission failures on the next install.
-  3b. Yopass docker teardown (best-effort): `docker compose -f
+  2b. Yopass docker teardown (best-effort): `docker compose -f
      docker-compose.yopass.yml down -v` so the Yopass + memcached containers and
      their volumes are removed. Skipped when docker is absent or the
      edfiadminapp-yopass container was never created. Not gated by
      -KeepDatabase.
-  4. Filesystem + env teardown:
+  3. Filesystem + env teardown:
      - Delete C:\npm-cache (unless -KeepNpmCache).
      - Unset Machine env var NPM_CONFIG_CACHE.
-  5. Detect Keycloak leftovers (C:\keycloak, JAVA_HOME, a running Keycloak
+  4. Detect Keycloak leftovers (C:\keycloak, JAVA_HOME, a running Keycloak
      process) and, if any are found, suggest running uninstall-keycloak.ps1.
      Informational only -- this step does not stop or delete anything.
-  6. Print a summary of what succeeded and what didn't.
+  5. Print a summary of what succeeded and what didn't.
 
 The local Keycloak IdP (process, C:\keycloak, JAVA_HOME) is NOT touched here.
 Use uninstall-keycloak.ps1 for that.
@@ -71,36 +65,20 @@ Default: C:\npm-cache.
 .PARAMETER AppPoolName
 Default: EdFi-AdminApp-API.
 
-.PARAMETER ParentSiteName
-The IIS site under which AdminApp sub-apps were deployed. Default: Ed-Fi.
-
 .PARAMETER StandaloneFeSiteName
-Standalone FE site name (only present if 05 was run with -ParentSiteName "").
-Default: EdFi-AdminApp-FE.
-
-.PARAMETER CertFriendlyName
-Default: Ed-Fi Dev Cert.
+Name of the FE site created by 06-deploy-fe.ps1. Default: EdFi-AdminApp-FE.
+(The API site name is the App Pool name, $AppPoolName.)
 
 .PARAMETER InetpubPath
-Root of deployed files. Default: C:\inetpub\Ed-Fi. With surgical (default)
-removal, only $InetpubPath\adminapp and $InetpubPath\adminapp-api are deleted.
-
-.PARAMETER RemoveParentEdFiSite
-Switch — destructively remove the entire parent 'Ed-Fi' IIS site, its :443
-SSL binding, the self-signed 'Ed-Fi Dev Cert', and the full $InetpubPath
-directory tree. Use only when this AdminApp install was the sole occupant of
-the 'Ed-Fi' site (e.g., a fresh dev VM). Without this flag, the parent site
-and any sibling sub-applications (WebApi, AdminApi, SwaggerUI, etc.) are left
-intact.
+Root of deployed files. Default: C:\inetpub\Ed-Fi. Only $InetpubPath\adminapp
+and $InetpubPath\adminapp-api are deleted (plus the parent dir if it ends up
+empty).
 
 .PARAMETER KeepDatabase
 Switch — skip the DROP DATABASE step.
 
 .PARAMETER KeepNpmCache
 Switch — leave C:\npm-cache in place.
-
-.PARAMETER KeepCert
-Switch — leave the self-signed cert in the cert stores.
 
 .PARAMETER RemoveSummary
 Switch — also delete the install-summary.txt next to the repo (the file
@@ -121,9 +99,7 @@ param(
     [string]$KeycloakInstallPath = "C:\keycloak",
     [string]$NpmCachePath = "C:\npm-cache",
     [string]$AppPoolName = "EdFi-AdminApp-API",
-    [string]$ParentSiteName = "Ed-Fi",
     [string]$StandaloneFeSiteName = "EdFi-AdminApp-FE",
-    [string]$CertFriendlyName = "Ed-Fi Dev Cert",
     [string]$InetpubPath = "C:\inetpub\Ed-Fi",
     # Summary is written by install-all.ps1 to the parent of the repo dir
     # (i.e. grandparent of windows-install\). Auto-resolve the same way.
@@ -131,9 +107,7 @@ param(
 
     [switch]$KeepDatabase,
     [switch]$KeepNpmCache,
-    [switch]$KeepCert,
     [switch]$RemoveSummary,
-    [switch]$RemoveParentEdFiSite,
     [switch]$Force
 )
 
@@ -167,20 +141,9 @@ function Write-Section {
 Write-Host ""
 Write-Host "Ed-Fi Admin App -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
+Write-Host "  - Standalone IIS sites '$AppPoolName' (API) and '$StandaloneFeSiteName' (FE)"
 Write-Host "  - IIS App Pool '$AppPoolName'"
-Write-Host "  - IIS sub-applications '/adminapp' and '/adminapp-api' under site '$ParentSiteName'"
-Write-Host "  - Standalone site '$StandaloneFeSiteName' (if present)"
-if ($RemoveParentEdFiSite) {
-    Write-Host "  - Parent IIS site '$ParentSiteName' + SSL binding 0.0.0.0:443  (-RemoveParentEdFiSite)" -ForegroundColor Red
-    Write-Host "  - Full directory tree $InetpubPath  (-RemoveParentEdFiSite)" -ForegroundColor Red
-    if (-not $KeepCert) {
-        Write-Host "  - Self-signed cert '$CertFriendlyName' from LocalMachine\My and \Root  (-RemoveParentEdFiSite)" -ForegroundColor Red
-    }
-} else {
-    Write-Host "  - Deployed files under $InetpubPath\adminapp and $InetpubPath\adminapp-api ONLY"
-    Write-Host "    (parent '$ParentSiteName' site, its sibling sub-apps, the :443 binding, and"
-    Write-Host "     '$CertFriendlyName' are LEFT INTACT. Pass -RemoveParentEdFiSite to wipe them.)" -ForegroundColor DarkGray
-}
+Write-Host "  - Deployed files under $InetpubPath\adminapp and $InetpubPath\adminapp-api"
 if (-not $KeepDatabase)         {
     Write-Host "  - SQL database [$DatabaseName] (if MSSQLSERVER is running)"
     Write-Host "  - Docker postgres container + volumes (if edfiadminapp-postgres exists)"
@@ -213,18 +176,21 @@ try {
 }
 
 if ($iisAvailable) {
-    # Remove sub-applications under the parent site (so the site can be removed cleanly)
-    foreach ($alias in @('adminapp-api', 'adminapp')) {
+    # Remove the two standalone AdminApp sites (API named after the App Pool, FE).
+    foreach ($siteName in @($AppPoolName, $StandaloneFeSiteName)) {
         try {
-            $app = Get-WebApplication -Site $ParentSiteName -Name $alias -ErrorAction SilentlyContinue
-            if ($app) {
-                Remove-WebApplication -Site $ParentSiteName -Name $alias -ErrorAction Stop
-                Record "Remove IIS application '/$alias' under '$ParentSiteName'" "OK"
+            $site = Get-Website -Name $siteName -ErrorAction SilentlyContinue
+            if ($site) {
+                if ($site.State -eq 'Started') {
+                    Stop-Website -Name $siteName -ErrorAction SilentlyContinue
+                }
+                Remove-Website -Name $siteName -ErrorAction Stop
+                Record "Remove IIS site '$siteName'" "OK"
             } else {
-                Record "IIS application '/$alias' under '$ParentSiteName'" "SKIP" "Not present"
+                Record "IIS site '$siteName'" "SKIP" "Not present"
             }
         } catch {
-            Record "Remove IIS application '/$alias'" "FAIL" $_.Exception.Message
+            Record "Remove IIS site '$siteName'" "FAIL" $_.Exception.Message
         }
     }
 
@@ -242,63 +208,6 @@ if ($iisAvailable) {
         }
     } catch {
         Record "Remove App Pool '$AppPoolName'" "FAIL" $_.Exception.Message
-    }
-
-    # Remove parent site (Ed-Fi). Destructive — takes every other sub-application
-    # under '$ParentSiteName' (WebApi, AdminApi, SwaggerUI, etc.) down with it.
-    # Gated behind -RemoveParentEdFiSite so shared-site installs are safe by default.
-    if ($RemoveParentEdFiSite) {
-        try {
-            $site = Get-Website -Name $ParentSiteName -ErrorAction SilentlyContinue
-            if ($site) {
-                if ($site.State -eq 'Started') {
-                    Stop-Website -Name $ParentSiteName -ErrorAction SilentlyContinue
-                }
-                Remove-Website -Name $ParentSiteName -ErrorAction Stop
-                Record "Remove IIS site '$ParentSiteName'" "OK" "-RemoveParentEdFiSite"
-            } else {
-                Record "IIS site '$ParentSiteName'" "SKIP" "Not present"
-            }
-        } catch {
-            Record "Remove IIS site '$ParentSiteName'" "FAIL" $_.Exception.Message
-        }
-    } else {
-        Record "Remove IIS site '$ParentSiteName'" "SKIP" "Surgical mode -- sibling apps preserved (pass -RemoveParentEdFiSite to wipe)"
-    }
-
-    # Remove standalone FE site (only present if 05 was run with -ParentSiteName "")
-    try {
-        $feSite = Get-Website -Name $StandaloneFeSiteName -ErrorAction SilentlyContinue
-        if ($feSite) {
-            if ($feSite.State -eq 'Started') {
-                Stop-Website -Name $StandaloneFeSiteName -ErrorAction SilentlyContinue
-            }
-            Remove-Website -Name $StandaloneFeSiteName -ErrorAction Stop
-            Record "Remove IIS site '$StandaloneFeSiteName'" "OK"
-        } else {
-            Record "IIS site '$StandaloneFeSiteName'" "SKIP" "Not present (standalone FE wasn't used)"
-        }
-    } catch {
-        Record "Remove IIS site '$StandaloneFeSiteName'" "FAIL" $_.Exception.Message
-    }
-
-    # SSL binding 0.0.0.0:443 (added by 01-prereqs-iis.ps1's AddSslCertificate call).
-    # The binding may still be referenced by surviving sibling sites under the
-    # same parent, so it's only removed when -RemoveParentEdFiSite is set.
-    if ($RemoveParentEdFiSite) {
-        try {
-            $sslBinding = Get-Item "IIS:\SslBindings\0.0.0.0!443" -ErrorAction SilentlyContinue
-            if ($sslBinding) {
-                Remove-Item "IIS:\SslBindings\0.0.0.0!443" -Force -ErrorAction Stop
-                Record "Remove SSL binding 0.0.0.0:443" "OK" "-RemoveParentEdFiSite"
-            } else {
-                Record "SSL binding 0.0.0.0:443" "SKIP" "Not present"
-            }
-        } catch {
-            Record "Remove SSL binding" "FAIL" $_.Exception.Message
-        }
-    } else {
-        Record "Remove SSL binding 0.0.0.0:443" "SKIP" "Surgical mode -- siblings may still need it"
     }
 }
 
@@ -328,81 +237,37 @@ try {
     Record "Scrub global iisnode-all handler" "FAIL" $_.Exception.Message
 }
 
-# Deployed file trees under $InetpubPath. In surgical mode (default) we only
-# delete the two subdirs the install created; the parent dir and any sibling
-# subdirs (WebApi, AdminApi, SwaggerUI, ...) are left in place.
-if ($RemoveParentEdFiSite) {
+# Deployed file trees. Delete the two subdirs the install created; if the parent
+# dir ends up empty, remove it too (but don't fail if it isn't empty).
+foreach ($sub in @('adminapp-api', 'adminapp')) {
+    $subPath = Join-Path $InetpubPath $sub
     try {
-        if (Test-Path $InetpubPath) {
-            Remove-Item -Path $InetpubPath -Recurse -Force -ErrorAction Stop
-            Record "Delete $InetpubPath" "OK" "-RemoveParentEdFiSite (full tree)"
+        if (Test-Path $subPath) {
+            Remove-Item -Path $subPath -Recurse -Force -ErrorAction Stop
+            Record "Delete $subPath" "OK"
         } else {
-            Record "Delete $InetpubPath" "SKIP" "Not present"
+            Record "Delete $subPath" "SKIP" "Not present"
         }
     } catch {
-        Record "Delete $InetpubPath" "FAIL" $_.Exception.Message
+        Record "Delete $subPath" "FAIL" $_.Exception.Message
     }
-} else {
-    foreach ($sub in @('adminapp-api', 'adminapp')) {
-        $subPath = Join-Path $InetpubPath $sub
+}
+if (Test-Path $InetpubPath) {
+    $remaining = @(Get-ChildItem -LiteralPath $InetpubPath -Force -ErrorAction SilentlyContinue)
+    if ($remaining.Count -eq 0) {
         try {
-            if (Test-Path $subPath) {
-                Remove-Item -Path $subPath -Recurse -Force -ErrorAction Stop
-                Record "Delete $subPath" "OK"
-            } else {
-                Record "Delete $subPath" "SKIP" "Not present"
-            }
+            Remove-Item -Path $InetpubPath -Force -ErrorAction Stop
+            Record "Delete empty $InetpubPath" "OK"
         } catch {
-            Record "Delete $subPath" "FAIL" $_.Exception.Message
+            Record "Delete empty $InetpubPath" "WARN" $_.Exception.Message
         }
-    }
-    # If the parent directory ended up empty (no siblings present), clean it up
-    # too -- but don't fail if it isn't empty.
-    if (Test-Path $InetpubPath) {
-        $remaining = @(Get-ChildItem -LiteralPath $InetpubPath -Force -ErrorAction SilentlyContinue)
-        if ($remaining.Count -eq 0) {
-            try {
-                Remove-Item -Path $InetpubPath -Force -ErrorAction Stop
-                Record "Delete empty $InetpubPath" "OK"
-            } catch {
-                Record "Delete empty $InetpubPath" "WARN" $_.Exception.Message
-            }
-        } else {
-            Record "Delete $InetpubPath" "SKIP" "Surgical mode -- $($remaining.Count) sibling entry(ies) remain"
-        }
+    } else {
+        Record "Delete $InetpubPath" "SKIP" "$($remaining.Count) other entry(ies) remain"
     }
 }
 
 # ========================================================
-Write-Section "2. Self-signed cert"
-# ========================================================
-# The cert is bound to 0.0.0.0:443 and may still be referenced by surviving
-# sibling sites under the parent. In surgical mode (default) we keep it.
-if ($KeepCert) {
-    Record "Remove cert '$CertFriendlyName'" "SKIP" "-KeepCert"
-} elseif (-not $RemoveParentEdFiSite) {
-    Record "Remove cert '$CertFriendlyName'" "SKIP" "Surgical mode -- siblings may still bind to it (pass -RemoveParentEdFiSite to remove)"
-} else {
-    foreach ($store in @('My', 'Root')) {
-        try {
-            $certs = Get-ChildItem "Cert:\LocalMachine\$store" -ErrorAction SilentlyContinue |
-                Where-Object { $_.FriendlyName -eq $CertFriendlyName }
-            if ($certs) {
-                foreach ($c in $certs) {
-                    Remove-Item -Path "Cert:\LocalMachine\$store\$($c.Thumbprint)" -Force -ErrorAction Stop
-                    Record "Remove cert from \$store" "OK" "Thumbprint $($c.Thumbprint)"
-                }
-            } else {
-                Record "Cert in \$store" "SKIP" "No cert with FriendlyName '$CertFriendlyName'"
-            }
-        } catch {
-            Record "Remove cert from \$store" "FAIL" $_.Exception.Message
-        }
-    }
-}
-
-# ========================================================
-Write-Section "3. Database (mssql and/or pgsql docker)"
+Write-Section "2. Database (mssql and/or pgsql docker)"
 # ========================================================
 # Try SQL Server first (drop the AdminApp DB if present), then the docker
 # postgres compose down. Both branches are best-effort and idempotent -- they
@@ -486,7 +351,7 @@ END
 }
 
 # ========================================================
-Write-Section "3b. Yopass (docker stack)"
+Write-Section "2b. Yopass (docker stack)"
 # ========================================================
 # Tear down the dockerized Yopass stack if it was ever brought up (by
 # yopass-docker.ps1 / install-all -SetupYopassDocker). Best-effort and
@@ -524,7 +389,7 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # ========================================================
-Write-Section "4. Filesystem + env vars"
+Write-Section "3. Filesystem + env vars"
 # ========================================================
 # npm cache
 if ($KeepNpmCache) {
@@ -570,7 +435,7 @@ if ($RemoveSummary) {
 }
 
 # ========================================================
-Write-Section "5. Keycloak leftovers (informational)"
+Write-Section "4. Keycloak leftovers (informational)"
 # ========================================================
 # This script does not touch the local Keycloak IdP. If leftovers from
 # idp-keycloak-setup.ps1 are present, point the user at uninstall-keycloak.ps1.
