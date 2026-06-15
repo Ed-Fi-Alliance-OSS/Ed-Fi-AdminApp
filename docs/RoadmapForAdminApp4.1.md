@@ -13,16 +13,16 @@
 
 | Metric | Value |
 | -- | -- |
-| Total dev story points from assigned tickets (estimated) | 199 |
-| Completed estimated points (tickets) | 5 pts |
-| **Remaining dev points (estimated)** | **194 pts** |
+| Total dev story points from assigned tickets (estimated) | 229 |
+| Completed estimated points (tickets) | 20 pts |
+| **Remaining dev points (estimated)** | **209 pts** |
 | Effective velocity (60% capacity) | 21 pts/sprint |
 | Sprints needed (estimated scope) | 10 |
 | **Projected dev ETA (estimated scope)** | **October 28, 2026** |
 | With QA buffer sprint | November 11, 2026 |
-| Development tickets in scope | 53 |
-| Estimated open tickets | 47 |
-| Unestimated tickets | 2 (AC-408 epic) |
+| Development tickets in scope | 61 |
+| Estimated open tickets | 51 |
+| Unestimated tickets | 2 open (AC-408 epic), 3 completed (AC-247 epic) |
 
 ## Jobs to Be Done
 
@@ -74,7 +74,7 @@
 | Sprint 73 | Nov 11th | Nov 25th |
 | Sprint 74 | Nov 25th | Dec 9th |
 
-## Pending tickets per epic
+## Tickets per epic
 
 ### AC-509 Implement E2E and unit test in Admin App
 
@@ -83,10 +83,12 @@ This includes preparing an environment on GitHub Action where the tests can run 
 
 | Link | Dependencies | Status | Story Points |
 | -- | -- | -- | -- |
+| https://edfi.atlassian.net/browse/AC-516 | None | Completed | 5 |
+| https://edfi.atlassian.net/browse/AC-510 | None | Completed | 5 |
 | https://edfi.atlassian.net/browse/AC-511 | None | Open | 8 |
-| https://edfi.atlassian.net/browse/AC-512 | None | Open | 2 |
+| https://edfi.atlassian.net/browse/AC-512 | None | Completed | 2 |
 | https://edfi.atlassian.net/browse/AC-513 | None | Open | 8 |
-| https://edfi.atlassian.net/browse/AC-514 | None | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-514 | None | In Progress | 5 |
 | https://edfi.atlassian.net/browse/AC-515 | AC-514/AC-513/AC-547 | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-536 | AC-524 | Open | 8 |
 | https://edfi.atlassian.net/browse/AC-544 | None | Open | 8 |
@@ -95,6 +97,9 @@ This includes preparing an environment on GitHub Action where the tests can run 
 | https://edfi.atlassian.net/browse/AC-547 | None | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-548 | AC-522 | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-549 | AC-522 | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-558 | None | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-559 | None | In Progress | 5 |
+| https://edfi.atlassian.net/browse/AC-560 | None | Open | 3 |
 
 ### AC-522 Admin App supports Admin Api with V3 specification
 
@@ -102,13 +107,14 @@ Adding the new V3 specification on Admin App is not straight forward. There are 
 
 | Link | Dependencies | Status | Story Points |
 | -- | -- | -- | -- |
+| https://edfi.atlassian.net/browse/AC-523 | None | Completed | 3 |
 | https://edfi.atlassian.net/browse/AC-524 | AC-525 | Open | 5 |
 | https://edfi.atlassian.net/browse/AC-525 | None | Open | 2 |
 | https://edfi.atlassian.net/browse/AC-526 | AC-524 | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-527 | AC-526 | Open | 5 |
-| https://edfi.atlassian.net/browse/AC-528 | AC-526/AC-527 | Open | 5 |
-| https://edfi.atlassian.net/browse/AC-529 | AC-526/AC-527 | Open | 5 |
-| https://edfi.atlassian.net/browse/AC-530 | AC-526/AC-527 | Open | 8 |
+| https://edfi.atlassian.net/browse/AC-528 | AC-526 / AC-527 | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-529 | AC-526 / AC-527 | Open | 5 |
+| https://edfi.atlassian.net/browse/AC-530 | AC-526 / AC-527 | Open | 8 |
 
 ### AC-506 Instance Management Integration
 
@@ -117,11 +123,13 @@ We will need new CRUD pages, similar to other pages on the App.
 
 | Link | Dependencies | Status | Story Points |
 | -- | -- | -- | -- |
+| https://edfi.atlassian.net/browse/ADMINAPI-1447 | None | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-561 | None | Open | 3 |
 | https://edfi.atlassian.net/browse/AC-507 | None | Open | 5 |
-| https://edfi.atlassian.net/browse/AC-540 | AC-507 | Open | 3 |
-| https://edfi.atlassian.net/browse/AC-541 | AC-507/AC-540 | Open | 3 |
-| https://edfi.atlassian.net/browse/AC-542 | AC-507/AC-541 | Open | 3 |
-| https://edfi.atlassian.net/browse/AC-543 | AC-507/AC-542 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-540 | ADMINAPI-1447 / AC-561 / AC-507 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-541 | ADMINAPI-1447 / AC-561 / AC-507 / AC-540 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-542 | ADMINAPI-1447 / AC-561 / AC-507 / AC-541 | Open | 3 |
+| https://edfi.atlassian.net/browse/AC-543 | ADMINAPI-1447 / AC-561 / AC-507 / AC-542 | Open | 3 |
 
 ### AC-408 Enhanced User Interface Functionality
 
@@ -141,9 +149,9 @@ Given the comments on AC-247 and the description on the PRD this is something al
 
 | Link | Dependencies | Status | Story Points |
 | -- | -- | -- | -- |
-| https://edfi.atlassian.net/browse/AC-351 | None | Open | TBD |
-| https://edfi.atlassian.net/browse/AC-352 | None | Open | TBD |
-| https://edfi.atlassian.net/browse/AC-353 | None | Open | TBD |
+| https://edfi.atlassian.net/browse/AC-351 | None | Completed | TBD |
+| https://edfi.atlassian.net/browse/AC-352 | None | Completed | TBD |
+| https://edfi.atlassian.net/browse/AC-353 | None | Completed | TBD |
 | https://edfi.atlassian.net/browse/AC-247 | None | Completed | 5 |
 
 ### ADMINAPI-1365 Sync Up Admin API 2.3 and CMS
@@ -197,6 +205,21 @@ Test coverage is still low on unit and integration tests in Admin Api. It is ver
 | https://edfi.atlassian.net/browse/ADMINAPI-1400 | None | Open | 2 |
 | https://edfi.atlassian.net/browse/ADMINAPI-1255 | None | Open | 3 |
 
+## Actual tickets added to the sprints
+
+### Sprint 62
+
+| Ticket | Story points |
+| -- | -- |
+| ADMINAPI-1417 | 3 |
+| ADMINAPI-1412 (KTLO) | 5 |
+| ADMINAPI-1410 (KTLO) | 2 |
+| AC-507 | 5 |
+| AC-512 | 2 |
+| AC-514 | 5 |
+| AC-559 | 5 |
+| AC-525 | 2 |
+
 ---
 
 ## Sprint Gantt Chart
@@ -207,54 +230,59 @@ gantt
 	dateFormat  YYYY-MM-DD
 	axisFormat  %b %d
 
-	section Sprint 62 - Jun 10 to Jun 24 (~21 pts)
+	section Sprint 62 - Jun 10 to Jun 24 (Actual ~29 pts, includes KTLO)
+	ADMINAPI-1412 (KTLO)                            :ktlo1412, 2026-06-10, 2026-06-24
+	ADMINAPI-1410 (KTLO)                            :ktlo1410, 2026-06-10, 2026-06-24
 	AC-507                                          :ac507, 2026-06-10, 2026-06-24
 	AC-525                                          :ac525, 2026-06-10, 2026-06-24
 	ADMINAPI-1417                                   :a1417, 2026-06-10, 2026-06-24
-	ADMINAPI-1370                                   :a1370, 2026-06-10, 2026-06-24
-	ADMINAPI-1253                                   :a1253, 2026-06-10, 2026-06-24
-	ADMINAPI-1400                                   :a1400, 2026-06-10, 2026-06-24
-	ADMINAPI-1383                                   :a1383, 2026-06-10, 2026-06-24
+	AC-512                                          :done, ac512, 2026-06-10, 2026-06-24
+	AC-514                                          :active, ac514, 2026-06-10, 2026-06-24
+	AC-559                                          :active, ac559, 2026-06-10, 2026-06-24
 
-	section Sprint 63 - Jun 24 to Jul 8 (~21 pts)
+	section Sprint 63 - Jun 24 to Jul 8 (~22 pts)
 	AC-540                                          :ac540, 2026-06-24, 2026-07-08
-	AC-511                                          :ac511, 2026-06-24, 2026-07-08
-	AC-512                                          :ac512, 2026-06-24, 2026-07-08
 	AC-524                                          :ac524, 2026-06-24, 2026-07-08
+	AC-511                                          :ac511, 2026-06-24, 2026-07-08
+	ADMINAPI-1253                                   :a1253, 2026-06-24, 2026-07-08
 	ADMINAPI-1397                                   :a1397, 2026-06-24, 2026-07-08
 
 	section Sprint 64 - Jul 8 to Jul 22 (~21 pts)
 	AC-541                                          :ac541, 2026-07-08, 2026-07-22
+	AC-526                                          :ac526, 2026-07-08, 2026-07-22
 	AC-513                                          :ac513, 2026-07-08, 2026-07-22
 	AC-514                                          :ac514, 2026-07-08, 2026-07-22
 	ADMINAPI-1254                                   :a1254, 2026-07-08, 2026-07-22
+	ADMINAPI-1400                                   :a1400, 2026-07-08, 2026-07-22
 
 	section Sprint 65 - Jul 22 to Aug 5 (~22 pts)
 	AC-542                                          :ac542, 2026-07-22, 2026-08-05
-	AC-544                                          :ac544, 2026-07-22, 2026-08-05
+	AC-527                                          :ac527, 2026-07-22, 2026-08-05
 	ADMINAPI-1436                                   :a1436, 2026-07-22, 2026-08-05
 	ADMINAPI-1256                                   :a1256, 2026-07-22, 2026-08-05
 	AC-547                                          :ac547, 2026-07-22, 2026-08-05
+	AC-558                                          :ac558, 2026-07-22, 2026-08-05
 
-	section Sprint 66 - Aug 5 to Aug 19 (~19 pts)
+	section Sprint 66 - Aug 5 to Aug 19 (~21 pts)
 	AC-543                                          :ac543, 2026-08-05, 2026-08-19
-	AC-526                                          :ac526, 2026-08-05, 2026-08-19
-	AC-527                                          :ac527, 2026-08-05, 2026-08-19
+	AC-528                                          :ac528, 2026-08-05, 2026-08-19
+	AC-530                                          :ac530, 2026-08-05, 2026-08-19
 	ADMINAPI-1398                                   :a1398, 2026-08-05, 2026-08-19
-	ADMINAPI-1399                                   :a1399, 2026-08-05, 2026-08-19
 	AC-504                                          :ac504, 2026-08-05, 2026-08-19
 
-	section Sprint 67 - Aug 19 to Sep 2 (~21 pts)
-	AC-528                                          :ac528, 2026-08-19, 2026-09-02
-	AC-530                                          :ac530, 2026-08-19, 2026-09-02
+	section Sprint 67 - Aug 19 to Sep 2 (~23 pts)
+	AC-529                                          :ac529, 2026-08-19, 2026-09-02
+	AC-536                                          :ac536, 2026-08-19, 2026-09-02
+	AC-545                                          :ac545, 2026-08-19, 2026-09-02
 	ADMINAPI-1382                                   :a1382, 2026-08-19, 2026-09-02
-	ADMINAPI-1440                                   :a1440, 2026-08-19, 2026-09-02
+	AC-561                                          :ac561, 2026-08-19, 2026-09-02
 
-	section Sprint 68 - Sep 2 to Sep 16 (~19 pts)
+	section Sprint 68 - Sep 2 to Sep 16 (~18 pts)
 	AC-515                                          :ac515, 2026-09-03, 2026-09-16
-	AC-536                                          :ac536, 2026-09-03, 2026-09-16
-	AC-545                                          :ac545, 2026-09-03, 2026-09-16
+	ADMINAPI-1440                                   :a1440, 2026-09-03, 2026-09-16
+	ADMINAPI-1383                                   :a1383, 2026-09-03, 2026-09-16
 	ADMINAPI-1255                                   :a1255, 2026-09-03, 2026-09-16
+	ADMINAPI-1399                                   :a1399, 2026-09-03, 2026-09-16
 
 	section Sprint 69 - Sep 16 to Sep 30 (~21 pts)
 	AC-546                                          :ac546, 2026-09-16, 2026-09-30
@@ -263,17 +291,17 @@ gantt
 	ADMINAPI-1441                                   :a1441, 2026-09-16, 2026-09-30
 	AC-503                                          :ac503, 2026-09-16, 2026-09-30
 
-
-	section Sprint 70 - Sep 30 to Oct 14 (~18 pts)
-	AC-529                                          :ac529, 2026-09-30, 2026-10-14
+	section Sprint 70 - Sep 30 to Oct 14 (~19 pts)
+	ADMINAPI-1370                                   :a1370, 2026-09-30, 2026-10-14
 	ADMINAPI-1380                                   :a1380, 2026-09-30, 2026-10-14
 	ADMINAPI-1442                                   :a1442, 2026-09-30, 2026-10-14
-	AC-439                                          :ac439, 2026-09-30, 2026-10-14
+	ADMINAPI-1257                                   :a1257, 2026-09-30, 2026-10-14
+	AC-555                                          :ac555, 2026-09-30, 2026-10-14
 
 	section Sprint 71 - Oct 14 to Oct 28 (~11 pts)
-	ADMINAPI-1257                                   :a1257, 2026-10-14, 2026-10-28
 	ADMINAPI-1443                                   :a1443, 2026-10-14, 2026-10-28
-	AC-555                                          :ac555, 2026-10-14, 2026-10-28
+	AC-439                                          :ac439, 2026-10-14, 2026-10-28
+	AC-560                                          :ac560, 2026-10-14, 2026-10-28
 
 	section Unestimated Backlog (AC-408)
 	AC-409                                          :ac409, 2026-10-15, 2026-10-28
