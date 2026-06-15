@@ -99,17 +99,21 @@ if ($buildIsCurrent -and -not $Force) {
 # updating .env after build has no effect.
 $envFile = "$SourcePath\packages\fe\.env"
 $template = "$SourcePath\packages\fe\.copyme.env.local"
-if (-not (Test-Path $envFile) -and (Test-Path $template)) {
-    Copy-Item $template $envFile
-    Write-Host "Seeded packages\fe\.env from .copyme.env.local"
-}
-if (Test-Path $envFile) {
-    $envText = Get-Content $envFile -Raw
-    $envText = $envText -replace 'VITE_API_URL=.*',         "VITE_API_URL=$ViteApiUrl"
-    $envText = $envText -replace 'VITE_BASE_PATH=.*',        "VITE_BASE_PATH=`"$ViteBasePath`""
-    $envText = $envText -replace 'VITE_IDP_ACCOUNT_URL=.*',  "VITE_IDP_ACCOUNT_URL=$ViteIdpAccountUrl"
-    Set-Content $envFile -Value $envText -Encoding UTF8
-    Write-Host "Updated packages\fe\.env (VITE_API_URL=$ViteApiUrl, VITE_BASE_PATH=$ViteBasePath)"
+try {
+    if (-not (Test-Path $envFile) -and (Test-Path $template)) {
+        Copy-Item $template $envFile
+        Write-Host "Seeded packages\fe\.env from .copyme.env.local"
+    }
+    if (Test-Path $envFile) {
+        $envText = Get-Content $envFile -Raw
+        $envText = $envText -replace 'VITE_API_URL=.*',         "VITE_API_URL=$ViteApiUrl"
+        $envText = $envText -replace 'VITE_BASE_PATH=.*',        "VITE_BASE_PATH=`"$ViteBasePath`""
+        $envText = $envText -replace 'VITE_IDP_ACCOUNT_URL=.*',  "VITE_IDP_ACCOUNT_URL=$ViteIdpAccountUrl"
+        Set-Content $envFile -Value $envText -Encoding UTF8
+        Write-Host "Updated packages\fe\.env (VITE_API_URL=$ViteApiUrl, VITE_BASE_PATH=$ViteBasePath)"
+    }
+} catch {
+    throw "Failed to write the frontend build config at $envFile. Check the path is writable. Original: $($_.Exception.Message)"
 }
 
 Push-Location $SourcePath

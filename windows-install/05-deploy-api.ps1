@@ -154,34 +154,42 @@ New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
 
 Write-Host "Copying built API output..."
 & robocopy $apiBuildDir $DestPath /E /NFL /NDL /NJH /NJS /XF web.config /XD iisnode packages node_modules | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy (build output) failed: $LASTEXITCODE" }
+if ($LASTEXITCODE -ge 8) { throw "Failed to copy the built API output from $apiBuildDir to $DestPath (robocopy exit $LASTEXITCODE). Check free disk space and that the destination isn't locked by a running app pool." }
 
 Write-Host "Copying api/config..."
 New-Item -ItemType Directory -Path "$DestPath\packages\api" -Force | Out-Null
 & robocopy "$SourcePath\packages\api\config" "$DestPath\packages\api\config" /E /NFL /NDL /NJH /NJS | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy (config) failed: $LASTEXITCODE" }
+if ($LASTEXITCODE -ge 8) { throw "Failed to copy api/config from $SourcePath\packages\api\config to $DestPath\packages\api\config (robocopy exit $LASTEXITCODE)." }
 
 Write-Host "Copying node_modules (this takes a minute)..."
 & robocopy "$SourcePath\node_modules" "$DestPath\node_modules" /E /NFL /NDL /NJH /NJS | Out-Null
-if ($LASTEXITCODE -ge 8) { throw "robocopy (node_modules) failed: $LASTEXITCODE" }
+if ($LASTEXITCODE -ge 8) { throw "Failed to copy node_modules from $SourcePath\node_modules to $DestPath\node_modules (robocopy exit $LASTEXITCODE). Check free disk space." }
 
 # App Pool
-if (-not (Test-Path "IIS:\AppPools\$AppPoolName")) {
-    Write-Host "Creating App Pool '$AppPoolName'..."
-    New-WebAppPool -Name $AppPoolName | Out-Null
+try {
+    if (-not (Test-Path "IIS:\AppPools\$AppPoolName")) {
+        Write-Host "Creating App Pool '$AppPoolName'..."
+        New-WebAppPool -Name $AppPoolName | Out-Null
+    }
+    Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "processModel.loadUserProfile" -Value $true
+    Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "managedRuntimeVersion" -Value ""
+    Write-Host "App Pool '$AppPoolName' configured (LoadUserProfile=true)."
+} catch {
+    throw "Failed to create/configure the IIS App Pool '$AppPoolName'. Is IIS running and the WAS service started? Original: $($_.Exception.Message)"
 }
-Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "processModel.loadUserProfile" -Value $true
-Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "managedRuntimeVersion" -Value ""
-Write-Host "App Pool '$AppPoolName' configured (LoadUserProfile=true)."
 
 # IIS standalone HTTP site (named after the App Pool, e.g. EdFi-AdminApp-API)
-if (Get-Website -Name $AppPoolName -ErrorAction SilentlyContinue) {
-    Write-Host "Site '$AppPoolName' exists. Updating physical path..."
-    Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "physicalPath" -Value $DestPath
-    Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "applicationPool" -Value $AppPoolName
-} else {
-    New-Website -Name $AppPoolName -Port $StandalonePort -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
-    Write-Host "Standalone site '$AppPoolName' created on HTTP port $StandalonePort."
+try {
+    if (Get-Website -Name $AppPoolName -ErrorAction SilentlyContinue) {
+        Write-Host "Site '$AppPoolName' exists. Updating physical path..."
+        Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "physicalPath" -Value $DestPath
+        Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "applicationPool" -Value $AppPoolName
+    } else {
+        New-Website -Name $AppPoolName -Port $StandalonePort -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
+        Write-Host "Standalone site '$AppPoolName' created on HTTP port $StandalonePort."
+    }
+} catch {
+    throw "Failed to create/update the IIS site '$AppPoolName' on port $StandalonePort. Is the port already in use by another site (check 00-check-prereqs.ps1)? Original: $($_.Exception.Message)"
 }
 
 # web.config (the version that actually works)
@@ -228,7 +236,11 @@ if (Test-Path $webConfigPath) {
     }
 }
 if ($webConfigChanged) {
-    Set-Content -Path $webConfigPath -Value $webConfig -Encoding UTF8
+    try {
+        Set-Content -Path $webConfigPath -Value $webConfig -Encoding UTF8
+    } catch {
+        throw "Failed to write web.config at $webConfigPath. Check the destination is writable. Original: $($_.Exception.Message)"
+    }
     Write-Host "web.config written."
 }
 
@@ -239,7 +251,11 @@ if ($webConfigChanged) {
 $prodJs = "$DestPath\packages\api\config\production.js"
 $prodJsTemplate = "$DestPath\packages\api\config\production.js-edfi"
 if (Test-Path $prodJsTemplate) {
-    Copy-Item $prodJsTemplate $prodJs -Force
+    try {
+        Copy-Item $prodJsTemplate $prodJs -Force
+    } catch {
+        throw "Failed to seed production.js from the -edfi template at $prodJsTemplate. Check the config folder is writable. Original: $($_.Exception.Message)"
+    }
     Write-Host "Seeded production.js from production.js-edfi template."
 } elseif (-not (Test-Path $prodJs)) {
     throw "Neither production.js nor production.js-edfi found in deployed config folder."
@@ -298,7 +314,11 @@ if (Test-Path $prodJs) {
     $c = $c.Replace("YOPASS_URL: 'http://edfiadminapp-yopass:80',",         "YOPASS_URL: '$YopassUrl',")
 
     if ($c -ne $original) {
-        Set-Content -Path $prodJs -Value $c -Encoding UTF8
+        try {
+            Set-Content -Path $prodJs -Value $c -Encoding UTF8
+        } catch {
+            throw "Failed to write the patched production.js at $prodJs. Check the config folder is writable. Original: $($_.Exception.Message)"
+        }
         Write-Host "production.js patched ($DbEngine)."
         $prodJsChanged = $true
     } else {
@@ -326,7 +346,11 @@ if (-not (Test-Path $NpmCachePath)) {
 & icacls $NpmCachePath /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
 $envVarsFilter = "system.applicationHost/applicationPools/add[@name='$AppPoolName']/environmentVariables"
 Remove-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -AtElement @{ name = 'NPM_CONFIG_CACHE' } -ErrorAction SilentlyContinue
-Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -Value @{ name = 'NPM_CONFIG_CACHE'; value = $NpmCachePath }
+try {
+    Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -Value @{ name = 'NPM_CONFIG_CACHE'; value = $NpmCachePath }
+} catch {
+    throw "Failed to set NPM_CONFIG_CACHE on the App Pool '$AppPoolName'. App Pool environment variables require IIS 10 or newer. Original: $($_.Exception.Message)"
+}
 Write-Host "Permissions granted to $appPoolIdentity; NPM_CONFIG_CACHE set on App Pool -> $NpmCachePath."
 
 # Trigger startup only if something actually changed

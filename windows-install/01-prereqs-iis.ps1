@@ -46,7 +46,11 @@ if (Test-Path $rewriteDll) {
     $url = "https://download.microsoft.com/download/D/D/E/DDE57C26-C62C-4C59-A1BB-31D58B36ADA2/rewrite_amd64_en-US.msi"
     $msi = "$env:TEMP\rewrite_amd64_en-US.msi"
     Write-Host "Downloading IIS URL Rewrite Module..."
-    Invoke-WebRequest -Uri $url -OutFile $msi -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $msi -UseBasicParsing
+    } catch {
+        throw "Failed to download the IIS URL Rewrite Module from $url. Check internet connectivity and that the URL is reachable. Original: $($_.Exception.Message)"
+    }
     Write-Host "Installing IIS URL Rewrite Module..."
     Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
     if (-not (Test-Path $rewriteDll)) {
@@ -82,7 +86,11 @@ if (Test-Path $iisnodeDll) {
     $url = "https://github.com/Azure/iisnode/releases/download/$IisNodeVersion/iisnode-full-$IisNodeVersion-x64.msi"
     $msi = "$env:TEMP\iisnode-$IisNodeVersion-x64.msi"
     Write-Host "Downloading iisnode from $url..."
-    Invoke-WebRequest -Uri $url -OutFile $msi -UseBasicParsing
+    try {
+        Invoke-WebRequest -Uri $url -OutFile $msi -UseBasicParsing
+    } catch {
+        throw "Failed to download iisnode from $url. Check internet connectivity and that the URL is reachable. Original: $($_.Exception.Message)"
+    }
     Write-Host "Installing iisnode..."
     Start-Process msiexec.exe -ArgumentList "/i `"$msi`" /qn /norestart" -Wait
     if (-not (Test-Path $iisnodeDll)) {

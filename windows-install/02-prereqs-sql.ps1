@@ -57,37 +57,47 @@ Write-Host "Detected SQL Server version key: $verName"
 
 $registryChanged = $false
 
-# Mixed Mode authentication — only set if not already 2
-$lmPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$verName\MSSQLServer"
-$currentMode = (Get-ItemProperty -Path $lmPath -Name "LoginMode" -ErrorAction SilentlyContinue).LoginMode
-if ($currentMode -eq 2) {
-    Write-Host "Mixed Mode already enabled (LoginMode=2)."
-} else {
-    Set-ItemProperty -Path $lmPath -Name "LoginMode" -Value 2
-    Write-Host "Mixed Mode authentication enabled (LoginMode was $currentMode)."
-    $registryChanged = $true
-}
+# Mixed Mode + TCP/IP registry writes. Wrapped so a permissions/instance error
+# surfaces an actionable message instead of a raw registry exception.
+try {
+    # Mixed Mode authentication — only set if not already 2
+    $lmPath = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$verName\MSSQLServer"
+    $currentMode = (Get-ItemProperty -Path $lmPath -Name "LoginMode" -ErrorAction SilentlyContinue).LoginMode
+    if ($currentMode -eq 2) {
+        Write-Host "Mixed Mode already enabled (LoginMode=2)."
+    } else {
+        Set-ItemProperty -Path $lmPath -Name "LoginMode" -Value 2
+        Write-Host "Mixed Mode authentication enabled (LoginMode was $currentMode)."
+        $registryChanged = $true
+    }
 
-# TCP/IP protocol — only set values that aren't already correct
-$tcpBase = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$verName\MSSQLServer\SuperSocketNetLib\Tcp"
-$rootEnabled = (Get-ItemProperty -Path $tcpBase -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
-if ($rootEnabled -ne 1) {
-    Set-ItemProperty -Path $tcpBase -Name "Enabled" -Value 1
-    $registryChanged = $true
+    # TCP/IP protocol — only set values that aren't already correct
+    $tcpBase = "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server\$verName\MSSQLServer\SuperSocketNetLib\Tcp"
+    $rootEnabled = (Get-ItemProperty -Path $tcpBase -Name "Enabled" -ErrorAction SilentlyContinue).Enabled
+    if ($rootEnabled -ne 1) {
+        Set-ItemProperty -Path $tcpBase -Name "Enabled" -Value 1
+        $registryChanged = $true
+    }
+    Get-ChildItem $tcpBase | ForEach-Object {
+        $cur = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
+        if ($cur.Enabled -ne 1)         { Set-ItemProperty -Path $_.PSPath -Name "Enabled"         -Value 1      -ErrorAction SilentlyContinue; $script:registryChanged = $true }
+        if ($cur.Active -ne 1)          { Set-ItemProperty -Path $_.PSPath -Name "Active"          -Value 1      -ErrorAction SilentlyContinue; $script:registryChanged = $true }
+        if ($cur.TcpDynamicPorts -ne "") { Set-ItemProperty -Path $_.PSPath -Name "TcpDynamicPorts" -Value ""     -ErrorAction SilentlyContinue; $script:registryChanged = $true }
+        if ($cur.TcpPort -ne "1433")    { Set-ItemProperty -Path $_.PSPath -Name "TcpPort"         -Value "1433" -ErrorAction SilentlyContinue; $script:registryChanged = $true }
+    }
+    Write-Host "TCP/IP settings checked/applied."
+} catch {
+    throw "Failed to update SQL Server registry for instance '$InstanceName'. Ensure you're running as administrator and the instance name is correct. Original: $($_.Exception.Message)"
 }
-Get-ChildItem $tcpBase | ForEach-Object {
-    $cur = Get-ItemProperty -Path $_.PSPath -ErrorAction SilentlyContinue
-    if ($cur.Enabled -ne 1)         { Set-ItemProperty -Path $_.PSPath -Name "Enabled"         -Value 1      -ErrorAction SilentlyContinue; $script:registryChanged = $true }
-    if ($cur.Active -ne 1)          { Set-ItemProperty -Path $_.PSPath -Name "Active"          -Value 1      -ErrorAction SilentlyContinue; $script:registryChanged = $true }
-    if ($cur.TcpDynamicPorts -ne "") { Set-ItemProperty -Path $_.PSPath -Name "TcpDynamicPorts" -Value ""     -ErrorAction SilentlyContinue; $script:registryChanged = $true }
-    if ($cur.TcpPort -ne "1433")    { Set-ItemProperty -Path $_.PSPath -Name "TcpPort"         -Value "1433" -ErrorAction SilentlyContinue; $script:registryChanged = $true }
-}
-Write-Host "TCP/IP settings checked/applied."
 
 # Restart only if registry changes happened
 if ($registryChanged) {
     Write-Host "Restarting SQL Server to apply registry changes..."
-    Restart-Service -Name $InstanceName -Force
+    try {
+        Restart-Service -Name $InstanceName -Force
+    } catch {
+        throw "Failed to restart the '$InstanceName' service. Check the service exists and isn't blocked by dependent services. Original: $($_.Exception.Message)"
+    }
 } else {
     Write-Host "No registry changes -- skipping service restart."
 }

@@ -225,7 +225,11 @@ if ($needsRemediation) {
             $dst = Join-Path $writeRoot "v$fullVer"
 
             Write-Host "Downloading $url"
-            Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            try {
+                Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
+            } catch {
+                throw "Failed to download Node from $url. Check internet connectivity and that nodejs.org is reachable. Original: $($_.Exception.Message)"
+            }
             if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
             Write-Host "Extracting to $tmp"
             Expand-Archive -Path $zip -DestinationPath $tmp
