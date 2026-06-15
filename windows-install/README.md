@@ -1,6 +1,8 @@
 # Ed-Fi Admin App — Windows IIS Installation Scripts
 
-Automates the gaps in the official [Windows IIS Installation docs](https://docs.ed-fi.org/reference/admin-app/system-administrators/installing#windows-iis-installation). Designed to run on a clean Windows VM and produce a working Admin App at `https://localhost/adminapp/` with no manual workarounds.
+Automates the gaps in the official [Windows IIS Installation docs](https://docs.ed-fi.org/reference/admin-app/getting-started/windows-iis-installation). Designed to run on a clean Windows VM and produce a working Admin App at `http://localhost:4200/` with no manual workarounds.
+
+Local dev runs over **HTTP** (no TLS): the API and the frontend deploy as two independent IIS sites, `http://localhost:3333` (API) and `http://localhost:4200` (FE). See [What these scripts don't do](#what-these-scripts-dont-do) for the TLS trade-off.
 
 ---
 
@@ -15,131 +17,155 @@ Then open an **elevated PowerShell** and `cd C:\Ed-Fi\Ed-Fi-AdminApp\windows-ins
 
 ## Before you start
 
-- **Windows 10/11 Pro or Windows Server**, with **administrator rights** (every command below runs in an *elevated* PowerShell — right-click → "Run as administrator").
+- **Windows 10/11 Pro or Windows Server 2016+**, with **administrator rights** (every command runs in an *elevated* PowerShell). The standalone-site environment variables require **IIS 10 or newer**.
 - **Internet access** — the scripts download Node, Keycloak, and npm packages.
 - **~10 GB free disk**.
-- **Docker Desktop** — *only* if you use `-UsePostgresDocker` or `-SetupYopassDocker`. It must be **installed, running, and in Linux-container mode** (the Postgres/Yopass/memcached images are Linux). The pre-flight check verifies this when those flags are set; without them, Docker isn't needed at all.
+- **Docker Desktop** — *only* if you use `-UsePostgresDocker` or `-SetupYopassDocker`. It must be **installed, running, and in Linux-container mode**. The pre-flight check verifies this when those flags are set; without them, Docker isn't needed at all.
 - **Allow 15–20 minutes** for a fresh end-to-end install (the build phase alone takes several minutes).
-- The passwords below are **yours to choose** — wherever you see `'your-…'`, replace it with a password you pick. SQL Server doesn't enforce complexity here (the script sets `CHECK_POLICY = OFF`), but pick something you'd be willing to reuse.
+- The passwords below are **yours to choose** — wherever you see `'your-…'`, replace it with a password you pick.
 
-## Quick start
+## Quick start (local Keycloak example)
+
+`install-all.ps1` is the "run everything" path and uses a **local Keycloak** as the example identity provider. For a different IdP (Entra, Google, Auth0, …) see [Other identity providers](#other-identity-providers).
 
 ```powershell
 # One-time bypass to let the first script run
 Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
-# 1. OS prereqs (IIS, SQL Server, Git). ONLY on a fresh VM — skip this if
-#    IIS features, SQL Server, and Git are already installed. The script
-#    scans before it installs, so re-running on a prepared VM is a no-op
-#    but takes a minute. Reboot if winget asks.
+# 1. OS prereqs (IIS, SQL Server, Git). ONLY on a fresh VM. Scans before it
+#    installs, so re-running on a prepared VM is a no-op. Reboot if winget asks.
 .\setup-vm-prereqs.ps1
 
-# 2. Full Admin App install. The pre-flight check at the start will tell
-#    you if step 1 was actually needed (it FAILs with a clear message if
-#    IIS / SQL / Git are missing).
+# 2. Full Admin App install (local Keycloak). The pre-flight check tells you if
+#    step 1 was actually needed.
 .\install-all.ps1 -SaPassword 'your-sa-password' -KeycloakAdminPassword 'your-keycloak-admin-password' -KeycloakClientSecret 'your-keycloak-client-secret' -TestUserPassword 'your-keycloak-user-password'
 ```
 
-On an already-prepared VM (IIS features enabled, SQL Server running, Git installed), step 1 is optional — `install-all.ps1` alone is enough. If anything's missing, the pre-flight will fail with a pointer to `setup-vm-prereqs.ps1`.
-
-When `install-all.ps1` finishes, open `https://localhost/adminapp/` in the VM's browser and sign in with `admin@example.com` (or whatever you passed to `-AdminUsername`) and the password you passed to `-TestUserPassword`. A green `INSTALL COMPLETE` banner and a written `install-summary.txt` (in the parent of the repo dir, e.g. `C:\Ed-Fi\install-summary.txt`) confirm success.
-
-A summary with all URLs and credentials is saved to `install-summary.txt` in the parent of the repo directory (e.g. `C:\Ed-Fi\install-summary.txt` for the default clone path).
+When `install-all.ps1` finishes, open `http://localhost:4200/` and sign in with `admin@example.com` (or whatever you passed to `-AdminUsername`) and your `-TestUserPassword`. A green `INSTALL COMPLETE` banner and a written `install-summary.txt` (in the parent of the repo dir, e.g. `C:\Ed-Fi\install-summary.txt`) confirm success.
 
 ### Notes on the parameters
 
-- **`-SaPassword`**: SQL Server `sa` login password. Any string works (the script disables Windows password policy with `CHECK_POLICY = OFF`).
-- **`-KeycloakAdminPassword`**: Password for the master-realm admin user that gets auto-created when Keycloak first starts.
-- **`-KeycloakClientSecret`**: Secret for the `edfiadminapp` Keycloak client. Keycloak itself accepts any non-empty string, but **32+ alphanumeric characters is recommended** for entropy. The same value goes into both Keycloak and `production.js`.
-- **`-TestUserPassword`**: Password for the seeded `admin@example.com` user in the `edfi` realm. This is what you type on the Keycloak login screen to enter the AdminApp.
+- **`-SaPassword`**: SQL Server `sa` login password. Any string works (the script sets `CHECK_POLICY = OFF`).
+- **`-KeycloakAdminPassword`**: Password for the master-realm admin user auto-created when Keycloak first starts.
+- **`-KeycloakClientSecret`**: Secret for the `edfiadminapp` Keycloak client. Any non-empty string works; **32+ alphanumeric characters recommended**. The same value goes into both Keycloak and `production.js`.
+- **`-TestUserPassword`**: Password for the seeded `admin@example.com` user in the `edfi` realm — what you type on the Keycloak login screen.
 
 #### Database engine selection
 
-- **`-DbEngine`**: `mssql` (default) or `pgsql`. Drives which Phase 1.1 path runs and how `production.js` gets patched. Everything else (IIS, Node, Keycloak, build, deploy) is identical between the two.
+- **`-DbEngine`**: `mssql` (default) or `pgsql`. Drives the database prereq path and how `production.js` gets patched. Everything else is identical.
+
+---
+
+## The scripts
+
+Numbered scripts map to the official guide's section order. The **generic path** (00–06) is all the Admin App itself needs; the **local IdP example** (`idp-keycloak-*`) is optional.
+
+### Generic path
 
 | Script | Purpose |
 |---|---|
-| `setup-vm-prereqs.ps1` | OS-level installs only: IIS features, SQL Server Developer, Git. Scans first, then installs only what's missing. |
-| `install-all.ps1` | Master orchestrator. Verifies the repo location, runs the pre-flight check, then all install phases. |
-| `00-check-prereqs.ps1` | Read-only diagnostic. Reports `[PASS]` / `[FAIL]` / `[INFO]` / `[RISK]` for each prereq. `[RISK]` items flag collisions with existing software (shared SQL instance, non-21 `java` on PATH, another site on :443, etc.). Exit 0 = clean, 1 = blocking, 2 = ready-with-risks. `install-all` runs this as its first step and prompts on exit 2. |
-| `00a-fix-node.ps1` | Guided Node upgrade helper. No-op when Node is missing or already at the floor; otherwise prompts to install nvm-windows + Node LTS, keeping the previous version recoverable via `nvm install <ver>`. `install-all` runs this before `00-check-prereqs` so a stale Node doesn't fail the pre-flight. |
-| `02-prereqs-sql.ps1` | SQL Server config: Mixed Mode + TCP/IP + `sa` login + creates `sbaa` database. |
-| `01-prereqs-iis.ps1` | URL Rewrite + iisnode install. Unlocks `handlers` and `HTTP_X_ORIGINAL_URL`. Generates self-signed cert and binds HTTPS:443 to the `Ed-Fi` site. |
-| `03a-prereqs-runtime.ps1` | Node.js install (if missing). For Java: uses any existing JDK ≥17 already on PATH (respects users on JDK 25/26); only installs OpenJDK 21 if Java is missing or older than 17. npm cache override. Keycloak download to `C:\keycloak`. |
-| `idp-keycloak-start.ps1` | Starts Keycloak in the background with `KC_BOOTSTRAP_ADMIN_*` env vars so the master admin is auto-created on first run. Waits for readiness. |
-| `04-build.ps1` | `npm ci --legacy-peer-deps`, then `build:api` and `build:fe`. Skips if artifacts are already current (override with `-Force`). |
-| `yopass-docker.ps1` | Optional. Stands up a local Yopass + memcached stack via `docker\docker-compose.yopass.yml` and waits for it to respond. Only runs when `install-all.ps1 -SetupYopassDocker` is used (or run it directly). Prints the `YOPASS_URL` to configure. |
-| `05-deploy-api.ps1` | Deploys the API to `C:\inetpub\Ed-Fi\adminapp-api` as an IIS application under the `Ed-Fi` site. Seeds `production.js` from the `-edfi` template, patches it with bare-metal values, writes `web.config` with the right iisnode + URL rewrite setup, sets App Pool config and permissions. |
-| `06-deploy-fe.ps1` | Deploys the FE to `C:\inetpub\Ed-Fi\adminapp` as an IIS application under the `Ed-Fi` site with a SPA-fallback `web.config`. |
-| `06-keycloak-bootstrap.ps1` | Creates the `edfi` realm, the `edfiadminapp` client (with all the required URIs/origins), and the test user. |
-| `uninstall.ps1` | Reverses the install: stops Keycloak, tears down IIS App Pool / site / bindings / deployed files, removes the self-signed cert, drops the `sbaa` DB, tears down the docker Postgres and Yopass stacks (`down -v`), deletes `C:\keycloak` + `C:\npm-cache`, unsets `JAVA_HOME` and `NPM_CONFIG_CACHE`. Leaves Node.js, JDK, SQL Server, IIS engine, URL Rewrite, iisnode, and the source repo alone. Best-effort with a per-step OK/SKIP/WARN/FAIL ledger and a final summary. |
+| `00-check-prereqs.ps1` | Read-only diagnostic. `[PASS]`/`[FAIL]`/`[INFO]`/`[RISK]` per prereq. `[RISK]` flags collisions with existing software (shared SQL instance, older `java` on PATH, ports 3333/4200 in use). Exit 0 = clean, 1 = blocking, 2 = ready-with-risks. |
+| `01-prereqs-iis.ps1` | URL Rewrite Module + iisnode install; unlocks `handlers` and the `HTTP_X_ORIGINAL_URL` server variable. No cert, no HTTPS binding. |
+| `02-prereqs-sql.ps1` | SQL Server config: Mixed Mode + TCP/IP + `sa` login + creates the `sbaa` database. |
+| `03-prereqs-node.ps1` | Node.js install (if missing) and nvm-windows remediation of a too-old version. No Java, no Keycloak. |
+| `04-build.ps1` | `npm ci --legacy-peer-deps`, then `build:api` and `build:fe`. Seeds `packages\fe\.env` (VITE_*) before building. Skips if artifacts are current (override with `-Force`). |
+| `05-deploy-api.ps1` | Deploys the API to the standalone HTTP site `EdFi-AdminApp-API` (port 3333). Seeds/patches `production.js`, writes `web.config`, configures the App Pool, and sets `NPM_CONFIG_CACHE` on the App Pool. |
+| `06-deploy-fe.ps1` | Deploys the FE to the standalone HTTP site `EdFi-AdminApp-FE` (port 4200) with a SPA-fallback `web.config`. |
+
+### Local IdP example (optional — Keycloak)
+
+| Script | Purpose |
+|---|---|
+| `idp-keycloak-setup.ps1` | One run = a ready local Keycloak: installs a JDK if needed, downloads Keycloak, starts it (via `idp-keycloak-start.ps1`), then provisions the `edfi` realm, `edfiadminapp` client, and test user. |
+| `idp-keycloak-start.ps1` | Starts Keycloak in the background (bootstraps the master admin on first run, waits for readiness). Use to relaunch after a reboot. |
+
+### Transversal
+
+| Script | Purpose |
+|---|---|
+| `setup-vm-prereqs.ps1` | OS-level installs only: IIS features, SQL Server Developer, Git. Scans first, installs only what's missing. |
+| `install-all.ps1` | Master orchestrator (local-Keycloak example). Pre-flight check + all phases + smoke test. |
+| `yopass-docker.ps1` | Optional. Stands up a local Yopass + memcached stack via `docker\docker-compose.yopass.yml`. Only runs with `install-all -SetupYopassDocker` (or directly). |
+| `uninstall.ps1` | Reverses the generic install: IIS sites/App Pool/files, the `sbaa` DB, docker Postgres + Yopass stacks, `C:\npm-cache`. Detects Keycloak leftovers and suggests `uninstall-keycloak.ps1` (does not touch them). Per-step OK/SKIP/WARN/FAIL ledger. |
+| `uninstall-keycloak.ps1` | Tears down the local Keycloak IdP: stops the process, deletes the install dir, unsets `JAVA_HOME`. Leaves the JDK install in place. |
+
+### Per-section mapping to the official guide
+
+| Guide section/step | Script(s) |
+|---|---|
+| Prereqs: IIS + URL Rewrite + iisnode | `01-prereqs-iis.ps1` |
+| Prereqs: Node.js | `03-prereqs-node.ps1` |
+| Prereqs: SQL Server / PostgreSQL (+ `sbaa`) | `02-prereqs-sql.ps1` |
+| Prereqs: Identity Provider | `idp-keycloak-setup.ps1` (local example) or your own IdP |
+| Backend API → build | `04-build.ps1` (also builds the FE) |
+| Backend API → deploy (site, web.config, handler mappings, App Pool, dirs) | `05-deploy-api.ps1` (handler-mapping unlock done by `01-prereqs-iis.ps1`) |
+| Frontend → configure `.env` + build | `04-build.ps1` (Vite bakes vars at **build** time, not deploy) |
+| Frontend → deploy (site, SPA rewrite) | `06-deploy-fe.ps1` |
+
+> The guide's "configure Handler Mappings manually in IIS Manager" step is automated: `01-prereqs-iis.ps1` unlocks the `handlers` section and `05-deploy-api.ps1` declares the `iisnode` handler in `web.config`.
+
+---
+
+## Other identity providers
+
+The Admin App's auth engine is provider-agnostic (generic OIDC discovery). Keycloak is only the **example** IdP. To use Entra ID, Google, Auth0, etc.:
+
+1. Run the generic path manually (skip `install-all` and the `idp-keycloak-*` scripts): `00` → `01` → `02` → `03` → `04` → `05-deploy-api.ps1` → `06-deploy-fe.ps1`.
+2. On `05-deploy-api.ps1`, pass your provider's values via the `-Oidc*` parameters (defaults are the Keycloak example):
+   - `-OidcIssuer`, `-OidcClientId`, `-OidcClientSecret`, `-OidcManagementDomain`, `-OidcMachineSecret`, `-OidcScope` (default `'openid email profile'`).
+3. On `04-build.ps1`, set `-ViteApiUrl http://localhost:3333`, `-ViteBasePath /`, and `-ViteIdpAccountUrl <your IdP account URL>`.
+4. Register the redirect/origin URIs in your IdP: redirect `http://localhost:3333/api/auth/callback/1`, FE origin `http://localhost:4200`.
 
 ---
 
 ## Uninstalling
 
-To roll back an install on the same VM:
-
 ```powershell
-.\uninstall.ps1                                          # Windows Auth to drop the DB; prompts before doing anything
-.\uninstall.ps1 -SaPassword 'your-sa-password' -Force    # SQL Auth + non-interactive
-.\uninstall.ps1 -KeepDatabase -KeepKeycloakDownload      # selective teardown
+.\uninstall.ps1                                       # prompts before doing anything
+.\uninstall.ps1 -SaPassword 'your-sa-password' -Force # SQL Auth to drop the DB + non-interactive
+.\uninstall.ps1 -KeepDatabase -KeepNpmCache           # selective teardown
+
+.\uninstall-keycloak.ps1                              # remove the local Keycloak IdP (separate)
 ```
 
-After uninstall, **open a fresh PowerShell window** before re-running `install-all.ps1` so the cleared `JAVA_HOME` / `NPM_CONFIG_CACHE` env vars are picked up.
-
-See `Get-Help .\uninstall.ps1 -Full` for the full flag list (`-KeepDatabase`, `-KeepKeycloakDownload`, `-KeepNpmCache`, `-KeepCert`, `-RemoveSummary`, etc.).
+`uninstall.ps1` covers the generic install and, at the end, flags any Keycloak leftovers and points you at `uninstall-keycloak.ps1`. See `Get-Help .\uninstall.ps1 -Full` / `Get-Help .\uninstall-keycloak.ps1 -Full` for all flags.
 
 ---
 
 ## What `install-all.ps1` does, in order
 
-1. **Sanity-check the source path** — verifies `$SourcePath\package.json` exists. Default `-SourcePath` auto-resolves to the parent of `windows-install\`.
-2. **Node version check** (`00a-fix-node.ps1`) — no-op when Node is missing or already at the floor; otherwise prompts to upgrade via nvm-windows. Skipped with `-SkipPreflightCheck`.
-3. **Pre-flight check** (`00-check-prereqs.ps1`) — aborts on FAIL; prompts on RISK (unless `-AcceptRisks`).
-4. **Phase 1**: SQL config + creates `sbaa`; IIS prereqs + cert + HTTPS binding; Node + JDK + npm cache override + Keycloak download.
-**Phase 1.1**: database prereqs.
-   - `-DbEngine mssql` -> SQL Server Mixed Mode + TCP/IP + `sa` + creates `sbaa`.
-   - `-DbEngine pgsql -UsePostgresDocker` -> writes `docker\.env` from your args, runs `docker compose up -d`, waits for `pg_isready`.
-   - `-DbEngine pgsql` without `-UsePostgresDocker` -> no DB action; you're expected to point `-PostgresHost`/`-PostgresPort` at an existing Postgres.
-**Phase 1.4** *(only with `-SetupYopassDocker`)*: brings up the Yopass + memcached docker stack and waits for it to respond.
-5. **Phase 2**: `npm ci` + builds; start Keycloak detached with bootstrap admin.
-6. **Phase 3**: Keycloak realm/client/user; deploy API; deploy FE.
-7. **Smoke test**: hits `https://localhost/adminapp-api/api/teams` (expects 401).
-8. **Post-install**: waits for `[user]` table to exist, ensures admin user with `roleId=2` (idempotent INSERT-or-UPDATE).
-9. **Writes** `install-summary.txt` in the parent of the repo directory, with URLs and credentials.
+1. **Node runtime** (`03-prereqs-node.ps1`) — installs/remediates Node up front (idempotent), so a stale Node doesn't fail the pre-flight.
+2. **Pre-flight check** (`00-check-prereqs.ps1`) — aborts on FAIL; prompts on RISK (unless `-AcceptRisks`). Skipped with `-SkipPreflightCheck`.
+3. **Phase 1 — prereqs**: database (mssql Mixed Mode + TCP/IP + `sbaa`, or pgsql/docker) and IIS (`01-prereqs-iis.ps1`). Optional Yopass docker with `-SetupYopassDocker`.
+4. **Phase 2 — build** (`04-build.ps1`): `npm ci` + `build:api` + `build:fe`.
+5. **Phase 3 — deploy**: `idp-keycloak-setup.ps1` (JDK + Keycloak download + start + realm/client/user), then `05-deploy-api.ps1` and `06-deploy-fe.ps1`.
+6. **Smoke test**: hits `http://localhost:3333/api/teams` (expects 401), waits for the `[user]` table, and ensures the admin user has `roleId=2`.
+7. **Writes** `install-summary.txt` in the parent of the repo directory.
 
 Re-running on a working install is mostly a no-op — most steps detect existing state and skip.
 
 ### Re-run flags
 
-- `-OnlyPhase1` — stop after the OS-prereq phase
+- `-OnlyPhase1` — stop after prereqs
 - `-SkipPhase1` — prereqs already done
-- `-SkipPhase2` — build artifacts and Keycloak already in place
-- `-SkipPreflightCheck` — skip `00-check-prereqs` (useful when debugging a partial install)
-- `-AcceptRisks` — bypass the y/N confirmation when `00-check-prereqs` flags `[RISK]` items (collisions with existing software). Use only after reviewing the risks; intended for non-interactive runs.
-- `-AutoUpgradeNode` — when `00a-fix-node.ps1` finds a too-old Node on PATH, skip its y/N prompt and proceed with the nvm-windows + Node LTS setup automatically. For non-interactive runs.
+- `-SkipPhase2` — build artifacts already present
+- `-SkipPreflightCheck` — skip `00-check-prereqs`
+- `-AcceptRisks` — bypass the y/N confirmation on `[RISK]` items (non-interactive)
+- `-AutoUpgradeNode` — when `03-prereqs-node.ps1` finds a too-old Node, skip its y/N prompt and remediate via nvm-windows automatically
 
 ### Advanced flags
 
-You don't need any of these for a working AdminApp install — they enable integrations and Keycloak features used by specific testing or production setups.
-
-- **Yopass** (one-time-sharing of newly-created Ed-Fi API client credentials) has three modes, selected by which flag you pass:
-  - **Disabled (default)** — pass neither flag. `USE_YOPASS=false`; credentials are shown inline in the UI (the AdminApp's documented fallback).
-  - **Existing deployment** — `-YopassUrl '<url>'` points the AdminApp at a Yopass you already run (e.g. `-YopassUrl 'http://yopass.internal:8082'`). Sets `USE_YOPASS=true` + `YOPASS_URL`.
-  - **Set one up for you** — `-SetupYopassDocker` stands up a local Yopass + memcached via `docker\docker-compose.yopass.yml` during Phase 1.4 and points the AdminApp at `http://localhost:<YopassPort>`. `-YopassPort` defaults to `8082`. Requires **Docker Desktop running in Linux-container mode**; the pre-flight check verifies Docker is up and the port is free (pass a different `-YopassPort` if `8082` is taken — e.g. Docker Desktop itself can occupy it).
-
-  `-YopassUrl` and `-SetupYopassDocker` are mutually exclusive. The chosen mode is recorded in `install-summary.txt`. See the [Yopass administrator's guide](https://docs.ed-fi.org/reference/admin-app/system-administrators/yopass-administrators-guide/) for what Yopass does.
-- `-IncludeAudienceMapper` — adds a Keycloak protocol mapper that injects `aud: "edfiadminapp-api"` into access tokens. Needed only for **direct bearer-token API access** (Postman / curl / CI hitting the API with a Keycloak-issued token, where the API enforces audience). The browser UI login flow doesn't need this — the AdminApp validates `client_id`, not `aud`.
-- `-EnableDirectAccessGrants` — enables the OAuth password grant on the Keycloak client, letting you POST username+password to Keycloak's token endpoint directly without the OIDC redirect flow. Useful for scripted API tests; explicitly an anti-pattern in production. **Testing only.**
+- **Yopass** (one-time-sharing of newly-created Ed-Fi API client credentials): **disabled** by default; `-YopassUrl '<url>'` to use an existing Yopass; `-SetupYopassDocker` to stand one up locally (`-YopassPort`, default 8082). The two are mutually exclusive. See the [Yopass administrator's guide](https://docs.ed-fi.org/reference/admin-app/system-administrators/yopass-administrators-guide/).
+- `-IncludeAudienceMapper` — adds a Keycloak audience mapper; only needed for direct bearer-token API access (Postman/curl/CI). The browser login flow doesn't need it.
+- `-EnableDirectAccessGrants` — enables the OAuth password grant on the Keycloak client. **Testing only.**
 
 ---
 
 ## End-state URLs
 
-- **Admin App**: `https://localhost/adminapp/`
-- **API**: `https://localhost/adminapp-api/`
-- **Keycloak admin console**: `http://localhost:8080/admin/` (HTTP, not proxied — by design for the default install)
+- **Admin App (FE)**: `http://localhost:4200/`
+- **API**: `http://localhost:3333/`
+- **Keycloak admin console**: `http://localhost:8080/admin/`
 - **Keycloak `edfi` realm**: `http://localhost:8080/realms/edfi/`
 
 ---
@@ -148,30 +174,21 @@ You don't need any of these for a working AdminApp install — they enable integ
 
 ### Keycloak bootstrap admin is first-run only
 
-`KC_BOOTSTRAP_ADMIN_USERNAME` / `KC_BOOTSTRAP_ADMIN_PASSWORD` are only honored the **first time** Keycloak starts against an empty data directory. If you re-run `install-all.ps1` later with a different `-KeycloakAdminPassword`, the existing master admin is unchanged and script 06 will fail to authenticate.
-
-`06-keycloak-bootstrap.ps1` detects this case (`invalid_grant` on the admin token request) and prints the recovery options inline. The two paths are:
+`KC_BOOTSTRAP_ADMIN_USERNAME` / `KC_BOOTSTRAP_ADMIN_PASSWORD` are honored only the **first time** Keycloak starts against an empty data directory. Re-running later with a different `-KeycloakAdminPassword` leaves the existing master admin unchanged and provisioning fails to authenticate. `idp-keycloak-setup.ps1` detects this (`invalid_grant`) and prints recovery options:
 
 - **A:** Re-run with the original admin password.
-- **B:** Wipe Keycloak state and bootstrap fresh (loses realm/client/user — `install-all` recreates them automatically):
+- **B:** Wipe Keycloak state and bootstrap fresh (loses realm/client/user — recreated automatically):
 
 ```powershell
-Stop-Process -Name java -Force -ErrorAction SilentlyContinue
-Remove-Item -Recurse -Force C:\keycloak\data
+.\uninstall-keycloak.ps1 -Force
 .\install-all.ps1 ... -KeycloakAdminPassword '<new-pw>' -SkipPhase1
 ```
 
-Unlike the admin password, `-KeycloakClientSecret` and `-TestUserPassword` are **idempotently updatable** via the admin REST API on every re-run — mismatches there are benign (the values just get reset to whatever you passed).
+`-KeycloakClientSecret` and `-TestUserPassword` are idempotently updatable on every re-run.
 
 ### Rate limit can trip during heavy debugging
 
-Default in `production.js` is 10 requests per 60 seconds. If you hit it, recycle the App Pool to clear state:
-
-```powershell
-Restart-WebAppPool -Name "EdFi-AdminApp-API"
-```
-
-For dev convenience, bump it to 1000:
+Default in `production.js` is 10 requests / 60s. Recycle the App Pool to clear state, or bump it for dev:
 
 ```powershell
 $f = "C:\inetpub\Ed-Fi\adminapp-api\packages\api\config\production.js"
@@ -179,41 +196,35 @@ $f = "C:\inetpub\Ed-Fi\adminapp-api\packages\api\config\production.js"
 Restart-WebAppPool -Name "EdFi-AdminApp-API"
 ```
 
-### Self-signed cert
+### npm cache is scoped to the App Pool
 
-The HTTPS cert at port 443 is self-signed, generated by `01-prereqs-iis.ps1`, and added to the LocalMachine Trusted Root store. If the browser still warns after install, fully close and reopen it.
+`05-deploy-api.ps1` sets `NPM_CONFIG_CACHE` on the `EdFi-AdminApp-API` App Pool's environment (not machine-wide) and grants that identity write access, so npm under iisnode has a writable cache without affecting other npm usage on the machine. Requires IIS 10+.
 
 ### iisnode is unmaintained
 
-iisnode v0.2.26 (2020) is the latest release. Works with the current required Node (22+), but won't get bug fixes upstream.
+iisnode v0.2.26 (2020) is the latest release. Works with Node 22+, but won't get upstream fixes.
 
 ### Node version requirement
 
-The AdminApp's `package.json` declares `engines.node: ">=22.0.0"`, and transitive deps push the practical floor to **22.12+**. `00a-fix-node.ps1` reads `engines.node` at runtime and tracks whatever the repo declares — bumping the AdminApp's requirement automatically updates the script's floor.
-
-If a too-old Node is detected, `00a-fix-node.ps1` offers to set up nvm-windows + install the latest patch on the required major. nvm-windows occasionally reports "Installation complete" while AV/EDR silently consumes the extracted files; the script detects this (no `vX.Y.Z\` directory appeared in nvm's root) and **falls back to a direct download from `nodejs.org`** without user intervention.
+`package.json` declares `engines.node: ">=22.0.0"` (practical floor ~22.12+). `03-prereqs-node.ps1` reads `engines.node` at runtime and tracks whatever the repo declares. If a too-old Node is found, it sets up nvm-windows + installs the latest patch on the required major; if AV/EDR consumes the nvm-extracted files, it **falls back to a direct download from nodejs.org**.
 
 ### What these scripts don't do
 
-- **Cert distribution** beyond the local machine — clients on other machines won't trust the cert.
-- **Production hardening** — these target a local dev install. Production would want real certs, secrets management, log rotation, etc. The optional dockerized Yopass (`-SetupYopassDocker`) runs HTTP-only behind localhost and is **not** production-hardened — front it with TLS and lock down access for real use.
-- **Keycloak as a Windows service** — started in the background via `Start-Process`. To survive a reboot, use `nssm` or another service wrapper.
-- **Secret rotation** — Keycloak supports client-secret rotation as a preview feature; it's not enabled here. The AdminApp doesn't have automation to pick up rotated secrets, so enabling rotation without that complementary work would break login when the old secret expires.
+- **Local TLS / HTTPS** — local dev is HTTP only (two standalone sites on 3333/4200). There is no self-signed cert or 443 binding. Front the sites with TLS (a reverse proxy or real certs) for anything beyond local dev.
+- **Production hardening** — real certs, secrets management, log rotation, etc. The optional dockerized Yopass runs HTTP-only behind localhost and is not production-hardened.
+- **Keycloak as a Windows service** — started via `Start-Process`. Use `nssm` or a service wrapper to survive reboots.
+- **Secret rotation** — not enabled; the AdminApp has no automation to pick up rotated secrets.
 
 ---
 
 ## Defaults
 
-Most paths and URLs have sensible defaults you can override on `install-all.ps1`:
+| Parameter | Default |
+| --- | --- |
+| `-DbEngine` | `mssql` |
+| `-SourcePath` | Parent of `windows-install\` (typically `C:\Ed-Fi\Ed-Fi-AdminApp`) |
+| `-DatabaseName` | `sbaa` |
+| `-AdminUsername` | `admin@example.com` |
+| `-PostgresHost` / `-PostgresPort` / `-PostgresAppUser` | `localhost` / `5432` / `edfiadminapp` *(pgsql only)* |
 
-| Parameter             | Default                                                    |
-| --------------------- | ---------------------------------------------------------- |
-| `-DbEngine`           | `mssql`                                                    |
-| `-SourcePath`         | Auto-resolved to parent of `windows-install\` (typically `C:\Ed-Fi\Ed-Fi-AdminApp`) |
-| `-DatabaseName`       | `sbaa`                                                     |
-| `-AdminUsername`      | `admin@example.com`                                        |
-| `-PostgresHost`       | `localhost` *(pgsql only)*                                 |
-| `-PostgresPort`       | `5432` *(pgsql only)*                                      |
-| `-PostgresAppUser`    | `edfiadminapp` *(pgsql only; matches the docker init script)* |
-
-Per-script parameters (cert hostnames, Keycloak install path, ports, etc.) all have defaults documented in each script's `param()` block — run `Get-Help .\<script>.ps1 -Full` for the full list.
+Per-script parameters (ports, OIDC settings, Keycloak install path, etc.) have defaults documented in each script's `param()` block — run `Get-Help .\<script>.ps1 -Full`.
