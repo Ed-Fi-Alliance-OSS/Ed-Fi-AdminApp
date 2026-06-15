@@ -5,48 +5,41 @@ import {
   PageSectionActions,
   PageTemplate,
 } from '@edanalytics/common-ui';
-import { useQuery } from '@tanstack/react-query';
 import omit from 'lodash/omit';
 import { useParams } from 'react-router-dom';
-import { odsQueries } from '../../api';
 import {
   AuthorizeComponent,
   useTeamEdfiTenantNavContextLoaded,
   VersioningHoc,
 } from '../../helpers';
 import { useEdorgsActions } from '../Edorg/useEdorgsActions';
+import { sampleOdsData } from './odsData';
 import { OdsEdorgsTable } from './OdsEdorgsTable';
+import { OdsRowCountsTable } from './OdsRowCountsTable';
 import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
-import { OdsRowCountsTable } from './OdsRowCountsTable';
 import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
 
 export const OdsPage = () => {
   const params = useParams() as {
     odsId: string;
   };
-  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const ods = useQuery(
-    odsQueries.getOne({
-      id: params.odsId,
-      edfiTenant,
-      teamId,
-    })
-  ).data;
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const ods = sampleOdsData.find((row) => row.id === Number(params.odsId));
 
   const actions = useOdsActions({ id: Number(params.odsId) });
-  const edorgsActions = useEdorgsActions({ ods });
+  const edorgsActions = useEdorgsActions({ ods: undefined });
   const syncEdOrgsActions = useSyncEdOrgsAction();
   return (
     <PageTemplate
-      title={ods?.displayName || 'Ods'}
+      title={ods?.name || 'Ods'}
       actions={<PageActions actions={omit(actions, 'View')} />}
       customPageContentCard
     >
       {ods ? (
         <>
           <PageContentCard>
-            <ViewOds />
+            <ViewOds ods={ods} />
           </PageContentCard>
           <AuthorizeComponent
             config={{

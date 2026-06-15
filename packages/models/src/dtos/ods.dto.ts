@@ -4,7 +4,7 @@ import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
 import { DtoPostBase, PostDto } from '../utils/post-base.dto';
 import { DtoPutBase, PutDto } from '../utils/put-base.dto';
-import { MinLength, MaxLength, Matches } from 'class-validator';
+import { MinLength, MaxLength, Matches, IsNotEmpty } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 
 // This is a Get DTO that should not have whitespace trimmed
@@ -109,6 +109,7 @@ export class PostOdsDto
   name: string;
 
   @Expose()
+  @IsNotEmpty()
   @TrimWhitespace()
   templateName: string;
 }

@@ -5,6 +5,7 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  Select,
   Text,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
@@ -27,6 +28,7 @@ const resolver = classValidatorResolver(PostOdsDto);
 export const CreateOds = () => {
   const popBanner = usePopBanner();
   const params = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenant, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
   const goToView = (id: string | number) =>
     navigate(
@@ -71,9 +73,19 @@ export const CreateOds = () => {
           <Input {...register('name')} />
           <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
         </FormControl>
+        {sbEnvironment.startingBlocks && (
+          <FormControl w="form-width" isInvalid={!!errors.templateName}>
+            <FormLabel>Template</FormLabel>
+            <SelectOdsTemplate name="templateName" control={control} />
+            <FormErrorMessage>{errors.templateName?.message}</FormErrorMessage>
+          </FormControl>
+        )}
         <FormControl w="form-width" isInvalid={!!errors.templateName}>
-          <FormLabel>Template</FormLabel>
-          <SelectOdsTemplate name="templateName" control={control} />
+          <FormLabel>Type</FormLabel>
+          <Select placeholder="Select type" {...register('templateName')}>
+            <option value="Minimal">Minimal</option>
+            <option value="Sample">Sample</option>
+          </Select>
           <FormErrorMessage>{errors.templateName?.message}</FormErrorMessage>
         </FormControl>
         <ButtonGroup>
