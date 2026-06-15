@@ -14,7 +14,7 @@ Run AFTER `npm run build:fe` produces dist\packages\fe\ in the source repo.
 Path to the Vite build output, e.g. C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe.
 
 .PARAMETER DestPath
-Where to deploy. Default: C:\inetpub\EdFi-AdminApp-FE.
+Where to deploy. Default: C:\inetpub\Ed-Fi\adminapp.
 
 .PARAMETER SiteName
 IIS site name. Default: EdFi-AdminApp-FE.
@@ -30,12 +30,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SourcePath,
     [string]$DestPath = "C:\inetpub\Ed-Fi\adminapp",
-    # Default: deploy as an application under "Ed-Fi" at /adminapp -> URL is
-    # https://localhost/adminapp/. Pass -ParentSiteName "" to create a
-    # standalone site on $Port instead (HTTP on localhost:$Port).
-    [string]$ParentSiteName = "Ed-Fi",
-    [string]$AppAlias = "adminapp",
-    [string]$StandaloneSiteName = "EdFi-AdminApp-FE",
+    [string]$SiteName = "EdFi-AdminApp-FE",
     [int]$Port = 4200
 )
 
@@ -51,25 +46,12 @@ New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
 & robocopy $SourcePath $DestPath /MIR /NFL /NDL /NJH /NJS | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
-if ($ParentSiteName) {
-    # Sub-application under the parent site
-    if (-not (Get-Website -Name $ParentSiteName -ErrorAction SilentlyContinue)) {
-        throw "Parent site '$ParentSiteName' not found. Run 01-prereqs-iis.ps1 first or pass -ParentSiteName ''."
-    }
-    $existing = Get-WebApplication -Site $ParentSiteName -Name $AppAlias -ErrorAction SilentlyContinue
-    if ($existing) {
-        Write-Host "Application '$AppAlias' under '$ParentSiteName' exists. Updating physical path..."
-        Set-ItemProperty -Path "IIS:\Sites\$ParentSiteName\$AppAlias" -Name "physicalPath" -Value $DestPath
-    } else {
-        New-WebApplication -Site $ParentSiteName -Name $AppAlias -PhysicalPath $DestPath | Out-Null
-        Write-Host "Application '$AppAlias' created under '$ParentSiteName' -> https://localhost/$AppAlias/"
-    }
-} elseif (Get-Website -Name $StandaloneSiteName -ErrorAction SilentlyContinue) {
-    Write-Host "Site '$StandaloneSiteName' exists. Updating physical path..."
-    Set-ItemProperty -Path "IIS:\Sites\$StandaloneSiteName" -Name "physicalPath" -Value $DestPath
+if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) {
+    Write-Host "Site '$SiteName' exists. Updating physical path..."
+    Set-ItemProperty -Path "IIS:\Sites\$SiteName" -Name "physicalPath" -Value $DestPath
 } else {
-    New-Website -Name $StandaloneSiteName -Port $Port -PhysicalPath $DestPath | Out-Null
-    Write-Host "Site '$StandaloneSiteName' created on port $Port."
+    New-Website -Name $SiteName -Port $Port -PhysicalPath $DestPath | Out-Null
+    Write-Host "Site '$SiteName' created on HTTP port $Port."
 }
 
 $webConfig = @'

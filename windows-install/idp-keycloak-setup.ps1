@@ -91,10 +91,10 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$ClientSecret,
 
-    # Defaults assume the HTTPS sub-app deployment. URI list mirrors the docs.
-    # For standalone ports, pass single-URL overrides instead.
-    [string]$FeBaseUrl = "https://localhost/adminapp",
-    [string]$ApiBaseUrl = "https://localhost/adminapp-api",
+    # Defaults match the standalone HTTP sites (FE on 4200, API on 3333). The
+    # client's redirect and web-origin URIs are built from these.
+    [string]$FeBaseUrl = "http://localhost:4200",
+    [string]$ApiBaseUrl = "http://localhost:3333",
     [string]$TestUserEmail = "admin@example.com",
     [string]$TestUserFirstName = "Admin",
     [string]$TestUserLastName  = "User",

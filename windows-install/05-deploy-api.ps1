@@ -13,7 +13,7 @@ Deploys the Ed-Fi Admin App API to IIS under iisnode.
 
 Run AFTER:
   - 02-prereqs-sql.ps1 (SQL ready)
-  - 01-prereqs-iis.ps1 (IIS, cert, iisnode ready)
+  - 01-prereqs-iis.ps1 (IIS + iisnode ready)
   - 03-prereqs-node.ps1 (Node, npm cache ready)
   - `npm ci --legacy-peer-deps` and `npm run build:api` in the source repo
 
@@ -27,16 +27,8 @@ Where to deploy. Default: C:\inetpub\Ed-Fi\EdFi-AdminApp-API.
 .PARAMETER AppPoolName
 Name of the IIS App Pool. Default: EdFi-AdminApp-API.
 
-.PARAMETER ParentSiteName
-The IIS site to add this app under. Pass "" to create a new standalone site.
-Default: Ed-Fi.
-
-.PARAMETER AppAlias
-The application path under the parent site. Default: EdFi-AdminApp-API
-(produces URL https://localhost/EdFi-AdminApp-API).
-
 .PARAMETER StandalonePort
-If creating a new standalone site, this port. Default: 3333.
+HTTP port for the standalone API site (EdFi-AdminApp-API). Default: 3333.
 
 .PARAMETER SaPassword
 SQL Server sa password (set in 02-prereqs-sql.ps1).
@@ -59,12 +51,6 @@ Domain (host:port) of Keycloak. Default: localhost:8080.
 .PARAMETER KeycloakMachineSecret
 Default: edfi-machine-secret-456.
 
-.PARAMETER ApiPort
-Public-facing API port (used in MY_URL). Default: 3333.
-
-.PARAMETER FePort
-Public-facing FE port (used in FE_URL). Default: 4200.
-
 .PARAMETER AdminUsername
 Email seeded as the admin user. Default: admin@example.com.
 
@@ -78,11 +64,7 @@ param(
 
     [string]$DestPath = "C:\inetpub\Ed-Fi\adminapp-api",
     [string]$AppPoolName = "EdFi-AdminApp-API",
-    # Default: nest under "Ed-Fi" site at /adminapp-api -> URL is
-    # https://localhost/adminapp-api. Pass -ParentSiteName "" to deploy as a
-    # standalone site on $StandalonePort instead.
-    [string]$ParentSiteName = "Ed-Fi",
-    [string]$AppAlias = "adminapp-api",
+    # The API deploys as a standalone HTTP site named $AppPoolName on this port.
     [int]$StandalonePort = 3333,
 
     # Which database engine production.js should be configured for.
@@ -116,12 +98,9 @@ param(
     [string]$KeycloakManagementDomain = "localhost:8080",
     [string]$KeycloakMachineSecret = "edfi-machine-secret-456",
 
-    # API port for standalone mode (only used when -ParentSiteName "")
-    [int]$ApiPort = 3333,
-    [int]$FePort = 4200,
-    # URLs baked into production.js. Defaults match the HTTPS sub-app deployment.
-    [string]$ApiUrl = "https://localhost/adminapp-api",
-    [string]$FeUrl = "https://localhost/adminapp",
+    # URLs baked into production.js. Defaults match the standalone HTTP sites.
+    [string]$ApiUrl = "http://localhost:3333",
+    [string]$FeUrl = "http://localhost:4200",
     [string]$AdminUsername = "admin@example.com",
 
     # Yopass: pass a non-empty URL to enable Yopass (one-time-share for newly-
@@ -178,29 +157,14 @@ Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "processModel.loadUser
 Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "managedRuntimeVersion" -Value ""
 Write-Host "App Pool '$AppPoolName' configured (LoadUserProfile=true)."
 
-# IIS site or application
-if ($ParentSiteName) {
-    $parent = Get-Website -Name $ParentSiteName -ErrorAction SilentlyContinue
-    if (-not $parent) { throw "Parent site '$ParentSiteName' not found." }
-
-    $existing = Get-WebApplication -Site $ParentSiteName -Name $AppAlias -ErrorAction SilentlyContinue
-    if ($existing) {
-        Write-Host "Application '$AppAlias' under '$ParentSiteName' exists. Updating..."
-        Set-ItemProperty -Path "IIS:\Sites\$ParentSiteName\$AppAlias" -Name "physicalPath" -Value $DestPath
-        Set-ItemProperty -Path "IIS:\Sites\$ParentSiteName\$AppAlias" -Name "applicationPool" -Value $AppPoolName
-    } else {
-        New-WebApplication -Site $ParentSiteName -Name $AppAlias -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
-        Write-Host "Application '$AppAlias' created under site '$ParentSiteName'."
-    }
+# IIS standalone HTTP site (named after the App Pool, e.g. EdFi-AdminApp-API)
+if (Get-Website -Name $AppPoolName -ErrorAction SilentlyContinue) {
+    Write-Host "Site '$AppPoolName' exists. Updating physical path..."
+    Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "physicalPath" -Value $DestPath
+    Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "applicationPool" -Value $AppPoolName
 } else {
-    if (Get-Website -Name $AppPoolName -ErrorAction SilentlyContinue) {
-        Write-Host "Site '$AppPoolName' exists. Updating physical path..."
-        Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "physicalPath" -Value $DestPath
-        Set-ItemProperty -Path "IIS:\Sites\$AppPoolName" -Name "applicationPool" -Value $AppPoolName
-    } else {
-        New-Website -Name $AppPoolName -Port $StandalonePort -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
-        Write-Host "Standalone site '$AppPoolName' created on port $StandalonePort."
-    }
+    New-Website -Name $AppPoolName -Port $StandalonePort -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
+    Write-Host "Standalone site '$AppPoolName' created on HTTP port $StandalonePort."
 }
 
 # web.config (the version that actually works)
@@ -354,8 +318,4 @@ if ($webConfigChanged -or $prodJsChanged) {
 
 Write-Host ""
 Write-Host "SUCCESS: Admin App API deployed." -ForegroundColor Green
-if ($ParentSiteName) {
-    Write-Host "URL: https://localhost/$AppAlias/api/teams (expect 401 without a bearer token)"
-} else {
-    Write-Host "URL: http://localhost:${StandalonePort}/api/teams"
-}
+Write-Host "URL: http://localhost:${StandalonePort}/api/teams (expect 401 without a bearer token)"

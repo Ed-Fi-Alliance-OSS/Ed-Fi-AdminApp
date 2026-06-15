@@ -30,11 +30,12 @@ are already present and newer than package.json (heuristic for "build is current
 
 .PARAMETER ViteApiUrl
 URL the FE will call for API requests. Written into packages\fe\.env as
-VITE_API_URL before building. Default: https://localhost/adminapp-api.
+VITE_API_URL before building. Default: http://localhost:3333.
 
 .PARAMETER ViteBasePath
-URL path the FE is served from (must end with a slash). Written into
-packages\fe\.env as VITE_BASE_PATH before building. Default: "/adminapp/".
+URL path the FE is served from. Written into packages\fe\.env as
+VITE_BASE_PATH before building. Default: "/" (the FE is served from the root
+of its own HTTP site).
 
 .PARAMETER ViteIdpAccountUrl
 Keycloak account-management URL the FE links to. Default points at the
@@ -51,8 +52,8 @@ param(
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
     [switch]$SkipInstall,
     [switch]$Force,
-    [string]$ViteApiUrl = "https://localhost/adminapp-api",
-    [string]$ViteBasePath = "/adminapp/",
+    [string]$ViteApiUrl = "http://localhost:3333",
+    [string]$ViteBasePath = "/",
     [string]$ViteIdpAccountUrl = "http://localhost:8080/realms/edfi/account/"
 )
 

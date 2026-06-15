@@ -444,21 +444,11 @@ Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
 # ---------- Smoke test ----------
 Write-Phase "Smoke test: hitting the API"
 
-# Trust self-signed cert for this probe
-Add-Type @"
-using System.Net;
-using System.Security.Cryptography.X509Certificates;
-public class InstallAllCertTrust : ICertificatePolicy {
-    public bool CheckValidationResult(ServicePoint sp, X509Certificate c, WebRequest r, int p) { return true; }
-}
-"@ -ErrorAction SilentlyContinue
-[System.Net.ServicePointManager]::CertificatePolicy = New-Object InstallAllCertTrust
-
 # iisnode lazy-starts on first request, so the first hit can be slow. Retry briefly.
 $apiOk = $false
 for ($i = 0; $i -lt 12; $i++) {
     try {
-        $r = Invoke-WebRequest -Uri "https://localhost/adminapp-api/api/teams" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+        $r = Invoke-WebRequest -Uri "http://localhost:3333/api/teams" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
         # Anything non-5xx counts as the app being up (401 expected without a token).
         $apiOk = $true; break
     } catch [System.Net.WebException] {
@@ -474,7 +464,7 @@ for ($i = 0; $i -lt 12; $i++) {
 }
 
 if ($apiOk) {
-    Write-Host "API is responding at https://localhost/adminapp-api/" -ForegroundColor Green
+    Write-Host "API is responding at http://localhost:3333/" -ForegroundColor Green
 
     # Wait for the [user] table to exist. TypeORM migrations run during Nest
     # bootstrap, which is triggered by the smoke test, but the smoke test gets
@@ -637,13 +627,13 @@ Ed-Fi Admin App -- Install Summary
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
 Admin App
-  URL:                https://localhost/adminapp/
+  URL:                http://localhost:4200/
   Sign in with:
     Email:            $AdminUsername
     Password:         $TestUserPassword
 
 API
-  URL:                https://localhost/adminapp-api/
+  URL:                http://localhost:3333/
 
 Keycloak (Identity Provider)
   Admin console:      http://localhost:8080/admin/
@@ -657,8 +647,8 @@ $dbSummary
 $yopassSummary
 
 Notes
-  - The HTTPS cert is self-signed and was added to Trusted Root by 01-prereqs-iis.ps1.
-    If the browser still warns, fully close and reopen it once.
+  - Local dev runs over HTTP (no TLS). The FE and API are served from standalone
+    IIS sites on ports 4200 and 3333.
   - This file contains passwords in plaintext. Delete or protect it for non-dev use.
 "@
 
