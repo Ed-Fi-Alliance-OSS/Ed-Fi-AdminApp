@@ -216,7 +216,7 @@ $rewrite = Test-Path "$env:SystemRoot\System32\inetsrv\rewrite.dll"
 if ($rewrite) {
     Write-Check PASS "URL Rewrite Module"
 } else {
-    Write-Check INFO "URL Rewrite Module not installed" "02-prereqs-iis.ps1 will install"
+    Write-Check INFO "URL Rewrite Module not installed" "01-prereqs-iis.ps1 will install"
 }
 
 # iisnode
@@ -224,7 +224,7 @@ $iisnode = Test-Path "$env:ProgramFiles\iisnode\iisnode.dll"
 if ($iisnode) {
     Write-Check PASS "iisnode"
 } else {
-    Write-Check INFO "iisnode not installed" "02-prereqs-iis.ps1 will install"
+    Write-Check INFO "iisnode not installed" "01-prereqs-iis.ps1 will install"
 }
 
 # Node.js -- presence AND version (>= $MinNodeMajor). Missing is INFO (03a
@@ -324,7 +324,7 @@ if ($DbEngine -eq 'mssql' -and $sqlService -and $sqlService.Status -eq 'Running'
         if ($loginMode -eq 2) {
             Write-Check PASS "SQL Server Mixed Mode auth enabled"
         } elseif ($loginMode -eq 1) {
-            Write-Check INFO "SQL Server is Windows-auth only" "01-prereqs-sql.ps1 will switch to Mixed Mode"
+            Write-Check INFO "SQL Server is Windows-auth only" "02-prereqs-sql.ps1 will switch to Mixed Mode"
         } else {
             Write-Check INFO "SQL Server LoginMode = $loginMode (unknown)"
         }
@@ -335,7 +335,7 @@ if ($DbEngine -eq 'mssql' -and $sqlService -and $sqlService.Status -eq 'Running'
     if ($tcpListener) {
         Write-Check PASS "TCP listener on port 1433"
     } else {
-        Write-Check INFO "Nothing listening on TCP 1433" "01-prereqs-sql.ps1 will enable TCP/IP"
+        Write-Check INFO "Nothing listening on TCP 1433" "02-prereqs-sql.ps1 will enable TCP/IP"
     }
 
     # sbaa database
@@ -343,7 +343,7 @@ if ($DbEngine -eq 'mssql' -and $sqlService -and $sqlService.Status -eq 'Running'
     if ($LASTEXITCODE -eq 0 -and $dbCheck -match $DatabaseName) {
         Write-Check PASS "Database '$DatabaseName' exists"
     } else {
-        Write-Check INFO "Database '$DatabaseName' not found" "01-prereqs-sql.ps1 will create"
+        Write-Check INFO "Database '$DatabaseName' not found" "02-prereqs-sql.ps1 will create"
     }
 } else {
     Write-Check INFO "SQL Server checks skipped" "Service not running"
@@ -362,7 +362,7 @@ try {
         Write-Check INFO "Keycloak 'edfi' realm not found" "06-keycloak-bootstrap.ps1 will create"
     }
 } catch {
-    Write-Check INFO "Keycloak not responding at :8080" "Start it via 03b-keycloak-start.ps1"
+    Write-Check INFO "Keycloak not responding at :8080" "Start it via idp-keycloak-start.ps1"
 }
 
 # npm cache override
@@ -378,13 +378,13 @@ $apiMainJs = "$SourcePath\dist\packages\api\main.js"
 if (Test-Path $apiMainJs) {
     Write-Check PASS "API build artifact present" $apiMainJs
 } else {
-    Write-Check INFO "API not built yet" "03c-build-project.ps1 will run npm ci + build:api"
+    Write-Check INFO "API not built yet" "04-build.ps1 will run npm ci + build:api"
 }
 $feIndex = "$SourcePath\dist\packages\fe\index.html"
 if (Test-Path $feIndex) {
     Write-Check PASS "FE build artifact present" "$SourcePath\dist\packages\fe\"
 } else {
-    Write-Check INFO "FE not built yet" "03c-build-project.ps1 will run build:fe"
+    Write-Check INFO "FE not built yet" "04-build.ps1 will run build:fe"
 }
 
 # IIS state
@@ -400,14 +400,14 @@ try {
     if ($feSite) {
         Write-Check PASS "IIS site 'EdFi-AdminApp-FE' present"
     } else {
-        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "05-deploy-fe.ps1 will create"
+        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "06-deploy-fe.ps1 will create"
     }
     $apiPool = Get-Item "IIS:\AppPools\EdFi-AdminApp-API" -ErrorAction SilentlyContinue
     if ($apiPool) {
         $loadProfile = (Get-ItemProperty "IIS:\AppPools\EdFi-AdminApp-API" -Name "processModel.loadUserProfile").Value
         Write-Check PASS "App Pool 'EdFi-AdminApp-API' present" "LoadUserProfile: $loadProfile"
     } else {
-        Write-Check INFO "App Pool 'EdFi-AdminApp-API' not present" "04-deploy-api.ps1 will create"
+        Write-Check INFO "App Pool 'EdFi-AdminApp-API' not present" "05-deploy-api.ps1 will create"
     }
 } catch {
     Write-Check INFO "IIS checks skipped" "WebAdministration module unavailable (is IIS installed?)"
@@ -422,7 +422,7 @@ Write-Section "EXISTING STATE THAT WILL BE MODIFIED (collision risk check)"
 # another app on the box may be affected.
 
 # SQL Server instance is shared with other databases?
-# 01-prereqs-sql.ps1 flips Mixed Mode, enables sa, forces TCP/IP on 1433, and
+# 02-prereqs-sql.ps1 flips Mixed Mode, enables sa, forces TCP/IP on 1433, and
 # restarts the MSSQLSERVER service. If the instance is hosting other apps,
 # they'll feel all three. Skip the entire RISK probe when -DbEngine pgsql --
 # the SQL Server install won't be touched at all in that mode.

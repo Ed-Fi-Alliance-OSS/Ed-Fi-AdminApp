@@ -12,8 +12,8 @@ Deploys the Ed-Fi Admin App API to IIS under iisnode.
 - Sets icacls permissions for the App Pool user
 
 Run AFTER:
-  - 01-prereqs-sql.ps1 (SQL ready)
-  - 02-prereqs-iis.ps1 (IIS, cert, iisnode ready)
+  - 02-prereqs-sql.ps1 (SQL ready)
+  - 01-prereqs-iis.ps1 (IIS, cert, iisnode ready)
   - 03-prereqs-runtime.ps1 (Node, npm cache ready)
   - `npm ci --legacy-peer-deps` and `npm run build:api` in the source repo
 
@@ -39,10 +39,10 @@ The application path under the parent site. Default: EdFi-AdminApp-API
 If creating a new standalone site, this port. Default: 3333.
 
 .PARAMETER SaPassword
-SQL Server sa password (set in 01-prereqs-sql.ps1).
+SQL Server sa password (set in 02-prereqs-sql.ps1).
 
 .PARAMETER DatabaseName
-SQL Server database name. Default: sbaa. Must match what 01-prereqs-sql.ps1 created.
+SQL Server database name. Default: sbaa. Must match what 02-prereqs-sql.ps1 created.
 
 .PARAMETER KeycloakIssuer
 OIDC issuer URL. Default: http://localhost:8080/realms/edfi.
@@ -69,7 +69,7 @@ Public-facing FE port (used in FE_URL). Default: 4200.
 Email seeded as the admin user. Default: admin@example.com.
 
 .EXAMPLE
-.\04-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -SaPassword 'EdFi-Local!' -KeycloakClientSecret 'RBsHTSb...'
+.\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -SaPassword 'EdFi-Local!' -KeycloakClientSecret 'RBsHTSb...'
 #>
 
 param(

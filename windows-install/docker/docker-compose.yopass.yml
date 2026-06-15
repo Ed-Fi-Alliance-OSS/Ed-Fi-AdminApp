@@ -6,7 +6,7 @@
 # service that needs a key/value store (memcached here) to hold the encrypted,
 # expiring secrets.
 #
-# Brought up by 03d-yopass-docker.ps1 (or by install-all.ps1 -SetupYopassDocker).
+# Brought up by yopass-docker.ps1 (or by install-all.ps1 -SetupYopassDocker).
 # Kept in its own compose project (name below) and file so it is independent of
 # the postgres stack in docker-compose.yml -- you can run Yopass with either DB
 # engine, or not at all.

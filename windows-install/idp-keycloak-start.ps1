@@ -31,7 +31,7 @@ URL to probe. Default: http://localhost:8080.
 How long to wait for Keycloak to be reachable. Default: 120.
 
 .EXAMPLE
-.\03b-keycloak-start.ps1 -AdminPassword 'admin'
+.\idp-keycloak-start.ps1 -AdminPassword 'admin'
 #>
 
 param(

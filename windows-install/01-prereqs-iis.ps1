@@ -27,8 +27,8 @@ Friendly name for the new cert. Default: "Ed-Fi Dev Cert".
 Version of iisnode to install. Default: v0.2.26 (last published).
 
 .EXAMPLE
-.\02-prereqs-iis.ps1
-.\02-prereqs-iis.ps1 -SiteName "Ed-Fi" -HostNames "localhost","mybox.local"
+.\01-prereqs-iis.ps1
+.\01-prereqs-iis.ps1 -SiteName "Ed-Fi" -HostNames "localhost","mybox.local"
 #>
 
 param(

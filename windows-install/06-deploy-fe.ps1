@@ -23,7 +23,7 @@ IIS site name. Default: EdFi-AdminApp-FE.
 HTTP port. Default: 4200.
 
 .EXAMPLE
-.\05-deploy-fe.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe
+.\06-deploy-fe.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe
 #>
 
 param(
@@ -54,7 +54,7 @@ if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" 
 if ($ParentSiteName) {
     # Sub-application under the parent site
     if (-not (Get-Website -Name $ParentSiteName -ErrorAction SilentlyContinue)) {
-        throw "Parent site '$ParentSiteName' not found. Run 02-prereqs-iis.ps1 first or pass -ParentSiteName ''."
+        throw "Parent site '$ParentSiteName' not found. Run 01-prereqs-iis.ps1 first or pass -ParentSiteName ''."
     }
     $existing = Get-WebApplication -Site $ParentSiteName -Name $AppAlias -ErrorAction SilentlyContinue
     if ($existing) {

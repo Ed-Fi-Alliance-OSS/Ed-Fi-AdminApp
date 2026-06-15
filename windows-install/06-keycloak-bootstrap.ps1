@@ -28,7 +28,7 @@ Default: edfi.
 Default: edfiadminapp.
 
 .PARAMETER ClientSecret
-The secret to set on the client. Save this; you'll pass it to 04-deploy-api.ps1.
+The secret to set on the client. Save this; you'll pass it to 05-deploy-api.ps1.
 
 .PARAMETER RedirectUri
 Where Keycloak sends users back after login. Must match the API's MY_URL.

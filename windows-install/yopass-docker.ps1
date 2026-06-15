@@ -8,7 +8,7 @@ one-time-use, self-destructing links instead of showing them inline.
 .DESCRIPTION
 Brings up the stack defined in docker\docker-compose.yopass.yml, waits until the
 Yopass HTTP endpoint responds, and prints the URL to set as YOPASS_URL in the
-API config (install-all.ps1 wires this automatically; 04-deploy-api.ps1 takes
+API config (install-all.ps1 wires this automatically; 05-deploy-api.ps1 takes
 it via -YopassUrl).
 
 Idempotent: re-running just ensures the containers are up. Tear down with
@@ -32,11 +32,11 @@ How long to wait for Yopass to start responding. Default 60.
 
 .OUTPUTS
 Writes the resolved Yopass URL to the pipeline (last line) so callers can capture
-it: $url = .\03d-yopass-docker.ps1 -YopassPort 8082
+it: $url = .\yopass-docker.ps1 -YopassPort 8082
 
 .EXAMPLE
-.\03d-yopass-docker.ps1
-.\03d-yopass-docker.ps1 -YopassPort 9000
+.\yopass-docker.ps1
+.\yopass-docker.ps1 -YopassPort 9000
 #>
 param(
     [int]$YopassPort = 8082,

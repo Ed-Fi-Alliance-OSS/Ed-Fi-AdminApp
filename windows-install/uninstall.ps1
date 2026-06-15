@@ -51,7 +51,7 @@ Does NOT touch:
 Prompts for confirmation by default. Pass -Force for non-interactive runs.
 
 .PARAMETER DatabaseName
-Database to drop. Default: sbaa. Must match what 01-prereqs-sql.ps1 created.
+Database to drop. Default: sbaa. Must match what 02-prereqs-sql.ps1 created.
 
 .PARAMETER SaPassword
 SQL sa password. If provided, the DB drop uses SQL Auth over TCP. If omitted,
@@ -327,7 +327,7 @@ if ($iisAvailable) {
         Record "Remove IIS site '$StandaloneFeSiteName'" "FAIL" $_.Exception.Message
     }
 
-    # SSL binding 0.0.0.0:443 (added by 02-prereqs-iis.ps1's AddSslCertificate call).
+    # SSL binding 0.0.0.0:443 (added by 01-prereqs-iis.ps1's AddSslCertificate call).
     # The binding may still be referenced by surviving sibling sites under the
     # same parent, so it's only removed when -RemoveParentEdFiSite is set.
     if ($RemoveParentEdFiSite) {
@@ -534,7 +534,7 @@ END
 Write-Section "4b. Yopass (docker stack)"
 # ========================================================
 # Tear down the dockerized Yopass stack if it was ever brought up (by
-# 03d-yopass-docker.ps1 / install-all -SetupYopassDocker). Best-effort and
+# yopass-docker.ps1 / install-all -SetupYopassDocker). Best-effort and
 # idempotent: SKIPs cleanly when docker is absent or the container was never
 # created. Not gated by -KeepDatabase -- Yopass is not the AdminApp database.
 # `down -v` also removes the memcached-backed secret store volume(s).

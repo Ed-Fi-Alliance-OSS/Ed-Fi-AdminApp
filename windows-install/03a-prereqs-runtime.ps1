@@ -13,8 +13,8 @@ and (optionally) extracts an OpenJDK build.
 - (Optional) downloads and extracts an OpenJDK zip, sets JAVA_HOME and prepends
   its bin to the Machine PATH
 
-Run AFTER 02-prereqs-iis.ps1 (which creates the App Pool indirectly via
-04-deploy-api.ps1 — for npm-cache permissions, this script assumes the App
+Run AFTER 01-prereqs-iis.ps1 (which creates the App Pool indirectly via
+05-deploy-api.ps1 — for npm-cache permissions, this script assumes the App
 Pool name is known upfront).
 
 .PARAMETER AppPoolName
@@ -64,7 +64,7 @@ if ($node) {
 }
 
 # npm cache override -- create the folder and set the machine env var here.
-# The App Pool permission grant is deferred to 04-deploy-api.ps1 because the
+# The App Pool permission grant is deferred to 05-deploy-api.ps1 because the
 # App Pool itself doesn't exist yet.
 if (-not (Test-Path $NpmCachePath)) {
     New-Item -ItemType Directory -Path $NpmCachePath -Force | Out-Null

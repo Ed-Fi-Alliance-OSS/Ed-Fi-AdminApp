@@ -41,10 +41,10 @@ Keycloak account-management URL the FE links to. Default points at the
 non-proxied Keycloak: http://localhost:8080/realms/edfi/account/.
 
 .EXAMPLE
-.\03c-build-project.ps1
-.\03c-build-project.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp
-.\03c-build-project.ps1 -SkipInstall
-.\03c-build-project.ps1 -Force
+.\04-build.ps1
+.\04-build.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp
+.\04-build.ps1 -SkipInstall
+.\04-build.ps1 -Force
 #>
 
 param(

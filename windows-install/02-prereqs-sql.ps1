@@ -24,8 +24,8 @@ Name of the Admin App database to create (if it doesn't already exist).
 Default: sbaa (the name the Admin App expects out of the box).
 
 .EXAMPLE
-.\01-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026'
-.\01-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026' -DatabaseName 'myadminapp'
+.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026'
+.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026' -DatabaseName 'myadminapp'
 #>
 
 param(

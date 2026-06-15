@@ -6,19 +6,19 @@ Master installer for the Ed-Fi Admin App on Windows IIS. Fully automated.
 Runs in three phases with no manual interaction required.
 
   Phase 1 — Prereqs
-    01-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
-    02-prereqs-iis.ps1        iisnode + HTTPS cert + binding
+    02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
+    01-prereqs-iis.ps1        iisnode + HTTPS cert + binding
     03a-prereqs-runtime.ps1    Node.js + npm cache override + Keycloak download
 
   Phase 2 — Build and start
-    03c-build-project.ps1     npm ci + build:api + build:fe (slow)
-    03b-keycloak-start.ps1    Bootstrap admin via env vars; start Keycloak detached;
+    04-build.ps1     npm ci + build:api + build:fe (slow)
+    idp-keycloak-start.ps1    Bootstrap admin via env vars; start Keycloak detached;
                               wait for readiness
 
   Phase 3 — Deploy
     06-keycloak-bootstrap.ps1 Realm + client + user (+ audience mapper)
-    04-deploy-api.ps1         Deploy API to IIS
-    05-deploy-fe.ps1          Deploy FE to IIS
+    05-deploy-api.ps1         Deploy API to IIS
+    06-deploy-fe.ps1          Deploy FE to IIS
 
 Re-run modes:
   Default               Run all three phases end-to-end
@@ -286,8 +286,8 @@ if (-not $SkipPreflightCheck) {
 # ---------- Phase 1 — Prereqs ----------
 if (-not $SkipPhase1) {
     if ($DbEngine -eq 'mssql') {
-        Write-Phase "Phase 1.1: SQL Server prereqs (01-prereqs-sql.ps1)"
-        & "$scriptDir\01-prereqs-sql.ps1" -SaPassword $SaPassword -DatabaseName $DatabaseName
+        Write-Phase "Phase 1.1: SQL Server prereqs (02-prereqs-sql.ps1)"
+        & "$scriptDir\02-prereqs-sql.ps1" -SaPassword $SaPassword -DatabaseName $DatabaseName
     } else {
         Write-Phase "Phase 1.1: PostgreSQL prereqs"
         if ($UsePostgresDocker) {
@@ -365,8 +365,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAp
         }
     }
 
-    Write-Phase "Phase 1.2: IIS prereqs (02-prereqs-iis.ps1)"
-    & "$scriptDir\02-prereqs-iis.ps1"
+    Write-Phase "Phase 1.2: IIS prereqs (01-prereqs-iis.ps1)"
+    & "$scriptDir\01-prereqs-iis.ps1"
 
     Write-Phase "Phase 1.3: Runtime prereqs (03a-prereqs-runtime.ps1)"
     if ($JdkDownloadUrl) {
@@ -379,8 +379,8 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAp
     # computed into $EffectiveYopassUrl; this just brings the container up so it
     # is ready by the time phase 3 configures and smoke-tests the API.
     if ($SetupYopassDocker) {
-        Write-Phase "Phase 1.4: Yopass via docker (03d-yopass-docker.ps1)"
-        & "$scriptDir\03d-yopass-docker.ps1" -YopassPort $YopassPort | Out-Null
+        Write-Phase "Phase 1.4: Yopass via docker (yopass-docker.ps1)"
+        & "$scriptDir\yopass-docker.ps1" -YopassPort $YopassPort | Out-Null
     }
 
     Write-Host ""
@@ -399,12 +399,12 @@ if ($OnlyPhase1) {
 
 # ---------- Phase 2 — Build + start Keycloak ----------
 if (-not $SkipPhase2) {
-    Write-Phase "Phase 2.1: Build the project (03c-build-project.ps1)"
+    Write-Phase "Phase 2.1: Build the project (04-build.ps1)"
     Write-Host "This takes several minutes. Output streams below."
-    & "$scriptDir\03c-build-project.ps1" -SourcePath $SourcePath
+    & "$scriptDir\04-build.ps1" -SourcePath $SourcePath
 
-    Write-Phase "Phase 2.2: Start Keycloak in background (03b-keycloak-start.ps1)"
-    & "$scriptDir\03b-keycloak-start.ps1" -AdminPassword $KeycloakAdminPassword
+    Write-Phase "Phase 2.2: Start Keycloak in background (idp-keycloak-start.ps1)"
+    & "$scriptDir\idp-keycloak-start.ps1" -AdminPassword $KeycloakAdminPassword
 }
 
 # Sanity checks before phase 3
@@ -432,7 +432,7 @@ if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
 if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
 & "$scriptDir\06-keycloak-bootstrap.ps1" @kcArgs
 
-Write-Phase "Phase 3.2: Deploy API (04-deploy-api.ps1)"
+Write-Phase "Phase 3.2: Deploy API (05-deploy-api.ps1)"
 $apiArgs = @{
     SourcePath           = $SourcePath
     DatabaseName         = $DatabaseName
@@ -451,10 +451,10 @@ if ($DbEngine -eq 'mssql') {
     $apiArgs.PgDbUsername = $PostgresAppUser
     $apiArgs.PgDbPassword = $PostgresAppPassword
 }
-& "$scriptDir\04-deploy-api.ps1" @apiArgs
+& "$scriptDir\05-deploy-api.ps1" @apiArgs
 
-Write-Phase "Phase 3.3: Deploy FE (05-deploy-fe.ps1)"
-& "$scriptDir\05-deploy-fe.ps1" -SourcePath "$SourcePath\dist\packages\fe"
+Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
+& "$scriptDir\06-deploy-fe.ps1" -SourcePath "$SourcePath\dist\packages\fe"
 
 # ---------- Smoke test ----------
 Write-Phase "Smoke test: hitting the API"
@@ -590,7 +590,7 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
     Write-Host "And the IIS app pool state:" -ForegroundColor Yellow
     Write-Host "  Get-WebAppPoolState -Name EdFi-AdminApp-API"
     Write-Host ""
-    throw "Install completed but the API smoke test failed. Fix the underlying issue and re-run install-all (idempotent), or run 04-deploy-api.ps1 directly to redeploy."
+    throw "Install completed but the API smoke test failed. Fix the underlying issue and re-run install-all (idempotent), or run 05-deploy-api.ps1 directly to redeploy."
 }
 
 # ---------- Done ----------
@@ -672,7 +672,7 @@ $dbSummary
 $yopassSummary
 
 Notes
-  - The HTTPS cert is self-signed and was added to Trusted Root by 02-prereqs-iis.ps1.
+  - The HTTPS cert is self-signed and was added to Trusted Root by 01-prereqs-iis.ps1.
     If the browser still warns, fully close and reopen it once.
   - This file contains passwords in plaintext. Delete or protect it for non-dev use.
 "@
