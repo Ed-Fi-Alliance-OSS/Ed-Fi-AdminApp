@@ -421,7 +421,7 @@ Write-Phase "Phase 3.2: Deploy API (05-deploy-api.ps1)"
 $apiArgs = @{
     SourcePath           = $SourcePath
     DatabaseName         = $DatabaseName
-    KeycloakClientSecret = $KeycloakClientSecret
+    OidcClientSecret     = $KeycloakClientSecret
     AdminUsername        = $AdminUsername
     DbEngine             = $DbEngine
     # Yopass: empty string -> 04 sets USE_YOPASS=false; a URL -> USE_YOPASS=true.

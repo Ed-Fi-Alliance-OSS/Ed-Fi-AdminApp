@@ -38,8 +38,8 @@ VITE_BASE_PATH before building. Default: "/" (the FE is served from the root
 of its own HTTP site).
 
 .PARAMETER ViteIdpAccountUrl
-Keycloak account-management URL the FE links to. Default points at the
-non-proxied Keycloak: http://localhost:8080/realms/edfi/account/.
+The IdP account-management URL the FE links to. Default (Keycloak example):
+http://localhost:8080/realms/edfi/account/.
 
 .EXAMPLE
 .\04-build.ps1

@@ -8,7 +8,7 @@ Deploys the Ed-Fi Admin App API to IIS under iisnode.
 - Creates/configures the IIS App Pool (LoadUserProfile=true, no managed runtime)
 - Creates or updates the IIS application (under a parent site) or standalone site
 - Writes a known-good web.config (the three iisnode adjustments baked in)
-- Patches production.js with bare-metal values (DB, API/FE URLs, Keycloak)
+- Patches production.js with bare-metal values (DB, API/FE URLs, OIDC)
 - Sets icacls permissions for the App Pool user
 
 Run AFTER:
@@ -36,26 +36,29 @@ SQL Server sa password (set in 02-prereqs-sql.ps1).
 .PARAMETER DatabaseName
 SQL Server database name. Default: sbaa. Must match what 02-prereqs-sql.ps1 created.
 
-.PARAMETER KeycloakIssuer
-OIDC issuer URL. Default: http://localhost:8080/realms/edfi.
+.PARAMETER OidcIssuer
+OIDC issuer URL. Default (Keycloak example): http://localhost:8080/realms/edfi.
 
-.PARAMETER KeycloakClientId
-Default: edfiadminapp.
+.PARAMETER OidcClientId
+OIDC client id. Default (Keycloak example): edfiadminapp.
 
-.PARAMETER KeycloakClientSecret
-The secret you created for the edfiadminapp client in Keycloak.
+.PARAMETER OidcClientSecret
+OIDC client secret (the secret configured on the client in your IdP).
 
-.PARAMETER KeycloakManagementDomain
-Domain (host:port) of Keycloak. Default: localhost:8080.
+.PARAMETER OidcScope
+OIDC scopes requested at login. Default: 'openid email profile'.
 
-.PARAMETER KeycloakMachineSecret
-Default: edfi-machine-secret-456.
+.PARAMETER OidcManagementDomain
+Management API domain (host:port) of the IdP. Default (Keycloak example): localhost:8080.
+
+.PARAMETER OidcMachineSecret
+Machine-to-machine client secret. Default (Keycloak example): edfi-machine-secret-456.
 
 .PARAMETER AdminUsername
 Email seeded as the admin user. Default: admin@example.com.
 
 .EXAMPLE
-.\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -SaPassword 'EdFi-Local!' -KeycloakClientSecret 'RBsHTSb...'
+.\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -SaPassword 'EdFi-Local!' -OidcClientSecret 'RBsHTSb...'
 #>
 
 param(
@@ -89,14 +92,17 @@ param(
     [string]$PgDbUsername = "edfiadminapp",
     [string]$PgDbPassword,
 
-    [string]$KeycloakIssuer = "http://localhost:8080/realms/edfi",
-    [string]$KeycloakClientId = "edfiadminapp",
+    # OIDC settings written into production.js. Defaults are the local-Keycloak
+    # example; override for any other provider (Entra, Google, Auth0, ...).
+    [string]$OidcIssuer = "http://localhost:8080/realms/edfi",
+    [string]$OidcClientId = "edfiadminapp",
 
     [Parameter(Mandatory = $true)]
-    [string]$KeycloakClientSecret,
+    [string]$OidcClientSecret,
 
-    [string]$KeycloakManagementDomain = "localhost:8080",
-    [string]$KeycloakMachineSecret = "edfi-machine-secret-456",
+    [string]$OidcManagementDomain = "localhost:8080",
+    [string]$OidcMachineSecret = "edfi-machine-secret-456",
+    [string]$OidcScope = "openid email profile",
 
     # URLs baked into production.js. Defaults match the standalone HTTP sites.
     [string]$ApiUrl = "http://localhost:3333",
@@ -262,14 +268,15 @@ if (Test-Path $prodJs) {
     $c = $c.Replace("API_PORT: 3333,",                                      "API_PORT: process.env.PORT || 3333,")
     $c = $c.Replace("MY_URL: 'https://localhost/adminapp-api',",            "MY_URL: '$ApiUrl',")
     $c = $c.Replace("const FE_URL = 'https://localhost/adminapp';",         "const FE_URL = '$FeUrl';")
-    $c = $c.Replace("issuer: 'https://localhost/auth/realms/edfi',",        "issuer: '$KeycloakIssuer',")
-    $c = $c.Replace("ISSUER: 'https://localhost/auth/realms/edfi',",        "ISSUER: '$KeycloakIssuer',")
-    $c = $c.Replace("clientId: 'edfiadminapp',",                            "clientId: '$KeycloakClientId',")
-    $c = $c.Replace("CLIENT_ID: 'edfiadminapp',",                           "CLIENT_ID: '$KeycloakClientId',")
-    $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$KeycloakClientSecret',")
-    $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$KeycloakClientSecret',")
-    $c = $c.Replace("MANAGEMENT_DOMAIN: 'localhost',",                      "MANAGEMENT_DOMAIN: '$KeycloakManagementDomain',")
-    $c = $c.Replace("MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'",  "MANAGEMENT_CLIENT_SECRET: '$KeycloakMachineSecret'")
+    $c = $c.Replace("issuer: 'https://localhost/auth/realms/edfi',",        "issuer: '$OidcIssuer',")
+    $c = $c.Replace("ISSUER: 'https://localhost/auth/realms/edfi',",        "ISSUER: '$OidcIssuer',")
+    $c = $c.Replace("clientId: 'edfiadminapp',",                            "clientId: '$OidcClientId',")
+    $c = $c.Replace("CLIENT_ID: 'edfiadminapp',",                           "CLIENT_ID: '$OidcClientId',")
+    $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$OidcClientSecret',")
+    $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$OidcClientSecret',")
+    $c = $c.Replace("scope: '',",                                           "scope: '$OidcScope',")
+    $c = $c.Replace("MANAGEMENT_DOMAIN: 'localhost',",                      "MANAGEMENT_DOMAIN: '$OidcManagementDomain',")
+    $c = $c.Replace("MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'",  "MANAGEMENT_CLIENT_SECRET: '$OidcMachineSecret'")
     $c = $c.Replace("ADMIN_USERNAME: 'admin@example.com',",                 "ADMIN_USERNAME: '$AdminUsername',")
 
     # Yopass: enable iff a URL was provided, otherwise disable (USE_YOPASS=false
