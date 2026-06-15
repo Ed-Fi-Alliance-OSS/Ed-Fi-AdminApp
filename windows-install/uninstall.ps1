@@ -7,8 +7,7 @@ engines installed; removes only the AdminApp's own state.
 .DESCRIPTION
 Steps (each best-effort, continues past individual failures):
 
-  1. Stop any running Keycloak process (kc.bat / java listening on :8080).
-  2. IIS teardown (surgical by default — see -RemoveParentEdFiSite):
+  1. IIS teardown (surgical by default — see -RemoveParentEdFiSite):
      - Stop+remove App Pool 'EdFi-AdminApp-API'.
      - Remove sub-applications /adminapp and /adminapp-api from the parent site.
      - Delete C:\inetpub\Ed-Fi\adminapp and \adminapp-api only.
@@ -18,9 +17,9 @@ Steps (each best-effort, continues past individual failures):
      - Remove SSL binding 0.0.0.0:443.
      - Delete the entire C:\inetpub\Ed-Fi tree.
      - Remove the 'Ed-Fi Dev Cert' from LocalMachine\My and \Root.
-  3. Cert teardown: only when -RemoveParentEdFiSite is set (otherwise the cert
+  2. Cert teardown: only when -RemoveParentEdFiSite is set (otherwise the cert
      may still be bound by sibling sites under the same parent).
-  4. Database teardown (both engines, best-effort per engine):
+  3. Database teardown (both engines, best-effort per engine):
      - MSSQL: DROP DATABASE [sbaa] using SQL Auth (sa + -SaPassword) if
        provided, else Windows Auth. Skipped when MSSQLSERVER isn't running.
        Leaves Mixed Mode / sa / TCP:1433 alone (instance-wide settings other
@@ -30,16 +29,21 @@ Steps (each best-effort, continues past individual failures):
        edfiadminapp-postgres container exists. Without the -v, the volume
        persists with the OLD edfiadminapp password and TypeORM-created
        tables, which causes auth/permission failures on the next install.
-  4b. Yopass docker teardown (best-effort): `docker compose -f
+  3b. Yopass docker teardown (best-effort): `docker compose -f
      docker-compose.yopass.yml down -v` so the Yopass + memcached containers and
      their volumes are removed. Skipped when docker is absent or the
      edfiadminapp-yopass container was never created. Not gated by
      -KeepDatabase.
-  5. Filesystem + env teardown:
-     - Delete C:\keycloak (unless -KeepKeycloakDownload).
+  4. Filesystem + env teardown:
      - Delete C:\npm-cache (unless -KeepNpmCache).
-     - Unset Machine env vars NPM_CONFIG_CACHE and JAVA_HOME.
+     - Unset Machine env var NPM_CONFIG_CACHE.
+  5. Detect Keycloak leftovers (C:\keycloak, JAVA_HOME, a running Keycloak
+     process) and, if any are found, suggest running uninstall-keycloak.ps1.
+     Informational only -- this step does not stop or delete anything.
   6. Print a summary of what succeeded and what didn't.
+
+The local Keycloak IdP (process, C:\keycloak, JAVA_HOME) is NOT touched here.
+Use uninstall-keycloak.ps1 for that.
 
 Does NOT touch:
   - Node.js, JDK, SQL Server, IIS engine installs.
@@ -58,7 +62,8 @@ SQL sa password. If provided, the DB drop uses SQL Auth over TCP. If omitted,
 the script falls back to Windows Auth via (local).
 
 .PARAMETER KeycloakInstallPath
-Default: C:\keycloak.
+Path checked for Keycloak leftovers (informational only; this script does not
+delete it). Default: C:\keycloak.
 
 .PARAMETER NpmCachePath
 Default: C:\npm-cache.
@@ -91,9 +96,6 @@ intact.
 .PARAMETER KeepDatabase
 Switch — skip the DROP DATABASE step.
 
-.PARAMETER KeepKeycloakDownload
-Switch — leave C:\keycloak in place (just stop the running process).
-
 .PARAMETER KeepNpmCache
 Switch — leave C:\npm-cache in place.
 
@@ -110,7 +112,7 @@ Switch — skip the confirmation prompt.
 .EXAMPLE
 .\uninstall.ps1
 .\uninstall.ps1 -SaPassword 'EdFi-Local!2026' -Force
-.\uninstall.ps1 -KeepDatabase -KeepKeycloakDownload
+.\uninstall.ps1 -KeepDatabase -KeepNpmCache
 #>
 
 param(
@@ -128,7 +130,6 @@ param(
     [string]$SummaryPath = (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "install-summary.txt"),
 
     [switch]$KeepDatabase,
-    [switch]$KeepKeycloakDownload,
     [switch]$KeepNpmCache,
     [switch]$KeepCert,
     [switch]$RemoveSummary,
@@ -166,7 +167,6 @@ function Write-Section {
 Write-Host ""
 Write-Host "Ed-Fi Admin App -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
-Write-Host "  - Running Keycloak process"
 Write-Host "  - IIS App Pool '$AppPoolName'"
 Write-Host "  - IIS sub-applications '/adminapp' and '/adminapp-api' under site '$ParentSiteName'"
 Write-Host "  - Standalone site '$StandaloneFeSiteName' (if present)"
@@ -186,9 +186,8 @@ if (-not $KeepDatabase)         {
     Write-Host "  - Docker postgres container + volumes (if edfiadminapp-postgres exists)"
 }
 Write-Host "  - Docker Yopass stack (edfiadminapp-yopass + memcached) and its volumes (if present)"
-if (-not $KeepKeycloakDownload) { Write-Host "  - $KeycloakInstallPath (Keycloak install dir)" }
 if (-not $KeepNpmCache)         { Write-Host "  - $NpmCachePath (npm cache dir)" }
-Write-Host "  - Machine env vars NPM_CONFIG_CACHE and JAVA_HOME"
+Write-Host "  - Machine env var NPM_CONFIG_CACHE"
 if ($RemoveSummary)             { Write-Host "  - $SummaryPath" }
 Write-Host ""
 Write-Host "Leaves alone: Node.js, JDK, SQL Server, IIS, URL Rewrite, iisnode, source repo." -ForegroundColor DarkGray
@@ -203,51 +202,7 @@ if (-not $Force) {
 }
 
 # ========================================================
-Write-Section "1. Stop Keycloak"
-# ========================================================
-$kcStopped = $false
-$killedPids = @{}
-
-# Find Keycloak by command line: java.exe whose args reference kc.bat / quarkus / keycloak.
-# Doing this first (rather than the :8080 listener) avoids killing some unrelated
-# app that happens to be bound to 8080.
-try {
-    $kcJava = Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction SilentlyContinue |
-        Where-Object { $_.CommandLine -match 'kc\.bat|keycloak|quarkus' }
-    foreach ($p in $kcJava) {
-        Stop-Process -Id $p.ProcessId -Force -ErrorAction SilentlyContinue
-        $killedPids[$p.ProcessId] = $true
-        Record "Stop java.exe PID $($p.ProcessId)" "OK" "Keycloak match in cmdline"
-        $kcStopped = $true
-    }
-} catch {
-    Record "Stop java.exe (Keycloak)" "WARN" $_.Exception.Message
-}
-
-# Belt and braces: anything still listening on :8080 that's a java.exe gets stopped too.
-# Other processes on :8080 are left alone (could be unrelated -- not ours to kill).
-try {
-    $listenerPid = (Get-NetTCPConnection -LocalPort 8080 -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1).OwningProcess
-    if ($listenerPid -and -not $killedPids.ContainsKey($listenerPid)) {
-        $proc = Get-Process -Id $listenerPid -ErrorAction SilentlyContinue
-        if ($proc -and $proc.ProcessName -eq 'java') {
-            Stop-Process -Id $listenerPid -Force -ErrorAction Stop
-            Record "Stop java.exe listener on :8080 (PID $listenerPid)" "OK"
-            $kcStopped = $true
-        } elseif ($proc) {
-            Record "Listener on :8080 is $($proc.ProcessName) (PID $listenerPid)" "SKIP" "Not java.exe -- leaving alone"
-        }
-    }
-} catch {
-    Record "Stop :8080 listener" "WARN" $_.Exception.Message
-}
-
-if (-not $kcStopped) {
-    Record "Stop Keycloak" "SKIP" "No matching java.exe process found"
-}
-
-# ========================================================
-Write-Section "2. IIS teardown"
+Write-Section "1. IIS teardown"
 # ========================================================
 $iisAvailable = $false
 try {
@@ -419,7 +374,7 @@ if ($RemoveParentEdFiSite) {
 }
 
 # ========================================================
-Write-Section "3. Self-signed cert"
+Write-Section "2. Self-signed cert"
 # ========================================================
 # The cert is bound to 0.0.0.0:443 and may still be referenced by surviving
 # sibling sites under the parent. In surgical mode (default) we keep it.
@@ -447,7 +402,7 @@ if ($KeepCert) {
 }
 
 # ========================================================
-Write-Section "4. Database (mssql and/or pgsql docker)"
+Write-Section "3. Database (mssql and/or pgsql docker)"
 # ========================================================
 # Try SQL Server first (drop the AdminApp DB if present), then the docker
 # postgres compose down. Both branches are best-effort and idempotent -- they
@@ -531,7 +486,7 @@ END
 }
 
 # ========================================================
-Write-Section "4b. Yopass (docker stack)"
+Write-Section "3b. Yopass (docker stack)"
 # ========================================================
 # Tear down the dockerized Yopass stack if it was ever brought up (by
 # yopass-docker.ps1 / install-all -SetupYopassDocker). Best-effort and
@@ -569,22 +524,8 @@ if (-not (Get-Command docker -ErrorAction SilentlyContinue)) {
 }
 
 # ========================================================
-Write-Section "5. Filesystem + env vars"
+Write-Section "4. Filesystem + env vars"
 # ========================================================
-# Keycloak install dir
-if ($KeepKeycloakDownload) {
-    Record "Delete $KeycloakInstallPath" "SKIP" "-KeepKeycloakDownload"
-} elseif (Test-Path $KeycloakInstallPath) {
-    try {
-        Remove-Item -Path $KeycloakInstallPath -Recurse -Force -ErrorAction Stop
-        Record "Delete $KeycloakInstallPath" "OK"
-    } catch {
-        Record "Delete $KeycloakInstallPath" "FAIL" $_.Exception.Message
-    }
-} else {
-    Record "Delete $KeycloakInstallPath" "SKIP" "Not present"
-}
-
 # npm cache
 if ($KeepNpmCache) {
     Record "Delete $NpmCachePath" "SKIP" "-KeepNpmCache"
@@ -600,7 +541,7 @@ if ($KeepNpmCache) {
 }
 
 # Env vars
-foreach ($var in @('NPM_CONFIG_CACHE', 'JAVA_HOME')) {
+foreach ($var in @('NPM_CONFIG_CACHE')) {
     try {
         $cur = [Environment]::GetEnvironmentVariable($var, "Machine")
         if ($cur) {
@@ -626,6 +567,27 @@ if ($RemoveSummary) {
     } else {
         Record "Delete $SummaryPath" "SKIP" "Not present"
     }
+}
+
+# ========================================================
+Write-Section "5. Keycloak leftovers (informational)"
+# ========================================================
+# This script does not touch the local Keycloak IdP. If leftovers from
+# idp-keycloak-setup.ps1 are present, point the user at uninstall-keycloak.ps1.
+# Informational only -- nothing here is stopped or deleted.
+$kcLeftovers = @()
+if (Test-Path $KeycloakInstallPath) { $kcLeftovers += "install dir $KeycloakInstallPath" }
+if ([Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")) { $kcLeftovers += "Machine JAVA_HOME" }
+try {
+    $kcProc = Get-CimInstance Win32_Process -Filter "Name = 'java.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -match 'kc\.bat|keycloak|quarkus' }
+    if ($kcProc) { $kcLeftovers += "running Keycloak process" }
+} catch { }
+if ($kcLeftovers.Count -gt 0) {
+    Write-Host "Keycloak leftovers detected: $($kcLeftovers -join '; ')" -ForegroundColor Yellow
+    Write-Host "These were NOT removed. Run uninstall-keycloak.ps1 to remove the local Keycloak IdP." -ForegroundColor Yellow
+} else {
+    Write-Host "No Keycloak leftovers detected." -ForegroundColor DarkGray
 }
 
 # ========================================================
