@@ -51,7 +51,7 @@ $ErrorActionPreference = 'Continue'
 # auto-detected from $SourcePath\package.json (engines.node) below when the
 # repo is cloned; the constant here is the fallback when it isn't.
 $MinNodeMajor = 22  # fallback if package.json detection fails
-$MinJavaMajor = 17  # Keycloak 26 minimum; 03a installs OpenJDK 21 but accepts existing 17+
+$MinJavaMajor = 17  # Keycloak 26 minimum; idp-keycloak-setup installs OpenJDK 21 but accepts existing 17+
 
 # Auto-detect the Node floor from the repo's engines.node when available. Keeps
 # the check in sync if the AdminApp bumps its requirement (e.g., 22 -> 24).
@@ -227,9 +227,9 @@ if ($iisnode) {
     Write-Check INFO "iisnode not installed" "01-prereqs-iis.ps1 will install"
 }
 
-# Node.js -- presence AND version (>= $MinNodeMajor). Missing is INFO (03a
-# installs LTS); too-old is FAIL because 03a only installs when node is absent
-# and won't fix a stale version.
+# Node.js -- presence AND version (>= $MinNodeMajor). Both missing and too-old
+# are INFO: 03-prereqs-node.ps1 installs LTS when missing and remediates a stale
+# version via nvm-windows.
 $node = Get-Command node -ErrorAction SilentlyContinue
 if (-not $node) {
     # Refresh PATH from registry in case it was just installed in another shell
@@ -243,27 +243,27 @@ if ($node) {
         if ($nodeMajor -ge $MinNodeMajor) {
             Write-Check PASS "Node.js" "$nodeVer at $($node.Source)"
         } else {
-            Write-Check FAIL "Node.js $nodeVer is too old" "AdminApp needs Node $MinNodeMajor or newer. Run .\00a-fix-node.ps1 for guided upgrade via nvm-windows (keeps the old version installable), or uninstall manually + re-run 03a"
+            Write-Check INFO "Node.js $nodeVer is too old" "03-prereqs-node.ps1 will remediate via nvm-windows (keeps the old version installable)"
         }
     } else {
         Write-Check INFO "Node.js version unparsable" "Output was: $nodeVer"
     }
 } else {
-    Write-Check INFO "Node.js not on PATH" "03a-prereqs-runtime.ps1 will install LTS via winget"
+    Write-Check INFO "Node.js not on PATH" "03-prereqs-node.ps1 will install LTS via winget"
 }
 
-# Java (JDK) -- needed by Keycloak. Refresh PATH first in case it was just installed.
-# The check has to account for what 03a will do: if a Microsoft jdk-21*\bin\java.exe
-# exists, 03a will prepend it to PATH so any older `java` currently on PATH is
-# moot. Only FAIL when an older java is on PATH AND there's no jdk-21 install
-# for 03a to promote.
+# Java (JDK) -- needed by Keycloak (the optional local-IdP path). Refresh PATH
+# first in case it was just installed. The check accounts for what
+# idp-keycloak-setup will do: if a Microsoft jdk-21*\bin\java.exe exists, it
+# prepends that to PATH so any older `java` currently on PATH is moot. Only FAIL
+# when an older java is on PATH AND there's no jdk-21 install to promote.
 if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
     $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
 }
 $javaCmd = Get-Command java -ErrorAction SilentlyContinue
 
-# Will 03a end up with a usable OpenJDK 21? Look for a Microsoft jdk-21*
-# directory containing an actual java.exe (a half-installed dir isn't enough).
+# Will idp-keycloak-setup end up with a usable OpenJDK 21? Look for a Microsoft
+# jdk-21* directory containing an actual java.exe (a half-installed dir isn't enough).
 $jdk21Available = $false
 $jdk21Dir = Get-ChildItem "C:\Program Files\Microsoft" -Directory -ErrorAction SilentlyContinue |
     Where-Object { $_.Name -like "jdk-21*" -and (Test-Path "$($_.FullName)\bin\java.exe") } |
@@ -286,12 +286,12 @@ if ($javaCmd) {
     } elseif ($javaMajor -ge $MinJavaMajor) {
         Write-Check PASS "Java (JDK) $javaMajor" "$($javaCmd.Source)"
     } elseif ($jdk21Available) {
-        Write-Check INFO "Java $javaMajor on PATH but OpenJDK 21 available" "03a will prepend $($jdk21Dir.FullName)\bin to Machine PATH"
+        Write-Check INFO "Java $javaMajor on PATH but OpenJDK 21 available" "idp-keycloak-setup will prepend $($jdk21Dir.FullName)\bin to Machine PATH"
     } else {
-        Write-Check FAIL "Java $javaMajor is too old (Keycloak needs $MinJavaMajor+)" "Either uninstall the old JDK, or let 03a install OpenJDK 21 (it auto-prepends to PATH)"
+        Write-Check FAIL "Java $javaMajor is too old (Keycloak needs $MinJavaMajor+)" "Either uninstall the old JDK, or let idp-keycloak-setup install OpenJDK 21 (it auto-prepends to PATH)"
     }
 } else {
-    Write-Check INFO "Java not on PATH" "03a-prereqs-runtime.ps1 will install OpenJDK 21 (needed by Keycloak)"
+    Write-Check INFO "Java not on PATH" "idp-keycloak-setup.ps1 will install OpenJDK 21 (needed by Keycloak)"
 }
 
 # Keycloak download -- accept either flat layout (BasePath\bin\kc.bat) or nested
@@ -309,7 +309,7 @@ if (Test-Path "$KeycloakInstallPath\bin\kc.bat") {
 if ($kcBat) {
     Write-Check PASS "Keycloak downloaded" $kcBat
 } else {
-    Write-Check INFO "Keycloak not present" "03-prereqs-runtime.ps1 will download"
+    Write-Check INFO "Keycloak not present" "idp-keycloak-setup.ps1 will download"
 }
 
 # ============================================================
@@ -359,7 +359,7 @@ try {
         $edfi = Invoke-RestMethod -Uri "http://localhost:8080/realms/edfi/.well-known/openid-configuration" -TimeoutSec 3
         Write-Check PASS "Keycloak 'edfi' realm exists"
     } catch {
-        Write-Check INFO "Keycloak 'edfi' realm not found" "06-keycloak-bootstrap.ps1 will create"
+        Write-Check INFO "Keycloak 'edfi' realm not found" "idp-keycloak-setup.ps1 will create"
     }
 } catch {
     Write-Check INFO "Keycloak not responding at :8080" "Start it via idp-keycloak-start.ps1"
@@ -370,7 +370,7 @@ $npmCache = [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")
 if ($npmCache -and (Test-Path $npmCache)) {
     Write-Check PASS "NPM_CONFIG_CACHE set" "$npmCache"
 } else {
-    Write-Check INFO "NPM_CONFIG_CACHE not set" "03-prereqs-runtime.ps1 will set to C:\npm-cache"
+    Write-Check INFO "NPM_CONFIG_CACHE not set" "03-prereqs-node.ps1 will set to C:\npm-cache"
 }
 
 # Build artifacts present? Nx outputs to dist\packages\<project>\, not the repo root.
@@ -390,17 +390,17 @@ if (Test-Path $feIndex) {
 # IIS state
 try {
     Import-Module WebAdministration -ErrorAction Stop
-    $edFiSite = Get-Website -Name "Ed-Fi" -ErrorAction SilentlyContinue
-    if ($edFiSite) {
-        Write-Check PASS "IIS site 'Ed-Fi' present" "State: $($edFiSite.State); 02 will bind HTTPS cert to it"
+    $apiSite = Get-Website -Name "EdFi-AdminApp-API" -ErrorAction SilentlyContinue
+    if ($apiSite) {
+        Write-Check PASS "IIS site 'EdFi-AdminApp-API' present" "State: $($apiSite.State)"
     } else {
-        Write-Check INFO "IIS site 'Ed-Fi' not present" "OK -- AdminApp deploys as standalone sites; 02 will skip cert binding"
+        Write-Check INFO "IIS site 'EdFi-AdminApp-API' not present" "05-deploy-api.ps1 will create (HTTP :3333)"
     }
     $feSite = Get-Website -Name "EdFi-AdminApp-FE" -ErrorAction SilentlyContinue
     if ($feSite) {
         Write-Check PASS "IIS site 'EdFi-AdminApp-FE' present"
     } else {
-        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "06-deploy-fe.ps1 will create"
+        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "06-deploy-fe.ps1 will create (HTTP :4200)"
     }
     $apiPool = Get-Item "IIS:\AppPools\EdFi-AdminApp-API" -ErrorAction SilentlyContinue
     if ($apiPool) {
@@ -432,7 +432,7 @@ if ($DbEngine -eq 'mssql' -and $sqlService) {
     if ($userDbs -and $userDbs.Count -gt 0) {
         $preview = ($userDbs | Select-Object -First 3) -join ', '
         if ($userDbs.Count -gt 3) { $preview += ", +$($userDbs.Count - 3) more" }
-        Write-Check RISK "SQL instance hosts other databases" "01 will flip Mixed Mode, reset sa, force TCP:1433, restart service. Other DBs: $preview"
+        Write-Check RISK "SQL instance hosts other databases" "02 will flip Mixed Mode, reset sa, force TCP:1433, restart service. Other DBs: $preview"
     }
 
     # sa already enabled and password unknown to us? We can't know the password
@@ -441,13 +441,13 @@ if ($DbEngine -eq 'mssql' -and $sqlService) {
     $saState = & sqlcmd -S "(local)" -E -h-1 -W -Q "SET NOCOUNT ON; SELECT CASE WHEN is_disabled = 0 THEN 'enabled' ELSE 'disabled' END FROM sys.sql_logins WHERE name = 'sa'" 2>$null |
         Where-Object { $_ -and $_.Trim() -ne '' -and $_ -notmatch '^\(' } | Select-Object -First 1
     if ($saState -and $saState.Trim() -eq 'enabled' -and $userDbs -and $userDbs.Count -gt 0) {
-        Write-Check RISK "sa login is already enabled on a shared instance" "01 will reset sa's password to -SaPassword if the current password doesn't match"
+        Write-Check RISK "sa login is already enabled on a shared instance" "02 will reset sa's password to -SaPassword if the current password doesn't match"
     }
 }
 
-# Java RISK: only fires when 03a is going to MUTATE -- i.e., when no usable
-# JDK (>=17) is on PATH so 03a will install OpenJDK 21 + prepend it + set
-# JAVA_HOME. When the user already has Java >=17, 03a respects it (no mutation,
+# Java RISK: only fires when idp-keycloak-setup is going to MUTATE -- i.e., when
+# no usable JDK (>=17) is on PATH so it will install OpenJDK 21 + prepend it + set
+# JAVA_HOME. When the user already has Java >=17, it is respected (no mutation,
 # no risk). Re-evaluate java major locally so we don't depend on variables
 # from the earlier diagnostic section.
 $javaCmdRisk = Get-Command java -ErrorAction SilentlyContinue
@@ -461,43 +461,47 @@ $willMutateJdk = ($riskJavaMajor -lt 17)   # missing (major=0) counts as <17
 
 if ($willMutateJdk) {
     if ($javaCmdRisk -and ($javaCmdRisk.Source -notlike "*Microsoft\jdk-21*\bin\java.exe")) {
-        Write-Check RISK "Existing Java $riskJavaMajor on PATH ($($javaCmdRisk.Source))" "03a will install OpenJDK 21 and prepend it to Machine PATH -- 'java' will then resolve to JDK 21"
+        Write-Check RISK "Existing Java $riskJavaMajor on PATH ($($javaCmdRisk.Source))" "idp-keycloak-setup will install OpenJDK 21 and prepend it to Machine PATH -- 'java' will then resolve to JDK 21"
     }
     $existingJavaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
     if ($existingJavaHome -and ($existingJavaHome -notlike "*Microsoft\jdk-21*")) {
-        Write-Check RISK "JAVA_HOME points elsewhere ($existingJavaHome)" "03a will overwrite Machine JAVA_HOME to the OpenJDK 21 path"
+        Write-Check RISK "JAVA_HOME points elsewhere ($existingJavaHome)" "idp-keycloak-setup will overwrite Machine JAVA_HOME to the OpenJDK 21 path"
     }
 }
 
-# Another IIS site bound to HTTPS:443? 02 rebinds the Ed-Fi site to *:443. If a
-# different site already owns 443, the binding add will fail or collide.
-try {
-    Import-Module WebAdministration -ErrorAction Stop
-    $other443 = Get-Website | Where-Object {
-        $_.Name -ne 'Ed-Fi' -and (
-            $_.Bindings.Collection | Where-Object { $_.protocol -eq 'https' -and $_.bindingInformation -like '*:443:*' }
-        )
+# Ports 3333 (API) and 4200 (FE) free? The two standalone sites bind these. If
+# another process already owns one, New-Website fails. Our own AdminApp sites
+# owning the port is fine (idempotent re-run) -- flag only a foreign owner.
+$portChecks = @(
+    @{ Port = 3333; Site = 'EdFi-AdminApp-API'; Role = 'API' },
+    @{ Port = 4200; Site = 'EdFi-AdminApp-FE';  Role = 'FE'  }
+)
+foreach ($pc in $portChecks) {
+    $listener = Get-NetTCPConnection -LocalPort $pc.Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
+    if (-not $listener) { continue }
+    $ours = $false
+    try {
+        Import-Module WebAdministration -ErrorAction Stop
+        if (Get-Website -Name $pc.Site -ErrorAction SilentlyContinue) { $ours = $true }
+    } catch { }
+    if (-not $ours) {
+        $procName = (Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue).ProcessName
+        Write-Check RISK "Port $($pc.Port) ($($pc.Role)) already in use ($procName)" "05/06-deploy will fail to bind the '$($pc.Site)' site -- free the port first"
     }
-    if ($other443) {
-        $names = ($other443 | Select-Object -ExpandProperty Name) -join ', '
-        Write-Check RISK "Another IIS site is bound to HTTPS:443 ($names)" "02 will try to bind the Ed-Fi site to *:443 -- IIS only allows one site per host header on a port"
-    }
-} catch {
-    # WebAdministration unavailable -- already flagged in MANUAL section
 }
 
-# NPM_CONFIG_CACHE already set to something other than what 03a uses?
+# NPM_CONFIG_CACHE already set to something other than what 03-prereqs-node uses?
 $existingNpmCache = [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")
 if ($existingNpmCache -and $existingNpmCache -ne 'C:\npm-cache') {
-    Write-Check RISK "NPM_CONFIG_CACHE = $existingNpmCache" "03a will overwrite the Machine value to C:\npm-cache"
+    Write-Check RISK "NPM_CONFIG_CACHE = $existingNpmCache" "03-prereqs-node will overwrite the Machine value to C:\npm-cache"
 }
 
-# iisnode installed but at a version other than the one 02 expects?
+# iisnode installed but at a version other than the one 01-prereqs-iis expects?
 $iisnodeReadme = "$env:ProgramFiles\iisnode\readme.txt"
 if (Test-Path $iisnodeReadme) {
     $verMatch = Select-String -Path $iisnodeReadme -Pattern '0\.\d+\.\d+' -List -ErrorAction SilentlyContinue
     if ($verMatch -and ($verMatch.Matches[0].Value -ne '0.2.26')) {
-        Write-Check RISK "iisnode at v$($verMatch.Matches[0].Value), not v0.2.26" "02 detects iisnode by file presence and won't replace it -- pinning the documented version is recommended"
+        Write-Check RISK "iisnode at v$($verMatch.Matches[0].Value), not v0.2.26" "01-prereqs-iis detects iisnode by file presence and won't replace it -- pinning the documented version is recommended"
     }
 }
 

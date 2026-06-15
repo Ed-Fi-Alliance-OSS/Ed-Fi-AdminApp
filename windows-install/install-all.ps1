@@ -88,7 +88,7 @@ Switch — enable password grant on the Keycloak client (testing only).
 .PARAMETER AcceptRisks
 Switch — bypass the y/N confirmation when 00-check-prereqs flags collision
 risks (e.g., another app sharing the SQL instance, a non-OpenJDK-21 'java' on
-PATH, another IIS site bound to :443). Use for non-interactive runs only after
+PATH, ports 3333/4200 already in use). Use for non-interactive runs only after
 reviewing the [RISK] items.
 
 .PARAMETER AutoUpgradeNode
@@ -270,7 +270,7 @@ if (-not $SkipPreflightCheck) {
             Write-Host ""
             Write-Host "The pre-flight flagged [RISK] items above -- the install will modify state" -ForegroundColor Magenta
             Write-Host "that another app on this machine may depend on (SQL instance config, PATH" -ForegroundColor Magenta
-            Write-Host "ordering of 'java', the HTTPS:443 binding, etc.)." -ForegroundColor Magenta
+            Write-Host "ordering of 'java', ports 3333/4200, etc.)." -ForegroundColor Magenta
             $reply = Read-Host "Continue anyway? (y/N)"
             if ($reply -notmatch '^[Yy]') {
                 throw "Aborted by user. Re-run with -AcceptRisks to skip this prompt next time."
