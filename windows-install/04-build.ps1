@@ -68,7 +68,7 @@ $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [En
 
 # Verify Node is on PATH
 if (-not (Get-Command node -ErrorAction SilentlyContinue)) {
-    throw "node is not on PATH. Run script 03-prereqs-runtime.ps1 first, or open a fresh PowerShell window."
+    throw "node is not on PATH. Run script 03-prereqs-node.ps1 first, or open a fresh PowerShell window."
 }
 
 $apiMainJs = "$SourcePath\dist\packages\api\main.js"

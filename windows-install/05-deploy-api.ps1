@@ -14,7 +14,7 @@ Deploys the Ed-Fi Admin App API to IIS under iisnode.
 Run AFTER:
   - 02-prereqs-sql.ps1 (SQL ready)
   - 01-prereqs-iis.ps1 (IIS, cert, iisnode ready)
-  - 03-prereqs-runtime.ps1 (Node, npm cache ready)
+  - 03-prereqs-node.ps1 (Node, npm cache ready)
   - `npm ci --legacy-peer-deps` and `npm run build:api` in the source repo
 
 .PARAMETER SourcePath

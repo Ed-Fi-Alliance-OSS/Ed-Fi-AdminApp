@@ -70,7 +70,7 @@ if (Test-Path (Join-Path $KeycloakInstallPath "bin\kc.bat")) {
     if ($sub) { $kcBat = "$($sub.FullName)\bin\kc.bat" }
 }
 if (-not $kcBat) {
-    throw "kc.bat not found under $KeycloakInstallPath. Run 03a-prereqs-runtime.ps1 first to download Keycloak."
+    throw "kc.bat not found under $KeycloakInstallPath. Run idp-keycloak-setup.ps1 first to download Keycloak."
 }
 
 # 3. Start Keycloak in background with bootstrap env vars

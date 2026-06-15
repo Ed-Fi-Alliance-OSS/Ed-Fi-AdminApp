@@ -8,27 +8,24 @@ Runs in three phases with no manual interaction required.
   Phase 1 — Prereqs
     02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
     01-prereqs-iis.ps1        iisnode + HTTPS cert + binding
-    03a-prereqs-runtime.ps1    Node.js + npm cache override + Keycloak download
+    03-prereqs-node.ps1       Node.js + npm cache override
 
-  Phase 2 — Build and start
-    04-build.ps1     npm ci + build:api + build:fe (slow)
-    idp-keycloak-start.ps1    Bootstrap admin via env vars; start Keycloak detached;
-                              wait for readiness
+  Phase 2 — Build
+    04-build.ps1              npm ci + build:api + build:fe (slow)
 
   Phase 3 — Deploy
-    06-keycloak-bootstrap.ps1 Realm + client + user (+ audience mapper)
+    idp-keycloak-setup.ps1    JDK + Keycloak download + start + realm/client/user
     05-deploy-api.ps1         Deploy API to IIS
     06-deploy-fe.ps1          Deploy FE to IIS
 
 Re-run modes:
   Default               Run all three phases end-to-end
   -SkipPhase1           Skip prereqs (already done)
-  -SkipPhase2           Skip build + Keycloak start (artifacts and Keycloak already up)
+  -SkipPhase2           Skip build (artifacts already present)
   -OnlyPhase1           Run prereqs only
 
-If you'd rather build manually or run Keycloak in a foreground terminal, use
--SkipPhase2 and handle those yourself before re-running with -SkipPhase1
--SkipPhase2.
+If you'd rather build manually, use -SkipPhase2 and run the build yourself
+before re-running.
 
 .PARAMETER DbEngine
 'mssql' (default) or 'pgsql'. Drives which DB prereq path runs and how
@@ -58,8 +55,8 @@ SQL Server sa password. Required when -DbEngine is 'mssql' (the default).
 
 .PARAMETER KeycloakAdminPassword
 Password for the master-realm Keycloak admin user. Used as the bootstrap admin
-when Keycloak starts for the first time (script 03b). Subsequent runs of
-Keycloak ignore this — make sure it matches an admin that actually exists.
+when Keycloak starts for the first time (idp-keycloak-setup.ps1). Subsequent runs
+of Keycloak ignore this — make sure it matches an admin that actually exists.
 
 .PARAMETER KeycloakClientSecret
 Secret to set on the edfiadminapp Keycloak client. You pick this.
@@ -73,14 +70,14 @@ directory — i.e., the scripts live in <repo>\windows-install\ and the repo
 root is one level up. Override only if your layout differs.
 
 .PARAMETER DatabaseName
-SQL Server database name. Default: sbaa. Propagated to 01 (creates the DB) and
-04 (patches MSSQL_DB_DATABASE in production.js).
+SQL Server database name. Default: sbaa. Propagated to 02 (creates the DB) and
+05 (patches MSSQL_DB_DATABASE in production.js).
 
 .PARAMETER AdminUsername
 Email seeded as the admin user. Default: admin@example.com.
 
 .PARAMETER JdkDownloadUrl
-Optional URL to an OpenJDK zip — phase 1 will install + set JAVA_HOME.
+Optional URL to an OpenJDK zip; idp-keycloak-setup.ps1 will install + set JAVA_HOME.
 
 .PARAMETER IncludeAudienceMapper
 Switch — add the Keycloak audience mapper (needed for bearer-token API access).
@@ -95,9 +92,9 @@ PATH, another IIS site bound to :443). Use for non-interactive runs only after
 reviewing the [RISK] items.
 
 .PARAMETER AutoUpgradeNode
-Switch — when 00a-fix-node.ps1 detects a too-old Node on PATH, skip the y/N
+Switch — when 03-prereqs-node.ps1 detects a too-old Node on PATH, skip the y/N
 confirmation and proceed with nvm-windows + Node LTS setup automatically.
-For non-interactive runs. Passed through as -AssumeYes to 00a-fix-node.ps1.
+For non-interactive runs. Passed through as -AssumeYes to 03-prereqs-node.ps1.
 
 .PARAMETER YopassUrl
 URL of an EXISTING Yopass service to use for sharing newly-created Ed-Fi API
@@ -244,6 +241,15 @@ if (-not (Test-Path "$SourcePath\package.json")) {
     throw "Expected AdminApp repo at '$SourcePath' but no package.json found. Pass -SourcePath if the repo is elsewhere."
 }
 
+# Node runtime: install Node (or remediate a too-old version via nvm) and set the
+# npm cache override. Runs unconditionally and BEFORE the pre-flight check so a
+# missing or stale Node doesn't fail the diagnostic. Idempotent: a no-op when
+# Node is already current and the cache is set.
+Write-Phase "Node runtime (03-prereqs-node.ps1)"
+$nodeArgs = @{ SourcePath = $SourcePath }
+if ($AutoUpgradeNode) { $nodeArgs.AssumeYes = $true }
+& "$scriptDir\03-prereqs-node.ps1" @nodeArgs
+
 # Pre-flight: run 00-check-prereqs.ps1 to validate manual prereqs are in place.
 # Exit codes from 00:
 #   0 = clean
@@ -251,14 +257,6 @@ if (-not (Test-Path "$SourcePath\package.json")) {
 #   2 = ready, but [RISK] items present (collisions with existing software);
 #       prompt the user to confirm unless -AcceptRisks was passed
 if (-not $SkipPreflightCheck) {
-    # Node version remediation runs BEFORE the diagnostic so a stale Node 16
-    # doesn't fail the pre-flight on a fixable issue. 00a-fix-node.ps1 is a no-op
-    # when Node is missing (03a will install) or already at the floor.
-    Write-Phase "Pre-flight: Node version check (00a-fix-node.ps1)"
-    $fixNodeArgs = @{ SourcePath = $SourcePath }
-    if ($AutoUpgradeNode) { $fixNodeArgs.AssumeYes = $true }
-    & "$scriptDir\00a-fix-node.ps1" @fixNodeArgs
-
     Write-Phase "Pre-flight check (00-check-prereqs.ps1)"
     & "$scriptDir\00-check-prereqs.ps1" -SourcePath $SourcePath -DatabaseName $DatabaseName -DbEngine $DbEngine -SetupYopassDocker:$SetupYopassDocker -YopassPort $YopassPort
     $preflightExit = $LASTEXITCODE
@@ -368,18 +366,11 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAp
     Write-Phase "Phase 1.2: IIS prereqs (01-prereqs-iis.ps1)"
     & "$scriptDir\01-prereqs-iis.ps1"
 
-    Write-Phase "Phase 1.3: Runtime prereqs (03a-prereqs-runtime.ps1)"
-    if ($JdkDownloadUrl) {
-        & "$scriptDir\03a-prereqs-runtime.ps1" -JdkDownloadUrl $JdkDownloadUrl
-    } else {
-        & "$scriptDir\03a-prereqs-runtime.ps1"
-    }
-
-    # Phase 1.4: stand up Yopass (only when asked). The derived URL was already
+    # Phase 1.3: stand up Yopass (only when asked). The derived URL was already
     # computed into $EffectiveYopassUrl; this just brings the container up so it
     # is ready by the time phase 3 configures and smoke-tests the API.
     if ($SetupYopassDocker) {
-        Write-Phase "Phase 1.4: Yopass via docker (yopass-docker.ps1)"
+        Write-Phase "Phase 1.3: Yopass via docker (yopass-docker.ps1)"
         & "$scriptDir\yopass-docker.ps1" -YopassPort $YopassPort | Out-Null
     }
 
@@ -387,7 +378,7 @@ ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAp
     Write-Host "Phase 1 complete." -ForegroundColor Green
 
     # Refresh the current process's PATH from the registry so subsequent child
-    # processes (notably 03c-build-project running npm) inherit Node's bin
+    # processes (notably 04-build running npm) inherit Node's bin
     # directory even if winget just installed Node a moment ago in this same shell.
     $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
 }
@@ -397,40 +388,34 @@ if ($OnlyPhase1) {
     return
 }
 
-# ---------- Phase 2 — Build + start Keycloak ----------
+# ---------- Phase 2 — Build ----------
 if (-not $SkipPhase2) {
-    Write-Phase "Phase 2.1: Build the project (04-build.ps1)"
+    Write-Phase "Phase 2: Build the project (04-build.ps1)"
     Write-Host "This takes several minutes. Output streams below."
     & "$scriptDir\04-build.ps1" -SourcePath $SourcePath
-
-    Write-Phase "Phase 2.2: Start Keycloak in background (idp-keycloak-start.ps1)"
-    & "$scriptDir\idp-keycloak-start.ps1" -AdminPassword $KeycloakAdminPassword
 }
 
-# Sanity checks before phase 3
+# Sanity checks before phase 3 -- build artifacts must exist. Keycloak is started
+# by idp-keycloak-setup.ps1 in Phase 3.1, so it isn't checked here.
 if (-not (Test-Path "$SourcePath\dist\packages\api\main.js")) {
     throw "$SourcePath\dist\packages\api\main.js missing. Build step skipped or failed."
 }
 if (-not (Test-Path "$SourcePath\dist\packages\fe\index.html")) {
     throw "$SourcePath\dist\packages\fe\index.html missing. Build step skipped or failed."
 }
-try {
-    Invoke-RestMethod -Uri "http://localhost:8080/realms/master/.well-known/openid-configuration" -TimeoutSec 5 | Out-Null
-} catch {
-    throw "Keycloak isn't reachable at http://localhost:8080. Start it before continuing."
-}
 
 # ---------- Phase 3 — Deploy ----------
-Write-Phase "Phase 3.1: Keycloak realm + client + user (06-keycloak-bootstrap.ps1)"
+Write-Phase "Phase 3.1: Keycloak setup (idp-keycloak-setup.ps1)"
 $kcArgs = @{
     AdminPassword = $KeycloakAdminPassword
     ClientSecret = $KeycloakClientSecret
     TestUserPassword = $TestUserPassword
     TestUserEmail = $AdminUsername
 }
+if ($JdkDownloadUrl) { $kcArgs.JdkDownloadUrl = $JdkDownloadUrl }
 if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
 if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
-& "$scriptDir\06-keycloak-bootstrap.ps1" @kcArgs
+& "$scriptDir\idp-keycloak-setup.ps1" @kcArgs
 
 Write-Phase "Phase 3.2: Deploy API (05-deploy-api.ps1)"
 $apiArgs = @{

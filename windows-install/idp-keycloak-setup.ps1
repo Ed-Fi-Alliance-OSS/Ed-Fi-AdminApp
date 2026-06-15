@@ -1,25 +1,47 @@
-﻿<#
+﻿#Requires -RunAsAdministrator
+<#
 .SYNOPSIS
-Creates the edfi realm, edfiadminapp client, test user, and (optionally)
-the audience mapper in Keycloak via the admin REST API.
+Optional local Identity Provider example. Installs a JDK if needed, downloads
+Keycloak, starts it, and provisions the edfi realm, edfiadminapp client, and
+test user. One run leaves a fully-ready local Keycloak for the Admin App.
 
 .DESCRIPTION
-Idempotent — re-running updates existing resources instead of duplicating them.
+The Admin App's auth engine is provider-agnostic (generic OIDC discovery), so a
+real deployment points it at whatever IdP the organization runs. This script is
+only the convenience path for a local dev install that wants Keycloak as the
+example IdP.
 
-Keycloak must already be running. Start it with:
-  cd C:\keycloak\bin
-  .\kc.bat start-dev
+Steps (each idempotent):
+  1. JDK: reuse an existing Java >= 17 already on PATH, otherwise install
+     Microsoft OpenJDK 21 (Keycloak 26 requires Java 17 or 21) and set
+     JAVA_HOME / PATH. -JdkDownloadUrl forces an offline zip install instead.
+  2. Download + extract Keycloak to -KeycloakInstallPath.
+  3. Start Keycloak by delegating to idp-keycloak-start.ps1 (bootstraps the
+     master admin on first start, waits for the discovery endpoint).
+  4. Provision the realm, client (with redirect/origin URIs), optional audience
+     mapper, and the test user via the Keycloak admin REST API.
 
-Does NOT require elevation (just HTTP calls to localhost:8080).
+.PARAMETER KeycloakInstallPath
+Where Keycloak is installed. Default: C:\keycloak.
 
-.PARAMETER KeycloakBaseUrl
-Default: http://localhost:8080.
+.PARAMETER KeycloakVersion
+Keycloak release to download if not already present. Default: 26.6.1.
+
+.PARAMETER JdkDownloadUrl
+Optional URL to an OpenJDK zip. If provided, downloads/extracts it and sets
+JAVA_HOME instead of using winget / an existing JDK.
 
 .PARAMETER AdminUser
-Master-realm admin username (set during first Keycloak boot). Default: admin.
+Master-realm admin username (bootstrapped on first start only). Default: admin.
 
 .PARAMETER AdminPassword
 Master-realm admin password.
+
+.PARAMETER KeycloakBaseUrl
+URL to probe and provision against. Default: http://localhost:8080.
+
+.PARAMETER ReadyTimeoutSeconds
+How long to wait for Keycloak to be reachable. Default: 120.
 
 .PARAMETER RealmName
 Default: edfi.
@@ -28,40 +50,41 @@ Default: edfi.
 Default: edfiadminapp.
 
 .PARAMETER ClientSecret
-The secret to set on the client. Save this; you'll pass it to 05-deploy-api.ps1.
+The secret to set on the client. Save it; you pass the same value to 05-deploy-api.ps1.
 
-.PARAMETER RedirectUri
-Where Keycloak sends users back after login. Must match the API's MY_URL.
-Default: http://localhost:3333/api/auth/callback/1.
+.PARAMETER FeBaseUrl / -ApiBaseUrl
+Base URLs used to build the client's redirect/origin URIs. Defaults assume the
+sub-app deployment; pass overrides for standalone ports.
 
-.PARAMETER WebOrigin
-CORS origin allowed by Keycloak. Default: http://localhost:4200.
-
-.PARAMETER TestUserEmail
-User to create. Must match the AdminApp DB's seeded user. Default: admin@example.com.
-
-.PARAMETER TestUserPassword
-Password for the test user.
+.PARAMETER TestUserEmail / -TestUserFirstName / -TestUserLastName / -TestUserPassword
+The seeded test user. TestUserEmail must match the AdminApp DB's seeded user.
 
 .PARAMETER IncludeAudienceMapper
-Switch — adds the audience mapper to the client. Required only for bearer-token
-API access (Postman, curl, CI). Not needed for browser-based UI login.
+Switch -- add the audience mapper (only needed for bearer-token API access).
 
 .PARAMETER EnableDirectAccessGrants
-Switch — enables password grant on the client. For testing only.
+Switch -- enable the password grant on the client. Testing only.
 
 .EXAMPLE
-.\06-keycloak-bootstrap.ps1 -AdminPassword 'admin' -ClientSecret 'mysecret123' -TestUserPassword 'TestUser123!'
-.\06-keycloak-bootstrap.ps1 -AdminPassword 'admin' -ClientSecret 's3cr3t' -TestUserPassword 'pw' -IncludeAudienceMapper
+.\idp-keycloak-setup.ps1 -AdminPassword 'admin' -ClientSecret 'mysecret123' -TestUserPassword 'TestUser123!'
 #>
 
 param(
-    [string]$KeycloakBaseUrl = "http://localhost:8080",
+    # --- JDK + Keycloak download/runtime ---
+    [string]$KeycloakInstallPath = "C:\keycloak",
+    [string]$KeycloakVersion = "26.6.1",
+    [string]$JdkDownloadUrl,
+
+    # --- Keycloak start + admin bootstrap ---
     [string]$AdminUser = "admin",
 
     [Parameter(Mandatory = $true)]
     [string]$AdminPassword,
 
+    [string]$KeycloakBaseUrl = "http://localhost:8080",
+    [int]$ReadyTimeoutSeconds = 120,
+
+    # --- Realm / client / user provisioning ---
     [string]$RealmName = "edfi",
     [string]$ClientId = "edfiadminapp",
 
@@ -95,6 +118,145 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+# JDK -- Keycloak 26 officially requires Java 17 or 21. Behavior in order:
+#   1. If `java` >=17 is already on PATH, USE IT. Skip the OpenJDK 21 install
+#      and the PATH/JAVA_HOME overrides -- respects users who keep a newer JDK
+#      (25, 26, ...) for other dev work. Keycloak runs at JVM level, so any
+#      modern JDK works in practice even if not officially supported.
+#   2. Otherwise install Microsoft OpenJDK 21 via winget and prepend its bin
+#      to Machine PATH so Keycloak has a working JDK.
+#   3. -JdkDownloadUrl overrides everything: skips both checks and downloads
+#      a zip (offline scenarios).
+
+# Step 1: detect existing usable Java
+$env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+$existingJava = Get-Command java -ErrorAction SilentlyContinue
+$existingJavaMajor = 0
+if ($existingJava) {
+    # `java -version` writes to stderr. Route the merge through cmd.exe rather
+    # than PowerShell's `2>&1`, because in Windows PowerShell 5.1 redirecting a
+    # native command's stderr inside PS wraps each line as a NativeCommandError
+    # ErrorRecord, which is fatal under the parent script's
+    # $ErrorActionPreference='Stop'. cmd /c merges the streams before PS ever
+    # sees them, so the output arrives as plain strings.
+    $javaVerLine = (& cmd /c "java -version 2>&1") | Select-Object -First 1
+    if ($javaVerLine -match 'version "(\d+)') {
+        $existingJavaMajor = [int]$Matches[1]
+    } elseif ($javaVerLine -match 'version "1\.(\d+)') {
+        $existingJavaMajor = [int]$Matches[1]   # 1.8.0_xxx style
+    }
+}
+
+$openJdk21Root = $null
+if ($existingJavaMajor -ge 17 -and -not $JdkDownloadUrl) {
+    Write-Host "Java $existingJavaMajor already on PATH at $($existingJava.Source) -- skipping OpenJDK 21 install."
+    Write-Host "Keycloak will run on the existing JDK. (To force install OpenJDK 21 anyway,"
+    Write-Host "remove your current Java from PATH before re-running, or pass -JdkDownloadUrl.)"
+} else {
+    # Step 2: install / locate OpenJDK 21. Match jdk-21* dirs that actually
+    # contain a runnable java.exe -- a leftover half-install can't fool us.
+    $existing21 = Get-ChildItem "C:\Program Files\Microsoft" -Directory -ErrorAction SilentlyContinue |
+        Where-Object { $_.Name -like "jdk-21*" -and (Test-Path "$($_.FullName)\bin\java.exe") } |
+        Sort-Object Name -Descending | Select-Object -First 1
+    if ($existing21) {
+        $openJdk21Root = $existing21.FullName
+        Write-Host "OpenJDK 21 already installed at $openJdk21Root"
+    } elseif (-not $JdkDownloadUrl) {
+        Write-Host "Installing OpenJDK 21 via winget (Keycloak runtime)..."
+        & winget install Microsoft.OpenJDK.21 --source winget --accept-source-agreements --accept-package-agreements --silent
+        if ($LASTEXITCODE -ne 0) {
+            throw "OpenJDK install failed (winget exit code $LASTEXITCODE). Pass -JdkDownloadUrl to install from a zip instead."
+        }
+        $existing21 = Get-ChildItem "C:\Program Files\Microsoft" -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "jdk-21*" -and (Test-Path "$($_.FullName)\bin\java.exe") } |
+            Sort-Object Name -Descending | Select-Object -First 1
+        if ($existing21) { $openJdk21Root = $existing21.FullName }
+        if (-not $openJdk21Root) {
+            throw "winget reported success but no jdk-21*\bin\java.exe found under C:\Program Files\Microsoft. Pass -JdkDownloadUrl or install OpenJDK 21 manually."
+        }
+        Write-Host "OpenJDK 21 installed at $openJdk21Root"
+    }
+}
+
+# Step 3: PATH prepend + JAVA_HOME -- only when we installed/located OpenJDK 21
+# (i.e., we did NOT take the "existing Java is fine" early-out).
+if ($openJdk21Root) {
+    $newJdkBin = "$openJdk21Root\bin"
+    $mp = [Environment]::GetEnvironmentVariable("Path", "Machine")
+    $entries = $mp -split ';' | Where-Object { $_ -and $_ -ne $newJdkBin }
+    $newPath = (@($newJdkBin) + $entries) -join ';'
+    if ($mp -ne $newPath) {
+        [Environment]::SetEnvironmentVariable("Path", $newPath, "Machine")
+        Write-Host "Prepended $newJdkBin to Machine PATH."
+    }
+    [Environment]::SetEnvironmentVariable("JAVA_HOME", $openJdk21Root, "Machine")
+    # Refresh in current process so idp-keycloak-start can spawn Keycloak with the right java
+    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
+    $env:JAVA_HOME = $openJdk21Root
+}
+
+# Keycloak -- accept flat OR nested (BasePath\keycloak-<ver>\bin\kc.bat) layout
+$existingKcBat = $null
+if (Test-Path "$KeycloakInstallPath\bin\kc.bat") {
+    $existingKcBat = "$KeycloakInstallPath\bin\kc.bat"
+} else {
+    $sub = Get-ChildItem $KeycloakInstallPath -Directory -ErrorAction SilentlyContinue |
+        Where-Object { Test-Path "$($_.FullName)\bin\kc.bat" } |
+        Select-Object -First 1
+    if ($sub) { $existingKcBat = "$($sub.FullName)\bin\kc.bat" }
+}
+if ($existingKcBat) {
+    Write-Host "Keycloak already installed at $existingKcBat"
+} else {
+    $kcZip = "$env:TEMP\keycloak-$KeycloakVersion.zip"
+    $kcUrl = "https://github.com/keycloak/keycloak/releases/download/$KeycloakVersion/keycloak-$KeycloakVersion.zip"
+    Write-Host "Downloading Keycloak $KeycloakVersion..."
+    Invoke-WebRequest -Uri $kcUrl -OutFile $kcZip -UseBasicParsing
+    $parent = Split-Path $KeycloakInstallPath -Parent
+    if (-not (Test-Path $parent)) {
+        New-Item -ItemType Directory -Path $parent -Force | Out-Null
+    }
+    Write-Host "Extracting to $KeycloakInstallPath..."
+    Expand-Archive -Path $kcZip -DestinationPath $parent -Force
+    $extracted = Join-Path $parent "keycloak-$KeycloakVersion"
+    if ((Test-Path $extracted) -and ($extracted -ne $KeycloakInstallPath)) {
+        Move-Item -Path $extracted -Destination $KeycloakInstallPath
+    }
+    Write-Host "Keycloak ready at $KeycloakInstallPath"
+}
+
+# Optional JDK
+if ($JdkDownloadUrl) {
+    $jdkZip = "$env:TEMP\jdk-download.zip"
+    Write-Host "Downloading JDK from $JdkDownloadUrl..."
+    Invoke-WebRequest -Uri $JdkDownloadUrl -OutFile $jdkZip -UseBasicParsing
+    $jdkParent = "C:\Program Files\Java"
+    New-Item -ItemType Directory -Path $jdkParent -Force | Out-Null
+    Expand-Archive -Path $jdkZip -DestinationPath $jdkParent -Force
+    $jdkDir = Get-ChildItem $jdkParent -Directory | Where-Object { $_.Name -like "jdk-*" } | Sort-Object Name -Descending | Select-Object -First 1
+    if ($jdkDir) {
+        [Environment]::SetEnvironmentVariable("JAVA_HOME", $jdkDir.FullName, "Machine")
+        $mp = [Environment]::GetEnvironmentVariable("Path", "Machine")
+        $newBin = "$($jdkDir.FullName)\bin"
+        if ($mp -notlike "*$newBin*") {
+            [Environment]::SetEnvironmentVariable("Path", "$newBin;$mp", "Machine")
+        }
+        Write-Host "JAVA_HOME = $($jdkDir.FullName)"
+    }
+}
+
+# ---------------------------------------------------------------------------
+# Start Keycloak (delegates to idp-keycloak-start.ps1) and wait until the admin
+# REST API is reachable, then provision the realm/client/user below.
+# ---------------------------------------------------------------------------
+Write-Host ""
+Write-Host "Starting Keycloak via idp-keycloak-start.ps1..."
+& "$PSScriptRoot\idp-keycloak-start.ps1" `
+    -KeycloakInstallPath $KeycloakInstallPath `
+    -AdminUser $AdminUser `
+    -AdminPassword $AdminPassword `
+    -BaseUrl $KeycloakBaseUrl `
+    -ReadyTimeoutSeconds $ReadyTimeoutSeconds
 
 function Invoke-KcApi {
     param(
