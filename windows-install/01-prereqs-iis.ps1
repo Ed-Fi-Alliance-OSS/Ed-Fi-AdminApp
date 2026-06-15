@@ -29,6 +29,12 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Precondition: the IIS web server role must already be installed
+# (setup-vm-prereqs.ps1 does that). This script only adds URL Rewrite + iisnode.
+if (-not (Get-Service W3SVC -ErrorAction SilentlyContinue)) {
+    throw "IIS (W3SVC) is not installed. Run setup-vm-prereqs.ps1 first, or enable the IIS role via Enable-WindowsOptionalFeature."
+}
 Import-Module WebAdministration
 
 # IIS URL Rewrite Module

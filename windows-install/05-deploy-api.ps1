@@ -117,7 +117,23 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Import-Module WebAdministration
+
+# Precondition: IIS + the WebAdministration module must be available
+# (01-prereqs-iis.ps1 installs the IIS pieces). Fail early with an actionable
+# message instead of a cryptic Import-Module error.
+try {
+    Import-Module WebAdministration -ErrorAction Stop
+} catch {
+    throw "IIS / the WebAdministration module isn't available. Ensure IIS is installed (setup-vm-prereqs.ps1) and run 01-prereqs-iis.ps1 before deploying."
+}
+
+# Precondition: the npm cache override must be set (03-prereqs-node.ps1 sets it).
+# Without it, npm under the locked-down App Pool identity tries to write its cache
+# to the user profile (which that account can't write) and the app pool fails to
+# start under iisnode. Fail early instead of leaving a cryptic runtime error.
+if (-not [Environment]::GetEnvironmentVariable("NPM_CONFIG_CACHE", "Machine")) {
+    throw "NPM_CONFIG_CACHE (Machine) is not set. Run 03-prereqs-node.ps1 first so npm under iisnode has a writable cache."
+}
 
 # Engine-specific required arg validation. Each engine needs its own password
 # parameter; the other one is irrelevant and ignored.

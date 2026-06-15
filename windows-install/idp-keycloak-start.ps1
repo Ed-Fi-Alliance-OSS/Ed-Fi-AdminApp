@@ -73,6 +73,18 @@ if (-not $kcBat) {
     throw "kc.bat not found under $KeycloakInstallPath. Run idp-keycloak-setup.ps1 first to download Keycloak."
 }
 
+# Keycloak needs a JDK (Java 17+). idp-keycloak-setup installs it and sets
+# JAVA_HOME; if neither a usable JAVA_HOME nor java on PATH is present, fail
+# early with a clear message instead of a kc.bat error.
+$machineJavaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
+$javaAvailable = $false
+if (Get-Command java -ErrorAction SilentlyContinue) { $javaAvailable = $true }
+elseif ($env:JAVA_HOME -and (Test-Path "$env:JAVA_HOME\bin\java.exe")) { $javaAvailable = $true }
+elseif ($machineJavaHome -and (Test-Path "$machineJavaHome\bin\java.exe")) { $javaAvailable = $true }
+if (-not $javaAvailable) {
+    throw "No JDK found (java not on PATH and JAVA_HOME unset/invalid). Keycloak needs Java 17+. Run idp-keycloak-setup.ps1 first to install it."
+}
+
 # 3. Start Keycloak in background with bootstrap env vars
 #    The env vars are scoped to the spawned process; Keycloak 26+ creates the
 #    master admin from them on first launch and ignores them thereafter.

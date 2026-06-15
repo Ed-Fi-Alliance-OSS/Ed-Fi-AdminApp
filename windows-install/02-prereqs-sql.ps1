@@ -47,6 +47,11 @@ if (-not $verKey) {
     throw "Could not find a SQL Server install for instance '$InstanceName'. Is SQL Server installed?"
 }
 
+# Precondition: sqlcmd is used throughout to configure and verify the instance.
+if (-not (Get-Command sqlcmd -ErrorAction SilentlyContinue)) {
+    throw "sqlcmd is not on PATH. Install the SQL Server command-line tools before running this script."
+}
+
 $verName = $verKey.PSChildName
 Write-Host "Detected SQL Server version key: $verName"
 

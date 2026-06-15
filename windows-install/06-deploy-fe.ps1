@@ -35,7 +35,14 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-Import-Module WebAdministration
+
+# Precondition: IIS + the WebAdministration module must be available
+# (01-prereqs-iis.ps1 installs the IIS pieces).
+try {
+    Import-Module WebAdministration -ErrorAction Stop
+} catch {
+    throw "IIS / the WebAdministration module isn't available. Ensure IIS is installed (setup-vm-prereqs.ps1) and run 01-prereqs-iis.ps1 before deploying."
+}
 
 if (-not (Test-Path "$SourcePath\index.html")) {
     throw "index.html not found at $SourcePath. Did you run 'npm run build:fe'?"
