@@ -12,18 +12,38 @@ import { PageTemplate } from '@edanalytics/common-ui';
 import { PostOdsDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
-import { useForm } from 'react-hook-form';
+import { useEffect } from 'react';
+import { Resolver, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { odsQueries } from '../../api';
 import {
-  SelectOdsTemplate,
   useNavToParent,
   useTeamEdfiTenantNavContextLoaded,
+  SelectOdsTemplate,
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { sampleOdsData } from '../Ods/odsData';
 
-const resolver = classValidatorResolver(PostOdsDto);
+const baseResolver = classValidatorResolver(PostOdsDto);
+
+const resolver: Resolver<PostOdsDto> = async (data, context, options) => {
+  const result = await baseResolver(data, context, options);
+  if (!result.errors.name) {
+    const isDuplicate = sampleOdsData.some(
+      (row) =>
+        row.name.toLowerCase() === data.name?.toLowerCase() &&
+        row.type === data.templateName
+    );
+    if (isDuplicate) {
+      result.errors.name = {
+        type: 'manual',
+        message: 'An ODS with this name and type already exists.',
+      };
+    }
+  }
+  return result;
+};
 
 export const CreateOds = () => {
   const popBanner = usePopBanner();
@@ -45,14 +65,24 @@ export const CreateOds = () => {
     control,
     handleSubmit,
     setError,
-    formState: { errors, isSubmitting },
+    watch,
+    trigger,
+    formState: { errors, isSubmitting, touchedFields },
   } = useForm<PostOdsDto>({
     resolver,
     defaultValues: Object.assign(new PostOdsDto(), {}),
   });
 
+  const selectedType = watch('templateName');
+
+  useEffect(() => {
+    if (touchedFields.name) {
+      trigger('name');
+    }
+  }, [selectedType, trigger, touchedFields.name]);
+
   return (
-    <PageTemplate title={'Create new ODS'} actions={undefined}>
+    <PageTemplate title={'Create new Data Store'} actions={undefined}>
       <form
         onSubmit={handleSubmit((data) =>
           postOds

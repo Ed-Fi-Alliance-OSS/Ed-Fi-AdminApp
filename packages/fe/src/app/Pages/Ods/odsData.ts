@@ -18,7 +18,7 @@ export interface OdsStatusDisplay {
 export const odsStatusDisplayMap: Record<OdsStatus, OdsStatusDisplay> = {
   PendingCreate:    { label: 'Pending to create',    colorScheme: 'yellow' },
   Created:          { label: 'Ready',                 colorScheme: 'green'  },
-  CreateInProgress: { label: 'In progress',           colorScheme: 'yellow' },
+  CreateInProgress: { label: 'Creation in progress',           colorScheme: 'yellow' },
   CreateFailed:     { label: 'Creation failed',       colorScheme: 'red'    },
   CreateError:      { label: 'Creation failed',       colorScheme: 'red'    },
   PendingDelete:    { label: 'Deletion pending',      colorScheme: 'yellow' },
