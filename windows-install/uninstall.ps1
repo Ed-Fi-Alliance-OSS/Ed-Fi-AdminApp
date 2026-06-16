@@ -11,8 +11,8 @@ Steps (each best-effort, continues past individual failures):
      - Remove the standalone sites 'EdFi-AdminApp-API' and 'EdFi-AdminApp-FE'.
      - Stop+remove App Pool 'EdFi-AdminApp-API'.
      - Scrub a leftover global iisnode-all handler from applicationHost.config.
-     - Delete C:\inetpub\Ed-Fi\adminapp and \adminapp-api (and the parent dir
-       if it ends up empty).
+     - Delete the deployed dirs C:\inetpub\EdFi-AdminApp-API and
+       C:\inetpub\EdFi-AdminApp-FE.
   2. Database teardown (both engines, best-effort per engine):
      - MSSQL: DROP DATABASE [sbaa] using SQL Auth (sa + -SaPassword) if
        provided, else Windows Auth. Skipped when MSSQLSERVER isn't running.
@@ -69,10 +69,11 @@ Default: EdFi-AdminApp-API.
 Name of the FE site created by 06-deploy-fe.ps1. Default: EdFi-AdminApp-FE.
 (The API site name is the App Pool name, $AppPoolName.)
 
-.PARAMETER InetpubPath
-Root of deployed files. Default: C:\inetpub\Ed-Fi. Only $InetpubPath\adminapp
-and $InetpubPath\adminapp-api are deleted (plus the parent dir if it ends up
-empty).
+.PARAMETER ApiDestPath
+The deployed API directory to delete. Default: C:\inetpub\EdFi-AdminApp-API.
+
+.PARAMETER FeDestPath
+The deployed FE directory to delete. Default: C:\inetpub\EdFi-AdminApp-FE.
 
 .PARAMETER KeepDatabase
 Switch — skip the DROP DATABASE step.
@@ -100,7 +101,8 @@ param(
     [string]$NpmCachePath = "C:\npm-cache",
     [string]$AppPoolName = "EdFi-AdminApp-API",
     [string]$StandaloneFeSiteName = "EdFi-AdminApp-FE",
-    [string]$InetpubPath = "C:\inetpub\Ed-Fi",
+    [string]$ApiDestPath = "C:\inetpub\EdFi-AdminApp-API",
+    [string]$FeDestPath = "C:\inetpub\EdFi-AdminApp-FE",
     # Summary is written by install-all.ps1 to the parent of the repo dir
     # (i.e. grandparent of windows-install\). Auto-resolve the same way.
     [string]$SummaryPath = (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "install-summary.txt"),
@@ -143,7 +145,7 @@ Write-Host "Ed-Fi Admin App -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
 Write-Host "  - Standalone IIS sites '$AppPoolName' (API) and '$StandaloneFeSiteName' (FE)"
 Write-Host "  - IIS App Pool '$AppPoolName'"
-Write-Host "  - Deployed files under $InetpubPath\adminapp and $InetpubPath\adminapp-api"
+Write-Host "  - Deployed dirs: $ApiDestPath and $FeDestPath"
 if (-not $KeepDatabase)         {
     Write-Host "  - SQL database [$DatabaseName] (if MSSQLSERVER is running)"
     Write-Host "  - Docker postgres container + volumes (if edfiadminapp-postgres exists)"
@@ -236,32 +238,17 @@ try {
     Record "Scrub global iisnode-all handler" "FAIL" $_.Exception.Message
 }
 
-# Deployed file trees. Delete the two subdirs the install created; if the parent
-# dir ends up empty, remove it too (but don't fail if it isn't empty).
-foreach ($sub in @('adminapp-api', 'adminapp')) {
-    $subPath = Join-Path $InetpubPath $sub
+# Deployed file trees -- the two dedicated standalone-site directories.
+foreach ($dir in @($ApiDestPath, $FeDestPath)) {
     try {
-        if (Test-Path $subPath) {
-            Remove-Item -Path $subPath -Recurse -Force -ErrorAction Stop
-            Record "Delete $subPath" "OK"
+        if (Test-Path $dir) {
+            Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop
+            Record "Delete $dir" "OK"
         } else {
-            Record "Delete $subPath" "SKIP" "Not present"
+            Record "Delete $dir" "SKIP" "Not present"
         }
     } catch {
-        Record "Delete $subPath" "FAIL" $_.Exception.Message
-    }
-}
-if (Test-Path $InetpubPath) {
-    $remaining = @(Get-ChildItem -LiteralPath $InetpubPath -Force -ErrorAction SilentlyContinue)
-    if ($remaining.Count -eq 0) {
-        try {
-            Remove-Item -Path $InetpubPath -Force -ErrorAction Stop
-            Record "Delete empty $InetpubPath" "OK"
-        } catch {
-            Record "Delete empty $InetpubPath" "WARN" $_.Exception.Message
-        }
-    } else {
-        Record "Delete $InetpubPath" "SKIP" "$($remaining.Count) other entry(ies) remain"
+        Record "Delete $dir" "FAIL" $_.Exception.Message
     }
 }
 

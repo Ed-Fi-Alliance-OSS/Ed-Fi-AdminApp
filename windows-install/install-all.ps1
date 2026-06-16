@@ -561,7 +561,7 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
 } else {
     Write-Host "API is NOT responding after ~60s of retries." -ForegroundColor Red
     Write-Host "Check the iisnode logs:" -ForegroundColor Yellow
-    Write-Host "  Get-ChildItem C:\inetpub\Ed-Fi\adminapp-api\iisnode | Sort LastWriteTime -Desc | Select -First 2 | Get-Content -Tail 30"
+    Write-Host "  Get-ChildItem C:\inetpub\EdFi-AdminApp-API\iisnode | Sort LastWriteTime -Desc | Select -First 2 | Get-Content -Tail 30"
     Write-Host "And the IIS app pool state:" -ForegroundColor Yellow
     Write-Host "  Get-WebAppPoolState -Name EdFi-AdminApp-API"
     Write-Host ""

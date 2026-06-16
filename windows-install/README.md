@@ -191,7 +191,7 @@ Re-running on a working install is mostly a no-op — most steps detect existing
 Default in `production.js` is 10 requests / 60s. Recycle the App Pool to clear state, or bump it for dev:
 
 ```powershell
-$f = "C:\inetpub\Ed-Fi\adminapp-api\packages\api\config\production.js"
+$f = "C:\inetpub\EdFi-AdminApp-API\packages\api\config\production.js"
 (Get-Content $f -Raw).Replace("RATE_LIMIT_LIMIT: 10,", "RATE_LIMIT_LIMIT: 1000,") | Set-Content $f -Encoding UTF8
 Restart-WebAppPool -Name "EdFi-AdminApp-API"
 ```

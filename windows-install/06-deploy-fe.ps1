@@ -14,7 +14,8 @@ Run AFTER `npm run build:fe` produces dist\packages\fe\ in the source repo.
 Path to the Vite build output, e.g. C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe.
 
 .PARAMETER DestPath
-Where to deploy. Default: C:\inetpub\Ed-Fi\adminapp.
+Where to deploy. Default: C:\inetpub\EdFi-AdminApp-FE (a dedicated directory,
+not nested under another site's root).
 
 .PARAMETER SiteName
 IIS site name. Default: EdFi-AdminApp-FE.
@@ -29,7 +30,7 @@ HTTP port. Default: 4200.
 param(
     [Parameter(Mandatory = $true)]
     [string]$SourcePath,
-    [string]$DestPath = "C:\inetpub\Ed-Fi\adminapp",
+    [string]$DestPath = "C:\inetpub\EdFi-AdminApp-FE",
     [string]$SiteName = "EdFi-AdminApp-FE",
     [int]$Port = 4200
 )

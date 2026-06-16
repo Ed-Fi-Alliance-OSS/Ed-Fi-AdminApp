@@ -22,7 +22,8 @@ The built API output folder. Typically the repo root, containing main.js +
 packages\ + node_modules\.
 
 .PARAMETER DestPath
-Where to deploy. Default: C:\inetpub\Ed-Fi\EdFi-AdminApp-API.
+Where to deploy. Default: C:\inetpub\EdFi-AdminApp-API (a dedicated directory,
+not nested under another site's root).
 
 .PARAMETER AppPoolName
 Name of the IIS App Pool. Default: EdFi-AdminApp-API.
@@ -65,7 +66,7 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$SourcePath,
 
-    [string]$DestPath = "C:\inetpub\Ed-Fi\adminapp-api",
+    [string]$DestPath = "C:\inetpub\EdFi-AdminApp-API",
     [string]$AppPoolName = "EdFi-AdminApp-API",
     # The API deploys as a standalone HTTP site named $AppPoolName on this port.
     [int]$StandalonePort = 3333,
