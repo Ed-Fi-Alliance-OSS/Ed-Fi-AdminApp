@@ -197,7 +197,7 @@ if ($Request) {
   $runRecursive = $false
 }
 
-$bruArgs = @('run', $targetPath, '--env', $Env, '--insecure')
+$bruArgs = @('run', $targetPath, '--env', $Env, '--insecure', '--reporter-html', './results.html', '--reporter-junit', './report.xml')
 if ($env:ACCESS_TOKEN) {
   $bruArgs += '--env-var'
   $bruArgs += "ACCESS_TOKEN=$env:ACCESS_TOKEN"

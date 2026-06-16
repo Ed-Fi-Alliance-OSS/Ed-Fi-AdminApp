@@ -39,14 +39,19 @@ function Remove-Volumes {
   }
 }
 
+$edfiServicesFile = Join-Path $PSScriptRoot "edfi-services.yml"
+$nginxServicesFile = Join-Path $PSScriptRoot "nginx-compose.yml"
+$adminAppServicesFile = Join-Path $PSScriptRoot "adminapp-services.yml"
+
+$envFile = Join-Path $PSScriptRoot ".env"
 
 try {
     $files = @(
-        "-f", "edfi-services.yml",
-        "-f", "nginx-compose.yml",
-        "-f", "adminapp-services.yml"
+        "-f", $edfiServicesFile,
+        "-f", $nginxServicesFile,
+        "-f", $adminAppServicesFile
     )
-    docker compose $files --env-file ".env"  --profile "*" down
+    docker compose $files --env-file $envFile  --profile "*" down
     if ($V) {
         Remove-Volumes -KeepKeycloakVolume:$KeepKeycloakVolume
     }
