@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
 <#
 .SYNOPSIS
 Run Bruno API E2E tests (all/tag/request) with optional compose start, auth bootstrap, and seed data.
@@ -65,9 +70,7 @@ function Set-TeamId {
 
 function Invoke-SeedDataOnly {
   Write-Host "Seeding test data..." -ForegroundColor Cyan
-  & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-
+  & (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
   Set-TeamId
   if (-not $env:TEAM_ID) {
     throw 'Unable to determine TEAM_ID after seeding.'
@@ -95,16 +98,14 @@ Set-TeamId
 # Step 1: Start docker compose services if requested
 if ($StartServices) {
   Write-Host "Starting docker compose services..." -ForegroundColor Cyan
-  & powershell -File (Join-Path $PSScriptRoot '..\..\compose\start-services.ps1') -Rebuild
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  & (Join-Path $PSScriptRoot '..\..\compose\start-services.ps1') -Rebuild
   Write-Host "Services started." -ForegroundColor Green
 }
 
 # Step 2: Run Keycloak bootstrap if requested
 if ($BootstrapAuth) {
   Write-Host "Running Keycloak bootstrap..." -ForegroundColor Cyan
-  & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1')
-  if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
+  & (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1')
   Set-TeamId
   Write-Host "Keycloak bootstrap complete." -ForegroundColor Green
 }
@@ -163,11 +164,7 @@ try {
   Write-Host "Proceeding without token. Tests may fail if authentication is required." -ForegroundColor Yellow
 }
 
-if ($SeedData -and -not $BootstrapAuth) {
-  Invoke-SeedDataOnly
-}
-
-if (-not $env:TEAM_ID -and ($Tag -eq 'Auth' -or $Request -eq 'auth-cache-team')) {
+if (-not $env:TEAM_ID -and ($SeedData -or $Tag -ne 'App')) {
   Invoke-SeedDataOnly
 }
 

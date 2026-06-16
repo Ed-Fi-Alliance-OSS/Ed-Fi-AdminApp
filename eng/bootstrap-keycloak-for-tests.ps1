@@ -1,3 +1,8 @@
+# SPDX-License-Identifier: Apache-2.0
+# Licensed to the Ed-Fi Alliance under one or more agreements.
+# The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
+# See the LICENSE and NOTICES files in the project root for more information.
+
 <#
 .SYNOPSIS
 Bootstrap Keycloak realm, clients, and seed test data for Admin App API E2E tests.
@@ -6,8 +11,7 @@ Bootstrap Keycloak realm, clients, and seed test data for Admin App API E2E test
 Performs the following idempotent operations:
 1. Creates or updates Keycloak realm and client configuration
 2. Upserts test users (edfi-admin with default password)
-3. Optionally seeds test data (teams, memberships) via API
-4. Optionally falls back to direct SQL commands if API seeding fails
+3. Seeds test data (teams, memberships) directly via the database (PostgreSQL or MSSQL)
 
 .PARAMETER Realm
 Keycloak realm name. Defaults to 'edfi'.
@@ -16,16 +20,16 @@ Keycloak realm name. Defaults to 'edfi'.
 Keycloak client ID. Defaults to 'edfiadminapp-machine'.
 
 .PARAMETER SeedDataOnly
-If specified, skip Keycloak setup and only seed test data via API.
+If specified, skip Keycloak setup and only seed test data via the database.
 
 .PARAMETER EnableSqlFallback
 If specified, allow fallback to direct SQL commands for seeding.
 
 .EXAMPLE
-# Full bootstrap: realm + client + users + API seed
+# Full bootstrap: realm + client + users + database seed
 powershell -File eng/bootstrap-keycloak-for-tests.ps1
 
-# API seed data only (assumes Keycloak already set up)
+# Database seed data only (assumes Keycloak already set up)
 powershell -File eng/bootstrap-keycloak-for-tests.ps1 -SeedDataOnly
 
 # With SQL fallback for seeding

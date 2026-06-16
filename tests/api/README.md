@@ -5,7 +5,7 @@ Bruno CLI-driven end-to-end test suite for Admin App API App/Auth endpoints with
 ## Prerequisites
 
 - **Bruno CLI** installed and available in PATH
-- **PowerShell** (Core or Windows PowerShell 5.1+)
+- **PowerShell** (Windows PowerShell 5.1+)
 - **Docker & Docker Compose** for running services locally
 - Local development environment set up via `compose/start-services.ps1`
 
