@@ -21,9 +21,6 @@ directory (this script lives in <repo>\windows-install\).
 .PARAMETER DatabaseName
 Default: sbaa.
 
-.PARAMETER KeycloakInstallPath
-Default: C:\keycloak.
-
 .EXAMPLE
 .\00-check-prereqs.ps1
 .\00-check-prereqs.ps1 -SourcePath D:\projects\Ed-Fi-AdminApp
@@ -32,7 +29,6 @@ Default: C:\keycloak.
 param(
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
     [string]$DatabaseName = "sbaa",
-    [string]$KeycloakInstallPath = "C:\keycloak",
     # Which DB engine the install will target. 'mssql' enables the SQL Server
     # checks below; 'pgsql' replaces them with a docker-availability check.
     [ValidateSet('mssql','pgsql')]
@@ -51,7 +47,6 @@ $ErrorActionPreference = 'Continue'
 # auto-detected from $SourcePath\package.json (engines.node) below when the
 # repo is cloned; the constant here is the fallback when it isn't.
 $MinNodeMajor = 22  # fallback if package.json detection fails
-$MinJavaMajor = 17  # Keycloak 26 minimum; idp-keycloak-setup installs OpenJDK 21 but accepts existing 17+
 
 # Auto-detect the Node floor from the repo's engines.node when available. Keeps
 # the check in sync if the AdminApp bumps its requirement (e.g., 22 -> 24).
@@ -265,66 +260,6 @@ if ($node) {
     Write-Check INFO "Node.js not on PATH" "03-prereqs-node.ps1 will install LTS via winget"
 }
 
-# Java (JDK) -- needed by Keycloak (the optional local-IdP path). Refresh PATH
-# first in case it was just installed. The check accounts for what
-# idp-keycloak-setup will do: if a Microsoft jdk-21*\bin\java.exe exists, it
-# prepends that to PATH so any older `java` currently on PATH is moot. Only FAIL
-# when an older java is on PATH AND there's no jdk-21 install to promote.
-if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-    $env:Path = [Environment]::GetEnvironmentVariable("Path", "Machine") + ";" + [Environment]::GetEnvironmentVariable("Path", "User")
-}
-$javaCmd = Get-Command java -ErrorAction SilentlyContinue
-
-# Will idp-keycloak-setup end up with a usable OpenJDK 21? Look for a Microsoft
-# jdk-21* directory containing an actual java.exe (a half-installed dir isn't enough).
-$jdk21Available = $false
-$jdk21Dir = Get-ChildItem "C:\Program Files\Microsoft" -Directory -ErrorAction SilentlyContinue |
-    Where-Object { $_.Name -like "jdk-21*" -and (Test-Path "$($_.FullName)\bin\java.exe") } |
-    Sort-Object Name -Descending | Select-Object -First 1
-if ($jdk21Dir) { $jdk21Available = $true }
-
-if ($javaCmd) {
-    # `java -version` prints to stderr in the form: openjdk version "21.0.2" 2024-01-16
-    $javaVerRaw = & java -version 2>&1 | Select-Object -First 1
-    $javaMajor = $null
-    if ($javaVerRaw -match 'version "(\d+)') {
-        $javaMajor = [int]$Matches[1]
-    } elseif ($javaVerRaw -match 'version "1\.(\d+)') {
-        # Old "1.8.0_xxx" style numbering -- the second component is the major
-        $javaMajor = [int]$Matches[1]
-    }
-
-    if ($null -eq $javaMajor) {
-        Write-Check INFO "Java version unparsable" "Output: $javaVerRaw"
-    } elseif ($javaMajor -ge $MinJavaMajor) {
-        Write-Check PASS "Java (JDK) $javaMajor" "$($javaCmd.Source)"
-    } elseif ($jdk21Available) {
-        Write-Check INFO "Java $javaMajor on PATH but OpenJDK 21 available" "idp-keycloak-setup will prepend $($jdk21Dir.FullName)\bin to Machine PATH"
-    } else {
-        Write-Check FAIL "Java $javaMajor is too old (Keycloak needs $MinJavaMajor+)" "Either uninstall the old JDK, or let idp-keycloak-setup install OpenJDK 21 (it auto-prepends to PATH)"
-    }
-} else {
-    Write-Check INFO "Java not on PATH" "idp-keycloak-setup.ps1 will install OpenJDK 21 (needed by Keycloak)"
-}
-
-# Keycloak download -- accept either flat layout (BasePath\bin\kc.bat) or nested
-# (BasePath\keycloak-<ver>\bin\kc.bat), which happens when the zip is extracted
-# into an already-existing folder.
-$kcBat = $null
-if (Test-Path "$KeycloakInstallPath\bin\kc.bat") {
-    $kcBat = "$KeycloakInstallPath\bin\kc.bat"
-} else {
-    $sub = Get-ChildItem $KeycloakInstallPath -Directory -ErrorAction SilentlyContinue |
-        Where-Object { Test-Path "$($_.FullName)\bin\kc.bat" } |
-        Select-Object -First 1
-    if ($sub) { $kcBat = "$($sub.FullName)\bin\kc.bat" }
-}
-if ($kcBat) {
-    Write-Check PASS "Keycloak downloaded" $kcBat
-} else {
-    Write-Check INFO "Keycloak not present" "idp-keycloak-setup.ps1 will download"
-}
-
 # ============================================================
 Write-Section "CONFIGURED STATE (scripts will (re)apply these)"
 # ============================================================
@@ -360,22 +295,6 @@ if ($DbEngine -eq 'mssql' -and $sqlService -and $sqlService.Status -eq 'Running'
     }
 } else {
     Write-Check INFO "SQL Server checks skipped" "Service not running"
-}
-
-# Keycloak running
-try {
-    $kc = Invoke-RestMethod -Uri "http://localhost:8080/realms/master/.well-known/openid-configuration" -TimeoutSec 3
-    Write-Check PASS "Keycloak responding at http://localhost:8080" "issuer: $($kc.issuer)"
-
-    # Check for edfi realm
-    try {
-        $edfi = Invoke-RestMethod -Uri "http://localhost:8080/realms/edfi/.well-known/openid-configuration" -TimeoutSec 3
-        Write-Check PASS "Keycloak 'edfi' realm exists"
-    } catch {
-        Write-Check INFO "Keycloak 'edfi' realm not found" "idp-keycloak-setup.ps1 will create"
-    }
-} catch {
-    Write-Check INFO "Keycloak not responding at :8080" "Start it via idp-keycloak-start.ps1"
 }
 
 # npm cache folder (05-deploy-api sets NPM_CONFIG_CACHE on the App Pool, not machine-wide)
@@ -455,30 +374,6 @@ if ($DbEngine -eq 'mssql' -and $sqlService) {
         Where-Object { $_ -and $_.Trim() -ne '' -and $_ -notmatch '^\(' } | Select-Object -First 1
     if ($saState -and $saState.Trim() -eq 'enabled' -and $userDbs -and $userDbs.Count -gt 0) {
         Write-Check RISK "sa login is already enabled on a shared instance" "02 will reset sa's password to -SaPassword if the current password doesn't match"
-    }
-}
-
-# Java RISK: only fires when idp-keycloak-setup is going to MUTATE -- i.e., when
-# no usable JDK (>=17) is on PATH so it will install OpenJDK 21 + prepend it + set
-# JAVA_HOME. When the user already has Java >=17, it is respected (no mutation,
-# no risk). Re-evaluate java major locally so we don't depend on variables
-# from the earlier diagnostic section.
-$javaCmdRisk = Get-Command java -ErrorAction SilentlyContinue
-$riskJavaMajor = 0
-if ($javaCmdRisk) {
-    $rline = & java -version 2>&1 | Select-Object -First 1
-    if ($rline -match 'version "(\d+)')      { $riskJavaMajor = [int]$Matches[1] }
-    elseif ($rline -match 'version "1\.(\d+)') { $riskJavaMajor = [int]$Matches[1] }
-}
-$willMutateJdk = ($riskJavaMajor -lt 17)   # missing (major=0) counts as <17
-
-if ($willMutateJdk) {
-    if ($javaCmdRisk -and ($javaCmdRisk.Source -notlike "*Microsoft\jdk-21*\bin\java.exe")) {
-        Write-Check RISK "Existing Java $riskJavaMajor on PATH ($($javaCmdRisk.Source))" "idp-keycloak-setup will install OpenJDK 21 and prepend it to Machine PATH -- 'java' will then resolve to JDK 21"
-    }
-    $existingJavaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
-    if ($existingJavaHome -and ($existingJavaHome -notlike "*Microsoft\jdk-21*")) {
-        Write-Check RISK "JAVA_HOME points elsewhere ($existingJavaHome)" "idp-keycloak-setup will overwrite Machine JAVA_HOME to the OpenJDK 21 path"
     }
 }
 

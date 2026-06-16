@@ -153,6 +153,17 @@ if ($existingJavaMajor -ge 17 -and -not $JdkDownloadUrl) {
     Write-Host "Keycloak will run on the existing JDK. (To force install OpenJDK 21 anyway,"
     Write-Host "remove your current Java from PATH before re-running, or pass -JdkDownloadUrl.)"
 } else {
+    # Heads-up before mutating the machine's Java: installing/prepending OpenJDK 21
+    # changes what `java` resolves to and overwrites Machine JAVA_HOME. (This moved
+    # here from 00-check-prereqs.ps1, which is now generic and Keycloak-free.)
+    if ($existingJava) {
+        Write-Host "NOTE: Java $existingJavaMajor is on PATH at $($existingJava.Source); OpenJDK 21 will be prepended so 'java' resolves to it." -ForegroundColor Yellow
+    }
+    $existingJavaHome = [Environment]::GetEnvironmentVariable("JAVA_HOME", "Machine")
+    if ($existingJavaHome -and ($existingJavaHome -notlike "*Microsoft\jdk-21*")) {
+        Write-Host "NOTE: Machine JAVA_HOME ($existingJavaHome) will be overwritten with the OpenJDK 21 path." -ForegroundColor Yellow
+    }
+
     # Step 2: install / locate OpenJDK 21. Match jdk-21* dirs that actually
     # contain a runnable java.exe -- a leftover half-install can't fool us.
     $existing21 = Get-ChildItem "C:\Program Files\Microsoft" -Directory -ErrorAction SilentlyContinue |
