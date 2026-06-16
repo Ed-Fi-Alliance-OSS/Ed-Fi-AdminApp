@@ -24,9 +24,9 @@ Then open an **elevated PowerShell** and `cd C:\Ed-Fi\Ed-Fi-AdminApp\windows-ins
 - **Allow 15–20 minutes** for a fresh end-to-end install (the build phase alone takes several minutes).
 - The passwords below are **yours to choose** — wherever you see `'your-…'`, replace it with a password you pick.
 
-## Quick start (local Keycloak example)
+## Quick start (local Keycloak)
 
-`install-all.ps1` is the "run everything" path and uses a **local Keycloak** as the example identity provider. For a different IdP (Entra, Google, Auth0, …) see [Other identity providers](#other-identity-providers).
+`install-all.ps1` is the "run everything" path. Pick the identity provider with the mandatory **`-IdpProvider`** (`keycloak` | `microsoft` | `google` | `other`). `keycloak` stands up a local Keycloak as the example IdP; for an external provider see [Other identity providers](#other-identity-providers).
 
 ```powershell
 # One-time bypass to let the first script run
@@ -38,7 +38,7 @@ Set-ExecutionPolicy -Scope Process -ExecutionPolicy Bypass -Force
 
 # 2. Full Admin App install (local Keycloak). The pre-flight check tells you if
 #    step 1 was actually needed.
-.\install-all.ps1 -SaPassword 'your-sa-password' -KeycloakAdminPassword 'your-keycloak-admin-password' -KeycloakClientSecret 'your-keycloak-client-secret' -TestUserPassword 'your-keycloak-user-password'
+.\install-all.ps1 -IdpProvider keycloak -SaPassword 'your-sa-password' -KeycloakAdminPassword 'your-keycloak-admin-password' -OidcClientSecret 'your-client-secret' -TestUserPassword 'your-keycloak-user-password'
 ```
 
 When `install-all.ps1` finishes, open `http://localhost:4200/` and sign in with `admin@example.com` (or whatever you passed to `-AdminUsername`) and your `-TestUserPassword`. A green `INSTALL COMPLETE` banner and a written `install-summary.txt` (in the parent of the repo dir, e.g. `C:\Ed-Fi\install-summary.txt`) confirm success.
@@ -46,9 +46,10 @@ When `install-all.ps1` finishes, open `http://localhost:4200/` and sign in with 
 ### Notes on the parameters
 
 - **`-SaPassword`**: SQL Server `sa` login password. Any string works (the script sets `CHECK_POLICY = OFF`).
-- **`-KeycloakAdminPassword`**: Password for the master-realm admin user auto-created when Keycloak first starts.
-- **`-KeycloakClientSecret`**: Secret for the `edfiadminapp` Keycloak client. Any non-empty string works; **32+ alphanumeric characters recommended**. The same value goes into both Keycloak and `production.js`.
-- **`-TestUserPassword`**: Password for the seeded `admin@example.com` user in the `edfi` realm — what you type on the Keycloak login screen.
+- **`-IdpProvider`** *(mandatory)*: `keycloak` | `microsoft` | `google` | `other`. `keycloak` runs the local example IdP; the others target an external OIDC provider (see [Other identity providers](#other-identity-providers)).
+- **`-OidcClientSecret`** *(all modes)*: the OIDC client secret. For `keycloak` it's the secret set on the `edfiadminapp` client (you pick it, 32+ chars recommended); for external providers it's the secret from your app registration.
+- **`-KeycloakAdminPassword`** *(keycloak only)*: Password for the master-realm admin user auto-created when Keycloak first starts.
+- **`-TestUserPassword`** *(keycloak only)*: Password for the seeded `admin@example.com` user in the `edfi` realm — what you type on the Keycloak login screen.
 
 #### Database engine selection
 
@@ -84,7 +85,7 @@ Numbered scripts map to the official guide's section order. The **generic path**
 | Script | Purpose |
 |---|---|
 | `setup-vm-prereqs.ps1` | OS-level installs only: IIS features, SQL Server Developer, Git. Scans first, installs only what's missing. |
-| `install-all.ps1` | Master orchestrator (local-Keycloak example). Pre-flight check + all phases + smoke test. |
+| `install-all.ps1` | Master orchestrator. Pick the IdP with `-IdpProvider` (keycloak/microsoft/google/other). Pre-flight check + all phases + smoke test. |
 | `yopass-docker.ps1` | Optional. Stands up a local Yopass + memcached stack via `docker\docker-compose.yopass.yml`. Only runs with `install-all -SetupYopassDocker` (or directly). |
 | `uninstall.ps1` | Reverses the generic install: IIS sites/App Pool/files, the `sbaa` DB, docker Postgres + Yopass stacks, `C:\npm-cache`. Detects Keycloak leftovers and suggests `uninstall-keycloak.ps1` (does not touch them). Per-step OK/SKIP/WARN/FAIL ledger. |
 | `uninstall-keycloak.ps1` | Tears down the local Keycloak IdP: stops the process, deletes the install dir, unsets `JAVA_HOME`. Leaves the JDK install in place. |
@@ -108,13 +109,23 @@ Numbered scripts map to the official guide's section order. The **generic path**
 
 ## Other identity providers
 
-The Admin App's auth engine is provider-agnostic (generic OIDC discovery). Keycloak is only the **example** IdP. To use Entra ID, Google, Auth0, etc.:
+The Admin App's auth engine is provider-agnostic (generic OIDC discovery). Keycloak is only the example IdP. To use an external provider, run `install-all.ps1` with `-IdpProvider microsoft | google | other`: it deploys everything and **skips** the local Keycloak step, configuring the API against your provider instead.
 
-1. Run the generic path manually (skip `install-all` and the `idp-keycloak-*` scripts): `00` → `01` → `02` → `03` → `04` → `05-deploy-api.ps1` → `06-deploy-fe.ps1`.
-2. On `05-deploy-api.ps1`, pass your provider's values via the `-Oidc*` parameters (defaults are the Keycloak example):
-   - `-OidcIssuer`, `-OidcClientId`, `-OidcClientSecret`, `-OidcManagementDomain`, `-OidcMachineSecret`, `-OidcScope` (default `'openid email profile'`).
-3. On `04-build.ps1`, set `-ViteApiUrl http://localhost:3333`, `-ViteBasePath /`, and `-ViteIdpAccountUrl <your IdP account URL>`.
-4. Register the redirect/origin URIs in your IdP: redirect `http://localhost:3333/api/auth/callback/1`, FE origin `http://localhost:4200`.
+```powershell
+.\install-all.ps1 -IdpProvider microsoft `
+  -SaPassword 'your-sa-password' `
+  -OidcIssuer 'https://login.microsoftonline.com/<tenant-id>/v2.0' `
+  -OidcClientId '<application-id>' `
+  -OidcClientSecret 'your-client-secret' `
+  -AdminUsername 'you@yourtenant.onmicrosoft.com'
+```
+
+- `keycloak`/`google` default `-OidcIssuer`; `microsoft`/`other` require it. `-ViteIdpAccountUrl` is defaulted per provider (`other` requires it). `-OidcScope` defaults to `openid email profile`.
+- **Where to find `-OidcIssuer`:** for Entra, the App Registration → *Endpoints* → "OpenID Connect metadata document" URL, minus the trailing `/.well-known/openid-configuration` (typically `https://login.microsoftonline.com/<tenant-id>/v2.0`). For Google it's `https://accounts.google.com` (the default).
+- **You register the OIDC client yourself** in the provider's portal (no script can provision Entra/Google). `install-all` validates the issuer's discovery endpoint and prints the URIs to register: redirect `http://localhost:3333/api/auth/callback/1`, post-logout `http://localhost:3333/api/auth/post-logout`, origin `http://localhost:4200`.
+- A user must exist in the provider whose **email/username claim equals `-AdminUsername`** — the script seeds that user in the `[user]` table with the admin role, but the identity lives in your IdP. (Entra's email-claim handling is a known gotcha.)
+
+You can also drive the per-section scripts manually (`00`→`06`), passing `-Oidc*` to `05-deploy-api.ps1` and `-ViteIdpAccountUrl` to `04-build.ps1`.
 
 ---
 
@@ -184,7 +195,7 @@ Re-running on a working install is mostly a no-op — most steps detect existing
 .\install-all.ps1 ... -KeycloakAdminPassword '<new-pw>' -SkipPhase1
 ```
 
-`-KeycloakClientSecret` and `-TestUserPassword` are idempotently updatable on every re-run.
+`-OidcClientSecret` and `-TestUserPassword` are idempotently updatable on every re-run.
 
 ### Rate limit can trip during heavy debugging
 

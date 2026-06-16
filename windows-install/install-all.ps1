@@ -53,16 +53,36 @@ docker-compose setup ('localhost', 5432, 'edfiadminapp').
 .PARAMETER SaPassword
 SQL Server sa password. Required when -DbEngine is 'mssql' (the default).
 
-.PARAMETER KeycloakAdminPassword
-Password for the master-realm Keycloak admin user. Used as the bootstrap admin
-when Keycloak starts for the first time (idp-keycloak-setup.ps1). Subsequent runs
-of Keycloak ignore this — make sure it matches an admin that actually exists.
+.PARAMETER IdpProvider
+Identity provider (mandatory): keycloak | microsoft | google | other. 'keycloak'
+stands up the local example IdP and provisions the realm/client/user. The others
+target an external OIDC provider you register yourself; the AdminApp's auth engine
+is provider-agnostic (OIDC discovery).
 
-.PARAMETER KeycloakClientSecret
-Secret to set on the edfiadminapp Keycloak client. You pick this.
+.PARAMETER OidcClientSecret
+OIDC client secret (mandatory, all modes): the secret of the AdminApp's OIDC client
+-- the one Keycloak sets on the edfiadminapp client, or the one from your external
+provider.
+
+.PARAMETER OidcIssuer
+OIDC issuer URL. Defaulted for keycloak and google; required for microsoft and other.
+
+.PARAMETER OidcClientId
+OIDC client id. Defaulted for keycloak (edfiadminapp); required for the external modes.
+
+.PARAMETER OidcScope
+OIDC scopes requested at login. Default: 'openid email profile'.
+
+.PARAMETER ViteIdpAccountUrl
+The IdP account-management URL the FE links to. Defaulted per provider (keycloak,
+microsoft, google); required for 'other'.
+
+.PARAMETER KeycloakAdminPassword
+(keycloak mode only) Password for the master-realm Keycloak admin, bootstrapped on
+first start. Subsequent runs ignore it — make sure it matches an existing admin.
 
 .PARAMETER TestUserPassword
-Password for the seeded test user.
+(keycloak mode only) Password for the seeded test user that Keycloak creates.
 
 .PARAMETER SourcePath
 Path to the cloned Ed-Fi-AdminApp repo. Defaults to the parent of the script
@@ -115,41 +135,41 @@ Host port to publish the dockerized Yopass on when -SetupYopassDocker is set.
 Default 8082. Becomes the YOPASS_URL the API is configured with.
 
 .EXAMPLE
-# MSSQL (default)
-.\install-all.ps1 `
+# Local Keycloak (MSSQL)
+.\install-all.ps1 -IdpProvider keycloak `
   -SaPassword 'EdFi-Local!2026' `
   -KeycloakAdminPassword 'admin' `
-  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!'
 
 .EXAMPLE
-# PostgreSQL via the bundled docker-compose
-.\install-all.ps1 `
-  -DbEngine pgsql `
-  -UsePostgresDocker `
+# Local Keycloak (PostgreSQL via the bundled docker-compose)
+.\install-all.ps1 -IdpProvider keycloak `
+  -DbEngine pgsql -UsePostgresDocker `
   -PostgresSuperuserPassword 'PgSuper!2026' `
   -PostgresAppPassword 'PgApp!2026' `
   -KeycloakAdminPassword 'admin' `
-  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!'
 
 .EXAMPLE
-# MSSQL + stand up a local dockerized Yopass for one-time credential links
-.\install-all.ps1 `
+# Local Keycloak + a local dockerized Yopass for one-time credential links
+.\install-all.ps1 -IdpProvider keycloak `
   -SaPassword 'EdFi-Local!2026' `
   -KeycloakAdminPassword 'admin' `
-  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
+  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!' `
   -SetupYopassDocker
 
 .EXAMPLE
-# Use an EXISTING Yopass deployment instead of standing one up
-.\install-all.ps1 `
+# External OIDC (Microsoft Entra). Register the app + redirect URIs in Entra first,
+# and make sure a user exists there whose email matches -AdminUsername.
+.\install-all.ps1 -IdpProvider microsoft `
   -SaPassword 'EdFi-Local!2026' `
-  -KeycloakAdminPassword 'admin' `
-  -KeycloakClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
-  -TestUserPassword 'TestUser123!' `
-  -YopassUrl 'http://yopass.internal:8082'
+  -OidcIssuer 'https://login.microsoftonline.com/<tenant-id>/v2.0' `
+  -OidcClientId '<application-id>' `
+  -OidcClientSecret 'YOUR_ENTRA_CLIENT_SECRET' `
+  -AdminUsername 'you@yourtenant.onmicrosoft.com'
 #>
 
 param(
@@ -164,13 +184,28 @@ param(
     [int]$PostgresPort = 5432,
     [string]$PostgresAppUser = "edfiadminapp",
 
+    # Identity provider. Mandatory -- choose consciously. 'keycloak' stands up a
+    # local Keycloak (the example IdP); the others deploy against an external OIDC
+    # provider you register yourself (the client + user live in that provider).
     [Parameter(Mandatory = $true)]
+    [ValidateSet('keycloak','microsoft','google','other')]
+    [string]$IdpProvider,
+
+    # OIDC client secret -- required in every mode (the secret of the AdminApp's
+    # OIDC client, whether in Keycloak or in your external provider).
+    [Parameter(Mandatory = $true)]
+    [string]$OidcClientSecret,
+
+    # OIDC settings for external providers. Defaults are filled per -IdpProvider;
+    # supply -OidcIssuer / -OidcClientId for microsoft and other.
+    [string]$OidcIssuer = "",
+    [string]$OidcClientId = "",
+    [string]$OidcScope = "openid email profile",
+    [string]$ViteIdpAccountUrl = "",
+
+    # Keycloak-only (required when -IdpProvider is 'keycloak'): the master-realm
+    # admin password and the seeded test user's password.
     [string]$KeycloakAdminPassword,
-
-    [Parameter(Mandatory = $true)]
-    [string]$KeycloakClientSecret,
-
-    [Parameter(Mandatory = $true)]
     [string]$TestUserPassword,
 
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
@@ -224,6 +259,29 @@ if ($SetupYopassDocker -and $YopassUrl) {
 # regardless of which phases run. -SetupYopassDocker implies http://localhost:<port>;
 # the actual container is brought up in phase 1 below.
 $EffectiveYopassUrl = if ($SetupYopassDocker) { "http://localhost:$YopassPort" } else { $YopassUrl }
+
+# IdP provider resolution. 'keycloak' uses the local example IdP (it provisions
+# the realm/client/user); the others target an external OIDC provider you
+# register yourself. Fill per-provider defaults and validate required values.
+$idpIsKeycloak = ($IdpProvider -eq 'keycloak')
+if ($idpIsKeycloak) {
+    if (-not $KeycloakAdminPassword) { throw "-KeycloakAdminPassword is required when -IdpProvider is 'keycloak'." }
+    if (-not $TestUserPassword)      { throw "-TestUserPassword is required when -IdpProvider is 'keycloak'." }
+    if (-not $OidcIssuer)        { $OidcIssuer = "http://localhost:8080/realms/edfi" }
+    if (-not $OidcClientId)      { $OidcClientId = "edfiadminapp" }
+    if (-not $ViteIdpAccountUrl) { $ViteIdpAccountUrl = "http://localhost:8080/realms/edfi/account/" }
+} else {
+    switch ($IdpProvider) {
+        'microsoft' { if (-not $ViteIdpAccountUrl) { $ViteIdpAccountUrl = "https://myaccount.microsoft.com/" } }
+        'google'    {
+            if (-not $OidcIssuer)        { $OidcIssuer = "https://accounts.google.com" }
+            if (-not $ViteIdpAccountUrl) { $ViteIdpAccountUrl = "https://myaccount.google.com/" }
+        }
+    }
+    if (-not $OidcIssuer)        { throw "-OidcIssuer is required when -IdpProvider is '$IdpProvider'." }
+    if (-not $OidcClientId)      { throw "-OidcClientId is required when -IdpProvider is '$IdpProvider'." }
+    if (-not $ViteIdpAccountUrl) { throw "-ViteIdpAccountUrl is required when -IdpProvider is '$IdpProvider' (the IdP account-management URL the FE links to)." }
+}
 
 function Write-Phase {
     param([string]$Title)
@@ -392,7 +450,7 @@ if ($OnlyPhase1) {
 if (-not $SkipPhase2) {
     Write-Phase "Phase 2: Build the project (04-build.ps1)"
     Write-Host "This takes several minutes. Output streams below."
-    & "$scriptDir\04-build.ps1" -SourcePath $SourcePath
+    & "$scriptDir\04-build.ps1" -SourcePath $SourcePath -ViteIdpAccountUrl $ViteIdpAccountUrl
 }
 
 # Sanity checks before phase 3 -- build artifacts must exist. Keycloak is started
@@ -405,23 +463,45 @@ if (-not (Test-Path "$SourcePath\dist\packages\fe\index.html")) {
 }
 
 # ---------- Phase 3 — Deploy ----------
-Write-Phase "Phase 3.1: Keycloak setup (idp-keycloak-setup.ps1)"
-$kcArgs = @{
-    AdminPassword = $KeycloakAdminPassword
-    ClientSecret = $KeycloakClientSecret
-    TestUserPassword = $TestUserPassword
-    TestUserEmail = $AdminUsername
+if ($idpIsKeycloak) {
+    Write-Phase "Phase 3.1: Keycloak setup (idp-keycloak-setup.ps1)"
+    $kcArgs = @{
+        AdminPassword = $KeycloakAdminPassword
+        ClientSecret = $OidcClientSecret
+        TestUserPassword = $TestUserPassword
+        TestUserEmail = $AdminUsername
+    }
+    if ($JdkDownloadUrl) { $kcArgs.JdkDownloadUrl = $JdkDownloadUrl }
+    if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
+    if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
+    & "$scriptDir\idp-keycloak-setup.ps1" @kcArgs
+} else {
+    Write-Phase "Phase 3.1: External OIDC provider ($IdpProvider)"
+    Write-Host "Skipping local IdP setup -- using external provider '$IdpProvider'." -ForegroundColor Cyan
+    $disco = "$($OidcIssuer.TrimEnd('/'))/.well-known/openid-configuration"
+    Write-Host "Validating OIDC discovery at $disco ..."
+    try {
+        Invoke-RestMethod -Uri $disco -TimeoutSec 10 | Out-Null
+        Write-Host "OIDC discovery reachable." -ForegroundColor Green
+    } catch {
+        throw "Could not reach the OIDC discovery endpoint at $disco. Check -OidcIssuer and connectivity. Original: $($_.Exception.Message)"
+    }
+    Write-Host ""
+    Write-Host "Register these in your '$IdpProvider' OIDC client before logging in:" -ForegroundColor Yellow
+    Write-Host "  Redirect URI:  http://localhost:3333/api/auth/callback/1"
+    Write-Host "  Post-logout:   http://localhost:3333/api/auth/post-logout"
+    Write-Host "  Web origin:    http://localhost:4200"
+    Write-Host "  And a user whose email/username claim equals '$AdminUsername' (seeded as admin below)."
 }
-if ($JdkDownloadUrl) { $kcArgs.JdkDownloadUrl = $JdkDownloadUrl }
-if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
-if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
-& "$scriptDir\idp-keycloak-setup.ps1" @kcArgs
 
 Write-Phase "Phase 3.2: Deploy API (05-deploy-api.ps1)"
 $apiArgs = @{
     SourcePath           = $SourcePath
     DatabaseName         = $DatabaseName
-    OidcClientSecret     = $KeycloakClientSecret
+    OidcIssuer           = $OidcIssuer
+    OidcClientId         = $OidcClientId
+    OidcClientSecret     = $OidcClientSecret
+    OidcScope            = $OidcScope
     AdminUsername        = $AdminUsername
     DbEngine             = $DbEngine
     # Yopass: empty string -> 04 sets USE_YOPASS=false; a URL -> USE_YOPASS=true.
@@ -622,6 +702,31 @@ Yopass (one-time credential links)
 "@
 }
 
+# Identity-provider section of the summary + the sign-in password line, both
+# depend on the mode (Keycloak vs external).
+if ($idpIsKeycloak) {
+    $signInPassword = $TestUserPassword
+    $idpSummary = @"
+Keycloak (Identity Provider)
+  Admin console:      http://localhost:8080/admin/
+  Sign in with:
+    Username:         admin
+    Password:         $KeycloakAdminPassword
+  edfi realm:         http://localhost:8080/realms/edfi/
+  Client secret:      $OidcClientSecret
+"@
+} else {
+    $signInPassword = "(managed by your $IdpProvider account)"
+    $idpSummary = @"
+Identity Provider (external: $IdpProvider)
+  Issuer:             $OidcIssuer
+  Client ID:          $OidcClientId
+  Account URL:        $ViteIdpAccountUrl
+  Register in your IdP: redirect http://localhost:3333/api/auth/callback/1, origin http://localhost:4200
+  Sign in as the IdP user whose email/username = $AdminUsername
+"@
+}
+
 $summary = @"
 Ed-Fi Admin App -- Install Summary
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -630,18 +735,12 @@ Admin App
   URL:                http://localhost:4200/
   Sign in with:
     Email:            $AdminUsername
-    Password:         $TestUserPassword
+    Password:         $signInPassword
 
 API
   URL:                http://localhost:3333/
 
-Keycloak (Identity Provider)
-  Admin console:      http://localhost:8080/admin/
-  Sign in with:
-    Username:         admin
-    Password:         $KeycloakAdminPassword
-  edfi realm:         http://localhost:8080/realms/edfi/
-  Client secret:      $KeycloakClientSecret
+$idpSummary
 
 $dbSummary
 $yopassSummary
