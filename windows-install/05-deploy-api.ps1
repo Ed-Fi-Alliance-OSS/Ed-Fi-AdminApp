@@ -49,12 +49,6 @@ OIDC client secret (the secret configured on the client in your IdP).
 .PARAMETER OidcScope
 OIDC scopes requested at login. Default: 'openid email profile'.
 
-.PARAMETER OidcManagementDomain
-Management API domain (host:port) of the IdP. Default (Keycloak example): localhost:8080.
-
-.PARAMETER OidcMachineSecret
-Machine-to-machine client secret. Default (Keycloak example): edfi-machine-secret-456.
-
 .PARAMETER AdminUsername
 Email seeded as the admin user. Default: admin@example.com.
 
@@ -104,8 +98,6 @@ param(
     [Parameter(Mandatory = $true)]
     [string]$OidcClientSecret,
 
-    [string]$OidcManagementDomain = "localhost:8080",
-    [string]$OidcMachineSecret = "edfi-machine-secret-456",
     [string]$OidcScope = "openid email profile",
 
     # URLs baked into production.js. Defaults match the standalone HTTP sites.
@@ -303,8 +295,6 @@ if (Test-Path $prodJs) {
     $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$OidcClientSecret',")
     $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$OidcClientSecret',")
     $c = $c.Replace("scope: '',",                                           "scope: '$OidcScope',")
-    $c = $c.Replace("MANAGEMENT_DOMAIN: 'localhost',",                      "MANAGEMENT_DOMAIN: '$OidcManagementDomain',")
-    $c = $c.Replace("MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'",  "MANAGEMENT_CLIENT_SECRET: '$OidcMachineSecret'")
     $c = $c.Replace("ADMIN_USERNAME: 'admin@example.com',",                 "ADMIN_USERNAME: '$AdminUsername',")
 
     # Yopass: enable iff a URL was provided, otherwise disable (USE_YOPASS=false
