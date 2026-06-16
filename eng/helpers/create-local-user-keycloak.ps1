@@ -13,19 +13,25 @@
     Keycloak realm name. Defaults to 'edfi'.
 .PARAMETER Username
     Keycloak test username. Defaults to 'edfi-adminapp-test'.
+.PARAMETER Email
+    Keycloak test user email. Defaults to 'admin@example.com'.
 .PARAMETER Password
     Keycloak test user password. Defaults to '123'.
+.PARAMETER ServerUrl
+    Keycloak server URL. Defaults to 'http://localhost:8080/auth'.
 .EXAMPLE
 # Create a user with default settings
 ./create-local-user-keycloak.ps1
 .EXAMPLE
 # Create a user in a custom realm with a specific password
-./create-local-user-keycloak.ps1 -Realm myrealm -Username testuser -Password Passw0rd!
+./create-local-user-keycloak.ps1 -Realm myrealm -Username testuser -Password Passw0rd! -Email testuser@example.com
 #>
 param(
   [string]$Realm = 'edfi',
   [string]$Username = 'edfi-adminapp-test',
-  [string]$Password = '123'
+  [string]$Email = 'admin@example.com',
+  [string]$Password = '123',
+  [string]$ServerUrl = 'http://localhost:8080/auth'
 )
 
 if (-not $env:OIDC_ADMIN_USER) {
@@ -34,27 +40,36 @@ if (-not $env:OIDC_ADMIN_USER) {
 if (-not $env:OIDC_ADMIN_PASSWORD) {
   $env:OIDC_ADMIN_PASSWORD = 'admin'
 }
+$kcContainer = if ($env:KEYCLOAK_CONTAINER) { $env:KEYCLOAK_CONTAINER } else { 'edfiadminapp-keycloak' }
+$kcadmConfigPath = '/tmp/mykcadm.config'
 
-docker exec $kcContainer /opt/keycloak/bin/kcadm.sh config credentials --server http://localhost:8080/auth --realm master --user $env:OIDC_ADMIN_USER --password $env:OIDC_ADMIN_PASSWORD --config $kcadmConfigPath
+docker exec $kcContainer /opt/keycloak/bin/kcadm.sh config credentials --server $ServerUrl --realm master --user $env:OIDC_ADMIN_USER --password $env:OIDC_ADMIN_PASSWORD --config $kcadmConfigPath
 if ($LASTEXITCODE -ne 0) { throw 'Unable to authenticate to Keycloak with kcadm.' }
-$existingScopesJson = & docker exec $kcContainer /opt/keycloak/bin/kcadm.sh get client-scopes -r $Realm --config $kcadmConfigPath
-if ($LASTEXITCODE -ne 0) { throw 'Unable to query Keycloak client scopes.' }
-$existingScopes = @()
-if ($existingScopesJson) {
-    $existingScopes = $existingScopesJson | ConvertFrom-Json
+
+$result = & docker exec $kcContainer /opt/keycloak/bin/kcadm.sh get users --server $ServerUrl --realm master --user $env:OIDC_ADMIN_USER --password $env:OIDC_ADMIN_PASSWORD `
+    --target-realm $Realm -q exact=true -q username=$Username
+if ($LASTEXITCODE -ne 0) { throw 'Error checking for existing user in Keycloak.' }
+
+if ($result -and $result -ne '[]') {
+    Write-Host "User $Username already exists in realm $Realm." -ForegroundColor Cyan
+} else {
+    Write-Host "Creating demo user $Username in realm $Realm..." -ForegroundColor Yellow
+    & docker exec $kcContainer /opt/keycloak/bin/kcadm.sh create users --server $ServerUrl --realm master --user $env:OIDC_ADMIN_USER --password $env:OIDC_ADMIN_PASSWORD --config $kcadmConfigPath`
+        --target-realm $Realm `
+        --set username=$Username `
+        --set enabled=true `
+        --set emailVerified=true `
+        --set "email=$Email" `
+        --set "firstName=EdFi" `
+        --set "lastName=Admin" `
+        --output
+
+    Write-Host "Setting demo password for demo-user in realm $Realm..." -ForegroundColor Yellow
+    & docker exec $kcContainer /opt/keycloak/bin/kcadm.sh set-password --server $ServerUrl --realm master --user $env:OIDC_ADMIN_USER --password $env:OIDC_ADMIN_PASSWORD --config $kcadmConfigPath`
+        --target-realm $Realm `
+        --username $Username `
+        --new-password $Password `
+
+    Write-Host "Demo user $Username created and password set in realm $Realm" -ForegroundColor Green
 }
 
-docker exec $kcContainer /opt/keycloak/bin/kcadm.sh create users \
-  -r $Realm \
-  -s username=$Username \
-  -s firstName=EdFi \
-  -s lastName=Admin \
-  -s email=admin@example.com \
-  -s enabled=true
-
-# By default, the user is created without a password. Use the `set-password` command to assign one:
-docker exec $kcContainer /opt/keycloak/bin/kcadm.sh set-password \
-  -r $Realm \
-  --username $Username \
-  --new-password $Password \
-  --temporary

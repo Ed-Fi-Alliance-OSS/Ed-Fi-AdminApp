@@ -7,7 +7,7 @@ Bruno CLI-driven end-to-end test suite for Admin App API App/Auth endpoints with
 - **Bruno CLI** installed and available in PATH
 - **PowerShell** (Windows PowerShell 5.1+)
 - **Docker & Docker Compose** for running services locally
-- Local development environment set up via `compose/start-services.ps1`
+- Local development environment set up (optionally via `eng\helpers\start-all-services-test-docker.ps1`)
 
 ## Configuration
 
@@ -42,10 +42,12 @@ Two Bruno environment configurations are provided:
 
 ## Quick Start
 
+Run these commands from the repository root.
+
 ### Run All Tests
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local
+.\eng\testing\run-bruno.ps1 -Env local
 ```
 
 ### Run Tests with Services & Bootstrap
@@ -53,7 +55,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 Starts Docker Compose, bootstraps Keycloak, seeds test data, and runs all tests:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local -StartServices -BootstrapAuth -SeedData
+.\eng\testing\run-bruno.ps1 -Env local -StartServices -BootstrapAuth -SeedData
 ```
 
 ### Run by Tag
@@ -61,13 +63,13 @@ powershell -File tests/api/run-bruno.ps1 -Env local -StartServices -BootstrapAut
 Run only App endpoints:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local -Tag App
+.\eng\testing\run-bruno.ps1 -Env local -Tag App
 ```
 
 Run only Auth endpoints:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local -Tag Auth
+.\eng\testing\run-bruno.ps1 -Env local -Tag Auth
 ```
 
 ### Run Specific Request
@@ -75,7 +77,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local -Tag Auth
 Run a single request by name:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local -Request auth-me
+.\eng\testing\run-bruno.ps1 -Env local -Request auth-me
 ```
 
 ### Custom OIDC Grant Type
@@ -83,7 +85,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local -Request auth-me
 Use password grant instead of client_credentials:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local -GrantType password
+.\eng\testing\run-bruno.ps1 -Env local -GrantType password
 ```
 
 ## Available Requests
@@ -107,7 +109,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local -GrantType password
 
 ## Bootstrap & Seed Process
 
-### Keycloak Bootstrap (`eng/bootstrap-keycloak-for-tests.ps1`)
+### Keycloak Bootstrap (`eng\helpers\bootstrap-keycloak-for-tests.ps1`)
 
 Automatically called by the runner with `-BootstrapAuth`:
 
@@ -138,7 +140,7 @@ If Keycloak is unavailable:
 **Solution:** Start services first:
 
 ```powershell
-powershell -File compose/start-services.ps1 -Rebuild
+.\eng\helpers\start-all-services-test-docker.ps1
 ```
 
 ### BASE_URL Not Resolved
@@ -148,7 +150,7 @@ powershell -File compose/start-services.ps1 -Rebuild
 **Solution:** Ensure the environment file is loaded:
 
 ```powershell
-powershell -File tests/api/run-bruno.ps1 -Env local
+.\eng\testing\run-bruno.ps1 -Env local
 ```
 
 ### Token Acquisition Fails
@@ -162,7 +164,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 
 **Solutions:**
 1. Verify Keycloak is running: `docker ps | grep keycloak`
-2. Run bootstrap: `powershell -File tests/api/run-bruno.ps1 -BootstrapAuth`
+2. Run bootstrap: `.\eng\testing\run-bruno.ps1 -BootstrapAuth`
 3. Check Keycloak admin console at `https://localhost/auth/`
 
 ### Tests Failing with 502 Bad Gateway
@@ -172,13 +174,13 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 **Solution:**
 ```powershell
 # Rebuild and restart services
-powershell -File compose/start-services.ps1 -Rebuild
+.\eng\helpers\start-all-services-test-docker.ps1
 
 # Wait a few seconds for services to be ready
 Start-Sleep -Seconds 10
 
 # Run tests
-powershell -File tests/api/run-bruno.ps1 -Env local
+.\eng\testing\run-bruno.ps1 -Env local
 ```
 
 ### Access Token Invalid or Expired
@@ -192,7 +194,7 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 $env:ACCESS_TOKEN = ''
 
 # Run again (acquires new token)
-powershell -File tests/api/run-bruno.ps1 -Env local
+.\eng\testing\run-bruno.ps1 -Env local
 ```
 
 ## Runner Script Options
@@ -208,7 +210,10 @@ powershell -File tests/api/run-bruno.ps1 -Env local
     Bootstrap Keycloak: create client, user, acquire token.
 
 -SeedData
-    Seed test data (teams, memberships) via API after bootstrap.
+    Seed test data (teams, memberships). If TEAM_ID is still missing for auth runs, seeding is triggered automatically.
+
+-TeamId <int>
+    Explicit TEAM_ID to pass to Bruno requests (for tests requiring team-scoped auth data).
 
 -GrantType <string>
     OAuth grant: 'client_credentials' or 'password'. Default: 'client_credentials'
@@ -217,10 +222,10 @@ powershell -File tests/api/run-bruno.ps1 -Env local
     Filter by tag: 'App' or 'Auth'. Default: all requests
 
 -Request <string>
-    Run single request by name (e.g., 'auth-me')
+    Run single request by name (e.g., 'auth-me', 'app-healthcheck', or full prefixed names).
 
 -Collection <string>
-    Run requests in a collection/folder
+    Run requests in a collection/folder (e.g., 'collections/auth')
 ```
 
 ## Development
@@ -247,12 +252,12 @@ powershell -File tests/api/run-bruno.ps1 -Env local
 
 2. Run the test:
    ```powershell
-   powershell -File tests/api/run-bruno.ps1 -Env local -Request unique-name
+   .\eng\testing\run-bruno.ps1 -Env local -Request unique-name
    ```
 
 ### Modifying Bootstrap Logic
 
-Edit `eng/bootstrap-keycloak-for-tests.ps1`:
+Edit `eng\helpers\bootstrap-keycloak-for-tests.ps1`:
 - Keycloak client configuration (step 2)
 - Test user creation (step 3)
 - API team/membership seeding (step 4)
@@ -273,7 +278,7 @@ See `.github/workflows/api-bruno-e2e.yml` for GitHub Actions workflow that:
 4. Executes all tests by tag
 5. Publishes test results
 
-The workflow uses the same `run-bruno.ps1` script with `--env ci` flag.
+The workflow uses the same `run-bruno.ps1` script with `-Env ci`.
 
 ## References
 

@@ -40,13 +40,13 @@ Run only requests in this collection/folder.
 
 .EXAMPLE
 # Run all tests in local environment with services, bootstrap, and seed
-powershell -File tests/api/run-bruno.ps1 -StartServices -BootstrapAuth -SeedData -Env local
+./eng/testing/run-bruno.ps1 -StartServices -BootstrapAuth -SeedData -Env local
 
 # Run only App tag tests
-powershell -File tests/api/run-bruno.ps1 -Env local -Tag App
+./eng/testing/run-bruno.ps1 -Env local -Tag App
 
 # Run specific request
-powershell -File tests/api/run-bruno.ps1 -Env local -Request auth-me
+./eng/testing/run-bruno.ps1 -Env local -Request auth-me
 #>
 
 param(
@@ -60,6 +60,8 @@ param(
   [string]$Request,
   [string]$Collection
 )
+
+# Get-Content .env | Where-Object { $_ -match '=' -and $_ -notmatch '^#' } | ForEach-Object { $name, $value = $_ -split '=', 2; [System.Environment]::SetEnvironmentVariable($name.Trim(), $value.Trim(), 'Process') }
 
 $ErrorActionPreference = 'Stop'
 $teamIdProvided = $PSBoundParameters.ContainsKey('TeamId')
@@ -87,14 +89,14 @@ function Resolve-RequestTarget {
 
   $relativeCandidates = @()
   if ($normalizedRequest -match '^(?i)(app|auth)-(.+)$') {
-    $relativeCandidates += "collections/$($Matches[1].ToLowerInvariant())/$($Matches[2]).bru"
+    $relativeCandidates += "tests/api/collections/$($Matches[1].ToLowerInvariant())/$($Matches[2]).bru"
   }
   if ($TagFilter) {
-    $relativeCandidates += "collections/$($TagFilter.ToLowerInvariant())/$normalizedRequest.bru"
+    $relativeCandidates += "tests/api/collections/$($TagFilter.ToLowerInvariant())/$normalizedRequest.bru"
   }
-  $relativeCandidates += "collections/app/$normalizedRequest.bru"
-  $relativeCandidates += "collections/auth/$normalizedRequest.bru"
-  $relativeCandidates += "$normalizedRequest.bru"
+  $relativeCandidates += "tests/api/collections/app/$normalizedRequest.bru"
+  $relativeCandidates += "tests/api/collections/auth/$normalizedRequest.bru"
+  $relativeCandidates += "tests/api/$normalizedRequest.bru"
 
   foreach ($candidate in ($relativeCandidates | Select-Object -Unique)) {
     $candidatePath = Join-Path $WorkspacePath ($candidate -replace '/', '\')
@@ -120,7 +122,7 @@ function Resolve-RequestTarget {
 
 function Invoke-SeedDataOnly {
   Write-Host "Seeding test data..." -ForegroundColor Cyan
-  & (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
+  & (Join-Path $PSScriptRoot '..\helpers\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
   Set-TeamId
   if (-not $env:TEAM_ID) {
     throw 'Unable to determine TEAM_ID after seeding.'
@@ -148,14 +150,14 @@ Set-TeamId
 # Step 1: Start docker compose services if requested
 if ($StartServices) {
   Write-Host "Starting docker compose services..." -ForegroundColor Cyan
-  & (Join-Path $PSScriptRoot '..\..\compose\start-services.ps1') -Rebuild
+  & (Join-Path $PSScriptRoot '..\helpers\start-all-services-test-docker.ps1')
   Write-Host "Services started." -ForegroundColor Green
 }
 
 # Step 2: Run Keycloak bootstrap if requested
 if ($BootstrapAuth) {
   Write-Host "Running Keycloak bootstrap..." -ForegroundColor Cyan
-  & (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1')
+  & (Join-Path $PSScriptRoot '..\helpers\bootstrap-keycloak-for-tests.ps1')
   Set-TeamId
   Write-Host "Keycloak bootstrap complete." -ForegroundColor Green
 }
@@ -215,7 +217,7 @@ try {
 }
 
 # Step 5: Build Bruno command with filters
-$workspacePath = Resolve-Path (Join-Path $PSScriptRoot '.')
+$workspacePath = Resolve-Path ('tests/api')
 $targetPath = '.'
 $runRecursive = $true
 $isAuthRequest = $false

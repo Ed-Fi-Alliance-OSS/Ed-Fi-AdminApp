@@ -24,10 +24,10 @@ If specified, skip Keycloak setup and only seed test data via the database.
 
 .EXAMPLE
 # Full bootstrap: realm + client + users + database seed
-powershell -File eng/bootstrap-keycloak-for-tests.ps1
+./eng/bootstrap-keycloak-for-tests.ps1
 
 # Database seed data only (assumes Keycloak already set up)
-powershell -File eng/bootstrap-keycloak-for-tests.ps1 -SeedDataOnly
+./eng/bootstrap-keycloak-for-tests.ps1 -SeedDataOnly
 
 #>
 
@@ -62,7 +62,7 @@ if (-not $env:OIDC_CLIENT_SECRET) {
   $env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'
 }
 if (-not $env:OIDC_USERNAME) {
-  $env:OIDC_USERNAME = 'edfi-admin'
+  $env:OIDC_USERNAME = 'edfi-adminapp-test'
 }
 if (-not $env:OIDC_PASSWORD) {
   $env:OIDC_PASSWORD = '123'
@@ -71,7 +71,7 @@ if (-not $env:API_BASE_URL) {
   $env:API_BASE_URL = 'https://localhost/adminapp-api/api'
 }
 
-$machineClientConfigPath = Join-Path $PSScriptRoot '..\compose\settings\keycloak_edfiadminapp_machine_client.json'
+$machineClientConfigPath = Join-Path $PSScriptRoot '..\..\compose\settings\keycloak_edfiadminapp_machine_client.json'
 $machineClientConfig = Get-Content $machineClientConfigPath -Raw | ConvertFrom-Json
 
 # Suppress certificate validation for local testing
@@ -205,6 +205,9 @@ ON CONFLICT ("username") DO UPDATE SET
 
   Invoke-DatabaseSql -Sql $sql
 }
+
+# Create user in keycloak
+& (Join-Path $PSScriptRoot '..\helpers\create-local-user-keycloak.ps1') -Realm $Realm -Username $env:OIDC_USERNAME -Password $env:OIDC_PASSWORD
 
 # Seed the app users needed for machine and human login flows.
 Upsert-AppUser -Username $env:OIDC_USERNAME -UserType human
