@@ -19,13 +19,18 @@ if (-not $networkExists) {
     Write-Host "Creating edfiadminapp-network..." -ForegroundColor Yellow
     docker network create edfiadminapp-network --driver bridge
 }
+
+$edfiServicesFile = Join-Path $PSScriptRoot "edfi-services.yml"
+$nginxComposeFile = Join-Path $PSScriptRoot "nginx-compose.yml"
+$adminAppServicesFile = Join-Path $PSScriptRoot "adminapp-services.yml"
+
 $files = @(
     "-f",
-    "edfi-services.yml",
+    $edfiServicesFile,
     "-f",
-    "nginx-compose.yml",
+    $nginxComposeFile,
     "-f",
-    "adminapp-services.yml"
+    $adminAppServicesFile
 )
 
 $composeProfile = "postgresql"
@@ -33,6 +38,7 @@ if ($MSSQL) {
   $composeProfile = "mssql"
 }
 
+$EnvFile = Join-Path $PSScriptRoot ".env"
 Write-Host "Starting Docker Compose services with profile $composeProfile..." -ForegroundColor Green
-docker compose $files --env-file ".env" --profile $composeProfile up -d
+docker compose $files --env-file $EnvFile --profile $composeProfile up -d
 Write-Host "Services started successfully!" -ForegroundColor Green

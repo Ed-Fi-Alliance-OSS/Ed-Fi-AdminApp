@@ -18,6 +18,9 @@ If specified, runs the Keycloak bootstrap script to set up clients and test user
 .PARAMETER SeedData
 If specified, seeds test data (teams, memberships) via API.
 
+.PARAMETER TeamId
+Team ID to use for tests that require it. Defaults to 1.
+
 .PARAMETER GrantType
 OAuth grant type for token acquisition ('client_credentials' or 'password'). Defaults to 'client_credentials'.
 
@@ -46,7 +49,7 @@ param(
   [switch]$StartServices,
   [switch]$BootstrapAuth,
   [switch]$SeedData,
-  [int]$teamId = 1,
+  [int]$TeamId = 1,
   [ValidateSet('client_credentials','password')][string]$GrantType = 'client_credentials',
   [ValidateSet('App','Auth')][string]$Tag,
   [string]$Request,
@@ -55,8 +58,9 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-function Import-TeamIdFromFile {
-    $env:TEAM_ID = $teamId
+function Set-TeamId {
+    Write-Host "Setting TEAM_ID to $TeamId..." -ForegroundColor Cyan
+    $env:TEAM_ID = $TeamId
 }
 
 function Invoke-SeedDataOnly {
@@ -64,7 +68,7 @@ function Invoke-SeedDataOnly {
   & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1') -SeedDataOnly
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
-  Import-TeamIdFromFile
+  Set-TeamId
   if (-not $env:TEAM_ID) {
     throw 'Unable to determine TEAM_ID after seeding.'
   }
@@ -86,7 +90,7 @@ function Invoke-InsecureRestMethod {
   return Invoke-RestMethod @Parameters
 }
 
-Import-TeamIdFromFile
+Set-TeamId
 
 # Step 1: Start docker compose services if requested
 if ($StartServices) {
@@ -101,7 +105,7 @@ if ($BootstrapAuth) {
   Write-Host "Running Keycloak bootstrap..." -ForegroundColor Cyan
   & powershell -File (Join-Path $PSScriptRoot '..\..\eng\bootstrap-keycloak-for-tests.ps1')
   if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
-  Import-TeamIdFromFile
+  Set-TeamId
   Write-Host "Keycloak bootstrap complete." -ForegroundColor Green
 }
 
