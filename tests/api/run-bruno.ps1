@@ -197,7 +197,8 @@ if ($Request) {
   $runRecursive = $false
 }
 
-$bruArgs = @('run', $targetPath, '--env', $Env, '--insecure', '--reporter-html', './results.html', '--reporter-junit', './report.xml')
+$null = New-Item -ItemType Directory -Path "tests/api/test-results" -Force
+$bruArgs = @('run', $targetPath, '--env', $Env, '--insecure', '--reporter-html', './test-results/results.html', '--reporter-junit', './test-results/report.xml')
 if ($env:ACCESS_TOKEN) {
   $bruArgs += '--env-var'
   $bruArgs += "ACCESS_TOKEN=$env:ACCESS_TOKEN"
