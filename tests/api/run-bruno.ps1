@@ -62,10 +62,60 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$teamIdProvided = $PSBoundParameters.ContainsKey('TeamId')
 
 function Set-TeamId {
-    Write-Host "Setting TEAM_ID to $TeamId..." -ForegroundColor Cyan
-    $env:TEAM_ID = $TeamId
+  if ($teamIdProvided) {
+    Write-Host "Using explicit TEAM_ID: $TeamId" -ForegroundColor Cyan
+    $env:TEAM_ID = "$TeamId"
+  }
+}
+
+function Resolve-RequestTarget {
+  param(
+    [Parameter(Mandatory = $true)]
+    [string]$WorkspacePath,
+    [Parameter(Mandatory = $true)]
+    [string]$RequestName,
+    [string]$TagFilter
+  )
+
+  $normalizedRequest = $RequestName.Trim()
+  if (-not $normalizedRequest) {
+    throw 'Request name cannot be empty.'
+  }
+
+  $relativeCandidates = @()
+  if ($normalizedRequest -match '^(?i)(app|auth)-(.+)$') {
+    $relativeCandidates += "collections/$($Matches[1].ToLowerInvariant())/$($Matches[2]).bru"
+  }
+  if ($TagFilter) {
+    $relativeCandidates += "collections/$($TagFilter.ToLowerInvariant())/$normalizedRequest.bru"
+  }
+  $relativeCandidates += "collections/app/$normalizedRequest.bru"
+  $relativeCandidates += "collections/auth/$normalizedRequest.bru"
+  $relativeCandidates += "$normalizedRequest.bru"
+
+  foreach ($candidate in ($relativeCandidates | Select-Object -Unique)) {
+    $candidatePath = Join-Path $WorkspacePath ($candidate -replace '/', '\')
+    if (Test-Path $candidatePath) {
+      return $candidatePath.Substring($WorkspacePath.Length + 1)
+    }
+  }
+
+  $searchFileNames = @("$normalizedRequest.bru")
+  if ($normalizedRequest -match '^(?i)(app|auth)-(.+)$') {
+    $searchFileNames += "$($Matches[2]).bru"
+  }
+
+  foreach ($fileName in ($searchFileNames | Select-Object -Unique)) {
+    $requestFile = Get-ChildItem -Path $WorkspacePath -Recurse -Filter $fileName | Select-Object -First 1
+    if ($requestFile) {
+      return $requestFile.FullName.Substring($WorkspacePath.Length + 1)
+    }
+  }
+
+  throw "Request '$RequestName' was not found under $WorkspacePath."
 }
 
 function Invoke-SeedDataOnly {
@@ -164,34 +214,45 @@ try {
   Write-Host "Proceeding without token. Tests may fail if authentication is required." -ForegroundColor Yellow
 }
 
-if (-not $env:TEAM_ID -and ($SeedData -or $Tag -ne 'App')) {
-  Invoke-SeedDataOnly
-}
-
 # Step 5: Build Bruno command with filters
 $workspacePath = Resolve-Path (Join-Path $PSScriptRoot '.')
 $targetPath = '.'
 $runRecursive = $true
+$isAuthRequest = $false
 
 if ($Tag) {
   switch ($Tag) {
     'App' { $targetPath = 'collections/app' }
-    'Auth' { $targetPath = 'collections/auth' }
+    'Auth' {
+      $targetPath = 'collections/auth'
+      $isAuthRequest = $true
+    }
   }
 }
 
 if ($Collection) {
   $targetPath = $Collection
+  $normalizedCollection = $Collection.Replace('\', '/').Trim('/').ToLowerInvariant()
+  if ($normalizedCollection -eq 'collections/auth' -or $normalizedCollection -eq 'auth') {
+    $isAuthRequest = $true
+  }
 }
 
 if ($Request) {
-  $requestFile = Get-ChildItem -Path $workspacePath.Path -Recurse -Filter "$Request.bru" | Select-Object -First 1
-  if (-not $requestFile) {
-    throw "Request '$Request' was not found under $workspacePath."
+  $targetPath = Resolve-RequestTarget -WorkspacePath $workspacePath.Path -RequestName $Request -TagFilter $Tag
+  $normalizedTargetPath = $targetPath.Replace('\', '/').ToLowerInvariant()
+  if ($normalizedTargetPath.StartsWith('collections/auth/')) {
+    $isAuthRequest = $true
   }
-
-  $targetPath = $requestFile.FullName.Substring($workspacePath.Path.Length + 1)
   $runRecursive = $false
+}
+
+if (-not $Request -and -not $Collection -and -not $Tag) {
+  $isAuthRequest = $true
+}
+
+if (-not $env:TEAM_ID -and ($SeedData -or $isAuthRequest)) {
+  Invoke-SeedDataOnly
 }
 
 $null = New-Item -ItemType Directory -Path "tests/api/test-results" -Force

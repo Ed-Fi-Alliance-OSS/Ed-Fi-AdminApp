@@ -22,9 +22,6 @@ Keycloak client ID. Defaults to 'edfiadminapp-machine'.
 .PARAMETER SeedDataOnly
 If specified, skip Keycloak setup and only seed test data via the database.
 
-.PARAMETER EnableSqlFallback
-If specified, allow fallback to direct SQL commands for seeding.
-
 .EXAMPLE
 # Full bootstrap: realm + client + users + database seed
 powershell -File eng/bootstrap-keycloak-for-tests.ps1
@@ -32,8 +29,6 @@ powershell -File eng/bootstrap-keycloak-for-tests.ps1
 # Database seed data only (assumes Keycloak already set up)
 powershell -File eng/bootstrap-keycloak-for-tests.ps1 -SeedDataOnly
 
-# With SQL fallback for seeding
-powershell -File eng/bootstrap-keycloak-for-tests.ps1 -EnableSqlFallback
 #>
 
 param(
@@ -41,8 +36,7 @@ param(
   [string]$Provider = 'Keycloak',
   [string]$Realm = 'edfi',
   [string]$ClientId = 'edfiadminapp-machine',
-  [switch]$SeedDataOnly,
-  [switch]$EnableSqlFallback
+  [switch]$SeedDataOnly
 )
 
 $ErrorActionPreference = 'Stop'

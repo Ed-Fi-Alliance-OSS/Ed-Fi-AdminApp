@@ -114,7 +114,7 @@ Automatically called by the runner with `-BootstrapAuth`:
 1. **Acquires admin token** from Keycloak (`admin-cli` client)
 2. **Creates/updates client** `edfiadminapp-machine` with service-account and `login:app` scope configuration
 3. **Upserts test users** for the browser login (`edfi-admin`) and machine client (`edfiadminapp-machine`)
-4. **Seeds test data** via API (teams, memberships)
+4. **Seeds test data** directly in the database (teams, memberships)
 
 ### Idempotency
 
@@ -125,10 +125,9 @@ All bootstrap operations are idempotent:
 
 ### Fallback Behavior
 
-If Keycloak or API is unavailable:
-- Machine-user seeding still happens through direct database upsert
-- API seed failures are logged but do not stop the test run
-- `-EnableSqlFallback` keeps the SQL path explicit for future provider work
+If Keycloak is unavailable:
+- Machine-user seeding and team/membership setup happen directly in the database
+- Keycloak client provisioning errors are logged as warnings
 
 ## Troubleshooting
 
