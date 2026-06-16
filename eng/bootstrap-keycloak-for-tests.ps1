@@ -353,7 +353,6 @@ if (-not $teamId) {
 
 Invoke-DatabaseSql -Sql $membershipSql
 $env:TEAM_ID = $teamId
-[System.IO.File]::WriteAllText((Join-Path $PSScriptRoot 'team-id.txt'), $teamId.ToString(), [System.Text.UTF8Encoding]::new($false))
 Write-Host "Test team seeded with ID: $teamId" -ForegroundColor Green
 
 Write-Host "Keycloak bootstrap and data seeding complete!" -ForegroundColor Green

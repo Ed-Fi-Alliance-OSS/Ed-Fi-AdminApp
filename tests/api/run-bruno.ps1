@@ -46,6 +46,7 @@ param(
   [switch]$StartServices,
   [switch]$BootstrapAuth,
   [switch]$SeedData,
+  [int]$teamId = 1,
   [ValidateSet('client_credentials','password')][string]$GrantType = 'client_credentials',
   [ValidateSet('App','Auth')][string]$Tag,
   [string]$Request,
@@ -54,15 +55,8 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-$teamIdFile = Join-Path $PSScriptRoot '..\..\eng\team-id.txt'
-
 function Import-TeamIdFromFile {
-  if (Test-Path $teamIdFile) {
-    $teamId = (Get-Content $teamIdFile -Raw).Trim()
-    if ($teamId) {
-      $env:TEAM_ID = $teamId
-    }
-  }
+    $env:TEAM_ID = $teamId
 }
 
 function Invoke-SeedDataOnly {
