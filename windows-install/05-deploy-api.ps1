@@ -319,7 +319,7 @@ if (Test-Path $prodJs) {
     Write-Warning "production.js not found at $prodJs — skipping patch."
 }
 
-# Permissions for the App Pool virtual account. Done here (not in 03a) because
+# Permissions for the App Pool virtual account. Done here (not earlier) because
 # the pool now actually exists.
 $appPoolIdentity = "IIS APPPOOL\$AppPoolName"
 & icacls "$DestPath\packages" /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null

@@ -7,8 +7,8 @@ Runs in three phases with no manual interaction required.
 
   Phase 1 — Prereqs
     02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
-    01-prereqs-iis.ps1        iisnode + HTTPS cert + binding
-    03-prereqs-node.ps1       Node.js + npm cache override
+    01-prereqs-iis.ps1        URL Rewrite + iisnode + unlock handlers (HTTP only, no TLS)
+    03-prereqs-node.ps1       Node.js (the npm cache is set later, by 05-deploy-api)
 
   Phase 2 — Build
     04-build.ps1              npm ci + build:api + build:fe (slow)

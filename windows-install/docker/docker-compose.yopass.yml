@@ -14,7 +14,7 @@
 # The AdminApp API (running under IIS on the Windows host) reaches Yopass over
 # the published host port: it POSTs to ${YOPASS_URL}/secret. The container
 # itself listens on port 80; the host port defaults to 8082 and is overridable
-# via the YOPASS_PORT environment variable (03d sets it for you).
+# via the YOPASS_PORT environment variable (yopass-docker.ps1 sets it for you).
 #
 # Image and container port are pinned to match the AdminApp project's own
 # production compose (compose/adminapp-services.yml): jhaals/yopass:12.5.0

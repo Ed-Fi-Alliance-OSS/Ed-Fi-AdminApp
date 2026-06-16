@@ -53,8 +53,8 @@ Default: edfiadminapp.
 The secret to set on the client. Save it; you pass the same value to 05-deploy-api.ps1.
 
 .PARAMETER FeBaseUrl / -ApiBaseUrl
-Base URLs used to build the client's redirect/origin URIs. Defaults assume the
-sub-app deployment; pass overrides for standalone ports.
+Base URLs used to build the client's redirect/origin URIs. Default to the
+standalone HTTP sites (FE http://localhost:4200, API http://localhost:3333).
 
 .PARAMETER TestUserEmail / -TestUserFirstName / -TestUserLastName / -TestUserPassword
 The seeded test user. TestUserEmail must match the AdminApp DB's seeded user.

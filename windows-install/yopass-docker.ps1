@@ -20,7 +20,7 @@ This is the "set up Yopass for me" path. The other two modes need no container:
   - Existing  -> skip this and pass the existing -YopassUrl to 04/install-all.
 
 .PARAMETER YopassPort
-Host port to publish the Yopass service on (mapped to container port 1337).
+Host port to publish the Yopass service on (mapped to container port 80).
 Default 8082. The effective URL becomes http://localhost:<YopassPort>.
 
 .PARAMETER DockerDir
