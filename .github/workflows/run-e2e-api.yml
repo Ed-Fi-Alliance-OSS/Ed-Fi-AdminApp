@@ -56,7 +56,7 @@ jobs:
       
       - name: Run Bruno E2E tests
         run: |
-          ./tests/api/run-bruno.ps1 -Env ci -BootstrapAuth
+          ./eng/testing/run-bruno.ps1 -Env ci -BootstrapAuth
         env:
           OIDC_ISSUER: https://localhost/auth/realms/edfi
           OIDC_CLIENT_ID: edfiadminapp-machine
