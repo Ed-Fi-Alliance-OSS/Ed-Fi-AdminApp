@@ -104,7 +104,7 @@ export const EditSbEnvironmentGlobalPage = () => {
   const tenants = (formValues.tenants || []) as (PostSbEnvironmentTenantDTO & { id?: number })[];
   const isMultitenant = formValues.isMultitenant || false;
   const originalVersion = sbEnvironment?.version; // Store original version for validation
-  const originalOdsVersion = sbEnvironment?.odsApiVersion; // Store original version for validation
+  const originalOdsVersion = sbEnvironment?.odsApiVersion ?? ''; // Store original version for validation
 
   // Update form when data loads - use reset() for proper form initialization
   React.useEffect(() => {
@@ -138,7 +138,7 @@ export const EditSbEnvironmentGlobalPage = () => {
         const isMultiTenant = response.isMultiTenant;
         const odsDetectedVersion = response.odsVersion || '';
         const majorOdsDetectedVersion = odsDetectedVersion.split('.')[0];
-        const majorOriginalOdsVersion = originalOdsVersion.split('.')[0];
+        const majorOriginalOdsVersion = (originalOdsVersion ?? '').split('.')[0];
 
         if (version !== 'v1' && version !== 'v2' && version !== 'v3') {
           setError('odsApiDiscoveryUrl', { message: errorMessage });
