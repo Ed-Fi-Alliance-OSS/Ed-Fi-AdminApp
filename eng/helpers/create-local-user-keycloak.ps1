@@ -50,7 +50,7 @@ $result = & docker exec $kcContainer /opt/keycloak/bin/kcadm.sh get users --serv
     --target-realm $Realm -q exact=true -q username=$Username
 if ($LASTEXITCODE -ne 0) { throw 'Error checking for existing user in Keycloak.' }
 
-if ($result -and $result -ne '[]') {
+if ($result -and $result -ne '[ ]') {
     Write-Host "User $Username already exists in realm $Realm." -ForegroundColor Cyan
 } else {
     Write-Host "Creating demo user $Username in realm $Realm..." -ForegroundColor Yellow

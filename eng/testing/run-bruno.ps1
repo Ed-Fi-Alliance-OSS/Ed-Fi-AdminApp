@@ -173,7 +173,7 @@ if (-not $env:OIDC_CLIENT_SECRET) {
   $env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'
 }
 if (-not $env:OIDC_USERNAME) {
-  $env:OIDC_USERNAME = 'edfi-admin'
+  $env:OIDC_USERNAME = 'edfi-adminapp-test'
 }
 if (-not $env:OIDC_PASSWORD) {
   $env:OIDC_PASSWORD = '123'
