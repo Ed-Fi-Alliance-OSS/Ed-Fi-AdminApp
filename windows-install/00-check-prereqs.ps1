@@ -128,6 +128,19 @@ if ($w3svc) {
     Write-Check FAIL "IIS not installed" "Run: Enable-WindowsOptionalFeature -Online -FeatureName IIS-WebServerRole, IIS-WebServer, IIS-WebServerManagementTools -All"
 }
 
+# IIS version -- 10+ required (05-deploy-api sets App Pool environmentVariables,
+# an IIS 10 feature, to scope the npm cache).
+if ($w3svc) {
+    $iisMajor = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\InetStp" -Name MajorVersion -ErrorAction SilentlyContinue).MajorVersion
+    if ($iisMajor -ge 10) {
+        Write-Check PASS "IIS version $iisMajor"
+    } elseif ($iisMajor) {
+        Write-Check FAIL "IIS $iisMajor is too old" "Requires IIS 10+ (App Pool environment variables for the npm cache). Use Windows 10/11 or Windows Server 2016+."
+    } else {
+        Write-Check INFO "IIS version unknown" "Could not read HKLM:\SOFTWARE\Microsoft\InetStp\MajorVersion"
+    }
+}
+
 # SQL Server engine installed -- only required when -DbEngine is 'mssql'.
 # When the target is 'pgsql' instead, check for Docker so the docker-compose
 # postgres can come up.

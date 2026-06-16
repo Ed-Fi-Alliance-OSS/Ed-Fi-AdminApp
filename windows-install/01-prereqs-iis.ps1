@@ -35,6 +35,13 @@ $ErrorActionPreference = 'Stop'
 if (-not (Get-Service W3SVC -ErrorAction SilentlyContinue)) {
     throw "IIS (W3SVC) is not installed. Run setup-vm-prereqs.ps1 first, or enable the IIS role via Enable-WindowsOptionalFeature."
 }
+
+# Precondition: IIS 10+ is required. 05-deploy-api.ps1 sets NPM_CONFIG_CACHE on
+# the App Pool's environmentVariables, a collection added in IIS 10.0.
+$iisMajor = (Get-ItemProperty "HKLM:\SOFTWARE\Microsoft\InetStp" -Name MajorVersion -ErrorAction SilentlyContinue).MajorVersion
+if ($iisMajor -and $iisMajor -lt 10) {
+    throw "IIS $iisMajor detected; this install requires IIS 10 or newer (App Pool environment variables, used to scope the npm cache, were added in IIS 10). Use Windows 10/11 or Windows Server 2016+."
+}
 Import-Module WebAdministration
 
 # IIS URL Rewrite Module
