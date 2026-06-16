@@ -231,6 +231,7 @@ export class SbEnvironmentsGlobalController {
     }
 
     return {
+      odsVersion: odsApiMetaResponse ? odsApiMetaResponse.version : '',
       version: adminApiInfo ? adminApiInfo.specificationVersion : '',
       isMultiTenant: isMultiTenant
     };

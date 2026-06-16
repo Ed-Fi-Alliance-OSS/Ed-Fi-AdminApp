@@ -104,6 +104,7 @@ export const EditSbEnvironmentGlobalPage = () => {
   const tenants = (formValues.tenants || []) as (PostSbEnvironmentTenantDTO & { id?: number })[];
   const isMultitenant = formValues.isMultitenant || false;
   const originalVersion = sbEnvironment?.version; // Store original version for validation
+  const originalOdsVersion = sbEnvironment?.odsApiVersion; // Store original version for validation
 
   // Update form when data loads - use reset() for proper form initialization
   React.useEffect(() => {
@@ -132,9 +133,12 @@ export const EditSbEnvironmentGlobalPage = () => {
         }
 
         // Handle the new response structure with version and isMultiTenant
-        const response = result as { version: string; isMultiTenant: boolean };
+        const response = result as { version: string; isMultiTenant: boolean; odsVersion?: string };
         const version = response.version;
         const isMultiTenant = response.isMultiTenant;
+        const odsDetectedVersion = response.odsVersion || '';
+        const majorOdsDetectedVersion = odsDetectedVersion.split('.')[0];
+        const majorOriginalOdsVersion = originalOdsVersion.split('.')[0];
 
         if (version !== 'v1' && version !== 'v2' && version !== 'v3') {
           setError('odsApiDiscoveryUrl', { message: errorMessage });
@@ -142,9 +146,9 @@ export const EditSbEnvironmentGlobalPage = () => {
         }
 
         // Validate that the version hasn't changed
-        if (originalVersion && originalVersion !== version) {
+        if (majorOriginalOdsVersion && majorOriginalOdsVersion !== majorOdsDetectedVersion) {
           setError('odsApiDiscoveryUrl', {
-            message: `Version mismatch: This environment was originally ${originalVersion} but the new URL returns ${version}. Version cannot be changed.`,
+            message: `Version mismatch: This environment was originally ${majorOriginalOdsVersion} but the new URL returns ${majorOdsDetectedVersion}. Version cannot be changed.`,
           });
           return false;
         }

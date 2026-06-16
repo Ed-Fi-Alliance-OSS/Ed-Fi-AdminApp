@@ -88,7 +88,7 @@ export const CreateSbEnvironmentGlobalPage = () => {
           onSuccess: (result) => {
             if (result) {
               // Handle the new response structure with version and isMultiTenant
-              const response = result as { version: string; isMultiTenant: boolean };
+              const response = result as { version: string; isMultiTenant: boolean; odsVersion?: string };
               const version = response.version;
               const isMultiTenant = response.isMultiTenant;
 
@@ -99,6 +99,28 @@ export const CreateSbEnvironmentGlobalPage = () => {
               } else {
                 setValue('version', undefined);
                 setError('odsApiDiscoveryUrl', { message: errorMessage });
+              }
+
+              /// Get major version from odsVersion if available and warn if it's less than 6, which is the minimum for Admin API support
+              const odsDetectedVersion = response.odsVersion || '';
+              const majorOdsDetectedVersion = parseInt(odsDetectedVersion.split('.')[0], 10);
+
+              /// if majorOdsDetectedVersion is equal or greater than 7 then version must be v2 or v3
+              if (majorOdsDetectedVersion && majorOdsDetectedVersion >= 7) {
+                if (version === 'v1') {
+                  setError('odsApiDiscoveryUrl', {
+                    message: `Detected ODS version ${odsDetectedVersion} is not compatible with selected API version ${version}.`,
+                  });
+                }
+
+              } 
+              /// else if majorOdsDetectedVersion is equal to 6 then version must be v1
+              else if (majorOdsDetectedVersion && majorOdsDetectedVersion < 7) {
+                if (version === 'v2' || version === 'v3') {
+                  setError('odsApiDiscoveryUrl', {
+                    message: `Detected ODS version ${odsDetectedVersion} may not be fully compatible with Admin API version ${version}.`,
+                  });
+                }
               }
             }
           },
