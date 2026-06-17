@@ -27,7 +27,7 @@ graph TD
 
 ```mermaid
 graph TD
-   subgraph Multi-tenant (Admin API v2)
+   subgraph Multi-tenant Admin API v2
         odsV7-adminV2-tenant1-db-ods
       odsV7-adminV2-tenant2-db-ods
         odsV7-adminV2-tenant1-db-admin
@@ -40,7 +40,7 @@ graph TD
         odsV7-adminV2-multi-adminapi --> odsV7-adminV2-tenant2-db-admin
     end
 
-   subgraph Single-tenant (Admin API v2)
+   subgraph Single-tenant Admin API v2
         odsV7-adminV2-single-db-ods
         odsV7-adminV2-single-db-admin
         odsV7-adminV2-single-api
@@ -55,7 +55,7 @@ graph TD
   v7-nginx --> odsV7-adminV2-single-api
   v7-nginx --> odsV7-adminV2-single-adminapi
 
-      subgraph Multi-tenant (Admin API v3)
+      subgraph Multi-tenant Admin API v3
             odsV7-adminV3-tenant1-db-ods
             odsV7-adminV3-tenant2-db-ods
             odsV7-adminV3-tenant1-db-admin
@@ -68,7 +68,7 @@ graph TD
             odsV7-adminV3-multi-adminapi --> odsV7-adminV3-tenant2-db-admin
       end
 
-      subgraph Single-tenant (Admin API v3)
+      subgraph Single-tenant Admin API v3
             odsV7-adminV3-single-db-ods
             odsV7-adminV3-single-db-admin
             odsV7-adminV3-single-api

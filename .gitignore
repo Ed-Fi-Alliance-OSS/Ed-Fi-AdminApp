@@ -66,3 +66,4 @@ vitest.config.*.timestamp*
 packages/api/certification/bruno/*
 
 test-results/
+tests/api/test-results/
