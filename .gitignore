@@ -67,3 +67,8 @@ packages/api/certification/bruno/*
 
 test-results/
 tests/api/test-results/
+
+#e2e reports
+test-results
+playwright
+tests/e2e/.features-gen
