@@ -105,22 +105,17 @@ export const CreateSbEnvironmentGlobalPage = () => {
               const odsDetectedVersion = response.odsVersion || '';
               const majorOdsDetectedVersion = parseInt(odsDetectedVersion.split('.')[0], 10);
 
-              /// if majorOdsDetectedVersion is equal or greater than 7 then version must be v2 or v3
-              if (majorOdsDetectedVersion && majorOdsDetectedVersion >= 7) {
-                if (version === 'v1') {
-                  setError('odsApiDiscoveryUrl', {
-                    message: `Detected ODS version ${odsDetectedVersion} is not compatible with selected API version ${version}.`,
-                  });
-                }
+              const incompatibleWithOds =
+                (majorOdsDetectedVersion >= 7 && version === 'v1') ||
+                (majorOdsDetectedVersion < 7 && (version === 'v2' || version === 'v3'));
 
-              } 
-              /// else if majorOdsDetectedVersion is equal to 6 then version must be v1
-              else if (majorOdsDetectedVersion && majorOdsDetectedVersion < 7) {
-                if (version === 'v2' || version === 'v3') {
-                  setError('odsApiDiscoveryUrl', {
-                    message: `Detected ODS version ${odsDetectedVersion} may not be fully compatible with Admin API version ${version}.`,
-                  });
-                }
+              if (incompatibleWithOds) {
+                setValue('version', undefined);
+                setValue('isMultitenant', false);
+                setError('odsApiDiscoveryUrl', {
+                  message: `Detected ODS version ${odsDetectedVersion} is not compatible with Admin API version ${version}.`,
+                });
+                return;
               }
             }
           },
