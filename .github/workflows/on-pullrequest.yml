@@ -121,15 +121,15 @@ jobs:
       - name: Determine actual Nx project name
         id: proj
         run: |
-          if [ "${{ matrix.package }}" = "be" ]; then echo "actual=api" >> $GITHUB_OUTPUT; else echo "actual=${{ matrix.package }}" >> $GITHUB_OUTPUT; fi
+            if [ "${{ matrix.package }}" = "be" ]; then echo "actual=api" >> "$GITHUB_OUTPUT"; else echo "actual=${{ matrix.package }}" >> "$GITHUB_OUTPUT"; fi
 
       - name: Build (if build target exists)
         run: |
           ACTUAL="${{ steps.proj.outputs.actual }}"
           if npm run | grep -q "build:${ACTUAL}"; then
-            npm run build:${ACTUAL}
+              npm run "build:${ACTUAL}"
           elif npx nx show project "$ACTUAL" 2>/dev/null | grep -q "targets:.*build"; then
-            npx nx run $ACTUAL:build
+              npx nx run "$ACTUAL:build"
           else
             echo "No build step for $ACTUAL; skipping build."
           fi
