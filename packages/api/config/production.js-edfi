@@ -68,7 +68,7 @@ module.exports = {
   RATE_LIMIT_TTL: 60000,
 
   // The maximum number of requests within the ttl
-  RATE_LIMIT_LIMIT: 30,
+  RATE_LIMIT_LIMIT: 60,
 
   USE_PKCE: true,
 

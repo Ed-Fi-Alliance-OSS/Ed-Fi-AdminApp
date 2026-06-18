@@ -66,8 +66,8 @@ class EnvironmentsPage {
     eduOrgIdentifier: string
   ) {
     await this.nameInput.fill(names, {timeout: 700})
-    await this.edfiApiInput.fill(edfiApi, {timeout: 700})
-    await this.edfiManagementInput.fill(edfiManagement, {timeout: 700})
+    await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
+    await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
     await this.labelInput.fill(label, {timeout: 700})
     await this.addOdsInstances.click()
     await this.odsName.fill(odsName)
@@ -77,8 +77,8 @@ class EnvironmentsPage {
 
   async fillAllRequiredFieldsV2(name: string, edfiApi: string, edfiManagement: string, label: string) {
     await this.nameInput.fill(name, {timeout: 700})
-    await this.edfiApiInput.fill(edfiApi, {timeout: 700})
-    await this.edfiManagementInput.fill(edfiManagement, {timeout: 700})
+    await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
+    await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
     await this.labelInput.fill(label, {timeout: 700})
   }
 
