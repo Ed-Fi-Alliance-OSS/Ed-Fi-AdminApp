@@ -133,7 +133,7 @@
     "@nx/vite": "^22.7.5",
     "@nx/web": "^22.7.5",
     "@nx/webpack": "^22.7.5",
-    "@nx/workspace": "^22.7.5",
+    "@nx/workspace": "^23.0.0",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
     "@storybook/react": "10.4.6",
     "@storybook/react-vite": "10.4.6",
