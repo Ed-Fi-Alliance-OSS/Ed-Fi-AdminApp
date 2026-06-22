@@ -112,7 +112,7 @@
   "devDependencies": {
     "@babel/core": "^7.29.7",
     "@babel/preset-react": "^7.29.7",
-    "@babel/preset-typescript": "7.29.7",
+    "@babel/preset-typescript": "8.0.1",
     "@chakra-ui/cli": "^2.4.1",
     "@chakra-ui/storybook-addon": "^5.2.5",
     "@eslint/compat": "^2.1.0",
