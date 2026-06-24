@@ -85,25 +85,33 @@ if (-not $javaAvailable) {
     throw "No JDK found (java not on PATH and JAVA_HOME unset/invalid). Keycloak needs Java 17+. Run idp-keycloak-setup.ps1 first to install it."
 }
 
-# 3. Start Keycloak in background with bootstrap env vars
-#    The env vars are scoped to the spawned process; Keycloak 26+ creates the
-#    master admin from them on first launch and ignores them thereafter.
-$psi = New-Object System.Diagnostics.ProcessStartInfo
-$psi.FileName = $kcBat
-$psi.Arguments = "start-dev"
-$psi.WorkingDirectory = Split-Path $kcBat -Parent
-$psi.UseShellExecute = $false
-$psi.RedirectStandardOutput = $true
-$psi.RedirectStandardError = $true
-$psi.CreateNoWindow = $true
-$psi.EnvironmentVariables["KC_BOOTSTRAP_ADMIN_USERNAME"] = $AdminUser
-$psi.EnvironmentVariables["KC_BOOTSTRAP_ADMIN_PASSWORD"] = $AdminPassword
-# Older alias still honored by 26.x for backward compat:
-$psi.EnvironmentVariables["KEYCLOAK_ADMIN"] = $AdminUser
-$psi.EnvironmentVariables["KEYCLOAK_ADMIN_PASSWORD"] = $AdminPassword
+# 3. Start Keycloak in the background. The bootstrap env vars are set on THIS
+#    process so the spawned kc.bat inherits them (Start-Process has no
+#    -Environment parameter in PS 5.1); Keycloak 26+ creates the master admin
+#    from KC_BOOTSTRAP_ADMIN_* on first launch and ignores them thereafter.
+$env:KC_BOOTSTRAP_ADMIN_USERNAME = $AdminUser
+$env:KC_BOOTSTRAP_ADMIN_PASSWORD = $AdminPassword
+# Older aliases still honored by 26.x for backward compat:
+$env:KEYCLOAK_ADMIN = $AdminUser
+$env:KEYCLOAK_ADMIN_PASSWORD = $AdminPassword
 
-$proc = [System.Diagnostics.Process]::Start($psi)
-Write-Host "Started Keycloak (PID $($proc.Id))."
+# Redirect startup output to log files instead of capturing it on pipes we
+# never read: an unread redirected pipe can fill its OS buffer (~4 KB) and
+# block Keycloak mid-startup, so it never becomes ready. Files have no such
+# limit, and they give the "check the logs" guidance below something real to
+# point at (start-dev logs to the console, not to data\log, by default).
+$startupLog = Join-Path $KeycloakInstallPath "keycloak-startup.log"
+$startupErr = Join-Path $KeycloakInstallPath "keycloak-startup.err.log"
+$proc = Start-Process -FilePath $kcBat -ArgumentList "start-dev" `
+    -WorkingDirectory (Split-Path $kcBat -Parent) `
+    -RedirectStandardOutput $startupLog -RedirectStandardError $startupErr `
+    -WindowStyle Hidden -PassThru
+
+# The child already has its own copy of the env block; don't leave the admin
+# password lingering in this process's environment.
+Remove-Item Env:KC_BOOTSTRAP_ADMIN_PASSWORD, Env:KEYCLOAK_ADMIN_PASSWORD -ErrorAction SilentlyContinue
+
+Write-Host "Started Keycloak (PID $($proc.Id)). Startup log: $startupLog"
 
 # 4. Poll discovery endpoint until ready (or timeout)
 $deadline = (Get-Date).AddSeconds($ReadyTimeoutSeconds)
@@ -119,7 +127,7 @@ while ((Get-Date) -lt $deadline) {
 }
 
 if (-not $ready) {
-    throw "Keycloak did not become ready within $ReadyTimeoutSeconds seconds. Check logs in $KeycloakInstallPath\data\log."
+    throw "Keycloak did not become ready within $ReadyTimeoutSeconds seconds. Check the startup log at $startupLog (and $startupErr)."
 }
 
 Write-Host ""
