@@ -190,7 +190,7 @@
     "playwright": "^1.59.1",
     "playwright-bdd": "^8.5.0",
     "react-refresh": "^0.18.0",
-    "rollup-plugin-visualizer": "^5.9.2",
+    "rollup-plugin-visualizer": "^7.0.1",
     "semantic-release": "^25.0.5",
     "storybook": "10.4.6",
     "supertest": "^6.3.4",
