@@ -5,7 +5,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 > [!TIP]
 > Some scenarios may change depending on future changes planned for the application.
 
-## Feature: Login Page
+## Feature: Login Page (Automated)
 
 #### Scenario Outline: User login page right corner
 
@@ -37,7 +37,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user review the footer page
 - Then the years shown must match the year of creation and the current year.
 
-## Feature: Home Page
+## Feature: Home Page (Automated)
 
 #### Scenario Outline: Home Page
 
@@ -46,7 +46,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the main page should be loaded
 - And a welcome message displayed
 
-## Feature: Account Page
+## Feature: Account Page (Automated)
 
 #### Scenario Outline: Account Page Information
 
@@ -55,7 +55,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the information from the current user should be displayed
 - And contains the username and user role
 
-## Feature: Environments
+## Feature: Environments (Inprogress)
 
 #### Scenario Outline: Create Environment Management v1
 
@@ -65,48 +65,49 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user fill all the required fields <name><edfiApi><edfiManagement><label><orgIdentifier>
 - And the user click on save button
 - Then the new environment details should be loaded in the main page
-- And contains the Tenants, Sync queue sections displayed
+- And contains the Team with Tenants sections displayed
 - And the API version is detected according to the edfi api version
-- And the SBAA system version is detected according to the edfi api version
 
 ##### Examples
 
-| name | edfiApi                       | edfiManagement                     | label      | orgIdentifier |
-| ---- | ----------------------------- | ---------------------------------- | ---------- | ------------- |
-| EnvA | https://localhost:5443/v6-api | https://localhost:5443/v6-adminapi | production | 1             |
-| EnvB | https://localhost:5443/v6-api | https://localhost:5443/v6-adminapi | production | 1010, 2540    |
+| name | edfiApi                  | edfiManagement                     | label      | orgIdentifier |
+| ---- | ------------------------ | ---------------------------------- | ---------- | ------------- |
+| EnvA | https://localhost/v6-api | https://localhost/v6-adminapi      | production | 1             |
+| EnvB | https://localhost/v6-api | https://localhost/v6-adminapi      | production | 1010, 2540    |
 
 #### Scenario Outline: Create Environment Management v2
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
 - And the user click on Connect button
-- And the user fill all the required fields <name><edfiApi><edfiManagement><label><tenants><ODS><orgIdentifier>
+- And the user fill all the required fields <name><edfiApi><edfiManagement><label>
 - And the user click on save button
 - Then the new environment details should be loaded in the main page
-- And contains the Tenants, Sync queue sections displayed
+- And contains the Team with Tenants sections displayed
 - And the API version is detected according to the edfi api version
-- And the SBAA system version is detected according to the edfi api version
 
 ##### Examples
 
-| name | edfiApi                       | edfiManagement                     | label      | tenants | ODS        | orgIdentifier |
-| ---- | ----------------------------- | ---------------------------------- | ---------- | ------- | ---------- | ------------- |
-| EnvA | https://localhost:5443/v7-ods | https://localhost:5443/v7-adminapi | production | 1       | Ods1       | 100           |
-| EnvB | https://localhost:5443/v7-ods | https://localhost:5443/v7-adminapi | production | 1       | Ods1       | 100, 1010     |
-| EnvB | https://localhost:5443/v7-ods | https://localhost:5443/v7-adminapi | production | 1       | Ods1, Ods2 | 100, 1010     |
+| name           | edfiApi                                    | edfiManagement                                  | label      |
+| -------------- | ------------------------------------------ | ----------------------------------------------- | ---------- |
+| SingleTenantv2 | https://localhost/odsv7-adminv2-single-api | https://localhost/odsv7-adminv2-single-adminapi | production |
+| MultiTenantv2  | https://localhost/odsv7-adminv2-multi-api  | https://localhost/odsv7-adminv2-multi-adminapi  | production |
+
+
+#### Scenario Outline: Cancel Environment Creation
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
 - And the user click on Connect button
 - And the user fill all the required fields
 - And the user click on cancel button
-- Then the environment main page should be loaded
+- Then the environment main page should be loaded without the environment created
 
 #### Scenario Outline: Environment Required Fields v1
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
+- And the user click on Connect button
 - And the user fill the field <fieldName>
 - When the user click on save button
 - Then the required field <highlighted> should be highlighted
@@ -115,7 +116,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 | fieldName        | highlighted                                               |
 | ---------------- | --------------------------------------------------------- |
-| -                | name, ed-fi api, ed-fi management, Envlabel, EducOrgIdent |
+|                  | name, ed-fi api, ed-fi management, Envlabel, EducOrgIdent |
 | name             | ed-fi api, ed-fi management, Envlabel, EducOrgIdent       |
 | ed-fi api        | name, ed-fi management, Envlabel, EducOrgIdent            |
 | ed-fi management | name, ed-fi api, Envlabel, EducOrgIdent                   |
@@ -138,28 +139,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | name, ed-fi api, ed-fi management, label, tenant               | ODS Instance |
 | name, ed-fi api, ed-fi management, label, tenant, ODS Instance | EducOrgIdent |
 
-#### Scenario Outline: Environment Education Organization
-
-- Given the user is logged with a valid user
-- When the user click on Environment option
-- And the user click on Connect button
-- And the user fill all the required fields
-- And the user set an eduction organization <Identifiers>
-- And the user click on save button
-- Then the new environment should be loaded in the mains page of environments
-
-##### Examples
-
-| Identifiers  |
-| ------------ |
-| 1            |
-| 2, 150       |
-| 3, 290, 4050 |
-| 9            |
-| 5, 150       |
-| 6, 290, 4050 |
-
-#### Scenario Outline: Save Environment Starting from Education Analytics
+#### Scenario Outline: Save Environment Starting from Education Analytics (Pending)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -170,7 +150,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the environment information should be loaded
 - And contains the Tenants, Sync queue sections displayed
 
-#### Scenario Outline: Fields Environment Starting from Education Analytics
+#### Scenario Outline: Fields Environment Starting from Education Analytics (Pending)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -188,7 +168,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | name         | metadata arn       |
 | metadata arn | name               |
 
-#### Scenario Outline: Cancel Environment Starting from Education Analytics
+#### Scenario Outline: Cancel Environment Starting from Education Analytics (Pending)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -200,7 +180,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Sorting/Filter Environment
+#### Scenario Outline: Sorting/Filter Environment (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -227,7 +207,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Search Environments
+#### Scenario Outline: Search Environments (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -245,7 +225,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment, Teams created
 
-#### Scenario Outline: Grant Ownership Environment
+#### Scenario Outline: Grant Ownership Environment (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -254,7 +234,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment, Teams created
 
-#### Scenario Outline: Grant Ownership Environment Tab
+#### Scenario Outline: Grant Ownership Environment Tab (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -264,7 +244,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: View Environment
+#### Scenario Outline: View Environment (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -274,7 +254,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Setup Block Metadata Environment
+#### Scenario Outline: Setup Block Metadata Environment (Invalid)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -284,14 +264,13 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Cancel Setup Block Metadata Environment
+#### Scenario Outline: Cancel Setup Block Metadata Environment (Invalid)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
 - When the user click on Setup connection to Starting Blocks Metadata option
 - And the user click on cancel button
 - Then the environment information should be loaded
-- And contains the Tenants, Sync queue sections displayed
 
 ### Rule: User already has a Environment created
 
@@ -303,7 +282,6 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user update the name of the environment
 - And the user click on save button
 - Then the environment name should be updated
-- And contains the Tenants, Sync queue sections displayed
 
 ### Rule: User already has a Environment created
 
@@ -316,7 +294,6 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user update the name of the environment
 - And the user click on save button
 - Then the environment name should be updated
-- And contains the Tenants, Sync queue sections displayed
 
 ### Rule: User already has a Environment created
 
@@ -327,7 +304,6 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on rename option from three dots option
 - When the user click on cancel button
 - Then the environment name should be updated
-- And contains the Tenants, Sync queue sections displayed
 
 ### Rule: User already has a Environment created
 
@@ -362,7 +338,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Sync with SB Environment
+#### Scenario Outline: Sync with SB Environment (Invalid)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -371,7 +347,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a Environment created
 
-#### Scenario Outline: Sync with SB Environment Tab
+#### Scenario Outline: Sync with SB Environment Tab (Invalid)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -379,9 +355,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on sync with SB tab option
 - Then the synchronization should be start until the process complete
 
-## Feature: Teams
+## Feature: Teams (Inprogress)
 
-#### Scenario Outline: Create Team
+#### Scenario Outline: Create Team (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Teams option
@@ -391,7 +367,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the new team created should be displayed
 - And contains the ownerships with user memberships
 
-#### Scenario Outline: Cancel Team
+#### Scenario Outline: Cancel Team (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Teams option
@@ -400,7 +376,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then new team not should be created
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: Assume <team> team scope
 
@@ -409,16 +385,16 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Assume team scope option from three dots option
 - Then the home page from the team created should be loaded
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
-#### Scenario Outline: Add existing user to <team>
+#### Scenario Outline: Add existing user to <team> 
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
 - When the user click on Add existing user to option from three dots option
 - Then the Create new team membership form should be loaded
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: Give <team> New resource ownership
 
@@ -427,7 +403,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Give New resource ownership option from three dots option
 - Then the new Grant new resource ownership form should be loaded
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: View Team
 
@@ -437,7 +413,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the details of the team created should be displayed
 - And contains the ownerships with user memberships
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Edit Team
 
@@ -448,7 +424,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on save button
 - Then the new name team should be updated
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: Cancel Edit Team
 
@@ -461,7 +437,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the details of the team created should be displayed
 - And contains the ownerships with user memberships
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: Delete Team
 
@@ -471,7 +447,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button from popup message
 - Then the environment should removed from the list of environments
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
 #### Scenario Outline: Cancel Delete Team
 
@@ -481,9 +457,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on no button from popup message
 - Then the environment should not removed from the list of environments
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
-#### Scenario Outline: Sorting/Filter Teams
+#### Scenario Outline: Sorting/Filter Teams (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Teams option
@@ -504,9 +480,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | created     |
 | filter         | created by  |
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Pending)
 
-#### Scenario Outline: Search Teams
+#### Scenario Outline: Search Teams (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on Teams option
@@ -522,7 +498,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | SmallName                                        |
 | LongLongLongLongLongLongLongLongLongLongLongName |
 
-## Feature: Users
+## Feature: Users (Pending)
 
 #### Scenario Outline: Create user
 
@@ -704,7 +680,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on no button
 - Then the user created not should be removed from the user table loaded
 
-## Feature: Team Memberships
+## Feature: Team Memberships (Pending)
 
 ### Rule: Team and User already created
 
@@ -860,7 +836,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | role       |
 | created    |
 
-## Feature: Roles
+## Feature: Roles (Pending)
 
 #### Scenario Outline: Create role
 
@@ -1033,7 +1009,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | created     |
 | filter         | created by  |
 
-## Feature: Ownerships
+## Feature: Ownerships (Pending)
 
 ### Rule: User already has a Environment, Team, Role created
 
@@ -1178,7 +1154,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | type       |
 | filter         | resource   |
 
-## Feature: Sync Queue
+## Feature: Sync Queue (Pending)
 
 ### Rule: User already has a Team Ownership, Environment, Team, Role created
 
@@ -1207,7 +1183,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | type         |
 | filter         | resource     |
 
-## Feature: Load Environments Team Data
+## Feature: Load Environments Team Data (Pending)
 
 ### Rule: User already has a Environment, Teams, Users, Roles, Vendors and Applications created
 
