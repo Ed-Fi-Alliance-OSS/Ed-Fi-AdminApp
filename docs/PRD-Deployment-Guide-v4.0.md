@@ -1,6 +1,6 @@
 # PRD: Deployment Guide for Admin App v4
 
-> **Last updated:** 12 May 2026
+> **Last updated:** 26 June 2026
 > **Owner:** Stephen Fuqua, Ed-Fi Alliance \
 > **Jira Project:** AC \
 > **Repository:** `Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp`
@@ -169,8 +169,7 @@ For additional context and initial work on this, see [Setup a Microsoft Entra ID
 - Installing the `AdminApp` database tables, with a recommendation to install into its own database instance independent from the `EdFi_Admin` and `EdFi_Security` databases. This allows the application to support multiple deployments of the ODS/API in the future, for example when a prior year is on a different ODS/API version than the current year.
 - Inserting Entra ID settings into the Admin App `oidc` table.
 - Configuring and loading the web site files into IIS as a new web site, with optional PowerShell script.
-- Configuring and running Admin App's backend service in Node.js as a Windows service, running on port `8135`[^2] by default.
-- Configuring IIS as a reverse-proxy to the Node.js web server.
+- Running Admin App's Node.js backend so that it starts automatically and recovers from failures, and configuring IIS as a reverse-proxy to it. The specific hosting mechanism — for example an IIS-managed process or a standalone background service — is an implementation decision left to the engineers.
 
 **Conditions of Satisfaction**
 
@@ -251,4 +250,3 @@ For additional context and initial work on this, see [Setup a Microsoft Entra ID
 - After running the script, a system administrator can sign into Admin App and can see relevant education organizations while creating a new Application.
 
 [^1]: In addition to the current school year, there may be regulatory reasons to keep one or more prior years' databases active, for example to accept corrections to prior years' data.
-[^2]: This port number was selected at random out of the thousands of options.
