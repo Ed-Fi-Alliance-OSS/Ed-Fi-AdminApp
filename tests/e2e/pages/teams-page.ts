@@ -20,6 +20,9 @@ class TeamsPage {
   private readonly scopeMainScreen
   private readonly membershipForm
   private readonly resourseOwnsershipForm
+  private createdTeamName: string | null = null
+  private originalTeamName: string | null = null
+  private updatedTeamName: string | null = null
 
   constructor(private readonly page: Page) {
     this.teamsOption = this.page.locator('a[title="Teams"]')
@@ -47,7 +50,13 @@ class TeamsPage {
   }
 
   async fillRequiredFields() {
-    await this.teamNameInput.fill("Sample Team", {timeout: 500})
+    this.createdTeamName = this.generateTeamName('Sample Team')
+    await this.teamNameInput.fill(this.createdTeamName, {timeout: 500})
+  }
+
+  async fillTeamName(name: string) {
+    this.createdTeamName = name
+    await this.teamNameInput.fill(name, {timeout: 500})
   }
 
   async clickSaveButton() {
@@ -61,6 +70,10 @@ class TeamsPage {
 
   async clickOptionFromThreeDots(optionName: string) {
     const firstRow = this.page.locator('tbody td span').first()
+    const firstRowName = this.page.locator('tbody tr').first().locator('a[title="Go to team"]').first()
+    if (await firstRowName.isVisible().catch(() => false)) {
+      this.originalTeamName = (await firstRowName.textContent())?.trim() ?? null
+    }
     await firstRow.hover()
 
     switch (optionName.trim().toLowerCase()) {
@@ -91,7 +104,8 @@ class TeamsPage {
   }
 
   async setNewTeamName() {
-    await this.teamNameInput.fill("TeamUpdated", {timeout: 500})
+    this.updatedTeamName = this.generateTeamName('TeamUpdated')
+    await this.teamNameInput.fill(this.updatedTeamName, {timeout: 500})
   }
 
   async clickPopupButton(optionName: string) {
@@ -114,7 +128,9 @@ class TeamsPage {
 
   async newTeamShouldNotBeCreated() {
     await expect(this.teamsTable).toBeVisible()
-    await expect(this.teamsTable).not.toContainText('TeamUpdated');
+    if (this.createdTeamName) {
+      await expect(this.teamsTable).not.toContainText(this.createdTeamName)
+    }
   }
 
   async homeScopePageShouldBeLoaded() {
@@ -132,23 +148,45 @@ class TeamsPage {
   async teamNameShouldBeUpdated() {
     await this.teamsOption.click()
     await expect(this.teamsTable).toBeVisible()
-    await expect(this.teamsTable).not.toContainText('Sample Team');
+    if (this.originalTeamName) {
+      await expect(this.teamsTable).not.toContainText(this.originalTeamName)
+    }
+    if (this.updatedTeamName) {
+      await expect(this.teamsTable).toContainText(this.updatedTeamName)
+    }
   }
 
   async teamNameShouldNotBeChanged() {
     await this.teamsOption.click()
     await expect(this.teamsTable).toBeVisible()
-    await expect(this.teamsTable).toContainText('TeamUpdated');
+    if (this.originalTeamName) {
+      await expect(this.teamsTable).toContainText(this.originalTeamName)
+    }
+    if (this.updatedTeamName) {
+      await expect(this.teamsTable).not.toContainText(this.updatedTeamName)
+    }
   }
 
   async teamShouldBeRemoved() {
-    await expect(this.teamsTable).not.toBeVisible()
-    await expect(this.teamsTable).not.toContainText('TeamUpdated');
+    await expect(this.teamsTable).toBeVisible()
+    const teamName = this.updatedTeamName ?? this.originalTeamName ?? this.createdTeamName
+    if (teamName) {
+      await expect(this.teamsTable).not.toContainText(teamName)
+    }
   }
 
   async teamShouldNotBeRemoved() {
     await expect(this.teamsTable).toBeVisible()
-    await expect(this.teamsTable).toContainText('TeamUpdated');
+    const teamName = this.originalTeamName ?? this.updatedTeamName ?? this.createdTeamName
+    if (teamName) {
+      await expect(this.teamsTable).toContainText(teamName)
+    }
+  }
+
+  private generateTeamName(prefix: string): string {
+    const now = Date.now()
+    const rand = Math.floor(Math.random() * 10000)
+    return `${prefix}-${now}-${rand}`
   }
 }
 

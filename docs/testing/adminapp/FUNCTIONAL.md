@@ -57,7 +57,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ## Feature: Environments (Inprogress)
 
-#### Scenario Outline: Create Environment Management v1
+#### Scenario Outline: Create Environment Management v1 (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -75,7 +75,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | EnvA | https://localhost/v6-api | https://localhost/v6-adminapi      | production | 1             |
 | EnvB | https://localhost/v6-api | https://localhost/v6-adminapi      | production | 1010, 2540    |
 
-#### Scenario Outline: Create Environment Management v2
+#### Scenario Outline: Create Environment Management v2 (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -94,7 +94,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | MultiTenantv2  | https://localhost/odsv7-adminv2-multi-api  | https://localhost/odsv7-adminv2-multi-adminapi  | production |
 
 
-#### Scenario Outline: Cancel Environment Creation
+#### Scenario Outline: Cancel Environment Creation (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -103,7 +103,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on cancel button
 - Then the environment main page should be loaded without the environment created
 
-#### Scenario Outline: Environment Required Fields v1
+#### Scenario Outline: Environment Required Fields v1 (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -123,7 +123,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | Env label        | name, ed-fi api, ed-fi management, EducOrgIdent           |
 | EducOrgIdent     | name, ed-fi api, ed-fi management, Envlabel               |
 
-#### Scenario Outline: Environment Required Fields v2
+#### Scenario Outline: Environment Required Fields v2 (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -139,7 +139,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | name, ed-fi api, ed-fi management, label, tenant               | ODS Instance |
 | name, ed-fi api, ed-fi management, label, tenant, ODS Instance | EducOrgIdent |
 
-#### Scenario Outline: Save Environment Starting from Education Analytics (Pending)
+#### Scenario Outline: Save Environment Starting from Education Analytics (TBD)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -150,7 +150,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the environment information should be loaded
 - And contains the Tenants, Sync queue sections displayed
 
-#### Scenario Outline: Fields Environment Starting from Education Analytics (Pending)
+#### Scenario Outline: Fields Environment Starting from Education Analytics (TBD)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -168,7 +168,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | name         | metadata arn       |
 | metadata arn | name               |
 
-#### Scenario Outline: Cancel Environment Starting from Education Analytics (Pending)
+#### Scenario Outline: Cancel Environment Starting from Education Analytics (TBD)
 
 - Given the user is logged with a valid user
 - When the user click on Environment option
@@ -178,7 +178,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then the environment main page should be loaded
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Pending)
 
 #### Scenario Outline: Sorting/Filter Environment (Pending)
 
@@ -205,7 +205,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | created       |
 | filter         | created by    |
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Pending)
 
 #### Scenario Outline: Search Environments (Pending)
 
@@ -223,18 +223,18 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | SmallName                                        |
 | LongLongLongLongLongLongLongLongLongLongLongName |
 
-### Rule: User already has a Environment, Teams created
+### Rule: User already has a Environment, Teams created (Automated)
 
-#### Scenario Outline: Grant Ownership Environment (Pending)
+#### Scenario Outline: Grant Ownership Environment (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
 - When the user click on Grant Ownership Environment option from the firsts environment
 - Then the ownership form should be loaded
 
-### Rule: User already has a Environment, Teams created
+### Rule: User already has a Environment, Teams created (Automated)
 
-#### Scenario Outline: Grant Ownership Environment Tab (Pending)
+#### Scenario Outline: Grant Ownership Environment Tab (Automated)
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -242,9 +242,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on Grant ownership tab option
 - Then the ownership form should be loaded
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
-#### Scenario Outline: View Environment (Pending)
+#### Scenario Outline: View Environment 
 
 - Given the user is logged with a valid user
 - And the user click on Environment option
@@ -252,7 +252,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the environment information should be loaded
 - And contains the Tenants, Sync queue sections displayed
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Invalid)
 
 #### Scenario Outline: Setup Block Metadata Environment (Invalid)
 
@@ -262,7 +262,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the environment information should be loaded on tab Connect SB Meta
 - And a section of Metadata ARN should be displayed
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Invalid)
 
 #### Scenario Outline: Cancel Setup Block Metadata Environment (Invalid)
 
@@ -272,7 +272,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on cancel button
 - Then the environment information should be loaded
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
 #### Scenario Outline: Rename Environment
 
@@ -283,7 +283,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on save button
 - Then the environment name should be updated
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
 #### Scenario Outline: Rename Environment Tab
 
@@ -295,7 +295,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on save button
 - Then the environment name should be updated
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
 #### Scenario Outline: Cancel Rename Environment
 
@@ -305,7 +305,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then the environment name should be updated
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created  (Automated)
 
 #### Scenario Outline: Delete Environment
 
@@ -315,7 +315,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button from popup message
 - Then the environment should removed from the table of environments
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
 #### Scenario Outline: Delete Environment Tab
 
@@ -326,7 +326,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button from popup message
 - Then the environment should removed from the table of environments
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (Automated)
 
 #### Scenario Outline: Cancel Delete Environment
 
@@ -336,7 +336,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on no button from popup message
 - Then the environment should still be available in the list of environments
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (TBD)
 
 #### Scenario Outline: Sync with SB Environment (Invalid)
 
@@ -345,7 +345,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Sync with SB option from three dots option
 - Then a warning message should be displayed in the top of the page if the operation was successful or failed
 
-### Rule: User already has a Environment created
+### Rule: User already has a Environment created (TBD)
 
 #### Scenario Outline: Sync with SB Environment Tab (Invalid)
 
@@ -355,7 +355,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on sync with SB tab option
 - Then the synchronization should be start until the process complete
 
-## Feature: Teams (Inprogress)
+## Feature: Teams (Automated)
 
 #### Scenario Outline: Create Team (Automated)
 
@@ -376,7 +376,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then new team not should be created
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Assume <team> team scope
 
@@ -385,7 +385,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Assume team scope option from three dots option
 - Then the home page from the team created should be loaded
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Add existing user to <team> 
 
@@ -394,7 +394,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Add existing user to option from three dots option
 - Then the Create new team membership form should be loaded
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Give <team> New resource ownership
 
@@ -403,7 +403,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Give New resource ownership option from three dots option
 - Then the new Grant new resource ownership form should be loaded
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: View Team
 
@@ -424,7 +424,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on save button
 - Then the new name team should be updated
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Cancel Edit Team
 
@@ -437,7 +437,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the details of the team created should be displayed
 - And contains the ownerships with user memberships
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Delete Team
 
@@ -447,7 +447,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button from popup message
 - Then the environment should removed from the list of environments
 
-### Rule: User already has a Team created (Pending)
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Cancel Delete Team
 
@@ -498,9 +498,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | SmallName                                        |
 | LongLongLongLongLongLongLongLongLongLongLongName |
 
-## Feature: Users (Pending)
+## Feature: Users (Automated)
 
-#### Scenario Outline: Create user
+#### Scenario Outline: Create user (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on user option
@@ -538,7 +538,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | userK    | Machine  | false  | global viewer           | yes       |
 | userL    | Machine  | false  | tenant user global role | yes       |
 
-#### Scenario Outline: Cancel user
+#### Scenario Outline: Cancel user (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on user option
@@ -555,7 +555,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | userA    | Human    | familyA    | true   | global admin | yes       |
 | userA    | Machine  | familyA    | true   | global admin | yes       |
 
-#### Scenario Outline: User human type Required Fields
+#### Scenario Outline: User human type Required Fields (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on user option
@@ -563,7 +563,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - And the user click on save button without to fill any field
 - Then only required fields will be highlighted username, given name , family name
 
-#### Scenario Outline: User machine type Required Fields
+#### Scenario Outline: User machine type Required Fields (Automated)
 
 - Given the user is logged with a valid user
 - When the user click on user option
@@ -573,7 +573,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 
 ### Rule: User already has a user created
 
-#### Scenario Outline: Sorting/Filter user
+#### Scenario Outline: Sorting/Filter user (Pending)
 
 - Given the user is logged with a valid user
 - And the user click on user option
@@ -602,7 +602,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | machine  | filter         | role       |
 | machine  | filter         | created    |
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: View user
 
@@ -611,7 +611,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on View user option from three dots option
 - Then the details of current user should be displayed
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Add to Team User
 
@@ -620,7 +620,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Add to Team option from three dots option
 - Then the teams forms should be loaded for create a new team
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Edit User
 
@@ -629,7 +629,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Edit option from three dots option
 - Then the teams forms should be loaded for create a new team
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Edit tab User
 
@@ -639,7 +639,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on Edit tab
 - Then the teams forms should be loaded for create a new team
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Cancel Edit User
 
@@ -649,7 +649,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then table user should be loaded without to change some data
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Delete User
 
@@ -659,9 +659,9 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button
 - Then the user created should be removed from table user
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
-#### Scenario Outline: Delete User
+#### Scenario Outline: Delete tab User
 
 - Given the user is logged with a valid user
 - And the user click on user option
@@ -670,7 +670,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button
 - Then the user created should be removed from table user
 
-### Rule: User already has a user created
+### Rule: User already has a user created (Automated)
 
 #### Scenario Outline: Cancel Delete User
 
@@ -718,7 +718,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | ----- | ----- | ---------------------- |
 | teamA | userA | Standard tenant access |
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Sorting/Filter Team Memberships
 
@@ -743,7 +743,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | role       |
 | filter         | created    |
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: View team Memberships
 
@@ -752,7 +752,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on View option from three dots option
 - Then the details from Team Memberships should be displayed
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Edit team Memberships
 
@@ -763,7 +763,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on save button
 - Then the new changes should be applied and displayed
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Edit team Memberships tab
 
@@ -775,7 +775,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on save button
 - Then the new changes should be applied and displayed
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Cancel Edit team memberships
 
@@ -785,7 +785,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on cancel button
 - Then the team information not should be updated
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Delete team memberships
 
@@ -795,7 +795,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button
 - Then the team memberships should be removed from the team table
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Delete team memberships tab
 
@@ -806,7 +806,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on yes button
 - Then the team memberships should be removed from the team table
 
-### Rule: User already has a Team created
+### Rule: User already has a Team created (Automated)
 
 #### Scenario Outline: Cancel Delete team memberships
 
@@ -816,25 +816,6 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on no button
 - Then the team memberships should not be removed from the team table
 
-### Rule: User already has a Team created
-
-#### Scenario Outline: Links actions team memberships
-
-- Given the user is logged with a valid user
-- And the user click on Team Memberships option
-- When the user click on link option <optionName> from the first team memberships
-- Then action should be redirect to <optionName> main page
-- And display the information from current team related
-
-##### Examples
-
-| optionName |
-| ---------- |
-| team       |
-| user       |
-| username   |
-| role       |
-| created    |
 
 ## Feature: Roles (Pending)
 

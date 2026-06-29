@@ -24,6 +24,19 @@ Feature: Environments V2
     And the user click on save button
     Then the environment name should be updated
 
+Scenario Outline: Grant Ownership Environment
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    When the user click on grantownership option from more three dots option
+    Then the ownership form should be loaded
+
+Scenario Outline: Grant Ownership Environment Tab
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user click on the first environment from the table
+    When the user click on grantownership tab option
+    Then the ownership form should be loaded
+
   Scenario Outline: Cancel Rename Environment
     Given the user is logged with a valid user
     And the user click on Environment option
