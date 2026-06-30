@@ -243,6 +243,21 @@ describe('computeOdsListDeltas — dbName-based ODS (SB V1 Lambda)', () => {
     expect(result.update).toHaveLength(0);
     expect(result.delete).toHaveLength(0);
   });
+
+  it('produces no delta when existing fields are null and incoming fields are undefined (dbName path)', () => {
+    const existingOds = makeOds({
+      id: 3, odsInstanceId: null, odsInstanceName: null, dbName: 'ods_alpha',
+      status: null, databaseTemplate: null, databaseName: null,
+    } as any);
+    const incoming: SyncableOds[] = [{ id: null, name: null, dbName: 'ods_alpha' }]; // new fields absent
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.insert).toHaveLength(0);
+    expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
