@@ -106,12 +106,15 @@ export class AdminApiSyncService {
       `Syncing ${transformedData.odss?.length || 0} ODS instance(s) for tenant: ${tenantData.name}`
     );
 
-    await this.entityManager.transaction(async (em) => {
+    await this.entityManager.transaction(async (em) => { /// AC-561
       // Map to SyncableOds format expected by persistSyncTenant
       const syncableOdss = (transformedData.odss ?? []).map(ods => ({
         id: ods.odsInstanceId,
         name: ods.odsInstanceName,
         dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
+        status: ods.status ?? null,
+        databaseTemplate: ods.databaseTemplate ?? null,
+        databaseName: ods.databaseName ?? null,
         edorgs: ods.edorgs?.map(edorg => ({
           educationorganizationid: edorg.educationOrganizationId,
           nameofinstitution: edorg.nameOfInstitution,
@@ -802,7 +805,7 @@ export class AdminApiSyncService {
       let tenantDetails: any;
       try {
         // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
-        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment)
+        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment) /// AC-561
           .get(endpoint);
       } catch (apiError) {
         this.logger.error(
@@ -829,13 +832,16 @@ export class AdminApiSyncService {
       );
 
       // Transform the v2 response to TenantDto format
-      const tenantDto: TenantDto = {
+      const tenantDto: TenantDto = { /// AC-561
         id: tenantDetails.id || edfiTenant.name,
         name: tenantDetails.name || edfiTenant.name,
         odsInstances: (tenantDetails.odsInstances || []).map((instance: any) => ({
           id: instance.id ?? null,
           name: instance.name || 'Unknown ODS Instance',
           instanceType: instance.instanceType,
+          status: instance.status ?? null,
+          databaseTemplate: instance.databaseTemplate ?? null,
+          databaseName: instance.databaseName ?? null,
           edOrgs: (instance.educationOrganizations || []).map((edOrg: any) => ({
             instanceId: instance.id,
             instanceName: instance.name,
