@@ -156,6 +156,21 @@ describe('computeOdsListDeltas — id-based ODS (non-SB V1 / V2)', () => {
     expect(result.update).toHaveLength(0);
     expect(result.delete).toHaveLength(0);
   });
+
+  it('produces no delta when existing fields are null and incoming fields are undefined', () => {
+    const existingOds = makeOds({
+      id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db',
+      status: null, databaseTemplate: null, databaseName: null,
+    } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db' }]; // fields absent
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.insert).toHaveLength(0);
+    expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------

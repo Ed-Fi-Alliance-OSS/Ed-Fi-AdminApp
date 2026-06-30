@@ -123,13 +123,20 @@ export const computeOdsListDeltas = (
       dbName: sbOds.dbName,
       odsInstanceId: null,
       odsInstanceName: sbOds.name,
+      status: sbOds.status ?? null,
+      databaseTemplate: sbOds.databaseTemplate ?? null,
+      databaseName: sbOds.databaseName ?? null,
     };
 
     if (odsMapByDbName.has(sbOds.dbName)) {
       const existingOds = odsMapByDbName.get(sbOds.dbName);
       odsIdsToDelete.delete(existingOds.id);
 
-      const hasChanges = existingOds.odsInstanceName !== sbOds.name;
+      const hasChanges =
+        existingOds.odsInstanceName !== sbOds.name ||
+        (existingOds.status ?? null) !== (sbOds.status ?? null) ||
+        (existingOds.databaseTemplate ?? null) !== (sbOds.databaseTemplate ?? null) ||
+        (existingOds.databaseName ?? null) !== (sbOds.databaseName ?? null);
       if (hasChanges) {
         Logger.log(`Updating SB V1 ODS by dbName "${sbOds.dbName}"`);
         odsDeltas.update.push(Object.assign(existingOds, newOds));
