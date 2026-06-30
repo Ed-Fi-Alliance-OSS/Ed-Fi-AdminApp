@@ -101,7 +101,7 @@ DB_SSL: false,
    </iisnode>
    ```
 
-   Older `iisnode` builds may not honour `<environmentVariables>` here — in that case set `NODE_EXTRA_CA_CERTS` at the IIS App Pool level (Application Pool → Advanced Settings → Environment Variables) and recycle the pool.
+   Older `iisnode` builds may not honor`<environmentVariables>` here — in that case set `NODE_EXTRA_CA_CERTS` at the IIS App Pool level (Application Pool → Advanced Settings → Environment Variables) and recycle the pool.
 
 3. Recycle the AdminApp App Pool (or `iisreset`).
 
