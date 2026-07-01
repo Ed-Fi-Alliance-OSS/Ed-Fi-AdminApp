@@ -74,7 +74,7 @@ export const OdssTable = () => {
         { accessorKey: 'displayName', cell: NameCell, header: 'Name' },
         { accessorKey: 'instanceType', header: 'Type' },
         { accessorKey: 'status', header: 'Status', cell: (info) => {
-            const { label, colorScheme } = info.row.original.status != null ? odsStatusDisplayMap[info.row.original.status] : odsStatusDisplayMap['null'];
+            const { label, colorScheme } = (odsStatusDisplayMap[info.row.original.status ?? 'null'] ?? odsStatusDisplayMap['null']);
             return <Badge colorScheme={colorScheme}>{label}</Badge>;
           },
         },

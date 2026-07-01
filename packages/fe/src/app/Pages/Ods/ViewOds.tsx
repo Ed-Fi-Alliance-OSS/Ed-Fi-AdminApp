@@ -28,7 +28,7 @@ export const ViewOds = () => {
     })
   );
 
-  const { label, colorScheme } = ods ? (ods.status != null ? odsStatusDisplayMap[ods.status] : odsStatusDisplayMap['null']) : odsStatusDisplayMap['null'];
+  const { label, colorScheme } = (odsStatusDisplayMap[ods?.status ?? 'null'] ?? odsStatusDisplayMap['null']);
 
   return ods ? (
     <ContentSection>
