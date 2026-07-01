@@ -1323,6 +1323,9 @@ export class AdminApiServiceV2 {
                   id: instance.id ?? null,
                   name: instance.name || 'Unknown ODS Instance',
                   instanceType: instance.instanceType,
+                  status: instance.status ?? null,
+                  databaseTemplate: instance.databaseTemplate ?? null,
+                  databaseName: instance.databaseName ?? null,
                   edOrgs: instance.educationOrganizations?.map((edOrg: any) => {
                     const educationOrg: EducationOrganizationDto = {
                       instanceId: instance.id, // Use ODS instance ID

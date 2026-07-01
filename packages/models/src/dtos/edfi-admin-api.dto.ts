@@ -411,6 +411,9 @@ export interface OdsInstanceDto {
   id: number | null;
   name: string;
   instanceType?: string;
+  status?: string | null;
+  databaseTemplate?: string | null;
+  databaseName?: string | null;
   edOrgs?: EducationOrganizationDto[];
 }
 
