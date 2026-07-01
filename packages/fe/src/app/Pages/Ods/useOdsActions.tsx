@@ -27,7 +27,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id'>): ActionsType => {
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
 
   return {
-    ...(canDelete && sbEnvironment.startingBlocks
+    ...(canDelete
       ? {
           Delete: {
             icon: Icons.Delete,

@@ -4,7 +4,7 @@ import { DtoGetBase, GetDto } from '../utils/get-base.dto';
 import { makeSerializer } from '../utils/make-serializer';
 import { DtoPostBase, PostDto } from '../utils/post-base.dto';
 import { DtoPutBase, PutDto } from '../utils/put-base.dto';
-import { MinLength, MaxLength, Matches } from 'class-validator';
+import { IsNotEmpty, IsString } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 
 // This is a Get DTO that should not have whitespace trimmed
@@ -102,13 +102,14 @@ export class PostOdsDto
     >
 {
   @Expose()
-  @MinLength(3)
-  @MaxLength(29)
-  @Matches(/^[a-z0-9]+$/, { message: 'Name must only contain numbers and lowercase letters.' })
+  @IsString()
+  @IsNotEmpty()
   @TrimWhitespace()
   name: string;
 
   @Expose()
+  @IsNotEmpty()
   @TrimWhitespace()
+  @IsString()
   templateName: string;
 }

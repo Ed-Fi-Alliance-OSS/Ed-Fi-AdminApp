@@ -18,12 +18,12 @@ export const useOdssActions = (): ActionsType => {
       'team.sb-environment.edfi-tenant:create-ods'
     )
   );
-  return canPost && sbEnvironment?.startingBlocks
+  return canPost
     ? {
         Create: {
           icon: Icons.Plus,
-          text: 'Create',
-          title: 'Create new ODS.',
+          text: 'New',
+          title: 'New Data Store',
           to: `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/odss/create`,
           onClick: () =>
             edfiTenantId !== undefined &&
