@@ -25,6 +25,7 @@ class EnvironmentsPage {
   private readonly yesDeletePopup
   private readonly editEnvDetails
   private readonly deleteEnvDetails
+  private readonly grantownership
 
   constructor(private readonly page: Page) {
     this.environmentOption = this.page.locator('a[title="Environments"]')
@@ -41,11 +42,12 @@ class EnvironmentsPage {
     this.cancelButton = this.page.locator('button:has-text("Cancel")')
     this.noDeletePopup = this.page.locator('button:has-text("No")')
     this.yesDeletePopup = this.page.locator('button:has-text("Yes")')
-    this.teamSection = this.page.locator('//*[@id="borderGlobal"]/main/div[2]/div/div[2]/div[1]/div/div[2]')
+    this.teamSection = this.page.locator('.css-ykczg1 > div:nth-child(3)')
     this.apiVersionElement = this.page.getByText('Ed-Fi API version')
-    this.environmentsMainContainer = this.page.locator('//*[@id="borderGlobal"]/main/div[2]/div/div[2]/div[1]/div/div[2]')
+    this.environmentsMainContainer = this.page.locator('.page-content-card').first()
     this.editEnvDetails = this.page.locator('a[title="Edit environment details"]')
     this.deleteEnvDetails = this.page.locator('button[title="Delete environment"]')
+    this.grantownership = this.page.getByRole('link', { name: 'Grant ownership' })
   }
 
   async clickEnvironmentOption() {
@@ -268,6 +270,9 @@ class EnvironmentsPage {
       case 'delete':
         await this.deleteEnvDetails.click()
         break
+      case 'grantownership':
+        await this.grantownership.click()
+        break
       default:
         throw new Error(`Unsupported option name: ${optionName}`)
     }
@@ -308,6 +313,9 @@ class EnvironmentsPage {
         await firstRow.getByRole('button', { name: 'more', exact: true }).click()
         await this.page.getByRole('menuitem', { name: 'Delete' }).click()
         break
+      case 'grantownership':
+        await this.page.getByRole('link', { name: 'Grant ownership' }).click()
+        break
       default:
         throw new Error(`Unsupported option name: ${optionName}`)
     }
@@ -325,6 +333,11 @@ class EnvironmentsPage {
   async environmentShouldBeRemoved(environmentName: string) {
     await expect(this.environmentsMainContainer).toBeVisible()
     await expect(this.environmentsMainContainer).not.toContainText(environmentName);
+  }
+
+  async ownershipsFormIsDisplayed() {
+    await expect(this.page.getByText('Ed-OrgOdsTenantWhole')).toBeVisible();
+    await expect(this.page.getByText('EnvironmentUpdateNameTeamSelect an optionRoleSelect an optionSaveCancel')).toBeVisible();
   }
 }
 
