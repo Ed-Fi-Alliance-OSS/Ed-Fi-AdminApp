@@ -57,6 +57,9 @@ export class GetOdsDto
   odsInstanceName: string | null;
 
   @Expose()
+  instanceType: string | null;
+
+  @Expose()
   status: string | null;
 
   @Expose()
@@ -82,6 +85,7 @@ export class PutOdsDto
       | 'dbName'
       | 'sbEnvironmentId'
       | 'odsInstanceName'
+      | 'instanceType'
       | 'integrationApps'
       | 'status'
       | 'databaseTemplate'
@@ -110,6 +114,7 @@ export class PostOdsDto
       | 'sbEnvironmentId'
       | 'edfiTenantId'
       | 'odsInstanceName'
+      | 'instanceType'
       | 'integrationApps'
       | 'status'
       | 'databaseTemplate'

@@ -14,6 +14,7 @@ export type SyncableOds = {
   id: number | null;
   name: string | null;
   dbName: string;
+  instanceType?: string | null;
   status?: string | null;
   databaseTemplate?: string | null;
   databaseName?: string | null;
@@ -84,6 +85,7 @@ export const computeOdsListDeltas = (
       dbName: sbOds.dbName,
       odsInstanceId: sbOds.id,
       odsInstanceName: sbOds.name,
+      instanceType: sbOds.instanceType ?? null,
       status: sbOds.status ?? null,
       databaseTemplate: sbOds.databaseTemplate ?? null,
       databaseName: sbOds.databaseName ?? null,
@@ -96,6 +98,7 @@ export const computeOdsListDeltas = (
       const hasChanges =
         existingOds.dbName !== sbOds.dbName ||
         existingOds.odsInstanceName !== sbOds.name ||
+        (existingOds.instanceType ?? null) !== (sbOds.instanceType ?? null) ||
         (existingOds.status ?? null) !== (sbOds.status ?? null) ||
         (existingOds.databaseTemplate ?? null) !== (sbOds.databaseTemplate ?? null) ||
         (existingOds.databaseName ?? null) !== (sbOds.databaseName ?? null);
@@ -123,6 +126,7 @@ export const computeOdsListDeltas = (
       dbName: sbOds.dbName,
       odsInstanceId: null,
       odsInstanceName: sbOds.name,
+      instanceType: sbOds.instanceType ?? null,
       status: sbOds.status ?? null,
       databaseTemplate: sbOds.databaseTemplate ?? null,
       databaseName: sbOds.databaseName ?? null,
@@ -134,6 +138,7 @@ export const computeOdsListDeltas = (
 
       const hasChanges =
         existingOds.odsInstanceName !== sbOds.name ||
+        (existingOds.instanceType ?? null) !== (sbOds.instanceType ?? null) ||
         (existingOds.status ?? null) !== (sbOds.status ?? null) ||
         (existingOds.databaseTemplate ?? null) !== (sbOds.databaseTemplate ?? null) ||
         (existingOds.databaseName ?? null) !== (sbOds.databaseName ?? null);

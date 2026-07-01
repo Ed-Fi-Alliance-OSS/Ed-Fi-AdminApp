@@ -18,6 +18,7 @@ export const transformTenantData = (apiTenants: TenantDto, sbEnvironment: SbEnvi
         id: 0,
         odsInstanceId: instance.id,
         odsInstanceName: instance.name,
+        instanceType: instance.instanceType ?? null,
         status: instance.status ?? null,
         databaseTemplate: instance.databaseTemplate ?? null,
         databaseName: instance.databaseName ?? null,
