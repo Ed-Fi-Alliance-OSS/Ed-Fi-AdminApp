@@ -269,7 +269,7 @@ export const computeOdsTreeDeltas = (
   };
 }; /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 
-export const persistSyncTenant = async ({ /// AC-561
+export const persistSyncTenant = async ({
   em,
   edfiTenant,
   odss,

@@ -106,7 +106,7 @@ export class AdminApiSyncService {
       `Syncing ${transformedData.odss?.length || 0} ODS instance(s) for tenant: ${tenantData.name}`
     );
 
-    await this.entityManager.transaction(async (em) => { /// AC-561
+    await this.entityManager.transaction(async (em) => {
       // Map to SyncableOds format expected by persistSyncTenant
       const syncableOdss = (transformedData.odss ?? []).map(ods => ({
         id: ods.odsInstanceId,
@@ -806,7 +806,7 @@ export class AdminApiSyncService {
       let tenantDetails: any;
       try {
         // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
-        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment) /// AC-561
+        tenantDetails = await this.adminApiServiceV2.getAdminApiClient(tenantWithEnvironment)
           .get(endpoint);
       } catch (apiError) {
         this.logger.error(
@@ -833,7 +833,7 @@ export class AdminApiSyncService {
       );
 
       // Transform the v2 response to TenantDto format
-      const tenantDto: TenantDto = { /// AC-561
+      const tenantDto: TenantDto = {
         id: tenantDetails.id || edfiTenant.name,
         name: tenantDetails.name || edfiTenant.name,
         odsInstances: (tenantDetails.odsInstances || []).map((instance: any) => ({
