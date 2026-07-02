@@ -1,10 +1,15 @@
 #!/bin/bash
 set -e
 
+# Least privilege: the Admin App connects as this user and self-migrates (creates
+# its own tables in schema public). Grant only CONNECT on the database and
+# ownership of the public schema so it can DDL within it, instead of database-wide
+# ALL PRIVILEGES. The user is a non-superuser and cannot touch other databases --
+# mirrors the MSSQL model (db_owner scoped to the app DB, not a server sysadmin).
 psql -v ON_ERROR_STOP=1 \
      --username "$POSTGRES_USER" \
      --dbname  "$POSTGRES_DB" <<-EOSQL
   CREATE USER "${ADMIN_APP_DB_USER}" WITH PASSWORD '${ADMIN_APP_DB_PASSWORD}';
-  GRANT ALL PRIVILEGES ON DATABASE "${POSTGRES_DB}" TO "${ADMIN_APP_DB_USER}";
-  GRANT ALL ON SCHEMA public TO "${ADMIN_APP_DB_USER}";
+  GRANT CONNECT ON DATABASE "${POSTGRES_DB}" TO "${ADMIN_APP_DB_USER}";
+  ALTER SCHEMA public OWNER TO "${ADMIN_APP_DB_USER}";
 EOSQL

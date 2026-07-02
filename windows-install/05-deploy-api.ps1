@@ -31,8 +31,14 @@ Name of the IIS App Pool. Default: EdFi-AdminApp-API.
 .PARAMETER StandalonePort
 HTTP port for the standalone API site (EdFi-AdminApp-API). Default: 3333.
 
-.PARAMETER SaPassword
-SQL Server sa password (set in 02-prereqs-sql.ps1).
+.PARAMETER AppDbUsername
+The dedicated least-privilege SQL login the Admin App connects as, provisioned by
+02-prereqs-sql.ps1 (db_owner on the app DB, not sa). Written into production.js as
+MSSQL_DB_USERNAME. Default: edfi_adminapp.
+
+.PARAMETER AppDbPassword
+Password for the dedicated Admin App login (set in 02-prereqs-sql.ps1). Written
+into production.js as MSSQL_DB_PASSWORD.
 
 .PARAMETER DatabaseName
 SQL Server database name. Default: sbaa. Must match what 02-prereqs-sql.ps1 created.
@@ -53,7 +59,7 @@ OIDC scopes requested at login. Default: 'openid email profile'.
 Email seeded as the admin user. Default: admin@example.com.
 
 .EXAMPLE
-.\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -SaPassword 'EdFi-Local!' -OidcClientSecret 'RBsHTSb...'
+.\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -AppDbPassword 'EdFi-App-Local!2026' -OidcClientSecret 'RBsHTSb...'
 #>
 
 param(
@@ -69,7 +75,7 @@ param(
     [string]$NpmCachePath = "C:\npm-cache",
 
     # Which database engine production.js should be configured for.
-    # 'mssql' -> requires -SaPassword.
+    # 'mssql' -> requires -AppDbPassword.
     # 'pgsql' -> requires -PgDbPassword (host/port/user/db default to the
     # docker-compose setup under windows-install\docker\). Engine-specific
     # password validation is enforced in the body of the script; -DbEngine
@@ -77,8 +83,11 @@ param(
     [ValidateSet('mssql','pgsql')]
     [string]$DbEngine = 'mssql',
 
-    # SQL Server sa password. Required only when -DbEngine is 'mssql'.
-    [string]$SaPassword,
+    # SQL Server credentials the Admin App connects as at runtime. Required only
+    # when -DbEngine is 'mssql'. This is the dedicated least-privilege login
+    # provisioned by 02-prereqs-sql.ps1 (db_owner on the app DB, not sa).
+    [string]$AppDbUsername = "edfi_adminapp",
+    [string]$AppDbPassword,
 
     [string]$DatabaseName = "sbaa",
 
@@ -116,7 +125,11 @@ param(
     # already-deployed non-default key, or generate a fresh one on a clean box. A
     # post-patch guard rejects the shipped default. Losing or changing this key
     # makes previously-encrypted environment secrets unrecoverable.
-    [string]$DbEncryptionKey = ""
+    [string]$DbEncryptionKey = "",
+
+    # Escape hatch for the key-rotation guard: proceed even when a freshly
+    # generated key would orphan existing encrypted environments (accepts data loss).
+    [switch]$ForceKeyRotation
 )
 
 $ErrorActionPreference = 'Stop'
@@ -132,8 +145,8 @@ try {
 
 # Engine-specific required arg validation. Each engine needs its own password
 # parameter; the other one is irrelevant and ignored.
-if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
-    throw "-SaPassword is required when -DbEngine is 'mssql'."
+if ($DbEngine -eq 'mssql' -and -not $AppDbPassword) {
+    throw "-AppDbPassword is required when -DbEngine is 'mssql'."
 }
 if ($DbEngine -eq 'pgsql' -and -not $PgDbPassword) {
     throw "-PgDbPassword is required when -DbEngine is 'pgsql'."
@@ -282,7 +295,7 @@ $prodJsTemplate = "$DestPath\packages\api\config\production.js-edfi"
 # wins; else reuse the key captured from the previously-deployed production.js
 # (grabbed before the copy phase clobbered it); a clean box with no prior key
 # generates a fresh one. Rotating this key makes previously-encrypted ODS/API
-# environment secrets unrecoverable.
+# environment secrets unrecoverable, which the guard below defends against.
 $freshKeyGenerated = $false
 if (-not $DbEncryptionKey -and $existingDeployedKey) {
     $DbEncryptionKey = $existingDeployedKey
@@ -294,6 +307,33 @@ if (-not $DbEncryptionKey) {
     $DbEncryptionKey = ($keyBytes | ForEach-Object { $_.ToString('x2') }) -join ''
     $freshKeyGenerated = $true
     Write-Host "Generated a per-install data-encryption key."
+}
+
+# Guard (defense-in-depth): a freshly generated key cannot decrypt environment
+# secrets written under a prior install's key. If we're deploying a NEW key but
+# the DB already holds environment rows, fail loudly instead of letting the app
+# break with a generic "unexpected error". MSSQL only (the engine tested here);
+# a pgsql guard is a follow-up. Best-effort: an unreachable DB / missing table is
+# treated as "no data at risk".
+if ($freshKeyGenerated -and $DbEngine -eq 'mssql' -and -not $ForceKeyRotation) {
+    $envCount = 0
+    try {
+        $out = & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -P $AppDbPassword -d $DatabaseName -C -h -1 -W -t 10 `
+            -Q "SET NOCOUNT ON; IF OBJECT_ID('sb_environment','U') IS NOT NULL SELECT COUNT(*) FROM sb_environment ELSE SELECT 0;" 2>$null
+        if ($LASTEXITCODE -eq 0 -and $out) { $envCount = [int]("$($out | Select-Object -First 1)").Trim() }
+    } catch {
+        Write-Warning "Could not verify existing encrypted environments before deploying a new key: $($_.Exception.Message)"
+    }
+    if ($envCount -gt 0) {
+        throw @"
+A new data-at-rest encryption key was generated, but database '$DatabaseName' already
+holds $envCount encrypted environment(s) from a previous install. The new key CANNOT
+decrypt them -- the Admin App would fail with a generic error. Choose one:
+  * Run uninstall.ps1 (drops '$DatabaseName'), then reinstall -- clean slate.
+  * Pass the ORIGINAL key via -DbEncryptionKey to keep the existing environments.
+  * Pass -ForceKeyRotation to proceed anyway and abandon the existing encrypted data.
+"@
+    }
 }
 
 if (Test-Path $prodJsTemplate) {
@@ -318,12 +358,14 @@ if (Test-Path $prodJs) {
     $c = $original
 
     if ($DbEngine -eq 'mssql') {
-        # JS-escape single quotes in the password
-        $jsPw = $SaPassword.Replace("'", "\'")
+        # JS-escape single quotes in the app credentials
+        $jsUser = $AppDbUsername.Replace("'", "\'")
+        $jsPw = $AppDbPassword.Replace("'", "\'")
         $c = $c.Replace("DB_ENGINE: 'pgsql',",                                  "DB_ENGINE: 'mssql',")
         $c = $c.Replace("DB_TRUST_CERTIFICATE: false,",                         "DB_TRUST_CERTIFICATE: true,")
         $c = $c.Replace("MSSQL_DB_HOST: 'edfiadminapp-mssql',",                 "MSSQL_DB_HOST: 'localhost',")
         $c = $c.Replace("MSSQL_DB_DATABASE: 'sbaa',",                           "MSSQL_DB_DATABASE: '$DatabaseName',")
+        $c = $c.Replace("MSSQL_DB_USERNAME: 'sa',",                             "MSSQL_DB_USERNAME: '$jsUser',")
         $c = $c.Replace("MSSQL_DB_PASSWORD: 'YourStrong!Passw0rd',",            "MSSQL_DB_PASSWORD: '$jsPw',")
     } else {
         # pgsql: leave DB_ENGINE alone (template already says 'pgsql'), turn

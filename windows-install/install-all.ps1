@@ -6,7 +6,7 @@ Master installer for the Ed-Fi Admin App on Windows IIS. Fully automated.
 Runs in three phases with no manual interaction required.
 
   Phase 1 — Prereqs
-    02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
+    02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa + app login
     01-prereqs-iis.ps1        URL Rewrite + httpPlatform handler + unlock handlers (HTTP only, no TLS)
     03-prereqs-node.ps1       Node.js (the npm cache is set later, by 05-deploy-api)
 
@@ -29,8 +29,8 @@ before re-running.
 
 .PARAMETER DbEngine
 'mssql' (default) or 'pgsql'. Drives which DB prereq path runs and how
-production.js gets patched. 'mssql' requires -SaPassword. 'pgsql' requires
--PostgresAppPassword.
+production.js gets patched. 'mssql' requires -SaPassword and -AppDbPassword.
+'pgsql' requires -PostgresAppPassword.
 
 .PARAMETER UsePostgresDocker
 Switch. When -DbEngine is 'pgsql', also start the docker-compose Postgres in
@@ -51,7 +51,15 @@ PostgreSQL connection details written into production.js. Defaults match the
 docker-compose setup ('localhost', 5432, 'edfiadminapp').
 
 .PARAMETER SaPassword
-SQL Server sa password. Required when -DbEngine is 'mssql' (the default).
+SQL Server sa password. Required when -DbEngine is 'mssql' (the default). Used
+only for server-level bootstrap and the installer's own admin queries; the Admin
+App does not connect as sa.
+
+.PARAMETER AppDbUsername / -AppDbPassword
+The dedicated least-privilege SQL login the Admin App connects as at runtime
+(db_owner on the app DB, not a server sysadmin). -AppDbPassword is required when
+-DbEngine is 'mssql'. -AppDbUsername defaults to 'edfi_adminapp'. Written into
+production.js as MSSQL_DB_USERNAME / MSSQL_DB_PASSWORD.
 
 .PARAMETER IdpProvider
 Identity provider (mandatory): keycloak | microsoft | google | other. 'keycloak'
@@ -138,6 +146,7 @@ Default 8082. Becomes the YOPASS_URL the API is configured with.
 # Local Keycloak (MSSQL)
 .\install-all.ps1 -IdpProvider keycloak `
   -SaPassword 'EdFi-Local!2026' `
+  -AppDbPassword 'EdFi-App-Local!2026' `
   -KeycloakAdminPassword 'admin' `
   -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!'
@@ -156,6 +165,7 @@ Default 8082. Becomes the YOPASS_URL the API is configured with.
 # Local Keycloak + a local dockerized Yopass for one-time credential links
 .\install-all.ps1 -IdpProvider keycloak `
   -SaPassword 'EdFi-Local!2026' `
+  -AppDbPassword 'EdFi-App-Local!2026' `
   -KeycloakAdminPassword 'admin' `
   -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
   -TestUserPassword 'TestUser123!' `
@@ -166,6 +176,7 @@ Default 8082. Becomes the YOPASS_URL the API is configured with.
 # and make sure a user exists there whose email matches -AdminUsername.
 .\install-all.ps1 -IdpProvider microsoft `
   -SaPassword 'EdFi-Local!2026' `
+  -AppDbPassword 'EdFi-App-Local!2026' `
   -OidcIssuer 'https://login.microsoftonline.com/<tenant-id>/v2.0' `
   -OidcClientId '<application-id>' `
   -OidcClientSecret 'YOUR_ENTRA_CLIENT_SECRET' `
@@ -177,7 +188,12 @@ param(
     [string]$DbEngine = 'mssql',
     [switch]$UsePostgresDocker,
 
+    # sa is used only for server-level bootstrap (Mixed Mode, DB creation, and
+    # the installer's own admin queries). The Admin App itself connects as the
+    # dedicated least-privilege login below, not sa.
     [string]$SaPassword,
+    [string]$AppDbUsername = "edfi_adminapp",
+    [string]$AppDbPassword,
     [string]$PostgresAppPassword,
     [string]$PostgresSuperuserPassword,
     [string]$PostgresHost = "localhost",
@@ -240,6 +256,9 @@ $scriptDir = $PSScriptRoot
 # drive either engine without prompting for irrelevant credentials.
 if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
     throw "-SaPassword is required when -DbEngine is 'mssql' (the default)."
+}
+if ($DbEngine -eq 'mssql' -and -not $AppDbPassword) {
+    throw "-AppDbPassword is required when -DbEngine is 'mssql' (the dedicated Admin App login the API connects as)."
 }
 if ($DbEngine -eq 'pgsql' -and -not $PostgresAppPassword) {
     throw "-PostgresAppPassword is required when -DbEngine is 'pgsql'."
@@ -343,7 +362,7 @@ if (-not $SkipPreflightCheck) {
 if (-not $SkipPhase1) {
     if ($DbEngine -eq 'mssql') {
         Write-Phase "Phase 1.1: SQL Server prereqs (02-prereqs-sql.ps1)"
-        & "$scriptDir\02-prereqs-sql.ps1" -SaPassword $SaPassword -DatabaseName $DatabaseName
+        & "$scriptDir\02-prereqs-sql.ps1" -SaPassword $SaPassword -AppDbUsername $AppDbUsername -AppDbPassword $AppDbPassword -DatabaseName $DatabaseName
     } else {
         Write-Phase "Phase 1.1: PostgreSQL prereqs"
         if ($UsePostgresDocker) {
@@ -511,7 +530,8 @@ $apiArgs = @{
     YopassUrl            = $EffectiveYopassUrl
 }
 if ($DbEngine -eq 'mssql') {
-    $apiArgs.SaPassword = $SaPassword
+    $apiArgs.AppDbUsername = $AppDbUsername
+    $apiArgs.AppDbPassword = $AppDbPassword
 } else {
     $apiArgs.PgDbHost     = $PostgresHost
     $apiArgs.PgDbPort     = $PostgresPort
@@ -667,8 +687,10 @@ if ($DbEngine -eq 'mssql') {
     $dbSummary = @"
 SQL Server
   Server:             (local) / tcp:localhost,1433
-  Login:              sa
-  Password:           $SaPassword
+  App login:          $AppDbUsername (db_owner on $DatabaseName, non-sysadmin -- the API connects as this)
+  App password:       $AppDbPassword
+  Bootstrap login:    sa (server setup only; not used by the app)
+  sa password:        $SaPassword
   Database:           $DatabaseName
 "@
 } else {

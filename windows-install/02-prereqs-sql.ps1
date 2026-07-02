@@ -13,8 +13,19 @@ Auto-detects the installed SQL Server major version from the registry.
 Restarts the MSSQLSERVER service once at the end. Idempotent — safe to re-run.
 
 .PARAMETER SaPassword
-The password to assign to the sa login. Will be referenced later in
-production.js as MSSQL_DB_PASSWORD.
+The password to assign to the sa login. Used only for server-level bootstrap
+(Mixed Mode verification and database creation); the Admin App itself does NOT
+connect as sa -- see AppDbUsername/AppDbPassword.
+
+.PARAMETER AppDbUsername
+The dedicated, least-privilege SQL login the Admin App connects as at runtime.
+It is made db_owner of the Admin App database only (not a server sysadmin like
+sa). Referenced later in production.js as MSSQL_DB_USERNAME. Default: edfi_adminapp.
+
+.PARAMETER AppDbPassword
+The password for the dedicated Admin App login. Referenced later in production.js
+as MSSQL_DB_PASSWORD. CHECK_POLICY is enforced on this login, so a weak password
+is rejected at creation time.
 
 .PARAMETER InstanceName
 SQL Server instance name. Defaults to MSSQLSERVER (the default instance).
@@ -24,14 +35,18 @@ Name of the Admin App database to create (if it doesn't already exist).
 Default: sbaa (the name the Admin App expects out of the box).
 
 .EXAMPLE
-.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026'
-.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026' -DatabaseName 'myadminapp'
+.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026' -AppDbPassword 'EdFi-App-Local!2026'
+.\02-prereqs-sql.ps1 -SaPassword 'EdFi-AdminApp-Local!2026' -AppDbPassword 'EdFi-App-Local!2026' -DatabaseName 'myadminapp'
 #>
 
 param(
     [Parameter(Mandatory = $true)]
     [string]$SaPassword,
 
+    [Parameter(Mandatory = $true)]
+    [string]$AppDbPassword,
+
+    [string]$AppDbUsername = "edfi_adminapp",
     [string]$InstanceName = "MSSQLSERVER",
     [string]$DatabaseName = "sbaa"
 )
@@ -173,6 +188,40 @@ if ($ec -ne 0) {
 
 Write-Host "Database '$DatabaseName' is present."
 
+# Provision the dedicated, least-privilege login the Admin App connects as. It is
+# made db_owner of the Admin App database ONLY -- it holds no server-level role,
+# so unlike sa it cannot touch other databases, create logins, or drop the server.
+# db_owner (rather than datareader/datawriter/EXECUTE) is required because the app
+# self-migrates on boot (DB_RUN_MIGRATIONS) and the job queue creates tables at
+# runtime, both of which need DDL on this database. Idempotent: creates the login
+# on first run, re-syncs the password on re-run. Bracket-quoted identifiers are
+# escaped to keep a ']' in a custom name from breaking the batch.
+Write-Host "Provisioning the Admin App login '$AppDbUsername'..."
+$safeUser = $AppDbUsername -replace ']', ']]'
+$escapedAppPw = $AppDbPassword -replace "'", "''"
+$provisionQuery = @"
+IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'$AppDbUsername')
+    CREATE LOGIN [$safeUser] WITH PASSWORD = N'$escapedAppPw', CHECK_POLICY = ON;
+ELSE
+    ALTER LOGIN [$safeUser] WITH PASSWORD = N'$escapedAppPw';
+ALTER LOGIN [$safeUser] ENABLE;
+USE [$DatabaseName];
+IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$AppDbUsername')
+    CREATE USER [$safeUser] FOR LOGIN [$safeUser];
+ALTER ROLE db_owner ADD MEMBER [$safeUser];
+"@
+$ec = Invoke-Sqlcmd-Quiet @("-S", "(local)", "-E", "-Q", $provisionQuery)
+if ($ec -ne 0) {
+    throw "Failed to provision the Admin App login '$AppDbUsername' (sqlcmd exit code $ec). A CHECK_POLICY failure here means the password is too weak; supply a stronger -AppDbPassword."
+}
+
+# Verify the app login can connect over TCP with SQL Auth (how the app connects).
+$ec = Invoke-Sqlcmd-Quiet @("-S", "tcp:localhost,1433", "-U", $AppDbUsername, "-P", $AppDbPassword, "-d", $DatabaseName, "-Q", "SELECT 1")
+if ($ec -ne 0) {
+    throw "The Admin App login '$AppDbUsername' could not connect over TCP to '$DatabaseName' (sqlcmd exit code $ec)."
+}
+Write-Host "Admin App login '$AppDbUsername' is provisioned (db_owner on '$DatabaseName', non-sysadmin) and verified."
+
 Write-Host ""
 Write-Host "SUCCESS: SQL Server is configured for Mixed Mode + TCP/IP." -ForegroundColor Green
-Write-Host "Save '$SaPassword' for use as MSSQL_DB_PASSWORD in production.js." -ForegroundColor Yellow
+Write-Host "The Admin App connects as '$AppDbUsername' (MSSQL_DB_USERNAME) -- a non-sysadmin login, not sa." -ForegroundColor Yellow
