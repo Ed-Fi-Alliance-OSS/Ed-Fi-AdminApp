@@ -167,13 +167,13 @@ export const useEdfiTenantGlobalActions = (
           },
         }
       : {}),
-    ...(canRefreshResources && sbEnvironment.startingBlocks
+    ...(canRefreshResources && !sbEnvironment.startingBlocks && sbEnvironment.version === 'v2'
       ? {
           RefreshResources: {
             icon: Icons.Download,
             isPending: refreshResources.isPending,
-            text: 'Sync with SB',
-            title: 'Sync ODSs and Ed-Orgs from Starting Blocks to SBAA.',
+            text: 'Sync Resources',
+            title: 'Sync ODSs and Ed-Orgs from Admin API.',
             onClick: async () => {
               await refreshResources.mutateAsync(
                 { entity: edfiTenant, pathParams: null },

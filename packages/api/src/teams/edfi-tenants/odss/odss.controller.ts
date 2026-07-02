@@ -5,6 +5,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpCode,
   NotFoundException,
   Param,
   ParseIntPipe,
@@ -20,7 +21,7 @@ import {
   ReqSbEnvironment,
   SbEnvironmentEdfiTenantInterceptor,
 } from '../../../app/sb-environment-edfi-tenant.interceptor';
-import { Authorize } from '../../../auth/authorization';
+import { Authorize, SbVersion } from '../../../auth/authorization';
 import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { whereIds } from '../../../auth/helpers/where-ids';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
@@ -163,5 +164,26 @@ export class OdssController {
       return toOdsRowCountsDto(parsedResult);
     }
     return toOdsRowCountsDto(result);
+  }
+
+  @SbVersion('v2')
+  @Post(':odsId/sync-edorgs')
+  @HttpCode(204)
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods:read',
+    subject: {
+      id: 'odsId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async syncEdOrgs(
+    @Param('odsId', new ParseIntPipe()) odsId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant
+  ) {
+    await this.odsService.syncEdOrgs(sbEnvironment, edfiTenant, odsId);
   }
 }

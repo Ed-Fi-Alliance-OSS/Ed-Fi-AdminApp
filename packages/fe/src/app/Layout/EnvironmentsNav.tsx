@@ -10,7 +10,7 @@ import { type IconType } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import lunr, { Query, tokenizer } from 'lunr';
-import { LegacyRef, useMemo, useRef, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { teamQueries } from '../api';
 import { AuthorizeConfig, useAuthorize, useTeamNavContext } from '../helpers';
@@ -82,7 +82,7 @@ export const EnvironmentsNav = () => {
 
   const navigate = useNavigate();
 
-  const parentRef = useRef();
+  const parentRef = useRef<HTMLDivElement | null>(null);
 
   const rowVirtualizer = useVirtualizer({
     count: searchResults.length,
@@ -101,7 +101,7 @@ export const EnvironmentsNav = () => {
           <Box
             overflowY="auto"
             maxH="300px"
-            ref={parentRef as unknown as LegacyRef<HTMLDivElement>}
+            ref={parentRef}
             mt={2}
           >
             <Box h={rowVirtualizer.getTotalSize() + 45 + 'px'}>

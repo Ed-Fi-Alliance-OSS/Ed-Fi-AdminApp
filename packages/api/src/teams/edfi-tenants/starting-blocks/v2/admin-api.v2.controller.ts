@@ -1,5 +1,6 @@
 import {
   CopyClaimsetDtoV2,
+  GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetSingleDtoV2,
   GetIntegrationAppDto,
@@ -7,7 +8,9 @@ import {
   Ids,
   ImportClaimsetSingleDtoV2,
   PostApplicationDtoV2,
+  PostApiClientDtoV2,
   PostApplicationFormDtoV2,
+  PutApiClientDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
@@ -18,7 +21,9 @@ import {
   PutVendorDtoV2,
   SecretSharingMethod,
   edorgKeyV2,
+  toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
+  toPostApiClientResponseDtoV2,
   toPostApplicationResponseDto,
   toPostApplicationResponseDtoV2,
 } from '@edanalytics/models';
@@ -30,6 +35,7 @@ import {
   Controller,
   Delete,
   ExecutionContext,
+  ForbiddenException,
   Get,
   HttpException,
   Injectable,
@@ -596,7 +602,147 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Put('applications/:applicationId/reset-credential')
+  //
+  // Api Clients
+  //
+
+  @Get('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClients(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read') validIds: Ids,
+    @Query('applicationId') applicationId?: number,
+  ) {
+    if (applicationId === undefined) {
+      throw new BadRequestException('Query parameter "applicationId" is required.');
+    }
+
+    const allApiClients = await this.sbService.getApiClients(edfiTenant, applicationId);
+    return allApiClients.filter((v) => checkId(v.id, validIds));
+  }
+
+  @Get('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async getApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+    return await this.sbService.getApiClient(edfiTenant, apiClientId);
+  }
+
+  @Put('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async putApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @Body() apiClient: PutApiClientDtoV2,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
+    validIds: Ids
+  ) {
+    if (!checkId(apiClientId, validIds)) {
+      throw new NotFoundException();
+    }
+
+    const existingApiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    if (
+      existingApiClient &&
+      existingApiClient.applicationId !== apiClient.applicationId
+    ) {
+      throw new BadRequestException(
+        'The applicationId in the request body must match the existing API client applicationId.'
+      );
+    }
+
+    return await this.sbService.putApiClient(edfiTenant, apiClientId, apiClient);
+  }
+
+  @Post('apiclients')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
+    @Body() apiClient: PostApiClientDtoV2,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
+    validIds: Ids
+  ) {
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    const adminApiResponse = await this.sbService.postApiClient(edfiTenant, apiClient);
+
+    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      try {
+        const yopassResult = await postYopassSecret({
+          ...adminApiResponse,
+          url: GetApiClientDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
+            sbEnvironment.domain,
+            apiClient.name,
+            edfiTenant.name
+          ),
+        });
+
+        return toApiClientYopassResponseDto({
+          link: yopassResult.link,
+          apiClientId: adminApiResponse.id,
+          secretSharingMethod: SecretSharingMethod.Yopass,
+        });
+      } catch (error) {
+        Logger.error('Yopass failed for postApiClient:', error);
+        throw error;
+      }
+    } else {
+      return toPostApiClientResponseDtoV2({
+        ...adminApiResponse,
+        secretSharingMethod: SecretSharingMethod.Direct,
+      });
+    }
+  }
+
+  @Put('apiclients/:apiclientId/reset-credential')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
     subject: {
@@ -605,67 +751,81 @@ export class AdminApiControllerV2 {
       teamId: 'teamId',
     },
   })
-  async resetApplicationCredentials(
+  async resetApiClientCredentials(
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
-    @Param('applicationId', new ParseIntPipe()) applicationId: number,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials')
     validIds: Ids
   ) {
-    const application = await this.sbService.getApplication(edfiTenant, applicationId);
+    const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
 
-    if (this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
-      const integrationProviderApp = await this.integrationAppsTeamService.findOne({
-        applicationId,
-        edfiTenantId,
-      });
-      if (integrationProviderApp) {
-        throw new CustomHttpException(
-          {
-            title: 'Cannot reset credentials for an Integration Provider application.',
-            type: 'Error',
-          },
-          400
-        );
-      }
-
-      const adminApiResponse = await this.sbService.putApplicationResetCredential(
-        edfiTenant,
-        applicationId
-      );
-
-      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
-        try {
-          const yopassResult = await postYopassSecret({
-            ...adminApiResponse,
-            url: GetApplicationDtoV2.apiUrl(
-              sbEnvironment.startingBlocks,
-              sbEnvironment.domain,
-              application.applicationName,
-              edfiTenant.name
-            ),
-          });
-
-          return toApplicationYopassResponseDto({
-            link: yopassResult.link,
-            applicationId: adminApiResponse.id,
-            secretSharingMethod: SecretSharingMethod.Yopass,
-          });
-        } catch (error) {
-          Logger.error('Yopass failed for resetApplicationCredentials:', error);
-          throw error; // Re-throw the original error
-        }
-      } else {
-        return toPostApplicationResponseDtoV2({
-          ...adminApiResponse,
-          secretSharingMethod: SecretSharingMethod.Direct,
-        });
-      }
-    } else {
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
+
+    const adminApiResponse = await this.sbService.putApiClientResetCredential(
+      edfiTenant,
+      apiClientId
+    );
+
+    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      try {
+        const yopassResult = await postYopassSecret({
+          ...adminApiResponse,
+          url: GetApiClientDtoV2.apiUrl(
+            sbEnvironment.startingBlocks,
+            sbEnvironment.domain,
+            application.applicationName,
+            edfiTenant.name
+          ),
+        });
+
+        return toApiClientYopassResponseDto({
+          link: yopassResult.link,
+          apiClientId: adminApiResponse.id,
+          secretSharingMethod: SecretSharingMethod.Yopass,
+        });
+      } catch (error) {
+        Logger.error('Yopass failed for resetApiClientCredentials:', error);
+        throw error;
+      }
+    } else {
+      return toPostApiClientResponseDtoV2({
+        ...adminApiResponse,
+        secretSharingMethod: SecretSharingMethod.Direct,
+      });
+    }
+  }
+
+  @Delete('apiclients/:apiclientId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async deleteApiClient(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
+    @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:delete')
+    validIds: Ids
+  ) {
+    const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
+    const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
+
+    if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
+      throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
+    }
+
+    return await this.sbService.deleteApiClient(edfiTenant, apiClientId);
   }
 
   //
@@ -704,11 +864,23 @@ export class AdminApiControllerV2 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Query('id') _ids: string[] | string
+    @Query('id') _ids: string[] | string,
+    @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids
   ) {
+    if (_ids === undefined) throw new BadRequestException('At least one claimset ID must be provided');
     const ids = Array.isArray(_ids) ? _ids : [_ids];
+    const parsedIds = ids.map((id) => {
+      const trimmed = id.trim();
+      const n = parseInt(trimmed, 10);
+      if (isNaN(n) || n <= 0 || n.toString() !== trimmed)
+        throw new BadRequestException(`Invalid claimset ID: ${id}`);
+      return n;
+    });
+    for (const id of parsedIds) {
+      if (!checkId(id, validIds)) throw new ForbiddenException(`Access denied to claimset ID: ${id}`);
+    }
     const claimsets = await Promise.all(
-      ids.map((id) => this.sbService.exportClaimset(edfiTenant, Number(id)))
+      parsedIds.map((id) => this.sbService.exportClaimset(edfiTenant, id))
     );
     const title =
       claimsets.length === 1 ? claimsets[0].name : `${edfiTenant.sbEnvironment.envLabel} claimsets`;

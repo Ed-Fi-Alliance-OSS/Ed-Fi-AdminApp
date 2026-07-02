@@ -15,7 +15,7 @@ import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import { SbaaAdminApiVersion } from '../interfaces';
 import { SecretSharingMethod } from '../enums';
-import { PostApplicationResponseDtoV2 } from './edfi-admin-api.v2.dto';
+import { PostApiClientResponseDtoV2, PostApplicationResponseDtoV2 } from './edfi-admin-api.v2.dto';
 
 export class PostVendorDto {
   @Expose()
@@ -263,10 +263,52 @@ export class ApplicationYopassResponseDto {
   }
 }
 
+// This is a response to a Post and is really a Get DTO
+// Therefore whitespace should not be trimmed
+export class PostApiClientResponseDtoBase {  
+  @Expose()
+  name: string;
+
+  @Expose()
+  key: string;
+  
+  @Expose()
+  secret: string;
+
+  @Expose()
+  secretSharingMethod: SecretSharingMethod;
+}
+
+export class PostApiClientResponseDto extends PostApiClientResponseDtoBase {
+  @Expose()
+  apiClientId: number;
+}
+
+export class ApiClientYopassResponseDto {
+  @Expose()
+  apiClientId: number;
+
+  @Expose()
+  link: string;
+
+  @Expose()
+  secretSharingMethod: SecretSharingMethod;
+
+  @Expose()
+  get id() {
+    return this.apiClientId;
+  }
+}
+
 export const toApplicationYopassResponseDto = makeSerializer<
   ApplicationYopassResponseDto,
   Omit<ApplicationYopassResponseDto, 'id'>
 >(ApplicationYopassResponseDto);
+
+export const toApiClientYopassResponseDto = makeSerializer<
+  ApiClientYopassResponseDto,
+  Omit<ApiClientYopassResponseDto, 'id'>
+>(ApiClientYopassResponseDto);
 
 export class PutApplicationDto extends PostApplicationDto {
   @Expose()
@@ -349,6 +391,29 @@ export class GetApplicationDto {
 
 export const toGetApplicationDto = makeSerializer(GetApplicationDto);
 
+export interface TenantDto {
+  id: string;
+  name: string;
+  odsInstances?: OdsInstanceDto[];
+}
+
+export interface EducationOrganizationDto {
+  instanceId: number;
+  instanceName: string;
+  educationOrganizationId: number;
+  nameOfInstitution: string;
+  shortNameOfInstitution?: string;
+  discriminator: string;
+  parentId?: number;
+}
+
+export interface OdsInstanceDto {
+  id: number | null;
+  name: string;
+  instanceType?: string;
+  edOrgs?: EducationOrganizationDto[];
+}
+
 export type AdminApiMeta = { version: '1.0' | '1.1' | '1.2' | '1.3' | '2.0' };
 export const importantAdminApiVersions: Record<AdminApiMeta['version'], SbaaAdminApiVersion> = {
   '1.0': 'v1',
@@ -363,3 +428,5 @@ export type ApplicationResponseV1 = ApplicationYopassResponseDto | PostApplicati
 
 // Union types for AdminAPI v2 - Yopass Link & ID OR Ed-Fi Application Key & Secret
 export type ApplicationResponseV2 = ApplicationYopassResponseDto | PostApplicationResponseDtoV2;
+
+export type ApiClientResponseV2 = ApiClientYopassResponseDto | PostApiClientResponseDtoV2;

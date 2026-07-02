@@ -127,10 +127,10 @@ export class StartingBlocksServiceV1 {
     try {
       const odss = (metaTenant.odss ?? []).map(
         (ods): SyncableOds => ({
+          id: ods.id ?? null,
+          name: ods.name ?? null,
           dbName: ods.dbname,
           edorgs: ods.edorgs,
-          id: null,
-          name: null,
         })
       );
       return await this.entityManager.transaction((em) =>

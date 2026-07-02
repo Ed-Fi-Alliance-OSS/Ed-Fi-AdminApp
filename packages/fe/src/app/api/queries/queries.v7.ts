@@ -1,6 +1,8 @@
 import {
+  ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
+  GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetClaimsetSingleDtoV2,
@@ -8,11 +10,14 @@ import {
   GetProfileDtoV2,
   GetVendorDtoV2,
   Id,
+  PostApiClientDtoV2,
+  PostApiClientResponseDtoV2,
   ImportClaimsetSingleDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
+  PutApiClientDtoV2,
   PutApplicationFormDtoV2,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
@@ -47,6 +52,97 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
   )
   .post('post', { ResDto: undefined as unknown as ApplicationResponseV2, ReqDto: PostApplicationFormDtoV2 })
   .delete('delete')
+  .build();
+
+export const apiClientQueriesV2 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'ApiClient',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll(
+    'getAll',
+    { ResDto: GetApiClientDtoV2 },
+    (base, extras: { applicationId?: number }) => {
+      const query =
+        extras?.applicationId === undefined
+          ? ''
+          : `?applicationId=${extras.applicationId}`;
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: query,
+      });
+    }
+  )
+  .getOne('getOne', { ResDto: GetApiClientDtoV2 },
+    (base) => {
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: base.id,
+      });
+    })
+  .put(
+    'put',
+    { ResDto: GetApiClientDtoV2, ReqDto: PutApiClientDtoV2 },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: base.entity.id,
+      })
+  )
+  .put(
+    'resetCreds',
+    {
+      ResDto: undefined as unknown as ApiClientResponseV2,
+      ReqDto: Id,
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+        id: `${base.entity.id}/reset-credential`,
+      })
+  )
+  .post(
+    'post',
+    { ResDto: PostApiClientResponseDtoV2, ReqDto: PostApiClientDtoV2 },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiclient',
+        adminApi: true,
+      })
+  )
+  .delete(
+    'delete',
+    {},
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    {
+      path: (base: any) => {
+        const edfiTenant = base.queryParams?.edfiTenant ?? base.edfiTenant;
+        const teamId = base.queryParams?.teamId ?? base.teamId;
+        return standardPath({
+          edfiTenant,
+          teamId,
+          kebabCaseName: 'apiclient',
+          adminApi: true,
+          id: base.id,
+        });
+      },
+    } as any
+  )
   .build();
 
 export const claimsetQueriesV2 = new EntityQueryBuilder({
