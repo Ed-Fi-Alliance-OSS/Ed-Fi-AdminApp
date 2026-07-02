@@ -109,7 +109,14 @@ param(
     # created Ed-Fi API client credentials). Default is empty -> Yopass is
     # disabled and the AdminApp falls back to displaying credentials inline,
     # which is a documented and supported mode (USE_YOPASS=false).
-    [string]$YopassUrl = ""
+    [string]$YopassUrl = "",
+
+    # Data-at-rest encryption key (64 hex chars / 32 bytes) the AdminApp uses to
+    # encrypt stored ODS/API environment secrets (aes-256-cbc). Empty -> reuse an
+    # already-deployed non-default key, or generate a fresh one on a clean box. A
+    # post-patch guard rejects the shipped default. Losing or changing this key
+    # makes previously-encrypted environment secrets unrecoverable.
+    [string]$DbEncryptionKey = ""
 )
 
 $ErrorActionPreference = 'Stop'
@@ -143,6 +150,20 @@ if (-not (Test-Path "$apiBuildDir\main.js")) {
 #   3. node_modules (runtime deps)                      from repo root
 # Each piece is mirrored independently so /MIR doesn't wipe sibling content
 # (web.config, logs\, the other source piece).
+# Capture any already-deployed non-default encryption key BEFORE the file-copy
+# phase below overwrites production.js. The source ships a stub production.js that
+# the config copy would otherwise clobber, defeating key reuse and silently
+# rotating the key on every re-run. Reusing it keeps previously-encrypted ODS/API
+# environment secrets decryptable across a reinstall.
+$defaultKey = 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565'
+$existingDeployedKey = ''
+$deployedProdJs = "$DestPath\packages\api\config\production.js"
+if (Test-Path $deployedProdJs) {
+    if ((Get-Content $deployedProdJs -Raw) -match "KEY: '([0-9a-f]{64})'" -and $Matches[1] -ne $defaultKey) {
+        $existingDeployedKey = $Matches[1]
+    }
+}
+
 New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
 
 Write-Host "Copying built API output..."
@@ -256,6 +277,25 @@ if ($webConfigChanged) {
 # what the API actually needs; always overwrite from it before patching.
 $prodJs = "$DestPath\packages\api\config\production.js"
 $prodJsTemplate = "$DestPath\packages\api\config\production.js-edfi"
+
+# Resolve the data-at-rest encryption key. Precedence: an explicit -DbEncryptionKey
+# wins; else reuse the key captured from the previously-deployed production.js
+# (grabbed before the copy phase clobbered it); a clean box with no prior key
+# generates a fresh one. Rotating this key makes previously-encrypted ODS/API
+# environment secrets unrecoverable.
+$freshKeyGenerated = $false
+if (-not $DbEncryptionKey -and $existingDeployedKey) {
+    $DbEncryptionKey = $existingDeployedKey
+    Write-Host "Reusing the existing per-install data-encryption key."
+}
+if (-not $DbEncryptionKey) {
+    $keyBytes = [byte[]]::new(32)
+    [System.Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($keyBytes)
+    $DbEncryptionKey = ($keyBytes | ForEach-Object { $_.ToString('x2') }) -join ''
+    $freshKeyGenerated = $true
+    Write-Host "Generated a per-install data-encryption key."
+}
+
 if (Test-Path $prodJsTemplate) {
     try {
         Copy-Item $prodJsTemplate $prodJs -Force
@@ -316,6 +356,15 @@ if (Test-Path $prodJs) {
     $useYopassJs = if ($YopassUrl) { 'true' } else { 'false' }
     $c = $c.Replace("USE_YOPASS: true,",                                    "USE_YOPASS: $useYopassJs,")
     $c = $c.Replace("YOPASS_URL: 'http://edfiadminapp-yopass:80',",         "YOPASS_URL: '$YopassUrl',")
+
+    # Per-install data-at-rest encryption key (never ships the shipped default).
+    $c = $c.Replace("KEY: '$defaultKey',",                                  "KEY: '$DbEncryptionKey',")
+
+    # Fail loudly if the default key survived patching -- deploying it would give
+    # every install the same data-at-rest key.
+    if ($c -match $defaultKey) {
+        throw "The default DB_ENCRYPTION_SECRET_VALUE.KEY is still present in $prodJs after patching. Refusing to deploy with the well-known default key."
+    }
 
     if ($c -ne $original) {
         try {

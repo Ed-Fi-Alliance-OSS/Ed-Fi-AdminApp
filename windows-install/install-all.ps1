@@ -495,8 +495,10 @@ if ($idpIsKeycloak) {
 }
 
 Write-Phase "Phase 3.2: Deploy API (05-deploy-api.ps1)"
+$apiDestPath = "C:\inetpub\EdFi-AdminApp-API"
 $apiArgs = @{
     SourcePath           = $SourcePath
+    DestPath             = $apiDestPath
     DatabaseName         = $DatabaseName
     OidcIssuer           = $OidcIssuer
     OidcClientId         = $OidcClientId
@@ -517,6 +519,14 @@ if ($DbEngine -eq 'mssql') {
     $apiArgs.PgDbPassword = $PostgresAppPassword
 }
 & "$scriptDir\05-deploy-api.ps1" @apiArgs
+
+# Read back the resolved per-install encryption key (05 preserves an existing one
+# or generates a fresh one) so the summary can record it for backup.
+$DbEncryptionKey = ''
+$deployedProdJs = "$apiDestPath\packages\api\config\production.js"
+if ((Test-Path $deployedProdJs) -and ((Get-Content $deployedProdJs -Raw) -match "KEY: '([0-9a-f]{64})'")) {
+    $DbEncryptionKey = $Matches[1]
+}
 
 Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
 & "$scriptDir\06-deploy-fe.ps1" -SourcePath "$SourcePath\dist\packages\fe"
@@ -727,6 +737,14 @@ Identity Provider (external: $IdpProvider)
 "@
 }
 
+$encryptionSummary = @"
+
+Data encryption key (aes-256-cbc, ODS/API environment secrets)
+  Key:                $DbEncryptionKey
+  IMPORTANT: Back this up. Losing or changing it makes every ODS/API
+  environment secret stored in the Admin App permanently unrecoverable.
+"@
+
 $summary = @"
 Ed-Fi Admin App -- Install Summary
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
@@ -744,6 +762,7 @@ $idpSummary
 
 $dbSummary
 $yopassSummary
+$encryptionSummary
 
 Notes
   - Local dev runs over HTTP (no TLS). The FE and API are served from standalone
