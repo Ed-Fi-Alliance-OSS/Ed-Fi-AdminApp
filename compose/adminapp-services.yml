@@ -170,8 +170,6 @@ services:
     build:
       context: ../
       dockerfile: packages/fe/Dockerfile
-      args:
-        VITE_BASE_PATH: ${VITE_BASE_PATH:-/adminapp/}
     environment:
         # Change this to use the nginx proxy URL
         VITE_API_URL: ${VITE_API_URL:-https://localhost/adminapp-api}
