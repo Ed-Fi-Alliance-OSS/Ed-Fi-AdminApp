@@ -1,0 +1,94 @@
+﻿#Requires -RunAsAdministrator
+<#
+.SYNOPSIS
+Deploys the Ed-Fi Admin App frontend to IIS.
+
+.DESCRIPTION
+- Copies built FE files (index.html + assets\) to the IIS folder
+- Creates or updates the IIS site
+- Writes web.config with the React Router SPA rewrite rule
+
+Run AFTER `npm run build:fe` produces dist\packages\fe\ in the source repo.
+
+.PARAMETER SourcePath
+Path to the Vite build output, e.g. C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe.
+
+.PARAMETER DestPath
+Where to deploy. Default: C:\inetpub\EdFi-AdminApp-FE (a dedicated directory,
+not nested under another site's root).
+
+.PARAMETER SiteName
+IIS site name. Default: EdFi-AdminApp-FE.
+
+.PARAMETER Port
+HTTP port. Default: 4200.
+
+.EXAMPLE
+.\06-deploy-fe.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe
+#>
+
+param(
+    [Parameter(Mandatory = $true)]
+    [string]$SourcePath,
+    [string]$DestPath = "C:\inetpub\EdFi-AdminApp-FE",
+    [string]$SiteName = "EdFi-AdminApp-FE",
+    [int]$Port = 4200
+)
+
+$ErrorActionPreference = 'Stop'
+
+# Precondition: IIS + the WebAdministration module must be available
+# (01-prereqs-iis.ps1 installs the IIS pieces).
+try {
+    Import-Module WebAdministration -ErrorAction Stop
+} catch {
+    throw "IIS / the WebAdministration module isn't available. Ensure IIS is installed (setup-vm-prereqs.ps1) and run 01-prereqs-iis.ps1 before deploying."
+}
+
+if (-not (Test-Path "$SourcePath\index.html")) {
+    throw "index.html not found at $SourcePath. Did you run 'npm run build:fe'?"
+}
+
+Write-Host "Copying FE files to $DestPath..."
+New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
+& robocopy $SourcePath $DestPath /MIR /NFL /NDL /NJH /NJS | Out-Null
+if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
+
+if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) {
+    Write-Host "Site '$SiteName' exists. Updating physical path..."
+    Set-ItemProperty -Path "IIS:\Sites\$SiteName" -Name "physicalPath" -Value $DestPath
+} else {
+    New-Website -Name $SiteName -Port $Port -PhysicalPath $DestPath | Out-Null
+    Write-Host "Site '$SiteName' created on HTTP port $Port."
+}
+
+$webConfig = @'
+<?xml version="1.0" encoding="utf-8"?>
+<configuration>
+  <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="React Routes" stopProcessing="true">
+          <match url=".*" />
+          <conditions logicalGrouping="MatchAll">
+            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
+            <add input="{REQUEST_FILENAME}" matchType="IsDirectory" negate="true" />
+          </conditions>
+          <action type="Rewrite" url="index.html" />
+        </rule>
+      </rules>
+    </rewrite>
+  </system.webServer>
+</configuration>
+'@
+
+$webConfigPath = "$DestPath\web.config"
+if ((Test-Path $webConfigPath) -and ((Get-Content $webConfigPath -Raw) -eq $webConfig)) {
+    Write-Host "web.config already matches — not rewriting."
+} else {
+    Set-Content -Path $webConfigPath -Value $webConfig -Encoding UTF8
+    Write-Host "web.config written."
+}
+
+Write-Host ""
+Write-Host "SUCCESS: FE deployed at http://localhost:$Port/" -ForegroundColor Green
