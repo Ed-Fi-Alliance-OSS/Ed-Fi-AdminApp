@@ -252,32 +252,65 @@ param(
 $ErrorActionPreference = 'Stop'
 $scriptDir = $PSScriptRoot
 
-# Engine-specific required-arg validation. SaPassword was previously a top-level
-# Mandatory parameter; it's now conditionally required so the same script can
-# drive either engine without prompting for irrelevant credentials.
-if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
-    $SaPassword = Read-Host -AsSecureString "SQL Server 'sa' password (server bootstrap only)"
+# Reject a weak DB-login password the moment each is resolved (whether passed as a
+# param or prompted), before any phase runs, so a weak password fails immediately
+# and next to the prompt that set it -- not later, after an unrelated prompt, as an
+# opaque CHECK_POLICY rejection during MSSQL login provisioning. Mirrors the Windows
+# policy CHECK_POLICY enforces: length >= 8 and at least 3 of the 4 character
+# categories (uppercase/lowercase/digit/symbol). Postgres enforces no such policy,
+# but its logins are held to the same bar for consistency. -cmatch keeps the
+# upper/lower test case-sensitive; AllowEmptyString lets an empty password reach the
+# length check with a clear message instead of a parameter-binding error.
+function Test-SqlPasswordComplexity {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Password,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $categories = 0
+    if ($Password -cmatch '[A-Z]')        { $categories++ }
+    if ($Password -cmatch '[a-z]')        { $categories++ }
+    if ($Password -match  '[0-9]')        { $categories++ }
+    if ($Password -match  '[^A-Za-z0-9]') { $categories++ }
+    if ($Password.Length -lt 8 -or $categories -lt 3) {
+        throw "The $Label password does not meet the SQL Server password policy (CHECK_POLICY): use at least 8 characters and at least 3 of uppercase, lowercase, digit, and symbol."
+    }
 }
-if ($DbEngine -eq 'mssql' -and -not $AppDbPassword) {
-    $AppDbPassword = Read-Host -AsSecureString "Admin App DB login '$AppDbUsername' password"
+
+# Engine-specific required-arg resolution. SaPassword was previously a top-level
+# Mandatory parameter; it's now conditionally required so the same script can drive
+# either engine without prompting for irrelevant credentials. Each secret is
+# prompted (if omitted), unwrapped, and strength-checked together, so validation is
+# tied to its own prompt. Plaintext is unavoidable at the point of use -- sqlcmd -P,
+# the docker-compose .env, PGPASSWORD -- so it lives in locals, never on a command
+# line or in the param history. Child scripts still receive the SecureStrings
+# unchanged. Locals are initialized so later references hold $null under either engine.
+$SaPasswordPlain                = $null
+$AppDbPasswordPlain             = $null
+$PostgresAppPasswordPlain       = $null
+$PostgresSuperuserPasswordPlain = $null
+
+if ($DbEngine -eq 'mssql') {
+    if (-not $SaPassword)    { $SaPassword = Read-Host -AsSecureString "SQL Server 'sa' password (server bootstrap only)" }
+    $SaPasswordPlain = [System.Net.NetworkCredential]::new('', $SaPassword).Password
+    Test-SqlPasswordComplexity -Password $SaPasswordPlain -Label "sa (-SaPassword)"
+
+    if (-not $AppDbPassword) { $AppDbPassword = Read-Host -AsSecureString "Admin App DB login '$AppDbUsername' password" }
+    $AppDbPasswordPlain = [System.Net.NetworkCredential]::new('', $AppDbPassword).Password
+    Test-SqlPasswordComplexity -Password $AppDbPasswordPlain -Label "Admin App DB login (-AppDbPassword)"
 }
-if ($DbEngine -eq 'pgsql' -and -not $PostgresAppPassword) {
-    $PostgresAppPassword = Read-Host -AsSecureString "Postgres app user '$PostgresAppUser' password"
+if ($DbEngine -eq 'pgsql') {
+    if (-not $PostgresAppPassword) { $PostgresAppPassword = Read-Host -AsSecureString "Postgres app user '$PostgresAppUser' password" }
+    $PostgresAppPasswordPlain = [System.Net.NetworkCredential]::new('', $PostgresAppPassword).Password
+    Test-SqlPasswordComplexity -Password $PostgresAppPasswordPlain -Label "Postgres app user (-PostgresAppPassword)"
 }
 if ($UsePostgresDocker -and $DbEngine -ne 'pgsql') {
     throw "-UsePostgresDocker only applies when -DbEngine is 'pgsql'."
 }
-if ($UsePostgresDocker -and -not $PostgresSuperuserPassword) {
-    $PostgresSuperuserPassword = Read-Host -AsSecureString "Postgres superuser password"
+if ($UsePostgresDocker) {
+    if (-not $PostgresSuperuserPassword) { $PostgresSuperuserPassword = Read-Host -AsSecureString "Postgres superuser password" }
+    $PostgresSuperuserPasswordPlain = [System.Net.NetworkCredential]::new('', $PostgresSuperuserPassword).Password
+    Test-SqlPasswordComplexity -Password $PostgresSuperuserPasswordPlain -Label "Postgres superuser (-PostgresSuperuserPassword)"
 }
-
-# Unwrap the SecureString secrets this orchestrator uses directly (child scripts
-# receive the SecureStrings unchanged). Plaintext is unavoidable at the point of
-# use -- sqlcmd -P, the docker-compose .env, PGPASSWORD -- so it lives in locals,
-# never on a command line or in the param history.
-$SaPasswordPlain                = if ($SaPassword)                { [System.Net.NetworkCredential]::new('', $SaPassword).Password } else { $null }
-$PostgresAppPasswordPlain       = if ($PostgresAppPassword)       { [System.Net.NetworkCredential]::new('', $PostgresAppPassword).Password } else { $null }
-$PostgresSuperuserPasswordPlain = if ($PostgresSuperuserPassword) { [System.Net.NetworkCredential]::new('', $PostgresSuperuserPassword).Password } else { $null }
 
 # Yopass: -SetupYopassDocker (stand one up) and -YopassUrl (use an existing one)
 # are two ways to set the same YOPASS_URL, so they can't both be given.

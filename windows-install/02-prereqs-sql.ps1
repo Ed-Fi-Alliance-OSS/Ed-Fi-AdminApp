@@ -40,10 +40,10 @@ Default: sbaa (the name the Admin App expects out of the box).
 #>
 
 param(
-    [Parameter(Mandatory = $true)]
+    # Not Mandatory: PowerShell auto-prompts all Mandatory params before the body
+    # runs, so a weak sa password would only be rejected after the app-DB prompt.
+    # Instead they're prompted, unwrapped, and strength-checked one at a time below.
     [SecureString]$SaPassword,
-
-    [Parameter(Mandatory = $true)]
     [SecureString]$AppDbPassword,
 
     [string]$AppDbUsername = "edfi_adminapp",
@@ -53,12 +53,40 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
-# Secrets arrive as SecureString (kept off the command line); unwrap to plaintext
-# locals for SQLCMDPASSWORD and the inline T-SQL. Point-of-use plaintext is
-# unavoidable. Use new locals -- assigning back to the [SecureString]-typed
-# parameters would re-trigger their type conversion and fail.
-$SaPasswordPlain    = [System.Net.NetworkCredential]::new('', $SaPassword).Password
+# Reject a weak SQL login password the moment each is resolved (whether passed as a
+# param or prompted), before any registry or SQL work, so a weak password fails
+# immediately and next to the prompt that set it -- not later, after an unrelated
+# prompt, as an opaque CHECK_POLICY rejection during CREATE/ALTER LOGIN. Mirrors the
+# Windows policy CHECK_POLICY enforces: length >= 8 and at least 3 of the 4 character
+# categories (uppercase/lowercase/digit/symbol). -cmatch keeps the upper/lower test
+# case-sensitive; AllowEmptyString lets an empty password reach the length check with
+# a clear message instead of a parameter-binding error.
+function Test-SqlPasswordComplexity {
+    param(
+        [Parameter(Mandatory = $true)][AllowEmptyString()][string]$Password,
+        [Parameter(Mandatory = $true)][string]$Label
+    )
+    $categories = 0
+    if ($Password -cmatch '[A-Z]')        { $categories++ }
+    if ($Password -cmatch '[a-z]')        { $categories++ }
+    if ($Password -match  '[0-9]')        { $categories++ }
+    if ($Password -match  '[^A-Za-z0-9]') { $categories++ }
+    if ($Password.Length -lt 8 -or $categories -lt 3) {
+        throw "The $Label password does not meet the SQL Server password policy (CHECK_POLICY): use at least 8 characters and at least 3 of uppercase, lowercase, digit, and symbol."
+    }
+}
+
+# Prompt (if omitted), unwrap, and strength-check each secret in turn. Unwrap to new
+# locals -- assigning back to the [SecureString]-typed parameters would re-trigger
+# their type conversion and fail. Point-of-use plaintext (SQLCMDPASSWORD, the inline
+# T-SQL) is unavoidable, so it lives in locals, never on a command line.
+if (-not $SaPassword)    { $SaPassword = Read-Host -AsSecureString "SQL Server 'sa' password" }
+$SaPasswordPlain = [System.Net.NetworkCredential]::new('', $SaPassword).Password
+Test-SqlPasswordComplexity -Password $SaPasswordPlain -Label "sa (-SaPassword)"
+
+if (-not $AppDbPassword) { $AppDbPassword = Read-Host -AsSecureString "Admin App DB login '$AppDbUsername' password" }
 $AppDbPasswordPlain = [System.Net.NetworkCredential]::new('', $AppDbPassword).Password
+Test-SqlPasswordComplexity -Password $AppDbPasswordPlain -Label "Admin App DB login (-AppDbPassword)"
 
 # Find the SQL Server version-specific registry key
 $verKey = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server" -ErrorAction SilentlyContinue |
@@ -133,7 +161,8 @@ if ($registryChanged) {
 function Invoke-Sqlcmd-Quiet {
     param(
         [string[]]$SqlArgs,
-        [string]$Password
+        [string]$Password,
+        [switch]$FailOnSqlError
     )
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
@@ -141,6 +170,12 @@ function Invoke-Sqlcmd-Quiet {
     # sqlcmd process command line (visible in the process list); cleared right
     # after the call. Windows-auth (-E) callers pass no -Password.
     if ($Password) { $env:SQLCMDPASSWORD = $Password }
+    # -b makes sqlcmd return a non-zero exit code on a SQL error (severity >= 11),
+    # so a policy rejection (e.g. a weak password failing CHECK_POLICY) fails
+    # loudly instead of silently returning 0. Set only on the DDL/provisioning
+    # calls; the readiness and connection probes below intentionally read exit
+    # codes and must not treat an expected failure as fatal.
+    if ($FailOnSqlError) { $SqlArgs += "-b" }
     try {
         & sqlcmd @SqlArgs -t 10 2>&1 | Out-Null
     } finally {
@@ -175,8 +210,8 @@ if ($saLoginWorks) {
 } else {
     Write-Host "sa login doesn't accept the password -- running ALTER LOGIN..."
     $escapedPw = $SaPasswordPlain -replace "'", "''"
-    $saQuery = "ALTER LOGIN sa WITH PASSWORD = '$escapedPw', CHECK_POLICY = OFF; ALTER LOGIN sa ENABLE;"
-    $ec = Invoke-Sqlcmd-Quiet @("-S", "(local)", "-E", "-Q", $saQuery)
+    $saQuery = "ALTER LOGIN sa WITH PASSWORD = '$escapedPw'; ALTER LOGIN sa ENABLE;"
+    $ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "(local)", "-E", "-Q", $saQuery) -FailOnSqlError
     if ($ec -ne 0) {
         throw "Failed to configure sa login (sqlcmd exit code $ec). Verify your Windows user has SQL sysadmin."
     }
@@ -196,7 +231,7 @@ if ($ec -ne 0) {
 # Create the Admin App database if it doesn't already exist
 Write-Host "Ensuring database '$DatabaseName' exists..."
 $dbQuery = "IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = N'$DatabaseName') CREATE DATABASE [$DatabaseName];"
-$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", "sa", "-Q", $dbQuery) -Password $SaPasswordPlain
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", "sa", "-Q", $dbQuery) -Password $SaPasswordPlain -FailOnSqlError
 if ($ec -ne 0) {
     throw "Failed to create/verify database '$DatabaseName' (sqlcmd exit code $ec)."
 }
@@ -225,7 +260,7 @@ IF NOT EXISTS (SELECT 1 FROM sys.database_principals WHERE name = N'$AppDbUserna
     CREATE USER [$safeUser] FOR LOGIN [$safeUser];
 ALTER ROLE db_owner ADD MEMBER [$safeUser];
 "@
-$ec = Invoke-Sqlcmd-Quiet @("-S", "(local)", "-E", "-Q", $provisionQuery)
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "(local)", "-E", "-Q", $provisionQuery) -FailOnSqlError
 if ($ec -ne 0) {
     throw "Failed to provision the Admin App login '$AppDbUsername' (sqlcmd exit code $ec). A CHECK_POLICY failure here means the password is too weak; supply a stronger -AppDbPassword."
 }

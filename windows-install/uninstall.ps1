@@ -14,10 +14,10 @@ Steps (each best-effort, continues past individual failures):
      - Delete the deployed dirs C:\inetpub\EdFi-AdminApp-API and
        C:\inetpub\EdFi-AdminApp-FE.
   2. Database teardown (both engines, best-effort per engine):
-     - MSSQL: DROP DATABASE [sbaa] using SQL Auth (sa + -SaPassword) if
-       provided, else Windows Auth. Skipped when MSSQLSERVER isn't running.
-       Leaves Mixed Mode / sa / TCP:1433 alone (instance-wide settings other
-       apps may rely on).
+     - MSSQL: DROP DATABASE [sbaa] and DROP LOGIN [edfi_adminapp] using SQL Auth
+       (sa + -SaPassword) if provided, else Windows Auth. Skipped when
+       MSSQLSERVER isn't running. Leaves Mixed Mode / sa / TCP:1433 alone
+       (instance-wide settings other apps may rely on).
      - PGSQL (docker): `docker compose down -v` from windows-install\docker so
        the data + cert volumes are removed. Skipped when no
        edfiadminapp-postgres container exists. Without the -v, the volume
@@ -50,6 +50,10 @@ Prompts for confirmation by default. Pass -Force for non-interactive runs.
 
 .PARAMETER DatabaseName
 Database to drop. Default: sbaa. Must match what 02-prereqs-sql.ps1 created.
+
+.PARAMETER AppDbUsername
+Server-level login to drop alongside the database. Default: edfi_adminapp. Must
+match what 02-prereqs-sql.ps1 provisioned.
 
 .PARAMETER SaPassword
 SQL sa password. If provided, the DB drop uses SQL Auth over TCP. If omitted,
@@ -96,6 +100,7 @@ Switch — skip the confirmation prompt.
 
 param(
     [string]$DatabaseName = "sbaa",
+    [string]$AppDbUsername = "edfi_adminapp",
     [SecureString]$SaPassword,
     [string]$KeycloakInstallPath = "C:\keycloak",
     [string]$NpmCachePath = "C:\npm-cache",
@@ -153,7 +158,7 @@ Write-Host "  - Standalone IIS sites '$AppPoolName' (API) and '$StandaloneFeSite
 Write-Host "  - IIS App Pool '$AppPoolName'"
 Write-Host "  - Deployed dirs: $ApiDestPath and $FeDestPath"
 if (-not $KeepDatabase)         {
-    Write-Host "  - SQL database [$DatabaseName] (if MSSQLSERVER is running)"
+    Write-Host "  - SQL database [$DatabaseName] + login [$AppDbUsername] (if MSSQLSERVER is running)"
     Write-Host "  - Docker postgres container + volumes (if edfiadminapp-postgres exists)"
 }
 Write-Host "  - Docker Yopass stack (edfiadminapp-yopass + memcached) and its volumes (if present)"
@@ -297,18 +302,26 @@ if ($KeepDatabase) {
     $sqlcmdAvailable = $null -ne (Get-Command sqlcmd -ErrorAction SilentlyContinue)
     $msSqlRunning = $null -ne (Get-Service MSSQLSERVER -ErrorAction SilentlyContinue | Where-Object { $_.Status -eq 'Running' })
     if (-not $sqlcmdAvailable -or -not $msSqlRunning) {
-        Record "Drop database [$DatabaseName] (mssql)" "SKIP" $(if (-not $msSqlRunning) { "MSSQLSERVER not running" } else { "sqlcmd not on PATH" })
+        Record "Drop database [$DatabaseName] + login [$AppDbUsername] (mssql)" "SKIP" $(if (-not $msSqlRunning) { "MSSQLSERVER not running" } else { "sqlcmd not on PATH" })
     } else {
         # SET SINGLE_USER ROLLBACK IMMEDIATE forces existing connections off
         # before the DROP. Without it the drop fails when the API's node process
         # (launched by httpPlatform) still has a pool open (e.g., if the App Pool
         # removal above didn't terminate the node process cleanly).
+        # Also drop the server-level app login. 02-prereqs-sql creates it once and
+        # only re-syncs the password on re-run, so without this it survives an
+        # uninstall and a later reinstall silently keeps the old password. Bracket-
+        # and literal-escape the name in case a custom -AppDbUsername contains ] or '.
+        $safeUser        = $AppDbUsername -replace ']', ']]'
+        $safeUserLiteral = $AppDbUsername -replace "'", "''"
         $dropQuery = @"
 IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'$DatabaseName')
 BEGIN
     ALTER DATABASE [$DatabaseName] SET SINGLE_USER WITH ROLLBACK IMMEDIATE;
     DROP DATABASE [$DatabaseName];
 END
+IF EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'$safeUserLiteral' AND type = 'S')
+    DROP LOGIN [$safeUser];
 "@
         # SQLCMDPASSWORD instead of -P keeps the password off the sqlcmd process
         # command line; cleared in the finally.
@@ -322,12 +335,12 @@ END
             & sqlcmd @authArgs -Q $dropQuery -t 30 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
                 $authMode = if ($SaPasswordPlain) { "SQL Auth" } else { "Windows Auth" }
-                Record "Drop database [$DatabaseName] (mssql)" "OK" $authMode
+                Record "Drop database [$DatabaseName] + login [$AppDbUsername] (mssql)" "OK" $authMode
             } else {
-                Record "Drop database [$DatabaseName] (mssql)" "FAIL" "sqlcmd exit $LASTEXITCODE"
+                Record "Drop database [$DatabaseName] + login [$AppDbUsername] (mssql)" "FAIL" "sqlcmd exit $LASTEXITCODE"
             }
         } catch {
-            Record "Drop database [$DatabaseName] (mssql)" "FAIL" $_.Exception.Message
+            Record "Drop database [$DatabaseName] + login [$AppDbUsername] (mssql)" "FAIL" $_.Exception.Message
         } finally {
             if ($SaPasswordPlain) { Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue }
         }
