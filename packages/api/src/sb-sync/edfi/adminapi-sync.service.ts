@@ -112,6 +112,10 @@ export class AdminApiSyncService {
         id: ods.odsInstanceId,
         name: ods.odsInstanceName,
         dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
+        instanceType: ods.instanceType ?? null,
+        status: ods.status ?? null,
+        databaseTemplate: ods.databaseTemplate ?? null,
+        databaseName: ods.databaseName ?? null,
         edorgs: ods.edorgs?.map(edorg => ({
           educationorganizationid: edorg.educationOrganizationId,
           nameofinstitution: edorg.nameOfInstitution,
@@ -836,6 +840,9 @@ export class AdminApiSyncService {
           id: instance.id ?? null,
           name: instance.name || 'Unknown ODS Instance',
           instanceType: instance.instanceType,
+          status: instance.status ?? null,
+          databaseTemplate: instance.databaseTemplate ?? null,
+          databaseName: instance.databaseName ?? null,
           edOrgs: (instance.educationOrganizations || []).map((edOrg: any) => ({
             instanceId: instance.id,
             instanceName: instance.name,
