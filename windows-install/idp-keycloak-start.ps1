@@ -39,13 +39,18 @@ param(
     [string]$AdminUser = "admin",
 
     [Parameter(Mandatory = $true)]
-    [string]$AdminPassword,
+    [SecureString]$AdminPassword,
 
     [string]$BaseUrl = "http://localhost:8080",
     [int]$ReadyTimeoutSeconds = 120
 )
 
 $ErrorActionPreference = 'Stop'
+
+# AdminPassword arrives as SecureString (kept off the command line); unwrap to a
+# new local (assigning back to the [SecureString]-typed parameter would re-trigger
+# its type conversion and fail) for the KC_BOOTSTRAP_ADMIN_* env vars below.
+$AdminPasswordPlain = [System.Net.NetworkCredential]::new('', $AdminPassword).Password
 
 $discoveryUrl = "$BaseUrl/realms/master/.well-known/openid-configuration"
 
@@ -90,10 +95,10 @@ if (-not $javaAvailable) {
 #    -Environment parameter in PS 5.1); Keycloak 26+ creates the master admin
 #    from KC_BOOTSTRAP_ADMIN_* on first launch and ignores them thereafter.
 $env:KC_BOOTSTRAP_ADMIN_USERNAME = $AdminUser
-$env:KC_BOOTSTRAP_ADMIN_PASSWORD = $AdminPassword
+$env:KC_BOOTSTRAP_ADMIN_PASSWORD = $AdminPasswordPlain
 # Older aliases still honored by 26.x for backward compat:
 $env:KEYCLOAK_ADMIN = $AdminUser
-$env:KEYCLOAK_ADMIN_PASSWORD = $AdminPassword
+$env:KEYCLOAK_ADMIN_PASSWORD = $AdminPasswordPlain
 
 # Redirect startup output to log files instead of capturing it on pipes we
 # never read: an unread redirected pipe can fill its OS buffer (~4 KB) and

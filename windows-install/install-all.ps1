@@ -143,43 +143,44 @@ Host port to publish the dockerized Yopass on when -SetupYopassDocker is set.
 Default 8082. Becomes the YOPASS_URL the API is configured with.
 
 .EXAMPLE
-# Local Keycloak (MSSQL)
+# Local Keycloak (MSSQL). Password/secret params are [SecureString]: omit any to
+# be prompted securely, or pass them inline as shown -- never a plaintext literal.
 .\install-all.ps1 -IdpProvider keycloak `
-  -SaPassword 'EdFi-Local!2026' `
-  -AppDbPassword 'EdFi-App-Local!2026' `
-  -KeycloakAdminPassword 'admin' `
-  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
-  -TestUserPassword 'TestUser123!'
+  -SaPassword (Read-Host -AsSecureString 'sa password') `
+  -AppDbPassword (Read-Host -AsSecureString 'Admin App DB password') `
+  -KeycloakAdminPassword (Read-Host -AsSecureString 'Keycloak admin password') `
+  -OidcClientSecret (Read-Host -AsSecureString 'OIDC client secret') `
+  -TestUserPassword (Read-Host -AsSecureString 'test user password')
 
 .EXAMPLE
 # Local Keycloak (PostgreSQL via the bundled docker-compose)
 .\install-all.ps1 -IdpProvider keycloak `
   -DbEngine pgsql -UsePostgresDocker `
-  -PostgresSuperuserPassword 'PgSuper!2026' `
-  -PostgresAppPassword 'PgApp!2026' `
-  -KeycloakAdminPassword 'admin' `
-  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
-  -TestUserPassword 'TestUser123!'
+  -PostgresSuperuserPassword (Read-Host -AsSecureString 'Postgres superuser password') `
+  -PostgresAppPassword (Read-Host -AsSecureString 'Postgres app password') `
+  -KeycloakAdminPassword (Read-Host -AsSecureString 'Keycloak admin password') `
+  -OidcClientSecret (Read-Host -AsSecureString 'OIDC client secret') `
+  -TestUserPassword (Read-Host -AsSecureString 'test user password')
 
 .EXAMPLE
 # Local Keycloak + a local dockerized Yopass for one-time credential links
 .\install-all.ps1 -IdpProvider keycloak `
-  -SaPassword 'EdFi-Local!2026' `
-  -AppDbPassword 'EdFi-App-Local!2026' `
-  -KeycloakAdminPassword 'admin' `
-  -OidcClientSecret 'YOUR_CHOSEN_CLIENT_SECRET' `
-  -TestUserPassword 'TestUser123!' `
+  -SaPassword (Read-Host -AsSecureString 'sa password') `
+  -AppDbPassword (Read-Host -AsSecureString 'Admin App DB password') `
+  -KeycloakAdminPassword (Read-Host -AsSecureString 'Keycloak admin password') `
+  -OidcClientSecret (Read-Host -AsSecureString 'OIDC client secret') `
+  -TestUserPassword (Read-Host -AsSecureString 'test user password') `
   -SetupYopassDocker
 
 .EXAMPLE
 # External OIDC (Microsoft Entra). Register the app + redirect URIs in Entra first,
 # and make sure a user exists there whose email matches -AdminUsername.
 .\install-all.ps1 -IdpProvider microsoft `
-  -SaPassword 'EdFi-Local!2026' `
-  -AppDbPassword 'EdFi-App-Local!2026' `
+  -SaPassword (Read-Host -AsSecureString 'sa password') `
+  -AppDbPassword (Read-Host -AsSecureString 'Admin App DB password') `
   -OidcIssuer 'https://login.microsoftonline.com/<tenant-id>/v2.0' `
   -OidcClientId '<application-id>' `
-  -OidcClientSecret 'YOUR_ENTRA_CLIENT_SECRET' `
+  -OidcClientSecret (Read-Host -AsSecureString 'Entra client secret') `
   -AdminUsername 'you@yourtenant.onmicrosoft.com'
 #>
 
@@ -191,11 +192,11 @@ param(
     # sa is used only for server-level bootstrap (Mixed Mode, DB creation, and
     # the installer's own admin queries). The Admin App itself connects as the
     # dedicated least-privilege login below, not sa.
-    [string]$SaPassword,
+    [SecureString]$SaPassword,
     [string]$AppDbUsername = "edfi_adminapp",
-    [string]$AppDbPassword,
-    [string]$PostgresAppPassword,
-    [string]$PostgresSuperuserPassword,
+    [SecureString]$AppDbPassword,
+    [SecureString]$PostgresAppPassword,
+    [SecureString]$PostgresSuperuserPassword,
     [string]$PostgresHost = "localhost",
     [int]$PostgresPort = 5432,
     [string]$PostgresAppUser = "edfiadminapp",
@@ -210,7 +211,7 @@ param(
     # OIDC client secret -- required in every mode (the secret of the AdminApp's
     # OIDC client, whether in Keycloak or in your external provider).
     [Parameter(Mandatory = $true)]
-    [string]$OidcClientSecret,
+    [SecureString]$OidcClientSecret,
 
     # OIDC settings for external providers. Defaults are filled per -IdpProvider;
     # supply -OidcIssuer / -OidcClientId for microsoft and other.
@@ -221,8 +222,8 @@ param(
 
     # Keycloak-only (required when -IdpProvider is 'keycloak'): the master-realm
     # admin password and the seeded test user's password.
-    [string]$KeycloakAdminPassword,
-    [string]$TestUserPassword,
+    [SecureString]$KeycloakAdminPassword,
+    [SecureString]$TestUserPassword,
 
     [string]$SourcePath = (Split-Path $PSScriptRoot -Parent),
     [string]$DatabaseName = "sbaa",
@@ -255,20 +256,29 @@ $scriptDir = $PSScriptRoot
 # Mandatory parameter; it's now conditionally required so the same script can
 # drive either engine without prompting for irrelevant credentials.
 if ($DbEngine -eq 'mssql' -and -not $SaPassword) {
-    throw "-SaPassword is required when -DbEngine is 'mssql' (the default)."
+    $SaPassword = Read-Host -AsSecureString "SQL Server 'sa' password (server bootstrap only)"
 }
 if ($DbEngine -eq 'mssql' -and -not $AppDbPassword) {
-    throw "-AppDbPassword is required when -DbEngine is 'mssql' (the dedicated Admin App login the API connects as)."
+    $AppDbPassword = Read-Host -AsSecureString "Admin App DB login '$AppDbUsername' password"
 }
 if ($DbEngine -eq 'pgsql' -and -not $PostgresAppPassword) {
-    throw "-PostgresAppPassword is required when -DbEngine is 'pgsql'."
+    $PostgresAppPassword = Read-Host -AsSecureString "Postgres app user '$PostgresAppUser' password"
 }
 if ($UsePostgresDocker -and $DbEngine -ne 'pgsql') {
     throw "-UsePostgresDocker only applies when -DbEngine is 'pgsql'."
 }
 if ($UsePostgresDocker -and -not $PostgresSuperuserPassword) {
-    throw "-PostgresSuperuserPassword is required when -UsePostgresDocker is set."
+    $PostgresSuperuserPassword = Read-Host -AsSecureString "Postgres superuser password"
 }
+
+# Unwrap the SecureString secrets this orchestrator uses directly (child scripts
+# receive the SecureStrings unchanged). Plaintext is unavoidable at the point of
+# use -- sqlcmd -P, the docker-compose .env, PGPASSWORD -- so it lives in locals,
+# never on a command line or in the param history.
+$SaPasswordPlain                = if ($SaPassword)                { [System.Net.NetworkCredential]::new('', $SaPassword).Password } else { $null }
+$PostgresAppPasswordPlain       = if ($PostgresAppPassword)       { [System.Net.NetworkCredential]::new('', $PostgresAppPassword).Password } else { $null }
+$PostgresSuperuserPasswordPlain = if ($PostgresSuperuserPassword) { [System.Net.NetworkCredential]::new('', $PostgresSuperuserPassword).Password } else { $null }
+
 # Yopass: -SetupYopassDocker (stand one up) and -YopassUrl (use an existing one)
 # are two ways to set the same YOPASS_URL, so they can't both be given.
 if ($SetupYopassDocker -and $YopassUrl) {
@@ -284,8 +294,8 @@ $EffectiveYopassUrl = if ($SetupYopassDocker) { "http://localhost:$YopassPort" }
 # register yourself. Fill per-provider defaults and validate required values.
 $idpIsKeycloak = ($IdpProvider -eq 'keycloak')
 if ($idpIsKeycloak) {
-    if (-not $KeycloakAdminPassword) { throw "-KeycloakAdminPassword is required when -IdpProvider is 'keycloak'." }
-    if (-not $TestUserPassword)      { throw "-TestUserPassword is required when -IdpProvider is 'keycloak'." }
+    if (-not $KeycloakAdminPassword) { $KeycloakAdminPassword = Read-Host -AsSecureString "Keycloak master-realm admin password" }
+    if (-not $TestUserPassword)      { $TestUserPassword = Read-Host -AsSecureString "Keycloak test user password" }
     if (-not $OidcIssuer)        { $OidcIssuer = "http://localhost:8080/realms/edfi" }
     if (-not $OidcClientId)      { $OidcClientId = "edfiadminapp" }
     if (-not $ViteIdpAccountUrl) { $ViteIdpAccountUrl = "http://localhost:8080/realms/edfi/account/" }
@@ -384,14 +394,31 @@ if (-not $SkipPhase1) {
 # DB_SECRET_VALUE postgres defaults in production.js-edfi and the args
 # passed to install-all.
 POSTGRES_USER=postgres
-POSTGRES_PASSWORD=$PostgresSuperuserPassword
+POSTGRES_PASSWORD=$PostgresSuperuserPasswordPlain
 ADMIN_APP_DB_NAME=$DatabaseName
 ADMIN_APP_DB_USER=$PostgresAppUser
-ADMIN_APP_DB_PASSWORD=$PostgresAppPassword
+ADMIN_APP_DB_PASSWORD=$PostgresAppPasswordPlain
 POSTGRES_PORT_EXPOSED=$PostgresPort
 "@
             Set-Content -Path $envPath -Value $envBody -Encoding UTF8
             Write-Host "Wrote $envPath"
+
+            # The .env holds the Postgres passwords in plaintext -- it's the
+            # mechanism docker-compose reads them from, so the file has to exist,
+            # but restrict it to Administrators + SYSTEM (well-known SIDs) so it
+            # isn't world-readable. docker compose runs elevated and can still
+            # read it. Warn rather than abort on failure.
+            try {
+                $envAcl = New-Object System.Security.AccessControl.FileSecurity
+                $envAcl.SetAccessRuleProtection($true, $false)
+                foreach ($sid in 'S-1-5-32-544', 'S-1-5-18') {
+                    $envId = New-Object System.Security.Principal.SecurityIdentifier($sid)
+                    $envAcl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($envId, 'FullControl', 'Allow')))
+                }
+                Set-Acl -Path $envPath -AclObject $envAcl
+            } catch {
+                Write-Warning "Could not restrict the ACL on $envPath ($($_.Exception.Message)). It holds the Postgres passwords -- protect it manually."
+            }
 
             Push-Location $dockerDir
             try {
@@ -421,13 +448,21 @@ POSTGRES_PORT_EXPOSED=$PostgresPort
                 # future objects in public, run as the postgres superuser.
                 Write-Host "Synchronizing $PostgresAppUser password + privileges (idempotent)..."
                 $syncSql = @"
-ALTER USER "$PostgresAppUser" WITH PASSWORD '$PostgresAppPassword';
+ALTER USER "$PostgresAppUser" WITH PASSWORD '$PostgresAppPasswordPlain';
 GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$PostgresAppUser";
 GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$PostgresAppUser";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "$PostgresAppUser";
 ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAppUser";
 "@
-                $syncSql | & docker exec -i -e "PGPASSWORD=$PostgresSuperuserPassword" edfiadminapp-postgres psql -U postgres -d $DatabaseName 2>&1 | Out-Null
+                # Pass the password through the environment, never on the command
+                # line: `docker exec -e PGPASSWORD` (no value) forwards it from
+                # this process, so the secret stays out of the docker argv.
+                $env:PGPASSWORD = $PostgresSuperuserPasswordPlain
+                try {
+                    $syncSql | & docker exec -i -e PGPASSWORD edfiadminapp-postgres psql -U postgres -d $DatabaseName 2>&1 | Out-Null
+                } finally {
+                    Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+                }
                 if ($LASTEXITCODE -ne 0) {
                     throw "Failed to sync $PostgresAppUser credentials/privileges (psql exit $LASTEXITCODE). Check that -PostgresSuperuserPassword matches the superuser password the docker container was first initialized with."
                 }
@@ -588,7 +623,10 @@ if ($apiOk) {
         $ErrorActionPreference = 'Continue'
         try {
             if ($DbEngine -eq 'mssql') {
-                & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q "SET NOCOUNT ON; SELECT TOP 1 1 FROM [user];" 2>&1 | Out-Null
+                # SQLCMDPASSWORD instead of -P keeps the password off the sqlcmd
+                # process command line; cleared in the finally below.
+                $env:SQLCMDPASSWORD = $SaPasswordPlain
+                & sqlcmd -S "tcp:localhost,1433" -U sa -d $DatabaseName -Q "SET NOCOUNT ON; SELECT TOP 1 1 FROM [user];" 2>&1 | Out-Null
             } else {
                 # Probe via the container's psql (postgres-only -- avoids
                 # requiring psql.exe on the host) when docker is in play;
@@ -597,10 +635,12 @@ if ($apiOk) {
                 # native-arg passing eats the double quotes around "user" (a
                 # reserved word in postgres that has to stay quoted).
                 $probeSql = 'SELECT 1 FROM "user" LIMIT 1;'
+                # Pass the password through the environment (both branches read
+                # it), never on the docker/psql command line; cleared in finally.
+                $env:PGPASSWORD = $PostgresAppPasswordPlain
                 if ($UsePostgresDocker) {
-                    $probeSql | & docker exec -i -e "PGPASSWORD=$PostgresAppPassword" edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 2>&1 | Out-Null
+                    $probeSql | & docker exec -i -e PGPASSWORD edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 2>&1 | Out-Null
                 } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
-                    $env:PGPASSWORD = $PostgresAppPassword
                     $probeSql | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName 2>&1 | Out-Null
                 } else {
                     # No way to probe -- assume ready and fall through to the upsert,
@@ -610,6 +650,8 @@ if ($apiOk) {
             }
         } finally {
             $ErrorActionPreference = $prev
+            Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+            Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue
         }
         if ($LASTEXITCODE -eq 0) { $userTableReady = $true; break }
         Start-Sleep -Seconds 2
@@ -633,8 +675,13 @@ IF NOT EXISTS (SELECT 1 FROM [user] WHERE username = '$AdminUsername')
 UPDATE [user] SET roleId = 2, isActive = 1
     WHERE username = '$AdminUsername' AND (roleId IS NULL OR isActive = 0);
 "@
-        & sqlcmd -S "tcp:localhost,1433" -U sa -P $SaPassword -d $DatabaseName -Q $upsertQuery 1>$null 2>$null
-        $upsertExit = $LASTEXITCODE
+        $env:SQLCMDPASSWORD = $SaPasswordPlain
+        try {
+            & sqlcmd -S "tcp:localhost,1433" -U sa -d $DatabaseName -Q $upsertQuery 1>$null 2>$null
+            $upsertExit = $LASTEXITCODE
+        } finally {
+            Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue
+        }
     } else {
         # Postgres equivalent. The "user" identifier is a reserved word, so it
         # has to stay quoted; the column names "roleId"/"isActive" are
@@ -650,16 +697,22 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
         # inner double quotes around "user" / "roleId" / "isActive" when they
         # ride along on `-c`, which makes psql see `user` (a reserved word)
         # and fail with a syntax error.
-        if ($UsePostgresDocker) {
-            $upsertQuery | & docker exec -i -e "PGPASSWORD=$PostgresAppPassword" edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
-            $upsertExit = $LASTEXITCODE
-        } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
-            $env:PGPASSWORD = $PostgresAppPassword
-            $upsertQuery | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
-            $upsertExit = $LASTEXITCODE
-        } else {
-            Write-Host "No psql available (and -UsePostgresDocker not set). Skipping admin-user upsert -- run it manually if login loops." -ForegroundColor Yellow
-            $upsertExit = -1
+        # Pass the password through the environment (both branches read it),
+        # never on the docker/psql command line; cleared in the finally.
+        $env:PGPASSWORD = $PostgresAppPasswordPlain
+        try {
+            if ($UsePostgresDocker) {
+                $upsertQuery | & docker exec -i -e PGPASSWORD edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
+                $upsertExit = $LASTEXITCODE
+            } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
+                $upsertQuery | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName 1>$null 2>$null
+                $upsertExit = $LASTEXITCODE
+            } else {
+                Write-Host "No psql available (and -UsePostgresDocker not set). Skipping admin-user upsert -- run it manually if login loops." -ForegroundColor Yellow
+                $upsertExit = -1
+            }
+        } finally {
+            Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
         }
     }
     if ($upsertExit -eq 0) {
@@ -688,9 +741,9 @@ if ($DbEngine -eq 'mssql') {
 SQL Server
   Server:             (local) / tcp:localhost,1433
   App login:          $AppDbUsername (db_owner on $DatabaseName, non-sysadmin -- the API connects as this)
-  App password:       $AppDbPassword
+  App password:       (the value you supplied via -AppDbPassword)
   Bootstrap login:    sa (server setup only; not used by the app)
-  sa password:        $SaPassword
+  sa password:        (the value you supplied via -SaPassword)
   Database:           $DatabaseName
 "@
 } else {
@@ -698,7 +751,7 @@ SQL Server
 @"
 
   Container:          edfiadminapp-postgres (docker compose at $scriptDir\docker)
-  Superuser password: $PostgresSuperuserPassword
+  Superuser password: (the value you supplied via -PostgresSuperuserPassword)
 "@
     } else { "" }
     $dbSummary = @"
@@ -706,7 +759,7 @@ PostgreSQL
   Host:               ${PostgresHost}:${PostgresPort}
   Database:           $DatabaseName
   App user:           $PostgresAppUser
-  App password:       $PostgresAppPassword$dockerLines
+  App password:       (the value you supplied via -PostgresAppPassword)$dockerLines
 "@
 }
 
@@ -737,15 +790,15 @@ Yopass (one-time credential links)
 # Identity-provider section of the summary + the sign-in password line, both
 # depend on the mode (Keycloak vs external).
 if ($idpIsKeycloak) {
-    $signInPassword = $TestUserPassword
+    $signInPassword = "(the value you supplied via -TestUserPassword)"
     $idpSummary = @"
 Keycloak (Identity Provider)
   Admin console:      http://localhost:8080/admin/
   Sign in with:
     Username:         admin
-    Password:         $KeycloakAdminPassword
+    Password:         (the value you supplied via -KeycloakAdminPassword)
   edfi realm:         http://localhost:8080/realms/edfi/
-  Client secret:      $OidcClientSecret
+  Client secret:      (the value you supplied via -OidcClientSecret)
 "@
 } else {
     $signInPassword = "(managed by your $IdpProvider account)"
@@ -759,6 +812,9 @@ Identity Provider (external: $IdpProvider)
 "@
 }
 
+# The encryption key is generated by the installer (the user never supplied it),
+# so it must be persisted for backup. It is the one secret kept in the summary
+# FILE -- which is ACL-locked below -- but redacted from the console copy.
 $encryptionSummary = @"
 
 Data encryption key (aes-256-cbc, ODS/API environment secrets)
@@ -789,16 +845,42 @@ $encryptionSummary
 Notes
   - Local dev runs over HTTP (no TLS). The FE and API are served from standalone
     IIS sites on ports 4200 and 3333.
-  - This file contains passwords in plaintext. Delete or protect it for non-dev use.
+  - User-supplied secrets are NOT stored here -- re-enter the values you passed.
+  - This file's ACL is restricted to Administrators and SYSTEM because it holds the
+    generated data-encryption key. Back the key up securely, then you may delete this file.
 "@
 
-# Print to console and persist alongside the source tree (one level above the
-# scripts folder by default) so the user can recover values later. Lives
-# outside the scripts folder because it's an install artifact, not a script.
-Write-Host $summary -ForegroundColor Green
+# Persist alongside the source tree (one level above the scripts folder by
+# default) so the user can recover the generated key later. Lives outside the
+# scripts folder because it's an install artifact, not a script. The console copy
+# redacts the generated key (the file is the ACL-protected place it lives).
+$summaryConsole = $summary.Replace($DbEncryptionKey, "(written to the protected install-summary.txt -- Administrators only)")
+Write-Host $summaryConsole -ForegroundColor Green
 $summaryDir = Split-Path $SourcePath -Parent   # e.g., C:\Ed-Fi
 if (-not (Test-Path $summaryDir)) { New-Item -ItemType Directory -Path $summaryDir -Force | Out-Null }
 $summaryPath = Join-Path $summaryDir "install-summary.txt"
 Set-Content -Path $summaryPath -Value $summary -Encoding UTF8
+
+# The summary holds the generated encryption key; C:\Ed-Fi is otherwise
+# world-readable. Restrict the file to Administrators + SYSTEM (well-known SIDs,
+# so this is locale-independent) and drop inherited access. The install is already
+# complete here, so an ACL failure warns rather than aborting the whole run.
+try {
+    $acl = New-Object System.Security.AccessControl.FileSecurity
+    $acl.SetAccessRuleProtection($true, $false)
+    foreach ($sid in 'S-1-5-32-544', 'S-1-5-18') {
+        $identity = New-Object System.Security.Principal.SecurityIdentifier($sid)
+        $acl.AddAccessRule((New-Object System.Security.AccessControl.FileSystemAccessRule($identity, 'FullControl', 'Allow')))
+    }
+    Set-Acl -Path $summaryPath -AclObject $acl
+    $summaryAccess = "Administrators-only"
+} catch {
+    Write-Warning "Could not restrict the ACL on $summaryPath ($($_.Exception.Message)). It holds the encryption key -- protect or delete it manually."
+    $summaryAccess = "WARNING: ACL not restricted -- protect it manually"
+}
+
 Write-Host ""
-Write-Host "Saved to: $summaryPath" -ForegroundColor Cyan
+Write-Host "Saved to: $summaryPath ($summaryAccess)" -ForegroundColor Cyan
+if ($summaryAccess -eq "Administrators-only") {
+    Write-Host "  Open it from an ELEVATED editor to read the encryption key (a non-elevated session is denied by UAC)." -ForegroundColor DarkGray
+}

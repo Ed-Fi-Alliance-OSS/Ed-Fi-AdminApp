@@ -79,7 +79,7 @@ param(
     [string]$AdminUser = "admin",
 
     [Parameter(Mandatory = $true)]
-    [string]$AdminPassword,
+    [SecureString]$AdminPassword,
 
     [string]$KeycloakBaseUrl = "http://localhost:8080",
     [int]$ReadyTimeoutSeconds = 120,
@@ -89,7 +89,7 @@ param(
     [string]$ClientId = "edfiadminapp",
 
     [Parameter(Mandatory = $true)]
-    [string]$ClientSecret,
+    [SecureString]$ClientSecret,
 
     # Defaults match the standalone HTTP sites (FE on 4200, API on 3333). The
     # client's redirect and web-origin URIs are built from these.
@@ -100,7 +100,7 @@ param(
     [string]$TestUserLastName  = "User",
 
     [Parameter(Mandatory = $true)]
-    [string]$TestUserPassword,
+    [SecureString]$TestUserPassword,
 
     # Realm display + session settings (Ed-Fi docs defaults). Tune per env if
     # needed. Offline session max requires offlineSessionMaxLifespanEnabled.
@@ -118,6 +118,16 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Secrets arrive as SecureString (kept off the command line); unwrap to plaintext
+# locals for the Keycloak admin REST calls and client/user provisioning.
+# AdminPassword stays a SecureString because it is delegated on to
+# idp-keycloak-start.ps1 (also SecureString); only the local REST body uses the
+# unwrapped copy.
+$AdminPasswordPlain = [System.Net.NetworkCredential]::new('', $AdminPassword).Password
+$ClientSecretPlain     = [System.Net.NetworkCredential]::new('', $ClientSecret).Password
+$TestUserPasswordPlain = [System.Net.NetworkCredential]::new('', $TestUserPassword).Password
+
 # JDK -- Keycloak 26 officially requires Java 17 or 21. Behavior in order:
 #   1. If `java` >=17 is already on PATH, USE IT. Skip the OpenJDK 21 install
 #      and the PATH/JAVA_HOME overrides -- respects users who keep a newer JDK
@@ -298,7 +308,7 @@ try {
     $tokenResp = Invoke-RestMethod -Uri "$KeycloakBaseUrl/realms/master/protocol/openid-connect/token" `
         -Method Post `
         -ContentType "application/x-www-form-urlencoded" `
-        -Body "grant_type=password&client_id=admin-cli&username=$AdminUser&password=$AdminPassword" `
+        -Body "grant_type=password&client_id=admin-cli&username=$AdminUser&password=$AdminPasswordPlain" `
         -ErrorAction Stop
 } catch {
     # Untyped catch -- PS 5.1's Invoke-RestMethod wraps HTTP errors variably
@@ -410,7 +420,7 @@ $dagJson = if ($EnableDirectAccessGrants) { 'true' } else { 'false' }
 $clientPayloadJson = @"
 {
   "clientId": "$ClientId",
-  "secret": "$ClientSecret",
+  "secret": "$ClientSecretPlain",
   "rootUrl": "$fe/",
   "baseUrl": "",
   "adminUrl": "$fe",
@@ -541,7 +551,7 @@ $passwordWorks = $false
 $dagEnabled = $EnableDirectAccessGrants.IsPresent -or ($clients.Count -gt 0 -and $clients[0].directAccessGrantsEnabled)
 if ($dagEnabled) {
     try {
-        $body = "grant_type=password&client_id=$ClientId&client_secret=$ClientSecret&username=$TestUserEmail&password=$TestUserPassword&scope=openid"
+        $body = "grant_type=password&client_id=$ClientId&client_secret=$ClientSecretPlain&username=$TestUserEmail&password=$TestUserPasswordPlain&scope=openid"
         $probe = Invoke-RestMethod -Uri "$KeycloakBaseUrl/realms/$RealmName/protocol/openid-connect/token" `
             -Method Post -ContentType "application/x-www-form-urlencoded" -Body $body -TimeoutSec 5 -ErrorAction Stop
         if ($probe.access_token) { $passwordWorks = $true }
@@ -553,7 +563,7 @@ if ($dagEnabled) {
 if ($passwordWorks) {
     Write-Host "Password for '$TestUserEmail' already works — skipping reset."
 } else {
-    $pwBody = @{ type = "password"; value = $TestUserPassword; temporary = $false }
+    $pwBody = @{ type = "password"; value = $TestUserPasswordPlain; temporary = $false }
     Invoke-KcApi -Method Put -Path "/realms/$RealmName/users/$userId/reset-password" -Body $pwBody
     Write-Host "Password set for '$TestUserEmail'."
 }

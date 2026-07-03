@@ -87,7 +87,7 @@ param(
     # when -DbEngine is 'mssql'. This is the dedicated least-privilege login
     # provisioned by 02-prereqs-sql.ps1 (db_owner on the app DB, not sa).
     [string]$AppDbUsername = "edfi_adminapp",
-    [string]$AppDbPassword,
+    [SecureString]$AppDbPassword,
 
     [string]$DatabaseName = "sbaa",
 
@@ -97,7 +97,7 @@ param(
     [string]$PgDbHost = "localhost",
     [int]$PgDbPort = 5432,
     [string]$PgDbUsername = "edfiadminapp",
-    [string]$PgDbPassword,
+    [SecureString]$PgDbPassword,
 
     # OIDC settings written into production.js. Defaults are the local-Keycloak
     # example; override for any other provider (Entra, Google, Auth0, ...).
@@ -105,7 +105,7 @@ param(
     [string]$OidcClientId = "edfiadminapp",
 
     [Parameter(Mandatory = $true)]
-    [string]$OidcClientSecret,
+    [SecureString]$OidcClientSecret,
 
     [string]$OidcScope = "openid email profile",
 
@@ -151,6 +151,16 @@ if ($DbEngine -eq 'mssql' -and -not $AppDbPassword) {
 if ($DbEngine -eq 'pgsql' -and -not $PgDbPassword) {
     throw "-PgDbPassword is required when -DbEngine is 'pgsql'."
 }
+
+# Secrets arrive as SecureString (kept off the command line); unwrap the ones
+# supplied to plaintext locals for sqlcmd -P and the production.js patch.
+# Point-of-use plaintext is unavoidable. DbEncryptionKey stays a plain string:
+# it's generated/reused internally, not a caller-supplied credential.
+# Use new locals -- assigning back to the [SecureString]-typed parameters would
+# re-trigger their type conversion and fail.
+$AppDbPasswordPlain    = if ($AppDbPassword)    { [System.Net.NetworkCredential]::new('', $AppDbPassword).Password } else { $null }
+$PgDbPasswordPlain     = if ($PgDbPassword)     { [System.Net.NetworkCredential]::new('', $PgDbPassword).Password } else { $null }
+$OidcClientSecretPlain = if ($OidcClientSecret) { [System.Net.NetworkCredential]::new('', $OidcClientSecret).Password } else { $null }
 
 $apiBuildDir = "$SourcePath\dist\packages\api"
 if (-not (Test-Path "$apiBuildDir\main.js")) {
@@ -317,12 +327,17 @@ if (-not $DbEncryptionKey) {
 # treated as "no data at risk".
 if ($freshKeyGenerated -and $DbEngine -eq 'mssql' -and -not $ForceKeyRotation) {
     $envCount = 0
+    # Pass the password via SQLCMDPASSWORD instead of -P so it stays off the
+    # sqlcmd process command line; cleared in the finally.
+    $env:SQLCMDPASSWORD = $AppDbPasswordPlain
     try {
-        $out = & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -P $AppDbPassword -d $DatabaseName -C -h -1 -W -t 10 `
+        $out = & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -d $DatabaseName -C -h -1 -W -t 10 `
             -Q "SET NOCOUNT ON; IF OBJECT_ID('sb_environment','U') IS NOT NULL SELECT COUNT(*) FROM sb_environment ELSE SELECT 0;" 2>$null
         if ($LASTEXITCODE -eq 0 -and $out) { $envCount = [int]("$($out | Select-Object -First 1)").Trim() }
     } catch {
         Write-Warning "Could not verify existing encrypted environments before deploying a new key: $($_.Exception.Message)"
+    } finally {
+        Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue
     }
     if ($envCount -gt 0) {
         throw @"
@@ -360,7 +375,7 @@ if (Test-Path $prodJs) {
     if ($DbEngine -eq 'mssql') {
         # JS-escape single quotes in the app credentials
         $jsUser = $AppDbUsername.Replace("'", "\'")
-        $jsPw = $AppDbPassword.Replace("'", "\'")
+        $jsPw = $AppDbPasswordPlain.Replace("'", "\'")
         $c = $c.Replace("DB_ENGINE: 'pgsql',",                                  "DB_ENGINE: 'mssql',")
         $c = $c.Replace("DB_TRUST_CERTIFICATE: false,",                         "DB_TRUST_CERTIFICATE: true,")
         $c = $c.Replace("MSSQL_DB_HOST: 'edfiadminapp-mssql',",                 "MSSQL_DB_HOST: 'localhost',")
@@ -371,7 +386,7 @@ if (Test-Path $prodJs) {
         # pgsql: leave DB_ENGINE alone (template already says 'pgsql'), turn
         # off DB_SSL for the docker self-signed cert, patch the postgres
         # defaults inside DB_SECRET_VALUE.
-        $jsPgPw = $PgDbPassword.Replace("'", "\'")
+        $jsPgPw = $PgDbPasswordPlain.Replace("'", "\'")
         $c = $c.Replace("DB_SSL: true,",                                        "DB_SSL: false,")
         $c = $c.Replace("DB_HOST: 'edfiadminapp-postgres',",                    "DB_HOST: '$PgDbHost',")
         $c = $c.Replace("DB_PORT: 5432,",                                       "DB_PORT: $PgDbPort,")
@@ -387,8 +402,8 @@ if (Test-Path $prodJs) {
     $c = $c.Replace("ISSUER: 'https://localhost/auth/realms/edfi',",        "ISSUER: '$OidcIssuer',")
     $c = $c.Replace("clientId: 'edfiadminapp',",                            "clientId: '$OidcClientId',")
     $c = $c.Replace("CLIENT_ID: 'edfiadminapp',",                           "CLIENT_ID: '$OidcClientId',")
-    $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$OidcClientSecret',")
-    $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$OidcClientSecret',")
+    $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$OidcClientSecretPlain',")
+    $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$OidcClientSecretPlain',")
     $c = $c.Replace("scope: '',",                                           "scope: '$OidcScope',")
     $c = $c.Replace("ADMIN_USERNAME: 'admin@example.com',",                 "ADMIN_USERNAME: '$AdminUsername',")
 

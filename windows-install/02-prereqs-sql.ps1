@@ -41,10 +41,10 @@ Default: sbaa (the name the Admin App expects out of the box).
 
 param(
     [Parameter(Mandatory = $true)]
-    [string]$SaPassword,
+    [SecureString]$SaPassword,
 
     [Parameter(Mandatory = $true)]
-    [string]$AppDbPassword,
+    [SecureString]$AppDbPassword,
 
     [string]$AppDbUsername = "edfi_adminapp",
     [string]$InstanceName = "MSSQLSERVER",
@@ -52,6 +52,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Secrets arrive as SecureString (kept off the command line); unwrap to plaintext
+# locals for SQLCMDPASSWORD and the inline T-SQL. Point-of-use plaintext is
+# unavoidable. Use new locals -- assigning back to the [SecureString]-typed
+# parameters would re-trigger their type conversion and fail.
+$SaPasswordPlain    = [System.Net.NetworkCredential]::new('', $SaPassword).Password
+$AppDbPasswordPlain = [System.Net.NetworkCredential]::new('', $AppDbPassword).Password
 
 # Find the SQL Server version-specific registry key
 $verKey = Get-ChildItem "HKLM:\SOFTWARE\Microsoft\Microsoft SQL Server" -ErrorAction SilentlyContinue |
@@ -124,13 +131,21 @@ if ($registryChanged) {
 # Every call gets a query timeout (-t) so we never hang on a partially-up
 # server.
 function Invoke-Sqlcmd-Quiet {
-    param([string[]]$SqlArgs)
+    param(
+        [string[]]$SqlArgs,
+        [string]$Password
+    )
     $prev = $ErrorActionPreference
     $ErrorActionPreference = 'Continue'
+    # Pass the password via SQLCMDPASSWORD instead of -P so it never lands on the
+    # sqlcmd process command line (visible in the process list); cleared right
+    # after the call. Windows-auth (-E) callers pass no -Password.
+    if ($Password) { $env:SQLCMDPASSWORD = $Password }
     try {
         & sqlcmd @SqlArgs -t 10 2>&1 | Out-Null
     } finally {
         $ErrorActionPreference = $prev
+        if ($Password) { Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue }
     }
     return $LASTEXITCODE
 }
@@ -152,14 +167,14 @@ Write-Host "SQL Server is responding."
 
 # Enable sa, set password -- only ALTER LOGIN if current password doesn't work
 Write-Host "Checking sa login..."
-$ec = Invoke-Sqlcmd-Quiet @("-S", "tcp:localhost,1433", "-U", "sa", "-P", $SaPassword, "-Q", "SELECT 1", "-l", "3")
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", "sa", "-Q", "SELECT 1", "-l", "3") -Password $SaPasswordPlain
 $saLoginWorks = ($ec -eq 0)
 
 if ($saLoginWorks) {
     Write-Host "sa login already accepts the provided password -- skipping ALTER LOGIN."
 } else {
     Write-Host "sa login doesn't accept the password -- running ALTER LOGIN..."
-    $escapedPw = $SaPassword -replace "'", "''"
+    $escapedPw = $SaPasswordPlain -replace "'", "''"
     $saQuery = "ALTER LOGIN sa WITH PASSWORD = '$escapedPw', CHECK_POLICY = OFF; ALTER LOGIN sa ENABLE;"
     $ec = Invoke-Sqlcmd-Quiet @("-S", "(local)", "-E", "-Q", $saQuery)
     if ($ec -ne 0) {
@@ -173,7 +188,7 @@ if (-not $listener) {
     throw "No listener on TCP 1433 after restart. Check Windows Firewall."
 }
 
-$ec = Invoke-Sqlcmd-Quiet @("-S", "tcp:localhost,1433", "-U", "sa", "-P", $SaPassword, "-Q", "SELECT @@VERSION")
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", "sa", "-Q", "SELECT @@VERSION") -Password $SaPasswordPlain
 if ($ec -ne 0) {
     throw "SQL Auth over TCP failed (sqlcmd exit code $ec)."
 }
@@ -181,7 +196,7 @@ if ($ec -ne 0) {
 # Create the Admin App database if it doesn't already exist
 Write-Host "Ensuring database '$DatabaseName' exists..."
 $dbQuery = "IF NOT EXISTS (SELECT 1 FROM sys.databases WHERE name = N'$DatabaseName') CREATE DATABASE [$DatabaseName];"
-$ec = Invoke-Sqlcmd-Quiet @("-S", "tcp:localhost,1433", "-U", "sa", "-P", $SaPassword, "-Q", $dbQuery)
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", "sa", "-Q", $dbQuery) -Password $SaPasswordPlain
 if ($ec -ne 0) {
     throw "Failed to create/verify database '$DatabaseName' (sqlcmd exit code $ec)."
 }
@@ -198,7 +213,7 @@ Write-Host "Database '$DatabaseName' is present."
 # escaped to keep a ']' in a custom name from breaking the batch.
 Write-Host "Provisioning the Admin App login '$AppDbUsername'..."
 $safeUser = $AppDbUsername -replace ']', ']]'
-$escapedAppPw = $AppDbPassword -replace "'", "''"
+$escapedAppPw = $AppDbPasswordPlain -replace "'", "''"
 $provisionQuery = @"
 IF NOT EXISTS (SELECT 1 FROM sys.server_principals WHERE name = N'$AppDbUsername')
     CREATE LOGIN [$safeUser] WITH PASSWORD = N'$escapedAppPw', CHECK_POLICY = ON;
@@ -216,7 +231,7 @@ if ($ec -ne 0) {
 }
 
 # Verify the app login can connect over TCP with SQL Auth (how the app connects).
-$ec = Invoke-Sqlcmd-Quiet @("-S", "tcp:localhost,1433", "-U", $AppDbUsername, "-P", $AppDbPassword, "-d", $DatabaseName, "-Q", "SELECT 1")
+$ec = Invoke-Sqlcmd-Quiet -SqlArgs @("-S", "tcp:localhost,1433", "-U", $AppDbUsername, "-d", $DatabaseName, "-Q", "SELECT 1") -Password $AppDbPasswordPlain
 if ($ec -ne 0) {
     throw "The Admin App login '$AppDbUsername' could not connect over TCP to '$DatabaseName' (sqlcmd exit code $ec)."
 }

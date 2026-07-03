@@ -96,7 +96,7 @@ Switch — skip the confirmation prompt.
 
 param(
     [string]$DatabaseName = "sbaa",
-    [string]$SaPassword,
+    [SecureString]$SaPassword,
     [string]$KeycloakInstallPath = "C:\keycloak",
     [string]$NpmCachePath = "C:\npm-cache",
     [string]$AppPoolName = "EdFi-AdminApp-API",
@@ -116,6 +116,12 @@ param(
 # Don't bail on the first non-terminating error -- this is a teardown, we want
 # to push through and report at the end.
 $ErrorActionPreference = 'Continue'
+
+# -SaPassword is optional: omit it to drop the database via Windows Auth. When
+# given it arrives as SecureString (kept off the command line); unwrap to a new
+# local (assigning back to the [SecureString]-typed parameter would re-trigger
+# its type conversion and fail).
+$SaPasswordPlain = if ($SaPassword) { [System.Net.NetworkCredential]::new('', $SaPassword).Password } else { $null }
 
 $results = [System.Collections.Generic.List[object]]::new()
 function Record {
@@ -304,21 +310,26 @@ BEGIN
     DROP DATABASE [$DatabaseName];
 END
 "@
-        $authArgs = if ($SaPassword) {
-            @("-S", "tcp:localhost,1433", "-U", "sa", "-P", $SaPassword)
+        # SQLCMDPASSWORD instead of -P keeps the password off the sqlcmd process
+        # command line; cleared in the finally.
+        $authArgs = if ($SaPasswordPlain) {
+            @("-S", "tcp:localhost,1433", "-U", "sa")
         } else {
             @("-S", "(local)", "-E")
         }
+        if ($SaPasswordPlain) { $env:SQLCMDPASSWORD = $SaPasswordPlain }
         try {
             & sqlcmd @authArgs -Q $dropQuery -t 30 2>&1 | Out-Null
             if ($LASTEXITCODE -eq 0) {
-                $authMode = if ($SaPassword) { "SQL Auth" } else { "Windows Auth" }
+                $authMode = if ($SaPasswordPlain) { "SQL Auth" } else { "Windows Auth" }
                 Record "Drop database [$DatabaseName] (mssql)" "OK" $authMode
             } else {
                 Record "Drop database [$DatabaseName] (mssql)" "FAIL" "sqlcmd exit $LASTEXITCODE"
             }
         } catch {
             Record "Drop database [$DatabaseName] (mssql)" "FAIL" $_.Exception.Message
+        } finally {
+            if ($SaPasswordPlain) { Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue }
         }
     }
 
