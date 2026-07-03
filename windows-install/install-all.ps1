@@ -7,7 +7,7 @@ Runs in three phases with no manual interaction required.
 
   Phase 1 — Prereqs
     02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa
-    01-prereqs-iis.ps1        URL Rewrite + iisnode + unlock handlers (HTTP only, no TLS)
+    01-prereqs-iis.ps1        URL Rewrite + httpPlatform handler + unlock handlers (HTTP only, no TLS)
     03-prereqs-node.ps1       Node.js (the npm cache is set later, by 05-deploy-api)
 
   Phase 2 — Build
@@ -524,7 +524,7 @@ Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
 # ---------- Smoke test ----------
 Write-Phase "Smoke test: hitting the API"
 
-# iisnode lazy-starts on first request, so the first hit can be slow. Retry briefly.
+# The API (node, launched by httpPlatform) lazy-starts on first request, so the first hit can be slow. Retry briefly.
 $apiOk = $false
 for ($i = 0; $i -lt 12; $i++) {
     try {
@@ -585,7 +585,7 @@ if ($apiOk) {
         Start-Sleep -Seconds 2
     }
     if (-not $userTableReady) {
-        Write-Host "[user] table didn't appear within 30s. Migrations may have failed -- check iisnode stderr." -ForegroundColor Yellow
+        Write-Host "[user] table didn't appear within 30s. Migrations may have failed -- check the API log (logs\node-stdout.log)." -ForegroundColor Yellow
     }
 
     # Ensure the admin user exists with roleId=2. Three scenarios this handles:
@@ -640,8 +640,8 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
     }
 } else {
     Write-Host "API is NOT responding after ~60s of retries." -ForegroundColor Red
-    Write-Host "Check the iisnode logs:" -ForegroundColor Yellow
-    Write-Host "  Get-ChildItem C:\inetpub\EdFi-AdminApp-API\iisnode | Sort LastWriteTime -Desc | Select -First 2 | Get-Content -Tail 30"
+    Write-Host "Check the API stdout log:" -ForegroundColor Yellow
+    Write-Host "  Get-Content C:\inetpub\EdFi-AdminApp-API\logs\node-stdout.log -Tail 30"
     Write-Host "And the IIS app pool state:" -ForegroundColor Yellow
     Write-Host "  Get-WebAppPoolState -Name EdFi-AdminApp-API"
     Write-Host ""

@@ -227,12 +227,17 @@ if ($rewrite) {
     Write-Check INFO "URL Rewrite Module not installed" "01-prereqs-iis.ps1 will install"
 }
 
-# iisnode
-$iisnode = Test-Path "$env:ProgramFiles\iisnode\iisnode.dll"
-if ($iisnode) {
-    Write-Check PASS "iisnode"
+# httpPlatform handler (HttpBridge or Microsoft HttpPlatformHandler). Registered
+# as the global module 'httpPlatformHandler'. 01-prereqs-iis.ps1 installs it.
+$httpPlatform = $false
+try {
+    Import-Module WebAdministration -ErrorAction Stop
+    if (Get-WebGlobalModule -Name 'httpPlatformHandler' -ErrorAction SilentlyContinue) { $httpPlatform = $true }
+} catch { }
+if ($httpPlatform) {
+    Write-Check PASS "httpPlatform handler"
 } else {
-    Write-Check INFO "iisnode not installed" "01-prereqs-iis.ps1 will install"
+    Write-Check INFO "httpPlatform handler not installed" "01-prereqs-iis.ps1 will install"
 }
 
 # Node.js -- presence AND version (>= $MinNodeMajor). Both missing and too-old
@@ -395,15 +400,6 @@ foreach ($pc in $portChecks) {
     if (-not $ours) {
         $procName = (Get-Process -Id $listener.OwningProcess -ErrorAction SilentlyContinue).ProcessName
         Write-Check RISK "Port $($pc.Port) ($($pc.Role)) already in use ($procName)" "05/06-deploy will fail to bind the '$($pc.Site)' site -- free the port first"
-    }
-}
-
-# iisnode installed but at a version other than the one 01-prereqs-iis expects?
-$iisnodeReadme = "$env:ProgramFiles\iisnode\readme.txt"
-if (Test-Path $iisnodeReadme) {
-    $verMatch = Select-String -Path $iisnodeReadme -Pattern '0\.\d+\.\d+' -List -ErrorAction SilentlyContinue
-    if ($verMatch -and ($verMatch.Matches[0].Value -ne '0.2.26')) {
-        Write-Check RISK "iisnode at v$($verMatch.Matches[0].Value), not v0.2.26" "01-prereqs-iis detects iisnode by file presence and won't replace it -- pinning the documented version is recommended"
     }
 }
 

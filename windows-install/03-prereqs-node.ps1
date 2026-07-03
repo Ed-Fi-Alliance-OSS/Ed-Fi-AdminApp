@@ -16,7 +16,7 @@ Order of operations (all idempotent):
      engines.node when available.
   2. If Node is missing, install Node.js LTS via winget.
 
-The npm cache override the App Pool needs under iisnode is configured by
+The npm cache override the App Pool needs is configured by
 05-deploy-api.ps1 (scoped to the App Pool), not here.
 
 .PARAMETER SourcePath

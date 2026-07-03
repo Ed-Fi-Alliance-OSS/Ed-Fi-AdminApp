@@ -9,8 +9,8 @@ Steps (each best-effort, continues past individual failures):
 
   1. IIS teardown:
      - Remove the standalone sites 'EdFi-AdminApp-API' and 'EdFi-AdminApp-FE'.
+     - Revoke the App Pool's read+execute grant on the node directory.
      - Stop+remove App Pool 'EdFi-AdminApp-API'.
-     - Scrub a leftover global iisnode-all handler from applicationHost.config.
      - Delete the deployed dirs C:\inetpub\EdFi-AdminApp-API and
        C:\inetpub\EdFi-AdminApp-FE.
   2. Database teardown (both engines, best-effort per engine):
@@ -41,7 +41,7 @@ Use uninstall-keycloak.ps1 for that.
 
 Does NOT touch:
   - Node.js, JDK, SQL Server, IIS engine installs.
-  - URL Rewrite Module, iisnode (system-level MSIs).
+  - URL Rewrite Module, httpPlatform handler (system-level MSIs).
   - The cloned source repo (wherever this script lives — the repo root is the
     parent of windows-install\).
   - install-summary.txt next to the repo (run with -RemoveSummary to delete).
@@ -154,7 +154,7 @@ Write-Host "  - Docker Yopass stack (edfiadminapp-yopass + memcached) and its vo
 if (-not $KeepNpmCache)         { Write-Host "  - $NpmCachePath (npm cache dir)" }
 if ($RemoveSummary)             { Write-Host "  - $SummaryPath" }
 Write-Host ""
-Write-Host "Leaves alone: Node.js, JDK, SQL Server, IIS, URL Rewrite, iisnode, source repo." -ForegroundColor DarkGray
+Write-Host "Leaves alone: Node.js, JDK, SQL Server, IIS, URL Rewrite, httpPlatform handler, source repo." -ForegroundColor DarkGray
 Write-Host ""
 
 if (-not $Force) {
@@ -195,6 +195,31 @@ if ($iisAvailable) {
         }
     }
 
+    # Revoke the App Pool's read+execute grant on the node directory that
+    # 05-deploy-api.ps1 added so httpPlatform could launch node as this identity.
+    # Done before the App Pool is removed, while 'IIS APPPOOL\<pool>' still
+    # resolves. Mirrors 05's node resolution (follow the PATH node's symlink, skip
+    # a user-profile path, fall back to a machine-wide install).
+    $nodeDir = $null
+    foreach ($candidate in @((Get-Command node -ErrorAction SilentlyContinue).Source, "C:\Program Files\nodejs\node.exe")) {
+        if (-not $candidate -or -not (Test-Path $candidate)) { continue }
+        $link = (Get-Item $candidate -ErrorAction SilentlyContinue).Target
+        $real = if ($link) { @($link)[0] } else { $candidate }
+        if ($real -like "$env:SystemDrive\Users\*") { continue }
+        $nodeDir = Split-Path $real -Parent
+        break
+    }
+    if ($nodeDir -and (Test-Path $nodeDir)) {
+        try {
+            & icacls $nodeDir /remove:g "IIS APPPOOL\$AppPoolName" | Out-Null
+            Record "Revoke App Pool grant on node dir" "OK" $nodeDir
+        } catch {
+            Record "Revoke App Pool grant on node dir" "WARN" $_.Exception.Message
+        }
+    } else {
+        Record "Revoke App Pool grant on node dir" "SKIP" "node dir not resolved"
+    }
+
     # Stop + remove App Pool
     try {
         if (Test-Path "IIS:\AppPools\$AppPoolName") {
@@ -212,43 +237,42 @@ if ($iisAvailable) {
     }
 }
 
-# Scrub the global iisnode-all handler from applicationHost.config. The standard
-# iisnode MSI only registers an "iisnode" handler for *.js; "iisnode-all" with
-# path="*" is a leftover from prior install attempts or manual experimentation
-# and routes every request through node.exe, breaking sibling IIS sites.
-try {
-    $appcmdPath = "$env:SystemRoot\System32\inetsrv\appcmd.exe"
-    if (-not (Test-Path $appcmdPath)) {
-        Record "Scrub global iisnode-all handler" "SKIP" "appcmd.exe not found"
-    } else {
-        $handlerList = & $appcmdPath list config /section:handlers 2>$null
-        $hasGlobal = $handlerList -match 'name="iisnode-all"'
-        if (-not $hasGlobal) {
-            Record "Global iisnode-all handler" "SKIP" "Not present in applicationHost.config"
-        } else {
-            & $appcmdPath set config -section:system.webServer/handlers "/-[name='iisnode-all']" /commit:apphost | Out-Null
-            if ($LASTEXITCODE -eq 0) {
-                Record "Remove global iisnode-all handler" "OK" "applicationHost.config"
-            } else {
-                Record "Remove global iisnode-all handler" "FAIL" "appcmd exit $LASTEXITCODE"
+# Deployed file trees -- the two dedicated standalone-site directories.
+# httpPlatform runs node as a child process; removing the App Pool above should
+# terminate it, but it can briefly outlive the pool and keep its stdout log open,
+# which blocks the directory delete. Kill any node process whose PID is embedded
+# in this deployment's stdout log filenames (httpPlatform names them
+# node-stdout.log_<pid>_<timestamp>.log), then retry the delete a few times.
+foreach ($dir in @($ApiDestPath, $FeDestPath)) {
+    if (-not (Test-Path $dir)) {
+        Record "Delete $dir" "SKIP" "Not present"
+        continue
+    }
+    $logDir = Join-Path $dir "logs"
+    if (Test-Path $logDir) {
+        Get-ChildItem $logDir -Filter "node-stdout.log_*" -ErrorAction SilentlyContinue | ForEach-Object {
+            if ($_.Name -match 'node-stdout\.log_(\d+)_') {
+                $nodePid = [int]$Matches[1]
+                Get-Process -Id $nodePid -ErrorAction SilentlyContinue |
+                    Where-Object { $_.ProcessName -eq 'node' } |
+                    Stop-Process -Force -ErrorAction SilentlyContinue
             }
         }
     }
-} catch {
-    Record "Scrub global iisnode-all handler" "FAIL" $_.Exception.Message
-}
-
-# Deployed file trees -- the two dedicated standalone-site directories.
-foreach ($dir in @($ApiDestPath, $FeDestPath)) {
-    try {
-        if (Test-Path $dir) {
+    $deleted = $false
+    for ($attempt = 1; $attempt -le 5; $attempt++) {
+        try {
             Remove-Item -Path $dir -Recurse -Force -ErrorAction Stop
-            Record "Delete $dir" "OK"
-        } else {
-            Record "Delete $dir" "SKIP" "Not present"
+            $deleted = $true
+            break
+        } catch {
+            Start-Sleep -Seconds 2
         }
-    } catch {
-        Record "Delete $dir" "FAIL" $_.Exception.Message
+    }
+    if ($deleted) {
+        Record "Delete $dir" "OK"
+    } else {
+        Record "Delete $dir" "FAIL" "files still locked after retries (a node process may still be running)"
     }
 }
 
@@ -270,9 +294,9 @@ if ($KeepDatabase) {
         Record "Drop database [$DatabaseName] (mssql)" "SKIP" $(if (-not $msSqlRunning) { "MSSQLSERVER not running" } else { "sqlcmd not on PATH" })
     } else {
         # SET SINGLE_USER ROLLBACK IMMEDIATE forces existing connections off
-        # before the DROP. Without it the drop fails when iisnode still has a
-        # pool open (e.g., if the App Pool removal above didn't terminate the
-        # node process cleanly).
+        # before the DROP. Without it the drop fails when the API's node process
+        # (launched by httpPlatform) still has a pool open (e.g., if the App Pool
+        # removal above didn't terminate the node process cleanly).
         $dropQuery = @"
 IF EXISTS (SELECT 1 FROM sys.databases WHERE name = N'$DatabaseName')
 BEGIN

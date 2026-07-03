@@ -1,19 +1,19 @@
 ﻿#Requires -RunAsAdministrator
 <#
 .SYNOPSIS
-Deploys the Ed-Fi Admin App API to IIS under iisnode.
+Deploys the Ed-Fi Admin App API to IIS via the httpPlatform handler.
 
 .DESCRIPTION
 - Copies built API files from source to destination
 - Creates/configures the IIS App Pool (LoadUserProfile=true, no managed runtime)
 - Creates or updates the IIS application (under a parent site) or standalone site
-- Writes a known-good web.config (the three iisnode adjustments baked in)
+- Writes the httpPlatform web.config (handler + <httpPlatform> block)
 - Patches production.js with bare-metal values (DB, API/FE URLs, OIDC)
 - Sets icacls permissions for the App Pool user
 
 Run AFTER:
   - 02-prereqs-sql.ps1 (SQL ready)
-  - 01-prereqs-iis.ps1 (IIS + iisnode ready)
+  - 01-prereqs-iis.ps1 (IIS + httpPlatform handler ready)
   - 03-prereqs-node.ps1 (Node, npm cache ready)
   - `npm ci --legacy-peer-deps` and `npm run build:api` in the source repo
 
@@ -65,7 +65,7 @@ param(
     # The API deploys as a standalone HTTP site named $AppPoolName on this port.
     [int]$StandalonePort = 3333,
     # npm cache folder, granted to the App Pool identity and set as the pool's
-    # NPM_CONFIG_CACHE so npm under iisnode writes there (not the unwritable profile).
+    # NPM_CONFIG_CACHE so npm under the App Pool writes there (not the unwritable profile).
     [string]$NpmCachePath = "C:\npm-cache",
 
     # Which database engine production.js should be configured for.
@@ -142,11 +142,11 @@ if (-not (Test-Path "$apiBuildDir\main.js")) {
 #   2. Config files (production.js etc.)                from packages\api\config\
 #   3. node_modules (runtime deps)                      from repo root
 # Each piece is mirrored independently so /MIR doesn't wipe sibling content
-# (web.config, iisnode\ logs, the other source piece).
+# (web.config, logs\, the other source piece).
 New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
 
 Write-Host "Copying built API output..."
-& robocopy $apiBuildDir $DestPath /E /NFL /NDL /NJH /NJS /XF web.config /XD iisnode packages node_modules | Out-Null
+& robocopy $apiBuildDir $DestPath /E /NFL /NDL /NJH /NJS /XF web.config /XD logs packages node_modules | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "Failed to copy the built API output from $apiBuildDir to $DestPath (robocopy exit $LASTEXITCODE). Check free disk space and that the destination isn't locked by a running app pool." }
 
 Write-Host "Copying api/config..."
@@ -185,39 +185,52 @@ try {
     throw "Failed to create/update the IIS site '$AppPoolName' on port $StandalonePort. Is the port already in use by another site (check 00-check-prereqs.ps1)? Original: $($_.Exception.Message)"
 }
 
-# web.config (the version that actually works)
+# web.config -- IIS hosts Node via the httpPlatform handler (reverse proxy to a
+# loopback port IIS assigns through HTTP_PLATFORM_PORT). httpPlatform launches node
+# AS the App Pool virtual account, so node must live where that identity can execute
+# it: a machine-wide location, NOT under a user profile. nvm-windows points
+# <root>\nodejs at the active version via a symlink and can resolve into
+# C:\Users\<user>\... -- which the App Pool can't traverse, failing with Access
+# Denied / HTTP 502.5. Resolve the PATH node, follow its symlink to the real target,
+# reject a user-profile path, and fall back to a machine-wide install.
+$nodeExe = $null
+$nodeCandidates = @()
+$nodeCmd = Get-Command node -ErrorAction SilentlyContinue
+if ($nodeCmd) { $nodeCandidates += $nodeCmd.Source }
+$nodeCandidates += "C:\Program Files\nodejs\node.exe"
+foreach ($candidate in ($nodeCandidates | Where-Object { $_ } | Select-Object -Unique)) {
+    if (-not (Test-Path $candidate)) { continue }
+    $link = (Get-Item $candidate -ErrorAction SilentlyContinue).Target
+    $real = if ($link) { @($link)[0] } else { $candidate }
+    if ($real -like "$env:SystemDrive\Users\*") {
+        Write-Host "Skipping node at $real (under a user profile; the IIS App Pool can't execute it)." -ForegroundColor DarkGray
+        continue
+    }
+    $nodeExe = $real
+    break
+}
+if (-not $nodeExe) {
+    throw "No IIS-accessible node.exe found. Install Node machine-wide (e.g. winget OpenJS.NodeJS.LTS -> C:\Program Files\nodejs) so the IIS App Pool identity can execute it. Node under a user profile (an nvm-windows default) is not hostable by IIS. Re-run 03-prereqs-node.ps1 if needed."
+}
+Write-Host "httpPlatform will launch node at: $nodeExe"
+
 $webConfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <system.webServer>
-    <rewrite>
-      <rules>
-        <rule name="NodeJS" stopProcessing="true">
-          <match url=".*" />
-          <conditions logicalGrouping="MatchAll">
-            <add input="{REQUEST_FILENAME}" matchType="IsFile" negate="true" />
-          </conditions>
-          <serverVariables>
-            <set name="HTTP_X_ORIGINAL_URL" value="/{R:0}?{QUERY_STRING}" />
-          </serverVariables>
-          <action type="Rewrite" url="main.js" />
-        </rule>
-      </rules>
-    </rewrite>
-    <iisnode nodeProcessCommandLine="&quot;C:\Program Files\nodejs\node.exe&quot;" watchedFiles="web.config;*.js" loggingEnabled="true" logDirectory="iisnode" debuggingEnabled="true" devErrorsEnabled="true" node_env="production" promoteServerVars="PORT" />
-    <defaultDocument>
-      <files>
-        <clear />
-        <add value="main.js" />
-      </files>
-    </defaultDocument>
-    <httpErrors errorMode="Detailed" />
     <handlers>
-      <add name="iisnode-all" path="main.js" verb="*" modules="iisnode" resourceType="Unspecified" />
+      <add name="httpPlatformHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" />
     </handlers>
+    <httpPlatform processPath="__NODE_EXE__" arguments="main.js" stdoutLogEnabled="true" stdoutLogFile=".\logs\node-stdout.log" startupTimeLimit="60">
+      <environmentVariables>
+        <environmentVariable name="NODE_ENV" value="production" />
+      </environmentVariables>
+    </httpPlatform>
+    <httpErrors errorMode="Detailed" />
   </system.webServer>
 </configuration>
 '@
+$webConfig = $webConfig.Replace('__NODE_EXE__', $nodeExe)
 
 $webConfigPath = "$DestPath\web.config"
 $webConfigChanged = $true
@@ -285,7 +298,7 @@ if (Test-Path $prodJs) {
         $c = $c.Replace("DB_PASSWORD: 'postgres',",                             "DB_PASSWORD: '$jsPgPw',")
     }
 
-    $c = $c.Replace("API_PORT: 3333,",                                      "API_PORT: process.env.PORT || 3333,")
+    $c = $c.Replace("API_PORT: 3333,",                                      "API_PORT: process.env.HTTP_PLATFORM_PORT || 3333,")
     $c = $c.Replace("MY_URL: 'https://localhost/adminapp-api',",            "MY_URL: '$ApiUrl',")
     $c = $c.Replace("const FE_URL = 'https://localhost/adminapp';",         "const FE_URL = '$FeUrl';")
     $c = $c.Replace("issuer: 'https://localhost/auth/realms/edfi',",        "issuer: '$OidcIssuer',")
@@ -323,14 +336,21 @@ if (Test-Path $prodJs) {
 # the pool now actually exists.
 $appPoolIdentity = "IIS APPPOOL\$AppPoolName"
 & icacls "$DestPath\packages" /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
-$iisnodeDir = "$DestPath\iisnode"
-New-Item -ItemType Directory -Path $iisnodeDir -Force | Out-Null
-& icacls $iisnodeDir /grant "${appPoolIdentity}:(OI)(CI)F" /T | Out-Null
+# httpPlatform writes Node stdout to .\logs (per web.config stdoutLogFile).
+$logsDir = "$DestPath\logs"
+New-Item -ItemType Directory -Path $logsDir -Force | Out-Null
+& icacls $logsDir /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
+
+# Grant the App Pool identity read+execute on the node directory so httpPlatform can
+# launch node as that identity. Machine-wide installs (C:\Program Files\nodejs)
+# already allow Authenticated Users; this is defensive for custom node locations.
+$nodeDir = Split-Path $nodeExe -Parent
+& icacls $nodeDir /grant "${appPoolIdentity}:(OI)(CI)(RX)" | Out-Null
 
 # npm cache override, scoped to THIS App Pool (not machine-wide, so the user's
 # other npm usage is unaffected). Create the cache folder, grant the App Pool
 # identity Modify, and set NPM_CONFIG_CACHE on the pool's environment so npm
-# under iisnode writes there instead of the (unwritable) profile cache.
+# under the App Pool writes there instead of the (unwritable) profile cache.
 if (-not (Test-Path $NpmCachePath)) {
     New-Item -ItemType Directory -Path $NpmCachePath -Force | Out-Null
 }
