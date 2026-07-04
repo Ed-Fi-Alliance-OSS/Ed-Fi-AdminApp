@@ -95,6 +95,13 @@ param(
     # client's redirect and web-origin URIs are built from these.
     [string]$FeBaseUrl = "http://localhost:4200",
     [string]$ApiBaseUrl = "http://localhost:3333",
+
+    # The app builds its OIDC callback as /api/auth/callback/<oidc-row-id> from the
+    # auto-generated id of the seeded oidc row (oidc.strategy.ts). On a clean install
+    # that id is 1; install-all reads the real id back after boot and re-runs this
+    # script with -RedirectCallbackId when it differs, so the client's redirect URI
+    # matches what the app actually sends (PR #234 Functionality review, Gap B).
+    [int]$RedirectCallbackId = 1,
     [string]$TestUserEmail = "admin@example.com",
     [string]$TestUserFirstName = "Admin",
     [string]$TestUserLastName  = "User",
@@ -425,7 +432,7 @@ $clientPayloadJson = @"
   "baseUrl": "",
   "adminUrl": "$fe",
   "redirectUris": [
-    "$api/api/auth/callback/1",
+    "$api/api/auth/callback/$RedirectCallbackId",
     "$fe/auth/callback",
     "$api/api/auth/post-logout",
     "$fe/*"
@@ -448,7 +455,7 @@ if ($clients.Count -gt 0) {
     $clientUuid = $clients[0].id
     $existing = $clients[0]
     # Compare key fields; skip the PUT if nothing meaningful differs.
-    $expectedRedirect = "$api/api/auth/callback/1"
+    $expectedRedirect = "$api/api/auth/callback/$RedirectCallbackId"
     $needsUpdate = $false
     if (-not $existing.redirectUris -or ($existing.redirectUris -notcontains $expectedRedirect)) { $needsUpdate = $true }
     if (-not $existing.webOrigins -or ($existing.webOrigins -notcontains $api)) { $needsUpdate = $true }
@@ -574,7 +581,7 @@ Write-Host "  Realm:        $RealmName"
 Write-Host "  Client:       $ClientId  (secret you passed in)"
 Write-Host "  User:         $TestUserEmail"
 Write-Host "  Redirect URIs:"
-Write-Host "    $api/api/auth/callback/1"
+Write-Host "    $api/api/auth/callback/$RedirectCallbackId"
 Write-Host "    $fe/auth/callback"
 Write-Host "    $api/api/auth/post-logout"
 Write-Host "    $fe/*"

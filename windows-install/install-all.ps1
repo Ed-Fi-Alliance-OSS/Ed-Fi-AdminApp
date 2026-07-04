@@ -575,7 +575,7 @@ if ($idpIsKeycloak) {
     }
     Write-Host ""
     Write-Host "Register these in your '$IdpProvider' OIDC client before logging in:" -ForegroundColor Yellow
-    Write-Host "  Redirect URI:  http://localhost:3333/api/auth/callback/1"
+    Write-Host "  Redirect URI:  http://localhost:3333/api/auth/callback/<id>  (exact id confirmed at the end of this install)"
     Write-Host "  Post-logout:   http://localhost:3333/api/auth/post-logout"
     Write-Host "  Web origin:    http://localhost:4200"
     Write-Host "  And a user whose email/username claim equals '$AdminUsername' (seeded as admin below)."
@@ -754,6 +754,55 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
         Write-Host "Couldn't ensure admin user automatically (exit $upsertExit)." -ForegroundColor Yellow
         Write-Host "If login loops, run an INSERT into the [user] / `"user`" table manually with roleId=2 for '$AdminUsername'." -ForegroundColor Yellow
     }
+
+    # Gap B (PR #234 Functionality review): the app builds each OIDC callback as
+    # /api/auth/callback/<id> from the oidc row's auto-generated id
+    # (oidc.strategy.ts), but the scripts assumed the seeded row is always id=1.
+    # If a prior oidc row existed the new id != 1 and the registered redirect URI
+    # no longer matches what the app sends -> login fails. Read the real id of the
+    # row we manage (seeded/upserted for $OidcClientId) and use it for the redirect
+    # URI. Runs for every provider; the id is a DB-row property, not provider-specific.
+    $oidcRowId = 1
+    $oidcClientIdSql = $OidcClientId -replace "'", "''"
+    if ($DbEngine -eq 'mssql') {
+        $env:SQLCMDPASSWORD = $SaPasswordPlain
+        try {
+            $idOut = & sqlcmd -S "tcp:localhost,1433" -U sa -d $DatabaseName -h -1 -W -Q "SET NOCOUNT ON; SELECT TOP 1 id FROM [oidc] WHERE clientId = '$oidcClientIdSql';" 2>$null
+            if ($LASTEXITCODE -eq 0 -and "$idOut" -match '(\d+)') { $oidcRowId = [int]$Matches[1] }
+        } finally { Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue }
+    } else {
+        $idSql = "SELECT id FROM ""oidc"" WHERE ""clientId"" = '$oidcClientIdSql' LIMIT 1;"
+        $env:PGPASSWORD = $PostgresAppPasswordPlain
+        try {
+            if ($UsePostgresDocker) {
+                $idOut = $idSql | & docker exec -i -e PGPASSWORD edfiadminapp-postgres psql -U $PostgresAppUser -d $DatabaseName -tA 2>$null
+            } elseif (Get-Command psql -ErrorAction SilentlyContinue) {
+                $idOut = $idSql | & psql -h $PostgresHost -p $PostgresPort -U $PostgresAppUser -d $DatabaseName -tA 2>$null
+            } else {
+                $idOut = $null
+            }
+            if ($LASTEXITCODE -eq 0 -and "$idOut" -match '(\d+)') { $oidcRowId = [int]$Matches[1] }
+        } finally { Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue }
+    }
+    Write-Host "OIDC redirect callback id resolved to $oidcRowId."
+
+    if ($IdpProvider -eq 'keycloak') {
+        # Script-provisioned client: correct its redirect URI automatically. Only
+        # needed when the id != 1, since Phase 3.1 already registered the default id.
+        # Re-running idp-keycloak-setup is idempotent -- only the client's
+        # redirectUris change; realm/user/mappers are no-ops.
+        if ($oidcRowId -ne 1) {
+            Write-Host "Reconciling the Keycloak client redirect URI to callback/$oidcRowId..."
+            $kcArgs.RedirectCallbackId = $oidcRowId
+            & "$scriptDir\idp-keycloak-setup.ps1" @kcArgs
+        }
+    } else {
+        # Entra/Google/other: no script can provision the provider's client, so
+        # surface the exact redirect URI the app will send for manual registration.
+        Write-Host ""
+        Write-Host "IMPORTANT -- register this EXACT redirect URI in your $IdpProvider client before logging in:" -ForegroundColor Yellow
+        Write-Host "  http://localhost:3333/api/auth/callback/$oidcRowId"
+    }
 } else {
     Write-Host "API is NOT responding after ~60s of retries." -ForegroundColor Red
     Write-Host "Check the API stdout log:" -ForegroundColor Yellow
@@ -840,7 +889,7 @@ Identity Provider (external: $IdpProvider)
   Issuer:             $OidcIssuer
   Client ID:          $OidcClientId
   Account URL:        $ViteIdpAccountUrl
-  Register in your IdP: redirect http://localhost:3333/api/auth/callback/1, origin http://localhost:4200
+  Register in your IdP: redirect http://localhost:3333/api/auth/callback/$oidcRowId, origin http://localhost:4200
   Sign in as the IdP user whose email/username = $AdminUsername
 "@
 }
