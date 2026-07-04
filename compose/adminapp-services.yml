@@ -36,14 +36,14 @@ services:
       - |
         cp /opt/keycloak/healthcheck.sh /tmp/healthcheck.sh && \
         chmod +x /tmp/healthcheck.sh && \
-        mkdir -p /opt/keycloak/data/import && \
         sed \
           -e "s|{{BASE_URL}}|${BASE_URL}|g" \
           -e "s|{{BASE_URL_DEV}}|${BASE_URL_DEV}|g" \
           -e "s|{{KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}}|${KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET}|g" \
           -e "s|{{KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}}|${KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET}|g" \
-          /tmp/realm-config.tmpl > /opt/keycloak/data/import/realm-config.json && \
-        /opt/keycloak/bin/kc.sh start-dev --import-realm
+          /tmp/realm-config.tmpl > /tmp/realm-config.json && \
+        /opt/keycloak/bin/kc.sh import --file /tmp/realm-config.json --override true && \
+        /opt/keycloak/bin/kc.sh start-dev
     networks:
       - edfiadminapp-network
     healthcheck:
