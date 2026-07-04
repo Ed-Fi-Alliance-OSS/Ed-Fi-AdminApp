@@ -362,66 +362,111 @@ if (Test-Path $prodJsTemplate) {
     throw "Neither production.js nor production.js-edfi found in deployed config folder."
 }
 
-# Patch production.js -- only write if any replacement actually changed something.
-# Engine-aware: mssql replaces DB_ENGINE+MSSQL_DB_* defaults, pgsql replaces
-# the postgres defaults inside DB_SECRET_VALUE (and sets DB_SSL: false because
-# the docker-compose postgres uses a self-signed cert that TypeORM's
-# verify-full mode rejects -- see windows-install\docker\README.md).
+# Configure the deployed API. Two delivery paths:
+#   1. NODE_CONFIG (built here, injected on the App Pool env below): a JSON
+#      document node-config deep-merges OVER production.js at load time. It
+#      carries every value that is plain data -- DB creds, URLs, OIDC, yopass,
+#      admin user -- so those need no fragile text patching.
+#   2. Two residual production.js text patches that can't be expressed as JSON
+#      data: the per-install encryption KEY (install-all reads it back for the
+#      summary) and API_PORT (a JS expression reading a runtime env var). Both
+#      are guarded so a template-formatting change fails loudly instead of
+#      silently shipping a default (PR #234 Architecture concern #4 / T2.8).
+
+# Guard helper: apply a regex replacement, aborting if the anchor is absent.
+# Anchors key on the config NAME (not the default value), so they survive value
+# drift -- detecting the silent no-op that is the whole point of the guard.
+function Set-ConfigAnchor {
+    param(
+        [Parameter(Mandatory)][AllowEmptyString()][string]$Text,
+        [Parameter(Mandatory)][string]$Pattern,
+        [Parameter(Mandatory)][string]$Replacement,
+        [Parameter(Mandatory)][string]$Label
+    )
+    if ($Text -notmatch $Pattern) {
+        throw "production.js patch '$Label' matched no anchor. The template (production.js-edfi) formatting likely changed, so this patch would silently no-op and could ship a default. Pattern: $Pattern"
+    }
+    return [regex]::Replace($Text, $Pattern, $Replacement)
+}
+
+# Build the NODE_CONFIG document from the resolved values. node-config deep-merges
+# objects, so partial DB_SECRET_VALUE / AUTH0_CONFIG_SECRET_VALUE objects keep
+# their untouched siblings (unused engine keys, MACHINE_AUDIENCE). A single-element
+# WHITELISTED_REDIRECTS array serializes correctly here (nested arrays don't
+# collapse in ConvertTo-Json; verified on PS 5.1).
+$nodeConfig = @{
+    MY_URL                    = $ApiUrl
+    FE_URL                    = $FeUrl
+    WHITELISTED_REDIRECTS     = @($FeUrl)
+    ADMIN_USERNAME            = $AdminUsername
+    USE_YOPASS                = [bool]$YopassUrl
+    YOPASS_URL                = $YopassUrl
+    SAMPLE_OIDC_CONFIG        = @{
+        issuer       = $OidcIssuer
+        clientId     = $OidcClientId
+        clientSecret = $OidcClientSecretPlain
+        scope        = $OidcScope
+    }
+    AUTH0_CONFIG_SECRET_VALUE = @{
+        ISSUER        = $OidcIssuer
+        CLIENT_ID     = $OidcClientId
+        CLIENT_SECRET = $OidcClientSecretPlain
+    }
+}
+if ($DbEngine -eq 'mssql') {
+    $nodeConfig.DB_ENGINE            = 'mssql'
+    $nodeConfig.DB_TRUST_CERTIFICATE = $true
+    $nodeConfig.DB_SECRET_VALUE      = @{
+        MSSQL_DB_HOST     = 'localhost'
+        MSSQL_DB_DATABASE = $DatabaseName
+        MSSQL_DB_USERNAME = $AppDbUsername
+        MSSQL_DB_PASSWORD = $AppDbPasswordPlain
+    }
+} else {
+    $nodeConfig.DB_ENGINE       = 'pgsql'
+    $nodeConfig.DB_SSL          = $false
+    $nodeConfig.DB_SECRET_VALUE = @{
+        DB_HOST     = $PgDbHost
+        DB_PORT     = $PgDbPort
+        DB_USERNAME = $PgDbUsername
+        DB_DATABASE = $DatabaseName
+        DB_PASSWORD = $PgDbPasswordPlain
+    }
+}
+$nodeConfigJson = $nodeConfig | ConvertTo-Json -Depth 5 -Compress
+
+# Patch + scrub production.js. NODE_CONFIG overrides these at runtime, but the
+# moved secrets still sit at their template defaults on disk; scrub them so a
+# NODE_CONFIG load failure fails SAFE (bad creds -> loud error) rather than
+# falling back to a well-known default. Only write if something changed.
 $prodJsChanged = $false
 if (Test-Path $prodJs) {
     $original = Get-Content $prodJs -Raw
     $c = $original
+    $scrubMarker = 'set-via-NODE_CONFIG'
 
-    if ($DbEngine -eq 'mssql') {
-        # JS-escape single quotes in the app credentials
-        $jsUser = $AppDbUsername.Replace("'", "\'")
-        $jsPw = $AppDbPasswordPlain.Replace("'", "\'")
-        $c = $c.Replace("DB_ENGINE: 'pgsql',",                                  "DB_ENGINE: 'mssql',")
-        $c = $c.Replace("DB_TRUST_CERTIFICATE: false,",                         "DB_TRUST_CERTIFICATE: true,")
-        $c = $c.Replace("MSSQL_DB_HOST: 'edfiadminapp-mssql',",                 "MSSQL_DB_HOST: 'localhost',")
-        $c = $c.Replace("MSSQL_DB_DATABASE: 'sbaa',",                           "MSSQL_DB_DATABASE: '$DatabaseName',")
-        $c = $c.Replace("MSSQL_DB_USERNAME: 'sa',",                             "MSSQL_DB_USERNAME: '$jsUser',")
-        $c = $c.Replace("MSSQL_DB_PASSWORD: 'YourStrong!Passw0rd',",            "MSSQL_DB_PASSWORD: '$jsPw',")
-    } else {
-        # pgsql: leave DB_ENGINE alone (template already says 'pgsql'), turn
-        # off DB_SSL for the docker self-signed cert, patch the postgres
-        # defaults inside DB_SECRET_VALUE.
-        $jsPgPw = $PgDbPasswordPlain.Replace("'", "\'")
-        $c = $c.Replace("DB_SSL: true,",                                        "DB_SSL: false,")
-        $c = $c.Replace("DB_HOST: 'edfiadminapp-postgres',",                    "DB_HOST: '$PgDbHost',")
-        $c = $c.Replace("DB_PORT: 5432,",                                       "DB_PORT: $PgDbPort,")
-        $c = $c.Replace("DB_USERNAME: 'postgres',",                             "DB_USERNAME: '$PgDbUsername',")
-        $c = $c.Replace("DB_DATABASE: 'sbaa',",                                 "DB_DATABASE: '$DatabaseName',")
-        $c = $c.Replace("DB_PASSWORD: 'postgres',",                             "DB_PASSWORD: '$jsPgPw',")
-    }
+    # Residual patch 1: API_PORT must read the IIS-assigned loopback port at
+    # runtime -- a JS expression, so it can't live in NODE_CONFIG (data only).
+    # Match any current value so a re-run (already patched) stays idempotent;
+    # the guard fires only if the API_PORT key vanished entirely.
+    $c = Set-ConfigAnchor $c "API_PORT:\s*[^,\r\n]+," "API_PORT: process.env.HTTP_PLATFORM_PORT || 3333," 'API_PORT'
 
-    $c = $c.Replace("API_PORT: 3333,",                                      "API_PORT: process.env.HTTP_PLATFORM_PORT || 3333,")
-    $c = $c.Replace("MY_URL: 'https://localhost/adminapp-api',",            "MY_URL: '$ApiUrl',")
-    $c = $c.Replace("const FE_URL = 'https://localhost/adminapp';",         "const FE_URL = '$FeUrl';")
-    $c = $c.Replace("issuer: 'https://localhost/auth/realms/edfi',",        "issuer: '$OidcIssuer',")
-    $c = $c.Replace("ISSUER: 'https://localhost/auth/realms/edfi',",        "ISSUER: '$OidcIssuer',")
-    $c = $c.Replace("clientId: 'edfiadminapp',",                            "clientId: '$OidcClientId',")
-    $c = $c.Replace("CLIENT_ID: 'edfiadminapp',",                           "CLIENT_ID: '$OidcClientId',")
-    $c = $c.Replace("clientSecret: 'big-secret-123',",                      "clientSecret: '$OidcClientSecretPlain',")
-    $c = $c.Replace("CLIENT_SECRET: 'big-secret-123',",                     "CLIENT_SECRET: '$OidcClientSecretPlain',")
-    $c = $c.Replace("scope: '',",                                           "scope: '$OidcScope',")
-    $c = $c.Replace("ADMIN_USERNAME: 'admin@example.com',",                 "ADMIN_USERNAME: '$AdminUsername',")
-
-    # Yopass: enable iff a URL was provided, otherwise disable (USE_YOPASS=false
-    # is supported by the AdminApp -- credentials are shown inline instead of
-    # via a one-time-share link).
-    $useYopassJs = if ($YopassUrl) { 'true' } else { 'false' }
-    $c = $c.Replace("USE_YOPASS: true,",                                    "USE_YOPASS: $useYopassJs,")
-    $c = $c.Replace("YOPASS_URL: 'http://edfiadminapp-yopass:80',",         "YOPASS_URL: '$YopassUrl',")
-
-    # Per-install data-at-rest encryption key (never ships the shipped default).
-    $c = $c.Replace("KEY: '$defaultKey',",                                  "KEY: '$DbEncryptionKey',")
-
-    # Fail loudly if the default key survived patching -- deploying it would give
-    # every install the same data-at-rest key.
+    # Residual patch 2: per-install encryption key. Kept in production.js because
+    # install-all.ps1 reads it back for the (ACL-locked) install summary. The
+    # existing default-key check below is its silent-no-op guard.
+    $c = $c.Replace("KEY: '$defaultKey',", "KEY: '$DbEncryptionKey',")
     if ($c -match $defaultKey) {
         throw "The default DB_ENCRYPTION_SECRET_VALUE.KEY is still present in $prodJs after patching. Refusing to deploy with the well-known default key."
     }
+
+    # Scrub the default secrets for values now delivered via NODE_CONFIG. Each
+    # regex keys on the name and matches ANY value, so it neutralizes the default
+    # AND stays idempotent on re-run. Both engines' password defaults are scrubbed
+    # regardless of the active engine, so no default secret is left in the file.
+    $c = Set-ConfigAnchor $c "(clientSecret:\s*')[^']*(')"              ('${1}' + $scrubMarker + '${2}') 'clientSecret'
+    $c = Set-ConfigAnchor $c "(CLIENT_SECRET:\s*')[^']*(')"             ('${1}' + $scrubMarker + '${2}') 'CLIENT_SECRET'
+    $c = Set-ConfigAnchor $c "(MSSQL_DB_PASSWORD:\s*')[^']*(')"         ('${1}' + $scrubMarker + '${2}') 'MSSQL_DB_PASSWORD'
+    $c = Set-ConfigAnchor $c "(?<![A-Za-z_])(DB_PASSWORD:\s*')[^']*(')" ('${1}' + $scrubMarker + '${2}') 'DB_PASSWORD'
 
     if ($c -ne $original) {
         try {
@@ -429,7 +474,7 @@ if (Test-Path $prodJs) {
         } catch {
             throw "Failed to write the patched production.js at $prodJs. Check the config folder is writable. Original: $($_.Exception.Message)"
         }
-        Write-Host "production.js patched ($DbEngine)."
+        Write-Host "production.js patched (API_PORT + encryption key; default secrets scrubbed; app config delivered via NODE_CONFIG)."
         $prodJsChanged = $true
     } else {
         Write-Host "production.js already has the desired values — not rewriting."
@@ -463,12 +508,21 @@ if (-not (Test-Path $NpmCachePath)) {
 & icacls $NpmCachePath /grant "${appPoolIdentity}:(OI)(CI)M" /T | Out-Null
 $envVarsFilter = "system.applicationHost/applicationPools/add[@name='$AppPoolName']/environmentVariables"
 Remove-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -AtElement @{ name = 'NPM_CONFIG_CACHE' } -ErrorAction SilentlyContinue
+Remove-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -AtElement @{ name = 'NODE_CONFIG' } -ErrorAction SilentlyContinue
 try {
     Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -Value @{ name = 'NPM_CONFIG_CACHE'; value = $NpmCachePath }
 } catch {
     throw "Failed to set NPM_CONFIG_CACHE on the App Pool '$AppPoolName'. App Pool environment variables require IIS 10 or newer. Original: $($_.Exception.Message)"
 }
-Write-Host "Permissions granted to $appPoolIdentity; NPM_CONFIG_CACHE set on App Pool -> $NpmCachePath."
+# NODE_CONFIG carries the structured app configuration (DB creds, URLs, OIDC,
+# yopass, admin user); node-config deep-merges it over production.js at boot.
+# Lives in the admin-only applicationHost.config, not the site's production.js.
+try {
+    Add-WebConfigurationProperty -PSPath "MACHINE/WEBROOT/APPHOST" -Filter $envVarsFilter -Name "." -Value @{ name = 'NODE_CONFIG'; value = $nodeConfigJson }
+} catch {
+    throw "Failed to set NODE_CONFIG on the App Pool '$AppPoolName'. App Pool environment variables require IIS 10 or newer. Original: $($_.Exception.Message)"
+}
+Write-Host "Permissions granted to $appPoolIdentity; NPM_CONFIG_CACHE and NODE_CONFIG set on App Pool."
 
 # Trigger startup only if something actually changed
 if ($webConfigChanged -or $prodJsChanged) {
