@@ -524,6 +524,79 @@ try {
 }
 Write-Host "Permissions granted to $appPoolIdentity; NPM_CONFIG_CACHE and NODE_CONFIG set on App Pool."
 
+# ---------- OIDC connection row reconciliation (Gap A) ----------
+# The seed migration inserts the [oidc]/"oidc" row only when the table is empty
+# (COUNT(*)=0), so correcting an issuer or client secret and re-deploying never
+# reaches the DB -- login keeps using the stale values (PR #234 Functionality
+# review, Gap A). UPSERT the row this installer manages (keyed on its clientId)
+# so a re-deploy of corrected OIDC settings takes effect at the next login.
+# Guarded on the table existing: on a first install the app hasn't booted yet, so
+# the table is absent and the boot-time seed inserts it from NODE_CONFIG instead.
+# Skipped when no client secret was supplied, to avoid clobbering a good row with
+# an empty one. Runs before the recycle below so the reboot re-reads it.
+if ($OidcClientSecretPlain) {
+    $oidcIssuerSql   = $OidcIssuer            -replace "'", "''"
+    $oidcClientIdSql = $OidcClientId          -replace "'", "''"
+    $oidcSecretSql   = $OidcClientSecretPlain -replace "'", "''"
+    $oidcScopeSql    = $OidcScope             -replace "'", "''"
+    if ($DbEngine -eq 'mssql') {
+        $oidcUpsert = @"
+SET NOCOUNT ON;
+IF OBJECT_ID('oidc','U') IS NOT NULL
+BEGIN
+    IF NOT EXISTS (SELECT 1 FROM [oidc] WHERE [clientId] = '$oidcClientIdSql')
+        INSERT INTO [oidc] ([issuer], [clientId], [clientSecret], [scope])
+            VALUES ('$oidcIssuerSql', '$oidcClientIdSql', '$oidcSecretSql', '$oidcScopeSql');
+    UPDATE [oidc] SET [issuer] = '$oidcIssuerSql', [clientSecret] = '$oidcSecretSql', [scope] = '$oidcScopeSql'
+        WHERE [clientId] = '$oidcClientIdSql';
+END
+"@
+        $env:SQLCMDPASSWORD = $AppDbPasswordPlain
+        try {
+            & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -d $DatabaseName -C -b -Q $oidcUpsert 1>$null 2>$null
+            $oidcUpsertExit = $LASTEXITCODE
+        } finally {
+            Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue
+        }
+        if ($oidcUpsertExit -eq 0) {
+            Write-Host "OIDC connection row reconciled with the supplied settings."
+        } else {
+            Write-Host "Could not reconcile the OIDC connection row (sqlcmd exit $oidcUpsertExit). If login uses stale OIDC settings, update the [oidc] row manually." -ForegroundColor Yellow
+        }
+    } else {
+        # PG best-effort: 05 has no docker awareness, so reach the DB via psql on
+        # PATH. Probe for the table first (absent on a pre-boot first install) so
+        # the UPDATE can't error on a missing table -- the boot seed covers that.
+        if (Get-Command psql -ErrorAction SilentlyContinue) {
+            $env:PGPASSWORD = $PgDbPasswordPlain
+            try {
+                $reg = 'SELECT to_regclass(''oidc'');' | & psql -h $PgDbHost -p $PgDbPort -U $PgDbUsername -d $DatabaseName -tA 2>$null
+                if ($LASTEXITCODE -eq 0 -and "$reg".Trim() -ne '') {
+                    $oidcUpsert = @"
+INSERT INTO "oidc" ("issuer", "clientId", "clientSecret", "scope")
+    SELECT '$oidcIssuerSql', '$oidcClientIdSql', '$oidcSecretSql', '$oidcScopeSql'
+    WHERE NOT EXISTS (SELECT 1 FROM "oidc" WHERE "clientId" = '$oidcClientIdSql');
+UPDATE "oidc" SET "issuer" = '$oidcIssuerSql', "clientSecret" = '$oidcSecretSql', "scope" = '$oidcScopeSql'
+    WHERE "clientId" = '$oidcClientIdSql';
+"@
+                    $oidcUpsert | & psql -h $PgDbHost -p $PgDbPort -U $PgDbUsername -d $DatabaseName -v ON_ERROR_STOP=1 1>$null 2>$null
+                    if ($LASTEXITCODE -eq 0) {
+                        Write-Host "OIDC connection row reconciled with the supplied settings."
+                    } else {
+                        Write-Host "Could not reconcile the OIDC connection row (psql exit $LASTEXITCODE). Update the `"oidc`" row manually if login uses stale settings." -ForegroundColor Yellow
+                    }
+                } else {
+                    Write-Host "OIDC table not present yet; the boot-time seed will create it from NODE_CONFIG." -ForegroundColor DarkGray
+                }
+            } finally {
+                Remove-Item Env:PGPASSWORD -ErrorAction SilentlyContinue
+            }
+        } else {
+            Write-Host "psql not on PATH; skipping OIDC-row reconciliation. If you re-deployed corrected OIDC settings on Postgres, update the `"oidc`" row manually." -ForegroundColor Yellow
+        }
+    }
+}
+
 # Trigger startup only if something actually changed
 if ($webConfigChanged -or $prodJsChanged) {
     (Get-Item "$DestPath\web.config").LastWriteTime = Get-Date
