@@ -27,9 +27,20 @@ Where Keycloak is installed. Default: C:\keycloak.
 .PARAMETER KeycloakVersion
 Keycloak release to download if not already present. Default: 26.6.1.
 
+.PARAMETER KeycloakSha256
+Expected SHA-256 of the Keycloak zip. The default version has a pinned hash, so
+this is only needed when -KeycloakVersion is changed. Keycloak does not publish a
+.sha256 sidecar; obtain the hash by verifying keycloak-<ver>.zip against the
+official .zip.asc GPG signature or .zip.sha1 sidecar first.
+
 .PARAMETER JdkDownloadUrl
-Optional URL to an OpenJDK zip. If provided, downloads/extracts it and sets
-JAVA_HOME instead of using winget / an existing JDK.
+Optional HTTPS URL to an OpenJDK zip. If provided, downloads/extracts it and sets
+JAVA_HOME instead of using winget / an existing JDK. Requires -JdkSha256.
+
+.PARAMETER JdkSha256
+Expected SHA-256 of the JDK zip named by -JdkDownloadUrl. Required whenever
+-JdkDownloadUrl is supplied so the download can be integrity-verified; get it from
+the JDK vendor's checksum page.
 
 .PARAMETER AdminUser
 Master-realm admin username (bootstrapped on first start only). Default: admin.
@@ -73,7 +84,9 @@ param(
     # --- JDK + Keycloak download/runtime ---
     [string]$KeycloakInstallPath = "C:\keycloak",
     [string]$KeycloakVersion = "26.6.1",
+    [string]$KeycloakSha256,
     [string]$JdkDownloadUrl,
+    [string]$JdkSha256,
 
     # --- Keycloak start + admin bootstrap ---
     [string]$AdminUser = "admin",
@@ -125,6 +138,62 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# --- Verified download helpers -------------------------------------------------
+# Duplicated across the windows-install scripts (no shared module in this folder,
+# matching the existing WET pattern). Mirrors Install-VerifiedMsi in
+# 01-prereqs-iis.ps1: reuse an already-downloaded file only when its SHA-256
+# matches, otherwise (re)download and verify, aborting on a mismatch.
+function Save-VerifiedDownload {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Url,
+        [Parameter(Mandatory)][string]$Sha256,
+        [Parameter(Mandatory)][string]$OutFile
+    )
+    $needsDownload = $true
+    if (Test-Path $OutFile) {
+        if ((Get-FileHash -Path $OutFile -Algorithm SHA256).Hash -ieq $Sha256) {
+            Write-Host "$Name already downloaded and verified -- reusing $OutFile."
+            $needsDownload = $false
+        } else {
+            Write-Host "$Name at $OutFile failed the expected hash (corrupt/partial/stale?); re-downloading." -ForegroundColor Yellow
+            Remove-Item $OutFile -Force
+        }
+    }
+    if ($needsDownload) {
+        Write-Host "Downloading $Name from $Url ..."
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        } catch {
+            throw "Failed to download $Name from $Url. Check internet connectivity and that the URL is reachable. Original: $($_.Exception.Message)"
+        }
+        $actual = (Get-FileHash -Path $OutFile -Algorithm SHA256).Hash
+        if ($actual -ine $Sha256) {
+            Remove-Item $OutFile -Force -ErrorAction SilentlyContinue
+            throw "$Name failed SHA-256 verification.`n  Expected: $Sha256`n  Actual:   $actual`nThe download may be corrupt or tampered with; aborting."
+        }
+        Write-Host "$Name verified (SHA-256 match)."
+    }
+}
+
+# Pinned SHA-256 per Keycloak release. Keycloak does not publish a .sha256 sidecar,
+# so the default version is pinned here (verified against the official .zip.sha1
+# sidecar). Other versions require -KeycloakSha256.
+$KnownKeycloakSha256 = @{
+    '26.6.1' = '30224D2B3A0F13562CB01F92207338AFB5BAD9D6F1495EC1C182F8B72D82342E'
+}
+function Resolve-KeycloakSha256 {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Version,
+        [string]$Override
+    )
+    if ($Override) { return $Override }
+    if ($KnownKeycloakSha256.ContainsKey($Version)) { return $KnownKeycloakSha256[$Version] }
+    throw "No pinned SHA-256 for Keycloak $Version. Keycloak publishes no .sha256 sidecar, so pass -KeycloakSha256 with the SHA-256 of keycloak-$Version.zip (verify it against the official keycloak-$Version.zip.asc GPG signature or .zip.sha1 sidecar first)."
+}
 
 # Secrets arrive as SecureString (kept off the command line); unwrap to plaintext
 # locals for the Keycloak admin REST calls and client/user provisioning.
@@ -238,8 +307,8 @@ if ($existingKcBat) {
 } else {
     $kcZip = "$env:TEMP\keycloak-$KeycloakVersion.zip"
     $kcUrl = "https://github.com/keycloak/keycloak/releases/download/$KeycloakVersion/keycloak-$KeycloakVersion.zip"
-    Write-Host "Downloading Keycloak $KeycloakVersion..."
-    Invoke-WebRequest -Uri $kcUrl -OutFile $kcZip -UseBasicParsing
+    $kcSha = Resolve-KeycloakSha256 -Version $KeycloakVersion -Override $KeycloakSha256
+    Save-VerifiedDownload -Name "Keycloak $KeycloakVersion" -Url $kcUrl -Sha256 $kcSha -OutFile $kcZip
     $parent = Split-Path $KeycloakInstallPath -Parent
     if (-not (Test-Path $parent)) {
         New-Item -ItemType Directory -Path $parent -Force | Out-Null
@@ -255,9 +324,14 @@ if ($existingKcBat) {
 
 # Optional JDK
 if ($JdkDownloadUrl) {
+    if ($JdkDownloadUrl -notmatch '^https://') {
+        throw "-JdkDownloadUrl must be an HTTPS URL (got '$JdkDownloadUrl'); refusing to fetch a JDK over an unencrypted channel."
+    }
+    if (-not $JdkSha256) {
+        throw "-JdkDownloadUrl requires -JdkSha256 (the expected SHA-256 of the JDK zip) so the download can be integrity-verified. Get it from the JDK vendor's checksum page."
+    }
     $jdkZip = "$env:TEMP\jdk-download.zip"
-    Write-Host "Downloading JDK from $JdkDownloadUrl..."
-    Invoke-WebRequest -Uri $JdkDownloadUrl -OutFile $jdkZip -UseBasicParsing
+    Save-VerifiedDownload -Name "JDK" -Url $JdkDownloadUrl -Sha256 $JdkSha256 -OutFile $jdkZip
     $jdkParent = "C:\Program Files\Java"
     New-Item -ItemType Directory -Path $jdkParent -Force | Out-Null
     Expand-Archive -Path $jdkZip -DestinationPath $jdkParent -Force

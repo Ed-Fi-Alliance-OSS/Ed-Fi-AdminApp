@@ -105,7 +105,12 @@ SQL Server database name. Default: sbaa. Propagated to 02 (creates the DB) and
 Email seeded as the admin user. Default: admin@example.com.
 
 .PARAMETER JdkDownloadUrl
-Optional URL to an OpenJDK zip; idp-keycloak-setup.ps1 will install + set JAVA_HOME.
+Optional HTTPS URL to an OpenJDK zip; idp-keycloak-setup.ps1 will install + set
+JAVA_HOME. Requires -JdkSha256.
+
+.PARAMETER JdkSha256
+Expected SHA-256 of the JDK zip named by -JdkDownloadUrl. Required whenever
+-JdkDownloadUrl is supplied so the download can be integrity-verified.
 
 .PARAMETER IncludeAudienceMapper
 Switch — add the Keycloak audience mapper (needed for bearer-token API access).
@@ -229,6 +234,7 @@ param(
     [string]$DatabaseName = "sbaa",
     [string]$AdminUsername = "admin@example.com",
     [string]$JdkDownloadUrl,
+    [string]$JdkSha256,
 
     [switch]$IncludeAudienceMapper,
     [switch]$EnableDirectAccessGrants,
@@ -559,6 +565,7 @@ if ($idpIsKeycloak) {
         TestUserEmail = $AdminUsername
     }
     if ($JdkDownloadUrl) { $kcArgs.JdkDownloadUrl = $JdkDownloadUrl }
+    if ($JdkSha256) { $kcArgs.JdkSha256 = $JdkSha256 }
     if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
     if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
     & "$scriptDir\idp-keycloak-setup.ps1" @kcArgs

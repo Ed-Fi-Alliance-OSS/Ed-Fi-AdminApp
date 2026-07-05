@@ -50,6 +50,68 @@ param(
 
 $ErrorActionPreference = 'Stop'
 
+# --- Verified download helpers -------------------------------------------------
+# Duplicated across the windows-install scripts (no shared module in this folder,
+# matching the existing WET pattern). Mirrors Install-VerifiedMsi in
+# 01-prereqs-iis.ps1: reuse an already-downloaded file only when its SHA-256
+# matches, otherwise (re)download and verify, aborting on a mismatch.
+function Save-VerifiedDownload {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$Name,
+        [Parameter(Mandatory)][string]$Url,
+        [Parameter(Mandatory)][string]$Sha256,
+        [Parameter(Mandatory)][string]$OutFile
+    )
+    $needsDownload = $true
+    if (Test-Path $OutFile) {
+        if ((Get-FileHash -Path $OutFile -Algorithm SHA256).Hash -ieq $Sha256) {
+            Write-Host "$Name already downloaded and verified -- reusing $OutFile."
+            $needsDownload = $false
+        } else {
+            Write-Host "$Name at $OutFile failed the expected hash (corrupt/partial/stale?); re-downloading." -ForegroundColor Yellow
+            Remove-Item $OutFile -Force
+        }
+    }
+    if ($needsDownload) {
+        Write-Host "Downloading $Name from $Url ..."
+        try {
+            Invoke-WebRequest -Uri $Url -OutFile $OutFile -UseBasicParsing
+        } catch {
+            throw "Failed to download $Name from $Url. Check internet connectivity and that the URL is reachable. Original: $($_.Exception.Message)"
+        }
+        $actual = (Get-FileHash -Path $OutFile -Algorithm SHA256).Hash
+        if ($actual -ine $Sha256) {
+            Remove-Item $OutFile -Force -ErrorAction SilentlyContinue
+            throw "$Name failed SHA-256 verification.`n  Expected: $Sha256`n  Actual:   $actual`nThe download may be corrupt or tampered with; aborting."
+        }
+        Write-Host "$Name verified (SHA-256 match)."
+    }
+}
+
+# Resolve the official SHA-256 for a Node zip from nodejs.org's per-release
+# SHASUMS256.txt. Version-agnostic, so it stays correct as the resolved Node
+# version changes (no hardcoded hash to maintain).
+function Get-NodeZipSha256 {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)][string]$FullVer,
+        [Parameter(Mandatory)][string]$ZipFileName
+    )
+    $shasumsUrl = "https://nodejs.org/dist/v$FullVer/SHASUMS256.txt"
+    try {
+        $raw = (Invoke-WebRequest -Uri $shasumsUrl -UseBasicParsing).Content
+    } catch {
+        throw "Couldn't fetch Node checksums from $shasumsUrl to verify the download: $($_.Exception.Message)"
+    }
+    if ($raw -is [byte[]]) { $raw = [System.Text.Encoding]::ASCII.GetString($raw) }
+    $line = $raw -split "`n" | Where-Object { $_ -match ("\s" + [regex]::Escape($ZipFileName) + "\s*$") } | Select-Object -First 1
+    if (-not $line -or $line -notmatch '^([0-9a-fA-F]{64})\s') {
+        throw "No SHA-256 entry for $ZipFileName in $shasumsUrl; cannot verify the download."
+    }
+    return $Matches[1]
+}
+
 # Auto-detect Node floor + install target from the repo's engines.node when
 # available. nvm-windows accepts bare-major versions (e.g., 'nvm install 22'),
 # which resolves to the latest 22.x release.
@@ -219,17 +281,18 @@ if ($needsRemediation) {
                 throw "No nvm root directory found among: $($candidateRoots -join ', ')"
             }
 
-            $url = "https://nodejs.org/dist/v$fullVer/node-v$fullVer-win-x64.zip"
+            $zipName = "node-v$fullVer-win-x64.zip"
+            $url = "https://nodejs.org/dist/v$fullVer/$zipName"
             $zip = Join-Path $env:TEMP "node-v$fullVer.zip"
             $tmp = Join-Path $env:TEMP "node-v$fullVer-extract"
             $dst = Join-Path $writeRoot "v$fullVer"
 
-            Write-Host "Downloading $url"
-            try {
-                Invoke-WebRequest -Uri $url -OutFile $zip -UseBasicParsing
-            } catch {
-                throw "Failed to download Node from $url. Check internet connectivity and that nodejs.org is reachable. Original: $($_.Exception.Message)"
-            }
+            # Verify the download against nodejs.org's official SHASUMS256.txt for
+            # this exact version. The checksum covers file content, so the canonical
+            # zip name is used for the lookup even though it is saved locally under a
+            # shorter name.
+            $expectedSha = Get-NodeZipSha256 -FullVer $fullVer -ZipFileName $zipName
+            Save-VerifiedDownload -Name "Node $fullVer" -Url $url -Sha256 $expectedSha -OutFile $zip
             if (Test-Path $tmp) { Remove-Item $tmp -Recurse -Force }
             Write-Host "Extracting to $tmp"
             Expand-Archive -Path $zip -DestinationPath $tmp
