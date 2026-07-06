@@ -356,6 +356,18 @@ $webConfig = @'
 <?xml version="1.0" encoding="utf-8"?>
 <configuration>
   <system.webServer>
+    <rewrite>
+      <rules>
+        <rule name="HTTP to HTTPS redirect" stopProcessing="true">
+          <match url="(.*)" />
+          <conditions>
+            <add input="{HTTPS}" pattern="off" />
+            <add input="{HTTP_HOST}" pattern="^([^:]+)(:\d+)?$" />
+          </conditions>
+          <action type="Redirect" url="https://{C:1}:__HTTPS_PORT__/{R:1}" redirectType="Permanent" appendQueryString="true" />
+        </rule>
+      </rules>
+    </rewrite>
     <handlers>
       <add name="httpPlatformHandler" path="*" verb="*" modules="httpPlatformHandler" resourceType="Unspecified" />
     </handlers>
@@ -381,6 +393,7 @@ $webConfig = @'
 </configuration>
 '@
 $webConfig = $webConfig.Replace('__NODE_EXE__', $nodeExe)
+$webConfig = $webConfig.Replace('__HTTPS_PORT__', "$HttpsPort")
 
 # Detailed IIS errors are off for remote clients by default (DetailedLocalOnly:
 # local requests still see detail, which keeps on-box debugging usable). -DevErrors

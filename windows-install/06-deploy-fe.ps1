@@ -185,6 +185,14 @@ $webConfig = @'
   <system.webServer>
     <rewrite>
       <rules>
+        <rule name="HTTP to HTTPS redirect" stopProcessing="true">
+          <match url="(.*)" />
+          <conditions>
+            <add input="{HTTPS}" pattern="off" />
+            <add input="{HTTP_HOST}" pattern="^([^:]+)(:\d+)?$" />
+          </conditions>
+          <action type="Redirect" url="https://{C:1}:__HTTPS_PORT__/{R:1}" redirectType="Permanent" appendQueryString="true" />
+        </rule>
         <rule name="React Routes" stopProcessing="true">
           <match url=".*" />
           <conditions logicalGrouping="MatchAll">
@@ -217,6 +225,7 @@ $webConfig = @'
 # browser allows the FE's XHR calls to the API. Strip any path/query from -ApiUrl.
 $apiOrigin = ([Uri]$ApiUrl).GetLeftPart([System.UriPartial]::Authority)
 $webConfig = $webConfig.Replace('__API_ORIGIN__', $apiOrigin)
+$webConfig = $webConfig.Replace('__HTTPS_PORT__', "$HttpsPort")
 
 $webConfigPath = "$DestPath\web.config"
 if ((Test-Path $webConfigPath) -and ((Get-Content $webConfigPath -Raw) -eq $webConfig)) {
