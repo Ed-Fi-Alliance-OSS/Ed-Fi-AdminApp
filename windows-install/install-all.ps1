@@ -252,7 +252,18 @@ param(
     #   -SetupYopassDocker    -> stand up a local Yopass via docker, auto-URL
     [string]$YopassUrl = "",
     [switch]$SetupYopassDocker,
-    [int]$YopassPort = 8082
+    [int]$YopassPort = 8082,
+
+    # TLS (always-on). HTTPS ports for the two sites (mirror the HTTP 3333/4200).
+    # The certificate is resolved by 05-deploy-api.ps1 and reused by 06-deploy-fe.ps1
+    # (self-signed fallback keyed on FriendlyName), so both sites share one cert.
+    # Supply a real cert via -CertificateThumbprint or -CertificatePfxPath
+    # (+ -CertificatePassword); omit both to auto-generate a self-signed cert.
+    [int]$HttpsApiPort = 3443,
+    [int]$HttpsFePort = 4443,
+    [string]$CertificateThumbprint = "",
+    [string]$CertificatePfxPath = "",
+    [SecureString]$CertificatePassword
 )
 
 $ErrorActionPreference = 'Stop'
@@ -604,6 +615,12 @@ $apiArgs = @{
     # (Previously this wasn't forwarded, so -YopassUrl on install-all was a no-op.)
     YopassUrl            = $EffectiveYopassUrl
 }
+# TLS: HTTPS port + cert. 05 resolves the cert (self-signed if none supplied) and
+# 06 reuses it, so both sites share one certificate.
+$apiArgs.HttpsPort = $HttpsApiPort
+if ($CertificateThumbprint) { $apiArgs.CertificateThumbprint = $CertificateThumbprint }
+if ($CertificatePfxPath)    { $apiArgs.CertificatePfxPath    = $CertificatePfxPath }
+if ($CertificatePassword)   { $apiArgs.CertificatePassword   = $CertificatePassword }
 if ($DbEngine -eq 'mssql') {
     $apiArgs.AppDbUsername = $AppDbUsername
     $apiArgs.AppDbPassword = $AppDbPassword
@@ -624,7 +641,14 @@ if ((Test-Path $deployedProdJs) -and ((Get-Content $deployedProdJs -Raw) -match 
 }
 
 Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
-& "$scriptDir\06-deploy-fe.ps1" -SourcePath "$SourcePath\dist\packages\fe"
+$feArgs = @{
+    SourcePath = "$SourcePath\dist\packages\fe"
+    HttpsPort  = $HttpsFePort
+}
+if ($CertificateThumbprint) { $feArgs.CertificateThumbprint = $CertificateThumbprint }
+if ($CertificatePfxPath)    { $feArgs.CertificatePfxPath    = $CertificatePfxPath }
+if ($CertificatePassword)   { $feArgs.CertificatePassword   = $CertificatePassword }
+& "$scriptDir\06-deploy-fe.ps1" @feArgs
 
 # ---------- Smoke test ----------
 Write-Phase "Smoke test: hitting the API"

@@ -139,7 +139,17 @@ param(
     # Expose detailed IIS error responses to every client. Off by default: remote
     # clients get generic errors while local requests still see detail
     # (errorMode="DetailedLocalOnly"). Set only for troubleshooting a remote issue.
-    [switch]$DevErrors
+    [switch]$DevErrors,
+
+    # TLS. HTTPS is always-on: the site gets an https binding on -HttpsPort.
+    # Certificate precedence: -CertificateThumbprint (an existing LocalMachine\My
+    # cert) -> -CertificatePfxPath (+ -CertificatePassword; imported) -> a self-signed
+    # cert auto-generated for localhost (keeps the local quick-start working; browsers
+    # warn on the untrusted cert). The HTTP site stays bound only to 301-redirect to HTTPS.
+    [int]$HttpsPort = 3443,
+    [string]$CertificateThumbprint = "",
+    [string]$CertificatePfxPath = "",
+    [SecureString]$CertificatePassword
 )
 
 $ErrorActionPreference = 'Stop'
@@ -238,6 +248,80 @@ try {
 } catch {
     throw "Failed to create/update the IIS site '$AppPoolName' on port $StandalonePort. Is the port already in use by another site (check 00-check-prereqs.ps1)? Original: $($_.Exception.Message)"
 }
+
+# Resolve the TLS certificate for the HTTPS binding. Precedence: an explicit
+# thumbprint (already in LocalMachine\My) -> an imported PFX -> a self-signed cert
+# generated for localhost + this host. The self-signed path keeps the local
+# quick-start working with zero cert setup (an untrusted-cert browser warning is
+# expected). Returns the resolved certificate thumbprint. WET-duplicated in
+# 06-deploy-fe.ps1 (windows-install has no shared module).
+function Resolve-HttpsCertificate {
+    param(
+        [string]$Thumbprint,
+        [string]$PfxPath,
+        [SecureString]$PfxPassword
+    )
+    $storePath = 'Cert:\LocalMachine\My'
+    $friendlyName = 'Ed-Fi Admin App self-signed'
+
+    if ($Thumbprint) {
+        $clean = ($Thumbprint -replace '[^0-9A-Fa-f]', '')
+        $cert = Get-Item "$storePath\$clean" -ErrorAction SilentlyContinue
+        if (-not $cert) {
+            throw "No certificate with thumbprint '$clean' found in $storePath. Import it into LocalMachine\My first, or omit -CertificateThumbprint to auto-generate a self-signed cert."
+        }
+        Write-Host "Using the supplied certificate ($($cert.Thumbprint))."
+        return $cert.Thumbprint
+    }
+
+    if ($PfxPath) {
+        if (-not (Test-Path $PfxPath)) { throw "PFX file not found at '$PfxPath'." }
+        $importParams = @{ FilePath = $PfxPath; CertStoreLocation = $storePath }
+        if ($PfxPassword) { $importParams.Password = $PfxPassword }
+        $cert = Import-PfxCertificate @importParams
+        Write-Host "Imported the supplied PFX ($($cert.Thumbprint))."
+        return $cert.Thumbprint
+    }
+
+    # Self-signed fallback. Reuse a still-valid one we created before so re-runs
+    # (and the FE deploy that follows) share a single cert; else generate a fresh one.
+    $existing = Get-ChildItem $storePath |
+        Where-Object { $_.FriendlyName -eq $friendlyName -and $_.NotAfter -gt (Get-Date) } |
+        Sort-Object NotAfter -Descending | Select-Object -First 1
+    if ($existing) {
+        Write-Host "Reusing the existing self-signed certificate ($($existing.Thumbprint))."
+        return $existing.Thumbprint
+    }
+    Write-Host "Generating a self-signed certificate for HTTPS (localhost + $env:COMPUTERNAME)..."
+    $cert = New-SelfSignedCertificate -DnsName 'localhost', $env:COMPUTERNAME `
+        -CertStoreLocation $storePath -FriendlyName $friendlyName -NotAfter (Get-Date).AddYears(5)
+    return $cert.Thumbprint
+}
+
+# Add (idempotently) an HTTPS binding on the site and attach the cert. Mirror-port
+# model: API and FE each have their own HTTPS port, so no SNI/hostname is needed
+# (SslFlags 0). The cert is (re)bound every run so a replaced/rotated cert takes
+# effect. WET-duplicated in 06-deploy-fe.ps1.
+function Set-HttpsBinding {
+    param(
+        [Parameter(Mandatory)][string]$SiteName,
+        [Parameter(Mandatory)][int]$HttpsPort,
+        [Parameter(Mandatory)][string]$Thumbprint
+    )
+    if (-not (Get-WebBinding -Name $SiteName -Protocol https -Port $HttpsPort -ErrorAction SilentlyContinue)) {
+        New-WebBinding -Name $SiteName -Protocol https -Port $HttpsPort -SslFlags 0 | Out-Null
+        Write-Host "Added HTTPS binding on port $HttpsPort to site '$SiteName'."
+    }
+    $sslPath = "IIS:\SslBindings\0.0.0.0!$HttpsPort"
+    if (Test-Path $sslPath) { Remove-Item $sslPath -ErrorAction SilentlyContinue }
+    Get-Item "Cert:\LocalMachine\My\$Thumbprint" | New-Item -Path $sslPath | Out-Null
+    Write-Host "Bound certificate $Thumbprint to 0.0.0.0:$HttpsPort."
+}
+
+# TLS (always-on): resolve the cert and add the HTTPS binding. The HTTP site created
+# above stays only to 301-redirect to HTTPS (redirect rule added to web.config in T3.2).
+$certThumbprint = Resolve-HttpsCertificate -Thumbprint $CertificateThumbprint -PfxPath $CertificatePfxPath -PfxPassword $CertificatePassword
+Set-HttpsBinding -SiteName $AppPoolName -HttpsPort $HttpsPort -Thumbprint $certThumbprint
 
 # web.config -- IIS hosts Node via the httpPlatform handler (reverse proxy to a
 # loopback port IIS assigns through HTTP_PLATFORM_PORT). httpPlatform launches node
