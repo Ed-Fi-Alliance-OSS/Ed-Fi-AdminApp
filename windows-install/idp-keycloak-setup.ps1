@@ -488,10 +488,12 @@ $clients = Invoke-KcApi -Method Get -Path "/realms/$RealmName/clients?clientId=$
 # Values match the Ed-Fi docs:
 #   Root URL                  = the origin
 #   Admin URL                 = FE base
-#   Valid Redirect URIs       = API callback + FE callback + API post-logout + FE wildcard
-#   Valid Post Logout URIs    = FE wildcard + API post-logout endpoint
-#                               (Keycloak 26 separates these from Valid Redirect URIs;
-#                               multiple URIs joined with "##")
+#   Valid Redirect URIs       = API callback + FE callback + API post-logout (no wildcard)
+#   Valid Post Logout URIs    = API post-logout endpoint only. The app always sends
+#                               MY_URL/api/auth/post-logout as its post_logout_redirect_uri
+#                               (auth.controller.ts), then forwards to the FE itself, so no
+#                               FE URI needs to be pre-registered. (Keycloak 26 separates
+#                               these from Valid Redirect URIs; multiple URIs joined "##".)
 #   Web Origins               = API base (for CORS on the OIDC endpoints)
 $fe  = $FeBaseUrl  -replace '/$', ''
 $api = $ApiBaseUrl -replace '/$', ''
@@ -508,12 +510,11 @@ $clientPayloadJson = @"
   "redirectUris": [
     "$api/api/auth/callback/$RedirectCallbackId",
     "$fe/auth/callback",
-    "$api/api/auth/post-logout",
-    "$fe/*"
+    "$api/api/auth/post-logout"
   ],
   "webOrigins": ["$api"],
   "attributes": {
-    "post.logout.redirect.uris": "$fe/*##$api/api/auth/post-logout"
+    "post.logout.redirect.uris": "$api/api/auth/post-logout"
   },
   "publicClient": false,
   "standardFlowEnabled": true,
@@ -533,6 +534,9 @@ if ($clients.Count -gt 0) {
     $needsUpdate = $false
     if (-not $existing.redirectUris -or ($existing.redirectUris -notcontains $expectedRedirect)) { $needsUpdate = $true }
     if (-not $existing.webOrigins -or ($existing.webOrigins -notcontains $api)) { $needsUpdate = $true }
+    # Force a rewrite if a wildcard redirect from an earlier install survives, so the
+    # PUT strips it (redirectUris and the post-logout attribute are both re-sent). M3c.
+    if ($existing.redirectUris -contains "$fe/*") { $needsUpdate = $true }
     if ([bool]$existing.directAccessGrantsEnabled -ne [bool]$EnableDirectAccessGrants) { $needsUpdate = $true }
     if (-not $existing.standardFlowEnabled) { $needsUpdate = $true }
     if (-not $existing.rootUrl) { $needsUpdate = $true }
@@ -658,7 +662,7 @@ Write-Host "  Redirect URIs:"
 Write-Host "    $api/api/auth/callback/$RedirectCallbackId"
 Write-Host "    $fe/auth/callback"
 Write-Host "    $api/api/auth/post-logout"
-Write-Host "    $fe/*"
+Write-Host "  Post-logout:  $api/api/auth/post-logout"
 Write-Host "  Web Origin:   $api"
 if ($IncludeAudienceMapper) { Write-Host "  Audience mapper: edfiadminapp-api" }
 if ($EnableDirectAccessGrants) { Write-Host "  Direct access grants: enabled" }
