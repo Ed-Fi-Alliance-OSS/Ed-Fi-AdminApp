@@ -23,6 +23,11 @@ IIS site name. Default: EdFi-AdminApp-FE.
 .PARAMETER Port
 HTTP port. Default: 4200.
 
+.PARAMETER ApiUrl
+Base URL of the API the FE bundle calls. Only its origin (scheme://host:port) is
+used, to populate the Content-Security-Policy connect-src. Must match the
+VITE_API_URL baked into the bundle at build time. Default: http://localhost:3333.
+
 .EXAMPLE
 .\06-deploy-fe.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe
 #>
@@ -32,7 +37,8 @@ param(
     [string]$SourcePath,
     [string]$DestPath = "C:\inetpub\EdFi-AdminApp-FE",
     [string]$SiteName = "EdFi-AdminApp-FE",
-    [int]$Port = 4200
+    [int]$Port = 4200,
+    [string]$ApiUrl = "http://localhost:3333"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -78,9 +84,28 @@ $webConfig = @'
         </rule>
       </rules>
     </rewrite>
+    <!-- Baseline security headers. CSP is Report-Only for now and moves to enforcing
+         with the always-on TLS work. connect-src must match the API origin the FE
+         bundle calls (VITE_API_URL). style-src allows 'unsafe-inline' because MUI /
+         emotion inject styles at runtime. -->
+    <httpProtocol>
+      <customHeaders>
+        <remove name="X-Powered-By" />
+        <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" />
+        <add name="X-Content-Type-Options" value="nosniff" />
+        <add name="X-Frame-Options" value="DENY" />
+        <add name="Referrer-Policy" value="no-referrer" />
+        <add name="Content-Security-Policy-Report-Only" value="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' __API_ORIGIN__; form-action 'self'" />
+      </customHeaders>
+    </httpProtocol>
   </system.webServer>
 </configuration>
 '@
+
+# The CSP connect-src must name the exact API origin (scheme://host:port), so the
+# browser allows the FE's XHR calls to the API. Strip any path/query from -ApiUrl.
+$apiOrigin = ([Uri]$ApiUrl).GetLeftPart([System.UriPartial]::Authority)
+$webConfig = $webConfig.Replace('__API_ORIGIN__', $apiOrigin)
 
 $webConfigPath = "$DestPath\web.config"
 if ((Test-Path $webConfigPath) -and ((Get-Content $webConfigPath -Raw) -eq $webConfig)) {

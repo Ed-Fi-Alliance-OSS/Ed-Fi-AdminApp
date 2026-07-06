@@ -58,6 +58,11 @@ OIDC scopes requested at login. Default: 'openid email profile'.
 .PARAMETER AdminUsername
 Email seeded as the admin user. Default: admin@example.com.
 
+.PARAMETER DevErrors
+Expose detailed IIS error responses to every client. Off by default (remote
+clients get generic errors; local requests still see detail). Enable only to
+troubleshoot a remote issue.
+
 .EXAMPLE
 .\05-deploy-api.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp -AppDbPassword 'EdFi-App-Local!2026' -OidcClientSecret 'RBsHTSb...'
 #>
@@ -129,7 +134,12 @@ param(
 
     # Escape hatch for the key-rotation guard: proceed even when a freshly
     # generated key would orphan existing encrypted environments (accepts data loss).
-    [switch]$ForceKeyRotation
+    [switch]$ForceKeyRotation,
+
+    # Expose detailed IIS error responses to every client. Off by default: remote
+    # clients get generic errors while local requests still see detail
+    # (errorMode="DetailedLocalOnly"). Set only for troubleshooting a remote issue.
+    [switch]$DevErrors
 )
 
 $ErrorActionPreference = 'Stop'
@@ -270,11 +280,29 @@ $webConfig = @'
         <environmentVariable name="NODE_ENV" value="production" />
       </environmentVariables>
     </httpPlatform>
-    <httpErrors errorMode="Detailed" />
+    <!-- Baseline security headers. Node already sets X-Content-Type-Options and
+         X-Frame-Options in main.ts, so only the headers it does not emit are added
+         here to avoid duplicates on the proxied response. CSP is Report-Only for now
+         and moves to enforcing with the always-on TLS work. -->
+    <httpProtocol>
+      <customHeaders>
+        <remove name="X-Powered-By" />
+        <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" />
+        <add name="Referrer-Policy" value="no-referrer" />
+        <add name="Content-Security-Policy-Report-Only" value="default-src 'none'; frame-ancestors 'none'; base-uri 'none'" />
+      </customHeaders>
+    </httpProtocol>
+    <httpErrors errorMode="__ERROR_MODE__" />
   </system.webServer>
 </configuration>
 '@
 $webConfig = $webConfig.Replace('__NODE_EXE__', $nodeExe)
+
+# Detailed IIS errors are off for remote clients by default (DetailedLocalOnly:
+# local requests still see detail, which keeps on-box debugging usable). -DevErrors
+# opts into full detail for every client when troubleshooting a remote issue.
+$errorMode = if ($DevErrors) { 'Detailed' } else { 'DetailedLocalOnly' }
+$webConfig = $webConfig.Replace('__ERROR_MODE__', $errorMode)
 
 $webConfigPath = "$DestPath\web.config"
 $webConfigChanged = $true
