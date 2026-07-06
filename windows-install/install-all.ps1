@@ -362,6 +362,11 @@ if ($idpIsKeycloak) {
     if (-not $ViteIdpAccountUrl) { throw "-ViteIdpAccountUrl is required when -IdpProvider is '$IdpProvider' (the IdP account-management URL the FE links to)." }
 }
 
+# TLS (always-on): the FE bundle bakes the API URL at build time, and 05/06 read
+# their URLs from these too, so derive both as https on the mirror ports.
+$ApiUrl = "https://localhost:$HttpsApiPort"
+$FeUrl  = "https://localhost:$HttpsFePort"
+
 function Write-Phase {
     param([string]$Title)
     Write-Host ""
@@ -554,7 +559,7 @@ if ($OnlyPhase1) {
 if (-not $SkipPhase2) {
     Write-Phase "Phase 2: Build the project (04-build.ps1)"
     Write-Host "This takes several minutes. Output streams below."
-    & "$scriptDir\04-build.ps1" -SourcePath $SourcePath -ViteIdpAccountUrl $ViteIdpAccountUrl
+    & "$scriptDir\04-build.ps1" -SourcePath $SourcePath -ViteIdpAccountUrl $ViteIdpAccountUrl -ViteApiUrl $ApiUrl
 }
 
 # Sanity checks before phase 3 -- build artifacts must exist. Keycloak is started
