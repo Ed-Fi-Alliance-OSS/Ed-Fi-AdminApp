@@ -73,6 +73,10 @@ Default: EdFi-AdminApp-API.
 Name of the FE site created by 06-deploy-fe.ps1. Default: EdFi-AdminApp-FE.
 (The API site name is the App Pool name, $AppPoolName.)
 
+.PARAMETER StandaloneFeAppPoolName
+Name of the dedicated FE App Pool created by 06-deploy-fe.ps1. Default:
+EdFi-AdminApp-FE.
+
 .PARAMETER ApiDestPath
 The deployed API directory to delete. Default: C:\inetpub\EdFi-AdminApp-API.
 
@@ -106,6 +110,7 @@ param(
     [string]$NpmCachePath = "C:\npm-cache",
     [string]$AppPoolName = "EdFi-AdminApp-API",
     [string]$StandaloneFeSiteName = "EdFi-AdminApp-FE",
+    [string]$StandaloneFeAppPoolName = "EdFi-AdminApp-FE",
     [string]$ApiDestPath = "C:\inetpub\EdFi-AdminApp-API",
     [string]$FeDestPath = "C:\inetpub\EdFi-AdminApp-FE",
     # Summary is written by install-all.ps1 to the parent of the repo dir
@@ -155,7 +160,7 @@ Write-Host ""
 Write-Host "Ed-Fi Admin App -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
 Write-Host "  - Standalone IIS sites '$AppPoolName' (API) and '$StandaloneFeSiteName' (FE)"
-Write-Host "  - IIS App Pool '$AppPoolName'"
+Write-Host "  - IIS App Pools '$AppPoolName' (API) and '$StandaloneFeAppPoolName' (FE)"
 Write-Host "  - Deployed dirs: $ApiDestPath and $FeDestPath"
 if (-not $KeepDatabase)         {
     Write-Host "  - SQL database [$DatabaseName] + login [$AppDbUsername] (if MSSQLSERVER is running)"
@@ -245,6 +250,25 @@ if ($iisAvailable) {
         }
     } catch {
         Record "Remove App Pool '$AppPoolName'" "FAIL" $_.Exception.Message
+    }
+
+    # Stop + remove the dedicated FE App Pool (06-deploy-fe.ps1 creates it so the
+    # SPA no longer rides DefaultAppPool). Guarded so we never touch DefaultAppPool.
+    try {
+        if ($StandaloneFeAppPoolName -eq 'DefaultAppPool') {
+            Record "Remove FE App Pool" "SKIP" "Refusing to remove DefaultAppPool"
+        } elseif (Test-Path "IIS:\AppPools\$StandaloneFeAppPoolName") {
+            $feState = (Get-WebAppPoolState -Name $StandaloneFeAppPoolName -ErrorAction SilentlyContinue).Value
+            if ($feState -eq 'Started') {
+                Stop-WebAppPool -Name $StandaloneFeAppPoolName -ErrorAction SilentlyContinue
+            }
+            Remove-WebAppPool -Name $StandaloneFeAppPoolName -ErrorAction Stop
+            Record "Remove App Pool '$StandaloneFeAppPoolName'" "OK"
+        } else {
+            Record "App Pool '$StandaloneFeAppPoolName'" "SKIP" "Not present"
+        }
+    } catch {
+        Record "Remove App Pool '$StandaloneFeAppPoolName'" "FAIL" $_.Exception.Message
     }
 }
 

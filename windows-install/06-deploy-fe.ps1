@@ -5,8 +5,8 @@ Deploys the Ed-Fi Admin App frontend to IIS.
 
 .DESCRIPTION
 - Copies built FE files (index.html + assets\) to the IIS folder
-- Creates or updates the IIS site
-- Writes web.config with the React Router SPA rewrite rule
+- Creates or updates the IIS site under a dedicated App Pool (started explicitly)
+- Writes web.config with the React Router SPA rewrite rule + security headers
 
 Run AFTER `npm run build:fe` produces dist\packages\fe\ in the source repo.
 
@@ -28,6 +28,11 @@ Base URL of the API the FE bundle calls. Only its origin (scheme://host:port) is
 used, to populate the Content-Security-Policy connect-src. Must match the
 VITE_API_URL baked into the bundle at build time. Default: http://localhost:3333.
 
+.PARAMETER AppPoolName
+Dedicated IIS App Pool for the FE site, created and started here so the SPA does
+not depend on DefaultAppPool (which is often Stopped after a reboot). Default:
+EdFi-AdminApp-FE.
+
 .EXAMPLE
 .\06-deploy-fe.ps1 -SourcePath C:\Ed-Fi\Ed-Fi-AdminApp\dist\packages\fe
 #>
@@ -38,7 +43,8 @@ param(
     [string]$DestPath = "C:\inetpub\EdFi-AdminApp-FE",
     [string]$SiteName = "EdFi-AdminApp-FE",
     [int]$Port = 4200,
-    [string]$ApiUrl = "http://localhost:3333"
+    [string]$ApiUrl = "http://localhost:3333",
+    [string]$AppPoolName = "EdFi-AdminApp-FE"
 )
 
 $ErrorActionPreference = 'Stop'
@@ -60,12 +66,35 @@ New-Item -ItemType Directory -Path $DestPath -Force | Out-Null
 & robocopy $SourcePath $DestPath /MIR /NFL /NDL /NJH /NJS | Out-Null
 if ($LASTEXITCODE -ge 8) { throw "robocopy failed with exit code $LASTEXITCODE" }
 
+# Dedicated App Pool for the FE. Without one, New-Website binds the site to
+# DefaultAppPool, which is often Stopped after a reboot or recycle -> the SPA 503s
+# until it is started by hand. A dedicated pool (autoStart on by default) started
+# explicitly here keeps the FE reachable on its own.
+try {
+    if (-not (Test-Path "IIS:\AppPools\$AppPoolName")) {
+        Write-Host "Creating App Pool '$AppPoolName'..."
+        New-WebAppPool -Name $AppPoolName | Out-Null
+    }
+    # Static content -- no managed runtime needed.
+    Set-ItemProperty -Path "IIS:\AppPools\$AppPoolName" -Name "managedRuntimeVersion" -Value ""
+    Write-Host "App Pool '$AppPoolName' configured."
+} catch {
+    throw "Failed to create/configure the IIS App Pool '$AppPoolName'. Is IIS running and the WAS service started? Original: $($_.Exception.Message)"
+}
+
 if (Get-Website -Name $SiteName -ErrorAction SilentlyContinue) {
-    Write-Host "Site '$SiteName' exists. Updating physical path..."
+    Write-Host "Site '$SiteName' exists. Updating physical path and app pool..."
     Set-ItemProperty -Path "IIS:\Sites\$SiteName" -Name "physicalPath" -Value $DestPath
+    Set-ItemProperty -Path "IIS:\Sites\$SiteName" -Name "applicationPool" -Value $AppPoolName
 } else {
-    New-Website -Name $SiteName -Port $Port -PhysicalPath $DestPath | Out-Null
-    Write-Host "Site '$SiteName' created on HTTP port $Port."
+    New-Website -Name $SiteName -Port $Port -PhysicalPath $DestPath -ApplicationPool $AppPoolName | Out-Null
+    Write-Host "Site '$SiteName' created on HTTP port $Port (App Pool '$AppPoolName')."
+}
+
+# Ensure the pool is running so the site serves immediately.
+if ((Get-WebAppPoolState -Name $AppPoolName -ErrorAction SilentlyContinue).Value -ne 'Started') {
+    Start-WebAppPool -Name $AppPoolName | Out-Null
+    Write-Host "Started App Pool '$AppPoolName'."
 }
 
 $webConfig = @'
