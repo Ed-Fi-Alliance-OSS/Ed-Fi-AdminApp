@@ -26,7 +26,7 @@ HTTP port. Default: 4200.
 .PARAMETER ApiUrl
 Base URL of the API the FE bundle calls. Only its origin (scheme://host:port) is
 used, to populate the Content-Security-Policy connect-src. Must match the
-VITE_API_URL baked into the bundle at build time. Default: http://localhost:3333.
+VITE_API_URL baked into the bundle at build time. Default: https://localhost:3443.
 
 .PARAMETER AppPoolName
 Dedicated IIS App Pool for the FE site, created and started here so the SPA does
@@ -43,7 +43,7 @@ param(
     [string]$DestPath = "C:\inetpub\EdFi-AdminApp-FE",
     [string]$SiteName = "EdFi-AdminApp-FE",
     [int]$Port = 4200,
-    [string]$ApiUrl = "http://localhost:3333",
+    [string]$ApiUrl = "https://localhost:3443",
     [string]$AppPoolName = "EdFi-AdminApp-FE",
 
     # TLS (see 05-deploy-api.ps1 for the certificate model). HTTPS always-on on

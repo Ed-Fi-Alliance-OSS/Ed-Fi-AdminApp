@@ -114,9 +114,10 @@ param(
 
     [string]$OidcScope = "openid email profile",
 
-    # URLs baked into production.js. Defaults match the standalone HTTP sites.
-    [string]$ApiUrl = "http://localhost:3333",
-    [string]$FeUrl = "http://localhost:4200",
+    # URLs baked into production.js (MY_URL/FE_URL). Defaults are https on the
+    # mirror ports; TLS is always-on (see -HttpsPort and the cert params).
+    [string]$ApiUrl = "https://localhost:3443",
+    [string]$FeUrl = "https://localhost:4443",
     [string]$AdminUsername = "admin@example.com",
 
     # Yopass: pass a non-empty URL to enable Yopass (one-time-share for newly-

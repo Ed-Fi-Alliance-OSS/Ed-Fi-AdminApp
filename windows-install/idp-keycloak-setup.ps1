@@ -65,7 +65,7 @@ The secret to set on the client. Save it; you pass the same value to 05-deploy-a
 
 .PARAMETER FeBaseUrl / -ApiBaseUrl
 Base URLs used to build the client's redirect/origin URIs. Default to the
-standalone HTTP sites (FE http://localhost:4200, API http://localhost:3333).
+standalone HTTPS sites (FE https://localhost:4443, API https://localhost:3443).
 
 .PARAMETER TestUserEmail / -TestUserFirstName / -TestUserLastName / -TestUserPassword
 The seeded test user. TestUserEmail must match the AdminApp DB's seeded user.
@@ -104,10 +104,10 @@ param(
     [Parameter(Mandatory = $true)]
     [SecureString]$ClientSecret,
 
-    # Defaults match the standalone HTTP sites (FE on 4200, API on 3333). The
-    # client's redirect and web-origin URIs are built from these.
-    [string]$FeBaseUrl = "http://localhost:4200",
-    [string]$ApiBaseUrl = "http://localhost:3333",
+    # Defaults match the always-on-TLS standalone sites (FE on 4443, API on 3443).
+    # The client's redirect and web-origin URIs are built from these.
+    [string]$FeBaseUrl = "https://localhost:4443",
+    [string]$ApiBaseUrl = "https://localhost:3443",
 
     # The app builds its OIDC callback as /api/auth/callback/<oidc-row-id> from the
     # auto-generated id of the seeded oidc row (oidc.strategy.ts). On a clean install

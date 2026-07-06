@@ -579,6 +579,8 @@ if ($idpIsKeycloak) {
         ClientSecret = $OidcClientSecret
         TestUserPassword = $TestUserPassword
         TestUserEmail = $AdminUsername
+        ApiBaseUrl = $ApiUrl
+        FeBaseUrl = $FeUrl
     }
     if ($JdkDownloadUrl) { $kcArgs.JdkDownloadUrl = $JdkDownloadUrl }
     if ($JdkSha256) { $kcArgs.JdkSha256 = $JdkSha256 }
@@ -598,9 +600,9 @@ if ($idpIsKeycloak) {
     }
     Write-Host ""
     Write-Host "Register these in your '$IdpProvider' OIDC client before logging in:" -ForegroundColor Yellow
-    Write-Host "  Redirect URI:  http://localhost:3333/api/auth/callback/<id>  (exact id confirmed at the end of this install)"
-    Write-Host "  Post-logout:   http://localhost:3333/api/auth/post-logout"
-    Write-Host "  Web origin:    http://localhost:4200"
+    Write-Host "  Redirect URI:  $ApiUrl/api/auth/callback/<id>  (exact id confirmed at the end of this install)"
+    Write-Host "  Post-logout:   $ApiUrl/api/auth/post-logout"
+    Write-Host "  Web origin:    $FeUrl"
     Write-Host "  And a user whose email/username claim equals '$AdminUsername' (seeded as admin below)."
 }
 
@@ -620,8 +622,12 @@ $apiArgs = @{
     # (Previously this wasn't forwarded, so -YopassUrl on install-all was a no-op.)
     YopassUrl            = $EffectiveYopassUrl
 }
-# TLS: HTTPS port + cert. 05 resolves the cert (self-signed if none supplied) and
-# 06 reuses it, so both sites share one certificate.
+# TLS: https URLs + HTTPS port + cert. ApiUrl/FeUrl flow into production.js
+# (MY_URL/FE_URL/WHITELISTED_REDIRECTS via NODE_CONFIG) so the OIDC callback is https.
+# 05 resolves the cert (self-signed if none supplied) and 06 reuses it, so both
+# sites share one certificate.
+$apiArgs.ApiUrl = $ApiUrl
+$apiArgs.FeUrl  = $FeUrl
 $apiArgs.HttpsPort = $HttpsApiPort
 if ($CertificateThumbprint) { $apiArgs.CertificateThumbprint = $CertificateThumbprint }
 if ($CertificatePfxPath)    { $apiArgs.CertificatePfxPath    = $CertificatePfxPath }
@@ -648,6 +654,7 @@ if ((Test-Path $deployedProdJs) -and ((Get-Content $deployedProdJs -Raw) -match 
 Write-Phase "Phase 3.3: Deploy FE (06-deploy-fe.ps1)"
 $feArgs = @{
     SourcePath = "$SourcePath\dist\packages\fe"
+    ApiUrl     = $ApiUrl
     HttpsPort  = $HttpsFePort
 }
 if ($CertificateThumbprint) { $feArgs.CertificateThumbprint = $CertificateThumbprint }
@@ -659,26 +666,34 @@ if ($CertificatePassword)   { $feArgs.CertificatePassword   = $CertificatePasswo
 Write-Phase "Smoke test: hitting the API"
 
 # The API (node, launched by httpPlatform) lazy-starts on first request, so the first hit can be slow. Retry briefly.
+# The API now serves HTTPS with a (possibly self-signed) cert that isn't in a trust
+# store; accept any cert for this local smoke test only, then restore the callback.
+$savedCertCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
+[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
 $apiOk = $false
-for ($i = 0; $i -lt 12; $i++) {
-    try {
-        $r = Invoke-WebRequest -Uri "http://localhost:3333/api/teams" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-        # Anything non-5xx counts as the app being up (401 expected without a token).
-        $apiOk = $true; break
-    } catch [System.Net.WebException] {
-        $resp = $_.Exception.Response
-        if ($resp) {
-            $code = [int]$resp.StatusCode
-            if ($code -lt 500) { $apiOk = $true; break }
+try {
+    for ($i = 0; $i -lt 12; $i++) {
+        try {
+            $r = Invoke-WebRequest -Uri "$ApiUrl/api/teams" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
+            # Anything non-5xx counts as the app being up (401 expected without a token).
+            $apiOk = $true; break
+        } catch [System.Net.WebException] {
+            $resp = $_.Exception.Response
+            if ($resp) {
+                $code = [int]$resp.StatusCode
+                if ($code -lt 500) { $apiOk = $true; break }
+            }
+            Start-Sleep -Seconds 5
+        } catch {
+            Start-Sleep -Seconds 5
         }
-        Start-Sleep -Seconds 5
-    } catch {
-        Start-Sleep -Seconds 5
     }
+} finally {
+    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $savedCertCallback
 }
 
 if ($apiOk) {
-    Write-Host "API is responding at http://localhost:3333/" -ForegroundColor Green
+    Write-Host "API is responding at $ApiUrl/" -ForegroundColor Green
 
     # Wait for the [user] table to exist. TypeORM migrations run during Nest
     # bootstrap, which is triggered by the smoke test, but the smoke test gets
@@ -837,7 +852,7 @@ UPDATE "user" SET "roleId" = 2, "isActive" = true
         # surface the exact redirect URI the app will send for manual registration.
         Write-Host ""
         Write-Host "IMPORTANT -- register this EXACT redirect URI in your $IdpProvider client before logging in:" -ForegroundColor Yellow
-        Write-Host "  http://localhost:3333/api/auth/callback/$oidcRowId"
+        Write-Host "  $ApiUrl/api/auth/callback/$oidcRowId"
     }
 } else {
     Write-Host "API is NOT responding after ~60s of retries." -ForegroundColor Red
@@ -925,7 +940,7 @@ Identity Provider (external: $IdpProvider)
   Issuer:             $OidcIssuer
   Client ID:          $OidcClientId
   Account URL:        $ViteIdpAccountUrl
-  Register in your IdP: redirect http://localhost:3333/api/auth/callback/$oidcRowId, origin http://localhost:4200
+  Register in your IdP: redirect $ApiUrl/api/auth/callback/$oidcRowId, origin $FeUrl
   Sign in as the IdP user whose email/username = $AdminUsername
 "@
 }
@@ -946,13 +961,13 @@ Ed-Fi Admin App -- Install Summary
 Generated: $(Get-Date -Format 'yyyy-MM-dd HH:mm:ss')
 
 Admin App
-  URL:                http://localhost:4200/
+  URL:                $FeUrl/
   Sign in with:
     Email:            $AdminUsername
     Password:         $signInPassword
 
 API
-  URL:                http://localhost:3333/
+  URL:                $ApiUrl/
 
 $idpSummary
 
