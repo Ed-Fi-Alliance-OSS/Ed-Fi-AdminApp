@@ -9,6 +9,7 @@ Steps (each best-effort, continues past individual failures):
 
   1. IIS teardown:
      - Remove the standalone sites 'EdFi-AdminApp-API' and 'EdFi-AdminApp-FE'.
+     - Remove the HTTPS SSL bindings and delete the auto-generated self-signed cert.
      - Revoke the App Pool's read+execute grant on the node directory.
      - Stop+remove App Pool 'EdFi-AdminApp-API'.
      - Delete the deployed dirs C:\inetpub\EdFi-AdminApp-API and
@@ -113,6 +114,8 @@ param(
     [string]$StandaloneFeAppPoolName = "EdFi-AdminApp-FE",
     [string]$ApiDestPath = "C:\inetpub\EdFi-AdminApp-API",
     [string]$FeDestPath = "C:\inetpub\EdFi-AdminApp-FE",
+    [int]$HttpsApiPort = 3443,
+    [int]$HttpsFePort = 4443,
     # Summary is written by install-all.ps1 to the parent of the repo dir
     # (i.e. grandparent of windows-install\). Auto-resolve the same way.
     [string]$SummaryPath = (Join-Path (Split-Path (Split-Path $PSScriptRoot -Parent) -Parent) "install-summary.txt"),
@@ -161,6 +164,7 @@ Write-Host "Ed-Fi Admin App -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
 Write-Host "  - Standalone IIS sites '$AppPoolName' (API) and '$StandaloneFeSiteName' (FE)"
 Write-Host "  - IIS App Pools '$AppPoolName' (API) and '$StandaloneFeAppPoolName' (FE)"
+Write-Host "  - HTTPS SSL bindings + the auto-generated self-signed certificate"
 Write-Host "  - Deployed dirs: $ApiDestPath and $FeDestPath"
 if (-not $KeepDatabase)         {
     Write-Host "  - SQL database [$DatabaseName] + login [$AppDbUsername] (if MSSQLSERVER is running)"
@@ -209,6 +213,37 @@ if ($iisAvailable) {
         } catch {
             Record "Remove IIS site '$siteName'" "FAIL" $_.Exception.Message
         }
+    }
+
+    # TLS teardown: Remove-Website above dropped each site's https binding, but the
+    # HTTP.sys SSL certificate registration (IIS:\SslBindings) persists separately --
+    # remove it so a reinstall rebinds cleanly. Then delete the self-signed cert we
+    # generated (matched by FriendlyName); a user-supplied cert is left untouched.
+    foreach ($httpsPort in @($HttpsApiPort, $HttpsFePort)) {
+        $sslPath = "IIS:\SslBindings\0.0.0.0!$httpsPort"
+        try {
+            if (Test-Path $sslPath) {
+                Remove-Item $sslPath -Force -ErrorAction Stop
+                Record "Remove SSL binding 0.0.0.0:$httpsPort" "OK"
+            } else {
+                Record "SSL binding 0.0.0.0:$httpsPort" "SKIP" "Not present"
+            }
+        } catch {
+            Record "Remove SSL binding 0.0.0.0:$httpsPort" "FAIL" $_.Exception.Message
+        }
+    }
+    $selfSignedFriendlyName = 'Ed-Fi Admin App self-signed'
+    try {
+        $certs = Get-ChildItem Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
+            Where-Object { $_.FriendlyName -eq $selfSignedFriendlyName }
+        if ($certs) {
+            $certs | ForEach-Object { Remove-Item "Cert:\LocalMachine\My\$($_.Thumbprint)" -Force -ErrorAction Stop }
+            Record "Remove self-signed TLS certificate" "OK" "$($certs.Count) removed"
+        } else {
+            Record "Self-signed TLS certificate" "SKIP" "Not present (or a user-supplied cert was used)"
+        }
+    } catch {
+        Record "Remove self-signed TLS certificate" "FAIL" $_.Exception.Message
     }
 
     # Revoke the App Pool's read+execute grant on the node directory that

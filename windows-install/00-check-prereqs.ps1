@@ -331,13 +331,13 @@ try {
     if ($apiSite) {
         Write-Check PASS "IIS site 'EdFi-AdminApp-API' present" "State: $($apiSite.State)"
     } else {
-        Write-Check INFO "IIS site 'EdFi-AdminApp-API' not present" "05-deploy-api.ps1 will create (HTTP :3333)"
+        Write-Check INFO "IIS site 'EdFi-AdminApp-API' not present" "05-deploy-api.ps1 will create (HTTP :3333 -> HTTPS :3443)"
     }
     $feSite = Get-Website -Name "EdFi-AdminApp-FE" -ErrorAction SilentlyContinue
     if ($feSite) {
         Write-Check PASS "IIS site 'EdFi-AdminApp-FE' present"
     } else {
-        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "06-deploy-fe.ps1 will create (HTTP :4200)"
+        Write-Check INFO "IIS site 'EdFi-AdminApp-FE' not present" "06-deploy-fe.ps1 will create (HTTP :4200 -> HTTPS :4443)"
     }
     $apiPool = Get-Item "IIS:\AppPools\EdFi-AdminApp-API" -ErrorAction SilentlyContinue
     if ($apiPool) {
@@ -382,12 +382,15 @@ if ($DbEngine -eq 'mssql' -and $sqlService) {
     }
 }
 
-# Ports 3333 (API) and 4200 (FE) free? The two standalone sites bind these. If
-# another process already owns one, New-Website fails. Our own AdminApp sites
-# owning the port is fine (idempotent re-run) -- flag only a foreign owner.
+# Ports 3333/4200 (HTTP) and 3443/4443 (HTTPS) free? The two standalone sites bind
+# these (HTTP redirects to HTTPS). If another process already owns one, New-Website
+# fails. Our own AdminApp sites owning the port is fine (idempotent re-run) -- flag
+# only a foreign owner.
 $portChecks = @(
-    @{ Port = 3333; Site = 'EdFi-AdminApp-API'; Role = 'API' },
-    @{ Port = 4200; Site = 'EdFi-AdminApp-FE';  Role = 'FE'  }
+    @{ Port = 3333; Site = 'EdFi-AdminApp-API'; Role = 'API (HTTP)' },
+    @{ Port = 4200; Site = 'EdFi-AdminApp-FE';  Role = 'FE (HTTP)'  },
+    @{ Port = 3443; Site = 'EdFi-AdminApp-API'; Role = 'API (HTTPS)' },
+    @{ Port = 4443; Site = 'EdFi-AdminApp-FE';  Role = 'FE (HTTPS)'  }
 )
 foreach ($pc in $portChecks) {
     $listener = Get-NetTCPConnection -LocalPort $pc.Port -State Listen -ErrorAction SilentlyContinue | Select-Object -First 1
