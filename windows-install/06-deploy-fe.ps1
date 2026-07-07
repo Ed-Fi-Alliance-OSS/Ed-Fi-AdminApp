@@ -51,7 +51,13 @@ param(
     [int]$HttpsPort = 4443,
     [string]$CertificateThumbprint = "",
     [string]$CertificatePfxPath = "",
-    [SecureString]$CertificatePassword
+    [SecureString]$CertificatePassword,
+
+    # By default the auto-generated self-signed cert is added to LocalMachine\Root so
+    # local browsers trust it (no "Not Secure" warning). Set this to skip that where
+    # policy forbids adding trusted roots; the browser will then warn. Only affects the
+    # self-signed path -- a supplied real cert is never added to Root.
+    [switch]$SkipSelfSignedTrust
 )
 
 $ErrorActionPreference = 'Stop'
@@ -115,7 +121,8 @@ function Resolve-HttpsCertificate {
     param(
         [string]$Thumbprint,
         [string]$PfxPath,
-        [SecureString]$PfxPassword
+        [SecureString]$PfxPassword,
+        [switch]$SkipTrust
     )
     $storePath = 'Cert:\LocalMachine\My'
     $friendlyName = 'Ed-Fi Admin App self-signed'
@@ -140,17 +147,38 @@ function Resolve-HttpsCertificate {
     }
 
     # Self-signed fallback. Reuse a still-valid one we created before so re-runs
-    # (and the API deploy that precedes) share a single cert; else generate a fresh one.
-    $existing = Get-ChildItem $storePath |
+    # (and the other site's deploy) share a single cert; else generate a fresh one.
+    $cert = Get-ChildItem $storePath |
         Where-Object { $_.FriendlyName -eq $friendlyName -and $_.NotAfter -gt (Get-Date) } |
         Sort-Object NotAfter -Descending | Select-Object -First 1
-    if ($existing) {
-        Write-Host "Reusing the existing self-signed certificate ($($existing.Thumbprint))."
-        return $existing.Thumbprint
+    if ($cert) {
+        Write-Host "Reusing the existing self-signed certificate ($($cert.Thumbprint))."
+    } else {
+        Write-Host "Generating a self-signed certificate for HTTPS (localhost + $env:COMPUTERNAME)..."
+        $cert = New-SelfSignedCertificate -DnsName 'localhost', $env:COMPUTERNAME `
+            -CertStoreLocation $storePath -FriendlyName $friendlyName -NotAfter (Get-Date).AddYears(5)
     }
-    Write-Host "Generating a self-signed certificate for HTTPS (localhost + $env:COMPUTERNAME)..."
-    $cert = New-SelfSignedCertificate -DnsName 'localhost', $env:COMPUTERNAME `
-        -CertStoreLocation $storePath -FriendlyName $friendlyName -NotAfter (Get-Date).AddYears(5)
+    # Trust the self-signed cert on this machine (add the public cert to
+    # LocalMachine\Root) so local browsers don't show "Not Secure". Only the
+    # self-signed path does this -- a supplied real cert is already CA-trusted. Skip
+    # with -SkipTrust where policy forbids adding trusted roots. Idempotent; a
+    # public-only copy carrying the same FriendlyName is stored so uninstall finds it.
+    if (-not $SkipTrust) {
+        $rootStore = [System.Security.Cryptography.X509Certificates.X509Store]::new('Root', 'LocalMachine')
+        $rootStore.Open('ReadWrite')
+        try {
+            $found = $rootStore.Certificates.Find(
+                [System.Security.Cryptography.X509Certificates.X509FindType]::FindByThumbprint, $cert.Thumbprint, $false)
+            if ($found.Count -eq 0) {
+                $pub = [System.Security.Cryptography.X509Certificates.X509Certificate2]::new($cert.RawData)
+                $pub.FriendlyName = $friendlyName
+                $rootStore.Add($pub)
+                Write-Host "Trusted the self-signed certificate (added to LocalMachine\Root)."
+            }
+        } finally {
+            $rootStore.Close()
+        }
+    }
     return $cert.Thumbprint
 }
 
@@ -176,7 +204,7 @@ function Set-HttpsBinding {
 
 # TLS (always-on): resolve the cert and add the HTTPS binding. The HTTP site created
 # above stays only to 301-redirect to HTTPS (redirect rule added to web.config in T3.2).
-$certThumbprint = Resolve-HttpsCertificate -Thumbprint $CertificateThumbprint -PfxPath $CertificatePfxPath -PfxPassword $CertificatePassword
+$certThumbprint = Resolve-HttpsCertificate -Thumbprint $CertificateThumbprint -PfxPath $CertificatePfxPath -PfxPassword $CertificatePassword -SkipTrust:$SkipSelfSignedTrust
 Set-HttpsBinding -SiteName $SiteName -HttpsPort $HttpsPort -Thumbprint $certThumbprint
 
 $webConfig = @'

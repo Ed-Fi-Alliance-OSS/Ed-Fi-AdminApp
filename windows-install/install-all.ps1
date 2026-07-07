@@ -263,7 +263,12 @@ param(
     [int]$HttpsFePort = 4443,
     [string]$CertificateThumbprint = "",
     [string]$CertificatePfxPath = "",
-    [SecureString]$CertificatePassword
+    [SecureString]$CertificatePassword,
+
+    # By default an auto-generated self-signed cert is added to LocalMachine\Root so
+    # local browsers trust it. Set this to skip that (browser shows "Not Secure");
+    # only affects the self-signed path, not a supplied real cert.
+    [switch]$SkipSelfSignedTrust
 )
 
 $ErrorActionPreference = 'Stop'
@@ -637,6 +642,7 @@ $apiArgs.HttpsPort = $HttpsApiPort
 if ($CertificateThumbprint) { $apiArgs.CertificateThumbprint = $CertificateThumbprint }
 if ($CertificatePfxPath)    { $apiArgs.CertificatePfxPath    = $CertificatePfxPath }
 if ($CertificatePassword)   { $apiArgs.CertificatePassword   = $CertificatePassword }
+if ($SkipSelfSignedTrust)   { $apiArgs.SkipSelfSignedTrust   = $true }
 if ($DbEngine -eq 'mssql') {
     $apiArgs.AppDbUsername = $AppDbUsername
     $apiArgs.AppDbPassword = $AppDbPassword
@@ -665,6 +671,7 @@ $feArgs = @{
 if ($CertificateThumbprint) { $feArgs.CertificateThumbprint = $CertificateThumbprint }
 if ($CertificatePfxPath)    { $feArgs.CertificatePfxPath    = $CertificatePfxPath }
 if ($CertificatePassword)   { $feArgs.CertificatePassword   = $CertificatePassword }
+if ($SkipSelfSignedTrust)   { $feArgs.SkipSelfSignedTrust   = $true }
 & "$scriptDir\06-deploy-fe.ps1" @feArgs
 
 # ---------- Smoke test ----------

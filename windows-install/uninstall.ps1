@@ -232,18 +232,24 @@ if ($iisAvailable) {
             Record "Remove SSL binding 0.0.0.0:$httpsPort" "FAIL" $_.Exception.Message
         }
     }
+    # Remove our self-signed cert from BOTH the personal store (My, where it's
+    # generated) and the trusted root store (Root, where 05/06 add it so local
+    # browsers trust it). Match only OUR FriendlyName so unrelated localhost roots
+    # (dotnet dev-certs, IIS Express, ...) are never touched.
     $selfSignedFriendlyName = 'Ed-Fi Admin App self-signed'
-    try {
-        $certs = Get-ChildItem Cert:\LocalMachine\My -ErrorAction SilentlyContinue |
-            Where-Object { $_.FriendlyName -eq $selfSignedFriendlyName }
-        if ($certs) {
-            $certs | ForEach-Object { Remove-Item "Cert:\LocalMachine\My\$($_.Thumbprint)" -Force -ErrorAction Stop }
-            Record "Remove self-signed TLS certificate" "OK" "$($certs.Count) removed"
-        } else {
-            Record "Self-signed TLS certificate" "SKIP" "Not present (or a user-supplied cert was used)"
+    foreach ($store in @('My', 'Root')) {
+        try {
+            $certs = Get-ChildItem "Cert:\LocalMachine\$store" -ErrorAction SilentlyContinue |
+                Where-Object { $_.FriendlyName -eq $selfSignedFriendlyName }
+            if ($certs) {
+                $certs | ForEach-Object { Remove-Item "Cert:\LocalMachine\$store\$($_.Thumbprint)" -Force -ErrorAction Stop }
+                Record "Remove self-signed TLS certificate ($store)" "OK" "$($certs.Count) removed"
+            } else {
+                Record "Self-signed TLS certificate ($store)" "SKIP" "Not present (or a user-supplied cert was used)"
+            }
+        } catch {
+            Record "Remove self-signed TLS certificate ($store)" "FAIL" $_.Exception.Message
         }
-    } catch {
-        Record "Remove self-signed TLS certificate" "FAIL" $_.Exception.Message
     }
 
     # Revoke the App Pool's read+execute grant on the node directory that
