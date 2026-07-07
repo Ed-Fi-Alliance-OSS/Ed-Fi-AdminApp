@@ -30,8 +30,20 @@ export class Ods extends EntityBase implements IOds {
   @Column({ nullable: true })
   odsInstanceName: string | null;
 
+  @Column({ nullable: true })
+  instanceType: string | null;
+
   @Column()
   dbName: string;
+
+  @Column({ nullable: true })
+  status: string | null;
+
+  @Column({ nullable: true })
+  databaseTemplate: string | null;
+
+  @Column({ nullable: true })
+  databaseName: string | null;
 
   get displayName() {
     return this.dbName;

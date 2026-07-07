@@ -49,8 +49,8 @@ When('the user click on the first environment from the table', async () => {
   await environmentsPage.clickOnFirstEnvironment()
 })
 
-When(/^the user click on (edit|delete) tab option$/, async ({}, option: string) => {
-  const optionName = option.toLowerCase() === 'edit' ? 'Edit' : 'Delete'
+When(/^the user click on (edit|delete|grantownership) tab option$/, async ({}, option: string) => {
+  const optionName = option.toLowerCase()
   await environmentsPage.clickOnTabOption(optionName)
 })
 
@@ -71,8 +71,9 @@ When(/^the user click on (edit|delete) option from three dots option$/, async ({
   await environmentsPage.clickOnTheFirstOptionFromThreeDots(optionName)
 })
 
-When('the user click on delete option from more three dots option', async () => {
-  await environmentsPage.clickOnTheOptionFromMoreThreeDots('Delete')
+When(/^the user click on (grantownership|delete) option from more three dots option$/, async ({}, option: string) => {
+  const optionName = option.toLowerCase()
+  await environmentsPage.clickOnTheOptionFromMoreThreeDots(optionName)
 })
 
 When(/^the user click on (no|yes) button from popup message$/, async ({}, option: string) => {
@@ -127,4 +128,8 @@ Then('the environment should still be available in the list of environments', as
 Then(/^the environment (updated|created) should removed from the table of environments$/, async ({}, option: string) => {
   const optionName = option.toLowerCase() === 'updated' ? 'UpdateNameV1' : 'EnvB'
   await environmentsPage.environmentShouldBeRemoved(optionName)
+})
+
+Then('the ownership form should be loaded', async () => {
+  await environmentsPage.ownershipsFormIsDisplayed()
 })

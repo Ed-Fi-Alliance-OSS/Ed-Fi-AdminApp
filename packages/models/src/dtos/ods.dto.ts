@@ -56,6 +56,18 @@ export class GetOdsDto
   @Expose()
   odsInstanceName: string | null;
 
+  @Expose()
+  instanceType: string | null;
+
+  @Expose()
+  status: string | null;
+
+  @Expose()
+  databaseTemplate: string | null;
+
+  @Expose()
+  databaseName: string | null;
+
   override get displayName() {
     return this.odsInstanceName ?? this.dbName;
   }
@@ -73,7 +85,11 @@ export class PutOdsDto
       | 'dbName'
       | 'sbEnvironmentId'
       | 'odsInstanceName'
+      | 'instanceType'
       | 'integrationApps'
+      | 'status'
+      | 'databaseTemplate'
+      | 'databaseName'
     >
 {
   @Expose()
@@ -98,7 +114,11 @@ export class PostOdsDto
       | 'sbEnvironmentId'
       | 'edfiTenantId'
       | 'odsInstanceName'
+      | 'instanceType'
       | 'integrationApps'
+      | 'status'
+      | 'databaseTemplate'
+      | 'databaseName'
     >
 {
   @Expose()

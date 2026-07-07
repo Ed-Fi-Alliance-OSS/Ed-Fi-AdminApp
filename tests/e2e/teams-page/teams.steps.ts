@@ -23,6 +23,10 @@ When('the user fill the required fields', async () => {
   await teamsPage.fillRequiredFields()
 })
 
+When(/^the user create this team name (.+)$/, async ({}, teamName: string) => {
+  await teamsPage.fillTeamName(teamName)
+})
+
 When('the user click on save the teams', async () => {
   await teamsPage.clickSaveButton()
 })

@@ -104,6 +104,73 @@ describe('computeOdsListDeltas — id-based ODS (non-SB V1 / V2)', () => {
 
     expect(result.delete).toContain(7);
   });
+
+  it('updates an existing ODS when status changes', () => {
+    const existingOds = makeOds({ id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db', status: 'active' } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db', status: 'inactive' }];
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.update).toHaveLength(1);
+    expect((result.update[0] as any).status).toBe('inactive');
+    expect(result.insert).toHaveLength(0);
+  });
+
+  it('updates an existing ODS when databaseTemplate changes', () => {
+    const existingOds = makeOds({ id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db', databaseTemplate: 'template_a' } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db', databaseTemplate: 'template_b' }];
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.update).toHaveLength(1);
+    expect((result.update[0] as any).databaseTemplate).toBe('template_b');
+  });
+
+  it('updates an existing ODS when databaseName changes', () => {
+    const existingOds = makeOds({ id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db', databaseName: 'db_old' } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db', databaseName: 'db_new' }];
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.update).toHaveLength(1);
+    expect((result.update[0] as any).databaseName).toBe('db_new');
+  });
+
+  it('produces no delta when all new fields are unchanged', () => {
+    const existingOds = makeOds({
+      id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db',
+      status: 'active', databaseTemplate: 'template_a', databaseName: 'db_one',
+    } as any);
+    const incoming: SyncableOds[] = [{
+      id: 5, name: 'ODS', dbName: 'ods_db',
+      status: 'active', databaseTemplate: 'template_a', databaseName: 'db_one',
+    }];
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.insert).toHaveLength(0);
+    expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
+
+  it('produces no delta when existing fields are null and incoming fields are undefined', () => {
+    const existingOds = makeOds({
+      id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db',
+      status: null, databaseTemplate: null, databaseName: null,
+    } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db' }]; // fields absent
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.insert).toHaveLength(0);
+    expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
 });
 
 // ---------------------------------------------------------------------------
@@ -171,6 +238,21 @@ describe('computeOdsListDeltas — dbName-based ODS (SB V1 Lambda)', () => {
     const em = makeEntityManager();
 
     const result = computeOdsListDeltas(incoming, [existingIdBased, existingDbBased], tenant, em);
+
+    expect(result.insert).toHaveLength(0);
+    expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
+
+  it('produces no delta when existing fields are null and incoming fields are undefined (dbName path)', () => {
+    const existingOds = makeOds({
+      id: 3, odsInstanceId: null, odsInstanceName: null, dbName: 'ods_alpha',
+      status: null, databaseTemplate: null, databaseName: null,
+    } as any);
+    const incoming: SyncableOds[] = [{ id: null, name: null, dbName: 'ods_alpha' }]; // new fields absent
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
 
     expect(result.insert).toHaveLength(0);
     expect(result.update).toHaveLength(0);
