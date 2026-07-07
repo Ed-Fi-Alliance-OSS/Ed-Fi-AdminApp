@@ -203,10 +203,10 @@ $webConfig = @'
         </rule>
       </rules>
     </rewrite>
-    <!-- Baseline security headers. CSP is Report-Only for now and moves to enforcing
-         with the always-on TLS work. connect-src must match the API origin the FE
-         bundle calls (VITE_API_URL). style-src allows 'unsafe-inline' because MUI /
-         emotion inject styles at runtime. -->
+    <!-- Baseline security headers. The CSP is enforcing (flipped from Report-Only
+         once TLS was always-on; validated in a browser with no violations). connect-src
+         must match the API origin the FE bundle calls (VITE_API_URL). style-src allows
+         'unsafe-inline' because MUI / emotion inject styles at runtime. -->
     <httpProtocol>
       <customHeaders>
         <remove name="X-Powered-By" />
@@ -214,7 +214,7 @@ $webConfig = @'
         <add name="X-Content-Type-Options" value="nosniff" />
         <add name="X-Frame-Options" value="DENY" />
         <add name="Referrer-Policy" value="no-referrer" />
-        <add name="Content-Security-Policy-Report-Only" value="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' __API_ORIGIN__; form-action 'self'" />
+        <add name="Content-Security-Policy" value="default-src 'self'; base-uri 'self'; object-src 'none'; frame-ancestors 'none'; img-src 'self' data:; font-src 'self' data:; style-src 'self' 'unsafe-inline'; script-src 'self'; connect-src 'self' __API_ORIGIN__; form-action 'self'" />
       </customHeaders>
     </httpProtocol>
   </system.webServer>
@@ -236,4 +236,4 @@ if ((Test-Path $webConfigPath) -and ((Get-Content $webConfigPath -Raw) -eq $webC
 }
 
 Write-Host ""
-Write-Host "SUCCESS: FE deployed at http://localhost:$Port/" -ForegroundColor Green
+Write-Host "SUCCESS: FE deployed at https://localhost:$HttpsPort/ (HTTP :$Port redirects here)." -ForegroundColor Green

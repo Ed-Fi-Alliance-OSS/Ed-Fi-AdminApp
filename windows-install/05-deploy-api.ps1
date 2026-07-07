@@ -379,14 +379,15 @@ $webConfig = @'
     </httpPlatform>
     <!-- Baseline security headers. Node already sets X-Content-Type-Options and
          X-Frame-Options in main.ts, so only the headers it does not emit are added
-         here to avoid duplicates on the proxied response. CSP is Report-Only for now
-         and moves to enforcing with the always-on TLS work. -->
+         here to avoid duplicates on the proxied response. The CSP is enforcing
+         (flipped from Report-Only once TLS was always-on); the API serves only JSON
+         in production (Swagger UI is disabled there), so default-src 'none' is safe. -->
     <httpProtocol>
       <customHeaders>
         <remove name="X-Powered-By" />
         <add name="Strict-Transport-Security" value="max-age=31536000; includeSubDomains" />
         <add name="Referrer-Policy" value="no-referrer" />
-        <add name="Content-Security-Policy-Report-Only" value="default-src 'none'; frame-ancestors 'none'; base-uri 'none'" />
+        <add name="Content-Security-Policy" value="default-src 'none'; frame-ancestors 'none'; base-uri 'none'" />
       </customHeaders>
     </httpProtocol>
     <httpErrors errorMode="__ERROR_MODE__" />
@@ -733,4 +734,4 @@ if ($webConfigChanged -or $prodJsChanged) {
 
 Write-Host ""
 Write-Host "SUCCESS: Admin App API deployed." -ForegroundColor Green
-Write-Host "URL: http://localhost:${StandalonePort}/api/teams (expect 401 without a bearer token)"
+Write-Host "URL: https://localhost:${HttpsPort}/api/teams (expect 401 without a bearer token; HTTP :${StandalonePort} redirects to HTTPS)."
