@@ -592,6 +592,11 @@ if ($idpIsKeycloak) {
     Write-Host "Skipping local IdP setup -- using external provider '$IdpProvider'." -ForegroundColor Cyan
     $disco = "$($OidcIssuer.TrimEnd('/'))/.well-known/openid-configuration"
     Write-Host "Validating OIDC discovery at $disco ..."
+    # PS 5.1's default ServicePointManager protocol can exclude TLS 1.2, which fails
+    # the handshake to an external provider's discovery endpoint (Entra/Google all
+    # require TLS 1.2+). Enable it for this call. (The local self-signed https smoke
+    # test uses curl.exe instead, which sidesteps this .NET Framework limitation.)
+    [Net.ServicePointManager]::SecurityProtocol = [Net.ServicePointManager]::SecurityProtocol -bor [Net.SecurityProtocolType]::Tls12
     try {
         Invoke-RestMethod -Uri $disco -TimeoutSec 10 | Out-Null
         Write-Host "OIDC discovery reachable." -ForegroundColor Green
@@ -666,30 +671,18 @@ if ($CertificatePassword)   { $feArgs.CertificatePassword   = $CertificatePasswo
 Write-Phase "Smoke test: hitting the API"
 
 # The API (node, launched by httpPlatform) lazy-starts on first request, so the first hit can be slow. Retry briefly.
-# The API now serves HTTPS with a (possibly self-signed) cert that isn't in a trust
-# store; accept any cert for this local smoke test only, then restore the callback.
-$savedCertCallback = [System.Net.ServicePointManager]::ServerCertificateValidationCallback
-[System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
+# Smoke test via curl.exe. PS 5.1's Invoke-WebRequest can't reliably complete the
+# TLS handshake to the self-signed https binding ("unexpected error on send"), even
+# with a cert-validation bypass and Tls12 forced; curl.exe (bundled since Win10 1803
+# / Server 2019) handles it. -k accepts the self-signed cert. ~3 minutes of retries:
+# a fresh cold start runs migrations + catalog sync, which can exceed a minute on a
+# slow box. The post-boot steps below are gated on this. A non-5xx (and non-000)
+# status means node is up (401 without a token).
 $apiOk = $false
-try {
-    for ($i = 0; $i -lt 12; $i++) {
-        try {
-            $r = Invoke-WebRequest -Uri "$ApiUrl/api/teams" -UseBasicParsing -TimeoutSec 10 -ErrorAction Stop
-            # Anything non-5xx counts as the app being up (401 expected without a token).
-            $apiOk = $true; break
-        } catch [System.Net.WebException] {
-            $resp = $_.Exception.Response
-            if ($resp) {
-                $code = [int]$resp.StatusCode
-                if ($code -lt 500) { $apiOk = $true; break }
-            }
-            Start-Sleep -Seconds 5
-        } catch {
-            Start-Sleep -Seconds 5
-        }
-    }
-} finally {
-    [System.Net.ServicePointManager]::ServerCertificateValidationCallback = $savedCertCallback
+for ($i = 0; $i -lt 36; $i++) {
+    $code = & curl.exe -sk -o NUL -w "%{http_code}" "$ApiUrl/api/teams" 2>$null
+    if ($code -match '^\d+$' -and [int]$code -ge 100 -and [int]$code -lt 500) { $apiOk = $true; break }
+    Start-Sleep -Seconds 5
 }
 
 if ($apiOk) {
