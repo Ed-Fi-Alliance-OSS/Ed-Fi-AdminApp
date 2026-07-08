@@ -4,14 +4,21 @@
 services:
   # Ed-Fi v7.x - Single tenant
   odsV7-adminV2-single-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV2-single-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
