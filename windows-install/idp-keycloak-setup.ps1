@@ -74,7 +74,9 @@ The seeded test user. TestUserEmail must match the AdminApp DB's seeded user.
 Switch -- add the audience mapper (only needed for bearer-token API access).
 
 .PARAMETER EnableDirectAccessGrants
-Switch -- enable the password grant on the client. Testing only.
+Switch -- enable the password grant (OAuth ROPC) on the client. Testing only;
+sends user credentials straight to the token endpoint. The script warns if this
+is combined with a non-localhost -KeycloakBaseUrl (a production/remote IdP).
 
 .EXAMPLE
 .\idp-keycloak-setup.ps1 -AdminPassword 'admin' -ClientSecret 'mysecret123' -TestUserPassword 'TestUser123!'
@@ -138,6 +140,19 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Direct Access Grants (OAuth password/ROPC grant) is a testing convenience only:
+# it sends user credentials straight to the token endpoint. Warn loudly if it is
+# enabled against a non-loopback Keycloak, which signals a real/remote deployment.
+if ($EnableDirectAccessGrants) {
+    $kcHost = ([Uri]$KeycloakBaseUrl).Host.Trim('[', ']')
+    $ip = $null
+    $isLoopback = ($kcHost -eq 'localhost') -or
+        ([System.Net.IPAddress]::TryParse($kcHost, [ref]$ip) -and [System.Net.IPAddress]::IsLoopback($ip))
+    if (-not $isLoopback) {
+        Write-Warning "Direct Access Grants (OAuth password grant) is enabled on a non-localhost Keycloak ($KeycloakBaseUrl). This flow sends user credentials directly to the token endpoint and is intended for local testing only -- do not enable it against a production or remote IdP."
+    }
+}
 
 # --- Verified download helpers -------------------------------------------------
 # Duplicated across the windows-install scripts (no shared module in this folder,
