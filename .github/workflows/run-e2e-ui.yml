@@ -8,13 +8,16 @@ name: UI Playwright E2E
 on:
   workflow_dispatch:
   pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
     branches: [main, "patch-v*"]
     paths:
+      - .github/workflows/run-e2e-ui.yml
       - tests/e2e/**
       - playwright.config.ts
       - package.json
       - package-lock.json
       - compose/**
+      - packages/api/**
       - packages/fe/**
 
 concurrency:
@@ -55,6 +58,27 @@ jobs:
         shell: pwsh
         run: |
           cp .env.example .env
+          $envContent = Get-Content .env -Raw
+
+          if ($envContent -match '(?m)^PLAYWRIGHT_E2E=') {
+            $envContent = $envContent -replace '(?m)^PLAYWRIGHT_E2E=.*$', 'PLAYWRIGHT_E2E=true'
+          } else {
+            $envContent += "`nPLAYWRIGHT_E2E=true"
+          }
+
+          if ($envContent -match '(?m)^OIDC_PATCH_DEBUG=') {
+            $envContent = $envContent -replace '(?m)^OIDC_PATCH_DEBUG=.*$', 'OIDC_PATCH_DEBUG=true'
+          } else {
+            $envContent += "`nOIDC_PATCH_DEBUG=true"
+          }
+
+          if ($envContent -match '(?m)^API_NODE_OPTIONS=') {
+            $envContent = $envContent -replace '(?m)^API_NODE_OPTIONS=.*$', 'API_NODE_OPTIONS=--require /app/e2e-hooks/oidc-http-patch.cjs'
+          } else {
+            $envContent += "`nAPI_NODE_OPTIONS=--require /app/e2e-hooks/oidc-http-patch.cjs"
+          }
+
+          Set-Content .env $envContent
           ./start-local-dev-target.ps1 -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild
 
       - name: Wait for Admin App API and FE
@@ -64,6 +88,7 @@ jobs:
           api_url="https://localhost/adminapp-api/api/healthcheck"
           fe_url="https://localhost/adminapp/"
           keycloak_url="https://localhost/auth/realms/edfi/.well-known/openid-configuration"
+          keycloak_login_url="https://localhost/auth/realms/edfi/protocol/openid-connect/auth?client_id=edfiadminapp&redirect_uri=https%3A%2F%2Flocalhost%2Fadminapp-api%2Fapi%2Fauth%2Fcallback%2F1&response_type=code&scope=openid%20profile%20email"
 
           # Require consecutive successful checks to avoid transient "ready" states.
           required_stable_checks=3
@@ -73,6 +98,7 @@ jobs:
             api_ok=0
             fe_ok=0
             keycloak_ok=0
+            keycloak_login_ok=0
 
             if curl -ksSf "$api_url" > /dev/null; then
               api_ok=1
@@ -86,16 +112,20 @@ jobs:
               keycloak_ok=1
             fi
 
-            if [ "$api_ok" -eq 1 ] && [ "$fe_ok" -eq 1 ] && [ "$keycloak_ok" -eq 1 ]; then
+            if curl -ksSL "$keycloak_login_url" | grep -q 'kc-form-login'; then
+              keycloak_login_ok=1
+            fi
+
+            if [ "$api_ok" -eq 1 ] && [ "$fe_ok" -eq 1 ] && [ "$keycloak_ok" -eq 1 ] && [ "$keycloak_login_ok" -eq 1 ]; then
               stable_checks=$((stable_checks + 1))
               echo "Readiness OK ($stable_checks/$required_stable_checks)"
             else
               stable_checks=0
-              echo "Waiting... API=$api_ok FE=$fe_ok KEYCLOAK=$keycloak_ok ($i/90)"
+              echo "Waiting... API=$api_ok FE=$fe_ok KEYCLOAK_META=$keycloak_ok KEYCLOAK_LOGIN=$keycloak_login_ok ($i/90)"
             fi
 
             if [ "$stable_checks" -ge "$required_stable_checks" ]; then
-              echo "Admin App API, FE, and Keycloak are stable"
+              echo "Admin App API, FE, and Keycloak metadata/login are stable"
               exit 0
             fi
 
