@@ -131,14 +131,21 @@ services:
 
   # Ed-Fi v7.x - Multi tenants
   odsV7-adminV2-tenant1-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV2-tenant1-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
@@ -148,14 +155,21 @@ services:
       - edfiadminapp-network
 
   odsV7-adminV2-tenant2-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV2-tenant2-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
@@ -290,6 +304,8 @@ services:
         'envsubst < /app/appsettings.v2.dockertemplate.json > /app/appsettings.multitenantdocker.json && /app/run.sh',
       ]
     depends_on:
+      - odsV7-adminV2-tenant1-db-ods
+      - odsV7-adminV2-tenant2-db-ods
       - odsV7-adminV2-tenant1-db-admin
       - odsV7-adminV2-tenant2-db-admin
     restart: always
@@ -304,14 +320,21 @@ services:
 
   # Ed-Fi v7.x - Single tenant (Admin API v3)
   odsV7-adminV3-single-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV3-single-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
@@ -404,11 +427,14 @@ services:
       AppSettings__adminApiMode: v3
       ConnectionStrings__EdFi_Admin: 'host=odsV7-adminV3-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Admin;'
       ConnectionStrings__EdFi_Security: 'host=odsV7-adminV3-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Security;'
+      ConnectionStrings__EdFi_Ods: 'host=odsV7-adminV3-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Ods;pooling=true'
+      ConnectionStrings__EdFi_Master: 'host=odsV7-adminV3-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=postgres;pooling=true'
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V3_SINGLE_API_DISCOVERY_URL}
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
       - odsV7-adminV3-single-db-admin
+      - odsV7-adminV3-single-db-ods
     restart: always
     hostname: ${ODS_V7_ADMIN_V3_SINGLE_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
@@ -421,14 +447,21 @@ services:
 
   # Ed-Fi v7.x - Multi tenants (Admin API v3)
   odsV7-adminV3-tenant1-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV3-tenant1-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
@@ -438,14 +471,21 @@ services:
       - edfiadminapp-network
 
   odsV7-adminV3-tenant2-db-ods:
-    image: edfialliance/${ODS_DB_IMAGE_7X}:${ODS_DB_TAG_7X}
+    build:
+      context: ./DB-Ods
+    image: edfiadminapp/db-ods:local
     environment:
       POSTGRES_USER: ${POSTGRES_USER}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      POSTGRES_PORT: "${POSTGRES_PORT:-5432}"
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
+      MINIMAL_SQL_PATH: "${MINIMAL_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Minimal.Template.sql}"
+      POPULATED_SQL_PATH: "${POPULATED_SQL_PATH:-/var/opt/pgsql/data/sql-backups/EdFi.Ods.Populated.Template.sql}"
+      EDFI_ODS_DATASET: "${EDFI_ODS_DATASET:-minimal}"
     restart: always
     volumes:
       - vol-odsV7-adminV3-tenant2-db-ods:/var/lib/postgresql/data
+      - ${SQL_BACKUPS_FOLDER}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
       test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
       start_period: 30s
@@ -580,6 +620,8 @@ services:
         'envsubst < /app/appsettings.v3.dockertemplate.json > /app/appsettings.multitenantdocker.json && /app/run.sh',
       ]
     depends_on:
+      - odsV7-adminV3-tenant1-db-ods
+      - odsV7-adminV3-tenant2-db-ods
       - odsV7-adminV3-tenant1-db-admin
       - odsV7-adminV3-tenant2-db-admin
     restart: always
