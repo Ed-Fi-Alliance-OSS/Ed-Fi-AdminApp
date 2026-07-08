@@ -66,18 +66,6 @@ jobs:
             $envContent += "`nPLAYWRIGHT_E2E=true"
           }
 
-          if ($envContent -match '(?m)^OIDC_PATCH_DEBUG=') {
-            $envContent = $envContent -replace '(?m)^OIDC_PATCH_DEBUG=.*$', 'OIDC_PATCH_DEBUG=true'
-          } else {
-            $envContent += "`nOIDC_PATCH_DEBUG=true"
-          }
-
-          if ($envContent -match '(?m)^API_NODE_OPTIONS=') {
-            $envContent = $envContent -replace '(?m)^API_NODE_OPTIONS=.*$', 'API_NODE_OPTIONS=--require /app/e2e-hooks/oidc-http-patch.cjs'
-          } else {
-            $envContent += "`nAPI_NODE_OPTIONS=--require /app/e2e-hooks/oidc-http-patch.cjs"
-          }
-
           Set-Content .env $envContent
           ./start-local-dev-target.ps1 -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild
 
