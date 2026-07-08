@@ -1028,3 +1028,15 @@ Write-Host "Saved to: $summaryPath ($summaryAccess)" -ForegroundColor Cyan
 if ($summaryAccess -eq "Administrators-only") {
     Write-Host "  Open it from an ELEVATED editor to read the encryption key (a non-elevated session is denied by UAC)." -ForegroundColor DarkGray
 }
+
+# Upstream-TLS heads-up: with SSL_VERIFICATION on (the default), adding an
+# Environment against a self-signed/dev ODS/API or Admin API is rejected. Surface
+# the remedies here so the user isn't left debugging a cert error in the API log.
+if (-not $DisableSslVerification) {
+    Write-Host ""
+    Write-Host "Note: the API verifies upstream TLS certificates (SSL_VERIFICATION is on)." -ForegroundColor Yellow
+    Write-Host "  If your ODS/API or Admin API uses a self-signed/dev certificate, adding an" -ForegroundColor Yellow
+    Write-Host "  Environment will fail with a certificate error. For local dev, re-run with" -ForegroundColor Yellow
+    Write-Host "  -DisableSslVerification, or keep verification on and set NODE_EXTRA_CA_CERTS" -ForegroundColor Yellow
+    Write-Host "  (or --use-system-ca). See the README (Upstream TLS verification)." -ForegroundColor Yellow
+}
