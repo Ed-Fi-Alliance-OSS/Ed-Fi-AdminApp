@@ -111,8 +111,8 @@ services:
       AppSettings__adminApiMode: v2
       ConnectionStrings__EdFi_Admin: 'host=odsV7-adminV2-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Admin;'
       ConnectionStrings__EdFi_Security: 'host=odsV7-adminV2-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Security;'
-      ConnectionStrings__EdFi_Ods: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};******;database=EdFi_Ods;pooling=true'
-      ConnectionStrings__EdFi_Master: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};******;database=postgres;pooling=true'
+      ConnectionStrings__EdFi_Ods: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Ods;pooling=true'
+      ConnectionStrings__EdFi_Master: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=postgres;pooling=true'
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V2_SINGLE_API_DISCOVERY_URL}
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
