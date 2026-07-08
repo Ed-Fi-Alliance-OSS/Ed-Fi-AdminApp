@@ -526,24 +526,41 @@ $clientPayloadJson = @"
 }
 "@
 
+# Keycloak omits boolean/array client properties from the client JSON when they
+# are false/empty, so a direct `$client.<prop>` read throws under
+# Set-StrictMode -Version Latest. Read optional properties through this guard so
+# the client-diff below stays StrictMode-safe (a missing property reads as $null,
+# which the comparisons already treat as "off"/"empty").
+function Get-KcClientProp {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory)]$Client,
+        [Parameter(Mandatory)][string]$Name
+    )
+    if ($Client.PSObject.Properties[$Name]) { return $Client.$Name }
+    return $null
+}
+
 if ($clients.Count -gt 0) {
     $clientUuid = $clients[0].id
     $existing = $clients[0]
     # Compare key fields; skip the PUT if nothing meaningful differs.
     $expectedRedirect = "$api/api/auth/callback/$RedirectCallbackId"
+    $redirectUris = Get-KcClientProp $existing 'redirectUris'
+    $webOrigins   = Get-KcClientProp $existing 'webOrigins'
     $needsUpdate = $false
-    if (-not $existing.redirectUris -or ($existing.redirectUris -notcontains $expectedRedirect)) { $needsUpdate = $true }
-    if (-not $existing.webOrigins -or ($existing.webOrigins -notcontains $api)) { $needsUpdate = $true }
+    if (-not $redirectUris -or ($redirectUris -notcontains $expectedRedirect)) { $needsUpdate = $true }
+    if (-not $webOrigins -or ($webOrigins -notcontains $api)) { $needsUpdate = $true }
     # Force a rewrite if a wildcard redirect from an earlier install survives, so the
     # PUT strips it (redirectUris and the post-logout attribute are both re-sent). M3c.
-    if ($existing.redirectUris -contains "$fe/*") { $needsUpdate = $true }
-    if ([bool]$existing.directAccessGrantsEnabled -ne [bool]$EnableDirectAccessGrants) { $needsUpdate = $true }
-    if (-not $existing.standardFlowEnabled) { $needsUpdate = $true }
-    if (-not $existing.rootUrl) { $needsUpdate = $true }
-    if (-not $existing.adminUrl) { $needsUpdate = $true }
+    if ($redirectUris -contains "$fe/*") { $needsUpdate = $true }
+    if ([bool](Get-KcClientProp $existing 'directAccessGrantsEnabled') -ne [bool]$EnableDirectAccessGrants) { $needsUpdate = $true }
+    if (-not (Get-KcClientProp $existing 'standardFlowEnabled')) { $needsUpdate = $true }
+    if (-not (Get-KcClientProp $existing 'rootUrl')) { $needsUpdate = $true }
+    if (-not (Get-KcClientProp $existing 'adminUrl')) { $needsUpdate = $true }
     # Doc says these must be off; catch drift if someone toggles them in the UI.
-    if ($existing.implicitFlowEnabled) { $needsUpdate = $true }
-    if ($existing.authorizationServicesEnabled) { $needsUpdate = $true }
+    if (Get-KcClientProp $existing 'implicitFlowEnabled') { $needsUpdate = $true }
+    if (Get-KcClientProp $existing 'authorizationServicesEnabled') { $needsUpdate = $true }
 
     if ($needsUpdate) {
         Write-Host "Client '$ClientId' exists but needs updating..."
@@ -633,7 +650,7 @@ if ($users.Count -gt 0) {
 # We probe by trying password grant. Requires Direct Access Grants enabled on
 # the client; if not, we always reset since we can't verify.
 $passwordWorks = $false
-$dagEnabled = $EnableDirectAccessGrants.IsPresent -or ($clients.Count -gt 0 -and $clients[0].directAccessGrantsEnabled)
+$dagEnabled = $EnableDirectAccessGrants.IsPresent -or ($clients.Count -gt 0 -and (Get-KcClientProp $clients[0] 'directAccessGrantsEnabled'))
 if ($dagEnabled) {
     try {
         $body = "grant_type=password&client_id=$ClientId&client_secret=$ClientSecretPlain&username=$TestUserEmail&password=$TestUserPasswordPlain&scope=openid"
