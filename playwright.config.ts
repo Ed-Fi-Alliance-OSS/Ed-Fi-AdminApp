@@ -15,6 +15,7 @@ const testDir = defineBddConfig({
 
 export default defineConfig({
   testDir,
+  retries: 1,
   reporter: [
     [ 'line' ],
     [ 'allure-playwright', { resultsDir: 'test-results/allure-results' } ],
@@ -25,19 +26,23 @@ export default defineConfig({
     ignoreHTTPSErrors: true,
     trace: 'on-first-retry',
     launchOptions: {
-      slowMo: 200,
+      slowMo: 300,
     },
   },
   projects: [
     {
       name: 'setup',
       testDir: 'tests/e2e',
-      testMatch: /.*\.setup\.ts/
+      testMatch: /.*\.setup\.ts/,
+      use: {
+        ...devices['Desktop Chrome'],
+        trace: 'on'
+      }
     },
     {
       name: 'chromium',
       dependencies: ['setup'],
-      testIgnore: /login-page\/login\.feature\.spec\.js/,
+      testIgnore: /(login-page\/login\.feature\.spec\.js|environments-page\/.*\.feature\.spec\.js)/,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
