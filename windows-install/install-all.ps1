@@ -268,7 +268,11 @@ param(
     # By default an auto-generated self-signed cert is added to LocalMachine\Root so
     # local browsers trust it. Set this to skip that (browser shows "Not Secure");
     # only affects the self-signed path, not a supplied real cert.
-    [switch]$SkipSelfSignedTrust
+    [switch]$SkipSelfSignedTrust,
+
+    # Disable SSL verification for the API's outbound HTTPS calls (ODS/API, AdminApi,
+    # Yopass). Secure by default; set only for self-signed upstreams in non-production.
+    [switch]$DisableSslVerification
 )
 
 $ErrorActionPreference = 'Stop'
@@ -643,6 +647,7 @@ if ($CertificateThumbprint) { $apiArgs.CertificateThumbprint = $CertificateThumb
 if ($CertificatePfxPath)    { $apiArgs.CertificatePfxPath    = $CertificatePfxPath }
 if ($CertificatePassword)   { $apiArgs.CertificatePassword   = $CertificatePassword }
 if ($SkipSelfSignedTrust)   { $apiArgs.SkipSelfSignedTrust   = $true }
+if ($DisableSslVerification) { $apiArgs.DisableSslVerification = $true }
 if ($DbEngine -eq 'mssql') {
     $apiArgs.AppDbUsername = $AppDbUsername
     $apiArgs.AppDbPassword = $AppDbPassword

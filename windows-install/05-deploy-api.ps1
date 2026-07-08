@@ -156,7 +156,14 @@ param(
     # local browsers trust it (no "Not Secure" warning). Set this to skip that where
     # policy forbids adding trusted roots; the browser will then warn. Only affects the
     # self-signed path -- a supplied real cert is never added to Root.
-    [switch]$SkipSelfSignedTrust
+    [switch]$SkipSelfSignedTrust,
+
+    # SSL verification for the API's OUTBOUND HTTPS calls (to the ODS/API, AdminApi,
+    # and Yopass). Secure by default (verification on). Set this to disable it when an
+    # upstream uses a self-signed/dev certificate that Node's CA store won't trust
+    # (Node ignores the Windows cert store); prefer NODE_EXTRA_CA_CERTS over this
+    # where possible. Do not disable in production.
+    [switch]$DisableSslVerification
 )
 
 $ErrorActionPreference = 'Stop'
@@ -556,6 +563,7 @@ $nodeConfig = @{
     ADMIN_USERNAME            = $AdminUsername
     USE_YOPASS                = [bool]$YopassUrl
     YOPASS_URL                = $YopassUrl
+    SSL_VERIFICATION          = -not $DisableSslVerification
     SAMPLE_OIDC_CONFIG        = @{
         issuer       = $OidcIssuer
         clientId     = $OidcClientId
@@ -589,6 +597,9 @@ if ($DbEngine -eq 'mssql') {
     }
 }
 $nodeConfigJson = $nodeConfig | ConvertTo-Json -Depth 5 -Compress
+if ($DisableSslVerification) {
+    Write-Warning "SSL_VERIFICATION is DISABLED: the API will NOT verify TLS certificates on outbound HTTPS calls (ODS/API, AdminApi, Yopass). Use only for self-signed upstreams in non-production; prefer NODE_EXTRA_CA_CERTS."
+}
 
 # Patch + scrub production.js. NODE_CONFIG overrides these at runtime, but the
 # moved secrets still sit at their template defaults on disk; scrub them so a

@@ -69,8 +69,10 @@ module.exports = {
 
   USE_PKCE: true,
 
-  // Deliverating set in false since we are using self-signed certificates but in production should be set in true
-  SSL_VERIFICATION: false,
+  // SSL verification for the API's outbound HTTPS calls (ODS/API, AdminApi, Yopass).
+  // Secure by default; the installer sets this via NODE_CONFIG and can disable it
+  // with -DisableSslVerification for upstreams that use self-signed certificates.
+  SSL_VERIFICATION: true,
   // Certification artifact configuration
   CERT_BRUNO_SRC_REF: 'v2.1.0',
   CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6',
