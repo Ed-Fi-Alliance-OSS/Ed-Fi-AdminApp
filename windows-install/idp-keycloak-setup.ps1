@@ -136,7 +136,11 @@ param(
     [int]$OfflineSessionMaxSeconds  = 5184000,     # 60d
 
     [switch]$IncludeAudienceMapper,
-    [switch]$EnableDirectAccessGrants
+    [switch]$EnableDirectAccessGrants,
+
+    # Forwarded to idp-keycloak-start.ps1: register a startup Scheduled Task so
+    # Keycloak survives a reboot. Requires elevation. Off by default.
+    [switch]$RegisterStartupTask
 )
 
 $ErrorActionPreference = 'Stop'
@@ -373,7 +377,8 @@ Write-Host "Starting Keycloak via idp-keycloak-start.ps1..."
     -AdminUser $AdminUser `
     -AdminPassword $AdminPassword `
     -BaseUrl $KeycloakBaseUrl `
-    -ReadyTimeoutSeconds $ReadyTimeoutSeconds
+    -ReadyTimeoutSeconds $ReadyTimeoutSeconds `
+    -RegisterStartupTask:$RegisterStartupTask
 
 function Invoke-KcApi {
     param(

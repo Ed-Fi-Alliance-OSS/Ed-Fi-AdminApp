@@ -272,7 +272,12 @@ param(
 
     # Disable SSL verification for the API's outbound HTTPS calls (ODS/API, AdminApi,
     # Yopass). Secure by default; set only for self-signed upstreams in non-production.
-    [switch]$DisableSslVerification
+    [switch]$DisableSslVerification,
+
+    # Keycloak only: register a startup Scheduled Task so the example IdP survives a
+    # reboot (otherwise it must be restarted by re-running idp-keycloak-start.ps1).
+    # Requires an elevated shell. Off by default.
+    [switch]$RegisterKeycloakStartupTask
 )
 
 $ErrorActionPreference = 'Stop'
@@ -595,6 +600,7 @@ if ($idpIsKeycloak) {
     if ($JdkSha256) { $kcArgs.JdkSha256 = $JdkSha256 }
     if ($IncludeAudienceMapper) { $kcArgs.IncludeAudienceMapper = $true }
     if ($EnableDirectAccessGrants) { $kcArgs.EnableDirectAccessGrants = $true }
+    if ($RegisterKeycloakStartupTask) { $kcArgs.RegisterStartupTask = $true }
     & "$scriptDir\idp-keycloak-setup.ps1" @kcArgs
 } else {
     Write-Phase "Phase 3.1: External OIDC provider ($IdpProvider)"

@@ -69,6 +69,7 @@ Write-Host ""
 Write-Host "Keycloak (local IdP) -- UNINSTALL" -ForegroundColor Magenta
 Write-Host "This will remove:"
 Write-Host "  - Running Keycloak process (java.exe matching kc.bat/keycloak/quarkus, plus the :8080 listener)"
+Write-Host "  - Startup Scheduled Task 'Ed-Fi Admin App Keycloak' (if registered)"
 if (-not $KeepKeycloakDownload) { Write-Host "  - $KeycloakInstallPath (Keycloak install dir)" }
 Write-Host "  - Machine env var JAVA_HOME"
 Write-Host ""
@@ -125,6 +126,32 @@ try {
 
 if (-not $kcStopped) {
     Record "Stop Keycloak" "SKIP" "No matching java.exe process found"
+}
+
+# ========================================================
+Write-Section "1b. Startup task"
+# ========================================================
+# Remove the opt-in reboot-survival task registered by idp-keycloak-start.ps1
+# -RegisterStartupTask (if it was ever created). Use schtasks.exe rather than the
+# Get/Unregister-ScheduledTask CIM cmdlets: those enumerate the whole task store and
+# throw (0x80041318) if ANY unrelated task on the machine has XML the CIM provider
+# can't parse, which would silently skip our teardown. schtasks targets the task by
+# name and is unaffected.
+try {
+    $taskName = 'Ed-Fi Admin App Keycloak'
+    & schtasks.exe /query /tn $taskName *> $null
+    if ($LASTEXITCODE -eq 0) {
+        & schtasks.exe /delete /tn $taskName /f *> $null
+        if ($LASTEXITCODE -eq 0) {
+            Record "Remove startup task '$taskName'" "OK"
+        } else {
+            Record "Remove startup task '$taskName'" "FAIL" "schtasks /delete exit $LASTEXITCODE"
+        }
+    } else {
+        Record "Remove startup task '$taskName'" "SKIP" "Not registered"
+    }
+} catch {
+    Record "Remove startup task" "WARN" $_.Exception.Message
 }
 
 # ========================================================

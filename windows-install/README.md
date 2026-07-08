@@ -223,7 +223,7 @@ iisnode v0.2.26 (2020) is the latest release. Works with Node 22+, but won't get
 
 - **Local TLS / HTTPS** — local dev is HTTP only (two standalone sites on 3333/4200). There is no self-signed cert or 443 binding. Front the sites with TLS (a reverse proxy or real certs) for anything beyond local dev.
 - **Production hardening** — real certs, secrets management, log rotation, etc. The optional dockerized Yopass runs HTTP-only behind localhost and is not production-hardened.
-- **Keycloak as a Windows service** — started via `Start-Process`. Use `nssm` or a service wrapper to survive reboots.
+- **Keycloak in production mode** — the example IdP runs in `start-dev` (HTTP, embedded H2 database, hostname strictness off) and is for local development only. For anything beyond local dev, run `kc.bat start` with `--hostname`, a real database (e.g. PostgreSQL), and TLS. By default Keycloak is started via `Start-Process` and does not survive a reboot; pass `-RegisterKeycloakStartupTask` to `install-all.ps1` (or `-RegisterStartupTask` to `idp-keycloak-start.ps1`, elevated) to register a startup task that relaunches it on boot.
 - **Secret rotation** — not enabled; the AdminApp has no automation to pick up rotated secrets.
 
 ---
