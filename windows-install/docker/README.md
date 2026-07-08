@@ -57,6 +57,10 @@ docker exec edfiadminapp-postgres psql -U postgres -d sbaa -c "SHOW ssl;"
 
 From the host you can also connect with any PG client to `localhost:5432` using the `edfiadminapp` / `sbaa` credentials. With SSL on, your client may need `sslmode=require` (or stricter).
 
+## Network exposure
+
+By default the DB port binds to `127.0.0.1` (loopback only), so the database is reachable only from this host. To expose it for remote access, set `POSTGRES_BIND_HOST=0.0.0.0` in `.env` — only behind a firewall and over TLS (this stack already serves SSL; use `sslmode=verify-full` on remote clients).
+
 ## Connecting AdminApp v4.x to this database
 
 | Variable             | Value                                            |
