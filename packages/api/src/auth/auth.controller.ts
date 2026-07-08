@@ -65,6 +65,7 @@ export class AuthController {
     // Validate and whitelist redirect URL
     const requestedRedirect = request.query?.redirect as string;
     const safeRedirect = this.validateRedirectUrl(requestedRedirect);
+    Logger.log(`Using safe redirect URL: ${safeRedirect}`);
     passport.authenticate(`oidc-${oidcId}`, {
       state: JSON.stringify({
         redirect: safeRedirect,
@@ -72,6 +73,7 @@ export class AuthController {
       }),
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
     })(request, response, (error: any) => {
+      Logger.error(error);
       if (error?.message.includes('Unknown authentication strategy')) {
         throw new NotFoundException();
       } else {
@@ -97,56 +99,35 @@ export class AuthController {
     } catch (error) {
       // Use default redirect
     }
-
     passport.authenticate(`oidc-${oidcId}`, {
       successRedirect: `${config.FE_URL}${redirect}`,
       failureRedirect: `${config.FE_URL}/unauthenticated`,
-    })(request, response, (error: Error | null | undefined) => {
-      if (!error) {
-        response.redirect(`${config.FE_URL}${redirect}`);
-        return;
-      }
+    })(request, response, (error: Error) => {
+      Logger.error(error);
 
-      const errorMessage = error?.message || '';
-      const errorCode = (error as any)?.code || (error as any)?.errno || 'UNKNOWN';
-
-      // Check for connection errors (ECONNREFUSED, EHOSTUNREACH, ENOTFOUND)
-      if (errorMessage.includes('ECONNREFUSED') || errorCode === 'ECONNREFUSED' || errorCode === -111) {
-        response.redirect(
-          `${config.FE_URL}/unauthenticated?msg=Connection to authentication server failed. Please try again.`
-        );
-      } else if (errorMessage === USER_NOT_FOUND) {
-
+      if (error.message === USER_NOT_FOUND) {
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Oops, it looks like your user hasn't been created yet. We'll let you know when you can log in.`
         );
-      } else if (errorMessage === NO_ROLE) {
-
+      } else if (error.message === NO_ROLE) {
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Your login worked, but it looks like your setup isn't quite complete. We'll let you know when everything's ready.`
         );
-      } else if (errorMessage?.startsWith('did not find expected authorization request details in session')) {
-
+      } else if (
+        error.message?.startsWith('did not find expected authorization request details in session')
+      ) {
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=Login failed. There may be an issue, but please try again.`
         );
-      } else if (errorMessage?.startsWith('invalid_grant (Code not valid)')) {
-
+      } else if (error.message?.startsWith('invalid_grant (Code not valid)')) {
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=It looks like there was a hiccup during login. Please try again.`
         );
-      } else if (errorMessage?.includes('Database connection error')) {
-
+      } else if (error.message?.includes('Database connection error')) {
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=The system is temporarily unavailable. Please try again in a few moments.`
         );
-      } else if (errorMessage?.includes('Invalid email from IdP')) {
-
-        response.redirect(
-          `${config.FE_URL}/unauthenticated?msg=We received invalid information from the login provider. Please try again.`
-        );
       } else {
-
         response.redirect(
           `${config.FE_URL}/unauthenticated?msg=It looks like your login was not successful. Please try again and contact us if the issue persists.`
         );
@@ -169,6 +150,7 @@ export class AuthController {
       }
       return toGetSessionDataDto(session);
     } catch (error) {
+      Logger.error(`Error validating user ${session}:`, error);
       if (error instanceof HttpException) {
         throw error;
       }
