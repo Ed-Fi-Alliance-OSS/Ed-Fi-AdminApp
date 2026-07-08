@@ -5,38 +5,38 @@
 
 <#
 .SYNOPSIS
-    Starts Docker Compose services for local development, selecting one or more Ed-Fi target topologies.
+    Starts Docker Compose services for local development or GitHub Actions, selecting one or more Ed-Fi target topologies.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -Target v6
+    ./start-services-target.ps1 -Target v6
     Starts support services and Ed-Fi v6 services.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -Target odsV7-adminV2
+    ./start-services-target.ps1 -Target odsV7-adminV2
     Starts support services and Ed-Fi v7 Admin API v2 services.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -Target odsV7-adminV3 -MSSQL
+    ./start-services-target.ps1 -Target odsV7-adminV3 -MSSQL
     Starts support services and Ed-Fi v7 Admin API v3 services, with MSSQL for Admin App DB.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild
+    ./start-services-target.ps1 -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild
     Starts selected services and rebuilds Admin App images before startup.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -Target v6 -Target odsV7-adminV2
+    ./start-services-target.ps1 -Target v6 -Target odsV7-adminV2
     Starts support services and both target topologies in one command.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -V6 -OdsV7AdminV2
+    ./start-services-target.ps1 -V6 -OdsV7AdminV2
     Starts support services and both target topologies in one command using switches.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -Target v6,odsV7-adminV2 -IncludeAdminApp
+    ./start-services-target.ps1 -Target v6,odsV7-adminV2 -IncludeAdminApp
     Starts support services, selected targets, and Admin App API/FE containers.
 
 .EXAMPLE
-    ./start-local-dev-target.ps1 -IncludeAdminApp
+    ./start-services-target.ps1 -IncludeAdminApp
     Starts only Admin App and its supporting services, without any Ed-Fi target topology.
 #>
 
@@ -107,16 +107,19 @@ if ($selectedTargets.Count -eq 0 -and -not $IncludeAdminApp) {
     exit 1
 }
 
+$repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
+$composeRoot = Join-Path $repoRoot 'compose'
+
 $networkExists = docker network ls --filter name=edfiadminapp-network --format '{{.Name}}' | Select-String -Pattern 'edfiadminapp-network'
 if (-not $networkExists) {
-    Write-Host "Creating edfiadminapp-network..." -ForegroundColor Yellow
+    Write-Host 'Creating edfiadminapp-network...' -ForegroundColor Yellow
     docker network create edfiadminapp-network --driver bridge
 }
 
-$edfiServicesFile = Join-Path $PSScriptRoot 'edfi-services.yml'
-$nginxComposeFile = Join-Path $PSScriptRoot 'nginx-compose.yml'
-$adminAppServicesFile = Join-Path $PSScriptRoot 'adminapp-services.yml'
-$envFile = Join-Path $PSScriptRoot '.env'
+$edfiServicesFile = Join-Path $composeRoot 'edfi-services.yml'
+$nginxComposeFile = Join-Path $composeRoot 'nginx-compose.yml'
+$adminAppServicesFile = Join-Path $composeRoot 'adminapp-services.yml'
+$envFile = Join-Path $composeRoot '.env'
 
 $files = @(
     '-f', $edfiServicesFile,

@@ -139,7 +139,6 @@ services:
     environment:
       - NODE_EXTRA_CA_CERTS=${NODE_EXTRA_CA_CERTS:-/app/ssl/server.crt}
       - NODE_OPTIONS=${API_NODE_OPTIONS:-}
-      - PLAYWRIGHT_E2E=${PLAYWRIGHT_E2E:-false}
       - DB_SSL=${DB_SSL:-true}
       - DB_ENGINE=${DB_ENGINE:-pgsql}
       - DB_SECRET_VALUE=${DB_SECRET_VALUE}
