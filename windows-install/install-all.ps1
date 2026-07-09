@@ -7,7 +7,7 @@ Runs in three phases with no manual interaction required.
 
   Phase 1 — Prereqs
     02-prereqs-sql.ps1        SQL Server Mixed Mode + TCP/IP + sa + app login
-    01-prereqs-iis.ps1        URL Rewrite + httpPlatform handler + unlock handlers (HTTP only, no TLS)
+    01-prereqs-iis.ps1        URL Rewrite + httpPlatform handler + unlock handlers (HTTPS added at deploy time)
     03-prereqs-node.ps1       Node.js (the npm cache is set later, by 05-deploy-api)
 
   Phase 2 — Build
@@ -121,7 +121,7 @@ Switch — enable password grant on the Keycloak client (testing only).
 .PARAMETER AcceptRisks
 Switch — bypass the y/N confirmation when 00-check-prereqs flags collision
 risks (e.g., another app sharing the SQL instance, a non-OpenJDK-21 'java' on
-PATH, ports 3333/4200 already in use). Use for non-interactive runs only after
+PATH, ports 3333/4200/3443/4443 already in use). Use for non-interactive runs only after
 reviewing the [RISK] items.
 
 .PARAMETER AutoUpgradeNode
@@ -426,7 +426,7 @@ if (-not $SkipPreflightCheck) {
             Write-Host ""
             Write-Host "The pre-flight flagged [RISK] items above -- the install will modify state" -ForegroundColor Magenta
             Write-Host "that another app on this machine may depend on (SQL instance config, PATH" -ForegroundColor Magenta
-            Write-Host "ordering of 'java', ports 3333/4200, etc.)." -ForegroundColor Magenta
+            Write-Host "ordering of 'java', ports 3333/4200/3443/4443, etc.)." -ForegroundColor Magenta
             $reply = Read-Host "Continue anyway? (y/N)"
             if ($reply -notmatch '^[Yy]') {
                 throw "Aborted by user. Re-run with -AcceptRisks to skip this prompt next time."
@@ -987,8 +987,8 @@ $yopassSummary
 $encryptionSummary
 
 Notes
-  - Local dev runs over HTTP (no TLS). The FE and API are served from standalone
-    IIS sites on ports 4200 and 3333.
+  - TLS is on by default. The FE and API are served over HTTPS from standalone IIS
+    sites on ports 4443 and 3443; the HTTP ports 4200 and 3333 redirect to HTTPS.
   - User-supplied secrets are NOT stored here -- re-enter the values you passed.
   - This file's ACL is restricted to Administrators and SYSTEM because it holds the
     generated data-encryption key. Back the key up securely, then you may delete this file.
