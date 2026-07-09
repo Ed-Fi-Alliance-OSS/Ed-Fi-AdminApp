@@ -54,12 +54,31 @@ if ($currentPolicy -ne 'RemoteSigned' -and $currentPolicy -ne 'Unrestricted' -an
     Write-Host "CurrentUser execution policy already permissive ($currentPolicy)." -ForegroundColor Green
 }
 
-# Strip the zone-of-origin marker from every script in this folder so PowerShell
-# doesn't treat them as "downloaded from the internet" and refuse to run them.
+# Strip the zone-of-origin marker from the scripts we ship, so PowerShell doesn't
+# treat them as "downloaded from the internet" and refuse to run them. Only the
+# known repo scripts are unblocked -- we don't vouch for arbitrary .ps1 files that
+# happen to be in this folder.
 $scriptDir = $PSScriptRoot
-if ($scriptDir -and (Test-Path "$scriptDir\*.ps1")) {
-    Get-ChildItem "$scriptDir\*.ps1" | Unblock-File
-    Write-Host "Unblocked all .ps1 files in $scriptDir." -ForegroundColor Green
+$knownScripts = @(
+    '00-check-prereqs.ps1', '01-prereqs-iis.ps1', '02-prereqs-sql.ps1',
+    '03-prereqs-node.ps1', '04-build.ps1', '05-deploy-api.ps1', '06-deploy-fe.ps1',
+    'install-all.ps1', 'setup-vm-prereqs.ps1', 'uninstall.ps1',
+    'idp-keycloak-setup.ps1', 'idp-keycloak-start.ps1', 'uninstall-keycloak.ps1',
+    'yopass-docker.ps1'
+)
+if ($scriptDir) {
+    foreach ($name in $knownScripts) {
+        $path = Join-Path $scriptDir $name
+        if (Test-Path $path) { Unblock-File $path }
+    }
+    Write-Host "Unblocked the known Ed-Fi install scripts in $scriptDir." -ForegroundColor Green
+
+    $unexpected = Get-ChildItem "$scriptDir\*.ps1" -ErrorAction SilentlyContinue |
+        Where-Object { $knownScripts -notcontains $_.Name }
+    if ($unexpected) {
+        Write-Warning ("Left these unrecognized .ps1 file(s) blocked (not part of this repo): " +
+            ($unexpected.Name -join ', '))
+    }
 }
 
 function Write-Phase {
