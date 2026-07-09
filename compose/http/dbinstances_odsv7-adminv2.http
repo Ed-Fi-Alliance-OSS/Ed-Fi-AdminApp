@@ -1,7 +1,7 @@
-@mulitenantUrl=https://localhost/odsv7-adminv2-multi-adminapi
+@multitenantUrl=https://localhost/odsv7-adminv2-multi-adminapi
 @singletenantUrl=https://localhost/odsv7-adminv2-single-adminapi
 
-@adminapi_url={{mulitenantUrl}}
+@adminapi_url={{multitenantUrl}}
 @adminapi_client=adminapi_client2
 @adminapi_secret=adminapi_SECRET_2025_rftyguhijkotgyhuijok
 @tenant=tenant2

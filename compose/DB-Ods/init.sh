@@ -63,8 +63,9 @@ if [ ! -s "$PGDATA/PG_VERSION" ]; then
     done
 
     echo "Setting user password..."
-    su-exec postgres psql -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
-        -c "ALTER USER \"${POSTGRES_USER}\" WITH PASSWORD '${POSTGRES_PASSWORD}';"
+    su-exec postgres psql -v ON_ERROR_STOP=1 -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \
+         --set=postgres_password="$POSTGRES_PASSWORD" \
+         -c "ALTER USER \"${POSTGRES_USER}\" WITH PASSWORD :'postgres_password';"
 
     echo "Creating and restoring Ods_Minimal_Template from $MINIMAL_SQL_PATH..."
     su-exec postgres psql -p "$POSTGRES_PORT" -U "$POSTGRES_USER" \

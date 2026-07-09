@@ -1,7 +1,7 @@
-@mulitenantUrl=https://localhost/odsv7-adminv3-multi-adminapi
+@multitenantUrl=https://localhost/odsv7-adminv3-multi-adminapi
 @singletenantUrl=https://localhost/odsv7-adminv3-single-adminapi
 
-@adminapi_url={{mulitenantUrl}}
+@adminapi_url={{multitenantUrl}}
 @adminapi_client=adminapi_client2
 @adminapi_secret=adminapi_SECRET_2025_rftyguhijkotgyhuijok
 @tenant=tenant2
@@ -62,8 +62,14 @@ Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
-### DELETE a DB dbdatastore
-DELETE https://localhost/odsv7-adminv3-multi-adminapi/v3/dbdatastores/4
+### DELETE a DB datastore (Minimal)
+DELETE {{createDbDataStoreMinimal.response.headers.location}}
+Content-Type: application/json
+Authorization: bearer {{token}}
+Tenant: {{tenant}}
+
+### DELETE a DB datastore (Sample)
+DELETE {{createDbDataStoreSample.response.headers.location}}
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
