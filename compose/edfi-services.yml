@@ -20,7 +20,7 @@ services:
       - vol-odsV7-adminV2-single-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
@@ -147,7 +147,7 @@ services:
       - vol-odsV7-adminV2-tenant1-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
@@ -171,7 +171,7 @@ services:
       - vol-odsV7-adminV2-tenant2-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
@@ -336,7 +336,7 @@ services:
       - vol-odsV7-adminV3-single-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
@@ -463,7 +463,7 @@ services:
       - vol-odsV7-adminV3-tenant1-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
@@ -487,7 +487,7 @@ services:
       - vol-odsV7-adminV3-tenant2-db-ods:/var/lib/postgresql/data
       - ${SQL_BACKUPS_FOLDER:-./db-backup}:/var/opt/pgsql/data/sql-backups/:ro
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready  -U ${POSTGRES_USER}']
+      test: ['CMD-SHELL', 'pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}']
       start_period: 30s
       retries: 30
       interval: 30s
