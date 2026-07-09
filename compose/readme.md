@@ -244,7 +244,6 @@ example:
 > Data Standard and package version may vary by environment/release. Download
 > the matching Minimal and Populated template versions for your target stack,
 > then place both `.sql` files in your `SQL_BACKUPS_FOLDER`.
-
 - **`SQL_BACKUPS_FOLDER`**: host path to a folder containing
   `EdFi.Ods.Minimal.Template.sql` and `EdFi.Ods.Populated.Template.sql`. This
   folder is bind-mounted read-only into every ODS DB container.
