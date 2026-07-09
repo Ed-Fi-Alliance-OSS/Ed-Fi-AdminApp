@@ -5,14 +5,14 @@ Standalone PostgreSQL container provisioned for an Ed-Fi **Admin App v4.x** (Nes
 On first boot it creates:
 
 - An empty database (default name `sbaa`).
-- A dedicated application user (default name `edfiadminapp`) with full privileges on that database and on the `public` schema.
+- A dedicated, least-privilege application user (default name `edfiadminapp`): a non-superuser granted `CONNECT` on the database and made owner of the `public` schema, so it can self-migrate its own tables without database-wide privileges.
 - A self-signed SSL certificate (CN=`localhost`, SAN includes `localhost`, `127.0.0.1`, `edfiadminapp-postgres`) used to serve TLS connections.
 
 AdminApp's own TypeORM migrations create the schema the first time you start the AdminApp API with `DB_RUN_MIGRATIONS=true`. No SQL preload happens here.
 
 ## Prerequisites
 
-- Docker Desktop (or any Docker engine that supports Compose v2).
+- **Docker Desktop** — the only officially supported engine. Other OCI / Compose-v2 engines (e.g. Podman via `podman compose`) may work but are unsupported.
 - Host port `5432` available (override `POSTGRES_PORT_EXPOSED` if not).
 
 ## Setup
@@ -92,20 +92,18 @@ DB_SSL: false,
    docker cp edfiadminapp-postgres:/etc/postgresql/certs/server.crt C:\inetpub\EdFi-AdminApp-API\ssl\server.crt
    ```
 
-2. Tell Node to trust it via `NODE_EXTRA_CA_CERTS`. In `web.config`, add it inside the existing `<iisnode>` element:
+2. Tell Node to trust it via `NODE_EXTRA_CA_CERTS`. In the API's `web.config`, add it inside the `<httpPlatform>` element's `<environmentVariables>`:
 
    ```xml
-   <iisnode
-     nodeProcessCommandLine="node.exe"
-     node_env="production"
-     ...other attrs...>
+   <httpPlatform processPath="C:\Program Files\nodejs\node.exe" arguments="main.js" ...other attrs...>
      <environmentVariables>
+       <environmentVariable name="NODE_ENV" value="production" />
        <environmentVariable name="NODE_EXTRA_CA_CERTS" value="C:\inetpub\EdFi-AdminApp-API\ssl\server.crt" />
      </environmentVariables>
-   </iisnode>
+   </httpPlatform>
    ```
 
-   Older `iisnode` builds may not honor`<environmentVariables>` here — in that case set `NODE_EXTRA_CA_CERTS` at the IIS App Pool level (Application Pool → Advanced Settings → Environment Variables) and recycle the pool.
+   `05-deploy-api.ps1` regenerates `web.config` on every deploy, so a hand-edit here is lost on the next run. To make it survive redeploys, set `NODE_EXTRA_CA_CERTS` at the IIS App Pool level instead (Application Pool → Advanced Settings → Environment Variables) and recycle the pool.
 
 3. Recycle the AdminApp App Pool (or `iisreset`).
 
@@ -137,6 +135,6 @@ Configure the AdminApp with `USE_YOPASS=true` and `YOPASS_URL=http://localhost:8
 ## Notes and scope
 
 - **Self-signed SSL.** Good enough for local dev, not for production. For production, replace `vol-edfiadminapp-certs` with a bind mount to org-issued CA-signed cert/key, or pre-populate the volume.
-- **No pgAdmin.** A combined Postgres + pgAdmin compose already exists at `../postgres-compose.yaml`; run it alongside if you want a UI.
-- **No AdminApp services.** This compose is the database only. The full AdminApp + Keycloak + Yopass stack lives in `Ed-Fi-AdminApp/compose/`.
-- **AdminApp v4.x only.** The legacy .NET AdminApp uses `EdFi_Admin` + `EdFi_Security` and is not provisioned here — see `Ed-Fi-ODS-Implementation/Docker/ods-api-db-admin/` for that.
+- **No pgAdmin.** This compose is Postgres only. For a UI, use your own pgAdmin/psql client, or the pgAdmin service bundled in the full stack under this repo's `compose/` directory (see below).
+- **No AdminApp services.** This compose is the database only. The full AdminApp + Keycloak + Yopass stack lives in this repo's `compose/` directory.
+- **AdminApp v4.x only.** The legacy .NET AdminApp uses `EdFi_Admin` + `EdFi_Security` and is not provisioned here — see the separate `Ed-Fi-ODS-Implementation` repository (`Docker/ods-api-db-admin/`) for that.

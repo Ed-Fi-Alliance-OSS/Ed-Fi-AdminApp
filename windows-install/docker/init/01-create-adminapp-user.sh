@@ -1,6 +1,10 @@
 #!/bin/bash
 set -e
 
+# First-boot init hook: runs via /docker-entrypoint-initdb.d, and ONLY on a fresh
+# data directory (see the compose README's "Stop / reset" note). Creates the
+# least-privilege Admin App database user.
+#
 # Least privilege: the Admin App connects as this user and self-migrates (creates
 # its own tables in schema public). Grant only CONNECT on the database and
 # ownership of the public schema so it can DDL within it, instead of database-wide
