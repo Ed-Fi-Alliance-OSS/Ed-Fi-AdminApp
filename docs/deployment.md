@@ -1,5 +1,38 @@
 # Deployment Notes
 
+## ODS Database Image (compose/DB-Ods)
+
+Every `odsV7-*-db-ods` container defined in `compose\edfi-services.yml`
+(single-tenant and multi-tenant, Admin API v2 and v3) is built from a local
+Dockerfile (`compose\DB-Ods`) instead of pulling a prebuilt image from Docker
+Hub. This image restores ODS data from operator-supplied `.sql` backup files
+on first container start, cloning the resulting `EdFi_Ods` database from a
+Postgres template for fast restores on subsequent environments.
+
+For any non-local deployment (staging, demo, etc.) that reuses this compose
+setup:
+
+- **Provide backup files.** `EdFi.Ods.Minimal.Template.sql` and
+  `EdFi.Ods.Populated.Template.sql` are not included in this repository and
+  must be supplied out-of-band (e.g. copied to the host or mounted from a
+  secrets/artifact store) at the path referenced by `SQL_BACKUPS_FOLDER`.
+- **Build the image before first deployment.** Since the image is built
+  locally rather than pulled, ensure your deployment pipeline runs
+  `docker compose -f edfi-services.yml build` (or passes `-Rebuild` to
+  `start-services.ps1`) so the `edfiadminapp/db-ods:local` image exists before
+  `up` is called.
+- **`EDFI_ODS_DATASET`** (`minimal` | `populated`) selects which dataset backs
+  `EdFi_Ods` for every topology in the environment; set this per-environment
+  as needed (e.g. `populated` for a demo environment with realistic sample
+  data).
+- **Data persists in named volumes** (e.g. `vol-odsV7-adminV2-single-db-ods`).
+  The restore in `init.sh` only runs once, on first start with an empty data
+  directory — changing `EDFI_ODS_DATASET` or the backup files after that point
+  requires removing the corresponding volume to force a fresh restore.
+
+See [compose/readme.md#ods-database-image-composedb-ods](../compose/readme.md#ods-database-image-composedb-ods)
+for the full list of related environment variables.
+
 ## Node.js Deprecation Warnings
 
 ### Issue Description
