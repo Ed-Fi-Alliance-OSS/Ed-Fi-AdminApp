@@ -509,19 +509,22 @@ POSTGRES_PORT_EXPOSED=$PostgresPort
                 }
                 Write-Host "Postgres is ready." -ForegroundColor Green
 
-                # Idempotent re-run safety: docker compose only runs init/*.sh
-                # on a FRESH data volume, so a persistent volume from an earlier
-                # install attempt keeps the old edfiadminapp password and
-                # whatever ownership/grants TypeORM left behind. Force-align the
-                # password and grant the app user full access to existing AND
-                # future objects in public, run as the postgres superuser.
-                Write-Host "Synchronizing $PostgresAppUser password + privileges (idempotent)..."
+                # Idempotent re-run safety: docker compose only runs init/*.sh on a
+                # FRESH data volume, so a persistent volume from an earlier install
+                # keeps the old edfiadminapp password (and, on a pre-hardening
+                # volume, the old schema ownership). Re-align both to the SAME
+                # least-privilege model init/01-create-adminapp-user.sh applies on a
+                # fresh volume: the app user CONNECTs and OWNS the public schema, so
+                # it can self-migrate its own tables -- it stays a non-superuser and
+                # needs no database-wide GRANT ALL. Tables/sequences created by
+                # earlier TypeORM runs are already owned by this user (the app
+                # connects as itself), so schema ownership is sufficient. Run as the
+                # postgres superuser.
+                Write-Host "Synchronizing $PostgresAppUser password + privileges (idempotent, least-privilege)..."
                 $syncSql = @"
 ALTER USER "$PostgresAppUser" WITH PASSWORD '$PostgresAppPasswordPlain';
-GRANT ALL PRIVILEGES ON ALL TABLES IN SCHEMA public TO "$PostgresAppUser";
-GRANT ALL PRIVILEGES ON ALL SEQUENCES IN SCHEMA public TO "$PostgresAppUser";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO "$PostgresAppUser";
-ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO "$PostgresAppUser";
+GRANT CONNECT ON DATABASE "$DatabaseName" TO "$PostgresAppUser";
+ALTER SCHEMA public OWNER TO "$PostgresAppUser";
 "@
                 # Pass the password through the environment, never on the command
                 # line: `docker exec -e PGPASSWORD` (no value) forwards it from
