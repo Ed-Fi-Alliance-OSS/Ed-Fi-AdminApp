@@ -400,6 +400,35 @@ authentication flow:
 
 ## Troubleshooting
 
+### `relation "pgboss.job_common" does not exist`
+
+If the `edfiadminapp-api` container fails to start and restart-loops with:
+
+```shell
+[Nest] ERROR [ExceptionHandler] error: relation "pgboss.job_common" does not exist
+    at Contractor.migrate (pg-boss/dist/contractor.js)
+    at PgBossInstance.start (pg-boss/dist/index.js)
+```
+
+this means your persistent Admin App database volume (`vol-edfiadminapp-db`) still
+holds an **old pg-boss v9 schema** (schema `version = 20`), which the current
+pg-boss v12 cannot migrate in place — the v12 migration store no longer includes
+the steps needed to upgrade a pre-v10 (pre-partition) schema.
+
+This only affects environments whose volume predates the pg-boss upgrade. To fix,
+reset the Admin App database volume so pg-boss (and the TypeORM migrations) rebuild
+a fresh, consistent schema. **This destroys the local `sbaa` database**, so only do
+this in local/dev environments:
+
+```powershell
+docker rm -f edfiadminapp-api edfiadminapp-postgres
+docker volume rm vol-edfiadminapp-db
+./start-services.ps1
+```
+
+After startup, `select version from pgboss.version;` in the `sbaa` database should
+report `31` (or the current pg-boss schema version).
+
 ### Error registering OIDC provider
 
 If the `edfiadminapp-api` container is displaying the following error in the log:
