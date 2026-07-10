@@ -31,7 +31,10 @@ export class OdssService {
       ? dto.templateName ?? dto.databaseTemplate
       : dto.databaseTemplate ?? dto.templateName;
     if (!resolvedTemplate) {
-      throw new BadRequestException('Template is required');
+      throw new ValidationHttpException({
+        field: sbEnvironment.startingBlocks ? 'templateName' : 'databaseTemplate',
+        message: 'Template is required.',
+      });
     }
     const result = await this.startingBlocksServiceV2.createOds(
       sbEnvironment,
