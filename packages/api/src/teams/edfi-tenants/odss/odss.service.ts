@@ -27,7 +27,12 @@ export class OdssService {
   }
 
   async create(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, dto: PostOdsDto) {
-    const resolvedTemplate = sbEnvironment.startingBlocks === true ? dto.templateName : dto.databaseTemplate;
+    const resolvedTemplate = sbEnvironment.startingBlocks
+      ? dto.templateName ?? dto.databaseTemplate
+      : dto.databaseTemplate ?? dto.templateName;
+    if (!resolvedTemplate) {
+      throw new BadRequestException('Template is required');
+    }
     const result = await this.startingBlocksServiceV2.createOds(
       sbEnvironment,
       edfiTenant,
