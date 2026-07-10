@@ -39,7 +39,13 @@ describe('AdminApiV3ExceptionFilter', () => {
 
   it('rethrows when the AxiosError has no response (e.g. network error)', () => {
     const error = { isAxiosError: true, response: undefined } as unknown as AxiosError;
-    expect(() => filter.catch(error, host)).toThrow(error as unknown as Error);
+    let thrown: unknown;
+    try {
+      filter.catch(error, host);
+    } catch (e) {
+      thrown = e;
+    }
+    expect(thrown).toBe(error);
   });
 
   it('maps a 401 to a 500 authorization-problem StatusResponse', () => {
