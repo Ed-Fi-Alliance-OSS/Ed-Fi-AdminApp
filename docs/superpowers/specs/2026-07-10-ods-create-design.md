@@ -2,11 +2,11 @@
 
 ## Summary
 
-Update the ODS creation flow so users enter:
+Update the ODS creation flow with environment-gated behavior:
 1. `name` (required)
-2. `databaseTemplate` (required dropdown with exactly `Minimal` and `Sample`)
+2. Template field behavior depends on `sbEnvironment.startingBlocks`
 
-On submit, the frontend sends:
+When `sbEnvironment.startingBlocks === false`, submit payload is:
 
 ```json
 {
@@ -15,15 +15,17 @@ On submit, the frontend sends:
 }
 ```
 
-After successful creation, the user is redirected to the ODS details page (existing behavior).
+When `sbEnvironment.startingBlocks === true`, keep current behavior unchanged (existing template selection + payload shape).
+
+After successful creation, the user is redirected to the ODS details page (existing behavior in both modes).
 
 ## Scope
 
 In scope:
-- ODS create form behavior and payload shape
-- Shared create DTO/contract field name alignment (`templateName` -> `databaseTemplate`)
-- Backend ODS create service wiring to use the new DTO field
-- Targeted validation and UI tests for changed behavior
+- ODS create form and payload changes only when `sbEnvironment.startingBlocks === false`
+- Explicit preservation of current functionality when `sbEnvironment.startingBlocks === true`
+- Shared DTO/service handling needed to support the conditional behavior
+- Targeted validation and UI tests for both conditional paths
 
 Out of scope:
 - ODS list/details functionality
@@ -39,42 +41,43 @@ Out of scope:
 
 ## Design
 
-## 1) Contract and Validation Changes
+## 1) Contract and Validation Changes (Conditional)
 
-- Update `PostOdsDto` in `packages/models/src/dtos/ods.dto.ts`:
-  - Replace `templateName` with `databaseTemplate`.
-  - Keep `databaseTemplate` required.
-  - Update `name` validation to allow mixed case letters, numbers, and spaces (required), while preserving existing length limits unless explicitly changed later.
+- Keep backward-compatible handling for `templateName` where needed by `startingBlocks === true` flow.
+- Add/align support for `databaseTemplate` for `startingBlocks === false` flow.
+- Apply updated `name` validation (mixed case letters, numbers, spaces) for the non-starting-blocks flow, preserving existing length limits unless explicitly changed later.
 
-Result: FE form state, payload, and backend DTO binding share the same `databaseTemplate` field name.
+Result: non-starting-blocks flow uses `databaseTemplate`; starting-blocks flow remains unchanged.
 
-## 2) Frontend Form Changes (`CreateOdsPage.tsx`)
+## 2) Frontend Form Changes (`CreateOdsPage.tsx`, Conditional)
 
-- Replace dynamic `SelectOdsTemplate` usage in this page with a local required dropdown that contains exactly:
-  - `Minimal`
-  - `Sample`
-- Bind dropdown to `databaseTemplate`.
-- Keep `name` as required.
-- Keep submit/cancel UX and post-success navigation logic unchanged.
+- If `sbEnvironment.startingBlocks === false`:
+  - Use a local required dropdown with exactly `Minimal` and `Sample`.
+  - Bind to `databaseTemplate`.
+  - Keep `name` as required.
+- If `sbEnvironment.startingBlocks === true`:
+  - Keep existing behavior unchanged (continue current selector + payload behavior).
+- Keep submit/cancel UX and post-success navigation logic unchanged for both paths.
 
-Result: Users can only choose approved templates, and request payload matches required key.
+Result: non-starting-blocks path enforces fixed templates and `databaseTemplate`; starting-blocks path is preserved.
 
-## 3) Backend Wiring Changes
+## 3) Backend Wiring Changes (Conditional Input Handling)
 
-- Update `packages/api/src/teams/edfi-tenants/odss/odss.service.ts` so ODS create uses:
-  - `dto.databaseTemplate`
-  - passed into existing `startingBlocksServiceV2.createOds(...)` template argument
-- No route or controller signature changes beyond DTO property alignment.
+- Update `packages/api/src/teams/edfi-tenants/odss/odss.service.ts` to handle template value based on existing environment behavior:
+  - Preserve current `startingBlocks === true` flow exactly.
+  - Support `databaseTemplate` for `startingBlocks === false`.
+  - Pass resolved template value into existing `startingBlocksServiceV2.createOds(...)` template argument.
+- Keep route/controller behavior stable while supporting both input paths as required by the gate.
 
-Result: backend continues current create flow, now sourced from `databaseTemplate`.
+Result: backend preserves existing starting-blocks behavior while enabling the new non-starting-blocks payload path.
 
 ## Data Flow
 
-1. User fills `name` and selects template (`Minimal` or `Sample`).
-2. FE validation ensures both fields are present and name format is valid.
-3. FE sends POST body with `{ name, databaseTemplate }`.
-4. API controller binds to updated `PostOdsDto`.
-5. Service calls Starting Blocks create operation with selected template.
+1. FE evaluates `sbEnvironment.startingBlocks`.
+2. If `false`: user selects `Minimal`/`Sample`; FE submits `{ name, databaseTemplate }`.
+3. If `true`: FE follows existing template selection and payload behavior unchanged.
+4. API binds input and resolves template value according to path.
+5. Service calls create operation with resolved template.
 6. Success returns created ODS ID.
 7. FE redirects to ODS details page using existing path logic.
 
@@ -83,24 +86,26 @@ Result: backend continues current create flow, now sourced from `databaseTemplat
 - Field validation errors remain form-level via `react-hook-form` + existing resolver.
 - API validation/business errors continue through `mutationErrCallback` and existing banner/root patterns.
 - Duplicate name behavior remains mapped to `name` field error in backend validation flow.
+- Conditional branch selection errors (if any) should fail explicitly, not silently fallback to the wrong path.
 
 ## Testing Strategy
 
 - Update or add targeted model/DTO validation tests:
-  - `databaseTemplate` required
-  - `name` accepts mixed case alphanumeric with spaces
+  - non-starting-blocks path: `databaseTemplate` required
+  - starting-blocks path: existing template field behavior preserved
+  - `name` validation update for the non-starting-blocks path
 - Update or add focused FE test coverage for create ODS page:
-  - Dropdown options are exactly `Minimal` and `Sample`
-  - Submit payload uses `databaseTemplate` (not `templateName`)
-  - Success path still navigates to details page
+  - `startingBlocks === false`: dropdown options exactly `Minimal` and `Sample`, payload uses `databaseTemplate`
+  - `startingBlocks === true`: existing selector/payload behavior unchanged
+  - Success path still navigates to details page in both branches
 - Keep test scope targeted to changed behavior only.
 
 ## Risks and Mitigations
 
-- Risk: Existing code still references `templateName`.
-  - Mitigation: repo-wide update for create-path usages tied to `PostOdsDto`.
+- Risk: Regressing existing starting-blocks flow while adding non-starting-blocks behavior.
+  - Mitigation: explicit branch-gated logic and tests that assert no behavior drift when `startingBlocks === true`.
 - Risk: Name validation mismatch between user expectation and backend rules.
-  - Mitigation: align regex and error message with approved requirement (letters/numbers/spaces, mixed case).
+  - Mitigation: apply agreed validation only where intended and verify via tests.
 
 ## Alternatives Considered
 
@@ -109,13 +114,15 @@ Result: backend continues current create flow, now sourced from `databaseTemplat
 2. Dual-field backend compatibility (`templateName` + `databaseTemplate`).
    - Rejected: extra complexity not needed for this scoped change.
 
-Selected approach: strict alignment on `databaseTemplate` end-to-end for create flow.
+Selected approach: branch-gated update—new `databaseTemplate` behavior for `startingBlocks === false`, preservation of current behavior for `startingBlocks === true`.
 
 ## Acceptance Criteria
 
-- Create ODS form shows:
-  - required name input
+- When `sbEnvironment.startingBlocks === false`:
+  - form shows required name input
   - required template dropdown with only `Minimal` and `Sample`
-- POST payload uses `databaseTemplate`.
+  - POST payload uses `databaseTemplate`
+- When `sbEnvironment.startingBlocks === true`:
+  - existing create ODS UI and payload behavior remain unchanged
 - ODS creation success redirects to details page.
 - ODS list/details pages continue to work unchanged.
