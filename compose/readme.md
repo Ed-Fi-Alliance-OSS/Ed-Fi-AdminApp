@@ -367,9 +367,6 @@ authentication flow:
      CLIENT_ID: 'edfiadminapp',
      CLIENT_SECRET: 'big-secret-123',
      MACHINE_AUDIENCE: 'edfiadminapp-api',
-     MANAGEMENT_DOMAIN: 'localhost',
-     MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
-     MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456',
    }
    ```
 
