@@ -27,11 +27,12 @@ export class OdssService {
   }
 
   async create(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, dto: PostOdsDto) {
+    const resolvedTemplate = sbEnvironment.startingBlocks === true ? dto.templateName : dto.databaseTemplate;
     const result = await this.startingBlocksServiceV2.createOds(
       sbEnvironment,
       edfiTenant,
       dto.name,
-      dto.templateName
+      resolvedTemplate
     );
     if (result.status === 'SUCCESS') {
       return this.odssRepository
