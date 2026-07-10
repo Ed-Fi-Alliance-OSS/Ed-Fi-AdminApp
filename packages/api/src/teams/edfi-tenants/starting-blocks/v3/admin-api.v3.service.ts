@@ -139,15 +139,7 @@ export class AdminApiServiceV3 {
     reqBody.set('grant_type', 'client_credentials');
     reqBody.set('scope', 'edfi_admin_api/full_access');
 
-    const options = tenantName ? {
-      method: 'POST',
-      url: accessTokenUri,
-      headers: {
-        Accept: 'application/json',
-        tenant: tenantName,
-      },
-      data: reqBody,
-    } : {
+    const options = {
       method: 'POST',
       url: accessTokenUri,
       headers: {
@@ -159,10 +151,10 @@ export class AdminApiServiceV3 {
 
     try {
       await axios.request(options).then((v) => {
-        // Store token: environment-level (no tenant) uses just ID, tenant-specific uses composite key
-        const tokenKey = tenantName ? this.getTenantTokenKey(id, tenantName) : id;
+        // Store token with tenant-specific composite key
+        const tokenKey = this.getTenantTokenKey(id, tenantName);
         this.adminApiTokens.set(tokenKey, v.data.access_token, Number(v.data.expires_in) - 60);
-        this.logger.log(`Stored token for environment ${id}${tenantName ? ` tenant ${tenantName}` : ' (environment-level)'} at key: ${tokenKey}`);
+        this.logger.log(`Stored token for environment ${id} tenant ${tenantName} at key: ${tokenKey}`);
       });
       return {
         status: 'SUCCESS' as const,
