@@ -58,7 +58,7 @@ export class SbEnvironmentsGlobalService {
       ClientSecret: updateDto.adminSecret,
       url: updateDto.url,
     };
-    if (sbEnvironment.version === 'v2') {
+    if (sbEnvironment.version === 'v2' || sbEnvironment.version === 'v3') {
       await this.startingBlocksServiceV2.saveAdminApiCredentials(
         edfiTenant,
         sbEnvironment,
