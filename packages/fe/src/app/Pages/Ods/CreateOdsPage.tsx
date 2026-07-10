@@ -5,6 +5,7 @@ import {
   FormErrorMessage,
   FormLabel,
   Input,
+  Select,
   Text,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
@@ -21,12 +22,18 @@ import {
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import {
+  FIXED_NON_SB_TEMPLATE_OPTIONS,
+  getTemplateFieldName,
+} from './createOdsTemplateBehavior';
 
 const resolver = classValidatorResolver(PostOdsDto);
 
 export const CreateOds = () => {
   const popBanner = usePopBanner();
   const params = useTeamEdfiTenantNavContextLoaded();
+  const isStartingBlocks = params.sbEnvironment.startingBlocks;
+  const templateFieldName = getTemplateFieldName(isStartingBlocks);
   const navigate = useNavigate();
   const goToView = (id: string | number) =>
     navigate(
@@ -55,7 +62,14 @@ export const CreateOds = () => {
         onSubmit={handleSubmit((data) =>
           postOds
             .mutateAsync(
-              { entity: data },
+              {
+                entity: isStartingBlocks
+                  ? data
+                  : {
+                      name: data.name,
+                      databaseTemplate: data.databaseTemplate,
+                    },
+              },
               {
                 ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                 onSuccess: (result) => {
@@ -71,10 +85,25 @@ export const CreateOds = () => {
           <Input {...register('name')} />
           <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
         </FormControl>
-        <FormControl w="form-width" isInvalid={!!errors.templateName}>
+        <FormControl w="form-width" isInvalid={!!(isStartingBlocks ? errors.templateName : errors.databaseTemplate)}>
           <FormLabel>Template</FormLabel>
-          <SelectOdsTemplate name="templateName" control={control} />
-          <FormErrorMessage>{errors.templateName?.message}</FormErrorMessage>
+          {isStartingBlocks ? (
+            <SelectOdsTemplate name={templateFieldName} control={control} />
+          ) : (
+            <Select
+              placeholder="Select template"
+              {...register('databaseTemplate', { required: 'Template is required' })}
+            >
+              {FIXED_NON_SB_TEMPLATE_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {option.label}
+                </option>
+              ))}
+            </Select>
+          )}
+          <FormErrorMessage>
+            {isStartingBlocks ? errors.templateName?.message : errors.databaseTemplate?.message}
+          </FormErrorMessage>
         </FormControl>
         <ButtonGroup>
           <Button mt={4} colorScheme="primary" isLoading={isSubmitting} type="submit">
