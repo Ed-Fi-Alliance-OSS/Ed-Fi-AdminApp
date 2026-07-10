@@ -43,6 +43,7 @@ import {
   StartingBlocksServiceV2,
   StartingBlocksServiceV1,
   AdminApiServiceV2,
+  AdminApiServiceV3,
 } from '../teams/edfi-tenants/starting-blocks';
 import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.service';
 import { OwnershipsService } from '../teams/ownerships/ownerships.service';
@@ -77,6 +78,7 @@ const imports = [
 const providers = [
   AdminApiServiceV1,
   AdminApiServiceV2,
+  AdminApiServiceV3,
   AdminApiSyncService,
   AuthService,
   CacheService,
