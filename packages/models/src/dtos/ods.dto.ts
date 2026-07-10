@@ -124,11 +124,15 @@ export class PostOdsDto
   @Expose()
   @MinLength(3)
   @MaxLength(29)
-  @Matches(/^[a-z0-9]+$/, { message: 'Name must only contain numbers and lowercase letters.' })
+  @Matches(/^[A-Za-z0-9 ]+$/, { message: 'Name must only contain letters, numbers, and spaces.' })
   @TrimWhitespace()
   name: string;
 
   @Expose()
   @TrimWhitespace()
-  templateName: string;
+  databaseTemplate?: string;
+
+  @Expose()
+  @TrimWhitespace()
+  templateName?: string;
 }
