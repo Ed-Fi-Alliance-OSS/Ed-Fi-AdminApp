@@ -232,6 +232,19 @@ from Docker Hub. On first run, the container's `init.sh` entrypoint:
 You must provide your own backup files — they are **not** included in this
 repo. Configure the following in your `.env` file:
 
+Typical source: Azure Artifacts (NuGet packages for Ed-Fi ODS templates). For
+example:
+
+- Minimal template:
+  <https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068>
+- Populated template:
+  <https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068>
+
+> [!NOTE]
+> Data Standard and package version may vary by environment/release. Download
+> the matching Minimal and Populated template versions for your target stack,
+> then place both `.sql` files in your `SQL_BACKUPS_FOLDER`.
+
 - **`SQL_BACKUPS_FOLDER`**: host path to a folder containing
   `EdFi.Ods.Minimal.Template.sql` and `EdFi.Ods.Populated.Template.sql`. This
   folder is bind-mounted read-only into every ODS DB container.
