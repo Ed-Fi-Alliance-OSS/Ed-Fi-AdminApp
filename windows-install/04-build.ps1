@@ -86,18 +86,31 @@ if ($apiBuilt -and $feBuilt) {
     }
 }
 
-if ($buildIsCurrent -and -not $Force) {
-    Write-Host "Build artifacts present and newer than package.json -- skipping build." -ForegroundColor Green
+# The timestamp heuristic above does not know whether the existing FE bundle was
+# built for the requested VITE_API_URL. A stale bundle built for a different API
+# URL/scheme breaks at runtime under the enforcing CSP (connect-src), so only
+# treat the build as current when the last-built .env matches the requested URL.
+$envFile = "$SourcePath\packages\fe\.env"
+$feConfigCurrent = $false
+if (Test-Path $envFile) {
+    $m = Select-String -Path $envFile -Pattern '^VITE_API_URL=(.*)$' | Select-Object -First 1
+    if ($m -and $m.Matches.Groups[1].Value -eq $ViteApiUrl) { $feConfigCurrent = $true }
+}
+
+if ($buildIsCurrent -and $feConfigCurrent -and -not $Force) {
+    Write-Host "Build artifacts present, current, and built for $ViteApiUrl -- skipping build." -ForegroundColor Green
     Write-Host "  API entry:  $apiMainJs"
     Write-Host "  FE output:  $SourcePath\dist\packages\fe\"
     Write-Host "Pass -Force to rebuild anyway." -ForegroundColor DarkGray
     return
 }
+if ($buildIsCurrent -and -not $feConfigCurrent -and -not $Force) {
+    Write-Host "FE build config changed (VITE_API_URL now $ViteApiUrl) -- rebuilding the frontend bundle." -ForegroundColor Cyan
+}
 
 # Ensure packages\fe\.env exists with the right Vite values before building.
 # Vite reads these at build time and bakes paths/URLs into the bundle, so
 # updating .env after build has no effect.
-$envFile = "$SourcePath\packages\fe\.env"
 $template = "$SourcePath\packages\fe\.copyme.env.local"
 try {
     if (-not (Test-Path $envFile) -and (Test-Path $template)) {
@@ -132,6 +145,13 @@ try {
     if ($LASTEXITCODE -ne 0) { throw "build:api failed with exit code $LASTEXITCODE" }
 
     Write-Host ""
+    # nx caches fe:build and does not hash .env, so a changed VITE_API_URL alone
+    # would otherwise serve a stale cached bundle. Clear the cache when the FE
+    # config is not current so the bundle is genuinely rebuilt for the new URL.
+    if (-not $feConfigCurrent) {
+        Write-Host "Clearing the nx cache (FE config changed)..." -ForegroundColor Cyan
+        & npx nx reset
+    }
     Write-Host "Running: npm run build:fe" -ForegroundColor Cyan
     & npm run build:fe
     if ($LASTEXITCODE -ne 0) { throw "build:fe failed with exit code $LASTEXITCODE" }
