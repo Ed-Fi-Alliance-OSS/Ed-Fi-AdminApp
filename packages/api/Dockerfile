@@ -12,6 +12,7 @@ FROM node:24-alpine@sha256:a0b9bf06e4e6193cf7a0f58816cc935ff8c2a908f81e6f1a95432
 WORKDIR /app
 
 # Install build toolchain needed for any native deps during install
+# python3/make/g++ pins track the Alpine release bundled in node:*-alpine - bump these together with the base image tag
 RUN apk add --no-cache --virtual .build-deps python3~=3.14 make~=4.4 g++~=15
 
 # Copy package files first for better caching
