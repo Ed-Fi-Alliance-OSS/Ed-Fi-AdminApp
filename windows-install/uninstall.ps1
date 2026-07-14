@@ -316,25 +316,18 @@ if ($iisAvailable) {
 # Deployed file trees -- the two dedicated standalone-site directories.
 # httpPlatform runs node as a child process; removing the App Pool above should
 # terminate it, but it can briefly outlive the pool and keep its stdout log open,
-# which blocks the directory delete. Kill any node process whose PID is embedded
-# in this deployment's stdout log filenames (httpPlatform names them
-# node-stdout.log_<pid>_<timestamp>.log), then retry the delete a few times.
+# which blocks the directory delete. Kill any node process whose command line
+# references this deployment directory (parsing the PID out of the stdout-log
+# filename is fragile -- LeXtudio HttpBridge and Microsoft HttpPlatformHandler
+# name those logs differently), then retry the delete a few times.
 foreach ($dir in @($ApiDestPath, $FeDestPath)) {
     if (-not (Test-Path $dir)) {
         Record "Delete $dir" "SKIP" "Not present"
         continue
     }
-    $logDir = Join-Path $dir "logs"
-    if (Test-Path $logDir) {
-        Get-ChildItem $logDir -Filter "node-stdout.log_*" -ErrorAction SilentlyContinue | ForEach-Object {
-            if ($_.Name -match 'node-stdout\.log_(\d+)_') {
-                $nodePid = [int]$Matches[1]
-                Get-Process -Id $nodePid -ErrorAction SilentlyContinue |
-                    Where-Object { $_.ProcessName -eq 'node' } |
-                    Stop-Process -Force -ErrorAction SilentlyContinue
-            }
-        }
-    }
+    Get-CimInstance Win32_Process -Filter "Name = 'node.exe'" -ErrorAction SilentlyContinue |
+        Where-Object { $_.CommandLine -and $_.CommandLine -like "*$dir*" } |
+        ForEach-Object { Stop-Process -Id $_.ProcessId -Force -ErrorAction SilentlyContinue }
     $deleted = $false
     for ($attempt = 1; $attempt -le 5; $attempt++) {
         try {
