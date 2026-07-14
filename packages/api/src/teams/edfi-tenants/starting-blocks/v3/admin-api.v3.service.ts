@@ -913,7 +913,7 @@ export class AdminApiServiceV3 {
 
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const response = await this.getAdminApiClient(edfiTenant)
-        .get<any, OdsInstanceEdOrgsResponse[]>('odsInstances/edOrgs')
+        .get<any, OdsInstanceEdOrgsResponse[]>('dataStores/edOrgs')
         .catch((err) => {
           this.logger.error(
             `Error getting Ed-Orgs for tenant ${edfiTenant.id}: ${err.message || err}`,
