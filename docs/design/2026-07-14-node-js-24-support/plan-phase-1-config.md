@@ -1,17 +1,22 @@
-# Node.js 24 Support Implementation Plan
+# Node.js 24 Support Implementation Plan — Phase 1: Version Config
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Move AdminApp's local dev, CI, and container runtime from Node.js 22 to
-Node.js 24, with no application behavior change.
+**Goal:** Update every place that declares or pins the Node.js version — the
+`.nvmrc`/`engines` fields, the Docker base images, and the CI workflow Node setup
+steps — to Node.js 24, with no application behavior change.
 
 **Architecture:** This is a configuration-only change: bump the version pinned in
-`.nvmrc` (the single source of truth), point every `engines.node` field and CI
-workflow step at that version, bump the Docker base images to `node:24-alpine`, then
-verify the existing build/test suite passes unmodified.
+`.nvmrc` (the single source of truth), point every `engines.node` field at it, bump
+the Docker base images to `node:24-alpine`, and standardize CI workflows to read the
+version from `.nvmrc`. Phase 2 (`plan-phase-2-verification.md`) runs the full
+build/test verification and any conditional dependency bumps once this phase's
+changes are in place.
 
 **Tech Stack:** nvm-windows (local Node version management), GitHub Actions
-(`actions/setup-node`), Docker (multi-stage builds), Nx, npm, Jest, Playwright.
+(`actions/setup-node`), Docker (multi-stage builds).
+
+**Continues in:** `docs/design/2026-07-14-node-js-24-support/plan-phase-2-verification.md`
 
 ## Global Constraints
 
@@ -23,13 +28,8 @@ verify the existing build/test suite passes unmodified.
 - `.npmrc` has `engine-strict=true` — `npm ci`/`npm install` will hard-fail if the
   running Node version doesn't satisfy `engines.node`. This is the enforcement
   mechanism; do not weaken or remove it.
-- No new third-party packages may be added. Only bump existing dependencies, and
-  only if verification proves they are incompatible with Node 24.
+- No new third-party packages may be added.
 - No application behavior may change as a result of this work.
-- If any dependency incompatibility, native-module failure, or test breakage
-  surfaces during verification that cannot be fixed via an in-scope compatibility
-  bump, stop and report — do not patch around it with workarounds. This work then
-  defers to release 4.2 instead of shipping in 4.1.
 - Docker base images continue to be pinned by exact `sha256` digest (not a floating
   tag), matching current practice.
 
@@ -44,7 +44,7 @@ verify the existing build/test suite passes unmodified.
 
 **Interfaces:**
 - Produces: the repo-wide Node version source of truth (`.nvmrc` = `24.18.0`) that
-  Task 3 (Docker) and Task 4 (CI) both read from or must match.
+  Task 2 (Docker) and Task 3 (CI) both read from or must match.
 
 - [ ] **Step 1: Update `.nvmrc`**
 
@@ -113,7 +113,7 @@ npm ci --legacy-peer-deps
 Expected: install completes without an `engines` mismatch error (confirms
 `>=24.0.0` is satisfied). If any transitive dependency prints an `EBADENGINE`
 warning/error naming a specific package, note the package name — it will be
-handled in Task 5 (Dependency compatibility bumps), not here.
+handled in Phase 2's conditional dependency-bump task, not here.
 
 - [ ] **Step 6: Commit**
 
@@ -133,7 +133,7 @@ git commit -m "build: bump Node.js version pin to 24.18.0"
 
 **Interfaces:**
 - Consumes: Node 24.18.0 as the target version (Task 1).
-- Produces: Docker images that install/build/run under Node 24, feeding Task 6
+- Produces: Docker images that install/build/run under Node 24, feeding Phase 2's
   verification.
 
 - [ ] **Step 1: Resolve the current `node:24-alpine` digest**
@@ -234,6 +234,7 @@ git commit -m "build: bump Docker base images to node:24-alpine"
 
 **Interfaces:**
 - Consumes: `.nvmrc` = `24.18.0` (Task 1) as the version every workflow now reads.
+- Produces: CI configuration that Phase 2's CI verification task exercises.
 
 - [ ] **Step 1: Update the first Node setup step in `on-prerelease.yml`**
 
@@ -324,193 +325,9 @@ git commit -m "ci: standardize Node version setup on .nvmrc"
 
 ---
 
-### Task 4: Local build and full test suite verification on Node 24
+## Phase 1 Exit Criteria
 
-**Files:**
-- No file changes — this task only runs and observes the existing build/test
-  tooling under Node 24.
-
-**Interfaces:**
-- Consumes: Node 24.18.0 active locally (Task 1), updated `engines` fields
-  (Task 1).
-
-- [ ] **Step 1: Confirm Node 24 is active**
-
-```bash
-node --version
-```
-
-Expected: `v24.18.0`. If not, run `nvm use 24.18.0` first.
-
-- [ ] **Step 2: Clean install dependencies**
-
-```bash
-rm -rf node_modules
-npm ci --legacy-peer-deps
-```
-
-Expected: completes with exit code 0, no `EBADENGINE` errors.
-
-- [ ] **Step 3: Run the full build**
-
-```bash
-npm run build
-```
-
-Expected: both `build:fe` and `build:api` (via Nx) complete with exit code 0.
-
-- [ ] **Step 4: Run each package's unit test suite**
-
-```bash
-npm run test:api
-npm run test:fe
-npm run test:models
-npm run test:models-server
-npm run test:utils
-```
-
-Expected: every command exits 0 with all existing tests passing (same pass/fail
-counts as on Node 22 — no new failures, no skipped/modified tests).
-
-- [ ] **Step 5: Run the e2e/BDD test suite**
-
-```bash
-npm run test:e2e:bdd
-```
-
-Expected: exits 0, same pass/fail counts as the pre-change baseline.
-
-- [ ] **Step 6: Decision gate**
-
-If every command in Steps 2-5 passed with no changes needed: proceed to Task 5
-(skip its dependency-bump steps — there's nothing to bump) and then Task 6.
-
-If any command failed:
-1. Identify the specific failing package/dependency from the error output.
-2. Go to Task 5 and perform the minimal compatibility bump for that specific
-   package only.
-3. Re-run the failing command(s) from this task to confirm the fix, then continue.
-4. If a failure cannot be resolved by bumping the specific incompatible
-   dependency to its next Node-24-compatible version (e.g., it requires an
-   application code change), STOP. Do not implement a workaround. Report this as
-   a blocker per the Global Constraints — this change defers to release 4.2.
-
----
-
-### Task 5: Dependency compatibility bumps (conditional — only if Task 4 found failures)
-
-**Files:**
-- Modify: only the specific `package.json` (root or a `packages/*/package.json`)
-  containing the dependency identified as incompatible in Task 4.
-- Modify: `package-lock.json` (regenerated automatically by `npm install`).
-
-**Interfaces:**
-- Consumes: the specific failing package name + error output captured in Task 4,
-  Step 6.
-
-If Task 4 passed cleanly, skip this task entirely — do not bump any dependency
-speculatively (out of scope per the Global Constraints).
-
-For each dependency Task 4 identified as incompatible with Node 24:
-
-- [ ] **Step 1: Identify the minimum compatible version**
-
-Check the dependency's changelog/release notes (e.g. `npm view <package> versions`
-combined with its GitHub releases) for the earliest version whose `engines.node`
-supports `>=24` or whose changelog states Node 24 support.
-
-- [ ] **Step 2: Bump the dependency**
-
-```bash
-npm install <package>@<minimum-compatible-version> --save-exact=false --legacy-peer-deps
-```
-
-(Use `--save-dev` instead of `--save` if it's currently a devDependency — check its
-current location in the relevant `package.json` first.)
-
-- [ ] **Step 3: Re-run the specific failing command from Task 4**
-
-Re-run whichever of `npm ci`, `npm run build`, or the specific `npm run test:*`
-command failed, to confirm the bump fixes it and introduces no new failures.
-
-- [ ] **Step 4: Commit**
-
-```bash
-git add package.json package-lock.json packages/*/package.json
-git commit -m "build: bump <package> to <version> for Node.js 24 compatibility"
-```
-
-- [ ] **Step 5: Return to Task 4, Step 6 decision gate**
-
-Re-run the full Task 4 verification sequence (Steps 2-5) from a clean install to
-confirm no regressions, then re-evaluate the decision gate.
-
----
-
-### Task 6: CI verification
-
-**Files:**
-- No file changes — this task pushes the branch and observes CI results.
-
-**Interfaces:**
-- Consumes: all changes from Tasks 1-5.
-
-- [ ] **Step 1: Push the branch**
-
-```bash
-git push
-```
-
-- [ ] **Step 2: Confirm the PR workflow passes**
-
-Open the GitHub Actions run for `on-pullrequest.yml` triggered by the push (or the
-open PR). Expected: the `setup`, `code_analysis`, `lint`, and `build_and_test`
-(all matrix entries: `fe`, `be`, `models`, `models-server`, `utils`) jobs all pass,
-and the `Setup Node (from .nvmrc)` step logs show Node 24.18.0 was installed.
-
-- [ ] **Step 3: Confirm the e2e UI workflow passes**
-
-Open the GitHub Actions run for `run-e2e-ui.yml`. Expected: passes, and the
-`Setup Node (from .nvmrc)` step logs show Node 24.18.0.
-
-- [ ] **Step 4: Confirm no other Node version references remain**
-
-```bash
-grep -rn "node:22\|node-version: '22\|node-version: 22\|22\.23\.0\|>=22\.0\.0" \
-  --include="*.yml" --include="*.yaml" --include="Dockerfile*" --include="package.json" \
-  --include=".nvmrc" . | grep -v node_modules
-```
-
-Expected: no output (empty). This confirms the Success Criteria "no repository
-file declares or pins Node.js 22" is met.
-
-- [ ] **Step 5: Final commit (if Step 4 found stragglers)**
-
-If Step 4 found any remaining reference, fix it following the same pattern as
-Tasks 1-3, then commit:
-
-```bash
-git add -A
-git commit -m "build: remove remaining Node.js 22 references"
-git push
-```
-
-If Step 4 found nothing, no commit is needed — this task is complete.
-
----
-
-## Self-Review Notes
-
-- **Spec coverage:** All five design sections (single source of truth, CI
-  standardization, Docker images, dependency bumps, verification) map to Tasks
-  1-6. The `copilot-setup-steps.yml` correction from the spec is reflected as an
-  explicit "no change" line in Task 3.
-- **Placeholder scan:** The only bracketed placeholders (`<digest-from-step-1>`,
-  `<package>`, `<minimum-compatible-version>`) are values that can only be known
-  by running a command during execution (a live Docker digest, or a
-  not-yet-identified failing dependency) — each is preceded by an explicit command
-  that produces the concrete value, not a deferred decision.
-- **Type/name consistency:** Script names (`build`, `test:api`, `test:fe`,
-  `test:models`, `test:models-server`, `test:utils`, `test:e2e:bdd`) are copied
-  verbatim from `package.json`. File line numbers reference the current
-  (pre-change) state of each file, since each task modifies them in sequence.
+All of Tasks 1-3 committed, each verified locally (`npm ci` under Node 24 succeeds,
+both Docker images build successfully, CI workflow YAML is valid). Proceed to
+`plan-phase-2-verification.md` for full build/test suite verification and CI
+confirmation.
