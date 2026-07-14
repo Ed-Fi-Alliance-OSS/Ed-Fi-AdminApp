@@ -64,7 +64,7 @@ describe('AdminApiServiceV3', () => {
     it('creates an axios client with a /v3/ baseURL', () => {
       const client = (service as any).initializeApiClient(
         { adminApiUrl: 'https://api.test.com' } as SbEnvironment,
-        false
+        false,
       );
 
       expect(client.defaults.baseURL).toBe('https://api.test.com/v3/');
@@ -73,9 +73,17 @@ describe('AdminApiServiceV3', () => {
 
   describe('getVendors', () => {
     it('returns vendors mapped through the V3 DTO serializer', async () => {
-      const mockGet = jest.fn().mockResolvedValue([
-        { id: 1, company: 'Acme', contactName: 'Jane', contactEmailAddress: 'jane@acme.com', namespacePrefixes: '' },
-      ]);
+      const mockGet = jest
+        .fn()
+        .mockResolvedValue([
+          {
+            id: 1,
+            company: 'Acme',
+            contactName: 'Jane',
+            contactEmailAddress: 'jane@acme.com',
+            namespacePrefixes: '',
+          },
+        ]);
       jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
 
       const result = await service.getVendors(mockEdfiTenant as EdfiTenant);
@@ -88,12 +96,17 @@ describe('AdminApiServiceV3', () => {
 
   describe('postVendor', () => {
     it('returns the new vendor id parsed from the Location header', async () => {
-      const mockPost = jest.fn().mockResolvedValue({ headers: { location: 'https://api.test.com/v3/vendors/42' } });
+      const mockPost = jest
+        .fn()
+        .mockResolvedValue({ headers: { location: 'https://api.test.com/v3/vendors/42' } });
       jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ post: mockPost });
 
-      const result = await service.postVendor(mockEdfiTenant as EdfiTenant, {
-        company: 'Acme',
-      } as any);
+      const result = await service.postVendor(
+        mockEdfiTenant as EdfiTenant,
+        {
+          company: 'Acme',
+        } as any,
+      );
 
       expect(mockPost).toHaveBeenCalledWith('vendors', { company: 'Acme' });
       expect(result).toEqual({ id: 42 });
@@ -148,9 +161,11 @@ describe('AdminApiServiceV3', () => {
 
   describe('getClaimsets', () => {
     it('returns claimsets mapped through the V3 DTO serializer', async () => {
-      const mockGet = jest.fn().mockResolvedValue([
-        { id: 1, name: 'Default', _isSystemReserved: true, _applications: [] },
-      ]);
+      const mockGet = jest
+        .fn()
+        .mockResolvedValue([
+          { id: 1, name: 'Default', _isSystemReserved: true, _applications: [] },
+        ]);
       jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
 
       const result = await service.getClaimsets(mockEdfiTenant as EdfiTenant);
@@ -191,7 +206,9 @@ describe('AdminApiServiceV3', () => {
 
   describe('getProfiles', () => {
     it('returns profiles mapped through the V3 DTO serializer', async () => {
-      const mockGet = jest.fn().mockResolvedValue([{ id: 1, name: 'Profile1', definition: '<a/>' }]);
+      const mockGet = jest
+        .fn()
+        .mockResolvedValue([{ id: 1, name: 'Profile1', definition: '<a/>' }]);
       jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
 
       const result = await service.getProfiles(mockEdfiTenant as EdfiTenant);

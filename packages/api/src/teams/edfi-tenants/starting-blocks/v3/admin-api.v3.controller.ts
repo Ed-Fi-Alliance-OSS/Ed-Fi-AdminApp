@@ -85,7 +85,7 @@ class AdminApiV3Interceptor implements NestInterceptor {
     const configPublic = request.sbEnvironment.configPublic;
     if (!('version' in configPublic && configPublic.version === 'v3')) {
       throw new NotFoundException(
-        `Requested Admin API version not correct for this EdfiTenant. Use "${request.sbEnvironment.configPublic.adminApiVersion}" instead.`
+        `Requested Admin API version not correct for this EdfiTenant. Use "${request.sbEnvironment.configPublic.adminApiVersion}" instead.`,
       );
     }
     return next.handle();
@@ -102,13 +102,13 @@ export class AdminApiControllerV3 {
     private readonly integrationAppsTeamService: IntegrationAppsTeamService,
     private readonly sbService: AdminApiServiceV3,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
-    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
-  ) { }
+    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
+  ) {}
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
     application: Pick<GetApplicationDtoV3, 'educationOrganizationIds' | 'dataStoreIds'>,
-    validIds: Ids
+    validIds: Ids,
   ) {
     return application.dataStoreIds.some((dataStoreId) =>
       application.educationOrganizationIds.some((edorgId) =>
@@ -117,9 +117,9 @@ export class AdminApiControllerV3 {
             edorg: edorgId,
             ods: dataStoreId,
           }),
-          validIds
-        )
-      )
+          validIds,
+        ),
+      ),
     );
   }
 
@@ -130,7 +130,7 @@ export class AdminApiControllerV3 {
    */
   private checkApplicationEdorgsForUnsafeOperations(
     application: Pick<GetApplicationDtoV3, 'educationOrganizationIds' | 'dataStoreIds'>,
-    validIds: Ids
+    validIds: Ids,
   ) {
     return application.dataStoreIds.every((dataStoreId) =>
       application.educationOrganizationIds.every((edorgId) =>
@@ -139,9 +139,9 @@ export class AdminApiControllerV3 {
             edorg: edorgId,
             ods: dataStoreId,
           }),
-          validIds
-        )
-      )
+          validIds,
+        ),
+      ),
     );
   }
 
@@ -163,7 +163,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @InjectFilter('team.sb-environment.edfi-tenant.vendor:read') validIds: Ids
+    @InjectFilter('team.sb-environment.edfi-tenant.vendor:read') validIds: Ids,
   ) {
     const allVendors = await this.sbService.getVendors(edfiTenant);
     return allVendors.filter((v) => checkId(v.id, validIds));
@@ -182,7 +182,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('vendorId', new ParseIntPipe()) vendorId: number
+    @Param('vendorId', new ParseIntPipe()) vendorId: number,
   ) {
     return this.sbService.getVendor(edfiTenant, vendorId);
   }
@@ -201,7 +201,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('vendorId', new ParseIntPipe()) vendorId: number,
-    @Body() vendor: PutVendorDtoV3
+    @Body() vendor: PutVendorDtoV3,
   ) {
     return this.sbService.putVendor(edfiTenant, vendorId, vendor);
   }
@@ -219,7 +219,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() vendor: PostVendorDtoV3
+    @Body() vendor: PostVendorDtoV3,
   ) {
     return this.sbService.postVendor(edfiTenant, vendor);
   }
@@ -237,7 +237,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('vendorId', new ParseIntPipe()) vendorId: number
+    @Param('vendorId', new ParseIntPipe()) vendorId: number,
   ) {
     return this.sbService.deleteVendor(edfiTenant, vendorId);
   }
@@ -260,7 +260,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const allApplications = await this.sbService.getApplications(edfiTenant);
 
@@ -295,7 +295,7 @@ export class AdminApiControllerV3 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const application = await this.sbService.getApplication(edfiTenant, applicationId);
 
@@ -335,7 +335,7 @@ export class AdminApiControllerV3 {
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @Body() application: PutApplicationFormDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
-    validIds: Ids
+    validIds: Ids,
   ) {
     let claimset: GetClaimsetSingleDtoV3;
     try {
@@ -421,7 +421,7 @@ export class AdminApiControllerV3 {
         const hasChangedAmountOfEdorgs =
           realEdorgs.length !== existingIntegrationApp.edorgIds.length;
         const hasChangedEdorgs = realEdorgs.some(
-          (edorg) => !existingIntegrationApp.edorgIds.includes(edorg.id)
+          (edorg) => !existingIntegrationApp.edorgIds.includes(edorg.id),
         );
         if (hasChangedAmountOfEdorgs || hasChangedEdorgs) {
           throw new ValidationHttpException({
@@ -481,7 +481,7 @@ export class AdminApiControllerV3 {
     @Query('returnRaw') returnRaw: boolean | undefined,
     @Body() application: PostApplicationFormDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:create')
-    validIds: Ids
+    validIds: Ids,
   ) {
     let claimset: GetClaimsetSingleDtoV3;
     try {
@@ -517,7 +517,7 @@ export class AdminApiControllerV3 {
         claimSetName: claimset.name,
         dataStoreIds: [dataStoreId],
       },
-      { excludeExtraneousValues: true }
+      { excludeExtraneousValues: true },
     );
 
     if (!sbEnvironment.domain)
@@ -548,7 +548,7 @@ export class AdminApiControllerV3 {
               sbEnvironment.startingBlocks,
               sbEnvironment.domain,
               application.applicationName,
-              edfiTenant.name
+              edfiTenant.name,
             ),
           });
 
@@ -590,7 +590,7 @@ export class AdminApiControllerV3 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('applicationId', new ParseIntPipe()) applicationId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:delete')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const application = await this.sbService.getApplication(edfiTenant, applicationId);
 
@@ -645,7 +645,7 @@ export class AdminApiControllerV3 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     if (!checkId(apiClientId, validIds)) {
       throw new NotFoundException();
@@ -669,19 +669,16 @@ export class AdminApiControllerV3 {
     @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
     @Body() apiClient: PutApiClientDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
-    validIds: Ids
+    validIds: Ids,
   ) {
     if (!checkId(apiClientId, validIds)) {
       throw new NotFoundException();
     }
 
     const existingApiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
-    if (
-      existingApiClient &&
-      existingApiClient.applicationId !== apiClient.applicationId
-    ) {
+    if (existingApiClient && existingApiClient.applicationId !== apiClient.applicationId) {
       throw new BadRequestException(
-        'The applicationId in the request body must match the existing API client applicationId.'
+        'The applicationId in the request body must match the existing API client applicationId.',
       );
     }
 
@@ -704,7 +701,7 @@ export class AdminApiControllerV3 {
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @Body() apiClient: PostApiClientDtoV3,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:update')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
     if (!this.checkApplicationEdorgsForUnsafeOperations(application, validIds)) {
@@ -721,7 +718,7 @@ export class AdminApiControllerV3 {
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             apiClient.name,
-            edfiTenant.name
+            edfiTenant.name,
           ),
         });
 
@@ -758,7 +755,7 @@ export class AdminApiControllerV3 {
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
     const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
@@ -769,7 +766,7 @@ export class AdminApiControllerV3 {
 
     const adminApiResponse = await this.sbService.putApiClientResetCredential(
       edfiTenant,
-      apiClientId
+      apiClientId,
     );
 
     if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
@@ -780,7 +777,7 @@ export class AdminApiControllerV3 {
             sbEnvironment.startingBlocks,
             sbEnvironment.domain,
             application.applicationName,
-            edfiTenant.name
+            edfiTenant.name,
           ),
         });
 
@@ -816,7 +813,7 @@ export class AdminApiControllerV3 {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('apiclientId', new ParseIntPipe()) apiClientId: number,
     @InjectFilter('team.sb-environment.edfi-tenant.ods.edorg.application:delete')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const apiClient = await this.sbService.getApiClient(edfiTenant, apiClientId);
     const application = await this.sbService.getApplication(edfiTenant, apiClient.applicationId);
@@ -846,7 +843,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.claimset:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const allClaimsets = await this.sbService.getClaimsets(edfiTenant);
     return allClaimsets.filter((c) => checkId(c.id, validIds));
@@ -865,9 +862,10 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Query('id') _ids: string[] | string,
-    @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids
+    @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids,
   ) {
-    if (_ids === undefined) throw new BadRequestException('At least one claimset ID must be provided');
+    if (_ids === undefined)
+      throw new BadRequestException('At least one claimset ID must be provided');
     const ids = Array.isArray(_ids) ? _ids : [_ids];
     const parsedIds = ids.map((id) => {
       const trimmed = id.trim();
@@ -877,10 +875,11 @@ export class AdminApiControllerV3 {
       return n;
     });
     for (const id of parsedIds) {
-      if (!checkId(id, validIds)) throw new ForbiddenException(`Access denied to claimset ID: ${id}`);
+      if (!checkId(id, validIds))
+        throw new ForbiddenException(`Access denied to claimset ID: ${id}`);
     }
     const claimsets = await Promise.all(
-      parsedIds.map((id) => this.sbService.exportClaimset(edfiTenant, id))
+      parsedIds.map((id) => this.sbService.exportClaimset(edfiTenant, id)),
     );
     const title =
       claimsets.length === 1 ? claimsets[0].name : `${edfiTenant.sbEnvironment.envLabel} claimsets`;
@@ -914,13 +913,13 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @Param('exportId', new ParseIntPipe()) exportId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Res() res: Response
+    @Res() res: Response,
   ) {
     const cachedItem = this.downloadCache.get<{ content: string; title: string }>(Number(exportId));
     this.downloadCache.del(Number(exportId));
     if (cachedItem === undefined) {
       throw new NotFoundException(
-        'Export not found. It may have expired. We hold on to exports for 5 minutes after creation.'
+        'Export not found. It may have expired. We hold on to exports for 5 minutes after creation.',
       );
     } else {
       const { content, title } = cachedItem;
@@ -942,7 +941,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('claimsetId', new ParseIntPipe()) claimsetId: number
+    @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
   ) {
     return this.sbService.getClaimset(edfiTenant, claimsetId);
   }
@@ -961,7 +960,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
-    @Body() claimset: PutClaimsetDtoV3
+    @Body() claimset: PutClaimsetDtoV3,
   ) {
     return await this.sbService.putClaimset(edfiTenant, claimsetId, claimset);
   }
@@ -979,7 +978,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: PostClaimsetDtoV3
+    @Body() claimset: PostClaimsetDtoV3,
   ) {
     return await this.sbService.postClaimset(edfiTenant, claimset);
   }
@@ -996,7 +995,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: CopyClaimsetDtoV3
+    @Body() claimset: CopyClaimsetDtoV3,
   ) {
     try {
       return await this.sbService.copyClaimset(edfiTenant, claimset);
@@ -1016,7 +1015,7 @@ export class AdminApiControllerV3 {
                 type: 'Error',
                 data: PostError.response.data,
               },
-              400
+              400,
             );
           }
         }
@@ -1037,7 +1036,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() claimset: ImportClaimsetSingleDtoV3
+    @Body() claimset: ImportClaimsetSingleDtoV3,
   ) {
     return this.sbService.importClaimset(edfiTenant, claimset);
   }
@@ -1055,7 +1054,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('claimsetId', new ParseIntPipe()) claimsetId: number
+    @Param('claimsetId', new ParseIntPipe()) claimsetId: number,
   ) {
     await this.sbService.deleteClaimset(edfiTenant, claimsetId);
     return undefined;
@@ -1079,7 +1078,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.ods:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const allDataStores = await this.sbService.getDataStores(edfiTenant);
     return allDataStores.filter((c) => checkId(c.id, validIds));
@@ -1103,7 +1102,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @InjectFilter('team.sb-environment.edfi-tenant.profile:read')
-    validIds: Ids
+    validIds: Ids,
   ) {
     const allProfiles = await this.sbService.getProfiles(edfiTenant);
     return allProfiles.filter((c) => checkId(c.id, validIds));
@@ -1122,7 +1121,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('profileId', new ParseIntPipe()) profileId: number
+    @Param('profileId', new ParseIntPipe()) profileId: number,
   ) {
     return this.sbService.getProfile(edfiTenant, profileId);
   }
@@ -1141,7 +1140,7 @@ export class AdminApiControllerV3 {
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('profileId', new ParseIntPipe()) profileId: number,
-    @Body() profile: PutProfileDtoV3
+    @Body() profile: PutProfileDtoV3,
   ) {
     {
       try {
@@ -1170,7 +1169,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() profile: PostProfileDtoV3
+    @Body() profile: PostProfileDtoV3,
   ) {
     try {
       return await this.sbService.postProfile(edfiTenant, profile);
@@ -1197,7 +1196,7 @@ export class AdminApiControllerV3 {
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('profileId', new ParseIntPipe()) profileId: number
+    @Param('profileId', new ParseIntPipe()) profileId: number,
   ) {
     await this.sbService.deleteProfile(edfiTenant, profileId);
     return undefined;

@@ -23,7 +23,7 @@ describe('AdminApiControllerV3 - exportClaimset', () => {
       null as any,
       mockSbService as any,
       null as any,
-      null as any
+      null as any,
     );
   });
 
@@ -39,7 +39,7 @@ describe('AdminApiControllerV3 - exportClaimset', () => {
   it('throws ForbiddenException when one requested ID is outside the authorized set', async () => {
     const validIds: Ids = new Set([1]);
     await expect(
-      controller.exportClaimset(1, 1, mockEdfiTenant, ['1', '2'], validIds)
+      controller.exportClaimset(1, 1, mockEdfiTenant, ['1', '2'], validIds),
     ).rejects.toThrow(new ForbiddenException('Access denied to claimset ID: 2'));
     expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
   });
@@ -47,7 +47,7 @@ describe('AdminApiControllerV3 - exportClaimset', () => {
   it('throws BadRequestException for a non-integer string ID', async () => {
     const validIds: Ids = true;
     await expect(
-      controller.exportClaimset(1, 1, mockEdfiTenant, ['abc'], validIds)
+      controller.exportClaimset(1, 1, mockEdfiTenant, ['abc'], validIds),
     ).rejects.toThrow(new BadRequestException('Invalid claimset ID: abc'));
     expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
   });
@@ -55,7 +55,7 @@ describe('AdminApiControllerV3 - exportClaimset', () => {
   it('throws BadRequestException when no id is provided (undefined)', async () => {
     const validIds: Ids = true;
     await expect(
-      controller.exportClaimset(1, 1, mockEdfiTenant, undefined, validIds)
+      controller.exportClaimset(1, 1, mockEdfiTenant, undefined, validIds),
     ).rejects.toThrow(new BadRequestException('At least one claimset ID must be provided'));
     expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
   });
@@ -78,7 +78,7 @@ describe('AdminApiControllerV3 - getDataStores', () => {
       null as any,
       mockSbService as any,
       null as any,
-      null as any
+      null as any,
     );
   });
 
