@@ -139,7 +139,25 @@ Write-Host "Unlocked system.webServer/handlers section."
 # a global module named 'httpPlatformHandler'. Skip if already present (re-run safe;
 # switching handlers needs a manual uninstall first).
 if (Get-WebGlobalModule -Name 'httpPlatformHandler' -ErrorAction SilentlyContinue) {
-    Write-Host "httpPlatform handler already registered (global module 'httpPlatformHandler')."
+    # Both handlers register the same module name, so detect which MSI is installed
+    # to tell whether it matches the requested -HttpHandler and warn if it does not
+    # (switching handlers needs a manual uninstall of the current MSI first).
+    $uninstallKeys = @(
+        'HKLM:\SOFTWARE\Microsoft\Windows\CurrentVersion\Uninstall\*'
+        'HKLM:\SOFTWARE\WOW6432Node\Microsoft\Windows\CurrentVersion\Uninstall\*'
+    )
+    $installedName = Get-ItemProperty $uninstallKeys -ErrorAction SilentlyContinue |
+        Where-Object { $_.DisplayName -match 'HTTP\s*Bridge|HTTP\s*Platform\s*Handler' } |
+        Select-Object -First 1 -ExpandProperty DisplayName
+    $installedHandler =
+        if     ($installedName -match 'Bridge')             { 'HttpBridge' }
+        elseif ($installedName -match 'Platform\s*Handler') { 'HttpPlatformHandler' }
+        else                                                { $null }
+    if ($installedHandler -and $installedHandler -ne $HttpHandler) {
+        Write-Warning "The 'httpPlatformHandler' module is already registered from '$installedName' (-HttpHandler $installedHandler), but -HttpHandler $HttpHandler was requested. Keeping the installed handler. To switch, uninstall the current handler MSI first (Programs and Features, or msiexec /x), then re-run."
+    } else {
+        Write-Host "httpPlatform handler already registered (global module 'httpPlatformHandler')."
+    }
 } else {
     $h = $Handlers[$HttpHandler]
     Install-VerifiedMsi -Name $HttpHandler -Url $h.Url -Sha256 $h.Sha256 -FileName $h.File
