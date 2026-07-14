@@ -514,16 +514,17 @@ POSTGRES_PORT_EXPOSED=$PostgresPort
                 # keeps the old edfiadminapp password (and, on a pre-hardening
                 # volume, the old schema ownership). Re-align both to the SAME
                 # least-privilege model init/01-create-adminapp-user.sh applies on a
-                # fresh volume: the app user CONNECTs and OWNS the public schema, so
-                # it can self-migrate its own tables -- it stays a non-superuser and
-                # needs no database-wide GRANT ALL. Tables/sequences created by
-                # earlier TypeORM runs are already owned by this user (the app
-                # connects as itself), so schema ownership is sufficient. Run as the
-                # postgres superuser.
+                # fresh volume: the app user CONNECTs, has CREATE on the database
+                # (for the citext extension and the pgboss job-queue schema it
+                # creates at boot), and OWNS the public schema, so it can self-migrate
+                # its own tables -- it stays a non-superuser and needs no database-wide
+                # GRANT ALL. Tables/sequences created by earlier TypeORM runs are
+                # already owned by this user (the app connects as itself), so schema
+                # ownership is sufficient. Run as the postgres superuser.
                 Write-Host "Synchronizing $PostgresAppUser password + privileges (idempotent, least-privilege)..."
                 $syncSql = @"
 ALTER USER "$PostgresAppUser" WITH PASSWORD '$PostgresAppPasswordPlain';
-GRANT CONNECT ON DATABASE "$DatabaseName" TO "$PostgresAppUser";
+GRANT CONNECT, CREATE ON DATABASE "$DatabaseName" TO "$PostgresAppUser";
 ALTER SCHEMA public OWNER TO "$PostgresAppUser";
 "@
                 # Pass the password through the environment, never on the command
