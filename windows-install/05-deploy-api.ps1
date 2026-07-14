@@ -718,9 +718,18 @@ BEGIN
 END
 "@
         $env:SQLCMDPASSWORD = $AppDbPasswordPlain
+        # This reconciliation is best-effort: on a first install the [oidc] table
+        # does not exist yet (the guard above is a no-op), and a transient sqlcmd
+        # timeout must not abort the whole install. A -b native error surfaces as a
+        # terminating NativeCommandError under $ErrorActionPreference='Stop', so
+        # catch it and fall through to the warning. -l 30 gives the login headroom
+        # under load.
+        $oidcUpsertExit = 1
         try {
-            & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -d $DatabaseName -C -b -Q $oidcUpsert 1>$null 2>$null
+            & sqlcmd -S "tcp:localhost,1433" -U $AppDbUsername -d $DatabaseName -C -b -l 30 -Q $oidcUpsert 1>$null 2>$null
             $oidcUpsertExit = $LASTEXITCODE
+        } catch {
+            $oidcUpsertExit = 1
         } finally {
             Remove-Item Env:SQLCMDPASSWORD -ErrorAction SilentlyContinue
         }
