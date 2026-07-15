@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV3 } from './admin-api.v3.controller';
+import { CustomHttpException, ValidationHttpException } from '../../../../utils';
 
 describe('AdminApiControllerV3 - exportClaimset', () => {
   let controller: AdminApiControllerV3;
@@ -94,5 +95,99 @@ describe('AdminApiControllerV3 - getDataStores', () => {
     const validIds: Ids = true;
     const result = await controller.getDataStores(1, 1, mockEdfiTenant, validIds);
     expect(result).toHaveLength(2);
+  });
+});
+
+describe('AdminApiControllerV3 - postProfile', () => {
+  let controller: AdminApiControllerV3;
+  let mockSbService: { postProfile: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  const mockProfile: any = { name: 'Test Profile', definition: '<Profile />' };
+
+  const makeAxiosError = (data: unknown) => ({
+    isAxiosError: true,
+    message: 'Request failed with status code 400',
+    response: { status: 400, data },
+  });
+
+  beforeEach(() => {
+    mockSbService = {
+      postProfile: jest.fn(),
+    };
+    controller = new AdminApiControllerV3(
+      null as any,
+      mockSbService as any,
+      null as any,
+      null as any,
+    );
+  });
+
+  it('throws ValidationHttpException for a duplicate profile name', async () => {
+    mockSbService.postProfile.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Name: ['this name already exists'] },
+      }),
+    );
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'name',
+        message: 'A profile with this name already exists. Please choose a different name.',
+      }),
+    );
+  });
+
+  it('throws ValidationHttpException for an invalid XML definition', async () => {
+    const definitionError = 'List of possible elements expected: Foo.';
+    mockSbService.postProfile.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Definition: [definitionError] },
+      }),
+    );
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'definition',
+        message: `Invalid XML format for definition: ${definitionError}`,
+      }),
+    );
+  });
+
+  it('throws CustomHttpException for a generic validation error', async () => {
+    const errorData = {
+      title: 'Validation failed',
+      status: 400,
+      errors: { Other: ['something else went wrong'] },
+    };
+    mockSbService.postProfile.mockRejectedValue(makeAxiosError(errorData));
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new CustomHttpException(
+        {
+          title: 'Validation error',
+          type: 'Error',
+          data: errorData,
+        },
+        400,
+      ),
+    );
+  });
+
+  it('rethrows the original error when it is not an axios validation error', async () => {
+    const otherError = new Error('boom');
+    mockSbService.postProfile.mockRejectedValue(otherError);
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      otherError,
+    );
   });
 });
