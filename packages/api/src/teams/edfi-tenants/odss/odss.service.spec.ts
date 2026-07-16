@@ -86,6 +86,35 @@ describe('OdssService', () => {
     jest.clearAllMocks();
   });
 
+  describe('create', () => {
+    it('uses dto.templateName in odss create flow', async () => {
+      const dto = {
+        name: 'ODS One',
+        templateName: 'TemplateNameValue',
+        databaseTemplate: 'DatabaseTemplateValue',
+      } as any;
+      const sbEnvironment = {
+        ...mockSbEnvironment,
+        startingBlocks: false,
+      } as SbEnvironment;
+      const createdOds = { id: 1, odsInstanceName: 'ODS One' };
+
+      (startingBlocksServiceV2 as any).createOds = jest
+        .fn()
+        .mockResolvedValue({ status: 'SUCCESS' });
+      odssRepository.findOneBy.mockResolvedValue(createdOds);
+
+      await service.create(sbEnvironment, mockEdfiTenant as EdfiTenant, dto);
+
+      expect((startingBlocksServiceV2 as any).createOds).toHaveBeenCalledWith(
+        sbEnvironment,
+        mockEdfiTenant,
+        'ODS One',
+        'TemplateNameValue'
+      );
+    });
+  });
+
   describe('syncEdOrgs', () => {
     it('should throw NotFoundException for non-v2 environment', async () => {
       const v1Environment: Partial<SbEnvironment> = { id: 1, version: 'v1' };

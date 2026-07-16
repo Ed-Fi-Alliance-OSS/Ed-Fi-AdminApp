@@ -27,12 +27,9 @@ export class OdssService {
   }
 
   async create(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, dto: PostOdsDto) {
-    const resolvedTemplate = sbEnvironment.startingBlocks
-      ? dto.templateName ?? dto.databaseTemplate
-      : dto.databaseTemplate ?? dto.templateName;
-    if (!resolvedTemplate) {
+    if (!dto.templateName) {
       throw new ValidationHttpException({
-        field: sbEnvironment.startingBlocks ? 'templateName' : 'databaseTemplate',
+        field: 'templateName',
         message: 'Template is required.',
       });
     }
@@ -40,7 +37,7 @@ export class OdssService {
       sbEnvironment,
       edfiTenant,
       dto.name,
-      resolvedTemplate
+      dto.templateName
     );
     if (result.status === 'SUCCESS') {
       return this.odssRepository
