@@ -1000,7 +1000,15 @@ export class AdminApiControllerV3 {
     try {
       return await this.sbService.copyClaimset(edfiTenant, claimset);
     } catch (PostError: unknown) {
-      Logger.error(PostError);
+      Logger.error(
+         'Admin API copyClaimset failed: ' +
+           (axios.isAxiosError(PostError)
+             ? PostError.message +
+               ' (status ' +
+               (PostError.response?.status ?? 'unknown') +
+               ')'
+             : String(PostError))
+       );
       if (axios.isAxiosError(PostError)) {
         if (isIAdminApiValidationError(PostError.response?.data)) {
           if (PostError.response.data.errors?.Name?.[0]?.includes('this name already exists')) {
@@ -1173,13 +1181,44 @@ export class AdminApiControllerV3 {
   ) {
     try {
       return await this.sbService.postProfile(edfiTenant, profile);
-    } catch (error) {
-      if (error.response.data.title === 'Validation failed') {
-        const errorDefiniton = error.response.data.errors['Definition'][0];
-        throw new HttpException(`Invalid XML format for definition: ${errorDefiniton}`, 500);
-      } else {
-        throw new HttpException('Error creating profile', 500);
+    } catch (PostError: unknown) {
+      Logger.error(
+         'Admin API postProfile failed: ' +
+           (axios.isAxiosError(PostError)
+             ? PostError.message +
+               ' (status ' +
+               (PostError.response?.status ?? 'unknown') +
+               ')'
+             : String(PostError))
+       );
+      if (axios.isAxiosError(PostError)) {
+        if (isIAdminApiValidationError(PostError.response?.data)) {
+          if (PostError.response.data.errors?.Name?.[0]?.includes('this name already exists')) {
+            throw new ValidationHttpException({
+              field: 'name',
+              message: 'A profile with this name already exists. Please choose a different name.',
+            });
+          } else if (PostError.response.data.errors?.Definition?.[0]?.includes('List of possible elements expected:')) {
+            const errorDefinition = PostError.response.data.errors['Definition'][0];
+            throw new ValidationHttpException(
+              {
+                field: 'definition',
+                message: `Invalid XML format for definition: ${errorDefinition}`,
+              }
+            );
+          } else {
+            throw new CustomHttpException(
+              {
+                title: 'Validation error',
+                type: 'Error',
+                data: PostError.response.data,
+              },
+              400
+            );
+          }
+        }
       }
+      throw PostError;
     }
   }
 
