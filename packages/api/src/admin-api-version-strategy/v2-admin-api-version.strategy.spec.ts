@@ -5,6 +5,10 @@ import { V2AdminApiVersionStrategy } from './v2-admin-api-version.strategy';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
 import { TenantDto } from '@edanalytics/models';
+import axios from 'axios';
+
+jest.mock('axios');
+const mockedAxios = axios as jest.Mocked<typeof axios>;
 
 describe('V2AdminApiVersionStrategy', () => {
   let strategy: V2AdminApiVersionStrategy;
@@ -130,6 +134,105 @@ describe('V2AdminApiVersionStrategy', () => {
 
       expect(sbEnvironmentsRepository.save).not.toHaveBeenCalled();
     });
+
+    it('discovers tenants from the root endpoint and registers/saves credentials for each in multi-tenant mode', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      const getMock = jest.fn().mockResolvedValue({
+        data: { tenancy: { multitenantMode: true, tenants: ['tenant-a', 'tenant-b'] } },
+      });
+      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: {} } },
+      } as unknown as SbEnvironment;
+
+      await strategy.bootstrapCredentials(env);
+
+      expect(mockedAxios.create).toHaveBeenCalledWith({ baseURL: 'https://api.test.com' });
+      expect(getMock).toHaveBeenCalledWith('/');
+      expect(mockedAxios.post).toHaveBeenCalledTimes(2);
+
+      const values: any = (env.configPublic as any).values;
+      expect(values.tenants['tenant-a'].adminApiKey).toEqual(expect.any(String));
+      expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
+
+      const privateConfig: any = env.configPrivate;
+      expect(privateConfig.tenants['tenant-a'].adminApiSecret).toEqual(expect.any(String));
+      expect(privateConfig.tenants['tenant-b'].adminApiSecret).toEqual(expect.any(String));
+
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledWith(env);
+    });
+
+    it('falls back to the default tenant when the root endpoint response does not have the expected shape', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      const getMock = jest.fn().mockResolvedValue({ data: {} });
+      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: {} } },
+      } as unknown as SbEnvironment;
+
+      await strategy.bootstrapCredentials(env);
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      const values: any = (env.configPublic as any).values;
+      expect(values.tenants['default'].adminApiKey).toEqual(expect.any(String));
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
+    });
+
+    it('logs and returns early without saving when the root Admin API call throws', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      const getMock = jest.fn().mockRejectedValue(new Error('network unreachable'));
+      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: {} } },
+      } as unknown as SbEnvironment;
+
+      await strategy.bootstrapCredentials(env);
+
+      expect(mockedAxios.post).not.toHaveBeenCalled();
+      expect(sbEnvironmentsRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('continues provisioning remaining tenants and still saves when one tenant registration fails', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      const getMock = jest.fn().mockResolvedValue({
+        data: { tenancy: { multitenantMode: true, tenants: ['tenant-a', 'tenant-b'] } },
+      });
+      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+      mockedAxios.post
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({ status: 200 } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: {} } },
+      } as unknown as SbEnvironment;
+
+      await strategy.bootstrapCredentials(env);
+
+      const values: any = (env.configPublic as any).values;
+      expect(values.tenants['tenant-a']).toBeUndefined();
+      expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
+
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledWith(env);
+    });
   });
 
   describe('provisionCredentialsForNewTenants', () => {
@@ -142,6 +245,62 @@ describe('V2AdminApiVersionStrategy', () => {
       await strategy.provisionCredentialsForNewTenants(env, discovered);
 
       expect(sbEnvironmentsRepository.save).not.toHaveBeenCalled();
+    });
+
+    it('registers and saves credentials for newly discovered tenants', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: { 'tenant-a': { adminApiKey: 'existing' } } } },
+      } as unknown as SbEnvironment;
+      const discovered: TenantDto[] = [
+        { id: 'tenant-a', name: 'tenant-a', odsInstances: [] },
+        { id: 'tenant-b', name: 'tenant-b', odsInstances: [] },
+      ];
+
+      await strategy.provisionCredentialsForNewTenants(env, discovered);
+
+      expect(mockedAxios.post).toHaveBeenCalledTimes(1);
+      const values: any = (env.configPublic as any).values;
+      expect(values.tenants['tenant-a']).toEqual({ adminApiKey: 'existing' });
+      expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
+
+      const privateConfig: any = env.configPrivate;
+      expect(privateConfig.tenants['tenant-b'].adminApiSecret).toEqual(expect.any(String));
+
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledWith(env);
+    });
+
+    it('continues provisioning remaining new tenants and still saves when one registration fails', async () => {
+      jest.clearAllMocks();
+      sbEnvironmentsRepository.save = jest.fn();
+      mockedAxios.post
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({ status: 200 } as any);
+
+      const env = {
+        name: 'my-env',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v2', values: { meta: { mode: 'MultiTenant' }, tenants: {} } },
+      } as unknown as SbEnvironment;
+      const discovered: TenantDto[] = [
+        { id: 'tenant-a', name: 'tenant-a', odsInstances: [] },
+        { id: 'tenant-b', name: 'tenant-b', odsInstances: [] },
+      ];
+
+      await strategy.provisionCredentialsForNewTenants(env, discovered);
+
+      const values: any = (env.configPublic as any).values;
+      expect(values.tenants['tenant-a']).toBeUndefined();
+      expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
+
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
+      expect(sbEnvironmentsRepository.save).toHaveBeenCalledWith(env);
     });
   });
 });
