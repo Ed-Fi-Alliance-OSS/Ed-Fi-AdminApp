@@ -119,7 +119,7 @@
     "@faker-js/faker": "^10.5.0",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.28",
-    "@nx/cypress": "^22.7.5",
+    "@nx/cypress": "^23.1.0",
     "@nx/devkit": "^23.0.1",
     "@nx/eslint": "^22.7.5",
     "@nx/eslint-plugin": "^22.7.5",
