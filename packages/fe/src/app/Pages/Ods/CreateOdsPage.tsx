@@ -89,7 +89,7 @@ export const CreateOds = () => {
               baseCallbacks
             )
             .then(async () => {
-              await syncEdOrgs.mutateAsync({ entity: {} }, baseCallbacks);
+              await syncEdOrgs.mutateAsync({ entity: {}, pathParams: {} }, baseCallbacks);
               navigate(parentPath);
             })
             .catch(noop);

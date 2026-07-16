@@ -106,7 +106,7 @@ describe('CreateOds', () => {
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
     expect(syncEdOrgsMutateAsync).toHaveBeenCalledWith(
-      { entity: {} },
+      { entity: {}, pathParams: {} },
       expect.any(Object)
     );
     expect(navSpy).toHaveBeenCalledWith('/parent');
