@@ -426,32 +426,20 @@ export class SbEnvironmentsEdFiService {
       }
 
       // Validate tenant credentials if we're updating URLs and the environment is v2 multi-tenant
-      const isV2Environment = existingEnvironment.configPublic?.version === 'v2';
-      const isV1Environment = existingEnvironment.configPublic?.version === 'v1';
+      const existingVersion = existingEnvironment.configPublic?.version;
+      const existingStrategy = existingVersion ? this.strategyFactory.getStrategy(existingVersion) : undefined;
       const hasUrlUpdates = updateDto.odsApiDiscoveryUrl || updateDto.adminApiUrl;
-      const isCurrentlyMultiTenant = isV2Environment &&
-        existingEnvironment.configPublic?.values &&
-        'meta' in existingEnvironment.configPublic.values &&
-        existingEnvironment.configPublic.values.meta?.mode === 'MultiTenant';
 
       // Validate that tenant mode changes are not attempted (security check)
       if (updateDto.isMultitenant !== undefined) {
-        let expectedTenantMode: boolean;
-
-        if (isV1Environment) {
-          expectedTenantMode = false; // v1 is always single-tenant
-        } else if (isV2Environment) {
-          expectedTenantMode = isCurrentlyMultiTenant;
-        } else {
-          // Starting Blocks or unknown version - don't allow tenant mode changes
-          expectedTenantMode = false;
-        }
+        const expectedTenantMode = existingStrategy ? existingStrategy.getTenantModeDefault(existingEnvironment) : false;
 
         if (updateDto.isMultitenant !== expectedTenantMode) {
           const currentMode = expectedTenantMode ? 'multi-tenant' : 'single-tenant';
           const attemptedMode = updateDto.isMultitenant ? 'multi-tenant' : 'single-tenant';
-          const versionInfo = isV1Environment ? ' (v1 environments are always single-tenant)' :
-                             isV2Environment ? '' : ' (tenant mode not applicable for this environment type)';
+          const versionInfo = !existingStrategy?.supportsMultiTenant
+            ? ' (tenant mode not applicable for this environment type)'
+            : '';
           throw new ValidationHttpException({
             field: 'isMultitenant',
             message: `Tenant mode cannot be changed after creation. Current mode: ${currentMode}, attempted: ${attemptedMode}${versionInfo}`,
@@ -460,7 +448,7 @@ export class SbEnvironmentsEdFiService {
       }
 
       // Handle credential recreation for v1 environments when Admin API URL changes
-      if (hasUrlUpdates && updateDto.adminApiUrl && isV1Environment) {
+      if (hasUrlUpdates && updateDto.adminApiUrl && existingStrategy?.version === 'v1') {
         this.logger.log('Admin API URL changed for v1 environment - recreating credentials');
 
         const { clientId, clientSecret } = await this.createClientCredentials({
@@ -489,34 +477,11 @@ export class SbEnvironmentsEdFiService {
       };
 
       // Update URL and configuration fields if provided
-      if (updateDto.odsApiDiscoveryUrl !== undefined) {
-        // Update the configPublic to store the new ODS API URL
-        if (isV2Environment) {
-          updatedProperties.configPublic = {
-          ...existingEnvironment.configPublic,
-          values: {
-            ...existingEnvironment.configPublic?.values,
-            ...(typeof existingEnvironment.configPublic?.values === 'object' &&
-              'meta' in existingEnvironment.configPublic.values
-              ? {
-                  meta: {
-                    ...((existingEnvironment.configPublic.values as ISbEnvironmentConfigPublicV2).meta),
-                    domainName: updateDto.odsApiDiscoveryUrl.replace(/^https?:\/\//, ''),
-                  },
-                }
-              : {}),
-          },
-        };
-        }
-        else{
+      if (updateDto.odsApiDiscoveryUrl !== undefined && existingStrategy) {
         updatedProperties.configPublic = {
           ...existingEnvironment.configPublic,
-          values: {
-            ...existingEnvironment.configPublic?.values,
-            edfiHostname: updateDto.odsApiDiscoveryUrl.replace(/^https?:\/\//, ''),
-          },
+          values: existingStrategy.applyOdsUrlUpdate(existingEnvironment.configPublic, updateDto.odsApiDiscoveryUrl),
         };
-      }
       }
 
       if (updateDto.adminApiUrl !== undefined) {
@@ -525,13 +490,13 @@ export class SbEnvironmentsEdFiService {
           adminApiUrl: updateDto.adminApiUrl,
         };
 
-        // When the Admin API URL changes on a v2 environment, the stored credentials
+        // When the Admin API URL changes on a v2/v3 environment, the stored credentials
         // are invalid for the new endpoint. Clear them so the pg_boss job's bootstrap
         // logic re-registers fresh credentials against the new URL.
         const adminApiUrlChanged = updateDto.adminApiUrl !== existingEnvironment.adminApiUrl;
-        if (isV2Environment && adminApiUrlChanged) {
+        if (existingStrategy?.supportsMultiTenant && adminApiUrlChanged) {
           this.logger.log(
-            `Admin API URL changed for v2 environment ${id} — clearing tenant credentials for re-bootstrap`
+            `Admin API URL changed for ${existingStrategy.version} environment ${id} — clearing tenant credentials for re-bootstrap`
           );
           if (updatedProperties.configPublic?.values) {
             (updatedProperties.configPublic.values as ISbEnvironmentConfigPublicV2).tenants = {};
@@ -547,14 +512,16 @@ export class SbEnvironmentsEdFiService {
       const updatedEnvironment = await this.sbEnvironmentsRepository.save(updatedProperties);
       let syncQueue;
 
-      // For v2 environments, delegate tenant/ODS/EdOrg sync to the background job —
-      // but only when fields that affect the sync result actually changed.
-      // Name-only edits don't require a re-sync and would add unnecessary latency.
-      const v2SyncTriggered = isV2Environment && hasUrlUpdates;
-      if (v2SyncTriggered) {
-        const syncQueueItem = await this.syncv2Environment(updatedEnvironment);
-        syncQueue = toSbSyncQueueDto(syncQueueItem);
-        this.logger.log(`Triggered v2 sync job for environment ID ${updatedEnvironment.id} after update`);
+      // Delegate tenant/ODS/EdOrg sync to the background job — but only when fields that
+      // affect the sync result actually changed. Name-only edits don't require a re-sync
+      // and would add unnecessary latency.
+      const resyncTriggered = existingStrategy?.shouldTriggerResync(!!hasUrlUpdates) ?? false;
+      if (resyncTriggered && existingStrategy) {
+        const dispatchResult = await existingStrategy.dispatchSync(updatedEnvironment);
+        if (dispatchResult.kind === 'queued') {
+          syncQueue = toSbSyncQueueDto(dispatchResult.syncQueue);
+        }
+        this.logger.log(`Triggered ${existingStrategy.version} sync job for environment ID ${updatedEnvironment.id} after update`);
       } else if (updateDto.tenants && Array.isArray(updateDto.tenants)) {
         await this.updateEnvironmentTenants(updatedEnvironment, updateDto.tenants);
       }
