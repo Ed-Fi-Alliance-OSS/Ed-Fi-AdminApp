@@ -12,6 +12,7 @@ import {
   PostApplicationFormDtoV2,
   PutApiClientDtoV2,
   PostClaimsetDtoV2,
+  PostDbInstanceDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
   PutApplicationDtoV2,
@@ -1162,6 +1163,65 @@ export class AdminApiControllerV2 {
           throw new HttpException('Error updating profile', 500);
         }
       }
+    }
+  }
+
+  @Post('dbinstances')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:create-ods',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postDbInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() dbInstance: PostDbInstanceDtoV2
+  ) {
+    try {
+      return await this.sbService.postDbInstance(edfiTenant, dbInstance);
+    } catch (PostError: unknown) {
+      Logger.error(
+        'Admin API postDbInstance failed: ' +
+          (axios.isAxiosError(PostError)
+            ? PostError.message +
+              ' (status ' +
+              (PostError.response?.status ?? 'unknown') +
+              ')'
+            : String(PostError))
+      );
+      if (
+        axios.isAxiosError(PostError) &&
+        isIAdminApiValidationError(PostError.response?.data) &&
+        Object.keys(PostError.response.data.errors).length > 0
+      ) {
+        const [apiField, apiMessages] = Object.entries(PostError.response.data.errors)[0];
+        const apiMessage = apiMessages[0];
+        if (apiField.toLowerCase() === 'name') {
+          throw new ValidationHttpException({
+            field: 'name',
+            message: apiMessage,
+          });
+        }
+        if (apiField.toLowerCase() === 'databasetemplate') {
+          throw new ValidationHttpException({
+            field: 'databaseTemplate',
+            message: apiMessage,
+          });
+        }
+        throw new CustomHttpException(
+          {
+            title: 'Validation error',
+            type: 'Error',
+            data: PostError.response.data,
+          },
+          400
+        );
+      }
+      throw PostError;
     }
   }
 
