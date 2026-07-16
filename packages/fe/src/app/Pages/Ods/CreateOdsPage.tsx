@@ -15,7 +15,7 @@ import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { dbInstancesV2, edorgQueries, odsQueries } from '../../api';
 import {
   SelectOdsTemplate,
   useNavToParent,
@@ -48,6 +48,10 @@ export const CreateOds = () => {
     edfiTenant: params.edfiTenant,
     teamId: params.asId,
   });
+  const syncEdOrgs = edorgQueries.syncEdOrgs({
+    edfiTenant: params.edfiTenant,
+    teamId: params.asId,
+  });
 
   const {
     register,
@@ -64,8 +68,9 @@ export const CreateOds = () => {
     <PageTemplate title={'Create new ODS'} actions={undefined}>
       <form
         onSubmit={handleSubmit((data) => {
+          const baseCallbacks = mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError });
           const callbacks = {
-            ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
+            ...baseCallbacks,
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             onSuccess: (result: any) => {
               goToView(result.id);
@@ -81,8 +86,12 @@ export const CreateOds = () => {
                   databaseTemplate: data.databaseTemplate!,
                 },
               },
-              callbacks
+              baseCallbacks
             )
+            .then(async () => {
+              await syncEdOrgs.mutateAsync({ entity: {} }, baseCallbacks);
+              navigate(parentPath);
+            })
             .catch(noop);
         })}
       >
