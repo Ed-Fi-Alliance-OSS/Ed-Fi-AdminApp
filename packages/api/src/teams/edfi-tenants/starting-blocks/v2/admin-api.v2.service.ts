@@ -10,6 +10,7 @@ import {
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
   PostClaimsetResourceClaimActionsDtoV2,
+  PostDbInstanceDtoV2,
   PostOdsInstanceContextDtoV2,
   PostOdsInstanceDerivativeDtoV2,
   PostOdsInstanceDtoV2,
@@ -805,6 +806,16 @@ export class AdminApiServiceV2 {
           throw err;
         })) as any
     );
+  }
+
+  async postDbInstance(edfiTenant: EdfiTenant, dbInstance: PostDbInstanceDtoV2) {
+    const { headers } = await this.getAdminApiClient(edfiTenant, true)
+      .post('dbInstances', dbInstance)
+      .catch((err) => {
+        this.logger.error(`Error creating dbInstance for tenant ${edfiTenant.id}: ${err}`);
+        throw err;
+      });
+    return { id: Number(headers.location.match(/\d+$/)[0]) };
   }
 
   async getOdsInstance(edfiTenant: EdfiTenant, odsInstanceId: number) {
