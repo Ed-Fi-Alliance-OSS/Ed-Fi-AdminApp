@@ -15,7 +15,7 @@ import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { odsQueries } from '../../api';
+import { dbInstancesV2, odsQueries } from '../../api';
 import {
   SelectOdsTemplate,
   useNavToParent,
@@ -44,6 +44,10 @@ export const CreateOds = () => {
     edfiTenant: params.edfiTenant,
     teamId: params.asId,
   });
+  const postDbInstance = dbInstancesV2.post({
+    edfiTenant: params.edfiTenant,
+    teamId: params.asId,
+  });
 
   const {
     register,
@@ -59,26 +63,28 @@ export const CreateOds = () => {
   return (
     <PageTemplate title={'Create new ODS'} actions={undefined}>
       <form
-        onSubmit={handleSubmit((data) =>
-          postOds
+        onSubmit={handleSubmit((data) => {
+          const callbacks = {
+            ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            onSuccess: (result: any) => {
+              goToView(result.id);
+            },
+          };
+
+          if (isStartingBlocks) return postOds.mutateAsync({ entity: data }, callbacks).catch(noop);
+          return postDbInstance
             .mutateAsync(
               {
-                entity: isStartingBlocks
-                  ? data
-                  : {
-                      name: data.name,
-                      databaseTemplate: data.databaseTemplate,
-                    },
-              },
-              {
-                ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-                onSuccess: (result) => {
-                  goToView(result.id);
+                entity: {
+                  name: data.name,
+                  databaseTemplate: data.databaseTemplate!,
                 },
-              }
+              },
+              callbacks
             )
-            .catch(noop)
-        )}
+            .catch(noop);
+        })}
       >
         <FormControl w="form-width" isInvalid={!!errors.name}>
           <FormLabel>Name</FormLabel>
