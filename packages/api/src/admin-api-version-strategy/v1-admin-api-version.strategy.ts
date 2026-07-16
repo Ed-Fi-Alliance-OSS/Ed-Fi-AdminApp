@@ -43,7 +43,7 @@ export class V1AdminApiVersionStrategy implements AdminApiVersionStrategy {
   }
 
   applyOdsUrlUpdate(_existingConfigPublic: unknown, newOdsApiDiscoveryUrl: string) {
-    return { edfiHostname: newOdsApiDiscoveryUrl };
+    return { edfiHostname: newOdsApiDiscoveryUrl.replace(/^https?:\/\//, '') };
   }
 
   getTenantModeDefault(_existingEnvironment: SbEnvironment): boolean {
