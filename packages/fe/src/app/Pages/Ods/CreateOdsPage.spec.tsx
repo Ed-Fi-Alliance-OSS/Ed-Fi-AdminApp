@@ -102,7 +102,7 @@ describe('CreateOds', () => {
 
     expect(dbInstancesMutateAsync).toHaveBeenCalledWith(
       { entity: { name: 'ODS One', databaseTemplate: 'Minimal' } },
-      expect.objectContaining({ onSuccess: expect.any(Function) })
+      undefined
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
     expect(syncEdOrgsMutateAsync).toHaveBeenCalledWith(
