@@ -1193,6 +1193,7 @@ export class AdminApiControllerV2 {
         odsInstanceId: createdDbInstance.id,
         dbName: dbInstance.name,
         odsInstanceName: dbInstance.name,
+        instanceType: dbInstance.databaseTemplate,
         databaseTemplate: dbInstance.databaseTemplate,
         status: 'PendingCreate',
       });

@@ -268,6 +268,7 @@ describe('AdminApiControllerV2 - postDbInstance', () => {
       odsInstanceId: 55,
       dbName: mockDbInstance.name,
       odsInstanceName: mockDbInstance.name,
+      instanceType: mockDbInstance.databaseTemplate,
       databaseTemplate: mockDbInstance.databaseTemplate,
       status: 'PendingCreate',
     });
