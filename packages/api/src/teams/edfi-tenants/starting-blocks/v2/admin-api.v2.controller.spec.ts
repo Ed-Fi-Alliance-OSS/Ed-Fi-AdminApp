@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
 
 describe('AdminApiControllerV2 - exportClaimset', () => {
   let controller: AdminApiControllerV2;
@@ -10,6 +11,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
 
   const mockEdfiTenant: any = {
     id: 1,
+    sbEnvironmentId: 2,
     sbEnvironment: { envLabel: 'Test Env' },
   };
 
@@ -23,6 +25,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
     controller = new AdminApiControllerV2(
       null as any,
       mockSbService as any,
+      null as any,
       null as any,
       null as any
     );
@@ -142,6 +145,7 @@ describe('AdminApiControllerV2 - postProfile', () => {
       null as any,
       mockSbService as any,
       null as any,
+      null as any,
       null as any
     );
   });
@@ -214,6 +218,8 @@ describe('AdminApiControllerV2 - postProfile', () => {
 describe('AdminApiControllerV2 - postDbInstance', () => {
   let controller: AdminApiControllerV2;
   let mockSbService: { postDbInstance: jest.Mock };
+  let mockOdsRepository: { save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
 
   const mockEdfiTenant: any = {
     id: 1,
@@ -232,21 +238,44 @@ describe('AdminApiControllerV2 - postDbInstance', () => {
     mockSbService = {
       postDbInstance: jest.fn(),
     };
+    mockOdsRepository = {
+      save: jest.fn(),
+    };
+    mockJobQueue = {
+      send: jest.fn(),
+    };
     controller = new AdminApiControllerV2(
       null as any,
       mockSbService as any,
       null as any,
-      null as any
+      mockOdsRepository as any,
+      mockJobQueue as any
     );
   });
 
-  it('delegates to service and returns id', async () => {
+  it('creates local ODS row and enqueues sync after dbInstance creation', async () => {
     mockSbService.postDbInstance.mockResolvedValue({ id: 55 });
+    mockOdsRepository.save.mockResolvedValue({ id: 901 });
+    mockJobQueue.send.mockResolvedValue('job-123');
 
     await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).resolves.toEqual({
-      id: 55,
+      id: 901,
     });
     expect(mockSbService.postDbInstance).toHaveBeenCalledWith(mockEdfiTenant, mockDbInstance);
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      sbEnvironmentId: mockEdfiTenant.sbEnvironmentId,
+      odsInstanceId: 55,
+      dbName: mockDbInstance.name,
+      odsInstanceName: mockDbInstance.name,
+      databaseTemplate: mockDbInstance.databaseTemplate,
+      status: 'PendingCreate',
+    });
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
   });
 
   it('throws ValidationHttpException for name validation errors', async () => {

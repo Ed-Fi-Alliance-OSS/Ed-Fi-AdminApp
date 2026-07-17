@@ -34,6 +34,7 @@ import {
   Body,
   CallHandler,
   Controller,
+  Inject,
   Delete,
   ExecutionContext,
   ForbiddenException,
@@ -77,6 +78,8 @@ import {
 import { AdminApiV1xExceptionFilter } from '../v1/admin-api-v1x-exception.filter';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
 import config from 'config';
 
 @Injectable()
@@ -103,8 +106,9 @@ export class AdminApiControllerV2 {
     private readonly integrationAppsTeamService: IntegrationAppsTeamService,
     private readonly sbService: AdminApiServiceV2,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
-    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
-  ) { }
+    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
+    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService
+  ) {}
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
@@ -1182,7 +1186,24 @@ export class AdminApiControllerV2 {
     @Body() dbInstance: PostDbInstanceDtoV2
   ) {
     try {
-      return await this.sbService.postDbInstance(edfiTenant, dbInstance);
+      const createdDbInstance = await this.sbService.postDbInstance(edfiTenant, dbInstance);
+      const createdOds = await this.odsRepository.save({
+        edfiTenantId: edfiTenant.id,
+        sbEnvironmentId: edfiTenant.sbEnvironmentId,
+        odsInstanceId: createdDbInstance.id,
+        dbName: dbInstance.name,
+        odsInstanceName: dbInstance.name,
+        databaseTemplate: dbInstance.databaseTemplate,
+        status: 'PendingCreate',
+      });
+
+      await this.jobQueue.send(
+        ENV_SYNC_CHNL,
+        { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+        { expireInHours: 2 }
+      );
+
+      return { id: createdOds.id };
     } catch (PostError: unknown) {
       Logger.error(
         'Admin API postDbInstance failed: ' +

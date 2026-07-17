@@ -100,7 +100,7 @@ describe('CreateOds', () => {
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
-    expect(navSpy).toHaveBeenCalledWith('/as/1/sb-environments/2/edfi-tenants/3/odss/202');
+    expect(navSpy).toHaveBeenCalledWith('/parent');
   });
 
   it('uses ods mutation for startingBlocks', async () => {

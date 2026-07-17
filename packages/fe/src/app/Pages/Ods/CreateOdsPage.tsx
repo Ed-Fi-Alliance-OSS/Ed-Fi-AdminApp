@@ -66,24 +66,40 @@ export const CreateOds = () => {
         onSubmit={handleSubmit((data) => {
           const callbacks = {
             ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            onSuccess: (result: any) => {
-              goToView(result.id);
-            },
           };
 
-          if (isStartingBlocks) return postOds.mutateAsync({ entity: data }, callbacks).catch(noop);
+          if (isStartingBlocks) {
+           return postOds
+             .mutateAsync(
+               {
+                 entity: data,
+               },
+               {
+                 ...callbacks,
+                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                 onSuccess: (result: any) => {
+                   goToView(result.id);
+                 },
+               }
+             )
+             .catch(noop);
+          }
           return postDbInstance
-            .mutateAsync(
-              {
-                entity: {
-                  name: data.name,
-                  databaseTemplate: data.databaseTemplate!,
-                },
-              },
-              callbacks
-            )
-            .catch(noop);
+           .mutateAsync(
+             {
+               entity: {
+                 name: data.name,
+                 databaseTemplate: data.databaseTemplate!,
+               },
+             },
+             {
+               ...callbacks,
+               onSuccess: () => {
+                 navigate(parentPath);
+               },
+             }
+           )
+           .catch(noop);
         })}
       >
         <FormControl w="form-width" isInvalid={!!errors.name}>
