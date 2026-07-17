@@ -72,5 +72,3 @@ tests/api/test-results/
 test-results
 playwright
 tests/e2e/.features-gen
-.worktrees/
-worktrees/
