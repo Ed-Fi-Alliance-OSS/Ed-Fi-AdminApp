@@ -37,7 +37,7 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 }));
 
 jest.mock('../../api', () => ({
-  odsQueries: { post: jest.fn() },
+  odsQueries: { post: jest.fn(), getAll: jest.fn() },
   dbInstancesV2: { post: jest.fn() },
 }));
 
@@ -46,6 +46,7 @@ const mockUseNavigate = useNavigate as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockOdsPost = odsQueries.post as jest.Mock;
+const mockOdsGetAll = odsQueries.getAll as jest.Mock;
 const mockDbInstancesPost = dbInstancesV2.post as jest.Mock;
 
 const navSpy = jest.fn();
@@ -89,6 +90,9 @@ const setup = (startingBlocks: boolean, formData: Record<string, unknown>) => {
     }
   );
   mockOdsPost.mockReturnValue({ mutateAsync: odsMutateAsync });
+  mockOdsGetAll.mockReturnValue({
+    queryKey: ['edfi-tenants', '3', 'odss', 'list', 'teams', '1'],
+  });
   mockDbInstancesPost.mockReturnValue({ mutateAsync: dbInstancesMutateAsync });
 };
 

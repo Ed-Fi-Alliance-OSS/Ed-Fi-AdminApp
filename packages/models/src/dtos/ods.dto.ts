@@ -134,5 +134,5 @@ export class PostOdsDto
 
   @Expose()
   @TrimWhitespace()
-  templateName?: string;
+  templateName: string;
 }

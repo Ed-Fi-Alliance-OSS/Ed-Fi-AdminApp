@@ -815,7 +815,15 @@ export class AdminApiServiceV2 {
         this.logger.error(`Error creating dbInstance for tenant ${edfiTenant.id}: ${err}`);
         throw err;
       });
-    return { id: Number(headers.location.match(/\d+$/)[0]) };
+      const location = headers?.location;
+      const match = typeof location === 'string' ? location.match(/\d+$/) : null;
+      if (!match) {
+        this.logger.error(
+          `Error creating dbInstance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
+        );
+        throw new Error('Admin API did not return a Location header containing the created dbInstance id.');
+      }
+      return { id: Number(match[0]) };
   }
 
   async getOdsInstance(edfiTenant: EdfiTenant, odsInstanceId: number) {

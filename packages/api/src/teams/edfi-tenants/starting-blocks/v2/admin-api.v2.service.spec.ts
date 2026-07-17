@@ -922,5 +922,21 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
       expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
     });
+
+    it('throws when Location header is missing or invalid', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: undefined },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      await expect(service.postDbInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'Admin API did not return a Location header containing the created dbInstance id.'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+    });
   });
 });
