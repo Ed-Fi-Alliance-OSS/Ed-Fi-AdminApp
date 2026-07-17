@@ -11,6 +11,7 @@ import {
 import { PageTemplate } from '@edanalytics/common-ui';
 import { PostOdsDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
@@ -35,6 +36,7 @@ export const CreateOds = () => {
   const isStartingBlocks = params.sbEnvironment.startingBlocks;
   const templateFieldName = getTemplateFieldName(isStartingBlocks);
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const goToView = (id: string | number) =>
     navigate(
       `/as/${params.asId}/sb-environments/${params.sbEnvironmentId}/edfi-tenants/${params.edfiTenantId}/odss/${id}`
@@ -95,6 +97,9 @@ export const CreateOds = () => {
              {
                ...callbacks,
                onSuccess: () => {
+                 void queryClient.invalidateQueries({
+                   queryKey: ['edfi-tenants', String(params.edfiTenant.id), 'odss', 'list', 'teams', String(params.asId)],
+                 });
                  navigate(parentPath);
                },
              }

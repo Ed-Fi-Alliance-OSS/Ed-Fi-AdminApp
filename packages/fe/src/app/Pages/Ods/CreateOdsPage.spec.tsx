@@ -2,6 +2,7 @@ import 'reflect-metadata';
 import { CreateOds } from './CreateOdsPage';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { odsQueries, dbInstancesV2 } from '../../api';
 
@@ -15,6 +16,10 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('react-hook-form', () => ({
   useForm: jest.fn(),
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(),
 }));
 
 jest.mock('../../Layout/FeedbackBanner', () => ({
@@ -38,11 +43,13 @@ jest.mock('../../api', () => ({
 
 const mockUseForm = useForm as jest.Mock;
 const mockUseNavigate = useNavigate as jest.Mock;
+const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockOdsPost = odsQueries.post as jest.Mock;
 const mockDbInstancesPost = dbInstancesV2.post as jest.Mock;
 
 const navSpy = jest.fn();
+const invalidateQueriesSpy = jest.fn();
 const odsMutateAsync = jest.fn();
 const dbInstancesMutateAsync = jest.fn();
 const getFormElement = () => {
@@ -52,6 +59,7 @@ const getFormElement = () => {
 
 const setup = (startingBlocks: boolean, formData: Record<string, unknown>) => {
   mockUseNavigate.mockReturnValue(navSpy);
+  mockUseQueryClient.mockReturnValue({ invalidateQueries: invalidateQueriesSpy });
   mockUseTeamEdfiTenantNavContextLoaded.mockReturnValue({
     asId: 1,
     sbEnvironmentId: 2,
@@ -87,6 +95,7 @@ const setup = (startingBlocks: boolean, formData: Record<string, unknown>) => {
 describe('CreateOds', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    invalidateQueriesSpy.mockClear();
   });
 
   it('uses dbinstances mutation with databaseTemplate for non-startingBlocks', async () => {
@@ -100,6 +109,9 @@ describe('CreateOds', () => {
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
+    expect(invalidateQueriesSpy).toHaveBeenCalledWith({
+      queryKey: ['edfi-tenants', '3', 'odss', 'list', 'teams', '1'],
+    });
     expect(navSpy).toHaveBeenCalledWith('/parent');
   });
 
