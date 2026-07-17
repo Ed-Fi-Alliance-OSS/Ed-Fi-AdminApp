@@ -17,7 +17,7 @@ headers {
 
 body:json {
   {
-    "name": "AC-526 V3 Single Tenant Validation",
+    "name": "V3 Single Tenant Validation",
     "isMultitenant": true
   }
 }
@@ -27,7 +27,7 @@ tests {
     const status = res.getStatus();
     expect(status).to.equal(400);
   });
-
+  
   test("environments/update v3 single-tenant - rejection mentions isMultitenant", function() {
     const body = res.getBody();
     expect(JSON.stringify(body)).to.include("isMultitenant");

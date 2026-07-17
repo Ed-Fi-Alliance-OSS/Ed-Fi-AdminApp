@@ -17,7 +17,7 @@ headers {
 
 body:json {
   {
-    "name": "AC-526 V3 Single Tenant Validation",
+    "name": "V3 Single Tenant Validation",
     "adminApiUrl": "https://localhost/odsv7-adminv3-single-adminapi",
     "odsApiDiscoveryUrl": "https://localhost/odsv7-adminv3-single-api"
   }
@@ -28,7 +28,7 @@ tests {
     const status = res.getStatus();
     expect(status).to.be.within(200, 299);
   });
-
+  
   test("environments/update v3 single-tenant - resync was triggered", function() {
     const body = res.getBody();
     expect(body).to.have.property("syncQueue");
