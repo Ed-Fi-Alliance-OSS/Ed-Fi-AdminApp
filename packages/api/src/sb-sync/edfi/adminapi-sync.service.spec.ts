@@ -1291,5 +1291,75 @@ describe('AdminApiSyncService', () => {
 
       expect(result.status).toBe('INVALID_VERSION');
     });
+
+    describe('syncTenantData — v3', () => {
+      it('uses the v3 dataStores endpoint, falls back to dataStoreType, and maps the ODS/EdOrg data', async () => {
+        const adminApiServiceV3Mock = v3Strategy.getAdminApiService();
+        const mockApiClient = {
+          get: jest.fn().mockResolvedValue({
+            id: 'default',
+            name: 'default',
+            dataStores: [
+              {
+                id: 10,
+                name: 'ODS v3 One',
+                // Deliberately omit `instanceType` and only supply `dataStoreType`
+                // so the `instanceType ?? dataStoreType` fallback is exercised.
+                dataStoreType: 'Ods',
+                educationOrganizations: [
+                  {
+                    educationOrganizationId: 255901,
+                    nameOfInstitution: 'V3 School',
+                    shortNameOfInstitution: 'V3S',
+                    discriminator: 'edfi.School',
+                    parentId: 255900,
+                  },
+                ],
+              },
+            ],
+          }),
+        };
+        adminApiServiceV3Mock.getAdminApiClient = jest.fn().mockReturnValue(mockApiClient);
+
+        edfiTenantsRepository.findOne.mockResolvedValue({
+          id: 1,
+          name: 'default',
+          sbEnvironmentId: 3,
+          odss: [],
+          sbEnvironment: mockSbEnvironmentV3,
+        });
+
+        const persistSyncTenantSpy = jest
+          .spyOn(syncOds, 'persistSyncTenant')
+          .mockResolvedValue(undefined);
+
+        const result = await service.syncTenantData({ id: 1, name: 'default' } as any);
+
+        // Endpoint construction: v3 uses `dataStores/edOrgs`, not `odsInstances/edOrgs`.
+        expect(mockApiClient.get).toHaveBeenCalledWith('tenants/default/dataStores/edOrgs');
+
+        expect(result.status).toBe('SUCCESS');
+        expect(result.message).toContain('Successfully synced 1 ODS instance');
+
+        // Confirm the `dataStores` payload was actually mapped through to persistence,
+        // with `instanceType` falling back to `dataStoreType`.
+        expect(persistSyncTenantSpy).toHaveBeenCalled();
+        const persistArgs = persistSyncTenantSpy.mock.calls[0][0] as any;
+        expect(persistArgs.odss).toHaveLength(1);
+        expect(persistArgs.odss[0]).toMatchObject({
+          id: 10,
+          name: 'ODS v3 One',
+          instanceType: 'Ods',
+        });
+        expect(persistArgs.odss[0].edorgs).toHaveLength(1);
+        expect(persistArgs.odss[0].edorgs[0]).toMatchObject({
+          educationorganizationid: 255901,
+          nameofinstitution: 'V3 School',
+          shortnameofinstitution: 'V3S',
+          discriminator: 'edfi.School',
+          parent: 255900,
+        });
+      });
+    });
   });
 });
