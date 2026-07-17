@@ -427,7 +427,9 @@ export class SbEnvironmentsEdFiService {
 
       // Validate tenant credentials if we're updating URLs and the environment is v2 multi-tenant
       const existingVersion = existingEnvironment.configPublic?.version;
-      const existingStrategy = existingVersion ? this.strategyFactory.getStrategy(existingVersion) : undefined;
+      const existingStrategy = existingVersion && ['v1', 'v2', 'v3'].includes(existingVersion)
+        ? this.strategyFactory.getStrategy(existingVersion)
+        : undefined;
       const hasUrlUpdates = updateDto.odsApiDiscoveryUrl || updateDto.adminApiUrl;
 
       // Validate that tenant mode changes are not attempted (security check)
@@ -437,9 +439,11 @@ export class SbEnvironmentsEdFiService {
         if (updateDto.isMultitenant !== expectedTenantMode) {
           const currentMode = expectedTenantMode ? 'multi-tenant' : 'single-tenant';
           const attemptedMode = updateDto.isMultitenant ? 'multi-tenant' : 'single-tenant';
-          const versionInfo = !existingStrategy?.supportsMultiTenant
-            ? ' (tenant mode not applicable for this environment type)'
-            : '';
+          const versionInfo = existingStrategy?.version === 'v1'
+            ? ' (v1 environments are always single-tenant)'
+            : !existingStrategy?.supportsMultiTenant
+              ? ' (tenant mode not applicable for this environment type)'
+              : '';
           throw new ValidationHttpException({
             field: 'isMultitenant',
             message: `Tenant mode cannot be changed after creation. Current mode: ${currentMode}, attempted: ${attemptedMode}${versionInfo}`,
