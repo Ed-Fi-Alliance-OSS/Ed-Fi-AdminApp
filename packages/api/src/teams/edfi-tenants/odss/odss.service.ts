@@ -27,12 +27,6 @@ export class OdssService {
   }
 
   async create(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, dto: PostOdsDto) {
-    if (!dto.templateName) {
-      throw new ValidationHttpException({
-        field: 'templateName',
-        message: 'Template is required.',
-      });
-    }
     const result = await this.startingBlocksServiceV2.createOds(
       sbEnvironment,
       edfiTenant,
