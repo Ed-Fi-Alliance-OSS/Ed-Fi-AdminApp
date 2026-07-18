@@ -114,6 +114,22 @@ the resulting access limitations to others.
 and profile definitions. Version 4.1 adds richer, more human-readable views and
 drilldown behavior.
 
+### JTBD 8: Create Database Instances
+
+**Personas:** SEA System Administrator, Managed Service Provider System
+Administrator
+
+**When** configuring an Ed-Fi ODS/API v7+ deployment, \
+**I want** to create new a ODS database instance from an existing template, \
+**so that** it can support a new school year for an existing LEA, or a new LEA,
+or as a sandbox for vendor certification.
+
+Variant: delete database instances.
+
+**How Admin App Helps:** the application will support create and delete
+operations, and show the status of requested database management operations,
+with all action being taken by an ODS Admin API deployment. 
+
 ## 3. Functional Requirements
 
 ### Application Credential Management
@@ -250,6 +266,44 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-PROFILE-7:** The application SHALL avoid sending profile content to
   third-party AI services as part of the hosted product experience.
 
+### ODS Instance Management
+
+- FR-ODS-2 from the v4.0 PRD is considered obsolete; furthermore, the
+  requirement belonged with ODS Admin API, rather than with Admin App.
+- **FR-ODS-4:** Users with appropriate permissions SHALL be able to create a new
+  ODS instance for a non-Starting Blocks environment by specifying an ODS name
+  and selecting a database template, using the Admin API v2 `dbinstances`
+  endpoint.
+  - Supersedes the connection/database configuration, academic year, and data
+    standards version fields described in FR-ODS-1 of the v4.0 PRD, which do
+    not apply to the Admin API v2 create flow.
+- **FR-ODS-5:** The ODS instance create action SHALL be available for both
+  Starting Blocks and non-Starting Blocks environments.
+  - Previously, the create action was only shown for Starting Blocks
+    environments.
+- **FR-ODS-6:** For non-Starting Blocks environments, the database template
+  selection SHALL be limited to a fixed set of supported options (**Minimal**,
+  **Sample**) rather than the Starting Blocks template list.
+- **FR-ODS-7:** When an ODS instance creation request is accepted by the Admin
+  API, the application SHALL create a local ODS record with a pending status
+  and SHALL automatically queue an environment synchronization job so that the
+  instance's status can subsequently be updated without further user action.
+- **FR-ODS-8:** After a non-Starting Blocks ODS instance creation request
+  succeeds, the application SHALL return the user to the ODS instance list
+  rather than an instance detail page, since instance details are not yet
+  fully synchronized.
+- **FR-ODS-9:** The ODS instance list SHALL retrieve current data on each visit
+  rather than reusing cached results, so that a newly created instance and any
+  subsequent status changes (e.g., pending to active) are visible without a
+  manual page reload.
+- **FR-ODS-10:** ODS instance name validation SHALL accept letters (upper and
+  lower case), numbers, and spaces.
+  - Previously, ODS instance names were restricted to lowercase letters and
+    numbers only.
+- **FR-ODS-11:** The application SHALL surface Admin API validation errors for
+  ODS instance name and database template as field-level errors on the create
+  form.
+
 ## 4. Non-Functional Requirements
 
 This release PRD only adds non-functional requirements that directly affect
@@ -278,6 +332,7 @@ following product-level architecture implications:
 | Synchronization | Admin App must support refresh requests that return asynchronous job identifiers and job-status polling. |
 | Environment setup | Admin App consumes Admin API tenant-mode metadata when available. |
 | Authentication | Microsoft Entra ID is validated as a field-relevant OIDC provider in addition to Keycloak. |
+| ODS Instances | Admin App creates non-Starting Blocks ODS instances through the Admin API v2 `dbinstances` endpoint, then orchestrates a local pending-status ODS record and an environment synchronization job so the created instance's status can converge without further user action. |
 
 ## 6. Out of Scope
 
@@ -291,6 +346,9 @@ following product-level architecture implications:
 - **Credential Set:** A user-managed API credential record associated with an
   application. It includes a key, secret-handling behavior, status, approval
   state, and ODS assignment as exposed by Admin App.
+- **Database Template:** A predefined ODS database configuration (**Minimal** or
+  **Sample**) selected when creating a new ODS instance for a non-Starting
+  Blocks environment through the Admin API v2 `dbinstances` endpoint.
 - **Human-Readable Profile Representation:** A profile view intended for
   administrator comprehension and sharing, rather than raw XML inspection.
 - **Job Status Endpoint:** An Admin API endpoint used by Admin App to determine
@@ -298,6 +356,10 @@ following product-level architecture implications:
 - **Non-Starting Blocks Deployment:** An Ed-Fi deployment that is not managed
   through the Starting Blocks environment model but still needs Admin App
   synchronization.
+- **Pending Create Status:** The local ODS instance status Admin App assigns
+  immediately after an Admin API `dbinstances` create request is accepted, until
+  the queued environment synchronization job confirms the instance is
+  available.
 - **Tenant Mode:** The Admin API deployment setting that determines whether the
   connected environment operates in single-tenant or multi-tenant mode.
 
