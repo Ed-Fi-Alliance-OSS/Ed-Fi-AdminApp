@@ -294,8 +294,8 @@ Starting Blocks environments through the following detailed requirements:
   fully synchronized.
 - **FR-ODS-9:** The ODS instance list SHALL retrieve current data on each visit
   rather than reusing cached results, so that a newly created instance and any
-  subsequent status changes (e.g., pending to active) are visible without a
-  manual page reload.
+  subsequent status changes (e.g., **Create: Pending** to **Available**) are
+  visible without a manual page reload.
 - **FR-ODS-10:** ODS instance name validation SHALL accept letters (upper and
   lower case), numbers, and spaces.
   - Previously, ODS instance names were restricted to lowercase letters and
@@ -303,6 +303,33 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-ODS-11:** The application SHALL surface Admin API validation errors for
   ODS instance name and database template as field-level errors on the create
   form.
+- **FR-ODS-12:** The ODS instance list SHALL display each instance's type and
+  current status alongside its name.
+- **FR-ODS-13:** ODS instance status SHALL be presented using human-readable,
+  color-coded labels (e.g., **Available**, **Create: Pending**, **Create:
+  Failed**, **Delete: Pending**, **Deleted**) rather than raw status codes
+  returned by the Admin API.
+- **FR-ODS-14:** The ODS instance detail page SHALL display the instance's
+  name, type, status, and database name.
+- **FR-ODS-15:** Admin App SHALL persist ODS instance type, status, database
+  template, and database name metadata returned by the Admin API, and SHALL
+  treat changes to these fields as synchronization deltas so that updates from
+  the connected deployment are reflected locally.
+- **FR-ODS-16:** Users with appropriate permissions SHALL be able to delete a
+  non-Starting Blocks ODS instance from the ODS instance list.
+- **FR-ODS-17:** ODS instance deletion SHALL require the same confirmation
+  behavior used by other destructive actions in Admin App before the delete
+  request is submitted.
+- **FR-ODS-18:** When a delete request is accepted by the Admin API, the
+  application SHALL update the local ODS record to a pending-delete status and
+  SHALL automatically queue an environment synchronization job so that the
+  instance's status can subsequently converge without further user action.
+- **FR-ODS-19:** If an ODS instance delete operation fails, the application
+  SHALL reflect the failure status (**Delete: Failed**) to the user rather than
+  silently removing the instance from the list.
+- **FR-ODS-20:** Once an ODS instance delete operation completes successfully,
+  the application SHALL reflect the **Deleted** status in the ODS instance list
+  and detail page.
 
 ## 4. Non-Functional Requirements
 
@@ -332,7 +359,7 @@ following product-level architecture implications:
 | Synchronization | Admin App must support refresh requests that return asynchronous job identifiers and job-status polling. |
 | Environment setup | Admin App consumes Admin API tenant-mode metadata when available. |
 | Authentication | Microsoft Entra ID is validated as a field-relevant OIDC provider in addition to Keycloak. |
-| ODS Instances | Admin App creates non-Starting Blocks ODS instances through the Admin API v2 `dbinstances` endpoint, then orchestrates a local pending-status ODS record and an environment synchronization job so the created instance's status can converge without further user action. |
+| ODS Instances | Admin App creates and deletes non-Starting Blocks ODS instances through the Admin API v2 `dbinstances` endpoint, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Admin API and treats changes to those fields as synchronization deltas. |
 
 ## 6. Out of Scope
 
@@ -356,10 +383,11 @@ following product-level architecture implications:
 - **Non-Starting Blocks Deployment:** An Ed-Fi deployment that is not managed
   through the Starting Blocks environment model but still needs Admin App
   synchronization.
-- **Pending Create Status:** The local ODS instance status Admin App assigns
-  immediately after an Admin API `dbinstances` create request is accepted, until
-  the queued environment synchronization job confirms the instance is
-  available.
+- **ODS Instance Status:** The lifecycle state of an ODS instance's create or
+  delete operation as reported by the Admin API (e.g., `PendingCreate`,
+  `Created`, `CreateInProgress`, `CreateFailed`, `PendingDelete`, `Deleted`),
+  displayed in Admin App using human-readable, color-coded labels such as
+  **Available** or **Create: Pending**.
 - **Tenant Mode:** The Admin API deployment setting that determines whether the
   connected environment operates in single-tenant or multi-tenant mode.
 
