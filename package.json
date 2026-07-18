@@ -62,7 +62,7 @@
     "@tanstack/react-query-devtools": "^5.101.2",
     "@tanstack/react-table": "^8.21.3",
     "@tanstack/react-virtual": "^3.14.5",
-    "adm-zip": "0.5.18",
+    "adm-zip": "0.6.0",
     "aws-jwt-verify": "^4.0.0",
     "aws4-axios": "^3.4.0",
     "axios": "^1.18.1",
