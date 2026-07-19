@@ -268,66 +268,55 @@ Starting Blocks environments through the following detailed requirements:
 
 ### ODS Instance Management
 
-- FR-ODS-2 from the v4.0 PRD is considered obsolete; furthermore, the
-  requirement belonged with ODS Admin API, rather than with Admin App.
-- **FR-ODS-4:** Users with appropriate permissions SHALL be able to create a new
-  ODS instance for a non-Starting Blocks environment by specifying an ODS name
-  and selecting a database template, using the Admin API v2 `dbinstances`
-  endpoint.
-  - Supersedes the connection/database configuration, academic year, and data
-    standards version fields described in FR-ODS-1 of the v4.0 PRD, which do
-    not apply to the Admin API v2 create flow.
-- **FR-ODS-5:** The ODS instance create action SHALL be available for both
+- **FR-ODS-1:** The ODS instance create action SHALL be available for both
   Starting Blocks and non-Starting Blocks environments.
   - Previously, the create action was only shown for Starting Blocks
     environments.
-- **FR-ODS-6:** For non-Starting Blocks environments, the database template
+- **FR-ODS-2:** For non-Starting Blocks environments, the database template
   selection SHALL be limited to a fixed set of supported options (**Minimal**,
   **Sample**) rather than the Starting Blocks template list.
-- **FR-ODS-7:** When an ODS instance creation request is accepted by the Admin
+- **FR-ODS-3:** When an ODS instance creation request is accepted by the Admin
   API, the application SHALL create a local ODS record with a pending status
   and SHALL automatically queue an environment synchronization job so that the
   instance's status can subsequently be updated without further user action.
-- **FR-ODS-8:** After a non-Starting Blocks ODS instance creation request
+- **FR-ODS-4:** After a non-Starting Blocks ODS instance creation request
   succeeds, the application SHALL return the user to the ODS instance list
   rather than an instance detail page, since instance details are not yet
   fully synchronized.
-- **FR-ODS-9:** The ODS instance list SHALL retrieve current data on each visit
+- **FR-ODS-5:** The ODS instance list SHALL retrieve current data on each visit
   rather than reusing cached results, so that a newly created instance and any
   subsequent status changes (e.g., **Create: Pending** to **Available**) are
   visible without a manual page reload.
-- **FR-ODS-10:** ODS instance name validation SHALL accept letters (upper and
+- **FR-ODS-6:** ODS instance name validation SHALL accept letters (upper and
   lower case), numbers, and spaces.
-  - Previously, ODS instance names were restricted to lowercase letters and
-    numbers only.
-- **FR-ODS-11:** The application SHALL surface Admin API validation errors for
+- **FR-ODS-7:** The application SHALL surface Admin API validation errors for
   ODS instance name and database template as field-level errors on the create
   form.
-- **FR-ODS-12:** The ODS instance list SHALL display each instance's type and
+- **FR-ODS-8:** The ODS instance list SHALL display each instance's type and
   current status alongside its name.
-- **FR-ODS-13:** ODS instance status SHALL be presented using human-readable,
+- **FR-ODS-9:** ODS instance status SHALL be presented using human-readable,
   color-coded labels (e.g., **Available**, **Create: Pending**, **Create:
   Failed**, **Delete: Pending**, **Deleted**) rather than raw status codes
   returned by the Admin API.
-- **FR-ODS-14:** The ODS instance detail page SHALL display the instance's
+- **FR-ODS-10:** The ODS instance detail page SHALL display the instance's
   name, type, status, and database name.
-- **FR-ODS-15:** Admin App SHALL persist ODS instance type, status, database
+- **FR-ODS-11:** Admin App SHALL persist ODS instance type, status, database
   template, and database name metadata returned by the Admin API, and SHALL
   treat changes to these fields as synchronization deltas so that updates from
   the connected deployment are reflected locally.
-- **FR-ODS-16:** Users with appropriate permissions SHALL be able to delete a
+- **FR-ODS-12:** Users with appropriate permissions SHALL be able to delete a
   non-Starting Blocks ODS instance from the ODS instance list.
-- **FR-ODS-17:** ODS instance deletion SHALL require the same confirmation
+- **FR-ODS-13:** ODS instance deletion SHALL require the same confirmation
   behavior used by other destructive actions in Admin App before the delete
   request is submitted.
-- **FR-ODS-18:** When a delete request is accepted by the Admin API, the
+- **FR-ODS-14:** When a delete request is accepted by the Admin API, the
   application SHALL update the local ODS record to a pending-delete status and
   SHALL automatically queue an environment synchronization job so that the
   instance's status can subsequently converge without further user action.
-- **FR-ODS-19:** If an ODS instance delete operation fails, the application
+- **FR-ODS-15:** If an ODS instance delete operation fails, the application
   SHALL reflect the failure status (**Delete: Failed**) to the user rather than
   silently removing the instance from the list.
-- **FR-ODS-20:** Once an ODS instance delete operation completes successfully,
+- **FR-ODS-16:** Once an ODS instance delete operation completes successfully,
   the application SHALL reflect the **Deleted** status in the ODS instance list
   and detail page.
 
@@ -345,6 +334,8 @@ end-user behavior for the v4.1 functionality.
   present.
 - **NFR-SEC-3:** Credential creation and reset flows SHALL preserve the v4.0
   one-time secret handling expectations, including configured Yopass behavior.
+- ***NFR-SDLC-6**: The application SHALL use the currently-supported framework
+  SDK (NodeJs 24).
 
 ## 5. System Architecture Implications
 
