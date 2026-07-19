@@ -235,10 +235,10 @@ repo. Configure the following in your `.env` file:
 Typical source: Azure Artifacts (NuGet packages for Ed-Fi ODS templates). For
 example:
 
-- [Minimal template for ODS/API 7.3, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
-- [Populated template for ODS/API 7.3, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
-- [Minimal template for ODS/API 7.3, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
-- [Populated template for ODS/API 7.3, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
+- [Minimal template for ODS/API 7.3.2, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
+- [Populated template for ODS/API 7.3.2, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
+- [Minimal template for ODS/API 7.3.2, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
+- [Populated template for ODS/API 7.3.2, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
 
 > [!NOTE]
 > Data Standard and package version may vary by environment/release. Download
