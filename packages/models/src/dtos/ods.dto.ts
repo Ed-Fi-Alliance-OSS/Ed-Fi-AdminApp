@@ -124,7 +124,7 @@ export class PostOdsDto
   @Expose()
   @MinLength(3)
   @MaxLength(29)
-  @Matches(/^[A-Za-z0-9 ]+$/, { message: 'Name must only contain letters, numbers, and spaces.' })
+  @Matches(/^[A-Za-z0-9 _]+$/, { message: 'Name must only contain letters, numbers, spaces, and underscores.' })
   @TrimWhitespace()
   name: string;
 
