@@ -11,7 +11,10 @@
 Admin App v4.1 builds on the v4.0 release by creating or improving the workflows
 administrators use to manage API client credentials,  keep Admin App
 synchronized with the Ed-Fi ODS/API and ODS Admin API, and manage database
-instances. This PRD is a release delta: it complements the v4.0 PRD rather than
+instances. Additionally, it should be compatible with the new Ed-Fi API v8
+platform (Data Management Service and Configuration Management Service).
+
+This PRD is a release delta: it complements the v4.0 PRD rather than
 replacing the product overview, personas, enterprise architecture, and baseline
 requirements already captured there.
 
@@ -58,6 +61,16 @@ for v4.1. The most affected personas are:
 - **Ed-Fi Alliance Certification Manager**, who needs to manage credentials and
   understand claimsets/profiles across demonstration environments.
 
+### 1.4 From "Admin API" to "Management API"
+
+The Ed-Fi Management API is the _interface specification_ that is implemented by
+ODS Admin API and the new Configuration Management Service. Prior to Admin App
+4.1, only the ODS Admin API implemented this interface, and the requirements
+often listed ODS Admin API explicitly. Beginning with this document, the
+requirements SHALL refer more generally to the Management API unless there is a
+specific reason to refer to the ODS Admin API or Configuration Management
+Service.
+
 ## 2. Jobs to Be Done
 
 > [!TIP]
@@ -89,7 +102,7 @@ management screens and actions.
 **Personas:** SEA System Administrator, Managed Service Provider System
 Administrator
 
-**When** Admin App is connected to an Ed-Fi ODS/API v7+ and ODS Admin API deployment, \
+**When** Admin App is connected to an Ed-Fi ODS/API v7+ and Management API deployment, \
 **I want** to synchronize its database with current environment, tenant,
 ODS instance, and education organization data, \
 **so that** Admin App reflects the deployment I am administering without
@@ -114,9 +127,25 @@ the resulting access limitations to others.
 and profile definitions. Version 4.1 adds richer, more human-readable views and
 drilldown behavior.
 
+### JTBD 8: Create Database Instances
+
+**Personas:** SEA System Administrator, Managed Service Provider System
+Administrator
+
+**When** configuring an Ed-Fi ODS/API v7+ deployment, \
+**I want** to create new a ODS database instance from an existing template, \
+**so that** it can support a new school year for an existing LEA, or a new LEA,
+or as a sandbox for vendor certification.
+
+Variant: delete database instances.
+
+**How Admin App Helps:** the application will support create and delete
+operations, and show the status of requested database management operations,
+with all action being taken by an Management API deployment.
+
 ## 3. Functional Requirements
 
-### Application Credential Management
+### Application Credential Management (JTBD 1)
 
 - **FR-APP-9:** From an application page, the application SHALL provide a
   credential management action that navigates to the list of credential sets for
@@ -160,19 +189,19 @@ drilldown behavior.
   experience. If Admin App exposes multiple credential sets per application,
   deactivation SHALL be available at the credential-set level.
 
-### Synchronization of Environments
+### Synchronization of Environments (JTBD 6)
 
 The application SHALL support synchronization between the Admin
-App database and running Ed-Fi ODS/API v7+ and ODS Admin API instances that are not
+App database and running Ed-Fi ODS/API v7+ and Management API instances that are not
 Starting Blocks environments through the following detailed requirements:
 
 - **FR-SYNC-1:** The synchronization user experience SHALL avoid Starting Blocks
   terminology when the connected deployment is not a Starting Blocks deployment.
 - **FR-SYNC-2:** The application SHALL use the Management API refresh behavior for
   **education organization data** when that behavior is available.
-- **FR-SYNC-3** / **FR-ODS-3:** The application SHALL use the Management API refresh behavior for
+- **FR-SYNC-3** / **FR-DBINST-3:** The application SHALL use the Management API refresh behavior for
   **ODS instance configurations** when that behavior is available.
-  - Resolves a known caveat on FR-ODS-2 from the v4.0 PRD.
+  - Resolves a known caveat on FR-DBINST-2 from the v4.0 PRD.
 - **FR-SYNC-4:** If a synchronization refresh job fails, the application SHALL
   communicate the failure to the user and SHALL NOT present stale or partial data
   as a successful refresh.
@@ -185,7 +214,7 @@ Starting Blocks environments through the following detailed requirements:
 > [!NOTE]
 >
 > - Out-of-scope: Support for Ed-Fi ODS/API prior to version 7, which does not
->   have the necessary ODS Admin API capabilities to support synchronization.
+>   have the necessary Management API capabilities to support synchronization.
 > - Nice-to-have: Support for Ed-Fi API v8 will be experimental; the new
 >   Configuration Management Service will have Management API compatibility that
 >   _should_ support synchronization without further code changes, but the Admin
@@ -194,11 +223,11 @@ Starting Blocks environments through the following detailed requirements:
 ### Environment Configuration and Tenant-Mode Validation
 
 - **FR-ENV-5:** When creating or editing an environment, the application SHALL
-  determine the tenant mode configured in the connected Admin API when the Admin
+  determine the tenant mode configured in the connected Management API when the Admin
   API exposes that information.
 - **FR-ENV-6:** The application SHALL use tenant-mode information to validate
   that the Admin App environment configuration is compatible with the connected
-  Admin API.
+  Management API.
 - **FR-ENV-7:** When tenant-mode validation fails, the application SHALL display a
   user-actionable error message during environment setup or editing.
 
@@ -218,22 +247,22 @@ Starting Blocks environments through the following detailed requirements:
   validation reveals end-user authentication behavior that differs materially
   from the Keycloak reference implementation.
 
-### Claimset Display and Drilldown
+### Claimset Display and Drilldown (JTBD 7)
 
 - **FR-CS-3:** The application SHALL allow users to review the resource claims
   included in a claimset from within the existing claimset user experience.
   - Replaces the FR-CS-3 roadmap item from the v4.0 PRD.
 - **FR-CS-4:** The application SHALL retrieve claimset hierarchy details from the
-  Admin API when those details are available.
+  Management API when those details are available.
 - **FR-CS-5:** When a claimset includes parent resource claims, the application
   SHALL allow the user to drill into or expand those parent claims to see child
   resource claims.
 - **FR-CS-6:** Claimset drilldown SHALL support multiple levels of nesting when
-  the Admin API provides nested hierarchy data.
+  the Management API provides nested hierarchy data.
 - **FR-CS-7:** The claimset display SHOULD make it clear which displayed
   resources are parent categories and which are concrete child resources.
 
-### Profile Display and Interpretation
+### Profile Display and Interpretation (JTBD 7)
 
 - **FR-PROFILE-3:** The application SHALL provide a click-through user experience
   for viewing the details of an ODS/API profile.
@@ -250,6 +279,61 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-PROFILE-7:** The application SHALL avoid sending profile content to
   third-party AI services as part of the hosted product experience.
 
+### Data Store Instance Management (JTBD 8)
+
+- **FR-DBINST-0:** The "ODS" term shall be replaced by "Data Store".
+- **FR-DBINST-1:** The Data Store instance create action SHALL be available for both
+  Starting Blocks and non-Starting Blocks environments.
+  - Previously, the create action was only shown for Starting Blocks
+    environments.
+- **FR-DBINST-2:** For non-Starting Blocks environments, the database template
+  selection SHALL be limited to a fixed set of supported options (**Minimal**,
+  **Sample**) rather than the Starting Blocks template list.
+- **FR-DBINST-3:** When a Data Store instance creation request is accepted by the Admin
+  API, the application SHALL create a local Data Store record with a pending status
+  and SHALL automatically queue an environment synchronization job so that the
+  instance's status can subsequently be updated without further user action.
+- **FR-DBINST-4:** After a non-Starting Blocks Data Store instance creation request
+  succeeds, the application SHALL return the user to the Data Store instance list
+  rather than an instance detail page, since instance details are not yet
+  fully synchronized.
+- **FR-DBINST-5:** The Data Store instance list SHALL retrieve current data on each visit
+  rather than reusing cached results, so that a newly created instance and any
+  subsequent status changes (e.g., **Create: Pending** to **Available**) are
+  visible without a manual page reload.
+- **FR-DBINST-6:** Data Store instance name validation SHALL accept letters (upper and
+  lower case), numbers, and spaces.
+- **FR-DBINST-7:** The application SHALL surface Management API validation errors for
+  ODS instance name and database template as field-level errors on the create
+  form.
+- **FR-DBINST-8:** The Data Store instance list SHALL display each instance's type and
+  current status alongside its name.
+- **FR-DBINST-9:** Data Store instance status SHALL be presented using human-readable,
+  color-coded labels (e.g., **Available**, **Create: Pending**, **Create:
+  Failed**, **Delete: Pending**, **Deleted**) rather than raw status codes
+  returned by the Management API.
+- **FR-DBINST-10:** The Data Store instance detail page SHALL display the instance's
+  name, type, status, and database name.
+- **FR-DBINST-11:** Admin App SHALL persist Data Store instance type, status, database
+  template, and database name metadata returned by the Management API, and SHALL
+  treat changes to these fields as synchronization deltas so that updates from
+  the connected deployment are reflected locally.
+- **FR-DBINST-12:** Users with appropriate permissions SHALL be able to delete a
+  non-Starting Blocks Data Store instance from the Data Store instance list.
+- **FR-DBINST-13:** Data Store instance deletion SHALL require the same confirmation
+  behavior used by other destructive actions in Admin App before the delete
+  request is submitted.
+- **FR-DBINST-14:** When a delete request is accepted by the Management API, the
+  application SHALL update the local Data Store record to a pending-delete status and
+  SHALL automatically queue an environment synchronization job so that the
+  instance's status can subsequently converge without further user action.
+- **FR-DBINST-15:** If an Data Store instance delete operation fails, the application
+  SHALL reflect the failure status (**Delete: Failed**) to the user rather than
+  silently removing the instance from the list.
+- **FR-DBINST-16:** Once an Data Store instance delete operation completes successfully,
+  the application SHALL reflect the **Deleted** status in the Data Store instance list
+  and detail page.
+
 ## 4. Non-Functional Requirements
 
 This release PRD only adds non-functional requirements that directly affect
@@ -264,6 +348,8 @@ end-user behavior for the v4.1 functionality.
   present.
 - **NFR-SEC-3:** Credential creation and reset flows SHALL preserve the v4.0
   one-time secret handling expectations, including configured Yopass behavior.
+- ***NFR-SDLC-6**: The application SHALL use the currently-supported framework
+  SDK (NodeJs 24).
 
 ## 5. System Architecture Implications
 
@@ -272,33 +358,42 @@ following product-level architecture implications:
 
 | Area | Implication |
 | --- | --- |
-| Claimsets | Admin App depends on Admin API resource-claim hierarchy data to support claimset drilldown. |
+| Claimsets | Admin App depends on Management API resource-claim hierarchy data to support claimset drilldown. |
 | Profiles | Admin App needs a profile representation suitable for human reading, copying, and downloading. |
 | Credentials | Application credential sets become an explicit user-managed resource beneath applications. |
 | Synchronization | Admin App must support refresh requests that return asynchronous job identifiers and job-status polling. |
-| Environment setup | Admin App consumes Admin API tenant-mode metadata when available. |
+| Environment setup | Admin App consumes Management API tenant-mode metadata when available. |
 | Authentication | Microsoft Entra ID is validated as a field-relevant OIDC provider in addition to Keycloak. |
+| ODS Instances | Admin App creates and deletes non-Starting Blocks ODS instances through the Management API v2 `dbinstances` endpoint, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Management API and treats changes to those fields as synchronization deltas. |
 
 ## 6. Out of Scope
 
 - AI-generated explanations that require sending customer deployment data to a
   hosted third-party AI service.
 - New functionality may be limited for Ed-Fi ODS/API v6 and earlier where the
-  necessary ODS Admin API capabilities are not present.
+  necessary Management API capabilities are not present.
 
 ## 7. Glossary Additions
 
 - **Credential Set:** A user-managed API credential record associated with an
   application. It includes a key, secret-handling behavior, status, approval
   state, and ODS assignment as exposed by Admin App.
+- **Database Template:** A predefined ODS database configuration (**Minimal** or
+  **Sample**) selected when creating a new ODS instance for a non-Starting
+  Blocks environment through the Management API v2 `dbinstances` endpoint.
 - **Human-Readable Profile Representation:** A profile view intended for
   administrator comprehension and sharing, rather than raw XML inspection.
-- **Job Status Endpoint:** An Admin API endpoint used by Admin App to determine
+- **Job Status Endpoint:** An Management API endpoint used by Admin App to determine
   whether an asynchronous refresh job is pending, complete, or failed.
 - **Non-Starting Blocks Deployment:** An Ed-Fi deployment that is not managed
   through the Starting Blocks environment model but still needs Admin App
   synchronization.
-- **Tenant Mode:** The Admin API deployment setting that determines whether the
+- **ODS Instance Status:** The lifecycle state of an ODS instance's create or
+  delete operation as reported by the Management API (e.g., `PendingCreate`,
+  `Created`, `CreateInProgress`, `CreateFailed`, `PendingDelete`, `Deleted`),
+  displayed in Admin App using human-readable, color-coded labels such as
+  **Available** or **Create: Pending**.
+- **Tenant Mode:** The Management API deployment setting that determines whether the
   connected environment operates in single-tenant or multi-tenant mode.
 
 ## 8. Open Questions
@@ -311,5 +406,5 @@ Answers to these questions will be determined during the implementation work.
   or should they be hidden behind a filter?
 - What synchronization terminology should replace Starting Blocks-specific labels
   in non-Starting Blocks deployments?
-- What job-status states and failure reasons will the Admin API expose to Admin
+- What job-status states and failure reasons will the Management API expose to Admin
   App users?
