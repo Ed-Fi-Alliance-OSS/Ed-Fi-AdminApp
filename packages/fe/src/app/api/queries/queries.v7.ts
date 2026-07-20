@@ -24,7 +24,7 @@ import {
   PutVendorDtoV2,
 } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
-import { TeamOptions } from './queries';
+import { TeamOptions } from './team-options';
 
 export const applicationQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
