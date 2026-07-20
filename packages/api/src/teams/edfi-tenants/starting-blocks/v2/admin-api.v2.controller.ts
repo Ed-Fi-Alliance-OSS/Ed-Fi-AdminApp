@@ -12,6 +12,7 @@ import {
   PostApplicationFormDtoV2,
   PutApiClientDtoV2,
   PostClaimsetDtoV2,
+  PostDbInstanceDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
   PutApplicationDtoV2,
@@ -33,6 +34,7 @@ import {
   Body,
   CallHandler,
   Controller,
+  Inject,
   Delete,
   ExecutionContext,
   ForbiddenException,
@@ -76,6 +78,8 @@ import {
 import { AdminApiV1xExceptionFilter } from '../v1/admin-api-v1x-exception.filter';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
 import config from 'config';
 
 @Injectable()
@@ -102,8 +106,9 @@ export class AdminApiControllerV2 {
     private readonly integrationAppsTeamService: IntegrationAppsTeamService,
     private readonly sbService: AdminApiServiceV2,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
-    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
-  ) { }
+    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
+    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService
+  ) {}
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
@@ -1162,6 +1167,83 @@ export class AdminApiControllerV2 {
           throw new HttpException('Error updating profile', 500);
         }
       }
+    }
+  }
+
+  @Post('dbinstances')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:create-ods',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postDbInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() dbInstance: PostDbInstanceDtoV2
+  ) {
+    try {
+      const createdDbInstance = await this.sbService.postDbInstance(edfiTenant, dbInstance);
+      const createdOds = await this.odsRepository.save({
+        edfiTenantId: edfiTenant.id,
+        sbEnvironmentId: edfiTenant.sbEnvironmentId,
+        odsInstanceId: createdDbInstance.id,
+        dbName: dbInstance.name,
+        odsInstanceName: dbInstance.name,
+        instanceType: dbInstance.databaseTemplate,
+        databaseTemplate: dbInstance.databaseTemplate,
+        status: 'PendingCreate',
+      });
+
+      await this.jobQueue.send(
+        ENV_SYNC_CHNL,
+        { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+        { expireInHours: 2 }
+      );
+
+      return { id: createdOds.id };
+    } catch (PostError: unknown) {
+      Logger.error(
+        'Admin API postDbInstance failed: ' +
+          (axios.isAxiosError(PostError)
+            ? PostError.message +
+              ' (status ' +
+              (PostError.response?.status ?? 'unknown') +
+              ')'
+            : String(PostError))
+      );
+      if (
+        axios.isAxiosError(PostError) &&
+        isIAdminApiValidationError(PostError.response?.data) &&
+        Object.keys(PostError.response.data.errors).length > 0
+      ) {
+        const [apiField, apiMessages] = Object.entries(PostError.response.data.errors)[0];
+        const apiMessage = apiMessages[0];
+        if (apiField.toLowerCase() === 'name') {
+          throw new ValidationHttpException({
+            field: 'name',
+            message: apiMessage,
+          });
+        }
+        if (apiField.toLowerCase() === 'databasetemplate') {
+          throw new ValidationHttpException({
+            field: 'databaseTemplate',
+            message: apiMessage,
+          });
+        }
+        throw new CustomHttpException(
+          {
+            title: 'Validation error',
+            type: 'Error',
+            data: PostError.response.data,
+          },
+          400
+        );
+      }
+      throw PostError;
     }
   }
 

@@ -484,6 +484,18 @@ export class GetOdsInstanceSummaryDtoV2 {
 
 export const toGetOdsInstanceSummaryDtoV2 = makeSerializer(GetOdsInstanceSummaryDtoV2);
 
+export class PostDbInstanceDtoV2 {
+  @Expose()
+  @IsString()
+  @TrimWhitespace()
+  name: string;
+
+  @Expose()
+  @IsString()
+  @TrimWhitespace()
+  databaseTemplate: string;
+}
+
 export class PostCreateOdsInstanceDtoV2 {
   @Expose()
   @IsString()

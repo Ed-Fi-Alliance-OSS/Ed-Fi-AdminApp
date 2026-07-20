@@ -3,6 +3,7 @@ import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
 
 describe('AdminApiControllerV2 - exportClaimset', () => {
   let controller: AdminApiControllerV2;
@@ -10,6 +11,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
 
   const mockEdfiTenant: any = {
     id: 1,
+    sbEnvironmentId: 2,
     sbEnvironment: { envLabel: 'Test Env' },
   };
 
@@ -23,6 +25,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
     controller = new AdminApiControllerV2(
       null as any,
       mockSbService as any,
+      null as any,
       null as any,
       null as any
     );
@@ -142,6 +145,7 @@ describe('AdminApiControllerV2 - postProfile', () => {
       null as any,
       mockSbService as any,
       null as any,
+      null as any,
       null as any
     );
   });
@@ -206,6 +210,134 @@ describe('AdminApiControllerV2 - postProfile', () => {
     mockSbService.postProfile.mockRejectedValue(otherError);
 
     await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      otherError
+    );
+  });
+});
+
+describe('AdminApiControllerV2 - postDbInstance', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { postDbInstance: jest.Mock };
+  let mockOdsRepository: { save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  const mockDbInstance: any = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+
+  const makeAxiosError = (data: unknown) => ({
+    isAxiosError: true,
+    message: 'Request failed with status code 400',
+    response: { status: 400, data },
+  });
+
+  beforeEach(() => {
+    mockSbService = {
+      postDbInstance: jest.fn(),
+    };
+    mockOdsRepository = {
+      save: jest.fn(),
+    };
+    mockJobQueue = {
+      send: jest.fn(),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      mockOdsRepository as any,
+      mockJobQueue as any
+    );
+  });
+
+  it('creates local ODS row and enqueues sync after dbInstance creation', async () => {
+    mockSbService.postDbInstance.mockResolvedValue({ id: 55 });
+    mockOdsRepository.save.mockResolvedValue({ id: 901 });
+    mockJobQueue.send.mockResolvedValue('job-123');
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).resolves.toEqual({
+      id: 901,
+    });
+    expect(mockSbService.postDbInstance).toHaveBeenCalledWith(mockEdfiTenant, mockDbInstance);
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      sbEnvironmentId: mockEdfiTenant.sbEnvironmentId,
+      odsInstanceId: 55,
+      dbName: mockDbInstance.name,
+      odsInstanceName: mockDbInstance.name,
+      instanceType: mockDbInstance.databaseTemplate,
+      databaseTemplate: mockDbInstance.databaseTemplate,
+      status: 'PendingCreate',
+    });
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+  });
+
+  it('throws ValidationHttpException for name validation errors', async () => {
+    mockSbService.postDbInstance.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Name: ['name is required'] },
+      })
+    );
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'name',
+        message: 'name is required',
+      })
+    );
+  });
+
+  it('throws ValidationHttpException for databaseTemplate validation errors', async () => {
+    mockSbService.postDbInstance.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { DatabaseTemplate: ['database template is required'] },
+      })
+    );
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'databaseTemplate',
+        message: 'database template is required',
+      })
+    );
+  });
+
+  it('throws CustomHttpException for other validation errors', async () => {
+    const errorData = {
+      title: 'Validation failed',
+      status: 400,
+      errors: { Other: ['something else went wrong'] },
+    };
+    mockSbService.postDbInstance.mockRejectedValue(makeAxiosError(errorData));
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new CustomHttpException(
+        {
+          title: 'Validation error',
+          type: 'Error',
+          data: errorData,
+        },
+        400
+      )
+    );
+  });
+
+  it('rethrows non-validation errors', async () => {
+    const otherError = new Error('boom');
+    mockSbService.postDbInstance.mockRejectedValue(otherError);
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
       otherError
     );
   });

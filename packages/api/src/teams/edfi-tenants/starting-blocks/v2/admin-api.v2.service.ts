@@ -10,6 +10,7 @@ import {
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
   PostClaimsetResourceClaimActionsDtoV2,
+  PostDbInstanceDtoV2,
   PostOdsInstanceContextDtoV2,
   PostOdsInstanceDerivativeDtoV2,
   PostOdsInstanceDtoV2,
@@ -805,6 +806,24 @@ export class AdminApiServiceV2 {
           throw err;
         })) as any
     );
+  }
+
+  async postDbInstance(edfiTenant: EdfiTenant, dbInstance: PostDbInstanceDtoV2) {
+    const { headers } = await this.getAdminApiClient(edfiTenant, true)
+      .post('dbInstances', dbInstance)
+      .catch((err) => {
+        this.logger.error(`Error creating dbInstance for tenant ${edfiTenant.id}: ${err}`);
+        throw err;
+      });
+      const location = headers?.location;
+      const match = typeof location === 'string' ? location.match(/\d+$/) : null;
+      if (!match) {
+        this.logger.error(
+          `Error creating dbInstance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
+        );
+        throw new Error('Admin API did not return a Location header containing the created dbInstance id.');
+      }
+      return { id: Number(match[0]) };
   }
 
   async getOdsInstance(edfiTenant: EdfiTenant, odsInstanceId: number) {
