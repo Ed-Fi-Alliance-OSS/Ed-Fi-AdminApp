@@ -6,7 +6,8 @@ import { EntityManager, Repository } from 'typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto } from '@edanalytics/models';
 import { AdminApiSyncService } from './adminapi-sync.service';
-import { AdminApiServiceV1, AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import type { AdminApiServiceV1 } from '../../teams/edfi-tenants/starting-blocks';
+import { AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
 import { CacheService } from '../../app/cache.module';
 import { AdminApiVersionStrategyFactory } from '../../admin-api-version-strategy';
 import * as adminApiDataAdapterUtils from '../../utils/admin-api-data-adapter-utils';
@@ -24,12 +25,14 @@ describe('AdminApiSyncService', () => {
     getAdminApiService: jest.Mock;
     bootstrapCredentials: jest.Mock;
     provisionCredentialsForNewTenants: jest.Mock;
+    getTenantModeDefault: jest.Mock;
   };
   let v2Strategy: {
     version: string;
     getAdminApiService: jest.Mock;
     bootstrapCredentials: jest.Mock;
     provisionCredentialsForNewTenants: jest.Mock;
+    getTenantModeDefault: jest.Mock;
   };
 
   const mockSbEnvironmentV1: Partial<SbEnvironment> = {
@@ -150,12 +153,16 @@ describe('AdminApiSyncService', () => {
       getAdminApiService: jest.fn().mockReturnValue(mockAdminApiServiceV1),
       bootstrapCredentials: jest.fn().mockResolvedValue(undefined),
       provisionCredentialsForNewTenants: jest.fn().mockResolvedValue(undefined),
+      getTenantModeDefault: jest.fn().mockReturnValue(false),
     };
     v2Strategy = {
       version: 'v2',
       getAdminApiService: jest.fn().mockReturnValue(mockAdminApiServiceV2),
       bootstrapCredentials: jest.fn().mockResolvedValue(undefined),
       provisionCredentialsForNewTenants: jest.fn().mockResolvedValue(undefined),
+      getTenantModeDefault: jest.fn(
+        (env: SbEnvironment) => (env?.configPublic?.values as { meta?: { mode?: string } })?.meta?.mode === 'MultiTenant'
+      ),
     };
     strategyFactory = {
       getStrategy: jest.fn((version: string) => {
@@ -1219,6 +1226,7 @@ describe('AdminApiSyncService', () => {
       getAdminApiService: jest.Mock;
       bootstrapCredentials: jest.Mock;
       provisionCredentialsForNewTenants: jest.Mock;
+      getTenantModeDefault: jest.Mock;
     };
     let edfiTenantsRepository: { findOne: jest.Mock; save: jest.Mock; find: jest.Mock };
     let sbEnvironmentsRepository: { findOne: jest.Mock };
@@ -1248,6 +1256,9 @@ describe('AdminApiSyncService', () => {
         getAdminApiService: jest.fn().mockReturnValue(adminApiServiceV3Mock),
         bootstrapCredentials: jest.fn().mockResolvedValue(undefined),
         provisionCredentialsForNewTenants: jest.fn().mockResolvedValue(undefined),
+        getTenantModeDefault: jest.fn(
+          (env: SbEnvironment) => (env?.configPublic?.values as { meta?: { mode?: string } })?.meta?.mode === 'MultiTenant'
+        ),
       };
       strategyFactory = { getStrategy: jest.fn().mockReturnValue(v3Strategy) };
 

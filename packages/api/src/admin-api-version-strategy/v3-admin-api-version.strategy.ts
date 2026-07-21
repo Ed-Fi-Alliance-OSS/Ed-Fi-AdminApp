@@ -2,7 +2,7 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
-import { SbV3MetaEnv } from '@edanalytics/models';
+import type { SbV3MetaEnv } from '@edanalytics/models';
 import { randomUUID } from 'crypto';
 import { AdminApiServiceV3 } from '../teams/edfi-tenants/starting-blocks';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
@@ -14,17 +14,20 @@ export class V3AdminApiVersionStrategy extends V2AdminApiVersionStrategy {
   readonly version: 'v1' | 'v2' | 'v3' = 'v3';
 
   constructor(
-    private readonly adminApiServiceV3: AdminApiServiceV3,
     @Inject('IJobQueueService')
     jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue)
     queueRepository: Repository<SbSyncQueue>,
     @InjectRepository(SbEnvironment)
-    sbEnvironmentsRepository: Repository<SbEnvironment>
+    sbEnvironmentsRepository: Repository<SbEnvironment>,
+    private readonly adminApiServiceV3: AdminApiServiceV3
   ) {
-    // V2's constructor takes AdminApiServiceV2; V3 never uses `this.adminApiServiceV2`
-    // because getAdminApiService() is overridden below, so passing `undefined` is safe.
-    super(undefined as never, jobQueue, queueRepository, sbEnvironmentsRepository);
+    // Keep the same constructor parameter order/positions as V2AdminApiVersionStrategy
+    // (decorated params first, admin-api-service param last) so Nest's inherited
+    // self-declared-dependency metadata resolves the right token for each position.
+    // V2's adminApiServiceV2 param is optional; V3 overrides getAdminApiService()
+    // below and never touches it, so we don't need to provide one.
+    super(jobQueue, queueRepository, sbEnvironmentsRepository);
   }
 
   getAdminApiService() {

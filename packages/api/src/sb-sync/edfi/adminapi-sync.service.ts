@@ -258,11 +258,9 @@ export class AdminApiSyncService {
       // because it uses a manually-constructed client.
       // -----------------------------------------------------------------------
       if (strategy.version !== 'v1') {
-        const configPublic = sbEnvironment.configPublic;
-        const isMultiTenant =
-          configPublic?.version !== undefined &&
-          configPublic.version !== 'v1' &&
-          (configPublic.values as { meta?: { mode?: string } })?.meta?.mode === 'MultiTenant';
+        // Use the strategy's own tenant-mode resolution so v1 stays a hard false and
+        // v2/v3 stay symmetric, instead of re-deriving it from configPublic here.
+        const isMultiTenant = strategy.getTenantModeDefault(sbEnvironment);
 
         if (isMultiTenant) {
           // Provision credentials for tenants discovered by the API but not yet

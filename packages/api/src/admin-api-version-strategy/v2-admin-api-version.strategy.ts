@@ -22,17 +22,25 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
   protected readonly logger = new Logger(V2AdminApiVersionStrategy.name);
 
   constructor(
-    protected readonly adminApiServiceV2: AdminApiServiceV2,
     @Inject('IJobQueueService')
     protected readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue)
     protected readonly queueRepository: Repository<SbSyncQueue>,
     @InjectRepository(SbEnvironment)
-    protected readonly sbEnvironmentsRepository: Repository<SbEnvironment>
+    protected readonly sbEnvironmentsRepository: Repository<SbEnvironment>,
+    // Optional (TypeScript-only, via `?:`) so subclasses (e.g. V3AdminApiVersionStrategy,
+    // which overrides getAdminApiService()) can call super() without a real
+    // AdminApiServiceV2. AdminApiServiceV2 is always registered as a provider, so Nest's
+    // own DI for a real V2 strategy instance will still supply it; no @Optional() decorator
+    // is needed (and adding one caused Nest to misresolve V3's own constructor params,
+    // since self-declared dependency metadata is inherited through the prototype chain).
+    protected readonly adminApiServiceV2?: AdminApiServiceV2
   ) {}
 
   getAdminApiService() {
-    return this.adminApiServiceV2;
+    // Always defined for a real V2 strategy instance; only undefined when a
+    // subclass (V3) that overrides this method calls super() without it.
+    return this.adminApiServiceV2!;
   }
 
   buildConfigPublic({ createSbEnvironmentDto, odsApiMetaResponse, tenantMode }: BuildConfigPublicInput) {
