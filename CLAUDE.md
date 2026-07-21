@@ -43,6 +43,7 @@ packages/
 - **Prettier** for code formatting
 - **Jest** for testing
 - **Storybook** for component development
+- **Node.js >=24.0.0** required (see `.nvmrc` for the exact pinned version)
 
 ### Key Commands
 
@@ -50,8 +51,10 @@ packages/
 - `npm run build:api` - Build API
 - `npm run migrations:generate -- MigrationName` - Generate database migration
 - `npm run migrations:run` - Run pending migrations
+- `npm run migrations:run:mssql` - Run pending migrations against MSSQL
 - `npm run test:api` - Run API tests
 - `npm run test:fe` - Run frontend tests
+- `npm run test:e2e:bdd` - Run Playwright/Gherkin E2E tests
 - `npm run lint:check` - Check linting
 - `npm run storybook` - Start Storybook
 
@@ -80,7 +83,7 @@ packages/
 ### Testing Strategy
 
 - **Unit Tests**: Jest for both frontend and backend
-- **E2E Tests**: Cypress for integration testing
+- **E2E Tests**: Playwright with Gherkin/BDD feature files (`tests/e2e/**/*.feature`)
 - **Storybook**: Component testing and documentation
 - **Test Coverage**: Maintain good coverage across packages
 
@@ -88,11 +91,11 @@ packages/
 
 - **REQUIRED**: Obey the `.editorconfig` file settings at all times. The project uses:
   - UTF-8 character encoding
-  - LF line endings
   - 2-space indentation
   - Spaces for indentation style
   - Final newlines required
   - Trailing whitespace must be trimmed
+- **REQUIRED**: LF line endings are enforced repo-wide via `.gitattributes` (`* text=auto eol=lf`)
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Prettier**: Consistent code formatting
 - **Semantic Release**: Automated versioning based on commit messages
@@ -138,14 +141,16 @@ npm run build-storybook:common-ui
 
 ### Commit Message Format
 
-Use semantic commit messages for automated versioning:
+Use semantic commit messages for automated versioning (see `release.config.mjs`):
 
-- `feature:` - New features (minor version bump)
+- `feat:` / `feature:` - New features (minor version bump)
 - `fix:` - Bug fixes (patch version bump)
 - `docs:` - Documentation updates (no version bump)
 - `refactor:` - Code improvements (patch version bump)
+- `perf:` / `performance:` - Performance improvements (patch version bump)
 - `test:` - Test updates (no version bump)
 - `chore:` - Maintenance tasks (no version bump)
+- `build:` / `ci:` - Build system or CI changes (no version bump)
 
 ### Pull Request Process
 
