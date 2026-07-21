@@ -410,6 +410,7 @@ export interface EducationOrganizationDto {
 export interface OdsInstanceDto {
   id: number | null;
   name: string;
+  dbInstanceId?: number | null;
   instanceType?: string;
   status?: string | null;
   databaseTemplate?: string | null;

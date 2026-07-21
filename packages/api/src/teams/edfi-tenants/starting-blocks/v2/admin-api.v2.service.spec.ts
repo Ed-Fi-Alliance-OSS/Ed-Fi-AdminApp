@@ -81,6 +81,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
             {
               id: 1,
               name: 'ODS One',
+              dbInstanceId: 101,
               instanceType: 'Production',
               educationOrganizations: [
                 {
@@ -104,6 +105,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
             {
               id: 2,
               name: 'ODS Two',
+              dbInstanceId: null,
               instanceType: 'Test',
               educationOrganizations: [
                 {
@@ -172,6 +174,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(result[0].odsInstances![0]).toMatchObject({
         id: 1,
         name: 'ODS One',
+        dbInstanceId: 101,
         instanceType: 'Production',
       });
       expect(result[0].odsInstances![0].edOrgs).toHaveLength(1);
@@ -192,6 +195,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       });
       expect(result[1].odsInstances).toHaveLength(1);
       expect(result[1].odsInstances![0].id).toBe(2);
+      expect(result[1].odsInstances![0].dbInstanceId).toBeNull();
       expect(result[1].odsInstances![0].edOrgs).toHaveLength(1);
       expect(result[1].odsInstances![0].edOrgs![0]).toMatchObject({
         instanceId: 2,
