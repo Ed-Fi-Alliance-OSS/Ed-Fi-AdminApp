@@ -157,7 +157,7 @@ try {
 }
 
 # Step 5: Build Bruno command with filters
-$workspacePath = Resolve-Path ('tests/api')
+$workspacePath = Resolve-Path (Join-Path $PSScriptRoot '..\..\tests\api')
 $targetPath = '.'
 $runRecursive = $true
 $isAuthRequest = $false
