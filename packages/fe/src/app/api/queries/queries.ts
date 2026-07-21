@@ -58,6 +58,7 @@ import path from 'path-browserify';
 import { authCacheKey } from '../../helpers';
 import { apiClient } from '../methods';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
+import { TeamOptions } from './team-options';
 
 const baseUrl = '';
 
@@ -129,12 +130,6 @@ export const queryKey = (params: {
 
 export const teamUrl = (url: string, teamId?: number | string | undefined) =>
   teamId === undefined ? path.join(baseUrl, url) : path.join(baseUrl, 'teams', String(teamId), url);
-
-export enum TeamOptions {
-  Never,
-  Optional,
-  Required,
-}
 
 export type EdfiTenantParamsType<IncludeEdfiTenant extends boolean> = IncludeEdfiTenant extends true
   ? { edfiTenantId: number | string }

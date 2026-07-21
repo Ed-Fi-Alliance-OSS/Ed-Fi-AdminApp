@@ -18,7 +18,7 @@ export const useOdssActions = (): ActionsType => {
       'team.sb-environment.edfi-tenant:create-ods'
     )
   );
-  return canPost && sbEnvironment?.startingBlocks
+  return canPost
     ? {
         Create: {
           icon: Icons.Plus,

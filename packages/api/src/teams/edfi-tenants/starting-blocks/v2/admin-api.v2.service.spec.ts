@@ -890,4 +890,53 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       );
     });
   });
+
+  describe('postDbInstance', () => {
+    it('posts dbInstances payload and returns id from location header', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: '/v2/dbinstances/123' },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      const result = await service.postDbInstance({ id: 1 } as any, payload as any);
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+      expect(result).toEqual({ id: 123 });
+    });
+
+    it('rethrows error when posting dbInstance fails', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const expectedError = new Error('failed to create');
+      const mockPost = jest.fn().mockRejectedValue(expectedError);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      await expect(service.postDbInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'failed to create'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+    });
+
+    it('throws when Location header is missing or invalid', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: undefined },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      await expect(service.postDbInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'Admin API did not return a Location header containing the created dbInstance id.'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+    });
+  });
 });

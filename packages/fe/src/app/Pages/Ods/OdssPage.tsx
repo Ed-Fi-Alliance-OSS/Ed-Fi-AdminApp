@@ -60,12 +60,14 @@ export const OdssPage = () => {
 
 export const OdssTable = () => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const odss = useQuery(
-    odsQueries.getAll({
+  const odss = useQuery({
+    ...odsQueries.getAll({
       edfiTenant,
       teamId,
-    })
-  );
+    }),
+    staleTime: 0,
+    gcTime: 0,
+  });
 
   return (
     <SbaaTableAllInOne
