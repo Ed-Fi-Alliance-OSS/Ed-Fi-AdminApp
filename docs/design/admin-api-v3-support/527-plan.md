@@ -15,6 +15,7 @@
 - No other V3 entity (Application, Claimset, Profile, ApiClient) is in scope — those are AC-528/529/530.
 - Follow existing repo conventions: Jest with `jest.mock(...)` for module dependencies (see `useSyncEdOrgsAction.spec.tsx`, `CreateOdsPage.spec.tsx` for the established pattern), `import 'reflect-metadata';` at the top of any spec that touches a class-transformer-decorated DTO directly (not needed when the DTO is only referenced through a mocked module).
 - Test command for this package: `npx nx run fe:test -- --testPathPattern "<path-fragment>"` (run from repo root). Full suite: `npx nx run fe:test`.
+- There is no `fe:typecheck` nx target in this repo. Use `npx nx run fe:build` to verify TypeScript compiles cleanly.
 
 ---
 
@@ -69,7 +70,7 @@ export const vendorQueriesV3 = new EntityQueryBuilder({
 
 - [ ] **Step 3: Typecheck**
 
-Run: `npx nx run fe:typecheck`
+Run: `npx nx run fe:build`
 Expected: no new errors.
 
 - [ ] **Step 4: Commit**
@@ -234,7 +235,7 @@ Expected: no results (empty output). If any appear, update them the same way as 
 
 - [ ] **Step 4: Typecheck and run the full frontend test suite**
 
-Run: `npx nx run fe:typecheck && npx nx run fe:test`
+Run: `npx nx run fe:build && npx nx run fe:test`
 Expected: no errors; all existing tests still pass (this is a pure move, nothing should break).
 
 - [ ] **Step 5: Commit**
@@ -295,7 +296,7 @@ export const useVendorConfig = createVersionedResource({
 
 - [ ] **Step 2: Typecheck**
 
-Run: `npx nx run fe:typecheck`
+Run: `npx nx run fe:build`
 Expected: no new errors.
 
 - [ ] **Step 3: Commit**
@@ -1126,7 +1127,7 @@ Expected: PASS (2 tests)
 
 - [ ] **Step 8: Typecheck the whole package**
 
-Run: `npx nx run fe:typecheck`
+Run: `npx nx run fe:build`
 Expected: no errors (confirms `VendorPage.tsx`, `ViewVendor.tsx`, and `NameCell.tsx` compile correctly even without their own dedicated spec files).
 
 - [ ] **Step 9: Commit**
@@ -1214,7 +1215,7 @@ export const vendorsIndexRoute: RouteObject = {
 
 - [ ] **Step 3: Typecheck and run the full frontend test suite**
 
-Run: `npx nx run fe:typecheck && npx nx run fe:test`
+Run: `npx nx run fe:build && npx nx run fe:test`
 Expected: no errors; all tests pass (including Tasks 2, 5, 6, 7, 8's new specs).
 
 - [ ] **Step 4: Commit**
@@ -1239,7 +1240,7 @@ Expected: all tests pass, including every pre-existing spec (confirms no V1/V2 r
 
 - [ ] **Step 2: Run the full frontend typecheck and lint**
 
-Run: `npx nx run fe:typecheck && npx nx run fe:lint`
+Run: `npx nx run fe:build && npx nx run fe:lint`
 Expected: no errors.
 
 - [ ] **Step 3: Start the app against a V3-specification tenant**
