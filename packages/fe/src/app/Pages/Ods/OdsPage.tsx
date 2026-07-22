@@ -25,7 +25,7 @@ export const OdsPage = () => {
   const params = useParams() as {
     odsId: string;
   };
-  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { teamId, edfiTenant, sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
   const ods = useQuery(
     odsQueries.getOne({
       id: params.odsId,
@@ -65,26 +65,28 @@ export const OdsPage = () => {
               </ContentSection>
             </PageContentCard>
           </AuthorizeComponent>
-          <VersioningHoc
-            v2={
-              <AuthorizeComponent
-                config={{
-                  privilege: 'team.sb-environment.edfi-tenant.ods:read-row-counts',
-                  subject: {
-                    id: params.odsId,
-                    edfiTenantId: edfiTenant.id,
-                    teamId,
-                  },
-                }}
-              >
-                <PageContentCard>
-                  <ContentSection heading="ODS Row Counts">
-                    <OdsRowCountsTable />
-                  </ContentSection>
-                </PageContentCard>
-              </AuthorizeComponent>
-            }
-          />
+          {sbEnvironment.startingBlocks && (
+            <VersioningHoc
+              v2={
+                <AuthorizeComponent
+                  config={{
+                    privilege: 'team.sb-environment.edfi-tenant.ods:read-row-counts',
+                    subject: {
+                      id: params.odsId,
+                      edfiTenantId: edfiTenant.id,
+                      teamId,
+                    },
+                  }}
+                >
+                  <PageContentCard>
+                    <ContentSection heading="ODS Row Counts">
+                      <OdsRowCountsTable />
+                    </ContentSection>
+                  </PageContentCard>
+                </AuthorizeComponent>
+              }
+            />
+          )}
         </>
       ) : null}
     </PageTemplate>
