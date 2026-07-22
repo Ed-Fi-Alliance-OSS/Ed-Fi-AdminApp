@@ -13,9 +13,9 @@ import {
 } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 import { CreateVendor } from '../Pages/Vendor/CreateVendorPage';
-import { VendorPageV2 } from '../Pages/VendorV2/VendorPage';
-import { VendorsPageV2 } from '../Pages/VendorV2/VendorsPage';
-import { CreateVendorV2 } from '../Pages/VendorV2/CreateVendorPage';
+import { VendorPageV2 } from '../Pages/VendorV2Plus/VendorPage';
+import { VendorsPageV2 } from '../Pages/VendorV2Plus/VendorsPage';
+import { CreateVendorV2 } from '../Pages/VendorV2Plus/CreateVendorPage';
 
 const VendorBreadcrumbV1 = () => {
   const params = useParams() as {
