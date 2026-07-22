@@ -342,3 +342,66 @@ describe('AdminApiControllerV2 - postDbInstance', () => {
     );
   });
 });
+
+describe('AdminApiControllerV2 - deleteDbInstance', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { deleteDbInstance: jest.Mock };
+  let mockOdsRepository: { findOneBy: jest.Mock; save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironmentId: 2,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  beforeEach(() => {
+    mockSbService = {
+      deleteDbInstance: jest.fn().mockResolvedValue(undefined),
+    };
+    mockOdsRepository = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'Active',
+      }),
+      save: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'PendingDelete',
+      }),
+    };
+    mockJobQueue = {
+      send: jest.fn().mockResolvedValue('job-123'),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      mockOdsRepository as any,
+      mockJobQueue as any
+    );
+  });
+
+  it('finds local ODS, sets PendingDelete, calls sbService delete, and enqueues sync', async () => {
+    const dbInstanceId = 55;
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).resolves.toBeUndefined();
+
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      id: 901,
+      dbInstanceId: 55,
+      status: 'PendingDelete',
+    });
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+  });
+});

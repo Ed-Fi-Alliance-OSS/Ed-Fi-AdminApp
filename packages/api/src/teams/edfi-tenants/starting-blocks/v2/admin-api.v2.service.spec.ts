@@ -943,4 +943,34 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
     });
   });
+
+  describe('deleteDbInstance', () => {
+    it('calls admin API DELETE dbInstances/:id and resolves undefined', async () => {
+      const dbInstanceId = 123;
+      const mockDelete = jest.fn().mockResolvedValue(undefined);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteDbInstance({ id: 1 } as any, dbInstanceId)).resolves.toBeUndefined();
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockDelete).toHaveBeenCalledWith(`dbInstances/${dbInstanceId}`);
+    });
+
+    it('rethrows when admin API delete fails', async () => {
+      const dbInstanceId = 123;
+      const expectedError = new Error('failed to delete');
+      const mockDelete = jest.fn().mockRejectedValue(expectedError);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteDbInstance({ id: 1 } as any, dbInstanceId)).rejects.toThrow(
+        'failed to delete'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockDelete).toHaveBeenCalledWith(`dbInstances/${dbInstanceId}`);
+    });
+  });
 });
