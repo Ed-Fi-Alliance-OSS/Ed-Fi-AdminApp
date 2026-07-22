@@ -9,21 +9,21 @@ import {
   Tooltip,
   chakra,
 } from '@chakra-ui/react';
-import { GetVendorDtoV2, PutVendorDtoV2 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { vendorQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { Icons } from '@edanalytics/common-ui';
+import { VendorEntity, useVendorConfig } from './vendorConfig';
 
-const resolver = classValidatorResolver(PutVendorDtoV2);
-
-export const EditVendor = (props: { vendor: GetVendorDtoV2 }) => {
+export const EditVendor = (props: { vendor: VendorEntity }) => {
   const popBanner = usePopBanner();
+  const { queries, PutDto } = useVendorConfig();
+  const resolver = useMemo(() => classValidatorResolver(PutDto), [PutDto]);
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -34,7 +34,7 @@ export const EditVendor = (props: { vendor: GetVendorDtoV2 }) => {
     navigate(
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/vendors/${params.vendorId}`
     );
-  const putVendor = vendorQueriesV2.put({
+  const putVendor = queries.put({
     edfiTenant,
     teamId,
   });
@@ -44,11 +44,10 @@ export const EditVendor = (props: { vendor: GetVendorDtoV2 }) => {
     setError,
     handleSubmit,
     formState: { errors, isSubmitting },
-  } = useForm<PutVendorDtoV2>({
+  } = useForm({
     resolver,
-    defaultValues: Object.assign(new PutVendorDtoV2(), props.vendor),
+    defaultValues: Object.assign(new PutDto(), props.vendor),
   });
-  console.log(Object.assign(new PutVendorDtoV2(), props.vendor));
 
   return props.vendor ? (
     <chakra.form
