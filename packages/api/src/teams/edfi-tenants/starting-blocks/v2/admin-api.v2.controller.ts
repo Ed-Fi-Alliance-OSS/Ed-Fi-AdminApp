@@ -1247,6 +1247,50 @@ export class AdminApiControllerV2 {
     }
   }
 
+  @Delete('dbinstances/:dbInstanceId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:delete-ods',
+    subject: {
+      id: 'dbInstanceId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async deleteDbInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('dbInstanceId', new ParseIntPipe()) dbInstanceId: number
+  ) {
+    if (dbInstanceId <= 0) {
+      throw new BadRequestException('dbInstanceId must be greater than zero');
+    }
+
+    const localOds = await this.odsRepository.findOneBy({
+      edfiTenantId: edfiTenant.id,
+      dbInstanceId,
+    });
+
+    if (!localOds) {
+      throw new NotFoundException('ODS not found for dbInstanceId');
+    }
+
+    await this.odsRepository.save({
+      ...localOds,
+      status: 'PendingDelete',
+    });
+
+    await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
+
+    await this.jobQueue.send(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+
+    return undefined;
+  }
+
   @Post('profiles')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.profile:create',

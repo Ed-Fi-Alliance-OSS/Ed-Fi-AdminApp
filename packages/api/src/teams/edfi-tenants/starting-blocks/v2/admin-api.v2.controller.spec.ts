@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
@@ -403,5 +403,31 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
       { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
       { expireInHours: 2 }
     );
+  });
+
+  it('throws BadRequestException when dbInstanceId is less than or equal to zero', async () => {
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, 0)).rejects.toThrow(
+      new BadRequestException('dbInstanceId must be greater than zero')
+    );
+    expect(mockOdsRepository.findOneBy).not.toHaveBeenCalled();
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when local ODS is not found', async () => {
+    const dbInstanceId = 55;
+    mockOdsRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      new NotFoundException('ODS not found for dbInstanceId')
+    );
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
   });
 });
