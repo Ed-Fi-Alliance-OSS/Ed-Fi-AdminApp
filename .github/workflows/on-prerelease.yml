@@ -92,6 +92,8 @@ jobs:
           mkdir -p packages/api/dist packages/fe/dist
           cp -R dist/packages/api/* packages/api/dist/
           cp -R dist/packages/fe/* packages/fe/dist/
+          cp .nvmrc packages/api/.nvmrc
+          cp .nvmrc packages/fe/.nvmrc
 
       - name: Pack API (npm pack)
         working-directory: packages/api

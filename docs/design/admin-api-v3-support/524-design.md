@@ -1,6 +1,6 @@
 # Admin API V3 Support — Design
 
-Companion design doc to [task.md](./task.md) (AC-524). This covers the concrete
+Companion design doc to [README.md](./README.md) (AC-524). This covers the concrete
 implementation design for adding a V3-aware surface to the Admin App API's
 Starting Blocks integration.
 
