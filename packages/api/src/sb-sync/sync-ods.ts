@@ -84,6 +84,7 @@ export const computeOdsListDeltas = (
       sbEnvironmentId: edfiTenant.sbEnvironmentId,
       edfiTenantId: edfiTenant.id,
       dbName: sbOds.dbName,
+      dbInstanceId: sbOds.dbInstanceId ?? null,
       odsInstanceId: sbOds.id,
       odsInstanceName: sbOds.name,
       instanceType: sbOds.instanceType ?? null,
@@ -91,7 +92,6 @@ export const computeOdsListDeltas = (
       databaseTemplate: sbOds.databaseTemplate ?? null,
       databaseName: sbOds.databaseName ?? null,
     };
-    (newOds as any).dbInstanceId = sbOds.dbInstanceId ?? null;
 
     if (odsMapById.has(sbOds.id)) {
       const existingOds = odsMapById.get(sbOds.id);
@@ -104,7 +104,7 @@ export const computeOdsListDeltas = (
         (existingOds.status ?? null) !== (sbOds.status ?? null) ||
         (existingOds.databaseTemplate ?? null) !== (sbOds.databaseTemplate ?? null) ||
         (existingOds.databaseName ?? null) !== (sbOds.databaseName ?? null) ||
-        ((existingOds as any).dbInstanceId ?? null) !== (sbOds.dbInstanceId ?? null);
+        (existingOds.dbInstanceId ?? null) !== (sbOds.dbInstanceId ?? null);
 
       Logger.log(
         `ODS ${sbOds.id}: dbName "${existingOds.dbName}" vs "${sbOds.dbName}", ` +
@@ -127,6 +127,7 @@ export const computeOdsListDeltas = (
       sbEnvironmentId: edfiTenant.sbEnvironmentId,
       edfiTenantId: edfiTenant.id,
       dbName: sbOds.dbName,
+      dbInstanceId: sbOds.dbInstanceId ?? null,
       odsInstanceId: null,
       odsInstanceName: sbOds.name,
       instanceType: sbOds.instanceType ?? null,
@@ -134,7 +135,6 @@ export const computeOdsListDeltas = (
       databaseTemplate: sbOds.databaseTemplate ?? null,
       databaseName: sbOds.databaseName ?? null,
     };
-    (newOds as any).dbInstanceId = sbOds.dbInstanceId ?? null;
 
     if (odsMapByDbName.has(sbOds.dbName)) {
       const existingOds = odsMapByDbName.get(sbOds.dbName);
@@ -146,7 +146,7 @@ export const computeOdsListDeltas = (
         (existingOds.status ?? null) !== (sbOds.status ?? null) ||
         (existingOds.databaseTemplate ?? null) !== (sbOds.databaseTemplate ?? null) ||
         (existingOds.databaseName ?? null) !== (sbOds.databaseName ?? null) ||
-        ((existingOds as any).dbInstanceId ?? null) !== (sbOds.dbInstanceId ?? null);
+        (existingOds.dbInstanceId ?? null) !== (sbOds.dbInstanceId ?? null);
       if (hasChanges) {
         Logger.log(`Updating SB V1 ODS by dbName "${sbOds.dbName}"`);
         odsDeltas.update.push(Object.assign(existingOds, newOds));

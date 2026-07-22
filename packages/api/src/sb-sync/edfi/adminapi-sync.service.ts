@@ -111,7 +111,7 @@ export class AdminApiSyncService {
         id: ods.odsInstanceId,
         name: ods.odsInstanceName,
         dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
-        dbInstanceId: (ods as any).dbInstanceId ?? null,
+        dbInstanceId: ods.dbInstanceId ?? null,
         instanceType: ods.instanceType ?? null,
         status: ods.status ?? null,
         databaseTemplate: ods.databaseTemplate ?? null,
