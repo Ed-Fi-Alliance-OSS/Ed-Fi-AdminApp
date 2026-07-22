@@ -11,22 +11,23 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
-import { Id, PostVendorDtoV2 } from '@edanalytics/models';
+import { Id } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
+import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { vendorQueriesV2 } from '../../api';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-
-const resolver = classValidatorResolver(PostVendorDtoV2);
+import { useVendorConfig } from './vendorConfig';
 
 export const CreateVendorV2 = () => {
   const { teamId, edfiTenant, edfiTenantId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
+  const { queries, PostDto } = useVendorConfig();
+  const resolver = useMemo(() => classValidatorResolver(PostDto), [PostDto]);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -35,7 +36,7 @@ export const CreateVendorV2 = () => {
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/vendors/${id}`
     );
   const parentPath = useNavToParent();
-  const postVendor = vendorQueriesV2.post({
+  const postVendor = queries.post({
     edfiTenant,
     teamId,
   });
@@ -45,7 +46,7 @@ export const CreateVendorV2 = () => {
     setError,
     control,
     formState: { errors, isSubmitting },
-  } = useForm<PostVendorDtoV2>({ resolver, defaultValues: {} });
+  } = useForm({ resolver, defaultValues: {} as Partial<InstanceType<typeof PostDto>> });
 
   return (
     <PageTemplate constrainWidth title={'Create new vendor'} actions={undefined}>
