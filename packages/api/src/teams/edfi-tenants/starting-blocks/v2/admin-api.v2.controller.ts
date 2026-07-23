@@ -1275,12 +1275,12 @@ export class AdminApiControllerV2 {
       throw new NotFoundException('ODS not found for dbInstanceId');
     }
 
+    await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
+
     await this.odsRepository.save({
       ...localOds,
       status: 'PendingDelete',
     });
-
-    await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
 
     await this.jobQueue.send(
       ENV_SYNC_CHNL,

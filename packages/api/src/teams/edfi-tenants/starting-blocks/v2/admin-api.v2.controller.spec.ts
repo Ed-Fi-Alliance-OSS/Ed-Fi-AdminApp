@@ -383,7 +383,7 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
     );
   });
 
-  it('finds local ODS, sets PendingDelete, calls sbService delete, and enqueues sync', async () => {
+  it('finds local ODS, calls sbService delete, sets PendingDelete, and enqueues sync', async () => {
     const dbInstanceId = 55;
 
     await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).resolves.toBeUndefined();
@@ -392,16 +392,22 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
       edfiTenantId: mockEdfiTenant.id,
       dbInstanceId,
     });
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
     expect(mockOdsRepository.save).toHaveBeenCalledWith({
       id: 901,
       dbInstanceId: 55,
       status: 'PendingDelete',
     });
-    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
     expect(mockJobQueue.send).toHaveBeenCalledWith(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
       { expireInHours: 2 }
+    );
+    expect(mockSbService.deleteDbInstance.mock.invocationCallOrder[0]).toBeLessThan(
+      mockOdsRepository.save.mock.invocationCallOrder[0]
+    );
+    expect(mockOdsRepository.save.mock.invocationCallOrder[0]).toBeLessThan(
+      mockJobQueue.send.mock.invocationCallOrder[0]
     );
   });
 
@@ -428,6 +434,19 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
     });
     expect(mockOdsRepository.save).not.toHaveBeenCalled();
     expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('does not set PendingDelete or enqueue sync when sbService delete fails', async () => {
+    const dbInstanceId = 55;
+    const deleteError = new Error('delete failed');
+    mockSbService.deleteDbInstance.mockRejectedValue(deleteError);
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      deleteError
+    );
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
     expect(mockJobQueue.send).not.toHaveBeenCalled();
   });
 });
