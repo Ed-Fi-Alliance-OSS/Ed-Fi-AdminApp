@@ -34,7 +34,7 @@ export const OdsPage = () => {
     })
   ).data;
 
-  const actions = useOdsActions({ id: Number(params.odsId) });
+  const actions = useOdsActions({ id: Number(params.odsId), dbInstanceId: ods?.dbInstanceId ?? null });
   const edorgsActions = useEdorgsActions({ ods });
   const syncEdOrgsActions = useSyncEdOrgsAction();
   return (

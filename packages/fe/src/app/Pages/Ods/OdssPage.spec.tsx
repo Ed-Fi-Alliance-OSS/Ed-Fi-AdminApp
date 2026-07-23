@@ -1,9 +1,10 @@
 import 'reflect-metadata';
 import { OdssTable } from './OdssPage';
-import { dbInstancesV2 } from '../../api';
+import { dbInstancesV2, odsQueries } from '../../api';
 import { useQuery } from '@tanstack/react-query';
-import { odsQueries } from '../../api/queries/queries';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 jest.mock('@edanalytics/common-ui', () => ({
   Icons: { View: 'ViewIcon', Delete: 'DeleteIcon' },
@@ -32,21 +33,32 @@ jest.mock('../../helpers', () => ({
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
 }));
 
-jest.mock('../../api/queries/queries', () => ({
-  odsQueries: { getAll: jest.fn() },
+jest.mock('../../api', () => ({
+  odsQueries: { getAll: jest.fn(), delete: jest.fn() },
+  dbInstancesV2: { delete: jest.fn() },
 }));
 
-jest.mock('../../api', () => ({
-  dbInstancesV2: { delete: jest.fn() },
+jest.mock('../../Layout/FeedbackBanner', () => ({
+  usePopBanner: jest.fn(),
+}));
+
+jest.mock('../../helpers/mutationErrCallback', () => ({
+  mutationErrCallback: jest.fn(() => ({})),
 }));
 
 const mockUseQuery = useQuery as jest.Mock;
 const mockOdsGetAll = odsQueries.getAll as jest.Mock;
+const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockDbInstancesDelete = dbInstancesV2.delete as jest.Mock;
+const mockUsePopBanner = usePopBanner as jest.Mock;
+const mockMutationErrCallback = mutationErrCallback as jest.Mock;
 
 describe('OdssTable', () => {
+  const odsMutateAsync = jest.fn();
   const dbInstancesMutateAsync = jest.fn();
+  const popBannerSpy = jest.fn();
+  const mutationOptions = { onError: jest.fn() };
 
   const getDeleteAction = () => {
     const tableProps = (OdssTable() as React.ReactElement).props;
@@ -64,7 +76,10 @@ describe('OdssTable', () => {
       edfiTenant: { id: 3, sbEnvironmentId: 2 },
       sbEnvironment: { startingBlocks: false },
     });
+    mockUsePopBanner.mockReturnValue(popBannerSpy);
+    mockMutationErrCallback.mockReturnValue(mutationOptions);
     mockOdsGetAll.mockReturnValue({ queryKey: ['odss'], queryFn: jest.fn() });
+    mockOdsDelete.mockReturnValue({ mutateAsync: odsMutateAsync });
     mockUseQuery.mockReturnValue({
       data: {
         5: {
@@ -114,7 +129,33 @@ describe('OdssTable', () => {
 
     expect(dbInstancesMutateAsync).toHaveBeenCalledWith(
       { id: 88 },
-      expect.objectContaining({ onSuccess: expect.any(Function) })
+      mutationOptions
     );
+    expect(odsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('keeps startingBlocks row Delete action routed to ods delete by ods.id', () => {
+    mockUseTeamEdfiTenantNavContextLoaded.mockReturnValue({
+      teamId: 1,
+      edfiTenant: { id: 3, sbEnvironmentId: 2 },
+      sbEnvironment: { startingBlocks: true },
+    });
+    mockUseQuery.mockReturnValue({
+      data: {
+        6: {
+          id: 6,
+          displayName: 'ODS 6',
+          dbInstanceId: null,
+          instanceType: 'Shared',
+          status: null,
+        },
+      },
+    });
+
+    const deleteAction = getDeleteAction();
+    deleteAction.onClick();
+
+    expect(odsMutateAsync).toHaveBeenCalledWith({ id: 6 }, mutationOptions);
+    expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
   });
 });
