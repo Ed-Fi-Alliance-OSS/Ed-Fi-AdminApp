@@ -244,36 +244,6 @@ export class SbEnvironmentsEdFiService {
     }
   }
 
-  private async syncv2Environment(sbEnvironment: SbEnvironment): Promise<SbSyncQueue> {
-    const id = await this.jobQueue.send(
-      ENV_SYNC_CHNL,
-      { sbEnvironmentId: sbEnvironment.id },
-      { expireInHours: 2 }
-    );
-
-    const pendingStates = new Set(['created', 'retry', 'active']);
-    const maxAttempts = 20;
-    const pollIntervalMs = 500;
-
-    for (let i = 0; i < maxAttempts; i++) {
-      await new Promise<void>((resolve) => setTimeout(resolve, pollIntervalMs));
-      const queueItem = await this.queueRepository.findOneBy({ id });
-      if (queueItem && !pendingStates.has(queueItem.state)) {
-        return queueItem;
-      }
-    }
-
-    // Timeout: return whatever state the job is in (or a synthetic item if still null)
-    const queueItem = await this.queueRepository.findOneBy({ id });
-    if (queueItem) return queueItem;
-
-    // Fallback: job row never appeared in the tracking table
-    const fallback = new SbSyncQueue();
-    fallback.id = id;
-    fallback.state = 'active';
-    return fallback;
-  }
-
   private createODSObject(tenant: PostSbEnvironmentTenantDTO): SbV2MetaOds[] {
     return (
       tenant.odss?.map((ods) => ({

@@ -134,7 +134,7 @@ export class AdminApiSyncService {
   private async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
     try {
       const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
-      const response = await client.post('odsInstances/edOrgs/refresh');
+      const response = sbEnvironment.version === 'v2' ? await client.post('odsInstances/edOrgs/refresh') : await client.post('dataStores/edOrgs/refresh');
       const jobId = (response as { jobId?: string })?.jobId ?? null;
       if (!jobId) {
         this.logger.warn(
