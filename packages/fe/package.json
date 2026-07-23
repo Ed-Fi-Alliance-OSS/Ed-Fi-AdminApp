@@ -5,7 +5,8 @@
   "private": false,
   "description": "Ed-Fi Admin App Frontend",
   "files": [
-    "dist"
+    "dist",
+    ".nvmrc"
   ],
   "dependencies": {
     "@chakra-ui/icons": "^2.2.4",
