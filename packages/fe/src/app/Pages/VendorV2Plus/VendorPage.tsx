@@ -2,11 +2,11 @@ import { useQuery } from '@tanstack/react-query';
 import { PageActions, PageTemplate } from '@edanalytics/common-ui';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
-import { vendorQueriesV2 } from '../../api';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { EditVendor } from './EditVendor';
 import { ViewVendor } from './ViewVendor';
 import { useVendorActions } from './useVendorActions';
+import { useVendorConfig } from './vendorConfig';
 import omit from 'lodash/omit';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 
@@ -15,8 +15,9 @@ export const VendorPageContent = () => {
     vendorId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
   const vendor = useQuery(
-    vendorQueriesV2.getOne({
+    queries.getOne({
       teamId,
       id: params.vendorId,
       edfiTenant,
@@ -32,8 +33,9 @@ const VendorPageTitle = () => {
     vendorId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
   const vendor = useQuery(
-    vendorQueriesV2.getOne({
+    queries.getOne({
       teamId,
       id: params.vendorId,
       edfiTenant,
@@ -62,8 +64,9 @@ export const VendorPageActions = () => {
     vendorId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
   const vendor = useQuery(
-    vendorQueriesV2.getOne({
+    queries.getOne({
       teamId,
       id: params.vendorId,
       edfiTenant,
