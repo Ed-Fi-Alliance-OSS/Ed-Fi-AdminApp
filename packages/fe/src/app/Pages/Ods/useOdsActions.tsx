@@ -10,7 +10,7 @@ import {
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
-export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId'>): ActionsType => {
+export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'status'>): ActionsType => {
   const navigate = useNavigate();
   const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
@@ -27,7 +27,8 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId'>): Acti
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
   const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
   const isStartingBlocks = sbEnvironment.startingBlocks;
-  const canDeleteDbInstance = typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0;
+  const canDeleteDbInstance =
+    typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0 && ods.status === 'Created';
   const deleteMutation = isStartingBlocks ? deleteOds : canDeleteDbInstance ? deleteDbInstance : undefined;
   const deleteId = isStartingBlocks ? ods.id : ods.dbInstanceId;
 

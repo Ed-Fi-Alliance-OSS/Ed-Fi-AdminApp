@@ -87,7 +87,7 @@ describe('OdssTable', () => {
           displayName: 'ODS 5',
           dbInstanceId: 88,
           instanceType: 'Shared',
-          status: null,
+          status: 'Created',
         },
       },
     });
@@ -113,7 +113,25 @@ describe('OdssTable', () => {
           displayName: 'ODS 9',
           dbInstanceId: null,
           instanceType: 'Shared',
-          status: null,
+          status: 'Created',
+        },
+      },
+    });
+
+    const deleteAction = getDeleteAction();
+
+    expect(deleteAction).toBeUndefined();
+  });
+
+  it('hides row Delete action for non-startingBlocks ODS rows unless status is Created', () => {
+    mockUseQuery.mockReturnValue({
+      data: {
+        11: {
+          id: 11,
+          displayName: 'ODS 11',
+          dbInstanceId: 55,
+          instanceType: 'Shared',
+          status: 'PendingDelete',
         },
       },
     });

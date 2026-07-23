@@ -78,7 +78,7 @@ describe('useOdsActions', () => {
   it('uses dbInstancesV2 delete mutation for non-startingBlocks ODSs with dbInstanceId > 0', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: 77 } as any);
+    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'Created' } as any);
     (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
 
     expect(mockDbInstancesDelete).toHaveBeenCalledWith({ edfiTenant: { id: 3 }, teamId: 1 });
@@ -92,7 +92,15 @@ describe('useOdsActions', () => {
   it('does not expose Delete action for non-startingBlocks ODSs without dbInstanceId', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: null } as any);
+    const result = useOdsActions({ id: 5, dbInstanceId: null, status: 'Created' } as any);
+
+    expect(result).not.toHaveProperty('Delete');
+  });
+
+  it('does not expose Delete action for non-startingBlocks ODSs unless status is Created', () => {
+    setup(false);
+
+    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'PendingDelete' } as any);
 
     expect(result).not.toHaveProperty('Delete');
   });

@@ -19,7 +19,8 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
   const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
   const isStartingBlocks = sbEnvironment.startingBlocks;
-  const canDeleteDbInstance = typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0;
+  const canDeleteDbInstance =
+    typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0 && ods.status === 'Created';
   const deleteAction = isStartingBlocks
     ? {
         icon: Icons.Delete,
