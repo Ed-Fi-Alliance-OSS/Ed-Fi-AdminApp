@@ -924,6 +924,7 @@ describe('AdminApiSyncService', () => {
           odsInstances: [
             {
               id: 1,
+              dbInstanceId: 101,
               name: 'ODS One',
               instanceType: 'Production',
               educationOrganizations: [
@@ -936,6 +937,7 @@ describe('AdminApiSyncService', () => {
             },
             {
               id: 2,
+              dbInstanceId: 202,
               name: 'ODS Two',
               instanceType: 'Production',
               educationOrganizations: [
@@ -971,6 +973,9 @@ describe('AdminApiSyncService', () => {
         expect(result.message).toContain('Successfully synced 2 ODS instance');
         expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/odsInstances/edOrgs');
         expect(persistSyncTenantSpy).toHaveBeenCalled();
+        const callArgs = persistSyncTenantSpy.mock.calls[0][0];
+        expect(callArgs.odss[0].dbInstanceId).toBe(101);
+        expect(callArgs.odss[1].dbInstanceId).toBe(202);
       });
 
       it('should use correct v2 endpoint format', async () => {

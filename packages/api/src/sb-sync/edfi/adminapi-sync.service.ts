@@ -604,6 +604,7 @@ export class AdminApiSyncService {
         name: tenantDetails.name || edfiTenant.name,
         odsInstances: (rawInstances || []).map((instance: any) => ({
           id: instance.id ?? null,
+          dbInstanceId: instance.dbInstanceId ?? null,
           name: instance.name || 'Unknown ODS Instance',
           instanceType: instance.instanceType ?? instance.dataStoreType,
           status: instance.status ?? null,
