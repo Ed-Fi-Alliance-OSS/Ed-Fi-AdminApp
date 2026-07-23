@@ -46,7 +46,7 @@ export const CreateVendorV2 = () => {
     setError,
     control,
     formState: { errors, isSubmitting },
-  } = useForm({ resolver, defaultValues: {} as Partial<InstanceType<typeof PostDto>> });
+  } = useForm({ resolver, defaultValues: new PostDto() });
 
   return (
     <PageTemplate constrainWidth title={'Create new vendor'} actions={undefined}>
