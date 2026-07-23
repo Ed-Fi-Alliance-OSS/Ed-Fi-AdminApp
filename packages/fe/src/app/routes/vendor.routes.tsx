@@ -4,7 +4,7 @@ import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
 import { VendorPage } from '../Pages/Vendor/VendorPage';
 import { VendorsPage } from '../Pages/Vendor/VendorsPage';
-import { vendorQueriesV1, vendorQueriesV2 } from '../api';
+import { vendorQueriesV1, vendorQueriesV2, vendorQueriesV3 } from '../api';
 import {
   VersioningHoc,
   getRelationDisplayName,
@@ -47,27 +47,46 @@ const VendorBreadcrumbV2 = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (vendor.data?.displayName ?? params.vendorId) as any;
 };
+const VendorBreadcrumbV3 = () => {
+  const params = useParams() as {
+    vendorId: string;
+  };
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const vendor = useQuery(
+    vendorQueriesV3.getOne({
+      id: params.vendorId,
+      teamId,
+      edfiTenant,
+    })
+  );
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (vendor.data?.displayName ?? params.vendorId) as any;
+};
 export const vendorCreateRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/create',
-  element: <VersioningHoc v1={<CreateVendor />} v2={<CreateVendorV2 />} />,
+  element: <VersioningHoc v1={<CreateVendor />} v2={<CreateVendorV2 />} v3={<CreateVendorV2 />} />,
   handle: { crumb: () => 'Create Vendor' },
 };
 export const vendorIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/:vendorId/',
-  element: <VersioningHoc v1={<VendorPage />} v2={<VendorPageV2 />} />,
+  element: <VersioningHoc v1={<VendorPage />} v2={<VendorPageV2 />} v3={<VendorPageV2 />} />,
 };
 
 export const vendorRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/:vendorId',
   handle: {
     crumb: withLoader(() => (
-      <VersioningHoc v1={<VendorBreadcrumbV1 />} v2={<VendorBreadcrumbV2 />} />
+      <VersioningHoc
+        v1={<VendorBreadcrumbV1 />}
+        v2={<VendorBreadcrumbV2 />}
+        v3={<VendorBreadcrumbV3 />}
+      />
     )),
   },
 };
 export const vendorsIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors/',
-  element: <VersioningHoc v1={<VendorsPage />} v2={<VendorsPageV2 />} />,
+  element: <VersioningHoc v1={<VendorsPage />} v2={<VendorsPageV2 />} v3={<VendorsPageV2 />} />,
 };
 export const vendorsRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/vendors',
