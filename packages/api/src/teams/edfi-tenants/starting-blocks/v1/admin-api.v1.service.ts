@@ -487,6 +487,20 @@ export class AdminApiServiceV1 {
         .then(() => undefined)
     );
   }
+
+  async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
+    Logger.log(`Triggering EdOrg refresh for environment: ${sbEnvironment.name} v1 does not support this operation.`);
+    return null;
+  }
+
+  async pollJobStatus(
+    sbEnvironment: SbEnvironment,
+    jobId: string
+  ): Promise<'completed' | 'failed' | 'timeout'> {
+    Logger.log(`PollJobStatus for environment: ${sbEnvironment.name} v1 does not support this operation.`);
+    return 'timeout';
+  }
+  
   /**
    * Retrieve tenants with their ODS instances.
    * V1 API is single-tenant, so returns a default tenant with ODS instances.

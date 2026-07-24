@@ -33,6 +33,7 @@ import axios, { isAxiosError } from 'axios';
 import NodeCache from 'node-cache';
 import { CustomHttpException } from '../../../../utils';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
+import config from 'config';
 
 /**
  * This service is used to interact with the Admin API V3. Each method is a
@@ -250,6 +251,59 @@ export class AdminApiServiceV3 {
         throw err;
       },
     );
+    return client;
+  }
+
+   /**
+   * Get an authenticated API client for a specific environment.
+   * For multi-tenant environments, uses the first available tenant's credentials
+   * and includes the tenant header so environment-level endpoints (e.g. EdOrg refresh,
+   * job status polling) are accepted by the Admin API.
+   *
+   * @param sbEnvironment - The Starting Blocks environment to authenticate against
+   * @returns Axios instance configured with environment-level authentication
+   */
+  public getAdminApiClientForEnvironment(sbEnvironment: SbEnvironment) {
+    const configPublic = sbEnvironment.configPublic;
+    const v3Config =
+      'version' in configPublic && configPublic.version === 'v3' ? configPublic.values : undefined;
+    const availableTenants = v3Config?.tenants ? Object.keys(v3Config.tenants) : [];
+    const tenantName =
+      availableTenants.length > 0
+        ? availableTenants.includes('default')
+          ? 'default'
+          : availableTenants[0]
+        : undefined;
+    return this.getAdminApiClientUsingEnv(sbEnvironment, undefined, tenantName);
+  }
+
+  private getAdminApiClientUsingEnv(environment: SbEnvironment, notJustData?: boolean, tenantName?: string) {
+    const client = this.initializeApiClient(environment, notJustData);
+    client.interceptors.request.use(async (config) => {
+      const tokenKey = tenantName
+        ? this.getTenantTokenKey(environment.id, tenantName)
+        : environment.id;
+      let token: undefined | string = this.adminApiTokens.get(tokenKey);
+      if (token === undefined) {
+        const adminLogin = await this.login(environment, environment.id, tenantName);
+
+        if (adminLogin.status !== 'SUCCESS') {
+          throw new CustomHttpException(
+            {
+              title: adminApiLoginStatusMsgs[adminLogin.status],
+              type: 'Error',
+            },
+            500
+          );
+        }
+        token = this.adminApiTokens.get(tokenKey);
+      }
+      config.headers.Authorization = `Bearer ${token}`;
+      if (tenantName) {
+        config.headers.tenant = tenantName;
+      }
+      return config;
+    });
     return client;
   }
 
@@ -638,6 +692,75 @@ export class AdminApiServiceV3 {
         throw err;
       });
     return undefined;
+  }
+
+   /**
+   * Run the Admin API job to refresh the EdOrgs for the given environment. This is a long-running operation, so it returns a job ID that can be polled for completion.
+   * @param sbEnvironment - The environment whose Admin API client to use
+   * @returns Promise<string | null> - The job ID if successfully triggered, otherwise null
+   */
+  async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
+    try {
+      const client = this.getAdminApiClientForEnvironment(sbEnvironment);
+      const response = await client.post('dataStores/edOrgs/refresh');
+      const jobId = (response as { jobId?: string })?.jobId ?? null;
+      if (!jobId) {
+        this.logger.warn(
+          `EdOrg refresh response missing jobId for environment ${sbEnvironment.name}`
+        );
+        return null;
+      }
+      this.logger.log(`EdOrg refresh triggered for ${sbEnvironment.name}, jobId: ${jobId}`);
+      return jobId;
+    } catch (error) {
+      this.logger.warn(
+        `Failed to trigger EdOrg refresh for environment ${sbEnvironment.name}: ${(error as Error).message}`
+      );
+      return null;
+    }
+  }
+
+  /**
+       * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
+       * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
+       * @param sbEnvironment - The environment whose Admin API client to use
+       * @param jobId - The job ID returned by triggerEdOrgRefresh()
+       * @returns 'completed' | 'failed' | 'timeout'
+       */
+  async pollJobStatus(
+    sbEnvironment: SbEnvironment,
+    jobId: string
+  ): Promise<'completed' | 'failed' | 'timeout'> {
+    const rawMaxAttempts = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
+    const rawIntervalMs = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
+    const maxAttempts: number = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 ? rawMaxAttempts : 10;
+    const intervalMs: number = Number.isFinite(rawIntervalMs) && rawIntervalMs >= 0 ? rawIntervalMs : 5000;
+    const client = this.getAdminApiClientForEnvironment(sbEnvironment);
+
+    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+      try {
+        const response = await client.get(`jobs/${jobId}`);
+        const status = (response as unknown as { status?: string })?.status;
+        if (status === 'completed') return 'completed';
+        if (status === 'failed') return 'failed';
+      } catch (error) {
+        // Bail immediately on HTTP error — if the Admin API is unreachable,
+        // further polling attempts are unlikely to succeed.
+        this.logger.error(
+          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
+        );
+        return 'timeout';
+      }
+
+      if (attempt < maxAttempts) {
+        await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+      }
+    }
+
+    this.logger.warn(
+      `Job ${jobId} did not complete after ${maxAttempts} poll attempts for environment ${sbEnvironment.name}`
+    );
+    return 'timeout';
   }
 
   /**

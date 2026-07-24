@@ -3,7 +3,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2, ISbEnvironmentConfigPublicV3 } from '@edanalytics/models';
-import { AdminApiServiceV2 } from '../../teams/edfi-tenants/starting-blocks';
+import { AdminApiServiceV2, AdminApiServiceV3 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
@@ -22,7 +22,6 @@ export class AdminApiSyncService {
   private readonly logger = new Logger(AdminApiSyncService.name);
 
   constructor(
-    @Inject(AdminApiServiceV2) private adminApiServiceV2: AdminApiServiceV2,
     @InjectRepository(EdfiTenant)
     private edfiTenantsRepository: Repository<EdfiTenant>,
     @InjectRepository(SbEnvironment)
@@ -131,70 +130,6 @@ export class AdminApiSyncService {
     this.logger.log(`Successfully processed tenant: ${tenantData.name}`);
   }
 
-  private async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
-    try {
-      const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
-      const response = sbEnvironment.version === 'v2' ? await client.post('odsInstances/edOrgs/refresh') : await client.post('dataStores/edOrgs/refresh');
-      const jobId = (response as { jobId?: string })?.jobId ?? null;
-      if (!jobId) {
-        this.logger.warn(
-          `EdOrg refresh response missing jobId for environment ${sbEnvironment.name}`
-        );
-        return null;
-      }
-      this.logger.log(`EdOrg refresh triggered for ${sbEnvironment.name}, jobId: ${jobId}`);
-      return jobId;
-    } catch (error) {
-      this.logger.warn(
-        `Failed to trigger EdOrg refresh for environment ${sbEnvironment.name}: ${(error as Error).message}`
-      );
-      return null;
-    }
-  }
-
-  /**
-   * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
-   * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
-   * @param sbEnvironment - The environment whose Admin API client to use
-   * @param jobId - The job ID returned by triggerEdOrgRefresh()
-   * @returns 'completed' | 'failed' | 'timeout'
-   */
-  private async pollJobStatus(
-    sbEnvironment: SbEnvironment,
-    jobId: string
-  ): Promise<'completed' | 'failed' | 'timeout'> {
-    const rawMaxAttempts = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
-    const rawIntervalMs = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
-    const maxAttempts: number = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 ? rawMaxAttempts : 10;
-    const intervalMs: number = Number.isFinite(rawIntervalMs) && rawIntervalMs >= 0 ? rawIntervalMs : 5000;
-    const client = this.adminApiServiceV2.getAdminApiClientForEnvironment(sbEnvironment);
-
-    for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-      try {
-        const response = await client.get(`jobs/${jobId}`);
-        const status = (response as unknown as { status?: string })?.status;
-        if (status === 'completed') return 'completed';
-        if (status === 'failed') return 'failed';
-      } catch (error) {
-        // Bail immediately on HTTP error — if the Admin API is unreachable,
-        // further polling attempts are unlikely to succeed.
-        this.logger.error(
-          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
-        );
-        return 'timeout';
-      }
-
-      if (attempt < maxAttempts) {
-        await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
-      }
-    }
-
-    this.logger.warn(
-      `Job ${jobId} did not complete after ${maxAttempts} poll attempts for environment ${sbEnvironment.name}`
-    );
-    return 'timeout';
-  }
-
   /**
    * Supports both v1 and v2 Admin API versions
    * 
@@ -279,9 +214,9 @@ export class AdminApiSyncService {
 
         // Trigger EdOrg refresh and poll for completion before fetching tenant data.
         // This is non-blocking: if the refresh fails or times out we still proceed.
-        const refreshJobId = await this.triggerEdOrgRefresh(sbEnvironment);
+        const refreshJobId = await strategy.getAdminApiService().triggerEdOrgRefresh(sbEnvironment);
         if (refreshJobId) {
-          const jobStatus = await this.pollJobStatus(sbEnvironment, refreshJobId);
+          const jobStatus = await strategy.getAdminApiService().pollJobStatus(sbEnvironment, refreshJobId);
           if (jobStatus === 'failed') {
             this.logger.error(
               `EdOrg refresh job ${refreshJobId} failed — syncing with potentially stale data`
