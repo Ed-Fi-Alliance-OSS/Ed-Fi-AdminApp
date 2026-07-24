@@ -325,4 +325,24 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       });
     });
   });
+
+  describe('triggerEdOrgRefresh', () => {
+    it('should return null since V1 does not support EdOrg refresh', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      const result = await service.triggerEdOrgRefresh(environment);
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('pollJobStatus', () => {
+    it('should return "timeout" since V1 does not support job polling', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      const result = await service.pollJobStatus(environment, 'job-123');
+
+      expect(result).toBe('timeout');
+    });
+  });
 });
