@@ -10,10 +10,15 @@ import {
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { dbInstancesV2, odsQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { useQueryClient } from '@tanstack/react-query';
 
 jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
+}));
+
+jest.mock('@tanstack/react-query', () => ({
+  useQueryClient: jest.fn(),
 }));
 
 jest.mock('../../helpers', () => ({
@@ -34,7 +39,11 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 }));
 
 jest.mock('../../api', () => ({
-  odsQueries: { delete: jest.fn() },
+  odsQueries: {
+    delete: jest.fn(),
+    getAll: jest.fn(() => ({ queryKey: ['odss-list-key'] })),
+    getOne: jest.fn(() => ({ queryKey: ['odss-detail-key'] })),
+  },
   dbInstancesV2: { delete: jest.fn() },
 }));
 
@@ -47,12 +56,14 @@ const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockDbInstancesDelete = dbInstancesV2.delete as jest.Mock;
 const mockMutationErrCallback = mutationErrCallback as jest.Mock;
 const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
+const mockUseQueryClient = useQueryClient as jest.Mock;
 
 describe('useOdsActions', () => {
   const navigateSpy = jest.fn();
   const popBannerSpy = jest.fn();
   const odsMutateAsync = jest.fn();
   const dbInstancesMutateAsync = jest.fn();
+  const setQueryDataSpy = jest.fn();
 
   const setup = (startingBlocks: boolean) => {
     mockUseNavigate.mockReturnValue(navigateSpy);
@@ -69,6 +80,7 @@ describe('useOdsActions', () => {
     mockMutationErrCallback.mockReturnValue({});
     mockOdsDelete.mockReturnValue({ isPending: false, mutateAsync: odsMutateAsync });
     mockDbInstancesDelete.mockReturnValue({ isPending: false, mutateAsync: dbInstancesMutateAsync });
+    mockUseQueryClient.mockReturnValue({ setQueryData: setQueryDataSpy });
   };
 
   afterEach(() => {
@@ -117,5 +129,24 @@ describe('useOdsActions', () => {
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
     expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('immediately sets status to PendingDelete in query cache on non-startingBlocks delete', () => {
+    setup(false);
+
+    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'Created' } as any);
+    (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
+
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-list-key'], expect.any(Function));
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-detail-key'], expect.any(Function));
+  });
+
+  it('does not touch query cache for startingBlocks delete', () => {
+    setup(true);
+
+    const result = useOdsActions({ id: 5, dbInstanceId: null } as any);
+    (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
+
+    expect(setQueryDataSpy).not.toHaveBeenCalled();
   });
 });

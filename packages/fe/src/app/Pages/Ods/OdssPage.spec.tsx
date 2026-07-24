@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { OdssTable } from './OdssPage';
 import { dbInstancesV2, odsQueries } from '../../api';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
@@ -27,6 +27,7 @@ jest.mock('react-router-dom', () => ({
 
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),
+  useQueryClient: jest.fn(),
 }));
 
 jest.mock('../../helpers', () => ({
@@ -34,7 +35,11 @@ jest.mock('../../helpers', () => ({
 }));
 
 jest.mock('../../api', () => ({
-  odsQueries: { getAll: jest.fn(), delete: jest.fn() },
+  odsQueries: {
+    getAll: jest.fn(),
+    delete: jest.fn(),
+    getOne: jest.fn(() => ({ queryKey: ['ods-detail-key'] })),
+  },
   dbInstancesV2: { delete: jest.fn() },
 }));
 
@@ -47,6 +52,7 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 }));
 
 const mockUseQuery = useQuery as jest.Mock;
+const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockOdsGetAll = odsQueries.getAll as jest.Mock;
 const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
@@ -92,6 +98,7 @@ describe('OdssTable', () => {
       },
     });
     mockDbInstancesDelete.mockReturnValue({ mutateAsync: dbInstancesMutateAsync });
+    mockUseQueryClient.mockReturnValue({ setQueryData: jest.fn() });
   });
 
   it('disables cache reuse on the ODS list query', () => {
@@ -175,5 +182,16 @@ describe('OdssTable', () => {
 
     expect(odsMutateAsync).toHaveBeenCalledWith({ id: 6 }, mutationOptions);
     expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('immediately sets status to PendingDelete in query cache on non-startingBlocks row delete', () => {
+    const setQueryDataSpy = jest.fn();
+    mockUseQueryClient.mockReturnValue({ setQueryData: setQueryDataSpy });
+    mockOdsGetAll.mockReturnValue({ queryKey: ['odss-list-key'], queryFn: jest.fn() });
+
+    const deleteAction = getDeleteAction();
+    deleteAction.onClick();
+
+    expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-list-key'], expect.any(Function));
   });
 });

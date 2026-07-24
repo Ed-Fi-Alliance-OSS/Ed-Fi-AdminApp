@@ -1,5 +1,5 @@
 import { Icons, PageActions, PageTemplate, SbaaTableAllInOne, TableRowActions } from '@edanalytics/common-ui';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { dbInstancesV2, odsQueries } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { CellContext } from '@tanstack/react-table';
@@ -15,6 +15,7 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   const { teamId, edfiTenant, sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
   const popBanner = usePopBanner();
+  const queryClient = useQueryClient();
   const to = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/${ods.id}/`;
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
   const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
@@ -38,11 +39,16 @@ const useOdsRowActions = (ods: GetOdsDto) => {
           title: 'Delete ODS',
           confirmBody: 'This will permanently delete the ODS.',
           confirm: true,
-          onClick: () =>
-            deleteDbInstance.mutateAsync(
+          onClick: () => {
+            queryClient.setQueryData<Record<number, GetOdsDto>>(
+              odsQueries.getAll({ edfiTenant, teamId }).queryKey,
+              (prev) => prev && { ...prev, [ods.id]: { ...prev[ods.id], status: 'PendingDelete' } }
+            );
+            return deleteDbInstance.mutateAsync(
               { id: ods.dbInstanceId! },
               mutationErrCallback({ popGlobalBanner: popBanner })
-            ),
+            );
+          },
         }
       : undefined;
 

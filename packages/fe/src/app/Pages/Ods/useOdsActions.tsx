@@ -1,6 +1,7 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetOdsDto } from '@edanalytics/models';
 import { useNavigate, useParams } from 'react-router-dom';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { dbInstancesV2, odsQueries } from '../../api';
 import {
@@ -15,6 +16,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
   const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
   const { odsId } = useParams();
+  const queryClient = useQueryClient();
 
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
@@ -32,6 +34,17 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
   const deleteMutation = isStartingBlocks ? deleteOds : canDeleteDbInstance ? deleteDbInstance : undefined;
   const deleteId = isStartingBlocks ? ods.id : ods.dbInstanceId;
 
+  const applyPendingDeleteOptimistic = () => {
+    queryClient.setQueryData<Record<number, GetOdsDto>>(
+      odsQueries.getAll({ edfiTenant, teamId }).queryKey,
+      (prev) => prev && { ...prev, [ods.id]: { ...prev[ods.id], status: 'PendingDelete' } }
+    );
+    queryClient.setQueryData<GetOdsDto>(
+      odsQueries.getOne({ id: ods.id, edfiTenant, teamId }).queryKey,
+      (prev) => prev && { ...prev, status: 'PendingDelete' }
+    );
+  };
+
   return {
     ...(canDelete && deleteMutation && typeof deleteId === 'number'
       ? {
@@ -41,8 +54,9 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
             text: 'Delete',
             title: 'Delete ODS',
             confirmBody: 'This will permanently delete the ODS.',
-            onClick: () =>
-              deleteMutation.mutateAsync(
+            onClick: () => {
+              if (!isStartingBlocks) applyPendingDeleteOptimistic();
+              return deleteMutation.mutateAsync(
                 { id: deleteId },
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner }),
@@ -52,7 +66,8 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
                       `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/odss`
                     ),
                 }
-              ),
+              );
+            },
             confirm: true,
           },
         }
