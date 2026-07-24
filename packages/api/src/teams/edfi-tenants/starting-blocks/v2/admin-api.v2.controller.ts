@@ -1275,6 +1275,10 @@ export class AdminApiControllerV2 {
       throw new NotFoundException('ODS not found for dbInstanceId');
     }
 
+    if (localOds.status !== 'Created') {
+      throw new BadRequestException("ODS must be in 'Created' status to delete by dbInstanceId");
+    }
+
     await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
 
     await this.odsRepository.save({

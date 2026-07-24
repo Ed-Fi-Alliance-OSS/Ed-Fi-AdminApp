@@ -363,7 +363,7 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
       findOneBy: jest.fn().mockResolvedValue({
         id: 901,
         dbInstanceId: 55,
-        status: 'Active',
+        status: 'Created',
       }),
       save: jest.fn().mockResolvedValue({
         id: 901,
@@ -411,6 +411,23 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
     );
   });
 
+  it("throws BadRequestException when the local ODS is not in 'Created' status", async () => {
+    const dbInstanceId = 55;
+    mockOdsRepository.findOneBy.mockResolvedValue({
+      id: 901,
+      dbInstanceId,
+      status: 'PendingDelete',
+    });
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      new BadRequestException("ODS must be in 'Created' status to delete by dbInstanceId")
+    );
+
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
   it('throws BadRequestException when dbInstanceId is less than or equal to zero', async () => {
     await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, 0)).rejects.toThrow(
       new BadRequestException('dbInstanceId must be greater than zero')
@@ -441,6 +458,11 @@ describe('AdminApiControllerV2 - deleteDbInstance', () => {
     const dbInstanceId = 55;
     const deleteError = new Error('delete failed');
     mockSbService.deleteDbInstance.mockRejectedValue(deleteError);
+    mockOdsRepository.findOneBy.mockResolvedValue({
+      id: 901,
+      dbInstanceId,
+      status: 'Created',
+    });
 
     await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
       deleteError

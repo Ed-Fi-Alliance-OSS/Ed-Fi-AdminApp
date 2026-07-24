@@ -2,7 +2,11 @@ import 'reflect-metadata';
 import { OdssTable } from './OdssPage';
 import { dbInstancesV2, odsQueries } from '../../api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import {
+  teamEdfiTenantAuthConfig,
+  useAuthorize,
+  useTeamEdfiTenantNavContextLoaded,
+} from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { GetOdsDto } from '@edanalytics/models';
@@ -33,6 +37,11 @@ jest.mock('@tanstack/react-query', () => ({
 
 jest.mock('../../helpers', () => ({
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
+  useAuthorize: jest.fn(),
+  teamEdfiTenantAuthConfig: jest.fn((id, edfiTenantId, teamId, privilege) => ({
+    privilege,
+    subject: { id, edfiTenantId, teamId },
+  })),
 }));
 
 jest.mock('../../api', () => ({
@@ -56,6 +65,8 @@ const mockUseQuery = useQuery as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockOdsGetAll = odsQueries.getAll as jest.Mock;
 const mockOdsDelete = odsQueries.delete as jest.Mock;
+const mockUseAuthorize = useAuthorize as jest.Mock;
+const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockDbInstancesDelete = dbInstancesV2.delete as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;
@@ -85,6 +96,7 @@ describe('OdssTable', () => {
     });
     mockUsePopBanner.mockReturnValue(popBannerSpy);
     mockMutationErrCallback.mockReturnValue(mutationOptions);
+    mockUseAuthorize.mockReturnValue(true);
     mockOdsGetAll.mockReturnValue({ queryKey: ['odss'], queryFn: jest.fn() });
     mockOdsDelete.mockReturnValue({ mutateAsync: odsMutateAsync });
     mockUseQuery.mockReturnValue({
@@ -186,6 +198,14 @@ describe('OdssTable', () => {
       mutationOptions
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
+  });
+
+  it('hides row Delete action when delete authorization is denied', () => {
+    mockUseAuthorize.mockReturnValue(false);
+
+    const deleteAction = getDeleteAction();
+
+    expect(deleteAction).toBeUndefined();
   });
 
   it('keeps startingBlocks row Delete action routed to ods delete by ods.id', () => {

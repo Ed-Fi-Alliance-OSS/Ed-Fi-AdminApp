@@ -1,7 +1,11 @@
 import { Icons, PageActions, PageTemplate, SbaaTableAllInOne, TableRowActions } from '@edanalytics/common-ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { dbInstancesV2, odsQueries } from '../../api';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import {
+  teamEdfiTenantAuthConfig,
+  useAuthorize,
+  useTeamEdfiTenantNavContextLoaded,
+} from '../../helpers';
 import { CellContext } from '@tanstack/react-table';
 import { useOdssActions } from './useOdssActions';
 import { Badge, HStack, Link } from '@chakra-ui/react';
@@ -19,6 +23,9 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   const navigate = useNavigate();
   const popBanner = usePopBanner();
   const queryClient = useQueryClient();
+  const canDelete = useAuthorize(
+    teamEdfiTenantAuthConfig(ods.id, edfiTenant.id, teamId, 'team.sb-environment.edfi-tenant:delete-ods')
+  );
   const to = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/${ods.id}/`;
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
   const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
@@ -35,7 +42,7 @@ const useOdsRowActions = (ods: GetOdsDto) => {
         onClick: () =>
           deleteOds.mutateAsync({ id: ods.id }, mutationErrCallback({ popGlobalBanner: popBanner })),
       }
-    : canDeleteDbInstance
+    : canDelete && canDeleteDbInstance
       ? {
           icon: Icons.Delete,
           text: 'Delete',
