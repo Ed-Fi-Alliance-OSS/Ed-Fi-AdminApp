@@ -14,10 +14,11 @@ export const transformTenantData = (apiTenants: TenantDto, sbEnvironment: SbEnvi
     sbEnvironmentId: sbEnvironment.id,
     created: new Date(),
     odss: apiTenants.odsInstances?.map((instance: OdsInstanceDto, index: number) => {
-      const odsData: Partial<IOds> = {
+      const odsData: Partial<IOds> & { dbInstanceId: number | null } = {
         id: 0,
         odsInstanceId: instance.id,
         odsInstanceName: instance.name,
+        dbInstanceId: instance.dbInstanceId ?? null,
         instanceType: instance.instanceType ?? null,
         status: instance.status ?? null,
         databaseTemplate: instance.databaseTemplate ?? null,

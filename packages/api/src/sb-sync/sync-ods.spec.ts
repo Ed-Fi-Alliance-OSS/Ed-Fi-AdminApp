@@ -160,7 +160,7 @@ describe('computeOdsListDeltas — id-based ODS (non-SB V1 / V2)', () => {
   it('produces no delta when existing fields are null and incoming fields are undefined', () => {
     const existingOds = makeOds({
       id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db',
-      status: null, databaseTemplate: null, databaseName: null,
+      status: null, databaseTemplate: null, databaseName: null, dbInstanceId: null,
     } as any);
     const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db' }]; // fields absent
     const em = makeEntityManager();
@@ -169,6 +169,21 @@ describe('computeOdsListDeltas — id-based ODS (non-SB V1 / V2)', () => {
 
     expect(result.insert).toHaveLength(0);
     expect(result.update).toHaveLength(0);
+    expect(result.delete).toHaveLength(0);
+  });
+
+  it('updates an existing ODS when dbInstanceId changes', () => {
+    const existingOds = makeOds({
+      id: 1, odsInstanceId: 5, odsInstanceName: 'ODS', dbName: 'ods_db', dbInstanceId: 100,
+    } as any);
+    const incoming: SyncableOds[] = [{ id: 5, name: 'ODS', dbName: 'ods_db', dbInstanceId: 200 }];
+    const em = makeEntityManager();
+
+    const result = computeOdsListDeltas(incoming, [existingOds], tenant, em);
+
+    expect(result.update).toHaveLength(1);
+    expect((result.update[0] as any).dbInstanceId).toBe(200);
+    expect(result.insert).toHaveLength(0);
     expect(result.delete).toHaveLength(0);
   });
 });
@@ -247,7 +262,7 @@ describe('computeOdsListDeltas — dbName-based ODS (SB V1 Lambda)', () => {
   it('produces no delta when existing fields are null and incoming fields are undefined (dbName path)', () => {
     const existingOds = makeOds({
       id: 3, odsInstanceId: null, odsInstanceName: null, dbName: 'ods_alpha',
-      status: null, databaseTemplate: null, databaseName: null,
+      status: null, databaseTemplate: null, databaseName: null, dbInstanceId: null,
     } as any);
     const incoming: SyncableOds[] = [{ id: null, name: null, dbName: 'ods_alpha' }]; // new fields absent
     const em = makeEntityManager();
