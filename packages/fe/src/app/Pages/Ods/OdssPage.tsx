@@ -1,6 +1,6 @@
 import { Icons, PageActions, PageTemplate, SbaaTableAllInOne, TableRowActions } from '@edanalytics/common-ui';
-import { useQuery } from '@tanstack/react-query';
-import { odsQueries } from '../../api/queries/queries';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { dbInstancesV2, odsQueries } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { CellContext } from '@tanstack/react-table';
 import { useOdssActions } from './useOdssActions';
@@ -8,11 +8,58 @@ import { Badge, HStack, Link } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router-dom';
 import { GetOdsDto } from '@edanalytics/models';
 import { odsStatusDisplayMap } from './Utils';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+
+const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
+  Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
 
 const useOdsRowActions = (ods: GetOdsDto) => {
-  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { teamId, edfiTenant, sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
+  const popBanner = usePopBanner();
+  const queryClient = useQueryClient();
   const to = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/${ods.id}/`;
+  const deleteOds = odsQueries.delete({ edfiTenant, teamId });
+  const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
+  const isStartingBlocks = sbEnvironment.startingBlocks;
+  const canDeleteDbInstance =
+    typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0 && ods.status === 'Created';
+  const deleteAction = isStartingBlocks
+    ? {
+        icon: Icons.Delete,
+        text: 'Delete',
+        title: 'Delete ODS',
+        confirmBody: 'This will permanently delete the ODS.',
+        confirm: true,
+        onClick: () =>
+          deleteOds.mutateAsync({ id: ods.id }, mutationErrCallback({ popGlobalBanner: popBanner })),
+      }
+    : canDeleteDbInstance
+      ? {
+          icon: Icons.Delete,
+          text: 'Delete',
+          title: 'Delete ODS',
+          confirmBody: 'This will permanently delete the ODS.',
+          confirm: true,
+          onClick: () => {
+            queryClient.setQueryData<Record<number, GetOdsDto>>(
+              odsQueries.getAll({ edfiTenant, teamId }).queryKey,
+              (prev) => {
+                if (!prev) return prev;
+                const current = prev[ods.id];
+                if (!current) return prev;
+                return { ...prev, [ods.id]: withPendingDeleteStatus(current) };
+              }
+            );
+            return deleteDbInstance.mutateAsync(
+              { id: ods.dbInstanceId! },
+              mutationErrCallback({ popGlobalBanner: popBanner })
+            );
+          },
+        }
+      : undefined;
+
   return {
     View: {
       icon: Icons.View,
@@ -21,14 +68,11 @@ const useOdsRowActions = (ods: GetOdsDto) => {
       to,
       onClick: () => navigate(to),
     },
-    Delete: {
-      icon: Icons.Delete,
-      text: 'Delete',
-      title: 'Delete ODS',
-      confirmBody: 'This will permanently delete the ODS.',
-      confirm: true,
-      onClick: () => {},
-    },
+    ...(deleteAction
+      ? {
+          Delete: deleteAction,
+        }
+      : {}),
   };
 };
 
@@ -68,10 +112,13 @@ export const OdssTable = () => {
     staleTime: 0,
     gcTime: 0,
   });
+  const sortedOdss = Object.values(odss?.data || {}).sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' })
+  );
 
   return (
     <SbaaTableAllInOne
-      data={Object.values(odss?.data || {})}
+      data={sortedOdss}
       columns={[
         { accessorKey: 'displayName', cell: NameCell, header: 'Name' },
         { accessorKey: 'instanceType', header: 'Type' },

@@ -111,6 +111,7 @@ export class AdminApiSyncService {
         id: ods.odsInstanceId,
         name: ods.odsInstanceName,
         dbName: ods.odsInstanceName || `ods-${ods.odsInstanceId}`,
+        dbInstanceId: ods.dbInstanceId ?? null,
         instanceType: ods.instanceType ?? null,
         status: ods.status ?? null,
         databaseTemplate: ods.databaseTemplate ?? null,
@@ -603,6 +604,7 @@ export class AdminApiSyncService {
         name: tenantDetails.name || edfiTenant.name,
         odsInstances: (rawInstances || []).map((instance: any) => ({
           id: instance.id ?? null,
+          dbInstanceId: instance.dbInstanceId ?? null,
           name: instance.name || 'Unknown ODS Instance',
           instanceType: instance.instanceType ?? instance.dataStoreType,
           status: instance.status ?? null,

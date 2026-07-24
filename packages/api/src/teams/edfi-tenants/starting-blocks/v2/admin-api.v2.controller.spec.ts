@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
@@ -340,5 +340,113 @@ describe('AdminApiControllerV2 - postDbInstance', () => {
     await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
       otherError
     );
+  });
+});
+
+describe('AdminApiControllerV2 - deleteDbInstance', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { deleteDbInstance: jest.Mock };
+  let mockOdsRepository: { findOneBy: jest.Mock; save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironmentId: 2,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  beforeEach(() => {
+    mockSbService = {
+      deleteDbInstance: jest.fn().mockResolvedValue(undefined),
+    };
+    mockOdsRepository = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'Active',
+      }),
+      save: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'PendingDelete',
+      }),
+    };
+    mockJobQueue = {
+      send: jest.fn().mockResolvedValue('job-123'),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      mockOdsRepository as any,
+      mockJobQueue as any
+    );
+  });
+
+  it('finds local ODS, calls sbService delete, sets PendingDelete, and enqueues sync', async () => {
+    const dbInstanceId = 55;
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).resolves.toBeUndefined();
+
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      id: 901,
+      dbInstanceId: 55,
+      status: 'PendingDelete',
+    });
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+    expect(mockSbService.deleteDbInstance.mock.invocationCallOrder[0]).toBeLessThan(
+      mockOdsRepository.save.mock.invocationCallOrder[0]
+    );
+    expect(mockOdsRepository.save.mock.invocationCallOrder[0]).toBeLessThan(
+      mockJobQueue.send.mock.invocationCallOrder[0]
+    );
+  });
+
+  it('throws BadRequestException when dbInstanceId is less than or equal to zero', async () => {
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, 0)).rejects.toThrow(
+      new BadRequestException('dbInstanceId must be greater than zero')
+    );
+    expect(mockOdsRepository.findOneBy).not.toHaveBeenCalled();
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when local ODS is not found', async () => {
+    const dbInstanceId = 55;
+    mockOdsRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      new NotFoundException('ODS not found for dbInstanceId')
+    );
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('does not set PendingDelete or enqueue sync when sbService delete fails', async () => {
+    const dbInstanceId = 55;
+    const deleteError = new Error('delete failed');
+    mockSbService.deleteDbInstance.mockRejectedValue(deleteError);
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      deleteError
+    );
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
   });
 });
