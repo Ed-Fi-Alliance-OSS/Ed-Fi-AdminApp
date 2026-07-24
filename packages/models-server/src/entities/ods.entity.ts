@@ -33,6 +33,9 @@ export class Ods extends EntityBase implements IOds {
   @Column({ nullable: true })
   instanceType: string | null;
 
+  @Column({ nullable: true })
+  dbInstanceId: number | null;
+
   @Column()
   dbName: string;
 

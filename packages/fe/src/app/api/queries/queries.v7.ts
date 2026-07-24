@@ -258,4 +258,5 @@ export const dbInstancesV2 = new EntityQueryBuilder({
   includeTeam: TeamOptions.Required,
 })
   .post('post', { ResDto: Id, ReqDto: PostDbInstanceDtoV2 })
+  .delete('delete')
   .build();
