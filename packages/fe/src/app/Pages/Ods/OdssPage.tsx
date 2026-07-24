@@ -104,10 +104,13 @@ export const OdssTable = () => {
     staleTime: 0,
     gcTime: 0,
   });
+  const sortedOdss = Object.values(odss?.data || {}).sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' })
+  );
 
   return (
     <SbaaTableAllInOne
-      data={Object.values(odss?.data || {})}
+      data={sortedOdss}
       columns={[
         { accessorKey: 'displayName', cell: NameCell, header: 'Name' },
         { accessorKey: 'instanceType', header: 'Type' },

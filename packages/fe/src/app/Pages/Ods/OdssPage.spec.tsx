@@ -112,6 +112,34 @@ describe('OdssTable', () => {
     );
   });
 
+  it('sorts ODS rows by name ascending by default', () => {
+    mockUseQuery.mockReturnValue({
+      data: {
+        2: {
+          id: 2,
+          displayName: 'Alpha',
+          dbInstanceId: 2,
+          instanceType: 'Shared',
+          status: 'Created',
+        },
+        1: {
+          id: 1,
+          displayName: 'zebra',
+          dbInstanceId: 1,
+          instanceType: 'Shared',
+          status: 'Created',
+        },
+      },
+    });
+
+    const tableProps = (OdssTable() as React.ReactElement).props;
+
+    expect(tableProps.data.map((row: { displayName: string }) => row.displayName)).toEqual([
+      'Alpha',
+      'zebra',
+    ]);
+  });
+
   it('shows row Delete action only for non-startingBlocks ODS rows with dbInstanceId > 0', () => {
     mockUseQuery.mockReturnValue({
       data: {
