@@ -3,7 +3,6 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { TenantDto, ISbEnvironmentConfigPrivateV2, ISbEnvironmentConfigPublicV2, ISbEnvironmentConfigPublicV3 } from '@edanalytics/models';
-import { AdminApiServiceV2, AdminApiServiceV3 } from '../../teams/edfi-tenants/starting-blocks';
 import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';

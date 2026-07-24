@@ -41,25 +41,74 @@ V1" scope explicit and intentional rather than an accidental omission.
 New file `packages/fe/src/app/api/queries/versioned.ts`:
 
 ```ts
-export function createVersionedResource<Config>(
-  byVersion: Partial<Record<'v2' | 'v3', Config>>
-) {
-  return function useVersionedResource(): Config {
+export type VersionedResourceKey = 'v2' | 'v3';
+
+// Distributive mapped type: because this is indexed by `K` and collected via
+// `[VersionedResourceKey]`, TS distributes it into a genuine discriminated
+// union (`{version:'v2'} & ByVersionV2 | {version:'v3'} & ByVersionV3`)
+// derived from whatever shape each branch of `byVersion` has — callers never
+// hand-write the union themselves, so there's no way to accidentally
+// instantiate the broken merged/non-discriminated shape (see caveat below).
+type VersionedConfig<ByVersion extends Partial<Record<VersionedResourceKey, object>>> = {
+  [K in VersionedResourceKey]: K extends keyof ByVersion ? { version: K } & ByVersion[K] : never;
+}[VersionedResourceKey];
+
+export function createVersionedResource<
+  ByVersion extends Partial<Record<VersionedResourceKey, object>>
+>(byVersion: ByVersion) {
+  return function useVersionedResource(): VersionedConfig<ByVersion> {
     const { edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-    const version = edfiTenant.sbEnvironment.version;
+    const version = edfiTenant.sbEnvironment.version as VersionedResourceKey;
     const resource = version && byVersion[version];
     if (!resource) {
       throw new Error(`No resource registered for admin API version "${version}"`);
     }
-    return resource;
+    return { version, ...resource } as VersionedConfig<ByVersion>;
   };
 }
 ```
 
-V1 is deliberately excluded from the type signature — this factory is for
-the "V2Plus" pattern only. AC-528/529/530 (Application, Claimset, Profile,
-ApiClient) can reuse this factory verbatim with their own per-entity config
-shape.
+V1 is deliberately excluded from `VersionedResourceKey` — this factory is
+for the "V2Plus" pattern only. AC-528/529/530 (Application, Claimset,
+Profile, ApiClient) can reuse this factory verbatim with their own
+per-entity config shape — each entity's config file only supplies the
+per-version data (`queries`, DTO classes, etc.), not a hand-written
+`version` field or union type:
+
+```ts
+export const useVendorConfig = createVersionedResource({
+  v2: { queries: vendorQueriesV2, PostDto: PostVendorDtoV2, PutDto: PutVendorDtoV2 },
+  v3: { queries: vendorQueriesV3, PostDto: PostVendorDtoV3, PutDto: PutVendorDtoV3 },
+});
+// useVendorConfig(): { version: 'v2'; queries: typeof vendorQueriesV2; ... }
+//                  | { version: 'v3'; queries: typeof vendorQueriesV3; ... }
+```
+
+**Why the union must stay discriminated at the type level, not just at the
+declaration site:** if a caller instead wrote `Config` as one flattened,
+non-discriminated type (or the factory's generic collapsed the branches into
+a single shape), `useVendorConfig().queries` would become a union of two
+distinct function types (`vendorQueriesV2['getOne'] | vendorQueriesV3['getOne']`).
+Calling it still type-checks, but the result —
+`UseQueryOptions<GetVendorDtoV2> | UseQueryOptions<GetVendorDtoV3>` — is a
+union of two different generic instantiations, and passing that into
+`useQuery()` fails: TypeScript can't pick a single overload of a generic,
+overloaded function from a union argument. `vendor`'s inferred type
+(`GetVendorDtoV2 | GetVendorDtoV3 | undefined`) and the `useQuery` call
+itself both become unresolvable. Keeping the union distributive (as above)
+avoids this — react-query's generic overload widens `TQueryFnData` to
+`GetVendorDtoV2 | GetVendorDtoV3` in one call instead of being handed two
+incompatible calls to choose between.
+
+**Remaining caveat:** this correlation only holds at the point
+`useVendorConfig()` is called — destructuring
+`const { queries, PostDto } = useVendorConfig()` in a consumer doesn't stop
+TypeScript from later pairing `queries` from one branch with a DTO from the
+other. That's safe today only because `GetVendorDtoV2`/`GetVendorDtoV3` (and
+their Post/Put counterparts) are structurally identical; a future V3 entity
+whose DTOs actually diverge in shape would need each consumer to keep the
+whole config object together (or branch on `version` before destructuring)
+rather than pulling `queries` and DTOs apart.
 
 ### 2. API layer: add `vendorQueriesV3` and a per-version config
 
@@ -70,27 +119,19 @@ New file `Pages/VendorV2Plus/vendorConfig.ts`:
 
 ```ts
 export const useVendorConfig = createVersionedResource({
-  v2: {
-    version: 'v2' as const,
-    queries: vendorQueriesV2,
-    PostDto: PostVendorDtoV2,
-    PutDto: PutVendorDtoV2,
-  },
-  v3: {
-    version: 'v3' as const,
-    queries: vendorQueriesV3,
-    PostDto: PostVendorDtoV3,
-    PutDto: PutVendorDtoV3,
-  },
+  v2: { queries: vendorQueriesV2, PostDto: PostVendorDtoV2, PutDto: PutVendorDtoV2 },
+  v3: { queries: vendorQueriesV3, PostDto: PostVendorDtoV3, PutDto: PutVendorDtoV3 },
 });
 ```
 
-Bundling `queries` + DTO classes + the raw `version` into one config object
-means components never write a `version === 'v3' ? X : Y` conditional for
-the common case — they just call `useVendorConfig()` and destructure what
-they need. `version` is exposed on the config so a future field-level
-divergence (see below) can still branch narrowly without changing this
-factory's shape.
+`version` doesn't need to be written per-branch — `createVersionedResource`
+injects it, and derives the return type as a discriminated union (see
+point 1 for why that distinction matters). Bundling `queries` + DTO classes
++ `version` into one config object means components never write a
+`version === 'v3' ? X : Y` conditional for the common case — they just call
+`useVendorConfig()` and destructure what they need. `version` is exposed on
+the config so a future field-level divergence (see below) can still branch
+narrowly without changing this factory's shape.
 
 ### 3. Component changes: `Pages/VendorV2` → `Pages/VendorV2Plus`
 
@@ -113,6 +154,11 @@ localized change, not a redesign. The new field goes on `GetVendorDtoV3`/
 frontend, the relevant component adds one narrow conditional around the new
 field, e.g. `{useVendorConfig().version === 'v3' && <FormControl>...</FormControl>}`,
 rather than a parallel component tree.
+
+(See point 1 for why `useVendorConfig()`'s return type must stay a
+discriminated union rather than a merged shape, and for the
+destructure-correlation caveat that still applies when a component pulls
+`queries`/`PostDto`/`PutDto` apart.)
 
 ### 4. Routing (`vendor.routes.tsx`)
 
