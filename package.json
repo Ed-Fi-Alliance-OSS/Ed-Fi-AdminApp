@@ -233,6 +233,9 @@
     },
     "@actions/http-client": {
       "undici": "^6.27.0"
+    },
+    "@eslint/eslintrc": {
+      "minimatch": "^3.1.2"
     }
   }
 }
