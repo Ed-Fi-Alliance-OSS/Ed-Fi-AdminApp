@@ -129,6 +129,12 @@ To use SQL Server instead of PostgreSQL:
    DB_ENGINE=mssql
    ```
 
+   Also switch `DB_SECRET_VALUE` from the PostgreSQL default to the SQL Server variant so the API connects to the SQL Server container:
+
+   ```bash
+   DB_SECRET_VALUE={"MSSQL_DB_HOST":"edfiadminapp-mssql","MSSQL_DB_PORT":1433,"MSSQL_DB_USERNAME":"sa","MSSQL_DB_PASSWORD":"YourStrong!Passw0rd","MSSQL_DB_DATABASE":"sbaa"}
+   ```
+
 2. **Password Requirements**: The `MSSQL_SA_PASSWORD` must meet SQL Server requirements:
 
    - At least 8 characters
@@ -144,17 +150,7 @@ To use SQL Server instead of PostgreSQL:
    ./start-services.ps1 -Rebuild -MSSQL
    ```
 
-4. **Update Docker Compose to use SQL Server**:
-  Ensure the API service explicitly waits for the MSSQL container to be healthy by updating the `depends_on` section in `adminapp-services.yml`:
-
-    ```yml
-
-    edfiadminapp-api:
-     ....
-     depends_on:
-      edfiadminapp-mssql:
-        condition: service_healthy
-    ```
+   The compose file already waits for whichever database profile is active, so no manual `depends_on` edit is required.
 
 ### Database Management
 
@@ -415,9 +411,6 @@ authentication flow:
      CLIENT_ID: 'edfiadminapp',
      CLIENT_SECRET: 'big-secret-123',
      MACHINE_AUDIENCE: 'edfiadminapp-api',
-     MANAGEMENT_DOMAIN: 'localhost',
-     MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
-     MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456',
    }
    ```
 

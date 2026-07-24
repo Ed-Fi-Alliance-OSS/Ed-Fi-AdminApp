@@ -54,10 +54,7 @@ module.exports = {
     ISSUER: 'https://localhost/auth/realms/edfi',
     CLIENT_ID: 'edfiadminapp',
     CLIENT_SECRET: 'big-secret-123',
-    MACHINE_AUDIENCE: 'edfiadminapp-api',
-    MANAGEMENT_DOMAIN: 'localhost',
-    MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
-    MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456'
+    MACHINE_AUDIENCE: 'edfiadminapp-api'
   },
 
   WHITELISTED_REDIRECTS: [FE_URL],
@@ -72,8 +69,10 @@ module.exports = {
 
   USE_PKCE: true,
 
-  // Deliverating set in false since we are using self-signed certificates but in production should be set in true
-  SSL_VERIFICATION: false,
+  // Verify TLS certificates on the API's outbound HTTPS calls (ODS/API, AdminApi,
+  // Yopass). Secure by default; set to false only when connecting to upstreams
+  // that use self-signed or otherwise untrusted certificates.
+  SSL_VERIFICATION: true,
   // Certification artifact configuration
   CERT_BRUNO_SRC_REF: 'v2.1.0',
   CERT_BRUNO_SRC_CHECKSUM: '71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6',
