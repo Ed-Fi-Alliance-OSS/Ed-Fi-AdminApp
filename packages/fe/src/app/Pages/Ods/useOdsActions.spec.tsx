@@ -11,6 +11,7 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { dbInstancesV2, odsQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useQueryClient } from '@tanstack/react-query';
+import { GetOdsDto } from '@edanalytics/models';
 
 jest.mock('react-router-dom', () => ({
   useNavigate: jest.fn(),
@@ -139,6 +140,33 @@ describe('useOdsActions', () => {
 
     expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-list-key'], expect.any(Function));
     expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-detail-key'], expect.any(Function));
+
+    const updateList = setQueryDataSpy.mock.calls[0][1] as (arg: Record<number, GetOdsDto>) => Record<number, GetOdsDto>;
+    const updateDetail = setQueryDataSpy.mock.calls[1][1] as (arg: GetOdsDto) => GetOdsDto;
+    const cachedList = {
+      5: Object.assign(new GetOdsDto(), {
+        id: 5,
+        dbName: 'ods-5',
+        odsInstanceName: 'ODS 5',
+        status: 'Created',
+      }),
+    } as Record<number, GetOdsDto>;
+    const cachedDetail = Object.assign(new GetOdsDto(), {
+      id: 5,
+      dbName: 'ods-5',
+      odsInstanceName: 'ODS 5',
+      status: 'Created',
+    });
+
+    const updatedList = updateList(cachedList);
+    const updatedDetail = updateDetail(cachedDetail);
+
+    expect(updatedList[5]).toBeInstanceOf(GetOdsDto);
+    expect(updatedList[5].displayName).toBe('ODS 5');
+    expect(updatedList[5].status).toBe('PendingDelete');
+    expect(updatedDetail).toBeInstanceOf(GetOdsDto);
+    expect(updatedDetail.displayName).toBe('ODS 5');
+    expect(updatedDetail.status).toBe('PendingDelete');
   });
 
   it('does not touch query cache for startingBlocks delete', () => {

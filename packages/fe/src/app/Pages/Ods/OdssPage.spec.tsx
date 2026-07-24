@@ -5,6 +5,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { GetOdsDto } from '@edanalytics/models';
 
 jest.mock('@edanalytics/common-ui', () => ({
   Icons: { View: 'ViewIcon', Delete: 'DeleteIcon' },
@@ -221,5 +222,20 @@ describe('OdssTable', () => {
     deleteAction.onClick();
 
     expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-list-key'], expect.any(Function));
+    const updateList = setQueryDataSpy.mock.calls[0][1] as (arg: Record<number, GetOdsDto>) => Record<number, GetOdsDto>;
+    const cachedList = {
+      5: Object.assign(new GetOdsDto(), {
+        id: 5,
+        dbName: 'ods-5',
+        odsInstanceName: 'ODS 5',
+        status: 'Created',
+      }),
+    } as Record<number, GetOdsDto>;
+
+    const updatedList = updateList(cachedList);
+
+    expect(updatedList[5]).toBeInstanceOf(GetOdsDto);
+    expect(updatedList[5].displayName).toBe('ODS 5');
+    expect(updatedList[5].status).toBe('PendingDelete');
   });
 });

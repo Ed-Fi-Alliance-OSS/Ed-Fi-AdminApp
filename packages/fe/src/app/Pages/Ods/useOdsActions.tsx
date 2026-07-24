@@ -11,6 +11,9 @@ import {
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
+const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
+  Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
+
 export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'status'>): ActionsType => {
   const navigate = useNavigate();
   const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
@@ -37,11 +40,16 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
   const applyPendingDeleteOptimistic = () => {
     queryClient.setQueryData<Record<number, GetOdsDto>>(
       odsQueries.getAll({ edfiTenant, teamId }).queryKey,
-      (prev) => prev && { ...prev, [ods.id]: { ...prev[ods.id], status: 'PendingDelete' } }
+      (prev) => {
+        if (!prev) return prev;
+        const current = prev[ods.id];
+        if (!current) return prev;
+        return { ...prev, [ods.id]: withPendingDeleteStatus(current) };
+      }
     );
     queryClient.setQueryData<GetOdsDto>(
       odsQueries.getOne({ id: ods.id, edfiTenant, teamId }).queryKey,
-      (prev) => prev && { ...prev, status: 'PendingDelete' }
+      (prev) => (prev ? withPendingDeleteStatus(prev) : prev)
     );
   };
 

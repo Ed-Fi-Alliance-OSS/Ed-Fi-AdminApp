@@ -11,6 +11,9 @@ import { odsStatusDisplayMap } from './Utils';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
+const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
+  Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
+
 const useOdsRowActions = (ods: GetOdsDto) => {
   const { teamId, edfiTenant, sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
@@ -42,7 +45,12 @@ const useOdsRowActions = (ods: GetOdsDto) => {
           onClick: () => {
             queryClient.setQueryData<Record<number, GetOdsDto>>(
               odsQueries.getAll({ edfiTenant, teamId }).queryKey,
-              (prev) => prev && { ...prev, [ods.id]: { ...prev[ods.id], status: 'PendingDelete' } }
+              (prev) => {
+                if (!prev) return prev;
+                const current = prev[ods.id];
+                if (!current) return prev;
+                return { ...prev, [ods.id]: withPendingDeleteStatus(current) };
+              }
             );
             return deleteDbInstance.mutateAsync(
               { id: ods.dbInstanceId! },
