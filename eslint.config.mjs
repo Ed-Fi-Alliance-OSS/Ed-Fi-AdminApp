@@ -1,5 +1,5 @@
 import nx from '@nx/eslint-plugin';
-import parser from 'jsonc-eslint-parser';
+import * as parser from 'jsonc-eslint-parser';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
