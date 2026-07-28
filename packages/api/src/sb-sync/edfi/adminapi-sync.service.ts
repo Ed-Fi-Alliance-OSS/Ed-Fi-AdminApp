@@ -213,7 +213,10 @@ export class AdminApiSyncService {
         }
 
         // Trigger EdOrg refresh and poll for completion before fetching tenant data.
-        // This is non-blocking: if the refresh fails or times out we still proceed.
+        // This is non-fatal: if the refresh fails or times out we still proceed with sync
+        // (this does block the sync flow — up to ~ADMINAPI_REFRESH_POLL_ATTEMPTS *
+        // ADMINAPI_REFRESH_POLL_INTERVAL_MS — but runs inside the background sync
+        // consumer, not an HTTP request, so it doesn't block a user-facing call).
         const refreshJobId = await strategy.getAdminApiService().triggerEdOrgRefresh(sbEnvironment);
         if (refreshJobId) {
           const jobStatus = await strategy.getAdminApiService().pollJobStatus(sbEnvironment, refreshJobId);

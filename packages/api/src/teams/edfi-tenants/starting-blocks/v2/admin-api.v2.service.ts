@@ -49,9 +49,12 @@ import axios, { AxiosError, isAxiosError } from 'axios';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import { CustomHttpException } from '../../../../utils';
+import {
+  pollJobStatus,
+  triggerEdOrgRefresh,
+} from '../admin-api-refresh-poll.util';
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
-import config from 'config';
 
 /**
  * This service is used to interact with the Admin API. Each method is a single
@@ -1201,68 +1204,32 @@ export class AdminApiServiceV2 {
    * @returns Promise<string | null> - The job ID if successfully triggered, otherwise null
    */
   async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
-    try {
-      const client = this.getAdminApiClientForEnvironment(sbEnvironment);
-      const response = await client.post('odsInstances/edOrgs/refresh');
-      const jobId = (response as { jobId?: string })?.jobId ?? null;
-      if (!jobId) {
-        this.logger.warn(
-          `EdOrg refresh response missing jobId for environment ${sbEnvironment.name}`
-        );
-        return null;
-      }
-      this.logger.log(`EdOrg refresh triggered for ${sbEnvironment.name}, jobId: ${jobId}`);
-      return jobId;
-    } catch (error) {
-      this.logger.warn(
-        `Failed to trigger EdOrg refresh for environment ${sbEnvironment.name}: ${(error as Error).message}`
-      );
-      return null;
-    }
+    return triggerEdOrgRefresh(
+      this.getAdminApiClientForEnvironment(sbEnvironment),
+      'odsInstances/edOrgs/refresh',
+      this.logger,
+      sbEnvironment.name
+    );
   }
 
-   /**
-     * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
-     * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
-     * @param sbEnvironment - The environment whose Admin API client to use
-     * @param jobId - The job ID returned by triggerEdOrgRefresh()
-     * @returns 'completed' | 'failed' | 'timeout'
-     */
-    async pollJobStatus(
-      sbEnvironment: SbEnvironment,
-      jobId: string
-    ): Promise<'completed' | 'failed' | 'timeout'> {
-      const rawMaxAttempts = Number(config.ADMINAPI_REFRESH_POLL_ATTEMPTS);
-      const rawIntervalMs = Number(config.ADMINAPI_REFRESH_POLL_INTERVAL_MS);
-      const maxAttempts: number = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 ? rawMaxAttempts : 10;
-      const intervalMs: number = Number.isFinite(rawIntervalMs) && rawIntervalMs >= 0 ? rawIntervalMs : 5000;
-      const client = this.getAdminApiClientForEnvironment(sbEnvironment);
-  
-      for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-        try {
-          const response = await client.get(`jobs/${jobId}`);
-          const status = (response as unknown as { status?: string })?.status;
-          if (status === 'completed') return 'completed';
-          if (status === 'failed') return 'failed';
-        } catch (error) {
-          // Bail immediately on HTTP error — if the Admin API is unreachable,
-          // further polling attempts are unlikely to succeed.
-          this.logger.error(
-            `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
-          );
-          return 'timeout';
-        }
-  
-        if (attempt < maxAttempts) {
-          await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
-        }
-      }
-  
-      this.logger.warn(
-        `Job ${jobId} did not complete after ${maxAttempts} poll attempts for environment ${sbEnvironment.name}`
-      );
-      return 'timeout';
-    }
+  /**
+   * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
+   * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
+   * @param sbEnvironment - The environment whose Admin API client to use
+   * @param jobId - The job ID returned by triggerEdOrgRefresh()
+   * @returns 'completed' | 'failed' | 'timeout'
+   */
+  async pollJobStatus(
+    sbEnvironment: SbEnvironment,
+    jobId: string
+  ): Promise<'completed' | 'failed' | 'timeout'> {
+    return pollJobStatus(
+      this.getAdminApiClientForEnvironment(sbEnvironment),
+      jobId,
+      this.logger,
+      sbEnvironment.name
+    );
+  }
 
   /**
    * Retrieve all tenants with their ODS instances and education organizations

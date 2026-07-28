@@ -16,6 +16,7 @@ import { CreateVendor } from '../Pages/Vendor/CreateVendorPage';
 import { VendorPageV2 } from '../Pages/VendorV2Plus/VendorPage';
 import { VendorsPageV2 } from '../Pages/VendorV2Plus/VendorsPage';
 import { CreateVendorV2 } from '../Pages/VendorV2Plus/CreateVendorPage';
+import { createVersionedResource } from '../api/queries/versioned';
 
 const VendorBreadcrumbV1 = () => {
   const params = useParams() as {
@@ -32,28 +33,27 @@ const VendorBreadcrumbV1 = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (vendor.data?.displayName ?? params.vendorId) as any;
 };
-const VendorBreadcrumbV2 = () => {
+
+// v2/v3 breadcrumbs are byte-for-byte identical except which queries module
+// they call — the same shape `createVersionedResource` already exists to
+// dedupe (see vendorConfig.ts). v1 stays separate, consistent with the rest
+// of this file treating v1 as out of scope for that pattern.
+const useVendorBreadcrumbQueries = createVersionedResource<{
+  version: 'v2' | 'v3';
+  getOne: typeof vendorQueriesV2.getOne;
+}>({
+  v2: { version: 'v2', getOne: vendorQueriesV2.getOne },
+  v3: { version: 'v3', getOne: vendorQueriesV3.getOne },
+});
+
+const VendorBreadcrumbV2Plus = () => {
   const params = useParams() as {
     vendorId: string;
   };
   const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const { getOne } = useVendorBreadcrumbQueries();
   const vendor = useQuery(
-    vendorQueriesV2.getOne({
-      id: params.vendorId,
-      teamId,
-      edfiTenant,
-    })
-  );
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (vendor.data?.displayName ?? params.vendorId) as any;
-};
-const VendorBreadcrumbV3 = () => {
-  const params = useParams() as {
-    vendorId: string;
-  };
-  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
-  const vendor = useQuery(
-    vendorQueriesV3.getOne({
+    getOne({
       id: params.vendorId,
       teamId,
       edfiTenant,
@@ -78,8 +78,8 @@ export const vendorRoute: RouteObject = {
     crumb: withLoader(() => (
       <VersioningHoc
         v1={<VendorBreadcrumbV1 />}
-        v2={<VendorBreadcrumbV2 />}
-        v3={<VendorBreadcrumbV3 />}
+        v2={<VendorBreadcrumbV2Plus />}
+        v3={<VendorBreadcrumbV2Plus />}
       />
     )),
   },
