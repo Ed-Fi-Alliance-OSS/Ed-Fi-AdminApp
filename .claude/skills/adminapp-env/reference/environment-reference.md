@@ -241,14 +241,21 @@ memcached + pgadmin4 + `edfiadminapp-api` + `edfiadminapp-fe`.
 The v2 and v3 Admin API topologies use different healthcheck paths: v2 is a plain `200` on the
 root, v3 exposes a JSON `/health` endpoint — don't assume they're the same shape.
 
-Also check the v3 topologies' logs for schema errors (see `known-issues.md`'s image-drift entry):
+Also check the v3 topologies' logs for schema errors (see `known-issues.md`'s image-drift entry).
+**Scope to a recent window** (e.g. `--since 5m`) rather than the full log — on a long-running
+container, unscoped `docker logs` can surface old transient noise from container startup (e.g. a
+one-time ODS connection error while sibling containers were still restarting) that looks identical
+to a real recurring problem but isn't. Verified live: an unscoped check on a 17-hour-old container
+surfaced a stale error from that container's original startup; the same check scoped to `--since
+5m` correctly showed nothing:
 
 ```powershell
-docker logs edfiadminapp-odsV7-adminV3-single-adminapi-1 2>&1 | Select-String -Pattern "does not exist","FormatException","Unhandled exception"
-docker logs edfiadminapp-odsV7-adminV3-multi-adminapi-1 2>&1 | Select-String -Pattern "does not exist","FormatException","Unhandled exception"
+docker logs --since 5m edfiadminapp-odsV7-adminV3-single-adminapi-1 2>&1 | Select-String -Pattern "does not exist","FormatException","Unhandled exception"
+docker logs --since 5m edfiadminapp-odsV7-adminV3-multi-adminapi-1 2>&1 | Select-String -Pattern "does not exist","FormatException","Unhandled exception"
 ```
 
-Expect no output.
+Expect no output. If investigating a fresh boot specifically (not a routine health check), drop
+`--since` to see the full history instead.
 
 ## OIDC login verification
 
