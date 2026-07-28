@@ -11,9 +11,14 @@ ODS/API, the Ed-Fi Admin API, Keycloak, Postgres/MSSQL, nginx, and pgAdmin.
 **Ground rules, before anything else:**
 
 - **Ground truth is always live.** Never trust a hardcoded claim about container counts, ports,
-  or env var names from memory — read `compose/*.yml` and `compose/.env` fresh. `reference/
-  environment-reference.md` is a cache of that, not a second source of truth: if validation finds
-  it's drifted from the live files, correct it directly (no confirmation needed).
+  or env var names from memory — read `compose/*.yml` and `compose/.env` fresh.
+  `reference/environment-reference.md` is a cache of that, not a second source of truth: if
+  validation finds it's drifted from the live files, correct it directly (no confirmation needed).
+- **Documented-only tags upgrade on exercise.** Every entry in `reference/environment-reference.md`
+  and `reference/known-issues.md` carries a Verified-live vs. Documented-only tag. When you
+  exercise a path tagged Documented-only and it works, upgrade that entry's tag to Verified-live
+  (corrective-maintenance tier, no confirmation needed). If it fails instead, that's a new
+  known-issue candidate — follow the "When you learn something new" process below.
 - **Never rebuild a container-mode image on your own initiative.** `packages/api`/`packages/fe`
   are baked into `edfiadminapp-api`/`edfiadminapp-fe` at build time — a source edit has no effect
   on running containers until rebuilt. If you notice `packages/api` or `packages/fe` has changes
@@ -28,7 +33,10 @@ ODS/API, the Ed-Fi Admin API, Keycloak, Postgres/MSSQL, nginx, and pgAdmin.
   technical language and move fast, skip explanations and act. Check memory for an existing
   `user`-type note about this before the session starts guessing; if the user's current behavior
   clearly contradicts what's stored, update that memory rather than trusting the stale label
-  forever — this is a running best-guess, not a permanent verdict.
+  forever — this is a running best-guess, not a permanent verdict. If no such memory exists yet,
+  don't just guess and move on: once you've formed a reasonably confident read of this user's
+  expertise/tone within the session, save a new `user`-type memory describing it, so future
+  sessions have something to start from instead of guessing cold every time.
 
 ## Entry-point flow
 
@@ -56,6 +64,10 @@ Unless the user's own request already makes the choice obvious, follow this on i
      `npm run start:fe:dev` in separate terminals, then validate.
    - **Validate + either mode** → run the validation checklist (step 5) against whatever's
      currently running.
+   - **Registering an environment in the Admin App UI** (whenever the user's request is this,
+     regardless of which State/Mode combination is running) → an OAuth client needs to exist
+     against the Admin API first. See `reference/environment-reference.md`'s "OAuth client
+     registration" recipe before walking the user through the UI step.
 
 4. **If validation finds something broken:**
    - Check `reference/known-issues.md` for a matching symptom first — apply its documented fix if
