@@ -60,6 +60,17 @@ describe('AuthenticatedGuard (machine / Bearer path)', () => {
     expect(validateUser).toHaveBeenCalledWith({ clientId: 'entra-app-guid' });
   });
 
+  it('authorizes an Entra v1.0 machine token and looks up by appid', async () => {
+    const { guard, validateUser } = makeGuard({
+      appid: 'entra-v1-app-id',
+      roles: ['login:app'],
+      aud: 'test-audience',
+    });
+
+    await expect(guard.canActivate(makeContext())).resolves.toBe(true);
+    expect(validateUser).toHaveBeenCalledWith({ clientId: 'entra-v1-app-id' });
+  });
+
   it('authorizes an Entra token whose aud is an array', async () => {
     const { guard, validateUser } = makeGuard({
       azp: 'entra-app-guid',

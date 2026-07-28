@@ -14,13 +14,12 @@ import config from 'config';
 import { JWTPayload } from 'jose';
 import { User } from '@edanalytics/models-server';
 
-type Auth0Payload = JWTPayload & {
+type AccessTokenPayload = JWTPayload & {
   aud: string | string[];
   azp?: string;            // Keycloak/Auth0/Entra v2: authorized party (client id)
   appid?: string;          // Entra v1.0 access tokens: client app id
   gty?: string;
   scope?: string;          // Keycloak / Auth0 (space-delimited)
-  scp?: string;            // Entra delegated (space-delimited)
   roles?: string[];        // Entra app-only (client_credentials)
   preferred_username?: string;
   client_id?: string;      // Keycloak (via mapper) / Auth0
@@ -122,7 +121,7 @@ export class AuthenticatedGuard implements CanActivate {
       }
 
       const { data } = verifyResult;
-      const payload = data as Auth0Payload;
+      const payload = data as AccessTokenPayload;
       const username = payload.preferred_username;
 
       // aud may be a string (Keycloak/Auth0/Entra) or an array (some IdPs / jose).
@@ -134,10 +133,10 @@ export class AuthenticatedGuard implements CanActivate {
       const machineClientId = payload.client_id ?? payload.azp ?? payload.appid;
 
       // login:app authorization by IdP convention:
-      //   Keycloak / Auth0 -> scope ; Entra delegated -> scp ; Entra app-only -> roles
+      //   Keycloak / Auth0 -> scope ; Entra app-only -> roles
+      // Entra delegated `scp` is deliberately excluded: only app-only (machine) tokens qualify.
       const grants = new Set<string>([
         ...(payload.scope?.split(' ') ?? []),
-        ...(payload.scp?.split(' ') ?? []),
         ...(payload.roles ?? []),
       ]);
 
