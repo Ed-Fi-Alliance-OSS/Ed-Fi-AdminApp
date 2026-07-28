@@ -227,9 +227,11 @@ Expect every `edfiadminapp-*` container to show `Up ... (healthy)`, except `ngin
 Anything `Restarting`, `Exited`, or `(unhealthy)` for more than ~2 minutes after the last `up -d`
 needs investigation — check `known-issues.md` first.
 
-Don't rely on a hardcoded number here — derive the expected count live:
+Don't rely on a hardcoded number here — derive the expected count live (from `compose/`, like every
+other compose invocation in this file):
 
 ```powershell
+cd compose
 docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --profile postgresql --profile adminapp config --services | Measure-Object
 ```
 
