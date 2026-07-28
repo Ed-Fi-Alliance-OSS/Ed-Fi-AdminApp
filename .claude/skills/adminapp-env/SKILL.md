@@ -56,6 +56,14 @@ Unless the user's own request already makes the choice obvious, follow this on i
      whichever specific values are actually missing. Never re-ask for values already present. Once
      collected, write the missing values into `compose/.env` before proceeding — don't just hold
      them in conversation.
+   - `SQL_BACKUPS_FOLDER` is a path outside this repo, different on every machine — never assume a
+     previously-seen value (e.g. from another user's session or an earlier run) applies here. After
+     the user gives their path, verify the two expected `.sql` files actually exist there (a plain
+     file-existence check, e.g. via Glob/`ls`) before writing it to `.env` — this is expected to
+     trigger a one-time Claude Code permission prompt for that folder on a machine that's never
+     granted it before. That prompt is normal, not a sign anything is broken; once granted it's
+     remembered locally per user (`.claude/settings.local.json`, gitignored — never shared or
+     committed, so this is naturally per-user with no cross-contamination between teammates).
    - Present and populated → proceed to step 2.
 
 2. **Ask, unless the user's phrasing already answered these:**
