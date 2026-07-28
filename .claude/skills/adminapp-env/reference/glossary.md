@@ -34,9 +34,15 @@ Two different things this stack runs, both per "topology" (v1/v2/v3, single/mult
 ## Docker Compose profiles
 
 A way to group services in one Compose file so they only start when explicitly requested. This
-stack uses profiles for two independent choices: `postgresql` vs. `mssql` (which database engine
-backs everything) and `adminapp` (whether the Admin App's own `fe`/`api` run as containers, vs.
-being excluded so they can run locally via `npm` instead).
+stack uses profiles for two independent choices, neither of which affects the ODS/Admin databases:
+`postgresql` vs. `mssql` (which engine backs **the Admin App's own database only**,
+`edfiadminapp-postgres` vs. `edfiadminapp-mssql`, gated in `adminapp-services.yml` — actually
+switching to `mssql` also needs `DB_ENGINE=mssql` in `.env` plus the `-MSSQL` start-script flag)
+and `adminapp` (whether the Admin App's own `fe`/`api` run as containers, vs. being excluded so
+they can run locally via `npm` instead). The per-topology ODS/Admin databases (v2/v3 single/multi,
+v6) are defined in `edfi-services.yml`, which has no profile gating at all — every one of its
+services always starts, and those databases are always Postgres regardless of either profile
+choice above.
 
 ## Why nginx fronts everything
 

@@ -33,8 +33,7 @@ Documented-only path is exercised for the first time and works, upgrade its tag 
 3. **`packages/api/config/local.js`** — copy from `packages/api/config/local.js-edfi` (NOT
    `local-development.js.copyme`, which does not exist in this repo despite older notes
    referencing it).
-4. **`packages/fe/.env`** — copy from a `.env` template in `packages/fe` (NOT
-   `.copyme.env.local`, which does not exist in this checkout either).
+4. **`packages/fe/.env`** — copy from `packages/fe/.copyme.env.local`.
 5. **`compose/.env` → `SQL_BACKUPS_FOLDER`** — must point directly at the folder containing
    `EdFi.Ods.Minimal.Template.sql` / `EdFi.Ods.Populated.Template.sql`, not a parent folder.
 6. Node dependencies: `npm i` at the repo root — only needed for local-dev mode.
@@ -46,8 +45,15 @@ present in `.env`/config files.
 
 **Status: Verified-live for container mode; Documented-only for local-dev mode**
 
-The default Compose profile is `postgresql` (matches Postgres-format `.sql` backups). The `mssql`
-profile needs different `.env` setup — see `compose/readme.md` — and is Documented-only here.
+The default Compose profile is `postgresql` (matches Postgres-format `.sql` backups). This profile
+choice only gates which database engine backs **the Admin App's own datastore**
+(`edfiadminapp-postgres` vs. `edfiadminapp-mssql`, gated in `adminapp-services.yml`) — it does not
+touch the per-topology ODS/Admin databases (v2/v3 single/multi, v6), which always run on Postgres
+regardless of this profile (`edfi-services.yml` has no profile gating at all; every one of its
+services always starts). To actually put the Admin App's own database on SQL Server, two things are
+needed together: `DB_ENGINE=mssql` in `.env` **and** the `-MSSQL` flag on `start-services.ps1`/
+`start-local-dev.ps1` — both already documented in `compose/readme.md`, and Documented-only here
+(not personally verified end-to-end).
 
 **Full container mode** (fe + api run as Docker containers):
 
@@ -201,9 +207,12 @@ docker exec -it edfiadminapp-odsV7-adminV2-single-db-ods-1 psql -U postgres -d E
 Substitute the container name for whichever topology is needed — see `docker ps` for the full
 list.
 
-If `.env`'s DB engine/profile is `mssql` instead of `postgresql` (Documented-only, not personally
-verified), the same structure applies but with SQL Server connection details from `.env`
-(`MSSQL_SA_PASSWORD`, `MSSQL_PORT_EXPOSED`) instead of the Postgres values above.
+If `DB_ENGINE=mssql` + `-MSSQL` is used instead (Documented-only, not personally verified), only
+the Admin App's own database above swaps to SQL Server connection details from `.env`
+(`MSSQL_SA_PASSWORD`, `MSSQL_PORT_EXPOSED`) instead of the Postgres values shown. The per-topology
+ODS/Admin databases (`EdFi_Ods` / `EdFi_Admin` for every topology, described just above) are
+**always Postgres** regardless of this setting — `edfi-services.yml` has no profile gating, so
+those services never switch engines.
 
 ## Container health baseline
 
@@ -218,10 +227,17 @@ Expect every `edfiadminapp-*` container to show `Up ... (healthy)`, except `ngin
 Anything `Restarting`, `Exited`, or `(unhealthy)` for more than ~2 minutes after the last `up -d`
 needs investigation — check `known-issues.md` first.
 
-Container count for the default (`postgresql` + `adminapp` profiles) stack: **32** — 6 `db-ods` +
-6 `db-admin` (v2 single/multi×2, v3 single/multi×2, v6) + 7 `api`/`adminapi` app containers (v2
-single/multi, v3 single/multi, v6 api, v6 adminapi) + keycloak + postgres + nginx + yopass +
-memcached + pgadmin4 + `edfiadminapp-api` + `edfiadminapp-fe`.
+Don't rely on a hardcoded number here — derive the expected count live:
+
+```powershell
+docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --profile postgresql --profile adminapp config --services | Measure-Object
+```
+
+gives the expected service count for the default (`postgresql` + `adminapp` profiles) combination
+— compare its `.Count` against the number of `edfiadminapp-*`/`nginx`/`yopass`/`memcached`/
+`pgadmin4` lines in `docker ps` output. A hardcoded number here has already gone stale once
+(previously documented as 32 with a breakdown that didn't even add up to 32); deriving it live from
+the compose files avoids that class of drift entirely.
 
 ## Endpoint smoke test
 
@@ -272,6 +288,13 @@ Any error on that line (e.g. `certificate has expired`) means the `oidc-1` passp
 never created for the lifetime of that API process — restarting alone won't help until the
 underlying cause is fixed (registration runs once, in the constructor, no retry). See
 `known-issues.md`.
+
+On a long-running container, this grep can return **both** an old error line and a newer success
+line (e.g. an error from before a cert was regenerated, followed by a success line from after the
+next container restart) — the most recent matching line is authoritative, not just whether an
+error appears anywhere in the history. Check timestamps on the matched lines, or scope the query
+with `docker logs --since <window>` (e.g. `--since 10m`) if specifically investigating current
+state rather than the container's whole lifetime.
 
 To verify login end-to-end without a browser:
 

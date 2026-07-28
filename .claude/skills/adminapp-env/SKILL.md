@@ -27,6 +27,14 @@ ODS/API, the Ed-Fi Admin API, Keycloak, Postgres/MSSQL, nginx, and pgAdmin.
 - **Never use unscoped Docker cleanup.** See `reference/known-issues.md`'s scope-safety entry
   before running any reset — this machine may also have the unrelated `ODS-Admin-API` repo's own
   Compose resources.
+- **Always scope log-based error checks to a recent window or the latest occurrence.** When
+  grepping container logs for errors as part of validation (e.g. `Select-String`/`grep` over
+  `docker logs`), scope to a recent time window (e.g. `docker logs --since 5m`) or check only the
+  latest matching occurrence, not just whether an error appears anywhere in the history. A
+  long-lived container's full log can contain old, already-resolved errors (from a prior startup
+  race, an expired cert since regenerated, etc.) that look identical to a current problem —
+  confirmed twice already (the v3 schema-error check, the OIDC registration check; see
+  `reference/environment-reference.md` and `reference/known-issues.md`).
 - **Infer expertise/tone from how the user talks; never ask for it directly.** If they ask
   clarifying "what does X mean" questions or seem new to this stack, explain more (pull concise
   explanations from `reference/glossary.md` rather than inventing them inline). If they use precise
@@ -45,7 +53,9 @@ Unless the user's own request already makes the choice obvious, follow this on i
 1. **Read `compose/.env`.**
    - Missing or missing required values (e.g. `SQL_BACKUPS_FOLDER` unset) → walk through
      `reference/environment-reference.md`'s "One-time setup" section, asking the user only for
-     whichever specific values are actually missing. Never re-ask for values already present.
+     whichever specific values are actually missing. Never re-ask for values already present. Once
+     collected, write the missing values into `compose/.env` before proceeding — don't just hold
+     them in conversation.
    - Present and populated → proceed to step 2.
 
 2. **Ask, unless the user's phrasing already answered these:**
@@ -55,6 +65,10 @@ Unless the user's own request already makes the choice obvious, follow this on i
      `npm run start:*:dev`, hot reload)."
    - If nothing is running yet and the request is genuinely ambiguous, check `docker ps` first —
      only ask if that doesn't resolve the ambiguity.
+   - Separately, if the user wants the Admin App's **own** database on SQL Server instead of
+     Postgres, that's an orthogonal `DB_ENGINE`/`-MSSQL` choice, not part of State/Mode — see the
+     "Starting modes" section of `reference/environment-reference.md` for the mechanics (it does
+     not affect the ODS/Admin databases for any topology, which stay Postgres regardless).
 
 3. **Act on the combination:**
    - **Fresh + Container** → run `reference/environment-reference.md`'s full reset recipe, then

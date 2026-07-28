@@ -105,7 +105,10 @@ so the `oidc-1` passport strategy is never registered for the API process's enti
 `"Unknown authentication strategy"` — that's the literal 404. Confirm via
 `docker logs edfiadminapp-api | Select-String "registering oidc"` and
 `openssl x509 -in compose/ssl/server.crt -noout -dates`. **Not related to a missing Keycloak
-user** — this blocks login before Keycloak is ever reached.
+user** — this blocks login before Keycloak is ever reached. On a container that's been running
+across a cert regeneration, that log grep can surface **both** the old error line and a newer
+success line — the most recent matching line is authoritative, not the mere presence of an error
+somewhere in the history; check timestamps or scope with `docker logs --since <window>`.
 
 **Fix**: regenerate the cert, then restart the two containers that use it:
 
@@ -116,9 +119,12 @@ docker restart nginx edfiadminapp-api
 ```
 
 Confirm via `docker logs edfiadminapp-api | Select-String "Registering OIDC provider"` — expect
-the success line, not the error one. Verified end-to-end afterward using the OIDC login
-verification recipe in `environment-reference.md`. Since the cert is only valid 365 days, **this
-will recur annually** on any long-lived local environment.
+the success line, not the error one. Since a restart doesn't clear prior log lines, if an old error
+line is still present, confirm the **latest** matching line is the success one (e.g. `docker logs
+--since 5m` right after the restart) rather than concluding it's still broken because an error
+appears earlier in the history. Verified end-to-end afterward using the OIDC login verification
+recipe in `environment-reference.md`. Since the cert is only valid 365 days, **this will recur
+annually** on any long-lived local environment.
 
 ## `generate-certificate.sh` silently fails, cert dates unchanged
 
@@ -166,4 +172,7 @@ Deep peer-dependency conflict. Fix: `npm install --legacy-peer-deps`.
   (`environment-reference.md`'s access credentials section).
 - **Login was working, now 404s again after some time**: check the SSL certificate's expiration
   first (`openssl x509 -in compose/ssl/server.crt -noout -dates`) before assuming something else
-  broke — see the cert-expiry entry above.
+  broke — see the cert-expiry entry above. If also checking `edfiadminapp-api`'s logs for the OIDC
+  registration line, remember a long-lived container's logs can hold both an old error and a newer
+  success line — trust the most recent matching line (check timestamps, or scope with `docker logs
+  --since <window>`), not just whether an error is present anywhere in the history.
