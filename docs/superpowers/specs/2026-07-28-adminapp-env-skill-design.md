@@ -103,6 +103,21 @@ reset must explicitly target only `edfiadminapp`-prefixed resources, `nginx`, an
 `edfiadminapp/db-ods:local` — never touch anything named `adminapi`, `ed-fi-*-adminapi`,
 `vol-db-admin-adminapi`, or `singletenant-*`.
 
+## Source changes in container mode
+
+Local-dev mode has hot reload (`npm run start:*:dev`) — edits take effect immediately. Full
+container mode does not: `packages/api`/`packages/fe` are baked into the `edfiadminapp-api`/
+`edfiadminapp-fe` images at build time (`npm ci` + Nx production build inside the Dockerfile), so
+a source edit has no effect on the running containers until they're rebuilt.
+
+The skill must understand this distinction (e.g. recognize, during validate, that `packages/api`
+or `packages/fe` has uncommitted or otherwise newer changes than the running image's build time)
+but must **not** rebuild on its own initiative. Rebuilding is only ever done when the user
+explicitly asks for it (e.g. "rebuild the api with my changes") — surfacing "your source has
+changed since this image was built" as an observation is fine and encouraged; auto-rebuilding on
+every edit is not, since it would be slow, surprising, and disruptive to whatever the user is
+mid-way through.
+
 ## Knowledge base write rules
 
 Two tiers, deliberately different friction levels:
@@ -191,6 +206,13 @@ skill, found immediately rather than on someone's next cold start.
   keep exactly one source of truth per operation.
 - **Splitting into multiple skills** (setup/validate/fix) — rejected; all phases share the same
   knowledge base and splitting risks Claude picking the wrong skill for an ambiguous request.
+- **A custom subagent** (e.g. dispatching the whole "investigate/fix" flow to a background agent
+  via the Agent tool) — rejected for the same reason inline debugging was chosen over delegation
+  in the entry-point flow: a subagent's work isn't visible turn-by-turn, so the user can't
+  interject on a risky step before it runs. That mattered concretely during the investigation
+  behind this design, when the user stopped an unscoped `docker volume ls`/volume-removal command
+  before it could delete unrelated projects' data. A skill running inline preserves that
+  supervision; a subagent would trade it away for no clear benefit here.
 
 Note: the `mssql` profile and local-dev mode are both fully in-scope *flows* (the skill must
 support choosing them) — they are simply tagged documented-only in the migrated content, per the
