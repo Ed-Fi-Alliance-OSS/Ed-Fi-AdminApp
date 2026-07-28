@@ -1,18 +1,18 @@
 import { HStack } from '@chakra-ui/react';
 import { TableRowActions } from '@edanalytics/common-ui';
-import { GetVendorDtoV2 } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 
 import { useQuery } from '@tanstack/react-query';
-import { vendorQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { VendorLinkV2 } from '../../routes';
 import { useVendorActions } from './useVendorActions';
+import { VendorEntity, useVendorConfig } from './vendorConfig';
 
-export const NameCell = (info: CellContext<GetVendorDtoV2, unknown>) => {
+export const NameCell = (info: CellContext<VendorEntity, unknown>) => {
   const { edfiTenant, teamId, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
   const vendors = useQuery(
-    vendorQueriesV2.getAll({
+    queries.getAll({
       teamId,
       edfiTenant,
     })

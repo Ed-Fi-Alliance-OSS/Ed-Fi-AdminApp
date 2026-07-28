@@ -229,4 +229,147 @@ describe('AdminApiServiceV3', () => {
       expect(result).toBeUndefined();
     });
   });
+
+  describe('getAdminApiClientForEnvironment', () => {
+    const buildEnv = (tenants: Record<string, unknown>): SbEnvironment =>
+      ({
+        id: 1,
+        name: 'Test Environment',
+        adminApiUrl: 'https://api.test.com',
+        configPublic: { version: 'v3', values: { tenants } } as any,
+      } as SbEnvironment);
+
+    it('prefers the "default" tenant when available', () => {
+      const environment = buildEnv({ 'tenant-a': {}, default: {} });
+      const usingEnvSpy = jest
+        .spyOn(service as any, 'getAdminApiClientUsingEnv')
+        .mockReturnValue('client' as any);
+
+      const result = service.getAdminApiClientForEnvironment(environment);
+
+      expect(usingEnvSpy).toHaveBeenCalledWith(environment, undefined, 'default');
+      expect(result).toBe('client');
+    });
+
+    it('falls back to the first available tenant when "default" is absent', () => {
+      const environment = buildEnv({ 'tenant-a': {}, 'tenant-b': {} });
+      const usingEnvSpy = jest
+        .spyOn(service as any, 'getAdminApiClientUsingEnv')
+        .mockReturnValue('client' as any);
+
+      service.getAdminApiClientForEnvironment(environment);
+
+      expect(usingEnvSpy).toHaveBeenCalledWith(environment, undefined, 'tenant-a');
+    });
+
+    it('passes undefined tenantName when no tenants are configured', () => {
+      const environment = buildEnv({});
+      const usingEnvSpy = jest
+        .spyOn(service as any, 'getAdminApiClientUsingEnv')
+        .mockReturnValue('client' as any);
+
+      service.getAdminApiClientForEnvironment(environment);
+
+      expect(usingEnvSpy).toHaveBeenCalledWith(environment, undefined, undefined);
+    });
+  });
+
+  describe('triggerEdOrgRefresh', () => {
+    const env = {
+      id: 1,
+      name: 'Test Environment',
+      adminApiUrl: 'https://api.test.com',
+      configPublic: { version: 'v3', values: { tenants: { default: {} } } } as any,
+    } as SbEnvironment;
+
+    it('should return the jobId when the refresh endpoint succeeds', async () => {
+      const mockClient = { post: jest.fn().mockResolvedValue({ jobId: 'job-abc-123' }) };
+      const getClientSpy = jest
+        .spyOn(service, 'getAdminApiClientForEnvironment')
+        .mockReturnValue(mockClient as any);
+
+      const result = await service.triggerEdOrgRefresh(env);
+
+      expect(getClientSpy).toHaveBeenCalledWith(env);
+      expect(mockClient.post).toHaveBeenCalledWith('dataStores/edOrgs/refresh');
+      expect(result).toBe('job-abc-123');
+    });
+
+    it('should return null and log a warning when the response has no jobId', async () => {
+      const mockClient = { post: jest.fn().mockResolvedValue({}) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
+
+      const result = await service.triggerEdOrgRefresh(env);
+
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('missing jobId'));
+    });
+
+    it('should return null and log a warning when the Admin API call throws', async () => {
+      const mockClient = { post: jest.fn().mockRejectedValue(new Error('Network error')) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
+
+      const result = await service.triggerEdOrgRefresh(env);
+
+      expect(result).toBeNull();
+      expect(warnSpy).toHaveBeenCalledWith(
+        expect.stringContaining('Failed to trigger EdOrg refresh')
+      );
+    });
+  });
+
+  describe('pollJobStatus', () => {
+    const env = {
+      id: 1,
+      name: 'Test Environment',
+      adminApiUrl: 'https://api.test.com',
+      configPublic: { version: 'v3', values: { tenants: { default: {} } } } as any,
+    } as SbEnvironment;
+    const jobId = 'job-abc-123';
+
+    it('should return "completed" when the job completes on the first poll', async () => {
+      const mockClient = { get: jest.fn().mockResolvedValue({ status: 'completed' }) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+
+      const result = await service.pollJobStatus(env, jobId);
+
+      expect(mockClient.get).toHaveBeenCalledWith(`jobs/${jobId}`);
+      expect(result).toBe('completed');
+    });
+
+    it('should return "failed" when the Admin API reports the job failed', async () => {
+      const mockClient = { get: jest.fn().mockResolvedValue({ status: 'failed' }) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+
+      const result = await service.pollJobStatus(env, jobId);
+
+      expect(result).toBe('failed');
+    });
+
+    it('should return "timeout" after exhausting max poll attempts', async () => {
+      // testing.js sets ADMINAPI_REFRESH_POLL_ATTEMPTS to 3, so after 3 "running" responses it times out
+      const mockClient = { get: jest.fn().mockResolvedValue({ status: 'running' }) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+      const warnSpy = jest.spyOn((service as any).logger, 'warn');
+
+      const result = await service.pollJobStatus(env, jobId);
+
+      expect(mockClient.get).toHaveBeenCalledTimes(3);
+      expect(result).toBe('timeout');
+      expect(warnSpy).toHaveBeenCalledWith(expect.stringContaining('did not complete'));
+    });
+
+    it('should return "timeout" and log an error when the poll HTTP call throws', async () => {
+      const mockClient = { get: jest.fn().mockRejectedValue(new Error('Connection refused')) };
+      jest.spyOn(service, 'getAdminApiClientForEnvironment').mockReturnValue(mockClient as any);
+      const errorSpy = jest.spyOn((service as any).logger, 'error');
+
+      const result = await service.pollJobStatus(env, jobId);
+
+      expect(result).toBe('timeout');
+      expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Poll attempt'));
+    });
+  });
 });

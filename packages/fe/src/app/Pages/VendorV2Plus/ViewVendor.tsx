@@ -7,16 +7,17 @@ import {
   CopyButton,
 } from '@edanalytics/common-ui';
 import { useParams } from 'react-router-dom';
-import { vendorQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useVendorConfig } from './vendorConfig';
 
 export const ViewVendor = () => {
   const params = useParams() as {
     vendorId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
   const vendor = useQuery(
-    vendorQueriesV2.getOne({
+    queries.getOne({
       teamId,
       id: params.vendorId,
       edfiTenant,

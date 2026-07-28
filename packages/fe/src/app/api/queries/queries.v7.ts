@@ -9,6 +9,7 @@ import {
   GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
   GetVendorDtoV2,
+  GetVendorDtoV3,
   Id,
   PostApiClientDtoV2,
   PostApiClientResponseDtoV2,
@@ -18,11 +19,13 @@ import {
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
+  PostVendorDtoV3,
   PutApiClientDtoV2,
   PutApplicationFormDtoV2,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
   PutVendorDtoV2,
+  PutVendorDtoV3,
 } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
@@ -226,6 +229,19 @@ export const vendorQueriesV2 = new EntityQueryBuilder({
   .getAll('getAll', { ResDto: GetVendorDtoV2 })
   .put('put', { ResDto: GetVendorDtoV2, ReqDto: PutVendorDtoV2 })
   .post('post', { ResDto: Id, ReqDto: PostVendorDtoV2 })
+  .delete('delete')
+  .build();
+
+export const vendorQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Vendor',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getOne('getOne', { ResDto: GetVendorDtoV3 })
+  .getAll('getAll', { ResDto: GetVendorDtoV3 })
+  .put('put', { ResDto: GetVendorDtoV3, ReqDto: PutVendorDtoV3 })
+  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV3 })
   .delete('delete')
   .build();
 
