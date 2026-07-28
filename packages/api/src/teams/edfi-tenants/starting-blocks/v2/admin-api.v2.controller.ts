@@ -12,6 +12,7 @@ import {
   PostApplicationFormDtoV2,
   PutApiClientDtoV2,
   PostClaimsetDtoV2,
+  PostDbInstanceDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
   PutApplicationDtoV2,
@@ -33,6 +34,7 @@ import {
   Body,
   CallHandler,
   Controller,
+  Inject,
   Delete,
   ExecutionContext,
   ForbiddenException,
@@ -76,6 +78,8 @@ import {
 import { AdminApiV1xExceptionFilter } from '../v1/admin-api-v1x-exception.filter';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
 import config from 'config';
 
 @Injectable()
@@ -102,8 +106,9 @@ export class AdminApiControllerV2 {
     private readonly integrationAppsTeamService: IntegrationAppsTeamService,
     private readonly sbService: AdminApiServiceV2,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
-    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>
-  ) { }
+    @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
+    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService
+  ) {}
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
@@ -1001,7 +1006,15 @@ export class AdminApiControllerV2 {
     try {
       return await this.sbService.copyClaimset(edfiTenant, claimset);
     } catch (PostError: unknown) {
-      Logger.error(PostError);
+      Logger.error(
+         'Admin API copyClaimset failed: ' +
+           (axios.isAxiosError(PostError)
+             ? PostError.message +
+               ' (status ' +
+               (PostError.response?.status ?? 'unknown') +
+               ')'
+             : String(PostError))
+       );
       if (axios.isAxiosError(PostError)) {
         if (isIAdminApiValidationError(PostError.response?.data)) {
           if (PostError.response.data.errors?.Name?.[0]?.includes('this name already exists')) {
@@ -1157,6 +1170,131 @@ export class AdminApiControllerV2 {
     }
   }
 
+  @Post('dbinstances')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:create-ods',
+    subject: {
+      id: '__filtered__',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async postDbInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() dbInstance: PostDbInstanceDtoV2
+  ) {
+    try {
+      const createdDbInstance = await this.sbService.postDbInstance(edfiTenant, dbInstance);
+      const createdOds = await this.odsRepository.save({
+        edfiTenantId: edfiTenant.id,
+        sbEnvironmentId: edfiTenant.sbEnvironmentId,
+        odsInstanceId: createdDbInstance.id,
+        dbName: dbInstance.name,
+        odsInstanceName: dbInstance.name,
+        instanceType: dbInstance.databaseTemplate,
+        databaseTemplate: dbInstance.databaseTemplate,
+        status: 'PendingCreate',
+      });
+
+      await this.jobQueue.send(
+        ENV_SYNC_CHNL,
+        { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+        { expireInHours: 2 }
+      );
+
+      return { id: createdOds.id };
+    } catch (PostError: unknown) {
+      Logger.error(
+        'Admin API postDbInstance failed: ' +
+          (axios.isAxiosError(PostError)
+            ? PostError.message +
+              ' (status ' +
+              (PostError.response?.status ?? 'unknown') +
+              ')'
+            : String(PostError))
+      );
+      if (
+        axios.isAxiosError(PostError) &&
+        isIAdminApiValidationError(PostError.response?.data) &&
+        Object.keys(PostError.response.data.errors).length > 0
+      ) {
+        const [apiField, apiMessages] = Object.entries(PostError.response.data.errors)[0];
+        const apiMessage = apiMessages[0];
+        if (apiField.toLowerCase() === 'name') {
+          throw new ValidationHttpException({
+            field: 'name',
+            message: apiMessage,
+          });
+        }
+        if (apiField.toLowerCase() === 'databasetemplate') {
+          throw new ValidationHttpException({
+            field: 'databaseTemplate',
+            message: apiMessage,
+          });
+        }
+        throw new CustomHttpException(
+          {
+            title: 'Validation error',
+            type: 'Error',
+            data: PostError.response.data,
+          },
+          400
+        );
+      }
+      throw PostError;
+    }
+  }
+
+  @Delete('dbinstances/:dbInstanceId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:delete-ods',
+    subject: {
+      id: 'dbInstanceId',
+      edfiTenantId: 'edfiTenantId',
+      teamId: 'teamId',
+    },
+  })
+  async deleteDbInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('dbInstanceId', new ParseIntPipe()) dbInstanceId: number
+  ) {
+    if (dbInstanceId <= 0) {
+      throw new BadRequestException('dbInstanceId must be greater than zero');
+    }
+
+    const localOds = await this.odsRepository.findOneBy({
+      edfiTenantId: edfiTenant.id,
+      dbInstanceId,
+    });
+
+    if (!localOds) {
+      throw new NotFoundException('ODS not found for dbInstanceId');
+    }
+
+    if (localOds.status !== 'Created') {
+      throw new BadRequestException("ODS must be in 'Created' status to delete by dbInstanceId");
+    }
+
+    await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
+
+    await this.odsRepository.save({
+      ...localOds,
+      status: 'PendingDelete',
+    });
+
+    await this.jobQueue.send(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+
+    return undefined;
+  }
+
   @Post('profiles')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.profile:create',
@@ -1174,13 +1312,44 @@ export class AdminApiControllerV2 {
   ) {
     try {
       return await this.sbService.postProfile(edfiTenant, profile);
-    } catch (error) {
-      if (error.response.data.title === 'Validation failed') {
-        const errorDefiniton = error.response.data.errors['Definition'][0];
-        throw new HttpException(`Invalid XML format for definition: ${errorDefiniton}`, 500);
-      } else {
-        throw new HttpException('Error creating profile', 500);
+    } catch (PostError: unknown) {
+      Logger.error(
+         'Admin API postProfile failed: ' +
+           (axios.isAxiosError(PostError)
+             ? PostError.message +
+               ' (status ' +
+               (PostError.response?.status ?? 'unknown') +
+               ')'
+             : String(PostError))
+       );
+      if (axios.isAxiosError(PostError)) {
+        if (isIAdminApiValidationError(PostError.response?.data)) {
+          if (PostError.response.data.errors?.Name?.[0]?.includes('this name already exists')) {
+            throw new ValidationHttpException({
+              field: 'name',
+              message: 'A profile with this name already exists. Please choose a different name.',
+            });
+          } else if (PostError.response.data.errors?.Definition?.[0]?.includes('List of possible elements expected:')) {
+            const errorDefinition = PostError.response.data.errors['Definition'][0];
+            throw new ValidationHttpException(
+              {
+                field: 'definition',
+                message: `Invalid XML format for definition: ${errorDefinition}`,
+              }
+            );
+          } else {
+            throw new CustomHttpException(
+              {
+                title: 'Validation error',
+                type: 'Error',
+                data: PostError.response.data,
+              },
+              400
+            );
+          }
+        }
       }
+      throw PostError;
     }
   }
 

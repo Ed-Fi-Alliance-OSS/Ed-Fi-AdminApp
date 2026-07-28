@@ -10,6 +10,7 @@ import {
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
   PostClaimsetResourceClaimActionsDtoV2,
+  PostDbInstanceDtoV2,
   PostOdsInstanceContextDtoV2,
   PostOdsInstanceDerivativeDtoV2,
   PostOdsInstanceDtoV2,
@@ -807,6 +808,36 @@ export class AdminApiServiceV2 {
     );
   }
 
+  async postDbInstance(edfiTenant: EdfiTenant, dbInstance: PostDbInstanceDtoV2) {
+    const { headers } = await this.getAdminApiClient(edfiTenant, true)
+      .post('dbInstances', dbInstance)
+      .catch((err) => {
+        this.logger.error(`Error creating dbInstance for tenant ${edfiTenant.id}: ${err}`);
+        throw err;
+      });
+    const location = headers?.location;
+    const match = typeof location === 'string' ? location.match(/\d+$/) : null;
+    if (!match) {
+      this.logger.error(
+        `Error creating dbInstance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
+      );
+      throw new Error('Admin API did not return a Location header containing the created dbInstance id.');
+    }
+    return { id: Number(match[0]) };
+  }
+
+  async deleteDbInstance(edfiTenant: EdfiTenant, dbInstanceId: number) {
+    await this.getAdminApiClient(edfiTenant, true)
+      .delete(`dbInstances/${dbInstanceId}`)
+      .catch((err) => {
+        this.logger.error(
+          `Error deleting dbInstance ${dbInstanceId} for tenant ${edfiTenant.id}: ${err}`
+        );
+        throw err;
+      });
+    return undefined;
+  }
+
   async getOdsInstance(edfiTenant: EdfiTenant, odsInstanceId: number) {
     return toGetOdsInstanceDetailDtoV2(
       (await this.getAdminApiClient(edfiTenant)
@@ -1322,7 +1353,11 @@ export class AdminApiServiceV2 {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.id ?? null,
                   name: instance.name || 'Unknown ODS Instance',
+                  dbInstanceId: instance.dbInstanceId ?? null,
                   instanceType: instance.instanceType,
+                  status: instance.status ?? null,
+                  databaseTemplate: instance.databaseTemplate ?? null,
+                  databaseName: instance.databaseName ?? null,
                   edOrgs: instance.educationOrganizations?.map((edOrg: any) => {
                     const educationOrg: EducationOrganizationDto = {
                       instanceId: instance.id, // Use ODS instance ID

@@ -131,20 +131,6 @@ function Invoke-SeedDataOnly {
   Write-Host "Data seeded successfully." -ForegroundColor Green
 }
 
-function Invoke-InsecureRestMethod {
-  param(
-    [Parameter(Mandatory = $true)]
-    [hashtable]$Parameters
-  )
-
-  if ($PSVersionTable.PSVersion.Major -ge 7) {
-    return Invoke-RestMethod @Parameters -SkipCertificateCheck
-  }
-
-  [System.Net.ServicePointManager]::ServerCertificateValidationCallback = { $true }
-  return Invoke-RestMethod @Parameters
-}
-
 Set-TeamId
 
 # Step 1: Start docker compose services if requested
@@ -162,62 +148,16 @@ if ($BootstrapAuth) {
   Write-Host "Keycloak bootstrap complete." -ForegroundColor Green
 }
 
-# Step 3: Set OIDC defaults if not already set
-if (-not $env:OIDC_ISSUER) {
-  $env:OIDC_ISSUER = 'https://localhost/auth/realms/edfi'
-}
-if (-not $env:OIDC_CLIENT_ID) {
-  $env:OIDC_CLIENT_ID = 'edfiadminapp-machine'
-}
-if (-not $env:OIDC_CLIENT_SECRET) {
-  $env:OIDC_CLIENT_SECRET = 'edfi-machine-secret-456'
-}
-if (-not $env:OIDC_USERNAME) {
-  $env:OIDC_USERNAME = 'edfi-adminapp-test'
-}
-if (-not $env:OIDC_PASSWORD) {
-  $env:OIDC_PASSWORD = '123'
-}
-
-# Step 4: Acquire access token
-Write-Host "Acquiring access token from $($env:OIDC_ISSUER)..." -ForegroundColor Cyan
-$tokenEndpoint = "$($env:OIDC_ISSUER.TrimEnd('/'))/protocol/openid-connect/token"
-
-$body = if ($GrantType -eq 'client_credentials') {
-  @{
-    grant_type = 'client_credentials'
-    client_id = $env:OIDC_CLIENT_ID
-    client_secret = $env:OIDC_CLIENT_SECRET
-  }
-} else {
-  @{
-    grant_type = 'password'
-    client_id = $env:OIDC_CLIENT_ID
-    client_secret = $env:OIDC_CLIENT_SECRET
-    username = $env:OIDC_USERNAME
-    password = $env:OIDC_PASSWORD
-  }
-}
-
+# Step 3-4: Acquire access token
 try {
-  $tokenResponse = Invoke-InsecureRestMethod @{
-    Method = 'Post'
-    Uri = $tokenEndpoint
-    Body = $body
-    ContentType = 'application/x-www-form-urlencoded'
-    ErrorAction = 'Stop'
-  }
-  $token = $tokenResponse.access_token
-  if (-not $token) { throw 'No access token in response.' }
-  $env:ACCESS_TOKEN = $token
-  Write-Host "Token acquired successfully with $GrantType grant." -ForegroundColor Green
+  $env:ACCESS_TOKEN = & (Join-Path $PSScriptRoot '..\helpers\get-bruno-token.ps1') -Env $Env -GrantType $GrantType -NoFileWrite
 } catch {
   Write-Host "Failed to acquire token: $_" -ForegroundColor Red
   Write-Host "Proceeding without token. Tests may fail if authentication is required." -ForegroundColor Yellow
 }
 
 # Step 5: Build Bruno command with filters
-$workspacePath = Resolve-Path ('tests/api')
+$workspacePath = Resolve-Path (Join-Path $PSScriptRoot '..\..\tests\api')
 $targetPath = '.'
 $runRecursive = $true
 $isAuthRequest = $false

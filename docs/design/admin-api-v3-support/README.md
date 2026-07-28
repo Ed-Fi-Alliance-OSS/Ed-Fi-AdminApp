@@ -77,7 +77,7 @@ The Admin App supports both **V1** (legacy) and **V2** (current) specifications 
 
 ## V3 Synchronization Enablement
 
-[AC-524](https://edfi.atlassian.net/browse/AC-526) `Admin App synchronizes environment created on a V3 specification`
+[AC-526](https://edfi.atlassian.net/browse/AC-526) `Admin App synchronizes environment created on a V3 specification`
 
 - Extend the synchronization flow to recognize and process V3 environments as a first-class version.
 - Evolve the sync orchestration boundaries so V3-specific processing can run within the existing job-driven model.

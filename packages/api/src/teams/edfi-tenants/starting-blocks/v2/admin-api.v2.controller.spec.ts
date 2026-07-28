@@ -1,7 +1,9 @@
 import 'reflect-metadata';
-import { BadRequestException, ForbiddenException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
+import { CustomHttpException, ValidationHttpException } from '../../../../utils';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
 
 describe('AdminApiControllerV2 - exportClaimset', () => {
   let controller: AdminApiControllerV2;
@@ -9,6 +11,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
 
   const mockEdfiTenant: any = {
     id: 1,
+    sbEnvironmentId: 2,
     sbEnvironment: { envLabel: 'Test Env' },
   };
 
@@ -22,6 +25,7 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
     controller = new AdminApiControllerV2(
       null as any,
       mockSbService as any,
+      null as any,
       null as any,
       null as any
     );
@@ -113,5 +117,358 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
       controller.exportClaimset(1, 1, mockEdfiTenant, ['1', 'abc', '3'], validIds)
     ).rejects.toThrow(new BadRequestException('Invalid claimset ID: abc'));
     expect(mockSbService.exportClaimset).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminApiControllerV2 - postProfile', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { postProfile: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  const mockProfile: any = { name: 'Test Profile', definition: '<Profile />' };
+
+  const makeAxiosError = (data: unknown) => ({
+    isAxiosError: true,
+    message: 'Request failed with status code 400',
+    response: { status: 400, data },
+  });
+
+  beforeEach(() => {
+    mockSbService = {
+      postProfile: jest.fn(),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      null as any,
+      null as any
+    );
+  });
+
+  it('throws ValidationHttpException for a duplicate profile name', async () => {
+    mockSbService.postProfile.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Name: ['this name already exists'] },
+      })
+    );
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'name',
+        message: 'A profile with this name already exists. Please choose a different name.',
+      })
+    );
+  });
+
+  it('throws ValidationHttpException for an invalid XML definition', async () => {
+    const definitionError = 'List of possible elements expected: Foo.';
+    mockSbService.postProfile.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Definition: [definitionError] },
+      })
+    );
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'definition',
+        message: `Invalid XML format for definition: ${definitionError}`,
+      })
+    );
+  });
+
+  it('throws CustomHttpException for a generic validation error', async () => {
+    const errorData = {
+      title: 'Validation failed',
+      status: 400,
+      errors: { Other: ['something else went wrong'] },
+    };
+    mockSbService.postProfile.mockRejectedValue(makeAxiosError(errorData));
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      new CustomHttpException(
+        {
+          title: 'Validation error',
+          type: 'Error',
+          data: errorData,
+        },
+        400
+      )
+    );
+  });
+
+  it('rethrows the original error when it is not an axios validation error', async () => {
+    const otherError = new Error('boom');
+    mockSbService.postProfile.mockRejectedValue(otherError);
+
+    await expect(controller.postProfile(1, 1, mockEdfiTenant, mockProfile)).rejects.toThrow(
+      otherError
+    );
+  });
+});
+
+describe('AdminApiControllerV2 - postDbInstance', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { postDbInstance: jest.Mock };
+  let mockOdsRepository: { save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  const mockDbInstance: any = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+
+  const makeAxiosError = (data: unknown) => ({
+    isAxiosError: true,
+    message: 'Request failed with status code 400',
+    response: { status: 400, data },
+  });
+
+  beforeEach(() => {
+    mockSbService = {
+      postDbInstance: jest.fn(),
+    };
+    mockOdsRepository = {
+      save: jest.fn(),
+    };
+    mockJobQueue = {
+      send: jest.fn(),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      mockOdsRepository as any,
+      mockJobQueue as any
+    );
+  });
+
+  it('creates local ODS row and enqueues sync after dbInstance creation', async () => {
+    mockSbService.postDbInstance.mockResolvedValue({ id: 55 });
+    mockOdsRepository.save.mockResolvedValue({ id: 901 });
+    mockJobQueue.send.mockResolvedValue('job-123');
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).resolves.toEqual({
+      id: 901,
+    });
+    expect(mockSbService.postDbInstance).toHaveBeenCalledWith(mockEdfiTenant, mockDbInstance);
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      sbEnvironmentId: mockEdfiTenant.sbEnvironmentId,
+      odsInstanceId: 55,
+      dbName: mockDbInstance.name,
+      odsInstanceName: mockDbInstance.name,
+      instanceType: mockDbInstance.databaseTemplate,
+      databaseTemplate: mockDbInstance.databaseTemplate,
+      status: 'PendingCreate',
+    });
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+  });
+
+  it('throws ValidationHttpException for name validation errors', async () => {
+    mockSbService.postDbInstance.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { Name: ['name is required'] },
+      })
+    );
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'name',
+        message: 'name is required',
+      })
+    );
+  });
+
+  it('throws ValidationHttpException for databaseTemplate validation errors', async () => {
+    mockSbService.postDbInstance.mockRejectedValue(
+      makeAxiosError({
+        title: 'Validation failed',
+        status: 400,
+        errors: { DatabaseTemplate: ['database template is required'] },
+      })
+    );
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'databaseTemplate',
+        message: 'database template is required',
+      })
+    );
+  });
+
+  it('throws CustomHttpException for other validation errors', async () => {
+    const errorData = {
+      title: 'Validation failed',
+      status: 400,
+      errors: { Other: ['something else went wrong'] },
+    };
+    mockSbService.postDbInstance.mockRejectedValue(makeAxiosError(errorData));
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      new CustomHttpException(
+        {
+          title: 'Validation error',
+          type: 'Error',
+          data: errorData,
+        },
+        400
+      )
+    );
+  });
+
+  it('rethrows non-validation errors', async () => {
+    const otherError = new Error('boom');
+    mockSbService.postDbInstance.mockRejectedValue(otherError);
+
+    await expect(controller.postDbInstance(1, 1, mockEdfiTenant, mockDbInstance)).rejects.toThrow(
+      otherError
+    );
+  });
+});
+
+describe('AdminApiControllerV2 - deleteDbInstance', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { deleteDbInstance: jest.Mock };
+  let mockOdsRepository: { findOneBy: jest.Mock; save: jest.Mock };
+  let mockJobQueue: { send: jest.Mock };
+
+  const mockEdfiTenant: any = {
+    id: 1,
+    sbEnvironmentId: 2,
+    sbEnvironment: { envLabel: 'Test Env' },
+  };
+
+  beforeEach(() => {
+    mockSbService = {
+      deleteDbInstance: jest.fn().mockResolvedValue(undefined),
+    };
+    mockOdsRepository = {
+      findOneBy: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'Created',
+      }),
+      save: jest.fn().mockResolvedValue({
+        id: 901,
+        dbInstanceId: 55,
+        status: 'PendingDelete',
+      }),
+    };
+    mockJobQueue = {
+      send: jest.fn().mockResolvedValue('job-123'),
+    };
+    controller = new AdminApiControllerV2(
+      null as any,
+      mockSbService as any,
+      null as any,
+      mockOdsRepository as any,
+      mockJobQueue as any
+    );
+  });
+
+  it('finds local ODS, calls sbService delete, sets PendingDelete, and enqueues sync', async () => {
+    const dbInstanceId = 55;
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).resolves.toBeUndefined();
+
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockOdsRepository.save).toHaveBeenCalledWith({
+      id: 901,
+      dbInstanceId: 55,
+      status: 'PendingDelete',
+    });
+    expect(mockJobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: mockEdfiTenant.sbEnvironmentId },
+      { expireInHours: 2 }
+    );
+    expect(mockSbService.deleteDbInstance.mock.invocationCallOrder[0]).toBeLessThan(
+      mockOdsRepository.save.mock.invocationCallOrder[0]
+    );
+    expect(mockOdsRepository.save.mock.invocationCallOrder[0]).toBeLessThan(
+      mockJobQueue.send.mock.invocationCallOrder[0]
+    );
+  });
+
+  it("throws BadRequestException when the local ODS is not in 'Created' status", async () => {
+    const dbInstanceId = 55;
+    mockOdsRepository.findOneBy.mockResolvedValue({
+      id: 901,
+      dbInstanceId,
+      status: 'PendingDelete',
+    });
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      new BadRequestException("ODS must be in 'Created' status to delete by dbInstanceId")
+    );
+
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('throws BadRequestException when dbInstanceId is less than or equal to zero', async () => {
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, 0)).rejects.toThrow(
+      new BadRequestException('dbInstanceId must be greater than zero')
+    );
+    expect(mockOdsRepository.findOneBy).not.toHaveBeenCalled();
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('throws NotFoundException when local ODS is not found', async () => {
+    const dbInstanceId = 55;
+    mockOdsRepository.findOneBy.mockResolvedValue(null);
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      new NotFoundException('ODS not found for dbInstanceId')
+    );
+    expect(mockOdsRepository.findOneBy).toHaveBeenCalledWith({
+      edfiTenantId: mockEdfiTenant.id,
+      dbInstanceId,
+    });
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockSbService.deleteDbInstance).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
+  });
+
+  it('does not set PendingDelete or enqueue sync when sbService delete fails', async () => {
+    const dbInstanceId = 55;
+    const deleteError = new Error('delete failed');
+    mockSbService.deleteDbInstance.mockRejectedValue(deleteError);
+    mockOdsRepository.findOneBy.mockResolvedValue({
+      id: 901,
+      dbInstanceId,
+      status: 'Created',
+    });
+
+    await expect(controller.deleteDbInstance(1, 1, mockEdfiTenant, dbInstanceId)).rejects.toThrow(
+      deleteError
+    );
+    expect(mockSbService.deleteDbInstance).toHaveBeenCalledWith(mockEdfiTenant, dbInstanceId);
+    expect(mockOdsRepository.save).not.toHaveBeenCalled();
+    expect(mockJobQueue.send).not.toHaveBeenCalled();
   });
 });

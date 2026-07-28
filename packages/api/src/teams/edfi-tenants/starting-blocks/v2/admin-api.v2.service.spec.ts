@@ -81,6 +81,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
             {
               id: 1,
               name: 'ODS One',
+              dbInstanceId: 101,
               instanceType: 'Production',
               educationOrganizations: [
                 {
@@ -104,6 +105,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
             {
               id: 2,
               name: 'ODS Two',
+              dbInstanceId: null,
               instanceType: 'Test',
               educationOrganizations: [
                 {
@@ -172,6 +174,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(result[0].odsInstances![0]).toMatchObject({
         id: 1,
         name: 'ODS One',
+        dbInstanceId: 101,
         instanceType: 'Production',
       });
       expect(result[0].odsInstances![0].edOrgs).toHaveLength(1);
@@ -192,6 +195,7 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       });
       expect(result[1].odsInstances).toHaveLength(1);
       expect(result[1].odsInstances![0].id).toBe(2);
+      expect(result[1].odsInstances![0].dbInstanceId).toBeNull();
       expect(result[1].odsInstances![0].edOrgs).toHaveLength(1);
       expect(result[1].odsInstances![0].edOrgs![0]).toMatchObject({
         instanceId: 2,
@@ -888,6 +892,85 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(logSpy).toHaveBeenCalledWith(
         expect.stringContaining('Successfully retrieved 1 Ed-Orgs from 1 ODS instance(s) for tenant test-tenant')
       );
+    });
+  });
+
+  describe('postDbInstance', () => {
+    it('posts dbInstances payload and returns id from location header', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: '/v2/dbinstances/123' },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      const result = await service.postDbInstance({ id: 1 } as any, payload as any);
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+      expect(result).toEqual({ id: 123 });
+    });
+
+    it('rethrows error when posting dbInstance fails', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const expectedError = new Error('failed to create');
+      const mockPost = jest.fn().mockRejectedValue(expectedError);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      await expect(service.postDbInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'failed to create'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+    });
+
+    it('throws when Location header is missing or invalid', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: undefined },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      await expect(service.postDbInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'Admin API did not return a Location header containing the created dbInstance id.'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dbInstances', payload);
+    });
+  });
+
+  describe('deleteDbInstance', () => {
+    it('calls admin API DELETE dbInstances/:id and resolves undefined', async () => {
+      const dbInstanceId = 123;
+      const mockDelete = jest.fn().mockResolvedValue(undefined);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteDbInstance({ id: 1 } as any, dbInstanceId)).resolves.toBeUndefined();
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockDelete).toHaveBeenCalledWith(`dbInstances/${dbInstanceId}`);
+    });
+
+    it('rethrows when admin API delete fails', async () => {
+      const dbInstanceId = 123;
+      const expectedError = new Error('failed to delete');
+      const mockDelete = jest.fn().mockRejectedValue(expectedError);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteDbInstance({ id: 1 } as any, dbInstanceId)).rejects.toThrow(
+        'failed to delete'
+      );
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockDelete).toHaveBeenCalledWith(`dbInstances/${dbInstanceId}`);
     });
   });
 });
