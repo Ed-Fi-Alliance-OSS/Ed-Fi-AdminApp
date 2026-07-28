@@ -297,24 +297,20 @@ logs at this point is expected and non-blocking.
 ```powershell
 cd compose
 
-# 1. Stop and remove this project's containers only
-docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --env-file .env --profile "*" down
+# 1. Stop and remove this project's containers and volumes
+docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --profile "*" down --volumes
 
-# 2. Remove this project's volumes only (NOT compose/stop.ps1 -V — see known-issues.md)
-docker volume ls --format "{{.Name}}" | Select-String -Pattern "^vol-(edfiadminapp|odsV7|db-ods|db-admin)" | ForEach-Object { docker volume rm $_.ToString() }
-docker volume rm pgadmin-data
-
-# 3. Remove this project's images (forces a fresh pull/rebuild of everything)
+# 2. Remove this project's images (forces a fresh pull/rebuild of everything)
 docker rmi edfialliance/ods-admin-api:pre edfialliance/ods-admin-api-db:pre edfialliance/ods-api-web-api:v7.3 `
   edfiadminapp/db-ods:local edfiadminapp-edfiadminapp-api edfiadminapp-edfiadminapp-fe `
   quay.io/keycloak/keycloak:26.1 postgres:16.2 nginx:1.28.0-alpine3.21 `
   jhaals/yopass:12.5.0 memcached:1.6 dpage/pgadmin4 2>$null
 
-# 4. Rebuild from scratch
+# 3. Rebuild from scratch
 .\start-services.ps1 -Rebuild
 ```
 
-Step 4 will hit the Keycloak first-boot race (see `known-issues.md`) — expected. Re-run once
+Step 3 will hit the Keycloak first-boot race (see `known-issues.md`) — expected. Re-run once
 `docker ps` shows `edfiadminapp-keycloak` as `healthy`:
 
 ```powershell
