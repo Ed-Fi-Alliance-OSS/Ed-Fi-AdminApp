@@ -47,14 +47,14 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 }));
 
 jest.mock('./vendorConfig', () => ({
-  useVendorConfig: jest.fn(),
+  useVendorConfig: Object.assign(jest.fn(), { match: jest.fn() }),
 }));
 
 const mockUseNavigate = useNavigate as jest.Mock;
 const mockUseParams = useParams as jest.Mock;
 const mockUseForm = useForm as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
-const mockUseVendorConfig = useVendorConfig as jest.Mock;
+const mockMatch = useVendorConfig.match as jest.Mock;
 
 const vendor = { id: 5, company: 'Acme', namespacePrefixes: '', contactName: '', contactEmailAddress: '' };
 
@@ -72,7 +72,7 @@ const setup = (version: 'v2' | 'v3') => {
     handleSubmit: (submit: (data: Record<string, unknown>) => Promise<void>) => () => submit({ company: 'Updated' }),
     formState: { errors: {}, isSubmitting: false },
   });
-  mockUseVendorConfig.mockReturnValue({
+  const config = {
     version,
     queries: { put: jest.fn(() => ({ mutateAsync: putMutateAsync })) },
     PutDto: class PutDtoStub {
@@ -80,8 +80,20 @@ const setup = (version: 'v2' | 'v3') => {
         Object.assign(this, {});
       }
     },
-  });
+  };
+  mockMatch.mockImplementation((handlers: Record<string, (cfg: typeof config) => unknown>) =>
+    handlers[version](config)
+  );
   return { putMutateAsync };
+};
+
+// EditVendor now dispatches via `.match()` to a per-version `EditVendorForm`,
+// so getting to the actual <form> requires invoking that inner component too
+// (same "call as a plain function" approach as EditVendor itself, one level
+// deeper).
+const getFormElement = (vendorProp: typeof vendor) => {
+  const outer = EditVendor({ vendor: vendorProp }) as React.ReactElement;
+  return (outer.type as (props: unknown) => React.ReactElement)(outer.props);
 };
 
 describe('EditVendor', () => {
@@ -90,7 +102,7 @@ describe('EditVendor', () => {
   it('puts via useVendorConfig().queries for a v2 tenant', async () => {
     const { putMutateAsync } = setup('v2');
 
-    const form = EditVendor({ vendor }) as React.ReactElement;
+    const form = getFormElement(vendor);
     await form.props.onSubmit();
 
     expect(putMutateAsync).toHaveBeenCalledWith(
@@ -102,7 +114,7 @@ describe('EditVendor', () => {
   it('puts via useVendorConfig().queries for a v3 tenant', async () => {
     const { putMutateAsync } = setup('v3');
 
-    const form = EditVendor({ vendor }) as React.ReactElement;
+    const form = getFormElement(vendor);
     await form.props.onSubmit();
 
     expect(putMutateAsync).toHaveBeenCalledWith(

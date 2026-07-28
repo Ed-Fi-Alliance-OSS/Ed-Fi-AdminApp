@@ -52,7 +52,7 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 }));
 
 jest.mock('./vendorConfig', () => ({
-  useVendorConfig: jest.fn(),
+  useVendorConfig: Object.assign(jest.fn(), { match: jest.fn() }),
 }));
 
 const mockUseForm = useForm as jest.Mock;
@@ -60,11 +60,16 @@ const mockUseNavigate = useNavigate as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseNavToParent = useNavToParent as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
-const mockUseVendorConfig = useVendorConfig as jest.Mock;
+const mockMatch = useVendorConfig.match as jest.Mock;
 
+// CreateVendorV2 now dispatches via `.match()` to a per-version
+// `CreateVendorForm`, so getting to the actual <form> requires invoking that
+// inner component too (same "call as a plain function" approach as
+// CreateVendorV2 itself, one level deeper).
 const getFormElement = () => {
-  const result = CreateVendorV2() as React.ReactElement;
-  return result.props.children.props.children as React.ReactElement;
+  const outer = CreateVendorV2() as React.ReactElement;
+  const inner = (outer.type as (props: unknown) => React.ReactElement)(outer.props);
+  return inner.props.children.props.children as React.ReactElement;
 };
 
 const setup = (version: 'v2' | 'v3', formData: Record<string, unknown>) => {
@@ -85,11 +90,14 @@ const setup = (version: 'v2' | 'v3', formData: Record<string, unknown>) => {
     formState: { errors: {}, isSubmitting: false },
   });
   postMutateAsync.mockResolvedValue({ id: 9 });
-  mockUseVendorConfig.mockReturnValue({
+  const config = {
     version,
     queries: { post: jest.fn(() => ({ mutateAsync: postMutateAsync })) },
     PostDto: class PostDtoStub {},
-  });
+  };
+  mockMatch.mockImplementation((handlers: Record<string, (cfg: typeof config) => unknown>) =>
+    handlers[version](config)
+  );
   return { postMutateAsync };
 };
 

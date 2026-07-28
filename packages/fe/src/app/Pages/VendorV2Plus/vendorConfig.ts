@@ -16,14 +16,16 @@ export type VendorEntity = GetVendorDtoV2 | GetVendorDtoV3;
 // members from each other.
 //
 // Caveat for future V3 entities reusing this pattern: destructuring
-// `const { queries, PostDto } = useVendorConfig()` in a consumer (e.g.
-// CreateVendorPage.tsx) does NOT preserve the version correlation at the
-// type level — TypeScript only ties the members together at this
-// declaration site, not across a later destructure. This works
-// transparently for Vendor only because PostVendorDtoV2/V3 (and Put/Get)
-// are structurally identical empty subclasses; if a future entity's V2/V3
-// DTOs actually diverge in shape, the same destructure-then-consume
-// pattern can reproduce a real type mismatch at the mutateAsync call site.
+// `const { queries, PostDto } = useVendorConfig()` in a consumer does NOT
+// preserve the version correlation at the type level — TypeScript only ties
+// the members together at this declaration site, not across a later
+// destructure. This works transparently for Vendor only because
+// PostVendorDtoV2/V3 (and Put/Get) are structurally identical empty
+// subclasses; if a future entity's V2/V3 DTOs actually diverge in shape, the
+// same destructure-then-consume pattern can reproduce a real type mismatch
+// at the mutateAsync call site. Consumers should prefer `useVendorConfig
+// .match({ v2: ..., v3: ... })`, which narrows each branch without
+// destructuring (see CreateVendorPage.tsx/EditVendor.tsx).
 export type VendorConfig =
   | {
       version: 'v2';
@@ -38,7 +40,7 @@ export type VendorConfig =
       PutDto: typeof PutVendorDtoV3;
     };
 
-export const useVendorConfig: () => VendorConfig = createVersionedResource<VendorConfig>({
+export const useVendorConfig = createVersionedResource<VendorConfig>({
   v2: {
     version: 'v2',
     queries: vendorQueriesV2,
