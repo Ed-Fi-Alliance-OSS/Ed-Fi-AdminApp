@@ -4,26 +4,39 @@ import {
   FormControl,
   FormErrorMessage,
   FormLabel,
-  Input,
   Text,
   chakra,
 } from '@chakra-ui/react';
-import { GetProfileDtoV2, PutProfileDtoV2 } from '@edanalytics/models';
+import { PutProfileDtoV2, PutProfileDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { DefaultValues, Path, PathValue, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { profileQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useState } from 'react';
+import { ProfileEntity, useProfileConfig } from './profileConfig';
 
-const resolver = classValidatorResolver(PutProfileDtoV2);
+// Dispatches on the resolved version via `.match()` rather than destructuring
+// `useProfileConfig()` directly, so `EditProfileForm`'s generic is tied to the
+// actual branch instead of the wider PutProfileDtoV2 | V3 union (see the
+// caveat comment in profileConfig.ts / 527-design.md section 1).
+export const EditProfile = (props: { profile: ProfileEntity }) =>
+  useProfileConfig.match({
+    v2: (cfg) => <EditProfileForm<PutProfileDtoV2> config={cfg} profile={props.profile} />,
+    v3: (cfg) => <EditProfileForm<PutProfileDtoV3> config={cfg} profile={props.profile} />,
+  });
 
-export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
+function EditProfileForm<D extends PutProfileDtoV2 | PutProfileDtoV3>(props: {
+  config: { queries: { put: typeof profileQueriesV2.put }; PutDto: new () => D };
+  profile: ProfileEntity;
+}) {
   const popBanner = usePopBanner();
   const [nameAttribute, setNameAttribute] = useState<string>('No profile selected');
+  const { queries, PutDto } = props.config;
+  const resolver = useMemo(() => classValidatorResolver(PutDto), [PutDto]);
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -34,7 +47,7 @@ export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
     navigate(
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/profiles/${params.profileId}`
     );
-  const putProfile = profileQueriesV2.put({
+  const putProfile = queries.put({
     edfiTenant,
     teamId,
   });
@@ -45,10 +58,20 @@ export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
     handleSubmit,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<PutProfileDtoV2>({
+  } = useForm<D>({
     resolver,
-    defaultValues: Object.assign(new PutProfileDtoV2(), props.profile),
+    // Merged object is always a D at runtime (profile's fields overwrite the
+    // new PutDto() defaults for the same keys). See 527-design.md section 3a
+    // for why the cast itself is needed.
+    defaultValues: Object.assign(new PutDto(), props.profile) as DefaultValues<D>,
   });
+
+  const field = (name: keyof PutProfileDtoV2 & keyof PutProfileDtoV3) => name as Path<D>;
+  const errorMessage = (name: keyof PutProfileDtoV2 & keyof PutProfileDtoV3): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[name]?.message as
+      | string
+      | undefined;
+
   const handleFileChange = (e: any) => {
     const file = e.target.files[0];
     if (file) {
@@ -62,12 +85,13 @@ export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
         if (profileName) {
           setNameAttribute(profileName);
         }
-        setValue('name', profileName as string);
-        setValue('definition', text as string);
+        setValue(field('name'), profileName as string as PathValue<D, Path<D>>);
+        setValue(field('definition'), text as string as PathValue<D, Path<D>>);
       };
       reader.readAsText(file);
     }
   };
+
   return props.profile ? (
     <chakra.form
       w="form-width"
@@ -85,13 +109,13 @@ export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
     >
       <FormControl isInvalid={!!errors.name}>
         <FormLabel>Name</FormLabel>
-        <Text {...register('name')}>{nameAttribute}</Text>
-        <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
+        <Text {...register(field('name'))}>{nameAttribute}</Text>
+        <FormErrorMessage>{errorMessage('name')}</FormErrorMessage>
       </FormControl>
       <FormControl isInvalid={!!errors.definition}>
         <FormLabel>Definition</FormLabel>
         <chakra.input title="file upload" type="file" accept=".xml" onChange={handleFileChange} />
-        <FormErrorMessage>{errors.definition?.message}</FormErrorMessage>
+        <FormErrorMessage>{errorMessage('definition')}</FormErrorMessage>
       </FormControl>
       <ButtonGroup>
         <Button mt={4} colorScheme="teal" isLoading={isSubmitting} type="submit">
@@ -115,4 +139,4 @@ export const EditProfile = (props: { profile: GetProfileDtoV2 }) => {
       ) : null}
     </chakra.form>
   ) : null;
-};
+}
