@@ -1,4 +1,4 @@
-import { Fragment } from 'react/jsx-runtime';
+import { Fragment } from 'react';
 import {
   CappedLinesText,
   PageActions,
@@ -17,7 +17,11 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
-import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
+import { ClaimsetLinkV2 } from '../../routes/claimset.routes';
+import { EdorgLink } from '../../routes/edorg.routes';
+import { OdsLink } from '../../routes/ods.routes';
+import { ProfileLink } from '../../routes/profile.routes';
+import { VendorLinkV2 } from '../../routes/vendor.routes';
 import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';

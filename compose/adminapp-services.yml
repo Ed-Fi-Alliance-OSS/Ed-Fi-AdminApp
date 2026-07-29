@@ -114,6 +114,12 @@ services:
     restart: always
     networks:
       - edfiadminapp-network
+    healthcheck:
+      test: ['CMD', 'pidof', 'memcached']
+      interval: 15s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
 
   yopass:
     image: jhaals/yopass:12.5.0@sha256:916a1cf45d3665dd7e6a1a2157c7b81a06bfebd87947ace731bca0145418c5b5
@@ -124,6 +130,9 @@ services:
     command: '--memcached=memcached:11211 --port 80'
     networks:
       - edfiadminapp-network
+    depends_on:
+      memcached:
+        condition: service_healthy
 
   edfiadminapp-api:
     build:
@@ -162,6 +171,8 @@ services:
         required: false
       edfiadminapp-keycloak:
         condition: service_healthy
+      yopass:
+        condition: service_started
     healthcheck:
       test: ['CMD-SHELL', 'curl -f http://localhost:3333/api/healthcheck || exit 1']
       interval: 30s
