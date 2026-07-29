@@ -9,9 +9,9 @@ import {
 } from '../helpers';
 import { Link, Text } from '@chakra-ui/react';
 import { profileQueriesV2 } from '../api/queries/queries.v7';
-import { ProfilesPage } from '../Pages/Profile/ProfilesPage';
-import { ProfilePageV2 } from '../Pages/Profile/ProfilePage';
-import { CreateProfile } from '../Pages/Profile/CreateProfilePage';
+import { ProfilesPage } from '../Pages/ProfileV2Plus/ProfilesPage';
+import { ProfilePageV2 } from '../Pages/ProfileV2Plus/ProfilePage';
+import { CreateProfile } from '../Pages/ProfileV2Plus/CreateProfilePage';
 const ProfileBreadcrumb = () => {
   const params = useParams() as {
     profileId: string;

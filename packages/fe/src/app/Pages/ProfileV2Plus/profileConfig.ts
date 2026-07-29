@@ -1,0 +1,45 @@
+import {
+  GetProfileDtoV2,
+  GetProfileDtoV3,
+  PostProfileDtoV2,
+  PostProfileDtoV3,
+  PutProfileDtoV2,
+  PutProfileDtoV3,
+} from '@edanalytics/models';
+import { profileQueriesV2, profileQueriesV3 } from '../../api';
+import { createVersionedResource } from '../../api/queries/versioned';
+
+export type ProfileEntity = GetProfileDtoV2 | GetProfileDtoV3;
+
+// A true discriminated union: each branch ties `version` to the matching
+// `queries`/`PostDto`/`PutDto` set. See vendorConfig.ts and
+// 527-design.md section 1 for the full rationale and the
+// destructure-erases-correlation caveat this pattern exists to avoid.
+export type ProfileConfig =
+  | {
+      version: 'v2';
+      queries: typeof profileQueriesV2;
+      PostDto: typeof PostProfileDtoV2;
+      PutDto: typeof PutProfileDtoV2;
+    }
+  | {
+      version: 'v3';
+      queries: typeof profileQueriesV3;
+      PostDto: typeof PostProfileDtoV3;
+      PutDto: typeof PutProfileDtoV3;
+    };
+
+export const useProfileConfig: () => ProfileConfig = createVersionedResource<ProfileConfig>({
+  v2: {
+    version: 'v2',
+    queries: profileQueriesV2,
+    PostDto: PostProfileDtoV2,
+    PutDto: PutProfileDtoV2,
+  },
+  v3: {
+    version: 'v3',
+    queries: profileQueriesV3,
+    PostDto: PostProfileDtoV3,
+    PutDto: PutProfileDtoV3,
+  },
+});
