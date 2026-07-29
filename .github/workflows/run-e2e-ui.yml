@@ -173,15 +173,6 @@ jobs:
           path: test-results
           retention-days: 5
 
-      - name: Publish Playwright UI Test Results
-        if: always() && hashFiles('test-results/e2e/junit-e2e-bdd.xml') != ''
-        uses: dorny/test-reporter@v3
-        with:
-          name: UI Playwright E2E
-          path: test-results/e2e/junit-e2e-bdd.xml
-          reporter: java-junit
-          fail-on-empty: false
-
       - name: Stop services
         if: always()
         shell: pwsh
