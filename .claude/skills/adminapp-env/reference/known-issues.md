@@ -126,6 +126,44 @@ appears earlier in the history. Verified end-to-end afterward using the OIDC log
 recipe in `environment-reference.md`. Since the cert is only valid 365 days, **this will recur
 annually** on any long-lived local environment.
 
+## OIDC registration fails with `502 Bad Gateway` instead of a cert error
+
+**Status: Verified-live**
+
+**Symptom**: same login-breaking effect as the cert-expiry entry above (clicking "Log in" 404s,
+`docker logs edfiadminapp-api | Select-String "Registering OIDC provider"` shows an error, not the
+success line) — but the error is `OPError: expected 200 OK, got: 502 Bad Gateway` instead of
+`certificate has expired`. Confirmed this isn't stale historical noise by testing the route
+directly: `curl -sk https://localhost/auth/realms/edfi/.well-known/openid-configuration` also
+returns `502` right now, even though `edfiadminapp-keycloak` itself reports `(healthy)` — Keycloak's
+own healthcheck talks to it directly on port 8080, bypassing nginx entirely, so Keycloak can be
+genuinely healthy while nginx's route to it is broken.
+
+**Root cause**: `nginx` can hold a stale/dead connection to Keycloak's container address after
+Keycloak restarts independently of nginx (e.g. `docker restart edfiadminapp-keycloak` alone, or a
+container recreation that doesn't also touch nginx) — observed with `nginx` at 15 hours uptime
+and `edfiadminapp-keycloak` at only 28 minutes uptime. This compounds the same underlying fragility
+as the cert-expiry entry: `RegisterOidcIdpsService` only attempts OIDC discovery **once, at API
+startup, with no retry**, so if nginx's route to Keycloak happens to be broken at that exact
+moment — for any reason, not just an expired cert — the `oidc-1` strategy never gets registered for
+that process's entire lifetime.
+
+**Fix**: restart nginx first (forces it to drop the stale connection and re-resolve), confirm the
+route actually works, then restart the API to force it to retry registration:
+
+```powershell
+docker restart nginx
+curl -sk -o NUL -w "%{http_code}" https://localhost/auth/realms/edfi/.well-known/openid-configuration   # expect 200 before proceeding
+docker restart edfiadminapp-api
+```
+
+Confirm the same way as the cert-expiry entry: check the **latest** `docker logs edfiadminapp-api`
+line matching `"Registering OIDC provider"` is the success one, then verify
+`https://localhost/adminapp-api/api/auth/login/1` returns `302`, not `404`. **General takeaway**:
+whenever the API's OIDC registration has failed for any reason, restarting the API alone often
+isn't enough — check whether nginx's route to Keycloak actually works first, since a broken
+upstream will just make the retry fail the same way.
+
 ## `generate-certificate.sh` silently fails, cert dates unchanged
 
 **Status: Verified-live**
