@@ -3,7 +3,7 @@ import { GetOdsDto } from '@edanalytics/models';
 import { useNavigate, useParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { instancesV2, odsQueries } from '../../api';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
@@ -14,7 +14,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
   Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
 
-export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'status'>): ActionsType => {
+export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'instanceManageId' | 'status'>): ActionsType => {
   const navigate = useNavigate();
   const { edfiTenantId, edfiTenant, sbEnvironmentId, sbEnvironment, teamId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
@@ -30,12 +30,12 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'dbInstanceId' | 'stat
     )
   );
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
-  const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
+  const deleteInstance = instancesV2.delete({ edfiTenant, teamId });
   const isStartingBlocks = sbEnvironment.startingBlocks;
-  const canDeleteDbInstance =
-    typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0 && ods.status === 'Created';
-  const deleteMutation = isStartingBlocks ? deleteOds : canDeleteDbInstance ? deleteDbInstance : undefined;
-  const deleteId = isStartingBlocks ? ods.id : ods.dbInstanceId;
+  const canDeleteInstance =
+    typeof ods.instanceManageId === 'number' && ods.instanceManageId > 0 && ods.status === 'Created';
+  const deleteMutation = isStartingBlocks ? deleteOds : canDeleteInstance ? deleteInstance : undefined;
+  const deleteId = isStartingBlocks ? ods.id : ods.instanceManageId;
 
   const applyPendingDeleteOptimistic = () => {
     queryClient.setQueryData<Record<number, GetOdsDto>>(

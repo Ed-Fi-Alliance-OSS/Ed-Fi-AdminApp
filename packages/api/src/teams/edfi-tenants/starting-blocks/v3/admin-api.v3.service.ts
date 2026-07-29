@@ -889,6 +889,7 @@ export class AdminApiServiceV3 {
                   const odsInstance: OdsInstanceDto = {
                     id: instance.id ?? null,
                     name: instance.name || 'Unknown ODS Instance',
+                    instanceManageId: instance.dataStoreManageId ?? null,
                     instanceType: instance.dataStoreType ?? instance.instanceType ?? null,
                     status: instance.status ?? null,
                     databaseTemplate: instance.databaseTemplate ?? null,

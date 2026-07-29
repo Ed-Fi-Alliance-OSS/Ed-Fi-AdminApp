@@ -926,7 +926,7 @@ describe('AdminApiSyncService', () => {
           odsInstances: [
             {
               id: 1,
-              dbInstanceId: 101,
+              odsInstanceManageId: 101,
               name: 'ODS One',
               instanceType: 'Production',
               educationOrganizations: [
@@ -939,7 +939,7 @@ describe('AdminApiSyncService', () => {
             },
             {
               id: 2,
-              dbInstanceId: 202,
+              odsInstanceManageId: 202,
               name: 'ODS Two',
               instanceType: 'Production',
               educationOrganizations: [
@@ -976,8 +976,8 @@ describe('AdminApiSyncService', () => {
         expect(mockApiClient.get).toHaveBeenCalledWith('tenants/tenant-two/odsInstances/edOrgs');
         expect(persistSyncTenantSpy).toHaveBeenCalled();
         const callArgs = persistSyncTenantSpy.mock.calls[0][0];
-        expect(callArgs.odss[0].dbInstanceId).toBe(101);
-        expect(callArgs.odss[1].dbInstanceId).toBe(202);
+        expect(callArgs.odss[0].instanceManageId).toBe(101);
+        expect(callArgs.odss[1].instanceManageId).toBe(202);
       });
 
       it('should use correct v2 endpoint format', async () => {
@@ -1216,6 +1216,7 @@ describe('AdminApiSyncService', () => {
               {
                 id: 10,
                 name: 'ODS v3 One',
+                dataStoreManageId: 505,
                 // Deliberately omit `instanceType` and only supply `dataStoreType`
                 // so the `instanceType ?? dataStoreType` fallback is exercised.
                 dataStoreType: 'Ods',
@@ -1262,6 +1263,7 @@ describe('AdminApiSyncService', () => {
         expect(persistArgs.odss[0]).toMatchObject({
           id: 10,
           name: 'ODS v3 One',
+          instanceManageId: 505,
           instanceType: 'Ods',
         });
         expect(persistArgs.odss[0].edorgs).toHaveLength(1);

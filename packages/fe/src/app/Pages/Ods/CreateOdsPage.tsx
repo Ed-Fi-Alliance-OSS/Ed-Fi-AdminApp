@@ -16,7 +16,7 @@ import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { instancesV2, odsQueries } from '../../api';
 import {
   SelectOdsTemplate,
   useNavToParent,
@@ -46,7 +46,7 @@ export const CreateOds = () => {
     edfiTenant: params.edfiTenant,
     teamId: params.asId,
   });
-  const postDbInstance = dbInstancesV2.post({
+  const postInstance = instancesV2.post({
     edfiTenant: params.edfiTenant,
     teamId: params.asId,
   });
@@ -85,7 +85,7 @@ export const CreateOds = () => {
               )
               .catch(noop);
           }
-          return postDbInstance
+          return postInstance
             .mutateAsync(
               {
                 entity: {

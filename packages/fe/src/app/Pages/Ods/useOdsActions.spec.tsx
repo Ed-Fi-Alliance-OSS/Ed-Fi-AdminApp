@@ -8,7 +8,7 @@ import {
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { instancesV2, odsQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useQueryClient } from '@tanstack/react-query';
 import { GetOdsDto } from '@edanalytics/models';
@@ -45,7 +45,7 @@ jest.mock('../../api', () => ({
     getAll: jest.fn(() => ({ queryKey: ['odss-list-key'] })),
     getOne: jest.fn(() => ({ queryKey: ['odss-detail-key'] })),
   },
-  dbInstancesV2: { delete: jest.fn() },
+  instancesV2: { delete: jest.fn() },
 }));
 
 const mockUseNavigate = useNavigate as jest.Mock;
@@ -54,7 +54,7 @@ const mockUseAuthorize = useAuthorize as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockOdsDelete = odsQueries.delete as jest.Mock;
-const mockDbInstancesDelete = dbInstancesV2.delete as jest.Mock;
+const mockInstancesDelete = instancesV2.delete as jest.Mock;
 const mockMutationErrCallback = mutationErrCallback as jest.Mock;
 const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
@@ -63,7 +63,7 @@ describe('useOdsActions', () => {
   const navigateSpy = jest.fn();
   const popBannerSpy = jest.fn();
   const odsMutateAsync = jest.fn();
-  const dbInstancesMutateAsync = jest.fn();
+  const instancesMutateAsync = jest.fn();
   const setQueryDataSpy = jest.fn();
 
   const setup = (startingBlocks: boolean) => {
@@ -80,7 +80,7 @@ describe('useOdsActions', () => {
     });
     mockMutationErrCallback.mockReturnValue({});
     mockOdsDelete.mockReturnValue({ isPending: false, mutateAsync: odsMutateAsync });
-    mockDbInstancesDelete.mockReturnValue({ isPending: false, mutateAsync: dbInstancesMutateAsync });
+    mockInstancesDelete.mockReturnValue({ isPending: false, mutateAsync: instancesMutateAsync });
     mockUseQueryClient.mockReturnValue({ setQueryData: setQueryDataSpy });
   };
 
@@ -88,24 +88,24 @@ describe('useOdsActions', () => {
     jest.clearAllMocks();
   });
 
-  it('uses dbInstancesV2 delete mutation for non-startingBlocks ODSs with dbInstanceId > 0', () => {
+  it('uses instancesV2 delete mutation for non-startingBlocks ODSs with instanceManageId > 0', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'Created' } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: 77, status: 'Created' } as any);
     (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
 
-    expect(mockDbInstancesDelete).toHaveBeenCalledWith({ edfiTenant: { id: 3 }, teamId: 1 });
-    expect(dbInstancesMutateAsync).toHaveBeenCalledWith(
+    expect(mockInstancesDelete).toHaveBeenCalledWith({ edfiTenant: { id: 3 }, teamId: 1 });
+    expect(instancesMutateAsync).toHaveBeenCalledWith(
       { id: 77 },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
     expect(odsMutateAsync).not.toHaveBeenCalled();
   });
 
-  it('does not expose Delete action for non-startingBlocks ODSs without dbInstanceId', () => {
+  it('does not expose Delete action for non-startingBlocks ODSs without instanceManageId', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: null, status: 'Created' } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: null, status: 'Created' } as any);
 
     expect(result).not.toHaveProperty('Delete');
   });
@@ -113,7 +113,7 @@ describe('useOdsActions', () => {
   it('does not expose Delete action for non-startingBlocks ODSs unless status is Created', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'PendingDelete' } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: 77, status: 'PendingDelete' } as any);
 
     expect(result).not.toHaveProperty('Delete');
   });
@@ -121,7 +121,7 @@ describe('useOdsActions', () => {
   it('uses odsQueries.delete for startingBlocks with id=ods.id', () => {
     setup(true);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: null } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: null } as any);
     (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
 
     expect(mockOdsDelete).toHaveBeenCalledWith({ edfiTenant: { id: 3 }, teamId: 1 });
@@ -129,13 +129,13 @@ describe('useOdsActions', () => {
       { id: 5 },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
-    expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
+    expect(instancesMutateAsync).not.toHaveBeenCalled();
   });
 
   it('immediately sets status to PendingDelete in query cache on non-startingBlocks delete', () => {
     setup(false);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: 77, status: 'Created' } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: 77, status: 'Created' } as any);
     (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
 
     expect(setQueryDataSpy).toHaveBeenCalledWith(['odss-list-key'], expect.any(Function));
@@ -172,7 +172,7 @@ describe('useOdsActions', () => {
   it('does not touch query cache for startingBlocks delete', () => {
     setup(true);
 
-    const result = useOdsActions({ id: 5, dbInstanceId: null } as any);
+    const result = useOdsActions({ id: 5, instanceManageId: null } as any);
     (result as ActionsType & { Delete: ActionProps }).Delete.onClick();
 
     expect(setQueryDataSpy).not.toHaveBeenCalled();
