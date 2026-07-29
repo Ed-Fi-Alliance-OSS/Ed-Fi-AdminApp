@@ -24,10 +24,12 @@ jest.mock('./profileConfig', () => ({
 
 jest.mock('./NameCell', () => ({ NameCell: () => null }));
 
-// useProfileActions.tsx is migrated to useProfileConfig in a later task (Task 4);
-// until then it still imports the real '../../api' module chain, which pulls in
-// config.ts's `import.meta.env` and breaks under Jest. Mock it out here so this
-// spec exercises ProfilesPageContent in isolation, same as the NameCell mock above.
+// useProfileActions.tsx is now migrated to useProfileConfig (Task 4), which
+// imports from './profileConfig' -> '../../api', and that import chain
+// transitively pulls in config.ts's `import.meta.env`, which Jest can't
+// parse. Mock it out here so this spec exercises ProfilesPageContent in
+// isolation from that unrelated module-load-time failure, same as the
+// NameCell mock above.
 jest.mock('./useProfileActions', () => ({
   useManyProfileActions: jest.fn(() => ({})),
   useProfileActions: jest.fn(() => ({})),

@@ -1,4 +1,3 @@
-import { GetProfileDtoV2 } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
 import {
@@ -13,6 +12,7 @@ import { profileQueriesV2, profileQueriesV3 } from '../api/queries/queries.v7';
 import { ProfilesPage } from '../Pages/ProfileV2Plus/ProfilesPage';
 import { ProfilePageV2 } from '../Pages/ProfileV2Plus/ProfilePage';
 import { CreateProfile } from '../Pages/ProfileV2Plus/CreateProfilePage';
+import { ProfileEntity } from '../Pages/ProfileV2Plus/profileConfig';
 import { createVersionedResource } from '../api/queries/versioned';
 
 // v2/v3 breadcrumbs are byte-for-byte identical except which queries module
@@ -69,7 +69,7 @@ export const profilesRoute: RouteObject = {
 };
 export const ProfileLink = (props: {
   id: number | undefined;
-  query: UseQueryResult<Record<string | number, GetProfileDtoV2>, unknown>;
+  query: UseQueryResult<Record<string | number, ProfileEntity>, unknown>;
 }) => {
   const profile = getEntityFromQuery(props.id, props.query);
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();

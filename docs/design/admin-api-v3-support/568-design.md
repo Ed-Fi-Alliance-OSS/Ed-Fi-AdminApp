@@ -82,11 +82,20 @@ export type ProfileConfig =
       PutDto: typeof PutProfileDtoV3;
     };
 
-export const useProfileConfig: () => ProfileConfig = createVersionedResource<ProfileConfig>({
+export const useProfileConfig = createVersionedResource<ProfileConfig>({
   v2: { version: 'v2', queries: profileQueriesV2, PostDto: PostProfileDtoV2, PutDto: PutProfileDtoV2 },
   v3: { version: 'v3', queries: profileQueriesV3, PostDto: PostProfileDtoV3, PutDto: PutProfileDtoV3 },
 });
 ```
+
+**Note (post-implementation, found during Task 5):** do not add an explicit
+`: () => ProfileConfig` return-type annotation to `useProfileConfig` as shown
+in an earlier draft of this sample. Annotating the const's type this way
+erases the `.match` static property that `createVersionedResource` attaches
+to the returned function — `.match()` call sites still type-check (because
+the annotation widens the type to a plain function signature) but fail at
+runtime with no compile error pointing back here. Let TypeScript infer the
+type instead, as shown above.
 
 ### 3. Component changes — two different patterns, deliberately
 

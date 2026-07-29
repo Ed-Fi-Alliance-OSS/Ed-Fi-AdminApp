@@ -29,6 +29,10 @@ export type ProfileConfig =
       PutDto: typeof PutProfileDtoV3;
     };
 
+// Do NOT add an explicit `: () => ProfileConfig` return-type annotation here.
+// It silently erases the `.match` static property `createVersionedResource`
+// attaches to the returned function — every `.match()` call site would still
+// type-check, but fail at runtime, with no compile error pointing back here.
 export const useProfileConfig = createVersionedResource<ProfileConfig>({
   v2: {
     version: 'v2',
