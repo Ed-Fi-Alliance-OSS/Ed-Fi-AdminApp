@@ -2,16 +2,16 @@ import { HStack } from '@chakra-ui/react';
 import { TableRowActions } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
 import { CellContext } from '@tanstack/react-table';
-import { profileQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ProfileLink } from '../../routes';
 import { useProfileActions } from './useProfileActions';
-import { GetProfileDtoV2 } from '@edanalytics/models';
+import { ProfileEntity, useProfileConfig } from './profileConfig';
 
-export const NameCell = (info: CellContext<GetProfileDtoV2, unknown>) => {
+export const NameCell = (info: CellContext<ProfileEntity, unknown>) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useProfileConfig();
   const entities = useQuery(
-    profileQueriesV2.getAll({
+    queries.getAll({
       teamId,
       edfiTenant,
     })
