@@ -29,7 +29,7 @@ export type ProfileConfig =
       PutDto: typeof PutProfileDtoV3;
     };
 
-export const useProfileConfig: () => ProfileConfig = createVersionedResource<ProfileConfig>({
+export const useProfileConfig = createVersionedResource<ProfileConfig>({
   v2: {
     version: 'v2',
     queries: profileQueriesV2,
