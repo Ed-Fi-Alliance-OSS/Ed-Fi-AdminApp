@@ -16,6 +16,14 @@ packages/
 └── utils/         # Shared utilities
 ```
 
+## Local Environment Setup
+
+To configure, run, validate, or troubleshoot the local Docker environment (ODS/API, Ed-Fi Admin
+API, Keycloak, Postgres/MSSQL, and the Admin App itself), ask Claude Code to use the
+`adminapp-env` skill (`.claude/skills/adminapp-env/`). It handles first-time setup, starting in
+container or local-dev mode, health validation, and known-issue troubleshooting, and keeps its own
+knowledge base updated as new issues are found.
+
 ## Key Technologies & Dependencies
 
 ### Frontend Stack
