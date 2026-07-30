@@ -9,24 +9,37 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { PostProfileDtoV2 } from '@edanalytics/models';
+import { PostProfileDtoV2, PostProfileDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
-import { useForm } from 'react-hook-form';
+import { useMemo, useState } from 'react';
+import { DefaultValues, Path, PathValue, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
-import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { profileQueriesV2 } from '../../api';
+import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useState } from 'react';
+import { useProfileConfig } from './profileConfig';
 
-const resolver = classValidatorResolver(PostProfileDtoV2);
+// Dispatches on the resolved version via `.match()` rather than destructuring
+// `useProfileConfig()` directly, so `CreateProfileForm`'s generic is tied to
+// the actual branch instead of the wider PostProfileDtoV2 | V3 union (see the
+// caveat comment in profileConfig.ts / 527-design.md section 1).
+export const CreateProfile = () =>
+  useProfileConfig.match({
+    v2: (cfg) => <CreateProfileForm<PostProfileDtoV2> config={cfg} />,
+    v3: (cfg) => <CreateProfileForm<PostProfileDtoV3> config={cfg} />,
+  });
 
-export const CreateProfile = () => {
+function CreateProfileForm<D extends PostProfileDtoV2 | PostProfileDtoV3>(props: {
+  config: { queries: { post: typeof profileQueriesV2.post }; PostDto: new () => D };
+}) {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const [nameAttribute, setNameAttribute] = useState<string>('No profile selected');
   const popBanner = usePopBanner();
+  const { queries, PostDto } = props.config;
+  const resolver = useMemo(() => classValidatorResolver(PostDto), [PostDto]);
 
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -35,7 +48,7 @@ export const CreateProfile = () => {
       `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/profiles/${id}`
     );
   const parentPath = useNavToParent();
-  const postProfile = profileQueriesV2.post({
+  const postProfile = queries.post({
     edfiTenant,
     teamId,
   });
@@ -46,7 +59,23 @@ export const CreateProfile = () => {
     setError,
     setValue,
     formState: { errors, isSubmitting },
-  } = useForm<PostProfileDtoV2>({ resolver, defaultValues: {} });
+  } = useForm<D>({
+    resolver,
+    // react-hook-form's DefaultValues<T>/Path<T>/FieldErrors<T> conditional
+    // types don't resolve against a bare generic type parameter — see
+    // 527-design.md section 3a. Cast to the exact param type useForm expects.
+    defaultValues: new PostDto() as DefaultValues<D>,
+  });
+
+  // Same generic-vs-abstract-D limitation as above, for register()/setValue()/
+  // errors. name/definition are shared across V2/V3, so no per-version helper
+  // is needed here (contrast with 527-design.md's v3Field example for a
+  // field that only exists on one branch).
+  const field = (name: keyof PostProfileDtoV2 & keyof PostProfileDtoV3) => name as Path<D>;
+  const errorMessage = (name: keyof PostProfileDtoV2 & keyof PostProfileDtoV3): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[name]?.message as
+      | string
+      | undefined;
 
   const handleFileChange = (e: any) => {
     const file = e.target.files[0];
@@ -62,12 +91,17 @@ export const CreateProfile = () => {
         if (profileName) {
           setNameAttribute(profileName);
         }
-        setValue('name', profileName as string);
-        setValue('definition', text as string);
+        // Same generic-vs-abstract-D limitation as field()/errorMessage() above:
+        // setValue()'s value parameter is typed as PathValue<D, Path<D>>, which
+        // doesn't resolve against the abstract D here, so cast through the
+        // concrete string value both fields share.
+        setValue(field('name'), profileName as string as PathValue<D, Path<D>>);
+        setValue(field('definition'), text as string as PathValue<D, Path<D>>);
       };
       reader.readAsText(file);
     }
   };
+
   return (
     <PageTemplate constrainWidth title={'Create new profile'} actions={undefined}>
       <Box w="form-width">
@@ -89,8 +123,8 @@ export const CreateProfile = () => {
         >
           <FormControl isInvalid={!!errors.name}>
             <FormLabel>Name</FormLabel>
-            <Text {...register('name')}>{nameAttribute}</Text>
-            <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
+            <Text {...register(field('name'))}>{nameAttribute}</Text>
+            <FormErrorMessage>{errorMessage('name')}</FormErrorMessage>
           </FormControl>
           <FormControl isInvalid={!!errors.definition}>
             <FormLabel>Definition</FormLabel>
@@ -100,7 +134,7 @@ export const CreateProfile = () => {
               accept=".xml"
               onChange={handleFileChange}
             />
-            <FormErrorMessage>{errors.definition?.message}</FormErrorMessage>
+            <FormErrorMessage>{errorMessage('definition')}</FormErrorMessage>
           </FormControl>
 
           <ButtonGroup>
@@ -127,4 +161,4 @@ export const CreateProfile = () => {
       </Box>
     </PageTemplate>
   );
-};
+}

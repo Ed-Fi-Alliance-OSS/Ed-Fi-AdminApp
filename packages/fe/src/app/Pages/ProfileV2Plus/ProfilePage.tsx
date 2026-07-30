@@ -1,14 +1,10 @@
 import { useQuery } from '@tanstack/react-query';
 import {
-  Attribute,
-  AttributesGrid,
-  ContentSection,
   PageActions,
   PageTemplate,
 } from '@edanalytics/common-ui';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router-dom';
-import { profileQueriesV2 } from '../../api';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { EditProfile } from './EditProfile';
 import { useProfileActions } from './useProfileActions';
@@ -16,9 +12,9 @@ import omit from 'lodash/omit';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import xmlFormatter from 'xml-formatter';
 import { Box, HStack, Text } from '@chakra-ui/react';
-import { GetProfileDtoV2 } from '@edanalytics/models';
+import { ProfileEntity, useProfileConfig } from './profileConfig';
 
-export const ProfilePageContent = (props: { profile: GetProfileDtoV2 | undefined }) => {
+export const ProfilePageContent = (props: { profile: ProfileEntity | undefined }) => {
   const { profile } = props;
 
   const { edit } = useSearchParamsObject() as { edit?: boolean };
@@ -32,7 +28,7 @@ export const ProfilePageContent = (props: { profile: GetProfileDtoV2 | undefined
   ) : null;
 };
 
-const ProfilePageTitle = (props: { profile: GetProfileDtoV2 | undefined }) => {
+const ProfilePageTitle = (props: { profile: ProfileEntity | undefined }) => {
   const { profile } = props;
 
   return <>{profile?.name || 'Profile'}</>;
@@ -43,8 +39,9 @@ export const ProfilePageV2 = () => {
     profileId: string;
   };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useProfileConfig();
   const profile = useQuery(
-    profileQueriesV2.getOne({
+    queries.getOne({
       teamId,
       id: params.profileId,
       edfiTenant,
@@ -66,14 +63,14 @@ export const ProfilePageV2 = () => {
   );
 };
 
-export const ProfilePageActions = (props: { profile: GetProfileDtoV2 | undefined }) => {
+export const ProfilePageActions = (props: { profile: ProfileEntity | undefined }) => {
   const { profile } = props;
 
   const actions = useProfileActions(profile);
   return <PageActions actions={omit(actions, 'View')} />;
 };
 
-export const ViewProfile = (props: { profile: GetProfileDtoV2 }) => {
+export const ViewProfile = (props: { profile: ProfileEntity }) => {
   const { profile } = props;
   const formattedXml = xmlFormatter(profile?.definition || '');
 

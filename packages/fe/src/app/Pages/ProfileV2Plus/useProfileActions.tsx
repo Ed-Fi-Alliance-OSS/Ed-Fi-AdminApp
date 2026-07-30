@@ -1,8 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
-import { GetProfileDtoV2 } from '@edanalytics/models';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { profileQueriesV2 } from '../../api';
 import {
   useAuthorize,
   useTeamEdfiTenantNavContextLoaded,
@@ -10,18 +8,20 @@ import {
   useNavToParent,
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { ProfileEntity, useProfileConfig } from './profileConfig';
 
 //the definition of a Profile is present in the single-item GET response but not the all-item version so there are two versions - get & GetMany
 
 //includes definition
-export const useProfileActions = (profile: GetProfileDtoV2 | undefined): ActionsType => {
+export const useProfileActions = (profile: ProfileEntity | undefined): ActionsType => {
   const { edfiTenant, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useProfileConfig();
 
   const navigate = useNavigate();
 
   const to = (id: number | string) =>
     `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/profiles/${id}`;
-  const deleteProfile = profileQueriesV2.delete({ edfiTenant, teamId: asId });
+  const deleteProfile = queries.delete({ edfiTenant, teamId: asId });
   const popBanner = usePopBanner();
   const canView = useAuthorize(
     profileAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.profile:read')
