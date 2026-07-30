@@ -12,7 +12,7 @@ import { profileQueriesV2, profileQueriesV3 } from '../api/queries/queries.v7';
 import { ProfilesPage } from '../Pages/ProfileV2Plus/ProfilesPage';
 import { ProfilePageV2 } from '../Pages/ProfileV2Plus/ProfilePage';
 import { CreateProfile } from '../Pages/ProfileV2Plus/CreateProfilePage';
-import { ProfileEntity } from '../Pages/ProfileV2Plus/profileConfig';
+import type { ProfileEntity } from '../Pages/ProfileV2Plus/profileConfig';
 import { createVersionedResource } from '../api/queries/versioned';
 
 // v2/v3 breadcrumbs are byte-for-byte identical except which queries module

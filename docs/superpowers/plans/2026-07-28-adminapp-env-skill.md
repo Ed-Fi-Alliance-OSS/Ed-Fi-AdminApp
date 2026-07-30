@@ -89,8 +89,9 @@ Documented-only path is exercised for the first time and works, upgrade its tag 
 3. **`packages/api/config/local.js`** — copy from `packages/api/config/local.js-edfi` (NOT
    `local-development.js.copyme`, which does not exist in this repo despite older notes
    referencing it).
-4. **`packages/fe/.env`** — copy from a `.env` template in `packages/fe` (NOT
-   `.copyme.env.local`, which does not exist in this checkout either).
+4. **`packages/fe/.env`** — copy from `packages/fe/.copyme.env.local`, which does exist in
+   this repo (see `docs/ed-fi-development.md`) — corrected after an earlier draft of this
+   plan mistakenly claimed it didn't.
 5. **`compose/.env` → `SQL_BACKUPS_FOLDER`** — must point directly at the folder containing
    `EdFi.Ods.Minimal.Template.sql` / `EdFi.Ods.Populated.Template.sql`, not a parent folder.
 6. Node dependencies: `npm i` at the repo root — only needed for local-dev mode.
