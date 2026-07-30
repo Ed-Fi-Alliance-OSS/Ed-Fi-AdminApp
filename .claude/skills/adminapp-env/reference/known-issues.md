@@ -42,6 +42,42 @@ re-run the same `up -d` command (no rebuild needed, images already built/pulled)
 where it left off. Reproduced on both an original run and a from-scratch clean-room rebuild — this
 is expected behavior, not a regression.
 
+## `-Rebuild` fails with a Docker Desktop connection error (`EOF`, `http2 ... pipe-closed`)
+
+**Status: Verified-live**
+
+**Symptom**: `start-services.ps1 -Rebuild` (or an equivalent `docker compose ... up -d --build`)
+fails partway through building `edfiadminapp-api`/`edfiadminapp-fe`, with an error like
+`target edfiadminapp-api: failed to receive status: rpc error: code = Unavailable desc = error
+reading from server: EOF`, or the more specific `http2: server: error reading preface from client
+//./pipe/dockerDesktopLinuxEngine: file has already been closed`. `docker ps`/`docker buildx ls`
+show Docker Desktop's engine and builder as otherwise fine immediately after, and
+`com.docker.backend.exe`'s process start time shows it hasn't actually restarted — so this isn't a
+full Docker Desktop crash, just its build connection dying under load. Confirmed reproducible:
+happened 3 times in a row on one machine, always during the same step (both `api` and `fe`'s Nx
+production builds running concurrently).
+
+**Root cause**: `up -d --build` lets Compose/BuildKit build `edfiadminapp-api` and
+`edfiadminapp-fe` **concurrently** by default, and each runs a memory-heavy Nx/TypeScript/Vite
+production build. On a machine with Docker Desktop's memory allocation on the low side (observed:
+~5.8GB / 4 CPUs via `docker info`), building both at once appears to push the WSL2/Linux VM into
+memory pressure severe enough to drop BuildKit's connection to the Docker Desktop engine, without
+crashing the engine itself.
+
+**Fix**: build `api` and `fe` **sequentially** instead of letting Compose parallelize them:
+
+```powershell
+cd compose
+docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --env-file .env --profile postgresql --profile adminapp build edfiadminapp-api
+docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --env-file .env --profile postgresql --profile adminapp build edfiadminapp-fe
+docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.yml --env-file .env --profile postgresql --profile adminapp up -d
+```
+
+Verified: both builds succeeded individually on the first try immediately after 3 consecutive
+failures of the combined/parallel build. If this recurs even building sequentially, the underlying
+fix is increasing Docker Desktop's memory allocation (Settings → Resources) rather than anything
+in this repo.
+
 ## Admin API v3 (single/multi) crash-loop or throw database schema errors
 
 **Status: Verified-live**
