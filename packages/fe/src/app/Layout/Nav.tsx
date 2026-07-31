@@ -5,7 +5,7 @@ import { Select } from 'chakra-react-select';
 import { atom, useAtom, useAtomValue } from 'jotai';
 import Cookies from 'js-cookie';
 import { Resizable } from 're-resizable';
-import { useCallback, useEffect, useMemo } from 'react';
+import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation, useMatches, useNavigate, useParams } from 'react-router-dom';
 import { useMyTeams } from '../api';
 import {
@@ -103,6 +103,7 @@ const NavContent = ({
   const [teamId, _setteamId] = useAtom(asteamIdAtom);
   const currentMatches = useMatches();
   const location = useLocation();
+  const switchingToGlobalRef = useRef(false);
 
   const navigate = useNavigate();
 
@@ -114,11 +115,13 @@ const NavContent = ({
     return (newteamId: number | undefined) => {
       let realNewValue = newteamId;
       if (newteamId === undefined) {
+        switchingToGlobalRef.current = true;
         if (params.asId) {
           navigate('/');
         }
         realNewValue = undefined;
       } else {
+        switchingToGlobalRef.current = false;
         if (newteamId in teams) {
           realNewValue = newteamId;
           if (params.asId !== String(newteamId) && location.pathname !== '/account') {
@@ -152,6 +155,16 @@ const NavContent = ({
   useEffect(setTeamIdToDefault, []);
 
   useEffect(() => {
+    if (!params.asId) {
+      switchingToGlobalRef.current = false;
+    }
+  }, [params.asId]);
+
+  useEffect(() => {
+    if (switchingToGlobalRef.current && params.asId) {
+      return;
+    }
+
     if (
       // if we're on a team route
       params.asId &&
