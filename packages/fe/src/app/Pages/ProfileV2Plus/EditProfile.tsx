@@ -77,7 +77,12 @@ function EditProfileForm<D extends PutProfileDtoV2 | PutProfileDtoV3>(props: {
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {
-        const text = event.target?.result || '';
+        // Some profile-export XML files escape attribute-value quotes as \"
+        // instead of plain ", which DOMParser can't read as a valid
+        // attribute delimiter. CreateProfilePage.tsx already strips these
+        // (SBAA-93 / PR #133); that fix was never ported here.
+        //@ts-expect-error result is always string
+        const text = event.target?.result?.replace(/\\"/g, '"') || '';
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(text as string, 'application/xml');
         const profileElement = xmlDoc.querySelector('Profile');
