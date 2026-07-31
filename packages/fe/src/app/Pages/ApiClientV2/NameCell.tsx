@@ -4,7 +4,7 @@ import { GetApiClientDtoV2 } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { useSingleApiClientActions } from './useApiClientActions';
-import { ApiClientLinkV2 } from '../../routes/apiclients.routes';
+import { ApiClientLinkV2 } from '../../routes/apiClients.routes';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { apiClientQueriesV2 } from '../../api';
 import { useQuery } from '@tanstack/react-query';

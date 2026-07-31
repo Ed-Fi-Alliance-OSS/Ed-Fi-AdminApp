@@ -611,7 +611,7 @@ export class AdminApiControllerV2 {
   // Api Clients
   //
 
-  @Get('apiclients')
+  @Get('apiClients')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
     subject: {
@@ -635,7 +635,7 @@ export class AdminApiControllerV2 {
     return allApiClients.filter((v) => checkId(v.id, validIds));
   }
 
-  @Get('apiclients/:apiclientId')
+  @Get('apiClients/:apiclientId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:read',
     subject: {
@@ -658,7 +658,7 @@ export class AdminApiControllerV2 {
     return await this.sbService.getApiClient(edfiTenant, apiClientId);
   }
 
-  @Put('apiclients/:apiclientId')
+  @Put('apiClients/:apiclientId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
     subject: {
@@ -693,7 +693,7 @@ export class AdminApiControllerV2 {
     return await this.sbService.putApiClient(edfiTenant, apiClientId, apiClient);
   }
 
-  @Post('apiclients')
+  @Post('apiClients')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
     subject: {
@@ -747,7 +747,7 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Put('apiclients/:apiclientId/reset-credential')
+  @Put('apiClients/:apiclientId/reset-credential')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials',
     subject: {
@@ -806,7 +806,7 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Delete('apiclients/:apiclientId')
+  @Delete('apiClients/:apiclientId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
     subject: {
