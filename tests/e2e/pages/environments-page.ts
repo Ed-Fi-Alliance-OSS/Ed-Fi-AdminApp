@@ -283,14 +283,6 @@ class EnvironmentsPage {
   }
 
   async environmentNameIsUpdated() {
-    // If a save just happened, the form is still visible until the mutation's
-    // onSuccess navigates away. Wait for that to complete before navigating to
-    // the list and reloading, otherwise this races the in-flight PUT request
-    // and can read stale data. When called after a no-op action (e.g. canceling
-    // a delete confirmation), the Save button was never shown, so this is a no-op.
-    if (await this.saveButton.isVisible().catch(() => false)) {
-      await this.saveButton.waitFor({ state: 'hidden', timeout: 10000 })
-    }
     await this.clickEnvironmentOption()
     await this.page.reload({ waitUntil: 'networkidle' });
     await expect(this.environmentsMainContainer).toBeVisible()
