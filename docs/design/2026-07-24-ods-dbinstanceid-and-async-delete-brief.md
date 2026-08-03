@@ -1,5 +1,14 @@
 # ODS `dbInstanceId` + Non-StartingBlocks Async Delete (Consolidated Brief)
 
+> **Superseded naming (AC-579):** the identifiers below reflect this feature's original naming
+> and are kept as-is for historical accuracy. AC-579 renamed them to match the Admin API's
+> `/v2/odsInstances/manage` endpoint and added a proper migration instead of editing history
+> (see "Important Caveat" below):
+> - `dbInstanceId` (column/field) → `instanceManageId`
+> - `postDbInstance` / `deleteDbInstance` (service/controller methods) → `postInstance` / `deleteInstance`
+> - `dbInstancesV2` (FE query entity) → `instancesV2`
+> - `PostDbInstanceDtoV2` → `PostInstanceDtoV2`
+
 ## Overview
 
 This feature set extends ODS metadata and delete behavior for Admin API v2 integrations, focused on non-StartingBlocks environments:
@@ -65,4 +74,6 @@ Targeted API/FE tests were expanded to cover:
 ## Important Caveat
 
 Because the existing migration file was modified in place (instead of introducing a new migration), environments that already executed that migration may require explicit schema alignment steps outside normal migration replay.
+
+**AC-579 follow-up:** the `dbInstanceId` → `instanceManageId` rename hit this exact risk — the metadata migration had already shipped to `main` by the time of the rename. AC-579 added a new migration (`RenameDbInstanceIdToInstanceManageId`, pgsql + mssql) to rename the column, rather than editing the already-shipped migration file again.
 

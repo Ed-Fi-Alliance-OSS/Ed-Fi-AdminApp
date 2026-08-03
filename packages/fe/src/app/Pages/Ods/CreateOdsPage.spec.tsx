@@ -4,7 +4,7 @@ import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { odsQueries, dbInstancesV2 } from '../../api';
+import { odsQueries, instancesV2 } from '../../api';
 
 jest.mock('@edanalytics/common-ui', () => ({
   PageTemplate: ({ children }: { children: React.ReactNode }) => children,
@@ -38,7 +38,7 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 
 jest.mock('../../api', () => ({
   odsQueries: { post: jest.fn(), getAll: jest.fn() },
-  dbInstancesV2: { post: jest.fn() },
+  instancesV2: { post: jest.fn() },
 }));
 
 const mockUseForm = useForm as jest.Mock;
@@ -47,12 +47,12 @@ const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockOdsPost = odsQueries.post as jest.Mock;
 const mockOdsGetAll = odsQueries.getAll as jest.Mock;
-const mockDbInstancesPost = dbInstancesV2.post as jest.Mock;
+const mockInstancesPost = instancesV2.post as jest.Mock;
 
 const navSpy = jest.fn();
 const invalidateQueriesSpy = jest.fn();
 const odsMutateAsync = jest.fn();
-const dbInstancesMutateAsync = jest.fn();
+const instancesMutateAsync = jest.fn();
 const getFormElement = () => {
   const result = CreateOds() as React.ReactElement;
   return result.type === 'form' ? result : (result.props.children as React.ReactElement);
@@ -83,7 +83,7 @@ const setup = (startingBlocks: boolean, formData: Record<string, unknown>) => {
       return Promise.resolve({ id: 101 });
     }
   );
-  dbInstancesMutateAsync.mockImplementation(
+  instancesMutateAsync.mockImplementation(
     (_args: unknown, callbacks: { onSuccess?: (result: { id: number }) => void }) => {
       callbacks.onSuccess?.({ id: 202 });
       return Promise.resolve({ id: 202 });
@@ -93,7 +93,7 @@ const setup = (startingBlocks: boolean, formData: Record<string, unknown>) => {
   mockOdsGetAll.mockReturnValue({
     queryKey: ['edfi-tenants', '3', 'odss', 'list', 'teams', '1'],
   });
-  mockDbInstancesPost.mockReturnValue({ mutateAsync: dbInstancesMutateAsync });
+  mockInstancesPost.mockReturnValue({ mutateAsync: instancesMutateAsync });
 };
 
 describe('CreateOds', () => {
@@ -102,13 +102,13 @@ describe('CreateOds', () => {
     invalidateQueriesSpy.mockClear();
   });
 
-  it('uses dbinstances mutation with databaseTemplate for non-startingBlocks', async () => {
+  it('uses instances mutation with databaseTemplate for non-startingBlocks', async () => {
     setup(false, { name: 'ODS One', databaseTemplate: 'Minimal' });
 
     const form = getFormElement();
     await form.props.onSubmit();
 
-    expect(dbInstancesMutateAsync).toHaveBeenCalledWith(
+    expect(instancesMutateAsync).toHaveBeenCalledWith(
       { entity: { name: 'ODS One', databaseTemplate: 'Minimal' } },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
@@ -129,7 +129,7 @@ describe('CreateOds', () => {
       { entity: { name: 'ODS One', templateName: 'GrandBend' } },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
-    expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
+    expect(instancesMutateAsync).not.toHaveBeenCalled();
     expect(navSpy).toHaveBeenCalledWith('/as/1/sb-environments/2/edfi-tenants/3/odss/101');
   });
 });

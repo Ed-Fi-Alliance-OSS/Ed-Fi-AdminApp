@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { OdssTable } from './OdssPage';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { instancesV2, odsQueries } from '../../api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import {
   teamEdfiTenantAuthConfig,
@@ -50,7 +50,7 @@ jest.mock('../../api', () => ({
     delete: jest.fn(),
     getOne: jest.fn(() => ({ queryKey: ['ods-detail-key'] })),
   },
-  dbInstancesV2: { delete: jest.fn() },
+  instancesV2: { delete: jest.fn() },
 }));
 
 jest.mock('../../Layout/FeedbackBanner', () => ({
@@ -68,13 +68,13 @@ const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockUseAuthorize = useAuthorize as jest.Mock;
 const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
-const mockDbInstancesDelete = dbInstancesV2.delete as jest.Mock;
+const mockInstancesDelete = instancesV2.delete as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;
 const mockMutationErrCallback = mutationErrCallback as jest.Mock;
 
 describe('OdssTable', () => {
   const odsMutateAsync = jest.fn();
-  const dbInstancesMutateAsync = jest.fn();
+  const instancesMutateAsync = jest.fn();
   const popBannerSpy = jest.fn();
   const mutationOptions = { onError: jest.fn() };
 
@@ -104,13 +104,13 @@ describe('OdssTable', () => {
         5: {
           id: 5,
           displayName: 'ODS 5',
-          dbInstanceId: 88,
+          instanceManageId: 88,
           instanceType: 'Shared',
           status: 'Created',
         },
       },
     });
-    mockDbInstancesDelete.mockReturnValue({ mutateAsync: dbInstancesMutateAsync });
+    mockInstancesDelete.mockReturnValue({ mutateAsync: instancesMutateAsync });
     mockUseQueryClient.mockReturnValue({ setQueryData: jest.fn() });
   });
 
@@ -131,14 +131,14 @@ describe('OdssTable', () => {
         2: {
           id: 2,
           displayName: 'Alpha',
-          dbInstanceId: 2,
+          instanceManageId: 2,
           instanceType: 'Shared',
           status: 'Created',
         },
         1: {
           id: 1,
           displayName: 'zebra',
-          dbInstanceId: 1,
+          instanceManageId: 1,
           instanceType: 'Shared',
           status: 'Created',
         },
@@ -153,13 +153,13 @@ describe('OdssTable', () => {
     ]);
   });
 
-  it('shows row Delete action only for non-startingBlocks ODS rows with dbInstanceId > 0', () => {
+  it('shows row Delete action only for non-startingBlocks ODS rows with instanceManageId > 0', () => {
     mockUseQuery.mockReturnValue({
       data: {
         9: {
           id: 9,
           displayName: 'ODS 9',
-          dbInstanceId: null,
+          instanceManageId: null,
           instanceType: 'Shared',
           status: 'Created',
         },
@@ -177,7 +177,7 @@ describe('OdssTable', () => {
         11: {
           id: 11,
           displayName: 'ODS 11',
-          dbInstanceId: 55,
+          instanceManageId: 55,
           instanceType: 'Shared',
           status: 'PendingDelete',
         },
@@ -189,11 +189,11 @@ describe('OdssTable', () => {
     expect(deleteAction).toBeUndefined();
   });
 
-  it('routes non-startingBlocks row Delete action to dbInstances delete using dbInstanceId', () => {
+  it('routes non-startingBlocks row Delete action to instances delete using instanceManageId', () => {
     const deleteAction = getDeleteAction();
     deleteAction.onClick();
 
-    expect(dbInstancesMutateAsync).toHaveBeenCalledWith(
+    expect(instancesMutateAsync).toHaveBeenCalledWith(
       { id: 88 },
       mutationOptions
     );
@@ -219,7 +219,7 @@ describe('OdssTable', () => {
         6: {
           id: 6,
           displayName: 'ODS 6',
-          dbInstanceId: null,
+          instanceManageId: null,
           instanceType: 'Shared',
           status: null,
         },
@@ -230,7 +230,7 @@ describe('OdssTable', () => {
     deleteAction.onClick();
 
     expect(odsMutateAsync).toHaveBeenCalledWith({ id: 6 }, mutationOptions);
-    expect(dbInstancesMutateAsync).not.toHaveBeenCalled();
+    expect(instancesMutateAsync).not.toHaveBeenCalled();
   });
 
   it('immediately sets status to PendingDelete in query cache on non-startingBlocks row delete', () => {

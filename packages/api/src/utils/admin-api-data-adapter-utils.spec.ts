@@ -37,7 +37,7 @@ describe('admin-api-data-adapter-utils', () => {
           {
             id: 100,
             name: 'ODS Instance 1',
-            dbInstanceId: 42,
+            instanceManageId: 42,
             instanceType: 'Production',
             edOrgs: [
               {
@@ -68,7 +68,7 @@ describe('admin-api-data-adapter-utils', () => {
         id: 0,
         odsInstanceId: 100,
         odsInstanceName: 'ODS Instance 1',
-        dbInstanceId: 42,
+        instanceManageId: 42,
         edfiTenantId: 0,
         sbEnvironmentId: 1,
       });

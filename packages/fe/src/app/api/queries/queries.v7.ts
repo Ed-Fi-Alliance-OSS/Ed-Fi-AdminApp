@@ -14,7 +14,7 @@ import {
   Id,
   PostApiClientDtoV2,
   PostApiClientResponseDtoV2,
-  PostDbInstanceDtoV2,
+  PostInstanceDtoV2,
   ImportClaimsetSingleDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
@@ -283,12 +283,12 @@ export const odsInstancesV2 = new EntityQueryBuilder({
   .getAll('getAll', { ResDto: GetOdsInstanceSummaryDtoV2 })
   .build();
 
-export const dbInstancesV2 = new EntityQueryBuilder({
+export const instancesV2 = new EntityQueryBuilder({
   adminApi: true,
-  name: 'Dbinstance',
+  name: 'Instance',
   includeEdfiTenant: true,
   includeTeam: TeamOptions.Required,
 })
-  .post('post', { ResDto: Id, ReqDto: PostDbInstanceDtoV2 })
+  .post('post', { ResDto: Id, ReqDto: PostInstanceDtoV2 })
   .delete('delete')
   .build();

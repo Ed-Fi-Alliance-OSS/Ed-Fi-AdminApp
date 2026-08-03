@@ -66,6 +66,7 @@ import { RemoveUserConfig1764429283532 as PgsqlRemoveUserConfig1764429283532 } f
 import { CertificationSchema1778026000000 as PgsqlCertificationSchema1778026000000 } from './migrations/pgsql/1778026000000-CertificationSchema';
 import { AddOdsInstanceMetadataFields1751299288000 as PgsqlAddOdsInstanceMetadataFields1751299288000 } from './migrations/pgsql/1751299288000-AddOdsInstanceMetadataFields';
 import { AddCreateDeleteOdsPrivileges1785181605952 as PgsqlAddCreateDeleteOdsPrivileges1785181605952 } from './migrations/pgsql/1785181605952-AddCreateDeleteOdsPrivileges';
+import { RenameDbInstanceIdToInstanceManageId1785365966591 as PgsqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/pgsql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -103,6 +104,7 @@ import { JobQueueAndSyncView1764929283532 as MssqlJobQueueAndSyncView17649292835
 import { CertificationSchema1778026000000 as MssqlCertificationSchema1778026000000 } from './migrations/mssql/1778026000000-CertificationSchema';
 import { AddOdsInstanceMetadataFields1751299288000 as MssqlAddOdsInstanceMetadataFields1751299288000 } from './migrations/mssql/1751299288000-AddOdsInstanceMetadataFields';
 import { AddCreateDeleteOdsPrivileges1785181605952 as MssqlAddCreateDeleteOdsPrivileges1785181605952 } from './migrations/mssql/1785181605952-AddCreateDeleteOdsPrivileges';
+import { RenameDbInstanceIdToInstanceManageId1785365966591 as MssqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/mssql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -140,6 +142,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlCertificationSchema1778026000000,
   PgsqlAddOdsInstanceMetadataFields1751299288000,
   PgsqlAddCreateDeleteOdsPrivileges1785181605952,
+  PgsqlRenameDbInstanceIdToInstanceManageId1785365966591,
 ];
 
 const getMSSQLMigrations = () => [
@@ -178,6 +181,7 @@ const getMSSQLMigrations = () => [
   MssqlCertificationSchema1778026000000,
   MssqlAddOdsInstanceMetadataFields1751299288000,
   MssqlAddCreateDeleteOdsPrivileges1785181605952,
+  MssqlRenameDbInstanceIdToInstanceManageId1785365966591,
 ];
 
 const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOptions => {

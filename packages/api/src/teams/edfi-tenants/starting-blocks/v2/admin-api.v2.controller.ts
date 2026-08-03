@@ -12,7 +12,7 @@ import {
   PostApplicationFormDtoV2,
   PutApiClientDtoV2,
   PostClaimsetDtoV2,
-  PostDbInstanceDtoV2,
+  PostInstanceDtoV2,
   PostProfileDtoV2,
   PostVendorDtoV2,
   PutApplicationDtoV2,
@@ -1170,7 +1170,7 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Post('dbinstances')
+  @Post('instances')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant:create-ods',
     subject: {
@@ -1179,22 +1179,22 @@ export class AdminApiControllerV2 {
       teamId: 'teamId',
     },
   })
-  async postDbInstance(
+  async postInstance(
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Body() dbInstance: PostDbInstanceDtoV2
+    @Body() instance: PostInstanceDtoV2
   ) {
     try {
-      const createdDbInstance = await this.sbService.postDbInstance(edfiTenant, dbInstance);
+      const createdInstance = await this.sbService.postInstance(edfiTenant, instance);
       const createdOds = await this.odsRepository.save({
         edfiTenantId: edfiTenant.id,
         sbEnvironmentId: edfiTenant.sbEnvironmentId,
-        odsInstanceId: createdDbInstance.id,
-        dbName: dbInstance.name,
-        odsInstanceName: dbInstance.name,
-        instanceType: dbInstance.databaseTemplate,
-        databaseTemplate: dbInstance.databaseTemplate,
+        odsInstanceId: createdInstance.id,
+        dbName: instance.name,
+        odsInstanceName: instance.name,
+        instanceType: instance.databaseTemplate,
+        databaseTemplate: instance.databaseTemplate,
         status: 'PendingCreate',
       });
 
@@ -1207,7 +1207,7 @@ export class AdminApiControllerV2 {
       return { id: createdOds.id };
     } catch (PostError: unknown) {
       Logger.error(
-        'Admin API postDbInstance failed: ' +
+        'Admin API postInstance failed: ' +
           (axios.isAxiosError(PostError)
             ? PostError.message +
               ' (status ' +
@@ -1247,39 +1247,39 @@ export class AdminApiControllerV2 {
     }
   }
 
-  @Delete('dbinstances/:dbInstanceId')
+  @Delete('instances/:instanceManageId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant:delete-ods',
     subject: {
-      id: 'dbInstanceId',
+      id: 'instanceManageId',
       edfiTenantId: 'edfiTenantId',
       teamId: 'teamId',
     },
   })
-  async deleteDbInstance(
+  async deleteInstance(
     @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('dbInstanceId', new ParseIntPipe()) dbInstanceId: number
+    @Param('instanceManageId', new ParseIntPipe()) instanceManageId: number
   ) {
-    if (dbInstanceId <= 0) {
-      throw new BadRequestException('dbInstanceId must be greater than zero');
+    if (instanceManageId <= 0) {
+      throw new BadRequestException('instanceManageId must be greater than zero');
     }
 
     const localOds = await this.odsRepository.findOneBy({
       edfiTenantId: edfiTenant.id,
-      dbInstanceId,
+      instanceManageId,
     });
 
     if (!localOds) {
-      throw new NotFoundException('ODS not found for dbInstanceId');
+      throw new NotFoundException('ODS not found for instanceManageId');
     }
 
     if (localOds.status !== 'Created') {
-      throw new BadRequestException("ODS must be in 'Created' status to delete by dbInstanceId");
+      throw new BadRequestException("ODS must be in 'Created' status to delete by instanceManageId");
     }
 
-    await this.sbService.deleteDbInstance(edfiTenant, dbInstanceId);
+    await this.sbService.deleteInstance(edfiTenant, instanceManageId);
 
     await this.odsRepository.save({
       ...localOds,
