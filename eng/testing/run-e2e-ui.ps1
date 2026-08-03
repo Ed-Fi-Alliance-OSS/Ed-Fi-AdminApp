@@ -46,7 +46,11 @@ function Test-Prerequisites {
   $playwrightBrowsersPath = if ($env:PLAYWRIGHT_BROWSERS_PATH) {
     $env:PLAYWRIGHT_BROWSERS_PATH
   } else {
-    Join-Path $env:USERPROFILE '.cache\ms-playwright'
+    if ($IsWindows) {
+      Join-Path $env:LOCALAPPDATA 'ms-playwright'
+    } else {
+      Join-Path $env:USERPROFILE '.cache\ms-playwright'
+    }
   }
   $chromiumInstalled = $false
   if (Test-Path $playwrightBrowsersPath) {
