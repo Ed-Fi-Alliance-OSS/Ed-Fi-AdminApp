@@ -10,15 +10,17 @@ This folder contains local engineering and test automation scripts used by Admin
 - `create-local-user-keycloak.ps1` — Creates/updates a local Keycloak user for development scenarios.
 - `start-all-services-test-docker.ps1` — Starts local Docker services required for API test runs.
 - `get-bruno-token.ps1` — Requests an OAuth token from Keycloak container.
+- `start-services-target.ps1` — Starts the Docker Compose services required for Admin App development and E2E execution. Selects one or more Ed-Fi target topologies (`v6`, `odsV7-adminV2`, `odsV7-adminV3`), optionally includes Admin App containers, and can rebuild images before startup. Supports `-MSSQL` to use SQL Server instead of PostgreSQL for the Admin App database.
 
-### `eng\github-actions`
+  ```powershell
+  pwsh ./eng/helpers/start-services-target.ps1 -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild
+  ```
 
-- `start-services-target.ps1` — Starts the Docker Compose topologies used by GitHub Actions and local E2E workflow debugging.
-
-For full usage, flags, and examples, see [GitHub Actions Helper Scripts](github-actions/README.md).
+  Requirements: Docker must be installed and running; `compose/.env` must exist before the script runs; run it from a clone of the repository so relative paths resolve correctly.
 
 ### `eng\testing`
 
 - `run-bruno.ps1` — Main runner for Bruno API tests, including optional service startup, auth bootstrap, token acquisition, and collection/request filters.
+- `run-e2e-ui.ps1` — Main runner for the Playwright BDD UI E2E suite. Downloads the ODS Minimal Template backup, starts Docker Compose services (PostgreSQL or SQL Server for the Admin App database via `-DbEngine`), creates the local Keycloak test user, and runs the suite.
 
 For full usage, flags, and troubleshooting for `run-bruno.ps1`, see [API Bruno E2E Tests](testing/README.md).
