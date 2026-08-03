@@ -111,10 +111,10 @@ export const useSingleApplicationActions = ({
           icon: Icons.Application,
           text: 'Manage creds',
           title: 'Manage credentials for ' + application.applicationName,
-          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`,
+          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`,
           onClick: () =>
             navigate(
-              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiclients`
+              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`
             ),
         },
         ...(canEdit

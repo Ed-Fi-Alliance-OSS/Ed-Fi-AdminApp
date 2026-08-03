@@ -23,7 +23,7 @@ import {
   apiClientRoute,
   apiClientsIndexRoute,
   apiClientsRoute,
-} from './apiclients.routes';
+} from './apiClients.routes';
 import {
   claimsetCopyRoute,
   claimsetCreateRoute,

@@ -78,7 +78,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       return standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: query,
       });
@@ -89,7 +89,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       return standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: base.id,
       });
@@ -101,7 +101,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: base.entity.id,
       })
@@ -116,7 +116,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: `${base.entity.id}/reset-credential`,
       })
@@ -128,7 +128,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
       })
   )
@@ -143,7 +143,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
         return standardPath({
           edfiTenant,
           teamId,
-          kebabCaseName: 'apiclient',
+          kebabCaseName: 'apiClient',
           adminApi: true,
           id: base.id,
         });
