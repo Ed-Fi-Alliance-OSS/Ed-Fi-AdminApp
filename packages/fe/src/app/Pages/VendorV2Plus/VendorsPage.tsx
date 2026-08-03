@@ -5,16 +5,17 @@ import {
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
-import { vendorQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { NameCell } from './NameCell';
 import { useManyVendorActions } from './useVendorActions';
+import { useVendorConfig } from './vendorConfig';
 
 export const VendorsPageContent = () => {
   const { edfiTenant, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
 
   const vendors = useQuery(
-    vendorQueriesV2.getAll({
+    queries.getAll({
       teamId: asId,
       edfiTenant,
     })

@@ -1,18 +1,18 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
-import { GetVendorDtoV2 } from '@edanalytics/models';
 import { useNavigate } from 'react-router-dom';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { vendorQueriesV2 } from '../../api';
 import { useAuthorize, useTeamEdfiTenantNavContextLoaded, vendorAuthConfig } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { VendorEntity, useVendorConfig } from './vendorConfig';
 
-export const useVendorActions = (vendor: GetVendorDtoV2 | undefined): ActionsType => {
+export const useVendorActions = (vendor: VendorEntity | undefined): ActionsType => {
   const { edfiTenant, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useVendorConfig();
 
   const navigate = useNavigate();
   const to = (id: number | string) =>
     `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/vendors/${id}`;
-  const deleteVendor = vendorQueriesV2.delete({ edfiTenant, teamId: asId });
+  const deleteVendor = queries.delete({ edfiTenant, teamId: asId });
   const popBanner = usePopBanner();
   const canView = useAuthorize(
     vendorAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.vendor:read')

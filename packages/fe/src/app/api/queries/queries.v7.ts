@@ -8,7 +8,9 @@ import {
   GetClaimsetSingleDtoV2,
   GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
+  GetProfileDtoV3,
   GetVendorDtoV2,
+  GetVendorDtoV3,
   Id,
   PostApiClientDtoV2,
   PostApiClientResponseDtoV2,
@@ -17,12 +19,16 @@ import {
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
+  PostProfileDtoV3,
   PostVendorDtoV2,
+  PostVendorDtoV3,
   PutApiClientDtoV2,
   PutApplicationFormDtoV2,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
+  PutProfileDtoV3,
   PutVendorDtoV2,
+  PutVendorDtoV3,
 } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
@@ -229,6 +235,19 @@ export const vendorQueriesV2 = new EntityQueryBuilder({
   .delete('delete')
   .build();
 
+export const vendorQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Vendor',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getOne('getOne', { ResDto: GetVendorDtoV3 })
+  .getAll('getAll', { ResDto: GetVendorDtoV3 })
+  .put('put', { ResDto: GetVendorDtoV3, ReqDto: PutVendorDtoV3 })
+  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV3 })
+  .delete('delete')
+  .build();
+
 export const profileQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
   name: 'Profile',
@@ -239,6 +258,19 @@ export const profileQueriesV2 = new EntityQueryBuilder({
   .getAll('getAll', { ResDto: GetProfileDtoV2 })
   .put('put', { ResDto: GetProfileDtoV2, ReqDto: PutProfileDtoV2 })
   .post('post', { ResDto: GetProfileDtoV2, ReqDto: PostProfileDtoV2 })
+  .delete('delete')
+  .build();
+
+export const profileQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Profile',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getOne('getOne', { ResDto: GetProfileDtoV3 })
+  .getAll('getAll', { ResDto: GetProfileDtoV3 })
+  .put('put', { ResDto: GetProfileDtoV3, ReqDto: PutProfileDtoV3 })
+  .post('post', { ResDto: GetProfileDtoV3, ReqDto: PostProfileDtoV3 })
   .delete('delete')
   .build();
 

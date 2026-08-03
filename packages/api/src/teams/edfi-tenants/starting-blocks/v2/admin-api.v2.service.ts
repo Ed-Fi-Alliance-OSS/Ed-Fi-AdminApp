@@ -49,8 +49,13 @@ import axios, { AxiosError, isAxiosError } from 'axios';
 import crypto from 'crypto';
 import NodeCache from 'node-cache';
 import { CustomHttpException } from '../../../../utils';
+import {
+  pollJobStatus,
+  triggerEdOrgRefresh,
+} from '../admin-api-refresh-poll.util';
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
+
 /**
  * This service is used to interact with the Admin API. Each method is a single
  * API call (plus login if token is expired).
@@ -1190,6 +1195,39 @@ export class AdminApiServiceV2 {
           );
           throw err;
         })
+    );
+  }
+
+  /**
+   * Run the Admin API job to refresh the EdOrgs for the given environment. This is a long-running operation, so it returns a job ID that can be polled for completion.
+   * @param sbEnvironment - The environment whose Admin API client to use
+   * @returns Promise<string | null> - The job ID if successfully triggered, otherwise null
+   */
+  async triggerEdOrgRefresh(sbEnvironment: SbEnvironment): Promise<string | null> {
+    return triggerEdOrgRefresh(
+      this.getAdminApiClientForEnvironment(sbEnvironment),
+      'odsInstances/edOrgs/refresh',
+      this.logger,
+      sbEnvironment.name
+    );
+  }
+
+  /**
+   * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
+   * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
+   * @param sbEnvironment - The environment whose Admin API client to use
+   * @param jobId - The job ID returned by triggerEdOrgRefresh()
+   * @returns 'completed' | 'failed' | 'timeout'
+   */
+  async pollJobStatus(
+    sbEnvironment: SbEnvironment,
+    jobId: string
+  ): Promise<'completed' | 'failed' | 'timeout'> {
+    return pollJobStatus(
+      this.getAdminApiClientForEnvironment(sbEnvironment),
+      jobId,
+      this.logger,
+      sbEnvironment.name
     );
   }
 

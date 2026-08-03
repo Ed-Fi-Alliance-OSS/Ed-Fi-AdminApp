@@ -1,15 +1,16 @@
 import { PageActions, PageTemplate, SbaaTableAllInOne } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
-import { profileQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { NameCell } from './NameCell';
 import { useManyProfileActions } from './useProfileActions';
+import { useProfileConfig } from './profileConfig';
 
 export const ProfilesPageContent = () => {
   const { edfiTenant, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useProfileConfig();
 
   const profiles = useQuery(
-    profileQueriesV2.getAll({
+    queries.getAll({
       teamId: asId,
       edfiTenant,
     })

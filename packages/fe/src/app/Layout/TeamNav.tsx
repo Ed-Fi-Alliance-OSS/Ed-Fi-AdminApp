@@ -346,7 +346,7 @@ export const TeamNav = (props: { teamId: string }) => {
                               privilege: 'team.sb-environment.edfi-tenant.profile:read',
                               subject: privilegeSubject,
                             },
-                          }) && sbEnvironment?.version === 'v2',
+                          }) && sbEnvironment?.version !== 'v1',
                           {
                             route: `${tenantRootUrl}/profiles`,
                             icon: Icons.Profile,
