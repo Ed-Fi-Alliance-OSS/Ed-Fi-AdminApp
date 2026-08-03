@@ -142,3 +142,33 @@ This change:
   patch produces a working SQL Server-backed stack and the full suite passes.
 - Trigger `run-e2e-ui.yml` via `workflow_dispatch` once merged, confirming both matrix
   jobs (`pgsql` and `mssql`) pass and upload distinctly named artifacts.
+
+## 5. Future consideration: full MSSQL stack (ODS/API also on SQL Server)
+
+Not part of this change, but noted for a possible follow-on effort: today the
+ODS/API databases (`odsV7-*-db-ods`, built from `compose/DB-Ods`) are hardcoded to
+PostgreSQL — restore uses `psql -f` against a `.sql` backup
+(`compose/DB-Ods/init.sh`), and `edfi-services.yml` wires Postgres-only connection
+strings, volumes, and healthchecks for every topology.
+
+Ed-Fi also publishes a SQL Server variant of the ODS Minimal Template as a `.bak` file
+(e.g.
+`EdFi.Suite3.Ods.Minimal.Template.Standard.4.0.0` on the Ed-Fi Azure DevOps feed),
+which would let the ODS/API itself run on SQL Server, not just the Admin App's own
+database. Supporting that would require, roughly:
+
+- A SQL-Server-backed variant of the ODS container (new image/Dockerfile alongside
+  `compose/DB-Ods`, or a conditional entrypoint), restoring via `RESTORE DATABASE ...
+  FROM DISK` instead of `psql -f`.
+- New `edfi-services.yml` service definitions (or profile-gated variants of the
+  existing ones) with SQL Server connection strings, ports, and healthchecks for each
+  topology (v6, odsV7-adminV2, odsV7-adminV3).
+- A download step for the `.bak` backup, parallel to today's `.sql` download, selected
+  by whichever engine flag ends up driving ODS DB choice.
+- Deciding whether ODS engine and Admin App DB engine are selected independently (two
+  flags) or always move together under one `-DbEngine` value — independent selection
+  is likely more valuable since it mirrors real deployment flexibility, but roughly
+  doubles the CI matrix if both dimensions are tested.
+
+This would warrant its own design/spec pass rather than folding into the current
+change.
