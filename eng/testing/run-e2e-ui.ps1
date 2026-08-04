@@ -119,3 +119,42 @@ function Get-OdsMinimalTemplateBackup {
 
 Test-Prerequisites
 Get-OdsMinimalTemplateBackup
+
+function Set-AdminAppEnvFile {
+  param(
+    [ValidateSet('pgsql', 'mssql')]
+    [string]$Engine
+  )
+
+  $envExamplePath = Join-Path $repoRoot 'compose\.env.example'
+  $envPath = Join-Path $repoRoot 'compose\.env'
+
+  Copy-Item -Path $envExamplePath -Destination $envPath -Force
+
+  if ($Engine -ne 'mssql') {
+    return
+  }
+
+  $mssqlPassword = 'YourStrong!Passw0rd'
+  $content = Get-Content -Path $envPath
+
+  $content = $content | ForEach-Object {
+    switch -Regex ($_) {
+      '^DB_ENGINE=pgsql$' { 'DB_ENGINE=mssql' }
+      '^# MSSQL_PORT_EXPOSED=1433$' { 'MSSQL_PORT_EXPOSED=1433' }
+      '^# MSSQL_ACCEPT_EULA=Y$' { 'MSSQL_ACCEPT_EULA=Y' }
+      '^# MSSQL_SA_PASSWORD=.*$' { "MSSQL_SA_PASSWORD=$mssqlPassword" }
+      '^# MSSQL_IMAGE_TAG=2022-latest$' { 'MSSQL_IMAGE_TAG=2022-latest' }
+      '^DB_SECRET_VALUE=\{"DB_HOST".*$' { "# $_" }
+      '^# DB_SECRET_VALUE=\{"MSSQL_DB_HOST".*$' {
+        ($_ -replace '^# ', '') -replace '"MSSQL_DB_PASSWORD":"[^"]*"', "`"MSSQL_DB_PASSWORD`":`"$mssqlPassword`""
+      }
+      default { $_ }
+    }
+  }
+
+  Set-Content -Path $envPath -Value $content
+  Write-Host "compose/.env patched for MSSQL (DB_ENGINE=mssql)." -ForegroundColor Cyan
+}
+
+Set-AdminAppEnvFile -Engine $DbEngine
