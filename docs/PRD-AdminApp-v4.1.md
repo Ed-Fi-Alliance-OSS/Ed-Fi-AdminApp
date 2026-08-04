@@ -364,7 +364,7 @@ following product-level architecture implications:
 | Synchronization | Admin App must support refresh requests that return asynchronous job identifiers and job-status polling. |
 | Environment setup | Admin App consumes Management API tenant-mode metadata when available. |
 | Authentication | Microsoft Entra ID is validated as a field-relevant OIDC provider in addition to Keycloak. |
-| ODS Instances | Admin App creates and deletes non-Starting Blocks ODS instances through the Management API v2 `dbinstances` endpoint, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Management API and treats changes to those fields as synchronization deltas. |
+| ODS Instances | Admin App creates and deletes non-Starting Blocks ODS instances through the Management API `/v2/odsInstances/manage` or `/v3/dataStore/manage` endpoints, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Management API and treats changes to those fields as synchronization deltas. |
 
 ## 6. Out of Scope
 
