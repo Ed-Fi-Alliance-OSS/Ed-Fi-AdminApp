@@ -246,6 +246,8 @@ example:
 > open the downloaded file as a Zip file, then place both `.sql` files in your
 > `SQL_BACKUPS_FOLDER`.
 
+Set the following environment variables:
+
 - **`SQL_BACKUPS_FOLDER`**: host path to a folder containing
   `EdFi.Ods.Minimal.Template.sql` and `EdFi.Ods.Populated.Template.sql`. This
   folder is bind-mounted read-only into every ODS DB container.
