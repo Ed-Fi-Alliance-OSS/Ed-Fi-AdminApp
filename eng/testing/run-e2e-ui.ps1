@@ -95,21 +95,24 @@ function Get-OdsMinimalTemplateBackup {
   $zipPath = Join-Path $backupDir 'package.zip'
   $pkgDir = Join-Path $backupDir 'pkg'
 
-  Invoke-WebRequest -Uri $feedUrl -OutFile $nupkgPath
-  Copy-Item -Path $nupkgPath -Destination $zipPath -Force
-  Expand-Archive -Path $zipPath -DestinationPath $pkgDir -Force
+  try {
+    Invoke-WebRequest -Uri $feedUrl -OutFile $nupkgPath
+    Copy-Item -Path $nupkgPath -Destination $zipPath -Force
+    Expand-Archive -Path $zipPath -DestinationPath $pkgDir -Force
 
-  $srcSql = Get-ChildItem -Path $pkgDir -Filter '*.sql' -Recurse | Select-Object -First 1
-  if (-not $srcSql) {
-    throw 'ERROR: No .sql file found inside the NuGet package'
+    $srcSql = Get-ChildItem -Path $pkgDir -Filter '*.sql' -Recurse | Select-Object -First 1
+    if (-not $srcSql) {
+      throw 'ERROR: No .sql file found inside the NuGet package'
+    }
+    Write-Host "Found: $($srcSql.FullName)" -ForegroundColor Cyan
+
+    Copy-Item -Path $srcSql.FullName -Destination $minimalSqlPath -Force
+    Copy-Item -Path $minimalSqlPath -Destination $populatedSqlPath -Force
   }
-  Write-Host "Found: $($srcSql.FullName)" -ForegroundColor Cyan
-
-  Copy-Item -Path $srcSql.FullName -Destination $minimalSqlPath -Force
-  Copy-Item -Path $minimalSqlPath -Destination $populatedSqlPath -Force
-
-  Remove-Item -Path $nupkgPath, $zipPath -Force
-  Remove-Item -Path $pkgDir -Recurse -Force
+  finally {
+    Remove-Item -Path $nupkgPath, $zipPath -Force -ErrorAction SilentlyContinue
+    Remove-Item -Path $pkgDir -Recurse -Force -ErrorAction SilentlyContinue
+  }
 
   Write-Host "Backup files ready in $backupDir" -ForegroundColor Green
 }
