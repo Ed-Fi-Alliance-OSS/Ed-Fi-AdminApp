@@ -48,8 +48,10 @@ function Test-Prerequisites {
   } else {
     if ($IsWindows) {
       Join-Path $env:LOCALAPPDATA 'ms-playwright'
+    } elseif ($IsMacOS) {
+      Join-Path $env:HOME 'Library/Caches/ms-playwright'
     } else {
-      Join-Path $env:USERPROFILE '.cache\ms-playwright'
+      Join-Path $env:HOME '.cache/ms-playwright'
     }
   }
   $chromiumInstalled = $false
@@ -60,7 +62,7 @@ function Test-Prerequisites {
     $missing += 'Playwright Chromium browser not found. Run: npx playwright install --with-deps chromium'
   }
 
-  $certPath = Join-Path $repoRoot 'compose\ssl\server.crt'
+  $certPath = Join-Path $repoRoot 'compose/ssl/server.crt'
   if (-not (Test-Path $certPath)) {
     $missing += 'Local TLS certificate not found at compose/ssl/server.crt. Run: bash ./compose/ssl/generate-certificate.sh'
   }
@@ -75,7 +77,7 @@ function Test-Prerequisites {
 }
 
 function Get-OdsMinimalTemplateBackup {
-  $backupDir = Join-Path $repoRoot 'compose\db-backup'
+  $backupDir = Join-Path $repoRoot 'compose/db-backup'
   $minimalSqlPath = Join-Path $backupDir 'EdFi.Ods.Minimal.Template.sql'
   $populatedSqlPath = Join-Path $backupDir 'EdFi.Ods.Populated.Template.sql'
 
@@ -126,8 +128,12 @@ function Set-AdminAppEnvFile {
     [string]$Engine
   )
 
-  $envExamplePath = Join-Path $repoRoot 'compose\.env.example'
-  $envPath = Join-Path $repoRoot 'compose\.env'
+  $envExamplePath = Join-Path $repoRoot 'compose/.env.example'
+  $envPath = Join-Path $repoRoot 'compose/.env'
+
+  if (Test-Path $envPath) {
+    Write-Host "WARNING: compose/.env already exists and is about to be overwritten/regenerated from compose/.env.example. Any local customizations (image tags, secrets, dataset choice) will be lost." -ForegroundColor Yellow
+  }
 
   Copy-Item -Path $envExamplePath -Destination $envPath -Force
 
@@ -136,21 +142,30 @@ function Set-AdminAppEnvFile {
   }
 
   $mssqlPassword = 'YourStrong!Passw0rd'
+  $script:mssqlSaPassword = $mssqlPassword
   $content = Get-Content -Path $envPath
+
+  $substitutionsFired = 0
 
   $content = $content | ForEach-Object {
     switch -Regex ($_) {
-      '^DB_ENGINE=pgsql$' { 'DB_ENGINE=mssql' }
-      '^# MSSQL_PORT_EXPOSED=1433$' { 'MSSQL_PORT_EXPOSED=1433' }
-      '^# MSSQL_ACCEPT_EULA=Y$' { 'MSSQL_ACCEPT_EULA=Y' }
-      '^# MSSQL_SA_PASSWORD=.*$' { "MSSQL_SA_PASSWORD=$mssqlPassword" }
-      '^# MSSQL_IMAGE_TAG=2022-latest$' { 'MSSQL_IMAGE_TAG=2022-latest' }
-      '^DB_SECRET_VALUE=\{"DB_HOST".*$' { "# $_" }
+      '^DB_ENGINE=pgsql$' { $substitutionsFired++; 'DB_ENGINE=mssql' }
+      '^# MSSQL_PORT_EXPOSED=1433$' { $substitutionsFired++; 'MSSQL_PORT_EXPOSED=1433' }
+      '^# MSSQL_ACCEPT_EULA=Y$' { $substitutionsFired++; 'MSSQL_ACCEPT_EULA=Y' }
+      '^# MSSQL_SA_PASSWORD=.*$' { $substitutionsFired++; "MSSQL_SA_PASSWORD=$mssqlPassword" }
+      '^# MSSQL_IMAGE_TAG=2022-latest$' { $substitutionsFired++; 'MSSQL_IMAGE_TAG=2022-latest' }
+      '^DB_SECRET_VALUE=\{"DB_HOST".*$' { $substitutionsFired++; "# $_" }
       '^# DB_SECRET_VALUE=\{"MSSQL_DB_HOST".*$' {
+        $substitutionsFired++
         ($_ -replace '^# ', '') -replace '"MSSQL_DB_PASSWORD":"[^"]*"', "`"MSSQL_DB_PASSWORD`":`"$mssqlPassword`""
       }
       default { $_ }
     }
+  }
+
+  $expectedSubstitutions = 6
+  if ($substitutionsFired -lt $expectedSubstitutions) {
+    throw "compose/.env.example did not match the expected MSSQL patch patterns: only $substitutionsFired of $expectedSubstitutions substitutions fired. compose/.env.example may have been reformatted; update the regex patterns in Set-AdminAppEnvFile."
   }
 
   Set-Content -Path $envPath -Value $content
@@ -159,7 +174,31 @@ function Set-AdminAppEnvFile {
 
 Set-AdminAppEnvFile -Engine $DbEngine
 
+function Test-MssqlSbaaDatabaseExists {
+  $sqlcmdArgs = @(
+    'exec', 'edfiadminapp-mssql',
+    '/opt/mssql-tools18/bin/sqlcmd',
+    '-S', 'localhost',
+    '-U', 'sa',
+    '-P', $script:mssqlSaPassword,
+    '-C',
+    '-Q', "SET NOCOUNT ON; SELECT DB_ID('sbaa')"
+  )
+  try {
+    $output = & docker @sqlcmdArgs 2>$null
+    if ($LASTEXITCODE -ne 0) { return $false }
+    return ($output -join "`n") -notmatch 'NULL' -and ($output -join "`n") -match '\d'
+  } catch {
+    return $false
+  }
+}
+
 function Wait-ForAdminAppReadiness {
+  param(
+    [ValidateSet('pgsql', 'mssql')]
+    [string]$DbEngine
+  )
+
   $apiUrl = 'https://localhost/adminapp-api/api/healthcheck'
   $feUrl = 'https://localhost/adminapp/'
   $keycloakUrl = 'https://localhost/auth/realms/edfi/.well-known/openid-configuration'
@@ -167,12 +206,20 @@ function Wait-ForAdminAppReadiness {
 
   $requiredStableChecks = 3
   $stableChecks = 0
+  $checkMssqlDb = ($DbEngine -eq 'mssql')
+
+  $apiOk = $false
+  $feOk = $false
+  $keycloakOk = $false
+  $keycloakLoginOk = $false
+  $mssqlDbOk = $false
 
   for ($i = 1; $i -le 90; $i++) {
     $apiOk = $false
     $feOk = $false
     $keycloakOk = $false
     $keycloakLoginOk = $false
+    $mssqlDbOk = $false
 
     try { if ((Invoke-WebRequest -Uri $apiUrl -SkipCertificateCheck -UseBasicParsing).StatusCode -eq 200) { $apiOk = $true } } catch {}
     try { if ((Invoke-WebRequest -Uri $feUrl -SkipCertificateCheck -UseBasicParsing).StatusCode -eq 200) { $feOk = $true } } catch {}
@@ -182,12 +229,19 @@ function Wait-ForAdminAppReadiness {
       if ($loginResponse.Content -match 'kc-form-login') { $keycloakLoginOk = $true }
     } catch {}
 
-    if ($apiOk -and $feOk -and $keycloakOk -and $keycloakLoginOk) {
+    if ($checkMssqlDb) {
+      $mssqlDbOk = Test-MssqlSbaaDatabaseExists
+    } else {
+      $mssqlDbOk = $true
+    }
+
+    if ($apiOk -and $feOk -and $keycloakOk -and $keycloakLoginOk -and $mssqlDbOk) {
       $stableChecks++
       Write-Host "Readiness OK ($stableChecks/$requiredStableChecks)" -ForegroundColor Green
     } else {
       $stableChecks = 0
-      Write-Host "Waiting... API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk ($i/90)" -ForegroundColor Yellow
+      $mssqlDbSuffix = if ($checkMssqlDb) { " MSSQL_SBAA_DB=$mssqlDbOk" } else { '' }
+      Write-Host "Waiting... API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix ($i/90)" -ForegroundColor Yellow
     }
 
     if ($stableChecks -ge $requiredStableChecks) {
@@ -198,28 +252,33 @@ function Wait-ForAdminAppReadiness {
     Start-Sleep -Seconds 3
   }
 
-  throw 'Timed out waiting for stable Admin App services'
+  $mssqlDbSuffix = if ($checkMssqlDb) { " MSSQL_SBAA_DB=$mssqlDbOk" } else { '' }
+  throw "Timed out waiting for stable Admin App services (last state: API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix)"
 }
-
-& (Join-Path $repoRoot 'eng\helpers\start-services-target.ps1') -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql')
-if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
-
-Wait-ForAdminAppReadiness
 
 $testExitCode = 1
 try {
-  & (Join-Path $repoRoot 'eng\helpers\create-local-user-keycloak.ps1')
+  & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql')
+  if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
+
+  Wait-ForAdminAppReadiness -DbEngine $DbEngine
+
+  & (Join-Path $repoRoot 'eng/helpers/create-local-user-keycloak.ps1')
   if ($LASTEXITCODE -ne 0) { throw 'Failed to create local Keycloak user.' }
 
   Push-Location $repoRoot
-  npm run test:e2e:bdd
-  $testExitCode = $LASTEXITCODE
-  Pop-Location
+  try {
+    npm run test:e2e:bdd
+    $testExitCode = $LASTEXITCODE
+  }
+  finally {
+    Pop-Location
+  }
 }
 finally {
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
-    & (Join-Path $repoRoot 'compose\stop.ps1')
+    & (Join-Path $repoRoot 'compose/stop.ps1')
   }
 }
 

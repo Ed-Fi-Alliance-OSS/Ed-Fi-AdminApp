@@ -21,6 +21,6 @@ This folder contains local engineering and test automation scripts used by Admin
 ### `eng\testing`
 
 - `run-bruno.ps1` — Main runner for Bruno API tests, including optional service startup, auth bootstrap, token acquisition, and collection/request filters.
-- `run-e2e-ui.ps1` — Main runner for the Playwright BDD UI E2E suite. Downloads the ODS Minimal Template backup, starts Docker Compose services (PostgreSQL or SQL Server for the Admin App database via `-DbEngine`), creates the local Keycloak test user, and runs the suite.
+- `run-e2e-ui.ps1` — Main runner for the Playwright BDD UI E2E suite. Downloads the ODS Minimal Template backup, starts Docker Compose services (PostgreSQL or SQL Server for the Admin App database via `-DbEngine`), creates the local Keycloak test user, and runs the suite. Note: this script regenerates `compose/.env` from `compose/.env.example` on every run, overwriting any local customizations you may have made to `compose/.env`.
 
 For full usage, flags, and troubleshooting for `run-bruno.ps1`, see [API Bruno E2E Tests](testing/README.md).
