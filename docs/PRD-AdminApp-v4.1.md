@@ -9,10 +9,8 @@
 ## 1. Product Overview
 
 Admin App v4.1 builds on the v4.0 release by creating or improving the workflows
-administrators use to manage API client credentials,  keep Admin App
-synchronized with the Ed-Fi ODS/API and ODS Admin API, and manage database
-instances. Additionally, it should be compatible with the new Ed-Fi API v8
-platform (Data Management Service and Configuration Management Service).
+administrators use to manage API client credentials and to keep Admin App
+synchronized with an Ed-Fi ODS/API or Ed-Fi API (DMS) deployment.
 
 This PRD is a release delta: it complements the v4.0 PRD rather than
 replacing the product overview, personas, enterprise architecture, and baseline
@@ -133,15 +131,15 @@ drilldown behavior.
 Administrator
 
 **When** configuring an Ed-Fi ODS/API v7+ deployment, \
-**I want** to create new a ODS database instance from an existing template, \
+**I want** to create a new ODS database instance from an existing template, \
 **so that** it can support a new school year for an existing LEA, or a new LEA,
 or as a sandbox for vendor certification.
 
 Variant: delete database instances.
 
-**How Admin App Helps:** the application will support create and delete
-operations, and show the status of requested database management operations,
-with all action being taken by an Management API deployment.
+**How Admin App Helps:** The application will support the _create_ and _delete_
+data store operations, and show the status of requested database management operations,
+with all actions being executed by an Management API deployment.
 
 ## 3. Functional Requirements
 
@@ -200,8 +198,7 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-SYNC-2:** The application SHALL use the Management API refresh behavior for
   **education organization data** when that behavior is available.
 - **FR-SYNC-3** / **FR-DBINST-3:** The application SHALL use the Management API refresh behavior for
-  **ODS instance configurations** when that behavior is available.
-  - Resolves a known caveat on FR-DBINST-2 from the v4.0 PRD.
+  **Data Store instance configurations** when that behavior is available.
 - **FR-SYNC-4:** If a synchronization refresh job fails, the application SHALL
   communicate the failure to the user and SHALL NOT present stale or partial data
   as a successful refresh.
@@ -289,7 +286,7 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-DBINST-2:** For non-Starting Blocks environments, the database template
   selection SHALL be limited to a fixed set of supported options (**Minimal**,
   **Sample**) rather than the Starting Blocks template list.
-- **FR-DBINST-3:** When a Data Store instance creation request is accepted by the Admin
+- **FR-DBINST-3:** When a Data Store instance creation request is accepted by the Management
   API, the application SHALL create a local Data Store record with a pending status
   and SHALL automatically queue an environment synchronization job so that the
   instance's status can subsequently be updated without further user action.
@@ -304,7 +301,7 @@ Starting Blocks environments through the following detailed requirements:
 - **FR-DBINST-6:** Data Store instance name validation SHALL accept letters (upper and
   lower case), numbers, and spaces.
 - **FR-DBINST-7:** The application SHALL surface Management API validation errors for
-  ODS instance name and database template as field-level errors on the create
+  data store instance name and database template as field-level errors on the create
   form.
 - **FR-DBINST-8:** The Data Store instance list SHALL display each instance's type and
   current status alongside its name.
@@ -327,7 +324,7 @@ Starting Blocks environments through the following detailed requirements:
   application SHALL update the local Data Store record to a pending-delete status and
   SHALL automatically queue an environment synchronization job so that the
   instance's status can subsequently converge without further user action.
-- **FR-DBINST-15:** If an Data Store instance delete operation fails, the application
+- **FR-DBINST-15:** If a Data Store instance delete operation fails, the application
   SHALL reflect the failure status (**Delete: Failed**) to the user rather than
   silently removing the instance from the list.
 - **FR-DBINST-16:** Once an Data Store instance delete operation completes successfully,
@@ -348,7 +345,7 @@ end-user behavior for the v4.1 functionality.
   present.
 - **NFR-SEC-3:** Credential creation and reset flows SHALL preserve the v4.0
   one-time secret handling expectations, including configured Yopass behavior.
-- ***NFR-SDLC-6**: The application SHALL use the currently-supported framework
+- **NFR-SDLC-6**: The application SHALL use the currently-supported framework
   SDK (NodeJs 24).
 
 ## 5. System Architecture Implications
@@ -364,7 +361,7 @@ following product-level architecture implications:
 | Synchronization | Admin App must support refresh requests that return asynchronous job identifiers and job-status polling. |
 | Environment setup | Admin App consumes Management API tenant-mode metadata when available. |
 | Authentication | Microsoft Entra ID is validated as a field-relevant OIDC provider in addition to Keycloak. |
-| ODS Instances | Admin App creates and deletes non-Starting Blocks ODS instances through the Management API `/v2/odsInstances/manage` or `/v3/dataStore/manage` endpoints, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Management API and treats changes to those fields as synchronization deltas. |
+| ODS Instances --> Data Store Instances | Admin App creates and deletes non-Starting Blocks data store instances through the Management API `/v2/odsInstances/manage` or `/v3/dataStore/manage` endpoints, then orchestrates a local pending-status ODS record and an environment synchronization job so the instance's status can converge without further user action. Admin App also persists instance type, status, database template, and database name metadata returned by the Management API and treats changes to those fields as synchronization deltas. |
 
 ## 6. Out of Scope
 
