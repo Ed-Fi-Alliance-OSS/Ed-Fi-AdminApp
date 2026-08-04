@@ -33,7 +33,7 @@ export const EditApiClient = (props: { apiClient: GetApiClientDtoV2 }) => {
 
   const goToView = () => {
     navigate(
-      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${apiClient.applicationId}/apiclients/${apiClient.id}`
+      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${apiClient.applicationId}/apiClients/${apiClient.id}`
     );
   };
 

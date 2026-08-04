@@ -10,7 +10,7 @@ import {
   PostApplicationDtoV2,
   PostClaimsetDtoV2,
   PostClaimsetResourceClaimActionsDtoV2,
-  PostDbInstanceDtoV2,
+  PostInstanceDtoV2,
   PostOdsInstanceContextDtoV2,
   PostOdsInstanceDerivativeDtoV2,
   PostOdsInstanceDtoV2,
@@ -497,7 +497,7 @@ export class AdminApiServiceV2 {
     return toGetApiClientDtoV2(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       await this.getAdminApiClient(edfiTenant)
-        .get<any, any[]>(`apiclients?offset=0&limit=10000&applicationId=${applicationId}`)
+        .get<any, any[]>(`apiClients?offset=0&limit=10000&applicationId=${applicationId}`)
         .catch((err) => {
           this.logger.error(`Error getting API clients for tenant ${edfiTenant.id}: ${err}`);
           throw err;
@@ -508,7 +508,7 @@ export class AdminApiServiceV2 {
   async getApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
     return toGetApiClientDtoV2(
       (await this.getAdminApiClient(edfiTenant)
-        .get(`apiclients/${apiClientId}`)
+        .get(`apiClients/${apiClientId}`)
         .catch((err) => {
           this.logger.error(
             `Error getting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
@@ -521,7 +521,7 @@ export class AdminApiServiceV2 {
   async putApiClient(edfiTenant: EdfiTenant, apiClientId: number, apiClient: PutApiClientDtoV2) {
     return toGetApiClientDtoV2(
       (await this.getAdminApiClient(edfiTenant)
-        .put(`apiclients/${apiClientId}`, apiClient)
+        .put(`apiClients/${apiClientId}`, apiClient)
         .catch((err) => {
           this.logger.error(
             `Error updating API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
@@ -537,7 +537,7 @@ export class AdminApiServiceV2 {
    ): Promise<PostApiClientResponseDtoV2> {
      return toPostApiClientResponseDtoV2(
        (await this.getAdminApiClient(edfiTenant)
-         .post(`apiclients`, apiClient)
+         .post(`apiClients`, apiClient)
          .catch((err) => {
            this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
            throw err;
@@ -548,7 +548,7 @@ export class AdminApiServiceV2 {
   async putApiClientResetCredential(edfiTenant: EdfiTenant, apiClientId: number) {
     return toPostApiClientResponseDtoV2(
       (await this.getAdminApiClient(edfiTenant)
-        .put(`apiclients/${apiClientId}/reset-credential`)
+        .put(`apiClients/${apiClientId}/reset-credential`)
         .catch((err) => {
           this.logger.error(
             `Error resetting API client credential for API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
@@ -560,7 +560,7 @@ export class AdminApiServiceV2 {
 
   async deleteApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
     await this.getAdminApiClient(edfiTenant)
-      .delete(`apiclients/${apiClientId}`)
+      .delete(`apiClients/${apiClientId}`)
       .catch((err) => {
         this.logger.error(
           `Error deleting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`
@@ -813,30 +813,30 @@ export class AdminApiServiceV2 {
     );
   }
 
-  async postDbInstance(edfiTenant: EdfiTenant, dbInstance: PostDbInstanceDtoV2) {
+  async postInstance(edfiTenant: EdfiTenant, instance: PostInstanceDtoV2) {
     const { headers } = await this.getAdminApiClient(edfiTenant, true)
-      .post('dbInstances', dbInstance)
+      .post('odsInstances/manage', instance)
       .catch((err) => {
-        this.logger.error(`Error creating dbInstance for tenant ${edfiTenant.id}: ${err}`);
+        this.logger.error(`Error creating instance for tenant ${edfiTenant.id}: ${err}`);
         throw err;
       });
     const location = headers?.location;
     const match = typeof location === 'string' ? location.match(/\d+$/) : null;
     if (!match) {
       this.logger.error(
-        `Error creating dbInstance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
+        `Error creating instance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
       );
-      throw new Error('Admin API did not return a Location header containing the created dbInstance id.');
+      throw new Error('Admin API did not return a Location header containing the created instance id.');
     }
     return { id: Number(match[0]) };
   }
 
-  async deleteDbInstance(edfiTenant: EdfiTenant, dbInstanceId: number) {
+  async deleteInstance(edfiTenant: EdfiTenant, instanceManageId: number) {
     await this.getAdminApiClient(edfiTenant, true)
-      .delete(`dbInstances/${dbInstanceId}`)
+      .delete(`odsInstances/manage/${instanceManageId}`)
       .catch((err) => {
         this.logger.error(
-          `Error deleting dbInstance ${dbInstanceId} for tenant ${edfiTenant.id}: ${err}`
+          `Error deleting instance ${instanceManageId} for tenant ${edfiTenant.id}: ${err}`
         );
         throw err;
       });
@@ -1391,7 +1391,7 @@ export class AdminApiServiceV2 {
                 const odsInstance: OdsInstanceDto = {
                   id: instance.id ?? null,
                   name: instance.name || 'Unknown ODS Instance',
-                  dbInstanceId: instance.dbInstanceId ?? null,
+                  instanceManageId: instance.odsInstanceManageId ?? null,
                   instanceType: instance.instanceType,
                   status: instance.status ?? null,
                   databaseTemplate: instance.databaseTemplate ?? null,

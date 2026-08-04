@@ -1,6 +1,6 @@
 import { Icons, PageActions, PageTemplate, SbaaTableAllInOne, TableRowActions } from '@edanalytics/common-ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { dbInstancesV2, odsQueries } from '../../api';
+import { instancesV2, odsQueries } from '../../api';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
@@ -28,10 +28,10 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   );
   const to = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/${ods.id}/`;
   const deleteOds = odsQueries.delete({ edfiTenant, teamId });
-  const deleteDbInstance = dbInstancesV2.delete({ edfiTenant, teamId });
+  const deleteInstance = instancesV2.delete({ edfiTenant, teamId });
   const isStartingBlocks = sbEnvironment.startingBlocks;
-  const canDeleteDbInstance =
-    typeof ods.dbInstanceId === 'number' && ods.dbInstanceId > 0 && ods.status === 'Created';
+  const canDeleteInstance =
+    typeof ods.instanceManageId === 'number' && ods.instanceManageId > 0 && ods.status === 'Created';
   const deleteAction = isStartingBlocks
     ? {
         icon: Icons.Delete,
@@ -42,7 +42,7 @@ const useOdsRowActions = (ods: GetOdsDto) => {
         onClick: () =>
           deleteOds.mutateAsync({ id: ods.id }, mutationErrCallback({ popGlobalBanner: popBanner })),
       }
-    : canDelete && canDeleteDbInstance
+    : canDelete && canDeleteInstance
       ? {
           icon: Icons.Delete,
           text: 'Delete',
@@ -59,8 +59,8 @@ const useOdsRowActions = (ods: GetOdsDto) => {
                 return { ...prev, [ods.id]: withPendingDeleteStatus(current) };
               }
             );
-            return deleteDbInstance.mutateAsync(
-              { id: ods.dbInstanceId! },
+            return deleteInstance.mutateAsync(
+              { id: ods.instanceManageId! },
               mutationErrCallback({ popGlobalBanner: popBanner })
             );
           },

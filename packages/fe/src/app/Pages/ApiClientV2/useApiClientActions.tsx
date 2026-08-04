@@ -51,8 +51,8 @@ export const useSingleApiClientActions = ({
       },
     }
   );
-  const toView = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/${apiClient?.id}`;
-  const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/create`;
+  const toView = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients/${apiClient?.id}`;
+  const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients/create`;
   const toEdit = `${toView}?edit=true`;
 
   return apiClient === undefined
@@ -145,7 +145,7 @@ export const useSingleApiClientActions = ({
                         });
                         if (onApiClientPage) {
                           navigate(
-                            `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients`
+                            `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients`
                           );
                         }
                       },
@@ -167,7 +167,7 @@ export const useMultiApiClientsActions = ({
 }): ActionsType => {
   const navigate = useNavigate();
   const { sbEnvironmentId, edfiTenantId } = useTeamEdfiTenantNavContext();
-  const to = `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiclients/create`;
+  const to = `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients/create`;
   const canCreate = true;
   return canCreate
     ? {

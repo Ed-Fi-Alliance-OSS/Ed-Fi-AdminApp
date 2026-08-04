@@ -43,7 +43,7 @@ export const CreateApiClientPage = () => {
 
   const goToView = (id: number, options?: { state?: unknown }) => {
     navigate(
-      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationIdNumber}/apiclients/${id}`,
+      `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationIdNumber}/apiClients/${id}`,
       options
     );
   };

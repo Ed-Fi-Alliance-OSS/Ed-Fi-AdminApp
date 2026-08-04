@@ -1,5 +1,5 @@
-@multitenantUrl=https://localhost/odsv7-adminv2-multi-adminapi
-@singletenantUrl=https://localhost/odsv7-adminv2-single-adminapi
+@multitenantUrl=https://localhost/odsv7-adminv3-multi-adminapi
+@singletenantUrl=https://localhost/odsv7-adminv3-single-adminapi
 
 @adminapi_url={{multitenantUrl}}
 @adminapi_client=adminapi_client2
@@ -26,50 +26,50 @@ grant_type=client_credentials&scope=edfi_admin_api/full_access
 @token={{tokenRequest.response.body.access_token}}
 
 
-### Create a DB instance (Minimal template)
-# @name createDbInstanceMinimal
-POST {{adminapi_url}}/v2/dbinstances
+### Create a manage datastore (Minimal template)
+# @name createDbDataStoreMinimal
+POST {{adminapi_url}}/v3/dataStores/manage
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
 {
-  "name": "My DB Instance",
+  "name": "My DB Datastores 3",
   "databaseTemplate": "Minimal"
 }
 
-### Create a DB instance (Sample template)
-# @name createDbInstanceSample
-POST {{adminapi_url}}/v2/dbinstances
+### Create a datastore (Sample template)
+# @name createDbDataStoreSample
+POST {{adminapi_url}}/v3/dataStores/manage
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
 {
-  "name": "My Sample DB Instance",
+  "name": "My Sample DB Datastore",
   "databaseTemplate": "Sample"
 }
 
-### Get all DB instances
-GET {{adminapi_url}}/v2/dbinstances
+### Get all manage datastores
+GET {{adminapi_url}}/v3/dataStores/manage
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
-### Get all odsinstances
-GET {{adminapi_url}}/v2/odsinstances
+### Get all datastores
+GET {{adminapi_url}}/v3/datastores
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
-### DELETE a DB instance (Minimal)
-DELETE {{adminapi_url}}/v2{{createDbInstanceMinimal.response.headers.location}}
+### DELETE a manage datastore (Minimal)
+DELETE {{createDbDataStoreMinimal.response.headers.location}}
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}
 
-### DELETE a DB instance (Sample)
-DELETE {{adminapi_url}}/v2{{createDbInstanceSample.response.headers.location}}
+### DELETE a manage datastore (Sample)
+DELETE {{createDbDataStoreSample.response.headers.location}}
 Content-Type: application/json
 Authorization: bearer {{token}}
 Tenant: {{tenant}}

@@ -14,7 +14,7 @@ import {
   Id,
   PostApiClientDtoV2,
   PostApiClientResponseDtoV2,
-  PostDbInstanceDtoV2,
+  PostInstanceDtoV2,
   ImportClaimsetSingleDtoV2,
   PostApplicationFormDtoV2,
   PostClaimsetDtoV2,
@@ -78,7 +78,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       return standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: query,
       });
@@ -89,7 +89,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       return standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: base.id,
       });
@@ -101,7 +101,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: base.entity.id,
       })
@@ -116,7 +116,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
         id: `${base.entity.id}/reset-credential`,
       })
@@ -128,7 +128,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
       standardPath({
         edfiTenant: base.edfiTenant,
         teamId: base.teamId,
-        kebabCaseName: 'apiclient',
+        kebabCaseName: 'apiClient',
         adminApi: true,
       })
   )
@@ -143,7 +143,7 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
         return standardPath({
           edfiTenant,
           teamId,
-          kebabCaseName: 'apiclient',
+          kebabCaseName: 'apiClient',
           adminApi: true,
           id: base.id,
         });
@@ -283,12 +283,12 @@ export const odsInstancesV2 = new EntityQueryBuilder({
   .getAll('getAll', { ResDto: GetOdsInstanceSummaryDtoV2 })
   .build();
 
-export const dbInstancesV2 = new EntityQueryBuilder({
+export const instancesV2 = new EntityQueryBuilder({
   adminApi: true,
-  name: 'Dbinstance',
+  name: 'Instance',
   includeEdfiTenant: true,
   includeTeam: TeamOptions.Required,
 })
-  .post('post', { ResDto: Id, ReqDto: PostDbInstanceDtoV2 })
+  .post('post', { ResDto: Id, ReqDto: PostInstanceDtoV2 })
   .delete('delete')
   .build();
