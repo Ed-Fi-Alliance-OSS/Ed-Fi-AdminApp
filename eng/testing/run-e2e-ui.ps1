@@ -205,3 +205,22 @@ function Wait-ForAdminAppReadiness {
 if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
 
 Wait-ForAdminAppReadiness
+
+$testExitCode = 1
+try {
+  & (Join-Path $repoRoot 'eng\helpers\create-local-user-keycloak.ps1')
+  if ($LASTEXITCODE -ne 0) { throw 'Failed to create local Keycloak user.' }
+
+  Push-Location $repoRoot
+  npm run test:e2e:bdd
+  $testExitCode = $LASTEXITCODE
+  Pop-Location
+}
+finally {
+  if ($StopServices) {
+    Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
+    & (Join-Path $repoRoot 'compose\stop.ps1')
+  }
+}
+
+exit $testExitCode
