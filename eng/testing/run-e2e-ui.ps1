@@ -158,3 +158,50 @@ function Set-AdminAppEnvFile {
 }
 
 Set-AdminAppEnvFile -Engine $DbEngine
+
+function Wait-ForAdminAppReadiness {
+  $apiUrl = 'https://localhost/adminapp-api/api/healthcheck'
+  $feUrl = 'https://localhost/adminapp/'
+  $keycloakUrl = 'https://localhost/auth/realms/edfi/.well-known/openid-configuration'
+  $keycloakLoginUrl = 'https://localhost/auth/realms/edfi/protocol/openid-connect/auth?client_id=edfiadminapp&redirect_uri=https%3A%2F%2Flocalhost%2Fadminapp-api%2Fapi%2Fauth%2Fcallback%2F1&response_type=code&scope=openid%20profile%20email'
+
+  $requiredStableChecks = 3
+  $stableChecks = 0
+
+  for ($i = 1; $i -le 90; $i++) {
+    $apiOk = $false
+    $feOk = $false
+    $keycloakOk = $false
+    $keycloakLoginOk = $false
+
+    try { if ((Invoke-WebRequest -Uri $apiUrl -SkipCertificateCheck -UseBasicParsing).StatusCode -eq 200) { $apiOk = $true } } catch {}
+    try { if ((Invoke-WebRequest -Uri $feUrl -SkipCertificateCheck -UseBasicParsing).StatusCode -eq 200) { $feOk = $true } } catch {}
+    try { if ((Invoke-WebRequest -Uri $keycloakUrl -SkipCertificateCheck -UseBasicParsing).StatusCode -eq 200) { $keycloakOk = $true } } catch {}
+    try {
+      $loginResponse = Invoke-WebRequest -Uri $keycloakLoginUrl -SkipCertificateCheck -UseBasicParsing
+      if ($loginResponse.Content -match 'kc-form-login') { $keycloakLoginOk = $true }
+    } catch {}
+
+    if ($apiOk -and $feOk -and $keycloakOk -and $keycloakLoginOk) {
+      $stableChecks++
+      Write-Host "Readiness OK ($stableChecks/$requiredStableChecks)" -ForegroundColor Green
+    } else {
+      $stableChecks = 0
+      Write-Host "Waiting... API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk ($i/90)" -ForegroundColor Yellow
+    }
+
+    if ($stableChecks -ge $requiredStableChecks) {
+      Write-Host 'Admin App API, FE, and Keycloak metadata/login are stable' -ForegroundColor Green
+      return
+    }
+
+    Start-Sleep -Seconds 3
+  }
+
+  throw 'Timed out waiting for stable Admin App services'
+}
+
+& (Join-Path $repoRoot 'eng\helpers\start-services-target.ps1') -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql')
+if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
+
+Wait-ForAdminAppReadiness
