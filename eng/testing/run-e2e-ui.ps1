@@ -34,6 +34,13 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+if ($PSVersionTable.PSVersion.Major -lt 6) {
+  Write-Host "ERROR! This script requires PowerShell 7+ (pwsh). You are running PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))." -ForegroundColor Red
+  Write-Host 'Run this script with pwsh instead, e.g.: pwsh ./eng/testing/run-e2e-ui.ps1' -ForegroundColor Red
+  exit 1
+}
+
 $repoRoot = Split-Path -Parent (Split-Path -Parent $PSScriptRoot)
 
 function Test-Prerequisites {
