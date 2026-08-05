@@ -256,6 +256,22 @@ function Wait-ForAdminAppReadiness {
   throw "Timed out waiting for stable Admin App services (last state: API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix)"
 }
 
+function Show-AdminAppServiceLogs {
+  $containers = @('edfiadminapp-api', 'edfiadminapp-fe', 'edfiadminapp-mssql', 'edfiadminapp-postgres', 'edfiadminapp-keycloak')
+  Write-Host '--- Container logs (diagnostics for the failure above) ---' -ForegroundColor Magenta
+  foreach ($container in $containers) {
+    try {
+      $exists = docker ps -a --filter "name=^/$container`$" --format '{{.Names}}' 2>$null
+      if (-not $exists) { continue }
+      Write-Host "--- docker logs $container (last 200 lines) ---" -ForegroundColor Magenta
+      docker logs --tail 200 $container 2>&1 | Write-Host
+    } catch {
+      Write-Host "Could not retrieve logs for $container`: $_" -ForegroundColor Yellow
+    }
+  }
+  Write-Host '--- End container logs ---' -ForegroundColor Magenta
+}
+
 $testExitCode = 1
 try {
   & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql')
@@ -274,6 +290,11 @@ try {
   finally {
     Pop-Location
   }
+}
+catch {
+  Write-Host "ERROR: $_" -ForegroundColor Red
+  Show-AdminAppServiceLogs
+  throw
 }
 finally {
   if ($StopServices) {
