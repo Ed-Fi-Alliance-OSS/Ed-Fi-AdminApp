@@ -381,5 +381,5 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 ### References
 
-- **Architecture:** See `docs/design/2026-08-03-mssql-e2e-ui-runner-design.md` and `docs/design/2026-08-03-mssql-e2e-ui-runner-plan.md`
+- **Architecture:** See `docs/design/2026-08-03-mssql-e2e-ui-runner-design.md`
 - **Playwright BDD:** https://github.com/vitalets/playwright-bdd
