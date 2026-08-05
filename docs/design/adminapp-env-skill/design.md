@@ -3,6 +3,17 @@
 **Date**: 2026-07-28
 **Status**: Approved for planning
 
+> **2026-08-05 revision**: per PR #292 review, the reference material
+> (`environment-reference.md`, `known-issues.md`, `glossary.md`) moved out of
+> `.claude/skills/adminapp-env/reference/` into `docs/adminapp-env/`, so it's discoverable as
+> plain project documentation independent of Claude Code. `SKILL.md` stays in
+> `.claude/skills/adminapp-env/` as the thin, automatically-activated entry point and simply
+> points at the docs. The "Architecture" section below is updated to reflect this; the rest of
+> the design (ground-truth-vs-experiential split, write-tier rules, entry-point flow) is
+> unchanged. This document also folds in and replaces the former implementation plan
+> (`docs/superpowers/plans/2026-07-28-adminapp-env-skill.md`), which was pure step-by-step file
+> content already superseded by the actual skill/docs files.
+
 ## Problem
 
 Getting the Ed-Fi Admin App's local Docker environment (fe, api, ODS/API, Ed-Fi Admin API,
@@ -20,8 +31,9 @@ doing along the way when useful, and gets smarter over time as it hits new issue
 
 ## Audience & scope decisions
 
-- **Team-shared**: lives in this repo under `.claude/skills/`, checked into git. Every teammate
-  with Claude Code gets it on clone; fixes one person finds become everyone's knowledge.
+- **Team-shared**: lives in this repo under `.claude/skills/` (behavior) and `docs/adminapp-env/`
+  (reference material), both checked into git. Every teammate with Claude Code gets it on clone;
+  fixes one person finds become everyone's knowledge.
 - **Claude-only, not model-agnostic**: no parallel effort to make this usable by Copilot/Cursor.
   The repo already has enough documentation (`compose/readme.md`, `docs/ed-fi-development.md`,
   `AGENTS.md`); a fourth, model-agnostic tree would be pure duplication for a need nobody's
@@ -39,11 +51,18 @@ doing along the way when useful, and gets smarter over time as it hits new issue
 ```text
 .claude/skills/adminapp-env/
   SKILL.md                          # entry point: routing, ground rules, the four flows
-  reference/
-    known-issues.md                 # experiential findings — self-improves over time
-    environment-reference.md        # cached URLs/credentials/container counts/engine — self-refreshed
-    glossary.md                     # plain-language concept explanations, loaded on demand
+                                     # (points at docs/adminapp-env/ for the files below)
+
+docs/adminapp-env/
+  known-issues.md                   # experiential findings — self-improves over time
+  environment-reference.md          # cached URLs/credentials/container counts/engine — self-refreshed
+  glossary.md                       # plain-language concept explanations, loaded on demand
 ```
+
+Splitting these two directories keeps `SKILL.md` as a thin, automatically-activated entry point
+(Claude Code loads skills by description and triggers on relevant requests without anyone needing
+to know it exists) while the reference material — plain human-readable prose, not agent
+instructions — lives under `docs/`, discoverable by anyone browsing the repo, Claude Code or not.
 
 **Ground truth vs. experiential knowledge** — the core split the whole design hangs on:
 
