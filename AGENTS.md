@@ -52,6 +52,7 @@ packages/
 - `npm run migrations:run` - Run pending migrations
 - `npm run test:api` - Run API tests
 - `npm run test:fe` - Run frontend tests
+- `npm run test:e2e:bdd` - Run the Playwright BDD E2E suite (requires the stack already running — see below for the full provisioning runner)
 - `npm run lint:check` - Check linting
 - `npm run storybook` - Start Storybook
 
@@ -80,7 +81,7 @@ packages/
 ### Testing Strategy
 
 - **Unit Tests**: Jest for both frontend and backend
-- **E2E Tests**: Cypress for integration testing
+- **E2E Tests**: Playwright (with `playwright-bdd`) for browser UI integration testing; see [Running Playwright E2E Tests](#running-playwright-e2e-tests) below
 - **Storybook**: Component testing and documentation
 - **Test Coverage**: Maintain good coverage across packages
 
@@ -132,6 +133,29 @@ npm run storybook
 
 # Build Storybook
 npm run build-storybook:common-ui
+```
+
+### Running Playwright E2E Tests
+
+The full Playwright BDD suite (`npm run test:e2e:bdd`) needs the whole stack running against it — Docker Compose services, the Admin App API/frontend, and Keycloak. Use `eng/testing/run-e2e-ui.ps1` to provision everything and run the suite in one step:
+
+```bash
+# Provision the stack (PostgreSQL for the Admin App database) and run the suite
+pwsh ./eng/testing/run-e2e-ui.ps1
+
+# Same, but against SQL Server for the Admin App database
+pwsh ./eng/testing/run-e2e-ui.ps1 -DbEngine mssql
+
+# Rebuild Admin App images first, then stop all services after the run
+pwsh ./eng/testing/run-e2e-ui.ps1 -Rebuild -StopServices
+```
+
+The script checks prerequisites (Node dependencies, Playwright Chromium, TLS certificate) up front and tells you exactly what's missing. See [UI Playwright E2E Tests](eng/testing/README.md#ui-playwright-e2e-tests) for full options, what each step does, and troubleshooting. CI runs this same script against both `pgsql` and `mssql` via a matrix in `.github/workflows/run-e2e-ui.yml`.
+
+If the stack is already running (e.g. via `eng/helpers/start-services-target.ps1`), you can run the suite directly:
+
+```bash
+npm run test:e2e:bdd
 ```
 
 ## Contributing
