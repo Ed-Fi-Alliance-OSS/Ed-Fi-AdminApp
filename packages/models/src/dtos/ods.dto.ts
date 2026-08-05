@@ -60,7 +60,7 @@ export class GetOdsDto
   instanceType: string | null;
 
   @Expose()
-  dbInstanceId: number | null;
+  instanceManageId: number | null;
 
   @Expose()
   status: string | null;
@@ -93,7 +93,7 @@ export class PutOdsDto
       | 'status'
       | 'databaseTemplate'
       | 'databaseName'
-      | 'dbInstanceId'
+      | 'instanceManageId'
     >
 {
   @Expose()
@@ -123,7 +123,7 @@ export class PostOdsDto
       | 'status'
       | 'databaseTemplate'
       | 'databaseName'
-      | 'dbInstanceId'
+      | 'instanceManageId'
     >
 {
   @Expose()

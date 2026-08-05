@@ -36,7 +36,7 @@ export const OdsPage = () => {
 
   const actions = useOdsActions({
     id: Number(params.odsId),
-    dbInstanceId: ods?.dbInstanceId ?? null,
+    instanceManageId: ods?.instanceManageId ?? null,
     status: ods?.status ?? null,
   });
   const edorgsActions = useEdorgsActions({ ods });
