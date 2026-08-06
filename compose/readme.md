@@ -150,8 +150,6 @@ To use SQL Server instead of PostgreSQL:
    ./start-services.ps1 -Rebuild -MSSQL
    ```
 
-   The compose file already waits for whichever database profile is active, so no manual `depends_on` edit is required.
-
 ### Database Management
 
 - **PostgreSQL**: Access via PGAdmin4 at [https://localhost/pgadmin](https://localhost/pgadmin)
