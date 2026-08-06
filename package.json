@@ -79,7 +79,7 @@
     "dayjs": "^1.11.21",
     "express-session": "^1.17.3",
     "framer-motion": "^11.3.17",
-    "jose": "^5.10.0",
+    "jose": "^6.2.8",
     "jotai": "^2.20.2",
     "js-cookie": "^3.0.8",
     "kebab-case": "^2.0.2",
