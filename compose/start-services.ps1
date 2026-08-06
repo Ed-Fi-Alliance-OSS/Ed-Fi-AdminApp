@@ -56,5 +56,18 @@ if ($MSSQL) {
 
 Write-Host "Starting Docker Compose services with profile $composeProfile, running Admin App..." -ForegroundColor Green
 $EnvFile = Join-Path $PSScriptRoot ".env"
+
+# The -MSSQL switch only selects the SQL Server container profile. The API still
+# reads DB_ENGINE and DB_SECRET_VALUE from .env, so warn when they do not match the
+# selected profile -- otherwise the API silently starts against the wrong database.
+$expectedEngine = if ($MSSQL) { "mssql" } else { "pgsql" }
+if (Test-Path $EnvFile) {
+    $engineLine = Select-String -Path $EnvFile -Pattern '^\s*DB_ENGINE\s*=\s*(\S+)' | Select-Object -First 1
+    $configuredEngine = if ($engineLine) { $engineLine.Matches.Groups[1].Value } else { "pgsql" }
+    if ($configuredEngine -ne $expectedEngine) {
+        Write-Warning "DB_ENGINE in .env is '$configuredEngine' but the selected profile expects '$expectedEngine'. Set DB_ENGINE=$expectedEngine and the matching DB_SECRET_VALUE in .env before starting."
+    }
+}
+
 docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp up -d $(if ($Rebuild) { "--build" })
 Write-Host "Services started successfully!" -ForegroundColor Green
