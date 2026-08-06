@@ -16,6 +16,18 @@ packages/
 └── utils/         # Shared utilities
 ```
 
+## Local Environment Setup
+
+Reference docs for the local Docker environment (ODS/API, Ed-Fi Admin API, Keycloak,
+Postgres/MSSQL, and the Admin App itself) live in [`docs/adminapp-env/`](docs/adminapp-env/):
+environment reference (URLs, credentials, setup/reset recipes), a glossary of concepts, and a
+known-issues log. These are plain reference material — readable on their own regardless of tooling.
+
+Claude Code users get this automatically via the `adminapp-env` skill
+(`.claude/skills/adminapp-env/`), which drives first-time setup, starting in container or
+local-dev mode, health validation, and known-issue troubleshooting from those same docs, and
+keeps them updated as new issues are found.
+
 ## Key Technologies & Dependencies
 
 ### Frontend Stack

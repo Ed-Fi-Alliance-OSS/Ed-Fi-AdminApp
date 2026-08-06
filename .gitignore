@@ -47,6 +47,10 @@ db.sqlite
 *.local.*
 *.local
 
+# superpowers planning/spec docs — working artifacts, not committed long-term;
+# consolidate anything worth keeping into docs/design/ instead
+docs/superpowers/
+
 packages/api/config/local*
 !packages/api/config/local.js-edfi
 !packages/api/config/production.js-edfi
