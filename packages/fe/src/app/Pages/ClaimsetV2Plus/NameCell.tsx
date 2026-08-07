@@ -1,20 +1,23 @@
 import { HStack } from '@chakra-ui/react';
 import { TableRowActions } from '@edanalytics/common-ui';
-import { GetClaimsetMultipleDtoV2 } from '@edanalytics/models';
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { CellContext } from '@tanstack/react-table';
-import { claimsetQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ClaimsetLinkV2 } from '../../routes';
+import { ClaimsetEntity, useClaimsetConfig } from './claimsetConfig';
 import { useClaimsetActions } from './useClaimsetActions';
 
-export const NameCell = (info: CellContext<GetClaimsetMultipleDtoV2, unknown>) => {
+export const NameCell = (info: CellContext<ClaimsetEntity, unknown>) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (ClaimsetEntity = V2 | V3 DTO, same as getAll returns).
+  // Same workaround as ClaimsetsPage.tsx's `claimsets` query.
   const entities = useQuery(
-    claimsetQueriesV2.getAll({
+    queries.getAll({
       teamId,
       edfiTenant,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
 
   const actions = useClaimsetActions({

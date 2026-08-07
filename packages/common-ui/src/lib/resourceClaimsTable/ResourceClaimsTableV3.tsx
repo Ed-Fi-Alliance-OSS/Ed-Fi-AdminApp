@@ -1,5 +1,5 @@
 import { Badge, BadgeProps, Box, Flex, IconButton, StyleProps, Text } from '@chakra-ui/react';
-import { GetClaimsetSingleDtoV2, GetResourceClaimDtoV2 } from '@edanalytics/models';
+import { GetClaimsetSingleDtoV3, GetResourceClaimDtoV3 } from '@edanalytics/models';
 import { CellContext, ColumnDef } from '@tanstack/react-table';
 import uniq from 'lodash/uniq';
 import { useMemo } from 'react';
@@ -26,7 +26,8 @@ const AuthStrategyBadge = (props: {
   );
 };
 
-type ResourceClaimRow = GetResourceClaimDtoV2 & {
+type ResourceClaimRow = GetResourceClaimDtoV3 & {
+  id: string; // claimName serves as unique identifier
   actionsMap: Record<string, { default?: string; override?: string; enabled?: boolean }>;
   subRows: ResourceClaimRow[];
 };
@@ -78,19 +79,45 @@ const NameCell = (props: CellContext<ResourceClaimRow, unknown>) => {
     </Box>
   );
 };
-const extractActions = (rc: GetResourceClaimDtoV2): string[] => {
+
+// V3's resourceClaims arrive as a flat list joined by parentClaimName/claimName
+// rather than V2's nested `children` array (see 530-design.md). Build a
+// lookup once, keyed by each entry's own claimName, so both root-finding and
+// child-lookup are O(1) instead of re-scanning the array per node.
+const groupByParent = (resourceClaims: GetResourceClaimDtoV3[]) => {
+  const byParent = new Map<string | null, GetResourceClaimDtoV3[]>();
+  resourceClaims.forEach((rc) => {
+    const key = rc.parentClaimName;
+    if (!byParent.has(key)) {
+      byParent.set(key, []);
+    }
+    byParent.get(key)!.push(rc);
+  });
+  return byParent;
+};
+
+const extractActions = (
+  rc: GetResourceClaimDtoV3,
+  byParent: Map<string | null, GetResourceClaimDtoV3[]>
+): string[] => {
+  const children = byParent.get(rc.claimName) ?? [];
   return [
-    ...rc.authorizationStrategyOverridesForCRUD.map((as) => as.actionName),
-    ...rc._defaultAuthorizationStrategiesForCRUD.map((as) => as.actionName),
+    ...rc.authorizationStrategyOverrides.map((as) => as.actionName),
+    ...rc._defaultAuthorizationStrategies.map((as) => as.actionName),
     ...rc.actions.map((a) => a.name),
-    ...rc.children.flatMap(extractActions),
+    ...children.flatMap((child) => extractActions(child, byParent)),
   ];
 };
-const mapRows = (rc: GetResourceClaimDtoV2) => {
+const mapRows = (
+  rc: GetResourceClaimDtoV3,
+  byParent: Map<string | null, GetResourceClaimDtoV3[]>
+) => {
+  const children = byParent.get(rc.claimName) ?? [];
   const output: ResourceClaimRow = {
     ...rc,
+    id: rc.claimName,
     actionsMap: {},
-    subRows: rc.children.map(mapRows),
+    subRows: children.map((child) => mapRows(child, byParent)),
   };
   rc.actions.forEach((action) => {
     if (!output.actionsMap[action.name]) {
@@ -99,14 +126,14 @@ const mapRows = (rc: GetResourceClaimDtoV2) => {
     output.actionsMap[action.name].enabled = action.enabled;
   });
 
-  rc.authorizationStrategyOverridesForCRUD.forEach((aso) => {
+  rc.authorizationStrategyOverrides.forEach((aso) => {
     if (!output.actionsMap[aso.actionName]) {
       output.actionsMap[aso.actionName] = {};
     }
     output.actionsMap[aso.actionName].override = aso.authorizationStrategies[0]?.authStrategyName;
   });
 
-  rc._defaultAuthorizationStrategiesForCRUD.forEach((asd) => {
+  rc._defaultAuthorizationStrategies.forEach((asd) => {
     if (!output.actionsMap[asd.actionName]) {
       output.actionsMap[asd.actionName] = {};
     }
@@ -124,10 +151,12 @@ const actionSortRank = (action: string) => {
   return index === -1 ? actionSortOrder.length : index;
 };
 
-export const ResourceClaimsTableV2 = ({ claimset }: { claimset: GetClaimsetSingleDtoV2 }) => {
+export const ResourceClaimsTableV3 = ({ claimset }: { claimset: GetClaimsetSingleDtoV3 }) => {
   const { data, columns } = useMemo(() => {
+    const byParent = groupByParent(claimset.resourceClaims);
+    const roots = byParent.get(null) ?? [];
     // TODO this dynamic-ness is to accommodate buggy Admin API (want to include even unexpected actions). It probably ought to be hardcoded. Revisit eventually.
-    const uniqueActions = uniq(claimset.resourceClaims.flatMap(extractActions)).sort(
+    const uniqueActions = uniq(roots.flatMap((rc) => extractActions(rc, byParent))).sort(
       (actionA, actionB) =>
         actionSortRank(actionA) - actionSortRank(actionB) || actionA.localeCompare(actionB)
     );
@@ -158,7 +187,7 @@ export const ResourceClaimsTableV2 = ({ claimset }: { claimset: GetClaimsetSingl
     ];
     return {
       uniqueActions,
-      data: claimset.resourceClaims.map(mapRows),
+      data: roots.map((rc) => mapRows(rc, byParent)),
       columns,
     };
   }, [claimset]);
