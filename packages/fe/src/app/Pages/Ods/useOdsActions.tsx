@@ -1,6 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetOdsDto } from '@edanalytics/models';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { instancesV2, odsQueries } from '../../api';

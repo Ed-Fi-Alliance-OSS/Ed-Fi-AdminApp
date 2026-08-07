@@ -4,7 +4,7 @@ import {
   PageTemplate,
 } from '@edanalytics/common-ui';
 import { ErrorBoundary } from 'react-error-boundary';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { EditProfile } from './EditProfile';
 import { useProfileActions } from './useProfileActions';

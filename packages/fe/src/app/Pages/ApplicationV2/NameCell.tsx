@@ -4,7 +4,7 @@ import { GetApplicationDtoV2, GetIntegrationAppDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { useSingleApplicationActions } from './useApplicationActions';
 
 export const NameCell = (

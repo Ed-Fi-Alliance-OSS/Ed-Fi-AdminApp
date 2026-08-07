@@ -1,6 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetEdfiTenantDto, OWNERSHIP_RESOURCE_TYPE } from '@edanalytics/models';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { edfiTenantQueriesGlobal } from '../../api';
 import {

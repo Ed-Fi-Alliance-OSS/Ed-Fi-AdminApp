@@ -22,7 +22,7 @@ import { StatusResponse, isExplicitStatusResponse } from '@edanalytics/utils';
 import { plainToInstance } from 'class-transformer';
 import { validate } from 'class-validator';
 import { useEffect, useState } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { claimsetQueriesV1 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 

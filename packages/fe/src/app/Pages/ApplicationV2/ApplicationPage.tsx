@@ -6,7 +6,7 @@ import {
 } from '@edanalytics/common-ui';
 import omit from 'lodash/omit';
 import { ErrorBoundary } from 'react-error-boundary';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { applicationQueriesV2, claimsetQueriesV2 } from '../../api';
 
 import {

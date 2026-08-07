@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { useProfileActions, useManyProfileActions } from './useProfileActions';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 
@@ -27,7 +27,7 @@ jest.mock('./profileConfig', () => ({
   useProfileConfig: jest.fn(),
 }));
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useProfileConfig } from './profileConfig';
 

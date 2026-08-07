@@ -1,7 +1,7 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetOdsDto } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { OdsPage } from '../Pages/Ods/OdsPage';
 import { OdssPage } from '../Pages/Ods/OdssPage';
 import { odsQueries } from '../api';

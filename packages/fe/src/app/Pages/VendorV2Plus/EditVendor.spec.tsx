@@ -13,7 +13,7 @@ jest.mock('react', () => ({
   useMemo: (factory: () => unknown) => factory(),
 }));
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useVendorConfig } from './vendorConfig';
 
@@ -21,7 +21,7 @@ jest.mock('@edanalytics/common-ui', () => ({
   Icons: { InfoCircle: () => null },
 }));
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));

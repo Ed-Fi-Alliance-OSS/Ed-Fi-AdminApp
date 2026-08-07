@@ -1,5 +1,5 @@
 import { Button, Icon, IconButton, MenuItem } from '@chakra-ui/react';
-import { Link } from 'react-router-dom';
+import { Link } from 'react-router';
 import { ActionProps, ActionPropsConfirm, LinkActionProps } from './ActionsType';
 import { ConfirmAction } from './confirmAction';
 

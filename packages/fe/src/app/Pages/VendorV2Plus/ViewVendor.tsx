@@ -6,7 +6,7 @@ import {
   ContentSection,
   CopyButton,
 } from '@edanalytics/common-ui';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useVendorConfig } from './vendorConfig';
 

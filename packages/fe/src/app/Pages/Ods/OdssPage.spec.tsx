@@ -25,7 +25,7 @@ jest.mock('@chakra-ui/react', () => ({
   Link: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   Link: () => null,
   useNavigate: jest.fn(),
 }));

@@ -6,7 +6,7 @@ import { atom, useAtom, useAtomValue } from 'jotai';
 import Cookies from 'js-cookie';
 import { Resizable } from 're-resizable';
 import { useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation, useMatches, useNavigate, useParams } from 'react-router-dom';
+import { useLocation, useMatches, useNavigate, useParams } from 'react-router';
 import { useMyTeams } from '../api';
 import {
   NavContextProvider,

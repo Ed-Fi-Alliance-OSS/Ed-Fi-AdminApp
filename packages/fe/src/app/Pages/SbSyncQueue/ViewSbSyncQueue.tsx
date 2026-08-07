@@ -6,7 +6,7 @@ import {
   ContentSection,
 } from '@edanalytics/common-ui';
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import {
   edfiTenantQueriesGlobal,
   sbEnvironmentQueries,

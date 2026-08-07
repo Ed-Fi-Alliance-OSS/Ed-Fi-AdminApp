@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { CreateOds } from './CreateOdsPage';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { odsQueries, instancesV2 } from '../../api';
@@ -10,7 +10,7 @@ jest.mock('@edanalytics/common-ui', () => ({
   PageTemplate: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 

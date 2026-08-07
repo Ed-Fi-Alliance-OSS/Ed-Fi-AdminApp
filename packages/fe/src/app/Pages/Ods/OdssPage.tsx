@@ -9,7 +9,7 @@ import {
 import { CellContext } from '@tanstack/react-table';
 import { useOdssActions } from './useOdssActions';
 import { Badge, HStack, Link } from '@chakra-ui/react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router';
 import { GetOdsDto } from '@edanalytics/models';
 import { odsStatusDisplayMap } from './Utils';
 import { usePopBanner } from '../../Layout/FeedbackBanner';

@@ -12,7 +12,7 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useMemo, useState } from 'react';
 import { DefaultValues, Path, PathValue, useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { profileQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';

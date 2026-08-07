@@ -1,6 +1,6 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetIntegrationAppDto } from '@edanalytics/models';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 import { usePaths } from '../../routes/paths';
 
 export const IntegrationAppLink = ({
