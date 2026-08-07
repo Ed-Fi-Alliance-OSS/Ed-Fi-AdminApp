@@ -11,11 +11,11 @@ jest.mock('react', () => ({
   useState: (initial: unknown) => [initial, jest.fn()],
 }));
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useProfileConfig } from './profileConfig';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));

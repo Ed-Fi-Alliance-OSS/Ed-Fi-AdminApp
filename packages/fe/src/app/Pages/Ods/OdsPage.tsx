@@ -7,7 +7,7 @@ import {
 } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
 import omit from 'lodash/omit';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { odsQueries } from '../../api';
 import {
   AuthorizeComponent,

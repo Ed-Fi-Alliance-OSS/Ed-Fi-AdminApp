@@ -6,7 +6,7 @@ import set from 'lodash/set';
 import sortBy from 'lodash/sortBy';
 import uniq from 'lodash/uniq';
 import { useEffect, useMemo, useState } from 'react';
-import { useMatches, useParams } from 'react-router-dom';
+import { useMatches, useParams } from 'react-router';
 import { sbEnvironmentQueries, teamQueries } from '../api';
 import {
   AuthorizeConfig,

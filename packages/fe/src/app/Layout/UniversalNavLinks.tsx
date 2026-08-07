@@ -1,4 +1,4 @@
-import { useLocation, useMatches } from 'react-router-dom';
+import { useLocation, useMatches } from 'react-router';
 import { NavButton } from './NavButton';
 import { Icons } from '@edanalytics/common-ui';
 

@@ -18,7 +18,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { usePaths } from '../../routes/paths';
 import {

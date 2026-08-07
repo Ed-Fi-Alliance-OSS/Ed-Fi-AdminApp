@@ -34,7 +34,7 @@ import {
 } from '@edanalytics/models';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { CellContext, ColumnFiltersState, SortingState } from '@tanstack/react-table';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import { methods, queryKey } from '../../api';
 import { SbSyncQueueLink } from '../../routes';
 import { useSbSyncQueueActions } from './useSbSyncQueueActions';

@@ -8,7 +8,7 @@ import {
 } from '@chakra-ui/react';
 import { useEffect, useState } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { Link as RouterLink, generatePath, useMatches, useParams } from 'react-router-dom';
+import { Link as RouterLink, generatePath, useMatches, useParams } from 'react-router';
 import { flatRoutes } from '../routes';
 import { config } from '../../config/config';
 

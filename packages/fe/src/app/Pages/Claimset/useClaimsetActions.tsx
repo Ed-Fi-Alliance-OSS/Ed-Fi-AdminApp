@@ -1,7 +1,7 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetClaimsetDto } from '@edanalytics/models';
 import { RowSelectionState } from '@tanstack/react-table';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { claimsetQueriesV1, API_URL } from '../../api';
 import { claimsetAuthConfig, useAuthorize, useTeamEdfiTenantNavContextLoaded } from '../../helpers';

@@ -11,7 +11,7 @@ import {
 import { GetSbEnvironmentDto, PutSbEnvironmentMeta, regarding } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 import { noop } from '@tanstack/react-table';

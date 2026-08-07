@@ -1,6 +1,6 @@
 import { Icons } from '@edanalytics/common-ui';
 import { TeamBasePrivilege, TeamEdfiTenantPrivilege } from '@edanalytics/models';
-import { RouteObject, generatePath, useNavigate } from 'react-router-dom';
+import { RouteObject, generatePath, useNavigate } from 'react-router';
 
 export type BaseRow = { id: number; displayName: string };
 

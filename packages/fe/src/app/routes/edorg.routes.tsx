@@ -1,7 +1,7 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetEdorgDto } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { EdorgPage } from '../Pages/Edorg/EdorgPage';
 import { EdorgsPage } from '../Pages/Edorg/EdorgsPage';
 import { edorgQueries } from '../api';
