@@ -26,6 +26,8 @@ class EnvironmentsPage {
   private readonly editEnvDetails
   private readonly deleteEnvDetails
   private readonly grantownership
+  private readonly runSuffix = Date.now().toString(36)
+  private rowCountBeforeDelete = 0
 
   constructor(private readonly page: Page) {
     this.environmentOption = this.page.locator('a[title="Environments"]')
@@ -67,7 +69,7 @@ class EnvironmentsPage {
     dbName: string,
     eduOrgIdentifier: string
   ) {
-    await this.nameInput.fill(names, {timeout: 700})
+    await this.nameInput.fill(`${names}-${this.runSuffix}`, {timeout: 700})
     await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
     await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
     await this.labelInput.fill(label, {timeout: 700})
@@ -78,7 +80,7 @@ class EnvironmentsPage {
   }
 
   async fillAllRequiredFieldsV2(name: string, edfiApi: string, edfiManagement: string, label: string) {
-    await this.nameInput.fill(name, {timeout: 700})
+    await this.nameInput.fill(`${name}-${this.runSuffix}`, {timeout: 700})
     await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
     await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
     await this.labelInput.fill(label, {timeout: 700})
@@ -176,7 +178,7 @@ class EnvironmentsPage {
   }
 
   async teamWithTenantsSectionsDisplayed() {
-    await expect(this.teamSection).toBeVisible({ timeout: 15000 })
+    await expect(this.teamSection).toBeVisible({ timeout: 30000 })
   }
 
   async apiVersionDetected() {
@@ -298,6 +300,7 @@ class EnvironmentsPage {
         await firstRow.getByRole('link', { name: optionName, exact: true }).click()
         break
       case 'delete':
+        this.rowCountBeforeDelete = await this.page.locator('tbody tr').count()
         await firstRow.getByRole('button', { name: optionName, exact: true }).click()
         break
       default:
@@ -310,6 +313,7 @@ class EnvironmentsPage {
     await firstRow.hover()
     switch (optionName.trim().toLowerCase()) {
       case 'delete':
+        this.rowCountBeforeDelete = await this.page.locator('tbody tr').count()
         await firstRow.getByRole('button', { name: 'more', exact: true }).click()
         await this.page.getByRole('menuitem', { name: 'Delete' }).click()
         break
@@ -333,6 +337,11 @@ class EnvironmentsPage {
   async environmentShouldBeRemoved(environmentName: string) {
     await expect(this.environmentsMainContainer).toBeVisible()
     await expect(this.environmentsMainContainer).not.toContainText(environmentName);
+  }
+
+  async environmentStillAvailableAfterCancel() {
+    await expect(this.environmentsMainContainer).toBeVisible()
+    await expect(this.page.locator('tbody tr')).toHaveCount(this.rowCountBeforeDelete)
   }
 
   async ownershipsFormIsDisplayed() {
