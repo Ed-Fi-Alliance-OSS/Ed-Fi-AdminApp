@@ -1,7 +1,7 @@
 import { Link } from '@chakra-ui/react';
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { RowSelectionState } from '@tanstack/react-table';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { claimsetQueriesV2, API_URL } from '../../api';
 import { claimsetAuthConfig, useAuthorize, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
