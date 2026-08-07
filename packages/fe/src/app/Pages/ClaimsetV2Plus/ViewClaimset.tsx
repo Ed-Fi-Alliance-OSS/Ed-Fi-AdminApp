@@ -4,11 +4,17 @@ import {
   AttributeContainer,
   AttributesGrid,
   ContentSection,
-  ResourceClaimsTableV2,
 } from '@edanalytics/common-ui';
-import { GetClaimsetSingleDtoV2 } from '@edanalytics/models';
+import { GetClaimsetSingleDtoV2, GetClaimsetSingleDtoV3 } from '@edanalytics/models';
+import { ComponentType } from 'react';
 
-const ViewClaimset = ({ claimset }: { claimset: GetClaimsetSingleDtoV2 }) => {
+function ViewClaimset<D extends GetClaimsetSingleDtoV2 | GetClaimsetSingleDtoV3>({
+  claimset,
+  ResourceClaimsTable,
+}: {
+  claimset: D;
+  ResourceClaimsTable: ComponentType<{ claimset: D }>;
+}) {
   return claimset ? (
     <>
       <ContentSection>
@@ -25,10 +31,10 @@ const ViewClaimset = ({ claimset }: { claimset: GetClaimsetSingleDtoV2 }) => {
         </AttributesGrid>
       </ContentSection>
       <ContentSection heading="Resource claims">
-        <ResourceClaimsTableV2 claimset={claimset} />
+        <ResourceClaimsTable claimset={claimset} />
       </ContentSection>
     </>
   ) : null;
-};
+}
 
 export default ViewClaimset;

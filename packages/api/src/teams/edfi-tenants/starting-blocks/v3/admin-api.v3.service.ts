@@ -491,7 +491,7 @@ export class AdminApiServiceV3 {
     const safeClaimSetId = this.sanitizeClaimSetId(claimSetId);
     return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
-        .get(`claimSets`, { params: { id: safeClaimSetId } })
+        .get(`claimSets/${safeClaimSetId}`)
         .catch((err) => {
           this.logger.error(
             `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,

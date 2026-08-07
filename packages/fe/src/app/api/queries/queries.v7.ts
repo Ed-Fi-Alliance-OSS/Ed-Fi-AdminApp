@@ -2,10 +2,13 @@ import {
   ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
+  CopyClaimsetDtoV3,
   GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
+  GetClaimsetMultipleDtoV3,
   GetClaimsetSingleDtoV2,
+  GetClaimsetSingleDtoV3,
   GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
   GetProfileDtoV3,
@@ -201,6 +204,40 @@ export const claimsetQueriesV2 = new EntityQueryBuilder({
     {
       ResDto: Id,
       ReqDto: CopyClaimsetDtoV2,
+      keysToInvalidate: (params) => [
+        params.standard,
+        queryKeyNew({
+          kebabCaseName: 'claimset',
+          edfiTenant: params.edfiTenant,
+          id: false,
+        }),
+      ],
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'claimset',
+        adminApi: true,
+        id: `copy`,
+      })
+  )
+  .delete('delete')
+  .build();
+
+export const claimsetQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Claimset',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getOne('getOne', { ResDto: GetClaimsetSingleDtoV3 })
+  .getAll('getAll', { ResDto: GetClaimsetMultipleDtoV3 })
+  .post(
+    'copy',
+    {
+      ResDto: Id,
+      ReqDto: CopyClaimsetDtoV3,
       keysToInvalidate: (params) => [
         params.standard,
         queryKeyNew({
