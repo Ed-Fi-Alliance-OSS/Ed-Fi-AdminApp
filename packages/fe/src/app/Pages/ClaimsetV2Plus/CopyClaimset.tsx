@@ -22,7 +22,7 @@ import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { claimsetQueriesV2 } from '../../api';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';

@@ -4,7 +4,7 @@ import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import omit from 'lodash/omit';
 import { ComponentType, Suspense, lazy } from 'react';
 import { ErrorBoundary } from 'react-error-boundary';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { useClaimsetConfig } from './claimsetConfig';

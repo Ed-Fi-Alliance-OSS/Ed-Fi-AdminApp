@@ -5,12 +5,12 @@ jest.mock('react', () => ({
   useMemo: (factory: () => unknown) => factory(),
 }));
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useClaimsetConfig } from './claimsetConfig';
 import { CopyClaimsetForm } from './CopyClaimset';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));

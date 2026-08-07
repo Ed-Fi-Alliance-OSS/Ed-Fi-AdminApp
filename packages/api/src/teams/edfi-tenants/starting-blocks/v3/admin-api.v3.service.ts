@@ -491,7 +491,12 @@ export class AdminApiServiceV3 {
     const safeClaimSetId = this.sanitizeClaimSetId(claimSetId);
     return toGetClaimsetSingleDtoV3(
       (await this.getAdminApiClient(edfiTenant)
-        .get(`claimSets/${safeClaimSetId}`)
+        // sanitizeClaimSetId already guarantees a positive integer (throws
+        // otherwise), so path-traversal/host-redirect via this segment is not
+        // actually reachable; encodeURIComponent is added on top so static
+        // analysis (CodeQL js/request-forgery) recognizes the URL segment as
+        // sanitized, since it doesn't model the custom integer check above.
+        .get(`claimSets/${encodeURIComponent(safeClaimSetId)}`)
         .catch((err) => {
           this.logger.error(
             `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,
