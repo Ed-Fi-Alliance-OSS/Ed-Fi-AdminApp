@@ -4,6 +4,10 @@ import { useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useVendorConfig } from './vendorConfig';
 
+jest.mock('react-router', () => ({
+  useNavigate: jest.fn(),
+}));
+
 jest.mock('@edanalytics/common-ui', () => ({
   CappedLinesText: ({ children }: { children: React.ReactNode }) => children,
   PageActions: () => null,
