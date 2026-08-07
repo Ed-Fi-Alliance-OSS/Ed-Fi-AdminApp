@@ -27,14 +27,11 @@ design is that worked example.
 
 ## Key findings
 
-**The 7-bullet list of Admin API V3 changes originally provided as ticket
-context was incomplete/imprecise.** Two live checks against the requester's
-local Admin API (V3-enabled) surfaced the actual contract, and both findings
-override the original notes:
+Two live checks against a running V3-enabled Admin API established the
+actual contract:
 
 - `GET /v3/claimSets/{id}` and `GET /v3/claimSets` (list) both return
-  **`claimSetName`** at the top level, not `name`. This wasn't in the
-  7-bullet list at all, but is confirmed live and matches the Confluence
+  **`claimSetName`** at the top level, not `name` — matches the Confluence
   design doc.
 - `GET /v3/claimSets` (getAll) returns a **plain JSON array**, not an
   id-keyed object. This needs no special FE handling —
@@ -47,12 +44,9 @@ override the original notes:
 - Per-resource-claim entries verified live to have no `id` field at all
   (identified by `name`/`claimName` only), matching the Confluence doc's
   "Not present — identified by name" note.
-- The requester's belief was that "Admin API V3 uses a mapping layer to
-  convert V2 format into CMS format, and only import/export were affected."
-  The live GET check contradicts the second half of that — the plain GET
-  endpoint already speaks the new CMS-flavored shape (`claimSetName`,
-  `claimName`, `parentClaimName`, flat list), not just import/export. This
-  is treated as authoritative over the prior recollection.
+- The plain `GET` endpoint already speaks the new CMS-flavored shape
+  (`claimSetName`, `claimName`, `parentClaimName`, flat list) — this isn't
+  limited to the import/export endpoints.
 - **Not verified live** (no write test performed): the `copy` endpoint's
   request-body field name for the new claim set's name. Assumed to still be
   `name` (matching the V3 import example body, which uses `name` at the top
@@ -342,3 +336,25 @@ ticket). Any change to V2 Claimset behavior (internal refactor only). Fixing
 endpoint's exact request field name beyond the one flagged assumption —
 worth a quick live spot-check during implementation, not a blocking design
 question.
+
+## Post-implementation note: `packages/api` was also in scope
+
+`packages/api` — the Admin App's own Node backend, which proxies frontend
+requests through to the real Ed-Fi Admin API — turned out to be in scope for
+this ticket alongside `packages/fe`/`packages/models`/`packages/common-ui`.
+Manual end-to-end verification against a running V3 environment found that
+`AdminApiServiceV3.getClaimset`
+(`packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.service.ts`)
+called the upstream Admin API's list endpoint with a query filter
+(`GET claimSets?id=X`) instead of the true single-resource detail endpoint
+(`GET claimSets/X`), so the claimset detail view received a list-shaped
+array with no `resourceClaims` and crashed. `putClaimset`/`deleteClaimset`
+in the same file, and `getVendor`/`getProfile` elsewhere in it, already used
+the correct `entityName/${id}` pattern — `getClaimset` was the one method
+that didn't. Fixed to match, with a new regression test
+(`admin-api.v3.service.spec.ts`) asserting the exact single-resource call.
+
+That same verification pass also surfaced a stale test fixture: an existing
+`getClaimsets` (list) test in the same spec file still used the pre-rename
+`name` field instead of `claimSetName`, left behind by this design's own
+`GetClaimsetMultipleDtoV3` rename. Updated the fixture to match.
