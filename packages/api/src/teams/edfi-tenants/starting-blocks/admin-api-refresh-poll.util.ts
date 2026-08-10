@@ -1,5 +1,5 @@
 import { Logger } from '@nestjs/common';
-import { AxiosInstance } from 'axios';
+import { AxiosInstance, isAxiosError } from 'axios';
 import config from 'config';
 
 /**
@@ -60,11 +60,17 @@ export async function pollJobStatus(
       if (status === 'completed') return 'completed';
       if (status === 'failed') return 'failed';
     } catch (error) {
-      // Bail immediately on HTTP error — if the Admin API is unreachable,
-      // further polling attempts are unlikely to succeed.
-      logger.error(
-        `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
-      );
+      // A 404 means this Admin API deployment doesn't support the jobs endpoint;
+      // log as warn and bail — retrying won't help.
+      if (isAxiosError(error) && error.response?.status === 404) {
+        logger.warn(
+          `Jobs endpoint not found (404) for job ${jobId} — Admin API may not support job polling`
+        );
+      } else {
+        logger.error(
+          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
+        );
+      }
       return 'timeout';
     }
 

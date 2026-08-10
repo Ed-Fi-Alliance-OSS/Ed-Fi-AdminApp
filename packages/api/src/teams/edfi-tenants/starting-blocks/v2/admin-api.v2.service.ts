@@ -383,7 +383,7 @@ export class AdminApiServiceV2 {
     return client;
   }
 
-  private initializeApiClient(environment: SbEnvironment, notJustData: boolean) {
+  private initializeApiClient(environment: SbEnvironment, notJustData?: boolean) {
     const client = axios.create({
       baseURL: environment.adminApiUrl.replace(/\/$/, '') + '/v2/',
     });
@@ -392,13 +392,7 @@ export class AdminApiServiceV2 {
         ? (value) => value
         : (value) => {
           return value.data;
-        },
-      (err) => {
-        this.logger.error(
-          `Unable to create client on ${environment.adminApiUrl}: ${err}`
-        );
-        throw err;
-      }
+        }
     );
     return client;
   }
