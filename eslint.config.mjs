@@ -24,6 +24,7 @@ export default [
       '**/migrations',
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
+      '**/tests/e2e/.features-gen',
     ],
   },
   ...fixupConfigRules(
@@ -86,5 +87,11 @@ export default [
     },
 
     rules: {},
+  },
+  {
+    files: ['tests/e2e/**/*.ts'],
+    rules: {
+      'no-empty-pattern': 'off',
+    },
   },
 ];
