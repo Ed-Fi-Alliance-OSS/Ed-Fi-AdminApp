@@ -26,7 +26,7 @@ import { InjectFilter } from '../../../auth/helpers/inject-filter';
 import { whereIds } from '../../../auth/helpers/where-ids';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
 import { OdssService } from './odss.service';
-import { ReqUser } from 'packages/api/src/auth/helpers/user.decorator';
+import { ReqUser } from '../../../auth/helpers/user.decorator';
 
 @ApiTags('Ods')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)

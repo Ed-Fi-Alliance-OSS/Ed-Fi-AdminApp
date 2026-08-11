@@ -1,4 +1,5 @@
 import nx from '@nx/eslint-plugin';
+import reactHooks from 'eslint-plugin-react-hooks';
 import * as parser from 'jsonc-eslint-parser';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
@@ -69,6 +70,15 @@ export default [
 
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
+    },
+  },
+  {
+    files: ['packages/fe/**/*.tsx', 'packages/common-ui/**/*.tsx'],
+    plugins: {
+      'react-hooks': reactHooks,
+    },
+    rules: {
+      'react-hooks/exhaustive-deps': 'warn',
     },
   },
   ...compat.extends('plugin:@nx/javascript').map((config) => ({
