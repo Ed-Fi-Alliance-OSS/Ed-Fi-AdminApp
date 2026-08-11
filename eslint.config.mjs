@@ -104,4 +104,10 @@ export default [
       'no-empty-pattern': 'off',
     },
   },
+  {
+    files: ['**/*.d.ts'],
+    rules: {
+      'no-var': 'off',
+    },
+  },
 ];
