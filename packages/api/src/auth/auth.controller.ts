@@ -36,7 +36,8 @@ import { Authorize, NoAuthorization } from './authorization';
 import { Public } from './authorization/public.decorator';
 import { AuthCache } from './helpers/inject-auth-cache';
 import { ReqUser } from './helpers/user.decorator';
-import { NO_ROLE, OidcLoginInfo, RegisterOidcIdpsService, USER_NOT_FOUND } from './login/oidc.strategy';
+import { NO_ROLE, OidcLoginInfo, USER_NOT_FOUND } from './login/oidc.strategy';
+import { OidcProviderRegistry } from './login/oidc-provider.registry';
 import { AuthService } from './auth.service';
 
 export const LOCAL_ONLY_LOGOUT_MESSAGE =
@@ -51,7 +52,7 @@ export class AuthController {
     @InjectRepository(Team)
     private readonly teamsRepository: Repository<Team>,
     private readonly authService: AuthService,
-    private readonly registerOidcIdpsService: RegisterOidcIdpsService
+    private readonly oidcProviderRegistry: OidcProviderRegistry
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -301,7 +302,7 @@ export class AuthController {
 
       // Sessions created before provider tracking carry no oidcId; fall back
       // to the only registered provider when unambiguous
-      const loginOidcId = oidcId ?? this.registerOidcIdpsService.getSoleOidcId();
+      const loginOidcId = oidcId ?? this.oidcProviderRegistry.getSoleOidcId();
 
       if (loginOidcId === undefined) {
         Logger.warn('No login provider tracked on session, skipping IdP logout');
@@ -312,7 +313,7 @@ export class AuthController {
         );
       }
 
-      const endSessionUrl = this.registerOidcIdpsService.getEndSessionUrl(loginOidcId, idToken);
+      const endSessionUrl = this.oidcProviderRegistry.getEndSessionUrl(loginOidcId, idToken);
 
       if (endSessionUrl) {
         // Full RP-Initiated Logout against the provider the user logged in with

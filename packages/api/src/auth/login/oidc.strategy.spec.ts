@@ -1,7 +1,8 @@
 import 'reflect-metadata';
 import { Issuer } from 'openid-client';
 import passport from 'passport';
-import { NO_ROLE, RegisterOidcIdpsService, USER_NOT_FOUND } from './oidc.strategy';
+import { OidcProviderRegistry } from './oidc-provider.registry';
+import { NO_ROLE, OidcIdpBootstrapper, USER_NOT_FOUND } from './oidc.strategy';
 
 jest.mock('config', () => ({
   FE_URL: 'http://frontend',
@@ -45,11 +46,19 @@ const googleIssuer = new Issuer({
   jwks_uri: 'https://www.googleapis.com/oauth2/v3/certs',
 });
 
-describe('RegisterOidcIdpsService', () => {
-  let service: RegisterOidcIdpsService;
+describe('OidcIdpBootstrapper', () => {
+  let registry: OidcProviderRegistry;
   let passportUseSpy: jest.SpyInstance;
 
-  beforeEach(async () => {
+  const bootstrap = async (rows: unknown[], authService: unknown = {}): Promise<void> => {
+    registry = new OidcProviderRegistry();
+    const oidcRepo = { find: jest.fn().mockResolvedValue(rows) };
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const bootstrapper = new OidcIdpBootstrapper(oidcRepo as any, authService as any, registry);
+    await bootstrapper.onModuleInit();
+  };
+
+  beforeEach(() => {
     jest.restoreAllMocks();
     passportUseSpy = jest.spyOn(passport, 'use').mockImplementation(() => passport);
     jest.spyOn(Issuer, 'discover').mockImplementation((url: string) => {
@@ -61,107 +70,49 @@ describe('RegisterOidcIdpsService', () => {
       }
       return Promise.reject(new Error(`Unexpected discovery URL: ${url}`));
     });
-
-    const oidcRepo = { find: jest.fn().mockResolvedValue([keycloakOidcRow, googleOidcRow]) };
-    const authService = {};
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    service = new RegisterOidcIdpsService(oidcRepo as any, authService as any);
-    await service.onModuleInit();
   });
 
-  it('registers a passport strategy per configured provider', () => {
+  it('registers a passport strategy per configured provider', async () => {
+    await bootstrap([keycloakOidcRow, googleOidcRow]);
+
     expect(passportUseSpy).toHaveBeenCalledWith('oidc-1', expect.any(Object));
     expect(passportUseSpy).toHaveBeenCalledWith('oidc-2', expect.any(Object));
   });
 
-  describe('getEndSessionUrl', () => {
-    it('builds the logout URL from the discovered end_session_endpoint', () => {
-      const url = service.getEndSessionUrl(keycloakOidcRow.id, 'the-id-token');
+  it('populates the registry so registered providers are queryable', async () => {
+    await bootstrap([keycloakOidcRow, googleOidcRow]);
 
-      expect(url).not.toBeNull();
-      const parsed = new URL(url as string);
-      expect(`${parsed.origin}${parsed.pathname}`).toBe(
-        'http://keycloak/realms/edfi/protocol/openid-connect/logout'
-      );
-      expect(parsed.searchParams.get('id_token_hint')).toBe('the-id-token');
-      expect(parsed.searchParams.get('post_logout_redirect_uri')).toBe(
-        'http://adminapp/api/auth/post-logout'
-      );
-      expect(parsed.searchParams.get('client_id')).toBe('adminapp-client');
-    });
-
-    it('omits id_token_hint when no id_token is available', () => {
-      const url = service.getEndSessionUrl(keycloakOidcRow.id);
-
-      const parsed = new URL(url as string);
-      expect(parsed.searchParams.has('id_token_hint')).toBe(false);
-      expect(parsed.searchParams.get('client_id')).toBe('adminapp-client');
-    });
-
-    it('returns null for a provider without an end_session_endpoint', () => {
-      expect(service.getEndSessionUrl(googleOidcRow.id, 'the-id-token')).toBeNull();
-    });
-
-    it('returns null for an unknown provider id', () => {
-      expect(service.getEndSessionUrl(999, 'the-id-token')).toBeNull();
-    });
-  });
-
-  describe('getSoleOidcId', () => {
-    it('returns undefined when more than one provider is registered', () => {
-      expect(service.getSoleOidcId()).toBeUndefined();
-    });
-
-    it('returns undefined and registers nothing when no providers are configured', async () => {
-      passportUseSpy.mockClear();
-      const oidcRepo = { find: jest.fn().mockResolvedValue([]) };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const emptyService = new RegisterOidcIdpsService(oidcRepo as any, {} as any);
-      await emptyService.onModuleInit();
-
-      expect(emptyService.getSoleOidcId()).toBeUndefined();
-      expect(passportUseSpy).not.toHaveBeenCalled();
-    });
-
-    it('returns the sole provider id when exactly one is configured', async () => {
-      const oidcRepo = { find: jest.fn().mockResolvedValue([keycloakOidcRow]) };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      const singleService = new RegisterOidcIdpsService(oidcRepo as any, {} as any);
-      await singleService.onModuleInit();
-
-      expect(singleService.getSoleOidcId()).toBe(keycloakOidcRow.id);
-    });
+    expect(registry.getEndSessionUrl(keycloakOidcRow.id, 'token')).not.toBeNull();
+    expect(registry.getEndSessionUrl(googleOidcRow.id, 'token')).toBeNull();
   });
 
   describe('when discovery fails for one of several configured providers', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       jest.spyOn(Issuer, 'discover').mockImplementation((url: string) => {
         if (url.startsWith(keycloakOidcRow.issuer)) {
           return Promise.resolve(keycloakIssuer);
         }
         return Promise.reject(new Error('discovery unavailable'));
       });
-
-      const oidcRepo = { find: jest.fn().mockResolvedValue([keycloakOidcRow, googleOidcRow]) };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new RegisterOidcIdpsService(oidcRepo as any, {} as any);
-      await service.onModuleInit();
     });
 
-    it('still registers the providers that discovered successfully', () => {
-      expect(service.getEndSessionUrl(keycloakOidcRow.id, 'token')).not.toBeNull();
-      expect(service.getEndSessionUrl(googleOidcRow.id, 'token')).toBeNull();
+    it('still registers the providers that discovered successfully', async () => {
+      await bootstrap([keycloakOidcRow, googleOidcRow]);
+
+      expect(passportUseSpy).toHaveBeenCalledWith('oidc-1', expect.any(Object));
+      expect(passportUseSpy).not.toHaveBeenCalledWith('oidc-2', expect.any(Object));
     });
 
-    it('does not infer a sole provider when another configured provider failed', () => {
-      // Two providers were configured, so the survivor must not be assumed to be
-      // the one a legacy (untracked) session logged in with.
-      expect(service.getSoleOidcId()).toBeUndefined();
+    it('records the failed provider so it is not inferred as the sole one', async () => {
+      await bootstrap([keycloakOidcRow, googleOidcRow]);
+
+      expect(registry.getFailedProviderIds()).toEqual([googleOidcRow.id]);
+      expect(registry.getSoleOidcId()).toBeUndefined();
     });
   });
 
   describe('when a provider hangs during discovery', () => {
-    beforeEach(async () => {
+    beforeEach(() => {
       jest.spyOn(Issuer, 'discover').mockImplementation((url: string) => {
         if (url.startsWith(keycloakOidcRow.issuer)) {
           return Promise.resolve(keycloakIssuer);
@@ -169,15 +120,11 @@ describe('RegisterOidcIdpsService', () => {
         // Never resolves: exercises the per-provider discovery timeout
         return new Promise(() => undefined);
       });
-
-      passportUseSpy.mockClear();
-      const oidcRepo = { find: jest.fn().mockResolvedValue([keycloakOidcRow, googleOidcRow]) };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new RegisterOidcIdpsService(oidcRepo as any, {} as any);
-      await service.onModuleInit();
     });
 
-    it('skips the unresponsive provider and still registers the healthy one', () => {
+    it('skips the unresponsive provider and still registers the healthy one', async () => {
+      await bootstrap([keycloakOidcRow, googleOidcRow]);
+
       expect(passportUseSpy).toHaveBeenCalledWith('oidc-1', expect.any(Object));
       expect(passportUseSpy).not.toHaveBeenCalledWith('oidc-2', expect.any(Object));
     });
@@ -185,23 +132,25 @@ describe('RegisterOidcIdpsService', () => {
 
   describe('the verify callback', () => {
     const userinfo = { email: 'teacher@example.org' };
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    let verify: (tokenset: any, userinfo: any, done: jest.Mock) => Promise<void> | void;
 
-    const setup = async (validateUser: jest.Mock) => {
-      passportUseSpy.mockClear();
-      const oidcRepo = { find: jest.fn().mockResolvedValue([keycloakOidcRow]) };
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      service = new RegisterOidcIdpsService(oidcRepo as any, { validateUser } as any);
-      await service.onModuleInit();
+    const captureVerify = async (validateUser: jest.Mock) => {
+      await bootstrap([keycloakOidcRow], { validateUser });
       const strategy = passportUseSpy.mock.calls.find((call) => call[0] === 'oidc-1')?.[1];
       // openid-client stores the verify function on the strategy instance
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      verify = (strategy as any)._verify;
+      return (strategy as any)._verify as (
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        tokenset: any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        userinfo: any,
+        done: jest.Mock
+      ) => Promise<void>;
     };
 
     it('passes the id_token along when the user is valid', async () => {
-      await setup(jest.fn().mockResolvedValue({ roleId: 5, userTeamMemberships: [{}] }));
+      const verify = await captureVerify(
+        jest.fn().mockResolvedValue({ roleId: 5, userTeamMemberships: [{}] })
+      );
       const done = jest.fn();
 
       await verify({ id_token: 'the-id-token' }, userinfo, done);
@@ -212,7 +161,7 @@ describe('RegisterOidcIdpsService', () => {
     });
 
     it('fails with USER_NOT_FOUND when the user does not exist', async () => {
-      await setup(jest.fn().mockResolvedValue(null));
+      const verify = await captureVerify(jest.fn().mockResolvedValue(null));
       const done = jest.fn();
 
       await verify({ id_token: 'tok' }, userinfo, done);
@@ -221,7 +170,7 @@ describe('RegisterOidcIdpsService', () => {
     });
 
     it('fails with NO_ROLE when the user has no role assigned', async () => {
-      await setup(jest.fn().mockResolvedValue({ roleId: null }));
+      const verify = await captureVerify(jest.fn().mockResolvedValue({ roleId: null }));
       const done = jest.fn();
 
       await verify({ id_token: 'tok' }, userinfo, done);
@@ -230,7 +179,7 @@ describe('RegisterOidcIdpsService', () => {
     });
 
     it('maps a validateUser failure to a database error', async () => {
-      await setup(jest.fn().mockRejectedValue(new Error('connection refused')));
+      const verify = await captureVerify(jest.fn().mockRejectedValue(new Error('connection refused')));
       const done = jest.fn();
 
       await verify({ id_token: 'tok' }, userinfo, done);
@@ -242,7 +191,7 @@ describe('RegisterOidcIdpsService', () => {
     });
 
     it('rejects when the IdP returns no email', async () => {
-      await setup(jest.fn());
+      const verify = await captureVerify(jest.fn());
       const done = jest.fn();
 
       await expect(verify({ id_token: 'tok' }, { email: '' }, done)).rejects.toThrow(
