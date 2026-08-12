@@ -1,7 +1,7 @@
 import { ChakraProvider } from '@chakra-ui/react';
 import { globalTheme } from '@edanalytics/common-ui';
 import { memo, useEffect } from 'react';
-import { Outlet, RouteObject, RouterProvider, createBrowserRouter } from 'react-router-dom';
+import { Outlet, RouteObject, RouterProvider, createBrowserRouter } from 'react-router';
 import { ErrorFallback } from '../Layout/Fallback404';
 import { PublicAppLayout } from '../Layout/PublicAppLayout';
 import { StandardLayout } from '../Layout/StandardLayout';

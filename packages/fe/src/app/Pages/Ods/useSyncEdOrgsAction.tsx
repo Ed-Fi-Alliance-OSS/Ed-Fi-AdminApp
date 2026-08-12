@@ -1,5 +1,5 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { odsQueries } from '../../api';
 import {

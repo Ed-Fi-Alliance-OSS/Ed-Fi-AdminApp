@@ -122,7 +122,7 @@ Then('the environment name should be updated', async () => {
 })
 
 Then('the environment should still be available in the list of environments', async () => {
-  await environmentsPage.environmentNameIsUpdated()
+  await environmentsPage.environmentStillAvailableAfterCancel()
 })
 
 Then(/^the environment (updated|created) should removed from the table of environments$/, async ({}, option: string) => {

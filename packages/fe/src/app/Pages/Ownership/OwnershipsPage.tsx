@@ -1,6 +1,6 @@
 import { PageTemplate, SbaaTableAllInOne } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { ownershipQueries, roleQueries, userQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { RoleLink } from '../../routes';

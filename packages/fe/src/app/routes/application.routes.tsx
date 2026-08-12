@@ -1,7 +1,7 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetApplicationDto, GetApplicationDtoV2 } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { ApplicationPage } from '../Pages/Application/ApplicationPage';
 import { ApplicationsPage } from '../Pages/Application/ApplicationsPage';
 import { CreateApplicationPage } from '../Pages/Application/CreateApplicationPage';

@@ -1,7 +1,7 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetClaimsetDto, GetClaimsetMultipleDtoV2 } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { ClaimsetPage } from '../Pages/Claimset/ClaimsetPage';
 import { ClaimsetsPage } from '../Pages/Claimset/ClaimsetsPage';
 import { CreateClaimset } from '../Pages/Claimset/CreateClaimsetPage';

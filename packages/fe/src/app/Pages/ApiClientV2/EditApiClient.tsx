@@ -12,7 +12,7 @@ import { GetApiClientDtoV2, PutApiClientDtoV2, PutApiClientFormDtoV2 } from '@ed
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { SelectOds } from '../../helpers/EntitySelectors';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { apiClientQueriesV2 } from '../../api';

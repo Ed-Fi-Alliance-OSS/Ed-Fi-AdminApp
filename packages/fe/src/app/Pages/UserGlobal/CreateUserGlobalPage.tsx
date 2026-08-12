@@ -22,7 +22,7 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { Controller, useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { userQueries, userTeamMembershipQueries } from '../../api';
 import { AuthorizeComponent, SelectRole, SelectTeam, useNavToParent } from '../../helpers';

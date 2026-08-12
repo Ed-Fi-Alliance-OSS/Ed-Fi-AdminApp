@@ -2,7 +2,7 @@ import { Box, HStack } from '@chakra-ui/react';
 import { Meta } from '@storybook/react';
 import { ColumnFiltersState, RowData, SortingState, Table } from '@tanstack/react-table';
 import React, { useMemo, useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router';
 import {
   SbaaTable,
   SbaaTableAdvancedButton,

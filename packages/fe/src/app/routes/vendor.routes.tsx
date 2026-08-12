@@ -1,7 +1,7 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetVendorDto, GetVendorDtoV2 } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { VendorPage } from '../Pages/Vendor/VendorPage';
 import { VendorsPage } from '../Pages/Vendor/VendorsPage';
 import { vendorQueriesV1, vendorQueriesV2, vendorQueriesV3 } from '../api';

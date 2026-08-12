@@ -1,6 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetIntegrationProviderDto, OWNERSHIP_RESOURCE_TYPE } from '@edanalytics/models';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import {
   globalOwnershipAuthConfig,

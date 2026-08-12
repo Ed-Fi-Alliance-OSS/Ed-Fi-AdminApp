@@ -11,11 +11,11 @@ jest.mock('react', () => ({
   useState: (initial: unknown) => [initial, jest.fn()],
 }));
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useProfileConfig } from './profileConfig';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));
@@ -54,6 +54,7 @@ const profile = { id: 5, name: 'Test Profile', definition: '<Profile/>' };
 
 const setup = (version: 'v2' | 'v3') => {
   const putMutateAsync = jest.fn().mockResolvedValue(profile);
+  const setValue = jest.fn();
   mockUseNavigate.mockReturnValue(jest.fn());
   mockUseParams.mockReturnValue({ profileId: '5' });
   mockUseTeamEdfiTenantNavContextLoaded.mockReturnValue({
@@ -63,7 +64,7 @@ const setup = (version: 'v2' | 'v3') => {
   mockUseForm.mockReturnValue({
     register: jest.fn(() => ({})),
     setError: jest.fn(),
-    setValue: jest.fn(),
+    setValue,
     handleSubmit: (submit: (data: Record<string, unknown>) => Promise<void>) => () => submit({ name: 'Updated Profile' }),
     formState: { errors: {}, isSubmitting: false },
   });
@@ -79,8 +80,13 @@ const setup = (version: 'v2' | 'v3') => {
   mockMatch.mockImplementation((handlers: Record<string, (cfg: typeof config) => unknown>) =>
     handlers[version](config)
   );
-  return { putMutateAsync };
+  return { putMutateAsync, setValue };
 };
+
+// Definition FormControl is children[1] of the form; its file input is
+// children[1] of that FormControl (see JSX order in EditProfile.tsx).
+const getFileInputOnChange = (form: React.ReactElement) =>
+  (form.props.children[1].props.children[1] as React.ReactElement).props.onChange;
 
 // EditProfile dispatches via `.match()` to a per-version `EditProfileForm`, so
 // getting to the actual <form> requires invoking that inner component too
@@ -116,5 +122,27 @@ describe('EditProfile', () => {
       { entity: { name: 'Updated Profile' } },
       expect.objectContaining({ onSuccess: expect.any(Function) })
     );
+  });
+
+  // Regression test for a pre-existing bug (SBAA-93 / PR #133 fixed this for
+  // CreateProfilePage.tsx in Jan 2025 but never ported the same fix to
+  // EditProfile.tsx): some profile-export XML files contain literal escaped
+  // quotes (\") around attribute values instead of plain quotes, which
+  // DOMParser can't read as a valid attribute delimiter, so the Name field
+  // silently failed to populate when re-uploading such a file during edit.
+  it('unescapes literal backslash-quotes before parsing an uploaded XML file, so the name populates', async () => {
+    const { setValue } = setup('v2');
+
+    const form = getFormElement(profile);
+    const onChange = getFileInputOnChange(form);
+    const xmlWithEscapedQuotes = '<Profile name=\\"Test-Profile\\"></Profile>';
+    const file = new File([xmlWithEscapedQuotes], 'profile.xml', { type: 'application/xml' });
+
+    onChange({ target: { files: [file] } });
+    // FileReader.readAsText is genuinely async even in jsdom; wait for its
+    // onload callback to run rather than asserting synchronously.
+    await new Promise((resolve) => setTimeout(resolve, 50));
+
+    expect(setValue).toHaveBeenCalledWith('name', 'Test-Profile');
   });
 });

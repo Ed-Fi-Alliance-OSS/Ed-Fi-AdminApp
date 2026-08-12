@@ -9,7 +9,7 @@ import {
 } from '@chakra-ui/react';
 import { Icons } from '@edanalytics/common-ui';
 import { ReactNode, useEffect } from 'react';
-import { Link as RouterLink } from 'react-router-dom';
+import { Link as RouterLink } from 'react-router';
 export interface INavButtonProps {
   route: string;
   icon: React.ElementType;

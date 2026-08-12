@@ -1,6 +1,6 @@
 import { Link, Text } from '@chakra-ui/react';
 import { GetApiClientDtoV2 } from '@edanalytics/models';
-import { RouteObject, Link as RouterLink, useParams } from 'react-router-dom';
+import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import {
   VersioningHoc,
   getEntityFromQuery,

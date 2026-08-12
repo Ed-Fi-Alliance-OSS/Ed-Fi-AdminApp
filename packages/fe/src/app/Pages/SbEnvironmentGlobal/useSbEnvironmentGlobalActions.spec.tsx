@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { GetSbEnvironmentDto } from '@edanalytics/models';
 import { useSbEnvironmentGlobalActions } from './useSbEnvironmentGlobalActions';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 
@@ -37,7 +37,7 @@ jest.mock('../../../config/config', () => ({
   config: { showRequestCertification: false },
 }));
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useAuthorize } from '../../helpers';
 
 const mockUseNavigate = useNavigate as jest.Mock;

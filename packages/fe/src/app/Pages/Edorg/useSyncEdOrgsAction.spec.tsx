@@ -2,6 +2,10 @@ import 'reflect-metadata';
 import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
 import { ActionsType, ActionProps } from '@edanalytics/common-ui';
 
+jest.mock('react-router', () => ({
+  useParams: jest.fn(),
+}));
+
 jest.mock('../../helpers', () => ({
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
   useAuthorize: jest.fn(),

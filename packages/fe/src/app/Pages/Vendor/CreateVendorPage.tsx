@@ -16,7 +16,7 @@ import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { vendorQueriesV1 } from '../../api';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';

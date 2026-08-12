@@ -1,7 +1,7 @@
 import { Badge } from '@chakra-ui/react';
 import { AttributeContainer, AttributesGrid, ContentSection } from '@edanalytics/common-ui';
 import { useQuery } from '@tanstack/react-query';
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { edfiTenantQueries, odsQueries } from '../../api';
 import { queryFromEntity } from '../../api/queries/builder';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';

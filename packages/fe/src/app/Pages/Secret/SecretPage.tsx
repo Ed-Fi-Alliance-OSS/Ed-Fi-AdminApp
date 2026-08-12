@@ -9,7 +9,7 @@ import {
 import type { SystemStyleObject } from '@chakra-ui/system';
 import { ConfirmAction, SecretValue } from '@edanalytics/common-ui';
 import { useState } from 'react';
-import { useLocation } from 'react-router-dom';
+import { useLocation } from 'react-router';
 import { getMessage } from './yopass';
 import { UnretrievableError } from './UnretrievableError';
 import { getFieldsFromSearchParams } from './getFieldsFromSearchParams';

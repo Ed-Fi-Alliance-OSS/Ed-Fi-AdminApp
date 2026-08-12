@@ -2,7 +2,7 @@ import { ActionsType, Icons } from '@edanalytics/common-ui';
 
 import { GetApiClientDtoV2 } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import {
   useAuthorize,
   useTeamEdfiTenantNavContext,

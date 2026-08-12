@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
 import { ActionsType, ActionProps } from '@edanalytics/common-ui';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useParams: jest.fn(),
 }));
 
@@ -25,7 +25,7 @@ jest.mock('../../api', () => ({
   },
 }));
 
-import { useParams } from 'react-router-dom';
+import { useParams } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded, useAuthorize } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { odsQueries } from '../../api';

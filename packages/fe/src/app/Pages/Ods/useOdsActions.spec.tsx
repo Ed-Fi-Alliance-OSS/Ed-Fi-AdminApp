@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { useOdsActions } from './useOdsActions';
 import { ActionProps, ActionsType } from '@edanalytics/common-ui';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
@@ -13,7 +13,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useQueryClient } from '@tanstack/react-query';
 import { GetOdsDto } from '@edanalytics/models';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
   useParams: jest.fn(),
 }));

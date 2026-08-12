@@ -19,7 +19,7 @@ import { GetEdorgDto, PostApplicationFormDtoV2, edorgKeyV2 } from '@edanalytics/
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useMemo } from 'react';
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { applicationQueriesV2, edorgQueries, profileQueriesV2, odsInstancesV2, odsQueries } from '../../api';
 import {

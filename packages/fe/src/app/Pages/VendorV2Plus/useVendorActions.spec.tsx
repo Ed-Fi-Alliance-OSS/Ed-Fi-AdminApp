@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { useVendorActions, useManyVendorActions } from './useVendorActions';
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 
@@ -26,7 +26,7 @@ jest.mock('./vendorConfig', () => ({
   useVendorConfig: jest.fn(),
 }));
 
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useVendorConfig } from './vendorConfig';
 

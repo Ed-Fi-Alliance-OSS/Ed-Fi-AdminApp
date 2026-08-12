@@ -14,7 +14,7 @@ import {
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
 import { PutSbEnvironmentDto, PostSbEnvironmentTenantDTO } from '@edanalytics/models';
 import { useForm } from 'react-hook-form';
-import { useNavigate, useParams } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router';
 import { useQuery } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { sbEnvironmentQueriesGlobal, sbEnvironmentQueries } from '../../api';

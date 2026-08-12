@@ -2,7 +2,7 @@ import { ActionsType, Icons } from '@edanalytics/common-ui';
 
 import { GetApplicationDtoV2, GetIntegrationAppDto, edorgKeyV2 } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { useLocation, useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { applicationQueriesV2 } from '../../api';
 import {

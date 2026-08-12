@@ -55,6 +55,8 @@ The retrieved session value is then stored in the NestJS request pipeline for an
 
 ## Logout
 
-Because of the way request authentication works, all that's needed in order to log a user out is to delete their session, because that will guarantee that all subsequent requests using their old `sid` will fail.
+Because of the way request authentication works, deleting the session is all that's needed to log a user out of the app itself, because that guarantees that all subsequent requests using their old `sid` will fail.
 
-We don't currently implement back-channel logout or other ties to the IdP but eventually we should.
+In addition to destroying the local session, the logout route performs OIDC RP-Initiated Logout against the IdP the user logged in with. At login, the session records the provider (`oidcId`) and the `id_token`; at logout, the app redirects to that provider's `end_session_endpoint` (taken from its discovered metadata) with `id_token_hint` and `post_logout_redirect_uri` (the latter must be registered in the IdP). Providers that don't expose an `end_session_endpoint` (e.g. Google) get a local-only logout, and the user is shown a message explaining that the IdP session may still be active.
+
+We don't currently implement back-channel logout (IdP-initiated), so signing out at the IdP does not end the app session.

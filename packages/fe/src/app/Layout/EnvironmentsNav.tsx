@@ -11,7 +11,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useVirtualizer } from '@tanstack/react-virtual';
 import lunr, { Query, tokenizer } from 'lunr';
 import { useMemo, useRef, useState } from 'react';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { Link as RouterLink, useNavigate } from 'react-router';
 import { teamQueries } from '../api';
 import { AuthorizeConfig, useAuthorize, useTeamNavContext } from '../helpers';
 

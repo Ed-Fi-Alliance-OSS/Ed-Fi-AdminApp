@@ -13,7 +13,7 @@ jest.mock('react', () => ({
   useState: (initial: unknown) => [initial, jest.fn()],
 }));
 import { useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useProfileConfig } from './profileConfig';
@@ -22,7 +22,7 @@ jest.mock('@edanalytics/common-ui', () => ({
   PageTemplate: ({ children }: { children: React.ReactNode }) => children,
 }));
 
-jest.mock('react-router-dom', () => ({
+jest.mock('react-router', () => ({
   useNavigate: jest.fn(),
 }));
 

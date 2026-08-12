@@ -17,7 +17,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router';
 import { vendorQueriesV2 } from '../../api';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useNavToParent, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
