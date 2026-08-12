@@ -31,29 +31,27 @@ module.exports = {
   // TypeORM database resilience configuration
   TYPEORM_RETRY_ATTEMPTS: 3,
   TYPEORM_RETRY_DELAY: 3000,
-  AUTH0_CONFIG_SECRET: defer(function () {
+  AUTH0_CONFIG_SECRET: defer(async function () {
     if (this.AWS_AUTH0_CONFIG_SECRET) {
-      return new Promise(async (r) => {
-        const secretsClient = new SecretsManagerClient({
-          region: this.AWS_REGION,
-        });
-        const secretValueRaw = await secretsClient.send(
-          new GetSecretValueCommand({
-            SecretId: this.AWS_AUTH0_CONFIG_SECRET,
-          })
-        );
-        if (secretValueRaw.SecretString === undefined) {
-          throw new Error('No client config values defined for auth0 when requesting secrets');
-        }
-
-        const secret = JSON.parse(secretValueRaw.SecretString);
-        r({
-          ISSUER: secret.ISSUER,
-          CLIENT_ID: secret.CLIENT_ID,
-          CLIENT_SECRET: secret.CLIENT_SECRET,
-          MACHINE_AUDIENCE: secret.MACHINE_AUDIENCE,
-        });
+      const secretsClient = new SecretsManagerClient({
+        region: this.AWS_REGION,
       });
+      const secretValueRaw = await secretsClient.send(
+        new GetSecretValueCommand({
+          SecretId: this.AWS_AUTH0_CONFIG_SECRET,
+        })
+      );
+      if (secretValueRaw.SecretString === undefined) {
+        throw new Error('No client config values defined for auth0 when requesting secrets');
+      }
+
+      const secret = JSON.parse(secretValueRaw.SecretString);
+      return {
+        ISSUER: secret.ISSUER,
+        CLIENT_ID: secret.CLIENT_ID,
+        CLIENT_SECRET: secret.CLIENT_SECRET,
+        MACHINE_AUDIENCE: secret.MACHINE_AUDIENCE,
+      };
     } else {
       return { ...this.AUTH0_CONFIG_SECRET_VALUE };
     }

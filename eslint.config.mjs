@@ -119,4 +119,19 @@ export default [
       'no-var': 'off',
     },
   },
+  {
+    files: ['packages/api/src/test/helpers/**/*.ts'],
+    rules: {
+      'jest/no-export': 'off',
+    },
+  },
+  {
+    files: ['packages/api/scripts/**/*.mjs'],
+    languageOptions: {
+      globals: {
+        console: 'readonly',
+        process: 'readonly',
+      },
+    },
+  },
 ];
