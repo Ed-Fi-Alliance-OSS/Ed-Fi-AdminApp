@@ -5,10 +5,12 @@ import {
   useAuthorize,
   useTeamSbEnvironmentNavContext,
 } from '../../helpers';
+import { useOdsTerminology } from './useOdsTerminology';
 
 export const useOdssActions = (): ActionsType => {
   const navigate = useNavigate();
   const { edfiTenantId, sbEnvironmentId, sbEnvironment, teamId } = useTeamSbEnvironmentNavContext();
+  const terminology = useOdsTerminology();
 
   const canPost = useAuthorize(
     teamEdfiTenantAuthConfig(
@@ -23,7 +25,7 @@ export const useOdssActions = (): ActionsType => {
         Create: {
           icon: Icons.Plus,
           text: 'Create',
-          title: 'Create new ODS.',
+          title: `Create new ${terminology.singular}.`,
           to: `/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/odss/create`,
           onClick: () =>
             edfiTenantId !== undefined &&

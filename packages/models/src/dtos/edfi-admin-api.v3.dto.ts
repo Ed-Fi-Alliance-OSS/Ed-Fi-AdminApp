@@ -484,6 +484,18 @@ export class GetDataStoreSummaryDtoV3 {
 
 export const toGetDataStoreSummaryDtoV3 = makeSerializer(GetDataStoreSummaryDtoV3);
 
+export class PostInstanceDtoV3 {
+  @Expose()
+  @IsString()
+  @TrimWhitespace()
+  name: string;
+
+  @Expose()
+  @IsString()
+  @TrimWhitespace()
+  databaseTemplate: string;
+}
+
 export class PostCreateDataStoreDtoV3 {
   @Expose()
   @IsString()

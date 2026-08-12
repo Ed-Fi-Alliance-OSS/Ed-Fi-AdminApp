@@ -27,12 +27,14 @@ import {
   FIXED_NON_SB_TEMPLATE_OPTIONS,
   getTemplateFieldName,
 } from './createOdsTemplateBehavior';
+import { useOdsTerminology } from './useOdsTerminology';
 
 const resolver = classValidatorResolver(PostOdsDto);
 
 export const CreateOds = () => {
   const popBanner = usePopBanner();
   const params = useTeamEdfiTenantNavContextLoaded();
+  const terminology = useOdsTerminology();
   const isStartingBlocks = params.sbEnvironment.startingBlocks;
   const templateFieldName = getTemplateFieldName(isStartingBlocks);
   const navigate = useNavigate();
@@ -63,7 +65,7 @@ export const CreateOds = () => {
   });
 
   return (
-    <PageTemplate title={'Create new ODS'} actions={undefined}>
+    <PageTemplate title={terminology.createTitle} actions={undefined}>
       <form
         onSubmit={handleSubmit((data) => {
           const callbacks = {
