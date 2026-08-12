@@ -156,13 +156,11 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v3)', () => {
     // class-name string ("Validation Http Exception") — the real message lives in
     // getResponse().data.errors[field].message — so we assert on the response body
     // rather than `.rejects.toThrow(regex)`, which only inspects `.message`.
-    expect.assertions(1);
-    try {
-      await service.updateEnvironment(5, { isMultitenant: false } as unknown as PutSbEnvironmentDto, undefined);
-    } catch (error) {
-      const response = error.getResponse();
-      expect(response.data.errors.isMultitenant.message).toMatch(/Tenant mode cannot be changed/);
-    }
+    const error = await service
+      .updateEnvironment(5, { isMultitenant: false } as unknown as PutSbEnvironmentDto, undefined)
+      .catch((e) => e);
+    const response = error.getResponse();
+    expect(response.data.errors.isMultitenant.message).toMatch(/Tenant mode cannot be changed/);
   });
 
   it('triggers a re-sync via strategy.dispatchSync when the ODS URL changes', async () => {
@@ -224,15 +222,13 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () 
   });
 
   it('rejects isMultitenant:true for a v1 environment with the v1-specific message text', async () => {
-    expect.assertions(1);
-    try {
-      await service.updateEnvironment(6, { isMultitenant: true } as unknown as PutSbEnvironmentDto, undefined);
-    } catch (error) {
-      const response = error.getResponse();
-      expect(response.data.errors.isMultitenant.message).toContain(
-        '(v1 environments are always single-tenant)'
-      );
-    }
+    const error = await service
+      .updateEnvironment(6, { isMultitenant: true } as unknown as PutSbEnvironmentDto, undefined)
+      .catch((e) => e);
+    const response = error.getResponse();
+    expect(response.data.errors.isMultitenant.message).toContain(
+      '(v1 environments are always single-tenant)'
+    );
   });
 });
 
