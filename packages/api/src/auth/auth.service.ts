@@ -540,7 +540,9 @@ export class AuthService {
         const buildDescendants = (edorg: Edorg) => {
           const descendants = descendantMap.get(edorg.id);
           edorg.children = descendants;
-          descendants && edorg.children.forEach((child) => buildDescendants(child));
+          if (descendants) {
+            edorg.children.forEach((child) => buildDescendants(child));
+          }
         };
         tree = edorg;
         buildDescendants(tree);

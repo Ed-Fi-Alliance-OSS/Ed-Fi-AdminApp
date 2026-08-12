@@ -412,7 +412,9 @@ export const persistSyncTenant = async ({
     Logger.log('No ODS changes to save');
   }
 
-  odsDeltas.delete.length && (await em.getRepository(Ods).delete(odsDeltas.delete));
+  if (odsDeltas.delete.length) {
+    await em.getRepository(Ods).delete(odsDeltas.delete);
+  }
 
   let newRootEdorgs: Edorg[] = [];
   for (const edorg of edorgDeltas.insert) {
@@ -449,8 +451,8 @@ export const persistSyncTenant = async ({
   // };
   // newRootEdorgs.forEach((edorg) => flattenEdorgTree(edorg));
 
-  edorgDeltas.update.length &&
-    (await em.getRepository(Edorg).save(
+  if (edorgDeltas.update.length) {
+    await em.getRepository(Edorg).save(
       edorgDeltas.update /* .map((edorg) =>
         edorg.parent && typeof edorg.parent.id === undefined
           ? // need to reassign parent because save above doesn't mutate existing variables with new ids
@@ -462,9 +464,12 @@ export const persistSyncTenant = async ({
           : edorg
       ) */,
       { chunk: 500 }
-    ));
+    );
+  }
 
-  edorgDeltas.delete.length && (await em.getRepository(Edorg).delete(edorgDeltas.delete));
+  if (edorgDeltas.delete.length) {
+    await em.getRepository(Edorg).delete(edorgDeltas.delete);
+  }
 
   const data = {
     edorg: {
@@ -566,10 +571,13 @@ export const persistSyncOds = async ({
     newRootEdorgs = await em.getRepository(Edorg).save(level, { chunk: 500 });
   }
 
-  edorgDeltas.update.length &&
-    (await em.getRepository(Edorg).save(edorgDeltas.update, { chunk: 500 }));
+  if (edorgDeltas.update.length) {
+    await em.getRepository(Edorg).save(edorgDeltas.update, { chunk: 500 });
+  }
 
-  edorgDeltas.delete.length && (await em.getRepository(Edorg).delete(edorgDeltas.delete));
+  if (edorgDeltas.delete.length) {
+    await em.getRepository(Edorg).delete(edorgDeltas.delete);
+  }
 
   const data = {
     edorg: {

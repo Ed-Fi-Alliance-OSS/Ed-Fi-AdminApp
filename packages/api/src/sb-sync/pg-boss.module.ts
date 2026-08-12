@@ -10,7 +10,11 @@ const onceKeys = new Set<string>();
 function logOnce(key: string, msg: string, meta?: Record<string, unknown>) {
   if (onceKeys.has(key)) return;
   onceKeys.add(key);
-  meta ? log.error(msg + ' ' + JSON.stringify(meta)) : log.error(msg);
+  if (meta) {
+    log.error(msg + ' ' + JSON.stringify(meta));
+  } else {
+    log.error(msg);
+  }
 }
 
 function wait(ms: number) {
