@@ -40,7 +40,9 @@ import { NO_ROLE, OidcLoginInfo, RegisterOidcIdpsService, USER_NOT_FOUND } from 
 import { AuthService } from './auth.service';
 
 export const LOCAL_ONLY_LOGOUT_MESSAGE =
-  "You've been signed out of Admin App. You may still be signed in with your identity provider. To completely end your session, sign out of your identity provider account.";
+  "You've been signed out of Admin App. You may still be signed in through your organization's sign-in provider. To fully sign out, also sign out of that account.";
+
+export const SIGNED_OUT_MESSAGE = "You've been signed out of Admin App.";
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -119,7 +121,18 @@ export class AuthController {
           // Must happen after logIn, which regenerates the session.
           request.session.oidcId = Number(oidcId);
           request.session.idToken = info?.idToken;
-          request.session.save(() => response.redirect(`${config.FE_URL}${redirect}`));
+          request.session.save((saveError: Error | null) => {
+            if (saveError) {
+              // The provider/id_token failed to persist: a later logout could
+              // not do a provider-aware IdP logout. Fail the login instead of
+              // redirecting as if it succeeded.
+              Logger.error(
+                `Failed to persist session after login for provider ${oidcId}: ${saveError}`
+              );
+              return this.redirectLoginFailure(saveError, response);
+            }
+            return response.redirect(`${config.FE_URL}${redirect}`);
+          });
         });
       }
     )(request, response, (error: Error) => this.redirectLoginFailure(error, response));
@@ -292,7 +305,11 @@ export class AuthController {
 
       if (loginOidcId === undefined) {
         Logger.warn('No login provider tracked on session, skipping IdP logout');
-        return response.redirect(config.FE_URL);
+        // Still confirm the local sign-out instead of dropping the user on the
+        // app root with no explanation that their session ended.
+        return response.redirect(
+          `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(SIGNED_OUT_MESSAGE)}`
+        );
       }
 
       const endSessionUrl = this.registerOidcIdpsService.getEndSessionUrl(loginOidcId, idToken);
