@@ -44,7 +44,6 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { SelectIntegrationProvider } from '../IntegrationProvider/SelectIntegrationProvider';
 import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
 
@@ -145,7 +144,7 @@ export const EditApplication = (props: {
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredEdorgs).map(([compositeKey, v]) => [
+      Object.entries(filteredEdorgs).map(([_compositeKey, v]) => [
         v.educationOrganizationId,
         {
           value: v.educationOrganizationId,
@@ -176,7 +175,7 @@ export const EditApplication = (props: {
       { entity: data },
       {
         onSuccess() {
-          if (!!data.integrationProviderId) {
+          if (data.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,

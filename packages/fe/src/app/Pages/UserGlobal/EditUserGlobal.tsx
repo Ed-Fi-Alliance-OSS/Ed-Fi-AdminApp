@@ -16,7 +16,7 @@ import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { roleQueries, teamQueries, userQueries } from '../../api';
+import { roleQueries, userQueries } from '../../api';
 import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useRef } from 'react';

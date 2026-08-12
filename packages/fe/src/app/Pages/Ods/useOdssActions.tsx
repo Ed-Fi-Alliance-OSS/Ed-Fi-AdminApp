@@ -8,7 +8,7 @@ import {
 
 export const useOdssActions = (): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, sbEnvironmentId, sbEnvironment, teamId } = useTeamSbEnvironmentNavContext();
+  const { edfiTenantId, sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
 
   const canPost = useAuthorize(
     teamEdfiTenantAuthConfig(

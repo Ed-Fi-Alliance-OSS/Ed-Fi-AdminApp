@@ -211,7 +211,7 @@ export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFi
           cell: (info) =>
             info.getValue() ? (
               <Popover trigger="hover" autoFocus={false}>
-                {({ isOpen, onClose }) => (
+                {({ isOpen }) => (
                   <>
                     <PopoverTrigger>
                       <Text

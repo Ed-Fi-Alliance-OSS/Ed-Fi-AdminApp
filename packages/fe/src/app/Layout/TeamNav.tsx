@@ -179,7 +179,7 @@ export const TeamNav = (props: { teamId: string }) => {
 
   const envNavTenantNams = useMemo(() => {
     const items: Record<number, Record<number, string>> = {};
-    Object.entries(envNavList.data || {}).forEach(([key, value]) => {
+    Object.entries(envNavList.data || {}).forEach(([_key, value]) => {
       set(items, `${value.sbEnvironmentId}.${value.edfiTenantId}`, value.edfiTenantName);
     });
     return items;

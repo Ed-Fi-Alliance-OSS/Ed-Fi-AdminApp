@@ -236,13 +236,13 @@ const NavContent = ({
             ]}
             selectedOptionStyle="check"
             chakraStyles={{
-              option: (styles, { data, isDisabled, isFocused, isSelected }) => {
+              option: (styles, { data }) => {
                 return {
                   ...styles,
                   ...data?.styles,
                 };
               },
-              singleValue: (styles, { data, isDisabled }) => {
+              singleValue: (styles, { data }) => {
                 return {
                   ...styles,
                   ...data?.styles,

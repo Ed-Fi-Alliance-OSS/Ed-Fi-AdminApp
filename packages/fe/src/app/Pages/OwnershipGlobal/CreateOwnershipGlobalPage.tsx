@@ -121,8 +121,8 @@ export const CreateOwnershipGlobalPage = () => {
     const filteredEdorgs = { ...edorgs.data };
     return Object.fromEntries(
       Object.entries(filteredEdorgs)
-        .filter(([key, v]) => v.odsId === Number(odsId))
-        .map(([key, v]) => [
+        .filter(([_key, v]) => v.odsId === Number(odsId))
+        .map(([_key, v]) => [
           v.id,
           {
             value: v.id,

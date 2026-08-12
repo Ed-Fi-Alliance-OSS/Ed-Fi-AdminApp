@@ -105,10 +105,9 @@ export const useManyClaimsetActions = ({
 }: {
   selectionState: RowSelectionState;
 }): ActionsType => {
-  const { teamId, edfiTenant, sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
+  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
 
   const navigate = useNavigate();
-  const toCreate = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/claimsets/create`;
   const toImport = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/claimsets/import`;
   const canCreate = useAuthorize(
     claimsetAuthConfig(edfiTenant.id, teamId, 'team.sb-environment.edfi-tenant.claimset:create')

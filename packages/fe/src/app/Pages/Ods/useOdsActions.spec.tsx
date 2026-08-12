@@ -2,11 +2,7 @@ import 'reflect-metadata';
 import { useOdsActions } from './useOdsActions';
 import { ActionProps, ActionsType } from '@edanalytics/common-ui';
 import { useNavigate, useParams } from 'react-router';
-import {
-  teamEdfiTenantAuthConfig,
-  useAuthorize,
-  useTeamEdfiTenantNavContextLoaded,
-} from '../../helpers';
+import { useAuthorize, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { instancesV2, odsQueries } from '../../api';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
@@ -56,7 +52,6 @@ const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockInstancesDelete = instancesV2.delete as jest.Mock;
 const mockMutationErrCallback = mutationErrCallback as jest.Mock;
-const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
 
 describe('useOdsActions', () => {

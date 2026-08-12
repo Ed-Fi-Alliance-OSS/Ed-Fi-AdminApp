@@ -44,7 +44,6 @@ export const CreateVendor = () => {
     register,
     handleSubmit,
     setError,
-    control,
     formState: { errors, isSubmitting },
   } = useForm<PostVendorDto>({ resolver, defaultValues: {} });
 

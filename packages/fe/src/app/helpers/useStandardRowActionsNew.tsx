@@ -17,7 +17,7 @@ export const useReadTeamEntity = (props: {
 }) => {
   const path = props.route.path!;
   const navigate = useNavigate();
-  const { params, entity, privilege } = props;
+  const { params, entity } = props;
   const pathParams = Object.fromEntries(
     Object.entries(params).map(([key, value]) => [
       key,

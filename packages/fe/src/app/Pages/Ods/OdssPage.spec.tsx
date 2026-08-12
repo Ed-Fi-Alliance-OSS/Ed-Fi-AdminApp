@@ -2,11 +2,7 @@ import 'reflect-metadata';
 import { OdssTable } from './OdssPage';
 import { instancesV2, odsQueries } from '../../api';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import {
-  teamEdfiTenantAuthConfig,
-  useAuthorize,
-  useTeamEdfiTenantNavContextLoaded,
-} from '../../helpers';
+import { useAuthorize, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { GetOdsDto } from '@edanalytics/models';
@@ -66,7 +62,6 @@ const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockOdsGetAll = odsQueries.getAll as jest.Mock;
 const mockOdsDelete = odsQueries.delete as jest.Mock;
 const mockUseAuthorize = useAuthorize as jest.Mock;
-const mockTeamEdfiTenantAuthConfig = teamEdfiTenantAuthConfig as jest.Mock;
 const mockUseTeamEdfiTenantNavContextLoaded = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockInstancesDelete = instancesV2.delete as jest.Mock;
 const mockUsePopBanner = usePopBanner as jest.Mock;

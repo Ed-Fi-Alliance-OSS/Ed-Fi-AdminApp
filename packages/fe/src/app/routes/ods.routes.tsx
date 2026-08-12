@@ -11,7 +11,7 @@ import { CreateOds } from '../Pages/Ods/CreateOdsPage';
 
 const OdsBreadcrumb = withLoader(() => {
   const params = useParams() as { odsId: string };
-  const { teamId, edfiTenant, sbEnvironmentId } = useTeamEdfiTenantNavContextLoaded();
+  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const ods = useQuery(
     odsQueries.getOne({
       id: params.odsId,

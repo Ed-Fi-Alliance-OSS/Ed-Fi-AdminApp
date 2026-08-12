@@ -57,7 +57,7 @@ export const SelectClaimset: StandardSelector<{
   useName?: boolean | undefined;
   noReserved?: boolean | undefined;
 }> = (props) => {
-  const { useName, noReserved, options: externalOptions, ...others } = props;
+  const { options: externalOptions, ...others } = props;
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const claimsets = useQuery(claimsetQueriesV1.getAll({ teamId, edfiTenant }));
   const claimsetsArr = props.noReserved
@@ -87,7 +87,7 @@ export const SelectClaimsetV2: StandardSelector<{
   useName?: boolean | undefined;
   noReserved?: boolean | undefined;
 }> = (props) => {
-  const { useName, noReserved, options: externalOptions, ...others } = props;
+  const { options: externalOptions, ...others } = props;
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const claimsets = useQuery(claimsetQueriesV2.getAll({ teamId, edfiTenant }));
   const claimsetsArr = props.noReserved
@@ -371,7 +371,7 @@ export const SelectOds: StandardSelector<{
 };
 
 export const SelectEdorgCategory: StandardSelector = (props) => {
-  const { options: externalOptions, ...others } = props;
+  const { options: _externalOptions, ...others } = props;
   const options = Object.fromEntries(
     edorgCategories.map((catName) => [catName, { label: catName, value: catName }])
   );
@@ -403,7 +403,7 @@ export const SelectEdorg: StandardSelector<{ useEdorgId?: boolean }, true> = (pr
             ])
         )
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          .filter(([key, value]) => include.includes((value as any).discriminator))
+          .filter(([_key, value]) => include.includes((value as any).discriminator))
       ),
     [edorgs, externalOptions, include, useEdorgId]
   );

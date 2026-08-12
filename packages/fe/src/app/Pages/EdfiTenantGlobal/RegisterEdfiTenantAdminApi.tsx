@@ -18,7 +18,7 @@ export const RegisterEdfiTenantAdminApi = (props: { edfiTenant: GetEdfiTenantDto
       { entity: props.edfiTenant, pathParams: {} },
       {
         onError: () => undefined,
-        onSuccess: (res) => {
+        onSuccess: (_res) => {
           popBanner({
             title: 'Admin API already connected.',
             type: 'Warning',

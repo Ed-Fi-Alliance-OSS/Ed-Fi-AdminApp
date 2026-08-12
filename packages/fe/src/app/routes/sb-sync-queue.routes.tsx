@@ -1,11 +1,11 @@
 import { Link, Text } from '@chakra-ui/react';
-import { GetEdfiTenantDto, SbSyncQueueDto } from '@edanalytics/models';
+import { SbSyncQueueDto } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { SbSyncQueuePage } from '../Pages/SbSyncQueue/SbSyncQueuePage';
 import { SbSyncQueuesPage } from '../Pages/SbSyncQueue/SbSyncQueuesPage';
 import { sbSyncQueueQueries } from '../api';
-import { getRelationDisplayName, useEdfiTenantNavContext } from '../helpers';
+import { getRelationDisplayName } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 const SbSyncQueueBreadcrumb = () => {

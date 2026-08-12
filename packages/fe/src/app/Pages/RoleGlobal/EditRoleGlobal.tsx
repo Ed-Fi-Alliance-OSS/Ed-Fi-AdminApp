@@ -91,7 +91,7 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
   try {
     // might be fancy error object for privilege dependencies
     privilegesError = JSON.parse(errors.privilegeIds?.message as string);
-  } catch (error) {
+  } catch {
     // either undefined or plain string from class-validator
   }
   const newPrivileges = watch('privilegeIds');

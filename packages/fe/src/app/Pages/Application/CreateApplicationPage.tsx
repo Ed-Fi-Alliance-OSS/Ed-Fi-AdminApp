@@ -58,7 +58,7 @@ export const CreateApplicationPage = () => {
             .mutateAsync(
               { entity: data },
               {
-                onSuccess(data, variables, context) {
+                onSuccess(data, _variables, _context) {
                   navigate(
                     `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/applications/${data.applicationId}`,
                     {

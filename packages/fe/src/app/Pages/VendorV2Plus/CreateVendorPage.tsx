@@ -57,7 +57,6 @@ function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
     register,
     handleSubmit,
     setError,
-    control,
     formState: { errors, isSubmitting },
   } = useForm<D>({
     resolver,

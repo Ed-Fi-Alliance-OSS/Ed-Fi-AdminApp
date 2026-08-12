@@ -4,7 +4,7 @@ import { teamBaseAuthConfig, useAuthorize, useTeamSbEnvironmentNavContext } from
 
 export const useEdfiTenantsActions = (): ActionsType => {
   const navigate = useNavigate();
-  const { sbEnvironment, sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
+  const { sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
 
   const { edfiTenantId } = useParams();
 
