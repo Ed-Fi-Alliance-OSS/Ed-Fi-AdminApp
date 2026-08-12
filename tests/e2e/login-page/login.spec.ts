@@ -4,7 +4,7 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import {
-  test, expect, Page
+  test, Page
 } from '@playwright/test'
 import { routes } from '../core/routes'
 import LoginPage  from '../pages/login-page'
@@ -36,12 +36,14 @@ test.describe('Login Page', () => {
     await loginPage.referencePageIsLoaded()
   })
 
-  // test('User can report an issue', async () => {
+  test('User can report an issue', async () => {
+    await loginPage.clickOnReportIssue()
+    await loginPage.communityPageIsLoaded()
+  })
 
-  // })
-
-  // test('User footer page', async () => {
-
-  // })
+  test('User footer page', async () => {
+    await loginPage.reviewFooter()
+    await loginPage.footerYearsMatch()
+  })
 
 })

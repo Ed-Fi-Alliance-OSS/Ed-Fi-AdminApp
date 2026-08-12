@@ -149,9 +149,8 @@ export class PostClaimsetDto {
   set resourceClaimsJson(value: string) {
     try {
       this.resourceClaims = JSON.parse(value);
-    } catch (invalidJsonError) {
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      this.resourceClaims = undefined as any;
+    } catch {
+      this.resourceClaims = undefined as unknown as ResourceClaimDto131[];
     }
   }
 }
