@@ -520,6 +520,7 @@ export class AdminApiControllerV1 {
           try {
             const yopassResult = await postYopassSecret({
               ...adminApiResponse,
+              secretSharingMethod: SecretSharingMethod.Yopass,
               url: GetApplicationDto.apiUrl(sbEnvironment.startingBlocks, sbEnvironment.domain, application.applicationName),
             });
 

@@ -13,7 +13,6 @@ import {
   PutApplicationDto,
   PutClaimsetDto,
   PutVendorDto,
-  SecretSharingMethod,
   TenantDto,
   toGetApplicationDto,
   toGetClaimsetDto,
@@ -413,7 +412,7 @@ export class AdminApiServiceV1 {
     );
   }
   async resetApplicationCredentials(edfiTenant: EdfiTenant, applicationId: number) {
-    const response = await this.getAdminApiClient(edfiTenant)
+    return this.getAdminApiClient(edfiTenant)
       .put<ApplicationResetCredentialResponseDto, ApplicationResetCredentialResponseDto>(
         `v1/applications/${applicationId}/reset-credential`
       )
@@ -423,12 +422,6 @@ export class AdminApiServiceV1 {
         );
         throw err;
       });
-    // The Admin API's reset-credential response does not include secretSharingMethod
-    // (unlike the create-application response). Callers (e.g. the controller's Yopass
-    // flow) spread this response into a PostApplicationResponseDtoBase-shaped payload,
-    // so default it to Yopass here; callers that need Direct sharing already override
-    // this field explicitly.
-    return { ...response, secretSharingMethod: SecretSharingMethod.Yopass };
   }
 
   async getClaimsets(edfiTenant: EdfiTenant) {
