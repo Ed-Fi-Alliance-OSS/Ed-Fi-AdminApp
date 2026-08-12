@@ -2,19 +2,10 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-// Loads the express-session types so the SessionData augmentation below resolves
-import type {} from 'express-session';
 import { BaseClient, Issuer, Strategy, TokenSet, UserinfoResponse } from 'openid-client';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
-
-declare module 'express-session' {
-  interface SessionData {
-    oidcId?: number;
-    idToken?: string;
-  }
-}
 
 export interface OidcLoginInfo {
   idToken?: string;
