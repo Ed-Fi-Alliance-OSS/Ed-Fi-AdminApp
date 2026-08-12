@@ -122,7 +122,7 @@
     "@nx/cypress": "^23.1.1",
     "@nx/devkit": "^23.1.1",
     "@nx/eslint": "^22.7.7",
-    "@nx/eslint-plugin": "^22.7.7",
+    "@nx/eslint-plugin": "^23.1.1",
     "@nx/jest": "^22.7.7",
     "@nx/js": "^23.1.1",
     "@nx/nest": "^22.7.7",
