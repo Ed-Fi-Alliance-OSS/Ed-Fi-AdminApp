@@ -86,7 +86,9 @@ export const TeamNav = (props: { teamId: string }) => {
     edfiTenantId ? { [sbEnvironmentId!]: [Number(edfiTenantId)] } : {}
   );
   useEffect(() => {
-    edfiTenantId && setLastTenantFromNav({ [sbEnvironmentId!]: [Number(edfiTenantId)] });
+    if (edfiTenantId) {
+      setLastTenantFromNav({ [sbEnvironmentId!]: [Number(edfiTenantId)] });
+    }
   }, [edfiTenantId, sbEnvironmentId]);
   useEffect(() => {
     setLastTenantFromNav({});

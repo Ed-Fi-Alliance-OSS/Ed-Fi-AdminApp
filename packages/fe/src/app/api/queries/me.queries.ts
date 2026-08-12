@@ -44,7 +44,7 @@ export const usePutMe = (callback?: () => void) => {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['users'] });
       queryClient.invalidateQueries({ queryKey: ['me'] });
-      callback && callback();
+      callback?.();
     },
   });
 };

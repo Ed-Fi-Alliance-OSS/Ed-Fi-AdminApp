@@ -182,7 +182,7 @@ export const EditRoleGlobal = (props: { role: GetRoleDto }) => {
               type="submit"
               onClick={(e) => {
                 e.preventDefault();
-                props.onClick && props.onClick(e);
+                props.onClick?.(e);
               }}
             >
               Save

@@ -157,7 +157,8 @@ export const CreateOwnershipGlobalPage = () => {
         ...mutationErrCallback({ setFormError, popGlobalBanner }),
         onSuccess: (result) => navigate(`/ownerships/${result.id}`),
       }
-    ).catch(() => {});
+      // error already handled by mutationErrCallback's onError above
+    ).catch(() => undefined);
   };
 
   return teams.data && sbEnvironments.data ? (

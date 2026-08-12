@@ -198,7 +198,9 @@ export const EditApplication = (props: {
         },
         ...mutationErrCallback({ popGlobalBanner, setFormError }),
       }
-    ).catch(() => {});
+      // Errors are already surfaced via mutationErrCallback's onError above;
+      // this catch only prevents an unhandled promise rejection.
+    ).catch(() => undefined);
   };
 
   const hasIntegrationProvider = !!application.integrationProviderId;

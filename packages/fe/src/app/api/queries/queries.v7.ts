@@ -30,8 +30,21 @@ import {
   PutVendorDtoV2,
   PutVendorDtoV3,
 } from '@edanalytics/models';
+import { GetEdfiTenantDto } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
+
+// See the comment above apiClientQueriesV2's `.delete(...)` call for why this
+// shape (rather than the builder's declared `path` overload type) is needed.
+type ApiClientDeletePathBase = {
+  id: string | number;
+  edfiTenant?: GetEdfiTenantDto;
+  teamId?: string | number;
+  queryParams?: {
+    edfiTenant?: GetEdfiTenantDto;
+    teamId?: string | number;
+  };
+};
 
 export const applicationQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
@@ -135,9 +148,15 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   .delete(
     'delete',
     {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // The builder's `path` overload types its 3rd arg as a bare function, but the
+    // runtime implementation (builder.ts's `delete()`) only recognizes it when it's
+    // wrapped as `{ path: fn }` (it does `'path' in pathConfig`), and calls it with
+    // either `{ queryParams, id }` (from mutationFn) or `{ ...queryParams, id }`
+    // (from onSuccess) depending on caller - hence the dual `queryParams?.x ?? x`
+    // lookups below. Cast through `unknown` (not `any`) since the declared overload
+    // type doesn't describe this actual shape.
     {
-      path: (base: any) => {
+      path: (base: ApiClientDeletePathBase) => {
         const edfiTenant = base.queryParams?.edfiTenant ?? base.edfiTenant;
         const teamId = base.queryParams?.teamId ?? base.teamId;
         return standardPath({
@@ -148,7 +167,10 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
           id: base.id,
         });
       },
-    } as any
+    } as unknown as (
+      base: { id: string | number },
+      extras: unknown
+    ) => string
   )
   .build();
 
