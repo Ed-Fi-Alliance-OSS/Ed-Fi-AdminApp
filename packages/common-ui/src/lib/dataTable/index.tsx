@@ -80,7 +80,7 @@ export const getColumnFilterParam = (
           value: item.v,
         }))
       : [];
-  } catch (parsingError) {
+  } catch (_parsingError) {
     return [];
   }
 };
@@ -110,7 +110,9 @@ export const setGlobalFilterParam = (
 ) => {
   const paramName = getPrefixedName('search', prefix);
   searchParams.delete(paramName);
-  state && searchParams.set(paramName, state);
+  if (state) {
+    searchParams.set(paramName, state);
+  }
   return searchParams;
 };
 export const stringifyColumnFilters = (state: ColumnFiltersState) =>
@@ -122,7 +124,9 @@ export const setColumnFilterParam = (
 ) => {
   const paramName = getPrefixedName('colfilter', prefix);
   searchParams.delete(paramName);
-  state.length && searchParams.set(paramName, stringifyColumnFilters(state));
+  if (state.length) {
+    searchParams.set(paramName, stringifyColumnFilters(state));
+  }
   return searchParams;
 };
 

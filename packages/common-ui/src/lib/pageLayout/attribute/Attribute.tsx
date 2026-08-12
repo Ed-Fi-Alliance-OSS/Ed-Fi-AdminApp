@@ -222,7 +222,7 @@ export function CopyButton(
     </Popover>
   );
 }
-export const Attribute = forwardRef<any, AttributeProps>(_Attribute);
+export const Attribute = forwardRef<HTMLDivElement, AttributeProps>(_Attribute);
 
 export const DateValue = (props: { value: Date; defaultDateFmt?: DateFormat }) => {
   const [fmt, setFmt] = useState(props.defaultDateFmt ?? 0);
