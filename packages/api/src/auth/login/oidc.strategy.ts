@@ -20,9 +20,20 @@ export interface OidcLoginInfo {
   idToken?: string;
 }
 
+const DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS = 10000;
+
 @Injectable()
 export class RegisterOidcIdpsService implements OnModuleInit {
   private readonly oidcClients = new Map<number, BaseClient>();
+
+  // Number of providers found in configuration, regardless of whether their
+  // discovery/registration ultimately succeeded. Lets us tell "one provider
+  // configured" apart from "one provider left standing after a failure".
+  private configuredProviderCount = 0;
+
+  // Ids of configured providers whose registration failed, so a broken provider
+  // can be told apart from one that is healthy but exposes no RP-logout support.
+  private readonly failedProviderIds = new Set<number>();
 
   constructor(
     @InjectRepository(Oidc)
@@ -39,13 +50,23 @@ export class RegisterOidcIdpsService implements OnModuleInit {
       Logger.error(`Error loading OIDC provider configurations: ${err}`);
       return;
     }
+    this.configuredProviderCount = oidcConfigs.length;
+    this.failedProviderIds.clear();
     await Promise.all(
       oidcConfigs.map((oidcConfig) =>
-        this.registerIdp(oidcConfig).catch((err) =>
-          Logger.error(`Unexpected error registering OIDC provider ${oidcConfig.issuer}: ${err}`)
-        )
+        this.registerIdp(oidcConfig).catch((err) => {
+          this.failedProviderIds.add(oidcConfig.id);
+          Logger.error(`Unexpected error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
+        })
       )
     );
+
+    const failedIds = [...this.failedProviderIds];
+    if (failedIds.length > 0) {
+      Logger.warn(
+        `OIDC provider registration incomplete: ${failedIds.length} of ${this.configuredProviderCount} configured provider(s) failed to register (ids: ${failedIds.join(', ')}). Logout for sessions on those providers will be local-only.`
+      );
+    }
   }
 
   /**
@@ -54,7 +75,10 @@ export class RegisterOidcIdpsService implements OnModuleInit {
    * was tracked on the session.
    */
   getSoleOidcId(): number | undefined {
-    if (this.oidcClients.size === 1) {
+    // Only infer the provider when exactly one was *configured*. If a second
+    // configured provider failed discovery, a legacy session may have logged in
+    // with it, so the lone survivor must not be assumed to be the right one.
+    if (this.configuredProviderCount === 1 && this.oidcClients.size === 1) {
       return this.oidcClients.keys().next().value;
     }
     return undefined;
@@ -68,7 +92,15 @@ export class RegisterOidcIdpsService implements OnModuleInit {
    */
   getEndSessionUrl(oidcId: number, idToken?: string): string | null {
     const client = this.oidcClients.get(oidcId);
-    if (!client?.issuer.metadata.end_session_endpoint) {
+    if (!client) {
+      // The provider the session logged in with is not registered (never
+      // configured, or failed discovery at startup). This is distinct from a
+      // healthy provider that simply exposes no end_session_endpoint, so it is
+      // logged rather than treated as expected local-only behavior.
+      Logger.warn(`Cannot build end-session URL: OIDC provider ${oidcId} is not registered`);
+      return null;
+    }
+    if (!client.issuer.metadata.end_session_endpoint) {
       return null;
     }
     return client.endSessionUrl({
@@ -78,17 +110,42 @@ export class RegisterOidcIdpsService implements OnModuleInit {
     });
   }
 
+  /**
+   * Runs OIDC discovery with a bounded timeout so a slow or unresponsive
+   * provider cannot stall application bootstrap. Rejects when the provider does
+   * not answer within the configured budget.
+   */
+  private async discoverWithTimeout(discoveryUrl: string, timeoutMs: number): Promise<Issuer> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`OIDC discovery timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
+    });
+    try {
+      return await Promise.race([Issuer.discover(discoveryUrl), timeout]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
+  }
+
   private async registerIdp(oidcConfig: Oidc): Promise<void> {
     let client: BaseClient;
     try {
-      const trustIssuer = await Issuer.discover(
-        `${oidcConfig.issuer}/.well-known/openid-configuration`
+      const timeoutMs = config.OIDC_DISCOVERY_TIMEOUT_MS ?? DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS;
+      const trustIssuer = await this.discoverWithTimeout(
+        `${oidcConfig.issuer}/.well-known/openid-configuration`,
+        timeoutMs
       );
       client = new trustIssuer.Client({
         client_id: oidcConfig.clientId,
         client_secret: oidcConfig.clientSecret,
       });
     } catch (err) {
+      this.failedProviderIds.add(oidcConfig.id);
       Logger.error(`Error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
       return;
     }
