@@ -4,6 +4,15 @@ import axios from 'axios';
 import { ValidationHttpException } from './customExceptions';
 import config from 'config';
 
+/**
+ * Shape of the Admin API root/info endpoint response.
+ * Only the fields consumed by this module are modeled here.
+ */
+export interface AdminApiInfo {
+  version?: string;
+  specificationVersion?: string;
+  tenancy?: { multitenantMode?: boolean };
+}
 
 /**
  * Determines the API version (v1 or v2) from Admin API metadata version string
@@ -141,7 +150,7 @@ export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironm
  * Fetches Admin API info from the root endpoint
  * Returns the raw response which includes version and tenancy.multitenantMode
  */
-export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<any> => {
+export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<AdminApiInfo> => {
   if (!adminApiUrl) {
     throw new ValidationHttpException({
       field: 'adminApiUrl',
@@ -187,7 +196,7 @@ export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<any> => {
 export const validateAdminApiUrl = async (
   adminApiUrl: string,
   odsApiDiscoveryUrl: string
-): Promise<any> => {
+): Promise<AdminApiInfo> => {
   try {
     // Fetch Admin API info (reuses shared fetch function)
     const metadata = await fetchAdminApiInfo(adminApiUrl);
@@ -295,10 +304,14 @@ export const validateTenantModeCompatibility = (
   }
 };
 
-const isTimeoutError = (error: any): boolean => {
-  return error && (
-    error.code === 'ECONNABORTED' ||
-    (error.message && error.message.toLowerCase().includes('timeout'))
+const isTimeoutError = (error: unknown): boolean => {
+  if (!error || typeof error !== 'object') {
+    return false;
+  }
+  const { code, message } = error as { code?: unknown; message?: unknown };
+  return (
+    code === 'ECONNABORTED' ||
+    (typeof message === 'string' && message.toLowerCase().includes('timeout'))
   );
 };
 

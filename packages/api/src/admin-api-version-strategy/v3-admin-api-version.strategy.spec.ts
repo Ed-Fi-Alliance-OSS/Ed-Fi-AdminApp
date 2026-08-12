@@ -4,6 +4,7 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { V3AdminApiVersionStrategy } from './v3-admin-api-version.strategy';
 import { AdminApiServiceV3 } from '../teams/edfi-tenants/starting-blocks';
 import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
+import { ISbEnvironmentConfigPublicV3, PostSbEnvironmentDto } from '@edanalytics/models';
 
 describe('V3AdminApiVersionStrategy', () => {
   let strategy: V3AdminApiVersionStrategy;
@@ -35,16 +36,16 @@ describe('V3AdminApiVersionStrategy', () => {
   });
 
   it('buildConfigPublic returns a v3-tagged configPublic with the same meta shape as v2', () => {
-    const result: any = strategy.buildConfigPublic({
+    const result = strategy.buildConfigPublic({
       createSbEnvironmentDto: {
         startingBlocks: false,
         adminApiUrl: 'https://api.test.com',
         odsApiDiscoveryUrl: 'https://ods.test.com',
         environmentLabel: 'my-v3-env',
-      } as any,
+      } as PostSbEnvironmentDto,
       odsApiMetaResponse: { version: '5.3' },
       tenantMode: 'MultiTenant',
-    });
+    }) as unknown as { version: string; values: ISbEnvironmentConfigPublicV3 };
 
     expect(result.version).toBe('v3');
     expect(result.values.meta).toEqual({

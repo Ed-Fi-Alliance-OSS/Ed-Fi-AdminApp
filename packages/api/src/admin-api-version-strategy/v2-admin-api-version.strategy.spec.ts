@@ -4,8 +4,14 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { V2AdminApiVersionStrategy } from './v2-admin-api-version.strategy';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
-import { TenantDto } from '@edanalytics/models';
-import axios from 'axios';
+import {
+  ISbEnvironmentConfigPrivateV2,
+  ISbEnvironmentConfigPublicV2,
+  PostSbEnvironmentDto,
+  SbEnvironmentConfigPublic,
+  TenantDto,
+} from '@edanalytics/models';
+import axios, { AxiosInstance, AxiosResponse } from 'axios';
 
 jest.mock('axios');
 const mockedAxios = axios as jest.Mocked<typeof axios>;
@@ -46,16 +52,16 @@ describe('V2AdminApiVersionStrategy', () => {
   });
 
   it('buildConfigPublic returns the v2-shaped configPublic with SbV2MetaEnv meta', () => {
-    const result: any = strategy.buildConfigPublic({
+    const result = strategy.buildConfigPublic({
       createSbEnvironmentDto: {
         startingBlocks: false,
         adminApiUrl: 'https://api.test.com',
         odsApiDiscoveryUrl: 'https://ods.test.com',
         environmentLabel: 'my-env',
-      } as any,
+      } as PostSbEnvironmentDto,
       odsApiMetaResponse: { version: '5.3' },
       tenantMode: 'MultiTenant',
-    });
+    }) as unknown as { version: string; values: ISbEnvironmentConfigPublicV2 & { adminApiUuid: string } };
 
     expect(result.version).toBe('v2');
     expect(result.values.meta).toEqual({
@@ -74,7 +80,10 @@ describe('V2AdminApiVersionStrategy', () => {
 
   it('applyOdsUrlUpdate patches meta.domainName', () => {
     const patch = strategy.applyOdsUrlUpdate(
-      { version: 'v2', values: { meta: { domainName: 'old.test.com', mode: 'SingleTenant' } } } as any,
+      {
+        version: 'v2',
+        values: { meta: { domainName: 'old.test.com', mode: 'SingleTenant' } },
+      } as SbEnvironmentConfigPublic,
       'https://new.test.com/'
     );
     expect(patch).toEqual({
@@ -141,8 +150,8 @@ describe('V2AdminApiVersionStrategy', () => {
       const getMock = jest.fn().mockResolvedValue({
         data: { tenancy: { multitenantMode: true, tenants: ['tenant-a', 'tenant-b'] } },
       });
-      mockedAxios.create.mockReturnValue({ get: getMock } as any);
-      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+      mockedAxios.create.mockReturnValue({ get: getMock } as unknown as AxiosInstance);
+      mockedAxios.post.mockResolvedValue({ status: 200 } as unknown as AxiosResponse);
 
       const env = {
         name: 'my-env',
@@ -156,11 +165,11 @@ describe('V2AdminApiVersionStrategy', () => {
       expect(getMock).toHaveBeenCalledWith('/');
       expect(mockedAxios.post).toHaveBeenCalledTimes(2);
 
-      const values: any = (env.configPublic as any).values;
+      const values = (env.configPublic as unknown as { values: ISbEnvironmentConfigPublicV2 }).values;
       expect(values.tenants['tenant-a'].adminApiKey).toEqual(expect.any(String));
       expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
 
-      const privateConfig: any = env.configPrivate;
+      const privateConfig = env.configPrivate as unknown as ISbEnvironmentConfigPrivateV2;
       expect(privateConfig.tenants['tenant-a'].adminApiSecret).toEqual(expect.any(String));
       expect(privateConfig.tenants['tenant-b'].adminApiSecret).toEqual(expect.any(String));
 
@@ -172,8 +181,8 @@ describe('V2AdminApiVersionStrategy', () => {
       jest.clearAllMocks();
       sbEnvironmentsRepository.save = jest.fn();
       const getMock = jest.fn().mockResolvedValue({ data: {} });
-      mockedAxios.create.mockReturnValue({ get: getMock } as any);
-      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+      mockedAxios.create.mockReturnValue({ get: getMock } as unknown as AxiosInstance);
+      mockedAxios.post.mockResolvedValue({ status: 200 } as unknown as AxiosResponse);
 
       const env = {
         name: 'my-env',
@@ -184,7 +193,7 @@ describe('V2AdminApiVersionStrategy', () => {
       await strategy.bootstrapCredentials(env);
 
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      const values: any = (env.configPublic as any).values;
+      const values = (env.configPublic as unknown as { values: ISbEnvironmentConfigPublicV2 }).values;
       expect(values.tenants['default'].adminApiKey).toEqual(expect.any(String));
       expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
     });
@@ -193,7 +202,7 @@ describe('V2AdminApiVersionStrategy', () => {
       jest.clearAllMocks();
       sbEnvironmentsRepository.save = jest.fn();
       const getMock = jest.fn().mockRejectedValue(new Error('network unreachable'));
-      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+      mockedAxios.create.mockReturnValue({ get: getMock } as unknown as AxiosInstance);
 
       const env = {
         name: 'my-env',
@@ -213,10 +222,10 @@ describe('V2AdminApiVersionStrategy', () => {
       const getMock = jest.fn().mockResolvedValue({
         data: { tenancy: { multitenantMode: true, tenants: ['tenant-a', 'tenant-b'] } },
       });
-      mockedAxios.create.mockReturnValue({ get: getMock } as any);
+      mockedAxios.create.mockReturnValue({ get: getMock } as unknown as AxiosInstance);
       mockedAxios.post
         .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValueOnce({ status: 200 } as any);
+        .mockResolvedValueOnce({ status: 200 } as unknown as AxiosResponse);
 
       const env = {
         name: 'my-env',
@@ -226,7 +235,7 @@ describe('V2AdminApiVersionStrategy', () => {
 
       await strategy.bootstrapCredentials(env);
 
-      const values: any = (env.configPublic as any).values;
+      const values = (env.configPublic as unknown as { values: ISbEnvironmentConfigPublicV2 }).values;
       expect(values.tenants['tenant-a']).toBeUndefined();
       expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
 
@@ -250,7 +259,7 @@ describe('V2AdminApiVersionStrategy', () => {
     it('registers and saves credentials for newly discovered tenants', async () => {
       jest.clearAllMocks();
       sbEnvironmentsRepository.save = jest.fn();
-      mockedAxios.post.mockResolvedValue({ status: 200 } as any);
+      mockedAxios.post.mockResolvedValue({ status: 200 } as unknown as AxiosResponse);
 
       const env = {
         name: 'my-env',
@@ -265,11 +274,11 @@ describe('V2AdminApiVersionStrategy', () => {
       await strategy.provisionCredentialsForNewTenants(env, discovered);
 
       expect(mockedAxios.post).toHaveBeenCalledTimes(1);
-      const values: any = (env.configPublic as any).values;
+      const values = (env.configPublic as unknown as { values: ISbEnvironmentConfigPublicV2 }).values;
       expect(values.tenants['tenant-a']).toEqual({ adminApiKey: 'existing' });
       expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
 
-      const privateConfig: any = env.configPrivate;
+      const privateConfig = env.configPrivate as unknown as ISbEnvironmentConfigPrivateV2;
       expect(privateConfig.tenants['tenant-b'].adminApiSecret).toEqual(expect.any(String));
 
       expect(sbEnvironmentsRepository.save).toHaveBeenCalledTimes(1);
@@ -281,7 +290,7 @@ describe('V2AdminApiVersionStrategy', () => {
       sbEnvironmentsRepository.save = jest.fn();
       mockedAxios.post
         .mockRejectedValueOnce(new Error('boom'))
-        .mockResolvedValueOnce({ status: 200 } as any);
+        .mockResolvedValueOnce({ status: 200 } as unknown as AxiosResponse);
 
       const env = {
         name: 'my-env',
@@ -295,7 +304,7 @@ describe('V2AdminApiVersionStrategy', () => {
 
       await strategy.provisionCredentialsForNewTenants(env, discovered);
 
-      const values: any = (env.configPublic as any).values;
+      const values = (env.configPublic as unknown as { values: ISbEnvironmentConfigPublicV2 }).values;
       expect(values.tenants['tenant-a']).toBeUndefined();
       expect(values.tenants['tenant-b'].adminApiKey).toEqual(expect.any(String));
 

@@ -61,7 +61,7 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
         // ---- collapse repeated worker errors, stop boss on ECONNREFUSED ----
         let stoppedDueToConnRefused = false;
 
-        boss.on('error', async (err: any) => {
+        boss.on('error', async (err: { code?: string; message?: string; queue?: string }) => {
           const code = err?.code ?? 'UNKNOWN';
           const queue =
             /Queue:\s*([^\s,]+)/.exec(String(err?.message ?? ''))?.[1] ?? err?.queue ?? 'unknown';
@@ -103,9 +103,8 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
             started = true;
             log.log(`PgBoss started (attempt ${attempt}/${maxAttempts}).`);
             break;
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          } catch (err: any) {
-            const code = err?.code ?? 'UNKNOWN';
+          } catch (err: unknown) {
+            const code = (err as { code?: string } | undefined)?.code ?? 'UNKNOWN';
             if (code === 'ECONNREFUSED') {
               const delay = baseDelayMs * Math.pow(2, attempt - 1);
               if (attempt === 1) {
