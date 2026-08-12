@@ -1,17 +1,21 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
-import { Ids } from '@edanalytics/models';
+import { Edorg, EdfiTenant, Ods } from '@edanalytics/models-server';
+import { Ids, PostProfileDtoV3 } from '@edanalytics/models';
+import { Repository } from 'typeorm';
 import { AdminApiControllerV3 } from './admin-api.v3.controller';
+import { AdminApiServiceV3 } from './admin-api.v3.service';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
+import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
 
 describe('AdminApiControllerV3 - exportClaimset', () => {
   let controller: AdminApiControllerV3;
   let mockSbService: { exportClaimset: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
   beforeEach(() => {
     mockSbService = {
@@ -21,10 +25,10 @@ describe('AdminApiControllerV3 - exportClaimset', () => {
       }),
     };
     controller = new AdminApiControllerV3(
-      null as any,
-      mockSbService as any,
-      null as any,
-      null as any,
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
     );
   });
 
@@ -66,7 +70,7 @@ describe('AdminApiControllerV3 - getDataStores', () => {
   let controller: AdminApiControllerV3;
   let mockSbService: { getDataStores: jest.Mock };
 
-  const mockEdfiTenant: any = { id: 1 };
+  const mockEdfiTenant = { id: 1 } as unknown as EdfiTenant;
 
   beforeEach(() => {
     mockSbService = {
@@ -76,10 +80,10 @@ describe('AdminApiControllerV3 - getDataStores', () => {
       ]),
     };
     controller = new AdminApiControllerV3(
-      null as any,
-      mockSbService as any,
-      null as any,
-      null as any,
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
     );
   });
 
@@ -102,12 +106,12 @@ describe('AdminApiControllerV3 - postProfile', () => {
   let controller: AdminApiControllerV3;
   let mockSbService: { postProfile: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
-  const mockProfile: any = { name: 'Test Profile', definition: '<Profile />' };
+  const mockProfile: PostProfileDtoV3 = { name: 'Test Profile', definition: '<Profile />' };
 
   const makeAxiosError = (data: unknown) => ({
     isAxiosError: true,
@@ -120,10 +124,10 @@ describe('AdminApiControllerV3 - postProfile', () => {
       postProfile: jest.fn(),
     };
     controller = new AdminApiControllerV3(
-      null as any,
-      mockSbService as any,
-      null as any,
-      null as any,
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
     );
   });
 

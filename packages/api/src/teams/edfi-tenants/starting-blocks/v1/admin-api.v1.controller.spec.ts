@@ -1,21 +1,26 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException } from '@nestjs/common';
 import { Ids } from '@edanalytics/models';
+import { EdfiTenant, Edorg } from '@edanalytics/models-server';
+import { Repository } from 'typeorm';
+import { Response } from 'express';
 import { AdminApiControllerV1 } from './admin-api.v1.controller';
+import { AdminApiServiceV1 } from './admin-api.v1.service';
 
 describe('AdminApiControllerV1 - exportClaimset', () => {
   let controller: AdminApiControllerV1;
   let mockSbService: { getClaimsetRaw: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
-  const mockRes: any = {
+  const mockResImpl = {
     setHeader: jest.fn(),
     send: jest.fn(),
   };
+  const mockRes = mockResImpl as unknown as Response;
 
   beforeEach(() => {
     mockSbService = {
@@ -25,12 +30,12 @@ describe('AdminApiControllerV1 - exportClaimset', () => {
       }),
     };
     controller = new AdminApiControllerV1(
-      mockSbService as any,
-      null as any,
-      null as any
+      mockSbService as unknown as AdminApiServiceV1,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<EdfiTenant>
     );
-    mockRes.setHeader.mockClear();
-    mockRes.send.mockClear();
+    mockResImpl.setHeader.mockClear();
+    mockResImpl.send.mockClear();
   });
 
   it('exports claimsets when validIds is true (superuser access)', async () => {

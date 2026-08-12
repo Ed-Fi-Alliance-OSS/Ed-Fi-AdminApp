@@ -1,7 +1,16 @@
 import 'reflect-metadata';
 import { SbEnvironment } from '@edanalytics/models-server';
+import { SbEnvironmentConfigPublic, SbEnvironmentConfigPrivate } from '@edanalytics/models';
 import { AdminApiServiceV1 } from './admin-api.v1.service';
-import { AxiosError } from 'axios';
+import { AxiosError, InternalAxiosRequestConfig } from 'axios';
+
+// Minimal shape exposing the private `getAdminApiClientUsingEnv` method so tests can
+// spy on it without an explicit `any`. Intentionally not intersected with
+// AdminApiServiceV1 itself, since that would merge with the real (differently-typed)
+// private method and confuse jest.spyOn's overload resolution.
+interface AdminApiServiceV1WithPrivateClient {
+  getAdminApiClientUsingEnv: (environment: SbEnvironment) => { get: jest.Mock };
+}
 
 describe('AdminApiServiceV1 - Extension Methods', () => {
   let service: AdminApiServiceV1;
@@ -21,10 +30,10 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       adminApiUrl: 'https://api.test.com',
       adminApiVersion: 'v1',
       startingBlocks: false,
-    } as any,
+    } as unknown as SbEnvironmentConfigPublic,
     configPrivate: {
       adminApiSecret: 'test-secret',
-    } as any,
+    } as unknown as SbEnvironmentConfigPrivate,
   };
 
   // Helper function to create proper AxiosError mocks
@@ -32,14 +41,14 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
     isAxiosError: true,
     message,
     name: 'AxiosError',
-    config: {} as any,
+    config: {} as InternalAxiosRequestConfig,
     toJSON: () => ({}),
     response: {
       status,
       statusText: message,
       data: {},
       headers: {},
-      config: {} as any,
+      config: {} as InternalAxiosRequestConfig,
     },
   });
 
@@ -73,7 +82,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -123,7 +132,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -154,7 +163,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -177,7 +186,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -191,7 +200,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockGet = jest.fn().mockResolvedValue([]);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -210,7 +219,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockGet = jest.fn().mockResolvedValue({ unexpected: 'object' });
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -222,7 +231,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       
       const mockGet = jest.fn().mockResolvedValue([]);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -235,7 +244,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const environment = mockSbEnvironment as SbEnvironment;
       
       const axiosError = createAxiosError(401, 'Unauthorized');
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: jest.fn().mockRejectedValue(axiosError),
       });
 
@@ -248,7 +257,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const environment = mockSbEnvironment as SbEnvironment;
       
       const axiosError = createAxiosError(500, 'Internal Server Error');
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: jest.fn().mockRejectedValue(axiosError),
       });
 
@@ -261,7 +270,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const environment = mockSbEnvironment as SbEnvironment;
       
       const networkError = new Error('Network Error');
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: jest.fn().mockRejectedValue(networkError),
       });
 
@@ -283,7 +292,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
@@ -313,7 +322,7 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
 
       const mockGet = jest.fn().mockResolvedValue(mockOdsInstancesResponse);
 
-      jest.spyOn(service as any, 'getAdminApiClientUsingEnv').mockReturnValue({
+      jest.spyOn(service as unknown as AdminApiServiceV1WithPrivateClient, 'getAdminApiClientUsingEnv').mockReturnValue({
         get: mockGet,
       });
 
