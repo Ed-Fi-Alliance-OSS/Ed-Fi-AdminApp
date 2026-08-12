@@ -336,7 +336,7 @@ export class AdminApiControllerV1 {
     let existingApplication: GetApplicationDto;
     try {
       existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
-    } catch (applicationNotFound) {
+    } catch (_applicationNotFound) {
       throw new NotFoundException();
     }
 

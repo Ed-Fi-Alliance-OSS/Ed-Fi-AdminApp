@@ -1,6 +1,5 @@
 import {
   ApplicationResetCredentialResponseDto,
-  EducationOrganizationDto,
   GetApplicationDto,
   GetClaimsetDto,
   GetVendorDto,
@@ -505,7 +504,7 @@ export class AdminApiServiceV1 {
 
   async pollJobStatus(
     sbEnvironment: SbEnvironment,
-    jobId: string
+    _jobId: string
   ): Promise<'completed' | 'failed' | 'timeout'> {
     Logger.log(`PollJobStatus for environment: ${sbEnvironment.name} v1 does not support this operation.`);
     return 'timeout';

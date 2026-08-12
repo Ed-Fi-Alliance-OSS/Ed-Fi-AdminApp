@@ -1,7 +1,6 @@
 import 'reflect-metadata';
 import { EntityManager, Repository } from 'typeorm';
-import { EdfiTenant, Edorg, Ods } from '@edanalytics/models-server';
-import { EdorgType } from '@edanalytics/models';
+import { EdfiTenant, Ods } from '@edanalytics/models-server';
 import { computeOdsListDeltas, SyncableOds } from './sync-ods';
 
 // ---------------------------------------------------------------------------
@@ -20,15 +19,6 @@ const makeOds = (overrides: Partial<Ods>): Ods => ({
   sbEnvironmentId: 10,
   ...overrides,
 } as unknown as Ods);
-
-const makeEdorg = (overrides: Partial<Edorg>): Edorg =>
-  ({
-    id: 1,
-    educationOrganizationId: 255901,
-    nameOfInstitution: 'School',
-    discriminator: EdorgType['edfi.LocalEducationAgency'],
-    ...overrides,
-  } as unknown as Edorg);
 
 const makeEntityManager = (createdOds: Partial<Ods> = {}): jest.Mocked<EntityManager> => {
   const odsRepo = {

@@ -24,7 +24,6 @@ import {
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV3,
-  toPostApplicationResponseDto,
   toPostApplicationResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
@@ -311,7 +310,7 @@ export class AdminApiControllerV3 {
           ...application,
           id: application.id,
         };
-      } catch (error) {
+      } catch (_error) {
         return application;
       }
     } else {
@@ -340,7 +339,7 @@ export class AdminApiControllerV3 {
     let claimset: GetClaimsetSingleDtoV3;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
-    } catch (claimsetNotFound) {
+    } catch (_claimsetNotFound) {
       throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot retrieve claimset for validation',

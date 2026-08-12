@@ -1,4 +1,3 @@
-import { Test } from '@nestjs/testing';
 import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
@@ -30,12 +29,6 @@ function makeZipBuffer(): Buffer {
 
 function sha256(buf: Buffer): string {
   return createHash('sha256').update(buf).digest('hex');
-}
-
-function buildService(envOverrides: NodeJS.ProcessEnv = {}): ArtifactService {
-  // Apply env overrides before constructing
-  Object.assign(process.env, envOverrides);
-  return new ArtifactService();
 }
 
 // Mirrors the private surface of ArtifactService that these tests exercise

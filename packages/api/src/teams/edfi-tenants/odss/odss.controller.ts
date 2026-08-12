@@ -72,8 +72,8 @@ export class OdssController {
   })
   async findOne(
     @Param('odsId', new ParseIntPipe()) odsId: number,
-    @Param('teamId', new ParseIntPipe()) teamId: number,
-    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number
+    @Param('teamId', new ParseIntPipe()) _teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) _edfiTenantId: number
   ) {
     return toGetOdsDto(await this.odsService.findOne(odsId));
   }

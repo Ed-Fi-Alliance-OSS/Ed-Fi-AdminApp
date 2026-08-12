@@ -676,7 +676,7 @@ export class AuthService {
     let header: ProtectedHeaderParameters;
     try {
       header = jose.decodeProtectedHeader(token);
-    } catch (decodeError) {
+    } catch (_decodeError) {
       return {
         status: 'failure' as const,
         message: 'Invalid token', // decode error

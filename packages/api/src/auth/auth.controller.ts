@@ -98,7 +98,7 @@ export class AuthController {
       const state = JSON.parse(request.query.state as string);
       // Validate redirect URL again in callback for extra security
       redirect = this.validateRedirectUrl(state.redirect);
-    } catch (error) {
+    } catch (_error) {
       // Use default redirect
     }
     passport.authenticate(
@@ -340,7 +340,7 @@ export class AuthController {
       if (allowedHosts.includes(baseUrl)) {
         return redirect;
       }
-    } catch (error) {
+    } catch (_error) {
       // Invalid URL format
     }
 

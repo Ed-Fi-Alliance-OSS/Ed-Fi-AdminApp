@@ -608,7 +608,6 @@ export const persistSyncOds = async ({
 
 export const persistSyncDeleteOds = async ({
   ods,
-  edfiTenant,
   em,
 }: {
   ods: Ods;
