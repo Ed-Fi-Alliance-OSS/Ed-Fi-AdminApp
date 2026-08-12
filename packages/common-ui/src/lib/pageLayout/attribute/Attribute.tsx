@@ -124,6 +124,11 @@ function _Attribute(
       window.addEventListener('blur', handleWindowBlur);
       return () => window.removeEventListener('blur', handleWindowBlur);
     }
+    // isMasked and showSecret intentionally omitted: this should only
+    // register the mount-time listener once, not re-subscribe every time
+    // showSecret's open/closed state itself changes (which would happen on
+    // every blur, causing listener churn without changing behavior).
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
   let valueContent: ReactElement;

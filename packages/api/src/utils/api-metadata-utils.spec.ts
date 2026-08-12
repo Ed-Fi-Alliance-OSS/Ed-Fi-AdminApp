@@ -57,7 +57,8 @@ describe('api-metadata-utils', () => {
 
       expect(error).toBeInstanceOf(ValidationHttpException);
       // Verify the error message contains the expected tenant mode information
-      const errorString = JSON.stringify((error as any).getResponse?.() || (error as any).message || '');
+      const typedError = error as ValidationHttpException;
+      const errorString = JSON.stringify(typedError.getResponse?.() || typedError.message || '');
       expect(errorString).toContain('Ed-Fi API and Management API URLs');
       expect(errorString).toContain('SingleTenant');
       expect(errorString).toContain('MultiTenant');

@@ -116,7 +116,10 @@ export const EditApplication = (props: {
   });
 
   const selectedEdorgs = watch('educationOrganizationIds', defaultValues.educationOrganizationIds);
-  const selectedProfileIds = watch('profileIds', defaultValues.profileIds) || [];
+  const watchedProfileIds = watch('profileIds', defaultValues.profileIds);
+  // Stabilize the array reference so it doesn't change identity on every
+  // render (which would otherwise defeat the filteredProfileOptions memo below).
+  const selectedProfileIds = useMemo(() => watchedProfileIds || [], [watchedProfileIds]);
   const selectedOds = watch('odsInstanceId');
   const setSelectedEdorgs = (edorgs: number[]) => {
     setValue('educationOrganizationIds', edorgs);

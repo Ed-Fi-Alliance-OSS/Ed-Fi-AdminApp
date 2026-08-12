@@ -168,6 +168,11 @@ export const DebouncedInput = forwardRef<
     }, debounce);
 
     return () => clearTimeout(timeout);
+    // debounce and onChange intentionally omitted: onChange is often a fresh
+    // reference each render from the parent, and including it (or debounce)
+    // here would reset/reschedule the debounce timer on every parent render
+    // instead of only when the input value changes.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [value]);
 
   return (

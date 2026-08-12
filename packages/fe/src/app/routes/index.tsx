@@ -188,6 +188,11 @@ const Login = memo(() => {
     window.location.href = `${API_URL}/auth/login/${config.oidcId}${
       redirect ? `?redirect=${redirect}` : ''
     }`;
+    // redirect intentionally omitted: this should navigate away exactly once
+    // on mount using whatever redirect value was present in the initial URL.
+    // useSearchParamsObject() returns a new object each render, so including
+    // it would re-run this navigation on every render.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
   return null;
 });
