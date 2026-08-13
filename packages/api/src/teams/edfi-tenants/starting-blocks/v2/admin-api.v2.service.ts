@@ -681,7 +681,7 @@ export class AdminApiServiceV2 {
   async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
     const validatedClaimSetId = Number(claimSetId);
     if (!Number.isSafeInteger(validatedClaimSetId) || validatedClaimSetId <= 0) {
-      throw new CustomHttpException('Invalid claimsetId', 400);
+      throw new CustomHttpException({ title: 'Invalid claimsetId', type: 'Error' }, 400);
     }
 
     return toGetClaimsetSingleDtoV2(
