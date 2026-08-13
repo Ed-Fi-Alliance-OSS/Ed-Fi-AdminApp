@@ -434,10 +434,17 @@ export class AdminApiServiceV1 {
     );
   }
   async getClaimset(edfiTenant: EdfiTenant, claimsetId: number) {
+    const safeClaimsetId = Number(claimsetId);
+    if (!Number.isSafeInteger(safeClaimsetId) || safeClaimsetId <= 0) {
+      throw new CustomHttpException(400, 'Invalid claimsetId');
+    }
+
     const value: GetClaimsetDto = await this.getAdminApiClient(edfiTenant)
-      .get<GetClaimsetDto, GetClaimsetDto>(`v1/claimsets/${claimsetId}`)
+      .get<GetClaimsetDto, GetClaimsetDto>(`v1/claimsets/${safeClaimsetId}`)
       .catch((err) => {
-        Logger.error(`Error getting claimset ${claimsetId} for tenant ${edfiTenant.id}: ${err}`);
+        Logger.error(
+          `Error getting claimset ${safeClaimsetId} for tenant ${edfiTenant.id}: ${err}`
+        );
         throw err;
       });
     value.resourceClaims.forEach((rc, i) => {

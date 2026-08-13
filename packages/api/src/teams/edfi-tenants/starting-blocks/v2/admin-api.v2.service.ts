@@ -679,12 +679,19 @@ export class AdminApiServiceV2 {
   }
 
   async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+    const validatedClaimSetId = Number(claimSetId);
+    if (!Number.isSafeInteger(validatedClaimSetId) || validatedClaimSetId <= 0) {
+      throw new CustomHttpException('Invalid claimsetId', 400);
+    }
+
     return toGetClaimsetSingleDtoV2(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetClaimsetSingleDtoV2, GetClaimsetSingleDtoV2>(`claimSets/${claimSetId}`)
+        .get<GetClaimsetSingleDtoV2, GetClaimsetSingleDtoV2>(
+          `claimSets/${validatedClaimSetId}`
+        )
         .catch((err) => {
           this.logger.error(
-            `Error getting claimset ${claimSetId} for tenant ${edfiTenant.id}: ${err}`
+            `Error getting claimset ${validatedClaimSetId} for tenant ${edfiTenant.id}: ${err}`
           );
           throw err;
         })
