@@ -1,8 +1,9 @@
 import 'reflect-metadata';
-import { SbEnvironment } from '@edanalytics/models-server';
+import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { SbEnvironmentConfigPublic, SbEnvironmentConfigPrivate } from '@edanalytics/models';
 import { AdminApiServiceV1 } from './admin-api.v1.service';
 import { AxiosError, InternalAxiosRequestConfig } from 'axios';
+import { CustomHttpException } from '../../../../utils';
 
 // Minimal shape exposing the private `getAdminApiClientUsingEnv` method so tests can
 // spy on it without an explicit `any`. Intentionally not intersected with
@@ -352,6 +353,33 @@ describe('AdminApiServiceV1 - Extension Methods', () => {
       const result = await service.pollJobStatus(environment, 'job-123');
 
       expect(result).toBe('timeout');
+    });
+  });
+
+  describe('getClaimset', () => {
+    const mockEdfiTenant: Partial<EdfiTenant> = {
+      id: 1,
+      name: 'test-tenant',
+      sbEnvironmentId: 1,
+      sbEnvironment: mockSbEnvironment as SbEnvironment,
+    };
+
+    it.each([
+      ['NaN', NaN],
+      ['zero', 0],
+      ['negative', -5],
+      ['non-integer', 1.5],
+      ['Infinity', Infinity],
+    ])('should reject with a 400 CustomHttpException for a %s claimsetId', async (_desc, claimsetId) => {
+      const error: CustomHttpException = await service
+        .getClaimset(mockEdfiTenant as EdfiTenant, claimsetId)
+        .then(() => {
+          throw new Error('expected getClaimset to reject');
+        })
+        .catch((e) => e);
+
+      expect(error).toBeInstanceOf(CustomHttpException);
+      expect(error.getStatus()).toBe(400);
     });
   });
 });
