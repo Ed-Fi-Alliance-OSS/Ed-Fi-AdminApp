@@ -113,7 +113,7 @@ const NavContent = ({
 
   const setteamId = useMemo(() => {
     return (newteamId: number | undefined) => {
-      let realNewValue = newteamId;
+      let realNewValue: number | undefined;
       if (newteamId === undefined) {
         switchingToGlobalRef.current = true;
         if (params.asId) {

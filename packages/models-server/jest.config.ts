@@ -1,4 +1,3 @@
-/* eslint-disable */
 export default {
   displayName: 'models-server',
   preset: '../../jest.preset.js',

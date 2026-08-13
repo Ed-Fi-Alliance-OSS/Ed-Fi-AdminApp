@@ -17,6 +17,7 @@ import {
   PostApplicationDtoV3,
   PostApplicationResponseDtoV3,
   PostClaimsetDtoV3,
+  PostInstanceDtoV3,
   PostProfileDtoV3,
   PostVendorDtoV3,
   PutApiClientDtoV3,
@@ -180,7 +181,7 @@ export class AdminApiServiceV3 {
         status: 'NO_ADMIN_API_SECRET' as const,
       };
     }
-    let accessTokenUri = '';
+    let accessTokenUri: string;
     try {
       const url = new URL(adminApiUrl);
       url.pathname = url.pathname.replace(/\/$/, '') + '/connect/token';
@@ -640,6 +641,36 @@ export class AdminApiServiceV3 {
           throw err;
         }),
     );
+  }
+
+  async postInstance(edfiTenant: EdfiTenant, instance: PostInstanceDtoV3) {
+    const { headers } = await this.getAdminApiClient(edfiTenant, true)
+      .post('dataStores/manage', instance)
+      .catch((err) => {
+        this.logger.error(`Error creating instance for tenant ${edfiTenant.id}: ${err}`);
+        throw err;
+      });
+    const location = headers?.location;
+    const match = typeof location === 'string' ? location.match(/\d+$/) : null;
+    if (!match) {
+      this.logger.error(
+        `Error creating instance for tenant ${edfiTenant.id}: missing/invalid Location header (${String(location)})`
+      );
+      throw new Error('Admin API did not return a Location header containing the created instance id.');
+    }
+    return { id: Number(match[0]) };
+  }
+
+  async deleteInstance(edfiTenant: EdfiTenant, instanceManageId: number) {
+    await this.getAdminApiClient(edfiTenant, true)
+      .delete(`dataStores/manage/${instanceManageId}`)
+      .catch((err) => {
+        this.logger.error(
+          `Error deleting instance ${instanceManageId} for tenant ${edfiTenant.id}: ${err}`
+        );
+        throw err;
+      });
+    return undefined;
   }
 
   //

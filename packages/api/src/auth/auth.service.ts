@@ -709,7 +709,7 @@ export class AuthService {
       };
     } catch (verifyError) {
       // Provide specific error messages
-      let errorMessage = 'Invalid token';
+      let errorMessage: string;
 
       if (verifyError.code === 'ERR_JWT_EXPIRED') {
         errorMessage = 'Token has expired. Please obtain a new access token.';

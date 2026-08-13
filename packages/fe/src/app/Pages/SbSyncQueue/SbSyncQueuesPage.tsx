@@ -148,10 +148,10 @@ export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFi
       getFacetedMinMaxValues={(table, columnId) => () => {
         if (columnId === 'createdOnNumber') {
           const result = facetedValues.data?.createdon ?? [null, null];
-          return [Number(result[0]) ?? null, Number(result[1]) ?? null];
+          return [Number(result[0]), Number(result[1])];
         } else if (columnId === 'completedOnNumber') {
           const result = facetedValues.data?.completedon ?? [null, null];
-          return [Number(result[0]) ?? null, Number(result[1]) ?? null];
+          return [Number(result[0]), Number(result[1])];
         } else {
           return undefined;
         }

@@ -210,7 +210,7 @@ export class AdminApiServiceV2 {
         status: 'NO_ADMIN_API_SECRET' as const,
       };
     }
-    let accessTokenUri = '';
+    let accessTokenUri: string;
     try {
       const url = new URL(adminApiUrl);
       url.pathname = url.pathname.replace(/\/$/, '') + '/connect/token';

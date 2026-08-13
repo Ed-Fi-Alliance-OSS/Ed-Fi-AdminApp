@@ -120,7 +120,9 @@ export class PgBossInstance extends PgBoss implements OnApplicationShutdown {
               }
               if (attempt === maxAttempts) {
                 // final failure: throw once
-                throw new Error('PgBoss failed to start after retries due to ECONNREFUSED.');
+                throw new Error('PgBoss failed to start after retries due to ECONNREFUSED.', {
+                  cause: err,
+                });
               }
               await wait(delay);
               continue;

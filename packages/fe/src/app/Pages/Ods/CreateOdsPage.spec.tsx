@@ -132,4 +132,19 @@ describe('CreateOds', () => {
     expect(instancesMutateAsync).not.toHaveBeenCalled();
     expect(navSpy).toHaveBeenCalledWith('/as/1/sb-environments/2/edfi-tenants/3/odss/101');
   });
+
+  it('titles the page "Create new Data Store" for a v3 environment', () => {
+    setup(false, { name: 'Instance One', databaseTemplate: 'Minimal' });
+    mockUseTeamEdfiTenantNavContextLoaded.mockReturnValue({
+      asId: 1,
+      sbEnvironmentId: 2,
+      edfiTenantId: 3,
+      edfiTenant: { id: 3 },
+      sbEnvironment: { startingBlocks: false, version: 'v3' },
+    });
+
+    const result = CreateOds() as React.ReactElement<{ title: string }>;
+
+    expect(result.props.title).toBe('Create new Data Store');
+  });
 });

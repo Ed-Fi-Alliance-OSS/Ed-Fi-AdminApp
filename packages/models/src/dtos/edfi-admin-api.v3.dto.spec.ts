@@ -1,8 +1,10 @@
 import 'reflect-metadata';
+import { validate } from 'class-validator';
 import {
   GetApiClientDtoV3,
   GetDataStoreDetailDtoV3,
   GetDataStoreSummaryDtoV3,
+  PostInstanceDtoV3,
   toGetApiClientDtoV3,
   toGetDataStoreDetailDtoV3,
   toGetDataStoreSummaryDtoV3,
@@ -49,5 +51,25 @@ describe('edfi-admin-api.v3.dto', () => {
     expect(result).toBeInstanceOf(GetDataStoreDetailDtoV3);
     expect(result.dataStoreContexts[0].dataStoreId).toBe(1);
     expect(result.dataStoreDerivatives[0].derivativeType).toBe('ReadReplica');
+  });
+});
+
+describe('PostInstanceDtoV3', () => {
+  it('requires name and databaseTemplate', async () => {
+    const dto = new PostInstanceDtoV3();
+    const result = await validate(dto);
+    const fieldsWithErrors = result.map((error) => error.property);
+
+    expect(fieldsWithErrors).toContain('name');
+    expect(fieldsWithErrors).toContain('databaseTemplate');
+  });
+
+  it('accepts name and databaseTemplate', async () => {
+    const dto = Object.assign(new PostInstanceDtoV3(), {
+      name: 'My DB Instance',
+      databaseTemplate: 'Minimal',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
   });
 });

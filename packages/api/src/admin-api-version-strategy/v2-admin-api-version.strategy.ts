@@ -285,9 +285,12 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     } catch (error) {
       this.logger.error(`Failed to register client credentials for tenant ${tenantName}:`, error);
       if (error.response?.status === 400 && isMultiTenant) {
-        throw new Error(`Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`);
+        throw new Error(
+          `Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`,
+          { cause: error }
+        );
       }
-      throw new Error(`Failed to create credentials: ${error.message}`);
+      throw new Error(`Failed to create credentials: ${error.message}`, { cause: error });
     }
   }
 }
