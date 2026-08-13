@@ -125,6 +125,7 @@ export class ResourceClaimDto131 {
     return this.authStrategyOverridesForCRUD?.filter((v) => v !== null);
   }
 }
+const toResourceClaimDto131 = makeSerializer(ResourceClaimDto131);
 
 export class PostClaimsetDto {
   @Expose()
@@ -148,7 +149,10 @@ export class PostClaimsetDto {
 
   set resourceClaimsJson(value: string) {
     try {
-      this.resourceClaims = JSON.parse(value);
+      const parsed = JSON.parse(value);
+      this.resourceClaims = Array.isArray(parsed)
+        ? toResourceClaimDto131(parsed)
+        : (undefined as unknown as ResourceClaimDto131[]);
     } catch {
       this.resourceClaims = undefined as unknown as ResourceClaimDto131[];
     }
