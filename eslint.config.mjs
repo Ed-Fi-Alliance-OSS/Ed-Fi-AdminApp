@@ -26,6 +26,8 @@ export default [
       '**/vite.config.*.timestamp*',
       '**/vitest.config.*.timestamp*',
       '**/tests/e2e/.features-gen',
+      '**/packages/api/certification',
+      '**/.nx',
     ],
   },
   ...fixupConfigRules(
