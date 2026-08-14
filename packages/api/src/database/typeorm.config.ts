@@ -30,6 +30,7 @@ import {
 import { PostgresConnectionOptions } from 'typeorm/driver/postgres/PostgresConnectionOptions';
 import { SqlServerConnectionOptions } from 'typeorm/driver/sqlserver/SqlServerConnectionOptions';
 import * as config from 'config';
+import { asBool } from '../utils';
 
 // PostgreSQL migrations
 import { Initial1688158300508 as PgsqlInitial1688158300508 } from './migrations/pgsql/1687190483471-initial';
@@ -228,8 +229,8 @@ const getDatabaseConfig = (): PostgresConnectionOptions | SqlServerConnectionOpt
       type: 'mssql',
       // MSSQL-specific options,
       options: {
-        encrypt: config.DB_SSL === true || config.DB_SSL === 'true',
-        trustServerCertificate: config.DB_TRUST_CERTIFICATE === true || config.DB_TRUST_CERTIFICATE === 'true',
+        encrypt: asBool(config.DB_SSL),
+        trustServerCertificate: asBool(config.DB_TRUST_CERTIFICATE),
       },
     } as SqlServerConnectionOptions;
   }
