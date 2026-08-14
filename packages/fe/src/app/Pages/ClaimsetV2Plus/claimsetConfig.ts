@@ -4,7 +4,14 @@ import {
   GetClaimsetMultipleDtoV2,
   GetClaimsetMultipleDtoV3,
 } from '@edanalytics/models';
-import { claimsetQueriesV2, claimsetQueriesV3 } from '../../api';
+// Import the query builders directly from their source module, NOT the `../../api`
+// barrel. This module is eagerly loaded via a circular import
+// (api barrel → queries.ts[V1] → helpers → routes → claimset.routes → this file)
+// that runs BEFORE the barrel re-exports `./queries.v7`. Reading the builders
+// through the barrel in that window yields `undefined`, which the config literal
+// below would capture permanently (breaking `queries.getAll` at render). Importing
+// queries.v7 directly forces it to initialize first. See systematic-debugging notes.
+import { claimsetQueriesV2, claimsetQueriesV3 } from '../../api/queries/queries.v7';
 import { createVersionedResource } from '../../api/queries/versioned';
 
 export type ClaimsetEntity = GetClaimsetMultipleDtoV2 | GetClaimsetMultipleDtoV3;

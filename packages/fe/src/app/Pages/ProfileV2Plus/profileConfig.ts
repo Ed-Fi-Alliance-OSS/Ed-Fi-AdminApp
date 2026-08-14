@@ -6,7 +6,12 @@ import {
   PutProfileDtoV2,
   PutProfileDtoV3,
 } from '@edanalytics/models';
-import { profileQueriesV2, profileQueriesV3 } from '../../api';
+// Import builders directly from queries.v7, NOT the `../../api` barrel: the
+// barrel participates in a circular import that can leave these builders
+// `undefined` when a config module is captured mid-init in the production bundle.
+// See claimsetConfig.ts and docs/design/admin-api-v3-support/README.md ("Config
+// modules must bypass the api barrel") for the full mechanism.
+import { profileQueriesV2, profileQueriesV3 } from '../../api/queries/queries.v7';
 import { createVersionedResource } from '../../api/queries/versioned';
 
 export type ProfileEntity = GetProfileDtoV2 | GetProfileDtoV3;
