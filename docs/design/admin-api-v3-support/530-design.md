@@ -47,13 +47,12 @@ actual contract:
 - The plain `GET` endpoint already speaks the new CMS-flavored shape
   (`claimSetName`, `claimName`, `parentClaimName`, flat list) — this isn't
   limited to the import/export endpoints.
-- **Not verified live** (no write test performed): the `copy` endpoint's
-  request-body field name for the new claim set's name. Assumed to still be
-  `name` (matching the V3 import example body, which uses `name` at the top
-  level, and the requester's expectation that copy wasn't touched by the
-  mapping-layer changes). Flagged as the one assumption in this design that
-  should be spot-checked once `POST /v3/claimSets/copy` is actually
-  exercised in dev — if wrong, it's a one-line fix to `CopyClaimsetDtoV3`.
+- **Verified live** (PR review follow-up): the `copy` endpoint's request-body
+  field name for the new claim set's name. The assumption that it's still
+  `name` (matching the V3 import example body and `CopyClaimsetDtoV3`'s
+  unchanged shape) was spot-checked by exercising "Copy" on a claimset
+  against a V3-enabled Admin API tenant — the new claimset was created
+  successfully with the expected name and no validation error.
 - `Pages/ClaimsetV2/CopyClaimset.tsx`'s `useClaimsetActions.tsx` already has
   `Create` commented out on both the single-entity and bulk action sets —
   confirming Create was never wired up for V2 either, consistent with the

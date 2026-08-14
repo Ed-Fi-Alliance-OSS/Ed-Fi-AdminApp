@@ -3,7 +3,6 @@ import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { ResourceClaimsTableV2, ResourceClaimsTableV3 } from '@edanalytics/common-ui';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { useSearchParamsObject } from '../../helpers/useSearch';
 import { useClaimsetConfig } from './claimsetConfig';
 import { ClaimsetPageContent } from './ClaimsetPage';
 

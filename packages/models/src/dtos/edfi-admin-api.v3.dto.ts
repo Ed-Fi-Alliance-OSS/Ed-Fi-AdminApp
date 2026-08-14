@@ -360,9 +360,18 @@ export class GetClaimsetMultipleDtoV3 {
 // of the wire payload either. Overriding InputType explicitly keeps the
 // runtime rename working while the input type reflects what Admin API V3
 // actually sends.
+//
+// Exported so callers building the raw HTTP request (e.g. axios generics in
+// AdminApiServiceV3) can type the pre-transform response as what the wire
+// actually sends, rather than incorrectly reusing the post-transform DTO.
+export type ClaimsetMultipleWireDtoV3 = Omit<
+  GetClaimsetMultipleDtoV3,
+  'name' | 'applicationsCount' | 'displayName'
+> & { claimSetName: string };
+
 export const toGetClaimsetMultipleDtoV3 = makeSerializer<
   GetClaimsetMultipleDtoV3,
-  Omit<GetClaimsetMultipleDtoV3, 'name' | 'applicationsCount' | 'displayName'> & { claimSetName: string }
+  ClaimsetMultipleWireDtoV3
 >(GetClaimsetMultipleDtoV3);
 
 export class GetClaimsetSingleDtoV3 extends GetClaimsetMultipleDtoV3 {
@@ -371,9 +380,14 @@ export class GetClaimsetSingleDtoV3 extends GetClaimsetMultipleDtoV3 {
   resourceClaims: GetResourceClaimDtoV3[];
 }
 
+export type ClaimsetSingleWireDtoV3 = Omit<
+  GetClaimsetSingleDtoV3,
+  'name' | 'applicationsCount' | 'displayName'
+> & { claimSetName: string };
+
 export const toGetClaimsetSingleDtoV3 = makeSerializer<
   GetClaimsetSingleDtoV3,
-  Omit<GetClaimsetSingleDtoV3, 'name' | 'applicationsCount' | 'displayName'> & { claimSetName: string }
+  ClaimsetSingleWireDtoV3
 >(GetClaimsetSingleDtoV3);
 
 export class ImportClaimsetSingleDtoV3 {

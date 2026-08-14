@@ -19,7 +19,6 @@ export const useClaimsetActions = ({
     `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/${id}`;
   const { version, queries } = useClaimsetConfig();
   const deleteClaimset = queries.delete({ edfiTenant, teamId: asId });
-  const copyClaimset = queries.copy({ edfiTenant, teamId: asId });
   // Export is a V2-only capability (deferred for V3 per AC-530's scope) —
   // `createExport` isn't a member of the V3 branch's queries type at all,
   // so it's read from the real claimsetQueriesV2 module directly rather

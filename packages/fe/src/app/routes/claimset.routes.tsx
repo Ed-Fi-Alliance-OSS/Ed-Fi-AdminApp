@@ -17,7 +17,7 @@ import { ClaimsetsPageV2 } from '../Pages/ClaimsetV2Plus/ClaimsetsPage';
 import { CopyClaimsetPage } from '../Pages/ClaimsetV2Plus/CopyClaimset';
 import { ImportClaimsetsPageV2 } from '../Pages/ClaimsetV2Plus/ImportClaimsetsPage';
 import { useClaimsetConfig } from '../Pages/ClaimsetV2Plus/claimsetConfig';
-import { claimsetQueriesV1, claimsetQueriesV2 } from '../api';
+import { claimsetQueriesV1 } from '../api';
 import { getRelationDisplayName, useTeamEdfiTenantNavContextLoaded, withLoader } from '../helpers';
 import { VersioningHoc } from '../helpers/VersioningHoc';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
