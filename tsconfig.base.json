@@ -20,7 +20,8 @@
       "@edanalytics/common-ui": ["packages/common-ui/src/index.ts"],
       "@edanalytics/models": ["packages/models/src/index.ts"],
       "@edanalytics/models-server": ["packages/models-server/src/index.ts"],
-      "@edanalytics/utils": ["packages/utils/src/index.ts"]
+      "@edanalytics/utils": ["packages/utils/src/index.ts"],
+      "config": ["types/config-shim.d.ts"]
     }
   },
   "exclude": ["node_modules", "tmp"],

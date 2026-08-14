@@ -21,7 +21,7 @@ declare module 'config' {
     CLIENT_SECRET?: string;
   }
 
-  interface IConfig {
+  interface ConfigClass {
     ENABLE_OPEN_API: boolean;
     AWS_DB_SECRET?: string | undefined;
     DB_SECRET_VALUE: never;
@@ -56,6 +56,8 @@ declare module 'config' {
     YOPASS_URL: string;
     API_PORT: number;
     SB_SYNC_CRON: string;
+    SSL_VERIFICATION: boolean | 'true' | 'false';
+
     /** Max number of poll attempts before treating an EdOrg refresh job as timed out (default: 10) */
     ADMINAPI_REFRESH_POLL_ATTEMPTS: number;
     /** Milliseconds to wait between EdOrg refresh job poll attempts (default: 5000) */
@@ -82,12 +84,10 @@ declare module 'config' {
     OPEN_API: boolean;
     EDFI_URLS_TIMEOUT_MS: number;
 
-    RATE_LIMIT_TTL: number; // The time to live in milliseconds
-    RATE_LIMIT_LIMIT: number; // The maximum number of requests within the ttl
+    RATE_LIMIT_TTL: number;
+    RATE_LIMIT_LIMIT: number;
 
     USE_PKCE: boolean;
-
-    SSL_VERIFICATION: boolean | 'true' | 'false';
 
     LOG_LEVEL: LogLevel;
 
@@ -101,7 +101,7 @@ declare module 'config' {
     MSSQL_SCHEDULE_POLL_MS?: number;
   }
 
-  const config: IConfig;
+  const config: ConfigClass;
 
   export = config;
 }

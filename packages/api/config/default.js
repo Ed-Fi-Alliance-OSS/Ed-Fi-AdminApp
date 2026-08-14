@@ -1,4 +1,9 @@
-const defer = require('config/defer').deferConfig;
+let defer;
+try {
+  ({ deferConfig: defer } = require('config/defer'));
+} catch {
+  ({ deferConfig: defer } = require('config/lib/defer'));
+}
 const { SecretsManagerClient, GetSecretValueCommand } = require('@aws-sdk/client-secrets-manager');
 
 // Test secret retrieval locally if you want by adding creds to the client:

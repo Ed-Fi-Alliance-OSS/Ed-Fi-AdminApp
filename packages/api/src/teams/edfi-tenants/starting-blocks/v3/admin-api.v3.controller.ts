@@ -71,6 +71,7 @@ import { checkId } from '../../../../auth/helpers/where-ids';
 import {
   CustomHttpException,
   ValidationHttpException,
+  asBool,
   isIAdminApiValidationError,
   postYopassSecret,
 } from '../../../../utils';
@@ -544,7 +545,7 @@ export class AdminApiControllerV3 {
           sbEnvironmentId: sbEnvironment.id,
         });
       }
-      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      if (asBool(config.USE_YOPASS)) {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -714,7 +715,7 @@ export class AdminApiControllerV3 {
 
     const adminApiResponse = await this.sbService.postApiClient(edfiTenant, apiClient);
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
@@ -773,7 +774,7 @@ export class AdminApiControllerV3 {
       apiClientId,
     );
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
