@@ -74,8 +74,8 @@ export class EdorgsController {
   })
   async findOne(
     @Param('edorgId', new ParseIntPipe()) edorgId: number,
-    @Param('teamId', new ParseIntPipe()) teamId: number,
-    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number
+    @Param('teamId', new ParseIntPipe()) _teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) _edfiTenantId: number
   ) {
     return toGetEdorgDto(await this.edorgService.findOne(edorgId));
   }

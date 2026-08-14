@@ -62,7 +62,7 @@ export const EditIntegrationProviderPage = () => {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.integrationProviders] });
         goToView();
       },
-    }).catch(() => {});
+    }).catch(() => undefined); // error already handled by mutationErrCallback's onError above
   };
 
   return (

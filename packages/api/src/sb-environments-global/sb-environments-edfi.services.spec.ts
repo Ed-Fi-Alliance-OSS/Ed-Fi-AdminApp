@@ -4,6 +4,7 @@ import { getRepositoryToken, getEntityManagerToken } from '@nestjs/typeorm';
 import { SbEnvironmentsEdFiService } from './sb-environments-edfi.services';
 import { AdminApiVersionStrategyFactory } from '../admin-api-version-strategy';
 import { EdfiTenant, SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
+import { PostSbEnvironmentDto, PutSbEnvironmentDto } from '@edanalytics/models';
 import { StartingBlocksServiceV1, StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import * as utils from '../utils';
 
@@ -73,14 +74,14 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
         adminApiUrl: 'https://api.test.com',
         odsApiDiscoveryUrl: 'https://ods.test.com',
         startingBlocks: false,
-      } as any,
+      } as unknown as PostSbEnvironmentDto,
       undefined
     );
 
     expect(strategyFactory.getStrategy).toHaveBeenCalledWith('v3');
     expect(v3Strategy.buildConfigPublic).toHaveBeenCalled();
     expect(v3Strategy.dispatchSync).toHaveBeenCalled();
-    expect((result as any).syncQueue).toBeDefined();
+    expect((result as { syncQueue?: unknown } | undefined)?.syncQueue).toBeDefined();
   });
 });
 
@@ -144,7 +145,7 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v3)', () => {
     (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({ specificationVersion: 'v3' });
 
     await expect(
-      service.updateEnvironment(5, { isMultitenant: true } as any, undefined)
+      service.updateEnvironment(5, { isMultitenant: true } as unknown as PutSbEnvironmentDto, undefined)
     ).resolves.toBeDefined();
 
     expect(v3Strategy.getTenantModeDefault).toHaveBeenCalledWith(existingV3Environment);
@@ -155,17 +156,15 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v3)', () => {
     // class-name string ("Validation Http Exception") — the real message lives in
     // getResponse().data.errors[field].message — so we assert on the response body
     // rather than `.rejects.toThrow(regex)`, which only inspects `.message`.
-    expect.assertions(1);
-    try {
-      await service.updateEnvironment(5, { isMultitenant: false } as any, undefined);
-    } catch (error) {
-      const response = error.getResponse();
-      expect(response.data.errors.isMultitenant.message).toMatch(/Tenant mode cannot be changed/);
-    }
+    const error = await service
+      .updateEnvironment(5, { isMultitenant: false } as unknown as PutSbEnvironmentDto, undefined)
+      .catch((e) => e);
+    const response = error.getResponse();
+    expect(response.data.errors.isMultitenant.message).toMatch(/Tenant mode cannot be changed/);
   });
 
   it('triggers a re-sync via strategy.dispatchSync when the ODS URL changes', async () => {
-    await service.updateEnvironment(5, { odsApiDiscoveryUrl: 'https://new.test.com' } as any, undefined);
+    await service.updateEnvironment(5, { odsApiDiscoveryUrl: 'https://new.test.com' } as unknown as PutSbEnvironmentDto, undefined);
 
     expect(v3Strategy.shouldTriggerResync).toHaveBeenCalledWith(true);
     expect(v3Strategy.dispatchSync).toHaveBeenCalled();
@@ -223,15 +222,13 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () 
   });
 
   it('rejects isMultitenant:true for a v1 environment with the v1-specific message text', async () => {
-    expect.assertions(1);
-    try {
-      await service.updateEnvironment(6, { isMultitenant: true } as any, undefined);
-    } catch (error) {
-      const response = error.getResponse();
-      expect(response.data.errors.isMultitenant.message).toContain(
-        '(v1 environments are always single-tenant)'
-      );
-    }
+    const error = await service
+      .updateEnvironment(6, { isMultitenant: true } as unknown as PutSbEnvironmentDto, undefined)
+      .catch((e) => e);
+    const response = error.getResponse();
+    expect(response.data.errors.isMultitenant.message).toContain(
+      '(v1 environments are always single-tenant)'
+    );
   });
 });
 
@@ -280,7 +277,7 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (unrecognized version)', (
   });
 
   it('does not throw when updating an environment with an unrecognized/legacy configPublic.version', async () => {
-    const result = await service.updateEnvironment(7, { name: 'renamed-legacy-env' } as any, undefined);
+    const result = await service.updateEnvironment(7, { name: 'renamed-legacy-env' } as unknown as PutSbEnvironmentDto, undefined);
 
     expect(result).toBeDefined();
     // The factory should never be called for a version outside v1/v2/v3 — updateEnvironment
@@ -288,3 +285,4 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (unrecognized version)', (
     expect(strategyFactory.getStrategy).not.toHaveBeenCalled();
   });
 });
+

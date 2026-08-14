@@ -25,7 +25,6 @@ import {
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV3,
-  toPostApplicationResponseDto,
   toPostApplicationResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
@@ -316,7 +315,7 @@ export class AdminApiControllerV3 {
           ...application,
           id: application.id,
         };
-      } catch (error) {
+      } catch (_error) {
         return application;
       }
     } else {
@@ -345,7 +344,7 @@ export class AdminApiControllerV3 {
     let claimset: GetClaimsetSingleDtoV3;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
-    } catch (claimsetNotFound) {
+    } catch (_claimsetNotFound) {
       throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot retrieve claimset for validation',
@@ -869,9 +868,9 @@ export class AdminApiControllerV3 {
     @Query('id') _ids: string[] | string,
     @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids,
   ) {
-    if (_ids === undefined)
+    const ids = Array.isArray(_ids) ? _ids : _ids === undefined || _ids === '' ? [] : [_ids];
+    if (ids.length === 0)
       throw new BadRequestException('At least one claimset ID must be provided');
-    const ids = Array.isArray(_ids) ? _ids : [_ids];
     const parsedIds = ids.map((id) => {
       const trimmed = id.trim();
       const n = parseInt(trimmed, 10);

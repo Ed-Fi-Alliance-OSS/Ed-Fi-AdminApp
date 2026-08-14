@@ -2,12 +2,12 @@ import { Inject, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
-import type { SbV3MetaEnv } from '@edanalytics/models';
+import type { SbEnvironmentConfigPublic, SbV3MetaEnv } from '@edanalytics/models';
 import { randomUUID } from 'crypto';
 import { AdminApiServiceV3 } from '../teams/edfi-tenants/starting-blocks';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import { V2AdminApiVersionStrategy } from './v2-admin-api-version.strategy';
-import { BuildConfigPublicInput } from './admin-api-version-strategy.interface';
+import { AnyAdminApiService, BuildConfigPublicInput } from './admin-api-version-strategy.interface';
 
 @Injectable()
 export class V3AdminApiVersionStrategy extends V2AdminApiVersionStrategy {
@@ -30,8 +30,8 @@ export class V3AdminApiVersionStrategy extends V2AdminApiVersionStrategy {
     super(jobQueue, queueRepository, sbEnvironmentsRepository);
   }
 
-  getAdminApiService() {
-    return this.adminApiServiceV3 as any;
+  getAdminApiService(): AnyAdminApiService {
+    return this.adminApiServiceV3;
   }
 
   buildConfigPublic({ createSbEnvironmentDto, odsApiMetaResponse, tenantMode }: BuildConfigPublicInput) {
@@ -54,6 +54,6 @@ export class V3AdminApiVersionStrategy extends V2AdminApiVersionStrategy {
         } satisfies SbV3MetaEnv,
         adminApiUuid: randomUUID(),
       },
-    } as any;
+    } as SbEnvironmentConfigPublic;
   }
 }

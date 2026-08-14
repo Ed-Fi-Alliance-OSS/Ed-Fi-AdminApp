@@ -826,26 +826,6 @@ describe('AdminApiSyncService', () => {
       sbEnvironment: mockSbEnvironmentV2 as SbEnvironment,
     };
 
-    const mockTenantDetails = {
-      odsInstances: [
-        {
-          odsInstanceId: 1,
-          id: 1,
-          name: 'ODS One',
-          instanceType: 'Production',
-          edOrgs: [
-            {
-              educationOrganizationId: 255901,
-              nameOfInstitution: 'School One',
-              shortNameOfInstitution: 'S1',
-              discriminator: 'edfi.School',
-              parentId: 255900,
-            },
-          ],
-        },
-      ],
-    };
-
     beforeEach(() => {
       // Reset mocks for each test
       jest.clearAllMocks();
@@ -1077,7 +1057,7 @@ describe('AdminApiSyncService', () => {
           get: jest.fn().mockResolvedValue(detailsWithPartialData),
         };
 
-        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockImplementation((tenant) => {
+        (adminApiServiceV2 as any)['getAdminApiClient'] = jest.fn().mockImplementation((_tenant) => {
           return mockApiClient;
         });
 

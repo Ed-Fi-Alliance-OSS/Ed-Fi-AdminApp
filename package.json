@@ -3,6 +3,7 @@
   "version": "4.0.0",
   "license": "Apache-2.0",
   "scripts": {
+    "prepare": "husky",
     "start": "nx run-many -p api fe -t serve",
     "build": "npm run build:fe && npm run build:api",
     "build:fe": "nx run fe:build",
@@ -116,6 +117,8 @@
     "@chakra-ui/cli": "^2.4.1",
     "@chakra-ui/storybook-addon": "^5.2.5",
     "@eslint/compat": "^2.1.0",
+    "@eslint/eslintrc": "^3.3.6",
+    "@eslint/js": "^10.0.1",
     "@faker-js/faker": "^10.5.0",
     "@nestjs/schematics": "^11.1.0",
     "@nestjs/testing": "^11.1.28",
@@ -177,6 +180,7 @@
     "eslint-plugin-react-hooks": "7.1.1",
     "eslint-plugin-storybook": "^10.5.7",
     "html-webpack-plugin": "^5.6.8",
+    "husky": "^9.1.7",
     "jest": "30.4.2",
     "jest-environment-jsdom": "30.4.1",
     "jest-environment-node": "30.4.1",
@@ -185,6 +189,7 @@
     "jiti": "2.7.0",
     "jsdom": "~30.0.1",
     "jsonc-eslint-parser": "^3.3.0",
+    "lint-staged": "^17.3.0",
     "nx": "^22.7.7",
     "playwright": "^1.61.0",
     "playwright-bdd": "^9.2.0",
@@ -205,6 +210,7 @@
     "vitest": "^4.1.8"
   },
   "overrides": {
+    "zod-validation-error": "^4.0.0",
     "brace-expansion": "^5.0.7",
     "npm": "^11.18.0",
     "qs": "^6.15.2",
@@ -237,5 +243,8 @@
     "@eslint/eslintrc": {
       "minimatch": "^3.1.2"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx,js,jsx}": "eslint --max-warnings 0 --no-warn-ignored"
   }
 }

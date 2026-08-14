@@ -1,4 +1,4 @@
-import { EducationOrganizationDto, PostOdsDto, PutOdsDto, SbV1MetaEdorg, toGetOdsDto } from '@edanalytics/models';
+import { PostOdsDto, PutOdsDto, toGetOdsDto } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

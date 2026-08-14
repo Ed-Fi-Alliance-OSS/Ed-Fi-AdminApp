@@ -95,6 +95,7 @@ packages/
   - Final newlines required
   - Trailing whitespace must be trimmed
 - **ESLint**: Enforce coding standards with TypeScript rules
+- **Husky pre-commit hook**: A `husky` pre-commit hook runs `lint-staged`, which runs `eslint --max-warnings 0` on staged `.ts`/`.tsx`/`.js`/`.jsx` files. Commits with lint errors or warnings are blocked — fix them instead of bypassing the hook (`git commit --no-verify`).
 - **Prettier**: Consistent code formatting
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)

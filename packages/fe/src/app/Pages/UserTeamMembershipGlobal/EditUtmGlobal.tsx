@@ -13,7 +13,7 @@ import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { roleQueries, teamQueries, userQueries, userTeamMembershipQueries } from '../../api';
+import { teamQueries, userQueries, userTeamMembershipQueries } from '../../api';
 import { getRelationDisplayName } from '../../helpers';
 import { SelectRole } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
@@ -38,7 +38,6 @@ export const EditUtmGlobal = () => {
   const users = useQuery(userQueries.getAll({}));
 
   const {
-    register,
     handleSubmit,
     control,
     setError,

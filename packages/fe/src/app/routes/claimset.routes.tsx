@@ -17,7 +17,7 @@ import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 const ClaimsetBreadcrumbV1 = () => {
   const params = useParams() as { claimsetId: string };
-  const { edfiTenant, edfiTenantId, teamId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
   const claimset = useQuery(
     claimsetQueriesV1.getOne({
       id: params.claimsetId,

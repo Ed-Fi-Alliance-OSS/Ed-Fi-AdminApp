@@ -18,19 +18,12 @@ export const useClaimsetActions = ({
   const to = (id: number | string) =>
     `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/${id}`;
   const deleteClaimset = claimsetQueriesV2.delete({ edfiTenant, teamId: asId });
-  const copyClaimset = claimsetQueriesV2.copy({ edfiTenant, teamId: asId });
   const createExport = claimsetQueriesV2.createExport({ edfiTenant, teamId: asId });
   const popBanner = usePopBanner();
 
   const canView = useAuthorize(
     claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:read')
   );
-  const canEdit =
-    useAuthorize(
-      claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:update')
-    ) &&
-    claimset &&
-    !claimset._isSystemReserved;
   const canDelete =
     useAuthorize(
       claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:delete')
@@ -148,7 +141,6 @@ export const useManyClaimsetActions = ({
   const popBanner = usePopBanner();
 
   const navigate = useNavigate();
-  const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/create`;
   const toImport = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/import`;
   const canCreate = useAuthorize(
     claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:create')

@@ -256,11 +256,12 @@ export const CreateSbEnvironmentGlobalPage = () => {
         {
           onSuccess: (result) => {
             navigate(`/sb-environments/${result.id}`);
-            result.syncQueue &&
+            if (result.syncQueue) {
               popSyncBanner({
                 popBanner,
                 syncQueue: result.syncQueue,
               });
+            }
           },
           ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
         }

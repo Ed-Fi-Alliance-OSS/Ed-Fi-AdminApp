@@ -16,7 +16,7 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 
 import { noop } from '@tanstack/react-table';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { sbEnvironmentQueries, sbEnvironmentQueriesGlobal } from '../../api';
+import { sbEnvironmentQueriesGlobal } from '../../api';
 
 const resolver = classValidatorResolver(PutSbEnvironmentMeta);
 

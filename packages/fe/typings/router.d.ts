@@ -1,5 +1,4 @@
 import React from 'react';
-import { router } from '../src/app/Routes';
 
 declare module 'react-router' {
   function useMatches(): {

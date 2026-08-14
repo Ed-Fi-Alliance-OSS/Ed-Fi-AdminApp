@@ -185,7 +185,6 @@ describe('PgBossAdapter', () => {
         await adapter.send('q', null);
 
         // pg-boss reports terminal state
-        const pgJobState = state === 'expired' ? 'failed' : (state as 'completed' | 'failed' | 'cancelled');
         // We mock the raw pg-boss state to the terminal state via the adapter's internal mapping.
         // For 'expired', pg-boss v12 stores 'failed' with expiry; simulate via the adapter's
         // TERMINAL_STATES set which includes 'expired'.  Instead, mock getJobById to return a

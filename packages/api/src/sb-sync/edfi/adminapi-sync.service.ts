@@ -7,13 +7,50 @@ import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
 import { AdminApiVersionStrategyFactory } from '../../admin-api-version-strategy';
-import config from 'config';
 
 export interface SyncResult {
   status: 'SUCCESS' | 'ERROR' | 'NO_ADMIN_API_CONFIG' | 'INVALID_VERSION';
   message?: string;
   tenantsProcessed?: number;
   error?: Error;
+}
+
+/** Shape of the `response` payload on a CustomHttpException / HttpException-like error. */
+interface AdminApiErrorResponseBody {
+  message?: string | string[];
+  title?: string;
+  type?: string;
+}
+
+/** Raw education organization shape as returned by the Admin API (v2/v3). */
+interface RawAdminApiEducationOrganization {
+  educationOrganizationId: number;
+  nameOfInstitution: string;
+  shortNameOfInstitution?: string;
+  discriminator: string;
+  parentId?: number;
+}
+
+/** Raw ODS instance / data store shape as returned by the Admin API (v2/v3). */
+interface RawAdminApiOdsInstance {
+  id?: number | null;
+  odsInstanceManageId?: number | null;
+  dataStoreManageId?: number | null;
+  name?: string;
+  instanceType?: string;
+  dataStoreType?: string;
+  status?: string | null;
+  databaseTemplate?: string | null;
+  databaseName?: string | null;
+  educationOrganizations?: RawAdminApiEducationOrganization[];
+}
+
+/** Raw tenant details response as returned by the versioned Admin API client. */
+interface RawAdminApiTenantDetails {
+  id?: string;
+  name?: string;
+  odsInstances?: RawAdminApiOdsInstance[];
+  dataStores?: RawAdminApiOdsInstance[];
 }
 
 @Injectable()
@@ -172,7 +209,7 @@ export class AdminApiSyncService {
       // Discover tenants from the Admin API
       this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);
       const adminApiService = strategy.getAdminApiService();
-      let tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
+      const tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
 
       if (!tenants || tenants.length === 0) {
         this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
@@ -351,10 +388,10 @@ export class AdminApiSyncService {
         
         // Check if it's a CustomHttpException with additional details
         if ('response' in error && typeof error.response === 'object' && error.response !== null) {
-          const response = error.response as any;
+          const response = error.response as AdminApiErrorResponseBody;
           if (response.message) {
-            errorDetails = Array.isArray(response.message) 
-              ? response.message.join(', ') 
+            errorDetails = Array.isArray(response.message)
+              ? response.message.join(', ')
               : response.message;
           }
           if (response.title) {
@@ -502,8 +539,7 @@ export class AdminApiSyncService {
 
       this.logger.log(`Fetching tenant details from Admin API: ${endpoint}`);
 
-      // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      let tenantDetails: any;
+      let tenantDetails: RawAdminApiTenantDetails;
       try {
         // Use getAdminApiClient with tenantWithEnvironment to ensure tenant-specific authentication
         tenantDetails = await versionedApiService.getAdminApiClient(tenantWithEnvironment)
@@ -539,7 +575,7 @@ export class AdminApiSyncService {
       const tenantDto: TenantDto = {
         id: tenantDetails.id || edfiTenant.name,
         name: tenantDetails.name || edfiTenant.name,
-        odsInstances: (rawInstances || []).map((instance: any) => ({
+        odsInstances: (rawInstances || []).map((instance: RawAdminApiOdsInstance) => ({
           id: instance.id ?? null,
           instanceManageId: instance.odsInstanceManageId ?? instance.dataStoreManageId ?? null,
           name: instance.name || 'Unknown ODS Instance',
@@ -547,7 +583,7 @@ export class AdminApiSyncService {
           status: instance.status ?? null,
           databaseTemplate: instance.databaseTemplate ?? null,
           databaseName: instance.databaseName ?? null,
-          edOrgs: (instance.educationOrganizations || []).map((edOrg: any) => ({
+          edOrgs: (instance.educationOrganizations || []).map((edOrg: RawAdminApiEducationOrganization) => ({
             instanceId: instance.id,
             instanceName: instance.name,
             educationOrganizationId: edOrg.educationOrganizationId,
@@ -579,8 +615,8 @@ export class AdminApiSyncService {
         
         // Check if it's a CustomHttpException or HttpException with additional details
         if ('response' in error && typeof error.response === 'object' && error.response !== null) {
-          const response = error.response as any;
-          
+          const response = error.response as AdminApiErrorResponseBody;
+
           // Extract message details
           if (response.message) {
             if (typeof response.message === 'string') {

@@ -12,7 +12,7 @@ export const OwnershipsPage = () => {
       teamId: params.asId,
     })
   );
-  const users = useQuery(userQueries.getAll({ teamId: params.asId }));
+  useQuery(userQueries.getAll({ teamId: params.asId }));
   const roles = useQuery(roleQueries.getAll({ teamId: params.asId }));
   return (
     <PageTemplate title="Ownerships">

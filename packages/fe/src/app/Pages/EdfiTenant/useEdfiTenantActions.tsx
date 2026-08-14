@@ -9,7 +9,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 export const useEdfiTenantActions = (edfiTenant: GetEdfiTenantDto | undefined): ActionsType => {
   const popBanner = usePopBanner();
   const navigate = useNavigate();
-  const { sbEnvironment, sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
+  const { sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
   const { edfiTenantId } = useParams();
   const deleteTenant = edfiTenantQueries.delete({ sbEnvironmentId, teamId });
 

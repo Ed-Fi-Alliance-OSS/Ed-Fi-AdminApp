@@ -179,7 +179,7 @@ export const useEdfiTenantGlobalActions = (
                 { entity: edfiTenant, pathParams: null },
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                  onSuccess(result, variables, context) {
+                  onSuccess(result, _variables, _context) {
                     popSyncBanner({
                       popBanner,
                       syncQueue: result,

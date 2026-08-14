@@ -2,7 +2,14 @@ import { Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
-import { EdorgType, PostSbEnvironmentDto, PostSbEnvironmentTenantDTO, SbV1MetaOds, TenantDto } from '@edanalytics/models';
+import {
+  EdorgType,
+  PostSbEnvironmentDto,
+  PostSbEnvironmentTenantDTO,
+  SbEnvironmentConfigPublic,
+  SbV1MetaOds,
+  TenantDto,
+} from '@edanalytics/models';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV1, StartingBlocksServiceV1 } from '../teams/edfi-tenants/starting-blocks';
@@ -39,7 +46,7 @@ export class V1AdminApiVersionStrategy implements AdminApiVersionStrategy {
         edfiHostname: createSbEnvironmentDto.odsApiDiscoveryUrl,
         adminApiUrl: createSbEnvironmentDto.adminApiUrl,
       },
-    } as any;
+    } as SbEnvironmentConfigPublic;
   }
 
   applyOdsUrlUpdate(_existingConfigPublic: unknown, newOdsApiDiscoveryUrl: string) {

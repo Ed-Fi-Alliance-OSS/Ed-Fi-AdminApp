@@ -84,7 +84,7 @@ export const useSingleApplicationActions = ({
 
   const canDelete = useAuthorize(
     application &&
-      application._educationOrganizationIds.map((edorgId) => ({
+      application._educationOrganizationIds.map((_edorgId) => ({
         privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
         subject: {
           edfiTenantId: edfiTenant.id,

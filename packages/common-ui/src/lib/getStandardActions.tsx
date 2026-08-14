@@ -33,7 +33,7 @@ export const ActionBarButtons = {
           leftIcon={props.icon({})}
           onClick={(e) => {
             e.stopPropagation();
-            confirmProps.onClick && confirmProps.onClick(e);
+            confirmProps.onClick?.(e);
           }}
           title={props.title}
         >
@@ -84,7 +84,7 @@ export const ActionMenuButtons = {
           isDisabled={props.isDisabled || props.isPending}
           onClick={(e) => {
             e.stopPropagation();
-            confirmProps.onClick && confirmProps.onClick(e);
+            confirmProps.onClick?.(e);
           }}
           title={props.title}
         >
@@ -151,7 +151,7 @@ export const TdIconButtons = {
           icon={<Icon as={props.icon} />}
           onClick={(e) => {
             e.stopPropagation();
-            confirmProps.onClick && confirmProps.onClick(e);
+            confirmProps.onClick?.(e);
           }}
           isDisabled={props.isDisabled}
           isLoading={props.isPending}

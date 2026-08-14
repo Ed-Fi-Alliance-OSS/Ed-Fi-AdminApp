@@ -44,7 +44,6 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { SelectIntegrationProvider } from '../IntegrationProvider/SelectIntegrationProvider';
 import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
 
@@ -117,7 +116,10 @@ export const EditApplication = (props: {
   });
 
   const selectedEdorgs = watch('educationOrganizationIds', defaultValues.educationOrganizationIds);
-  const selectedProfileIds = watch('profileIds', defaultValues.profileIds) || [];
+  const watchedProfileIds = watch('profileIds', defaultValues.profileIds);
+  // Stabilize the array reference so it doesn't change identity on every
+  // render (which would otherwise defeat the filteredProfileOptions memo below).
+  const selectedProfileIds = useMemo(() => watchedProfileIds || [], [watchedProfileIds]);
   const selectedOds = watch('odsInstanceId');
   const setSelectedEdorgs = (edorgs: number[]) => {
     setValue('educationOrganizationIds', edorgs);
@@ -145,7 +147,7 @@ export const EditApplication = (props: {
       }
     });
     return Object.fromEntries(
-      Object.entries(filteredEdorgs).map(([compositeKey, v]) => [
+      Object.entries(filteredEdorgs).map(([_compositeKey, v]) => [
         v.educationOrganizationId,
         {
           value: v.educationOrganizationId,
@@ -176,7 +178,7 @@ export const EditApplication = (props: {
       { entity: data },
       {
         onSuccess() {
-          if (!!data.integrationProviderId) {
+          if (data.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,
@@ -199,7 +201,9 @@ export const EditApplication = (props: {
         },
         ...mutationErrCallback({ popGlobalBanner, setFormError }),
       }
-    ).catch(() => {});
+      // Errors are already surfaced via mutationErrCallback's onError above;
+      // this catch only prevents an unhandled promise rejection.
+    ).catch(() => undefined);
   };
 
   const hasIntegrationProvider = !!application.integrationProviderId;

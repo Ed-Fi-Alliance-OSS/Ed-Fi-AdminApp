@@ -194,7 +194,6 @@ export class MssqlJobQueueService
 
     // Use GETUTCDATE() + server-side DATEADD for leaseUntil so it uses the same clock
     // as the expirein/availableAt comparisons — avoids Node.js vs SQL Server clock skew.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     const claimed: JobQueue[] = await this.jobRepository.query(
       `UPDATE TOP (10) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
        SET state      = 'active',

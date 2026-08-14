@@ -1,11 +1,12 @@
 import 'reflect-metadata';
 import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
-import { EducationOrganizationDto } from '@edanalytics/models';
+import { EducationOrganizationDto, PostOdsDto } from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { OdssService } from './odss.service';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
 import { AdminApiServiceV2 } from '../starting-blocks';
+import { OdsRowCountService } from '../starting-blocks/v2/ods-rowcount.service';
 import * as syncOdsModule from '../../../sb-sync/sync-ods';
 
 jest.mock('../../../sb-sync/sync-ods', () => ({
@@ -73,7 +74,7 @@ describe('OdssService', () => {
       getEdOrgsForOdsInstance: jest.fn(),
     };
     startingBlocksServiceV2 = {
-      odsRowCountService: { rowCount: jest.fn() } as any,
+      odsRowCountService: { rowCount: jest.fn() } as unknown as OdsRowCountService,
     };
 
     service = new OdssService(
@@ -92,21 +93,21 @@ describe('OdssService', () => {
         name: 'ODS One',
         templateName: 'TemplateNameValue',
         databaseTemplate: 'DatabaseTemplateValue',
-      } as any;
+      } as PostOdsDto;
       const sbEnvironment = {
         ...mockSbEnvironment,
         startingBlocks: false,
       } as SbEnvironment;
       const createdOds = { id: 1, odsInstanceName: 'ODS One' };
 
-      (startingBlocksServiceV2 as any).createOds = jest
+      startingBlocksServiceV2.createOds = jest
         .fn()
         .mockResolvedValue({ status: 'SUCCESS' });
       odssRepository.findOneBy.mockResolvedValue(createdOds);
 
       await service.create(sbEnvironment, mockEdfiTenant as EdfiTenant, dto);
 
-      expect((startingBlocksServiceV2 as any).createOds).toHaveBeenCalledWith(
+      expect(startingBlocksServiceV2.createOds).toHaveBeenCalledWith(
         sbEnvironment,
         mockEdfiTenant,
         'ODS One',

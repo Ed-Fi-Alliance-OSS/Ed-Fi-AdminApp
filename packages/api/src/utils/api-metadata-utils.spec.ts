@@ -9,7 +9,7 @@ import {
   validateAdminApiUrl,
 } from './api-metadata-utils';
 import { ValidationHttpException } from './customExceptions';
-import { OdsApiMeta } from '@edanalytics/models';
+import { OdsApiMeta, PostSbEnvironmentDto } from '@edanalytics/models';
 import axios from 'axios';
 
 jest.mock('axios');
@@ -48,19 +48,20 @@ describe('api-metadata-utils', () => {
     });
 
     it('should have proper error message format', () => {
-      let errorThrown = false;
+      let error: unknown;
       try {
         validateTenantModeCompatibility('MultiTenant', 'SingleTenant');
-      } catch (error: any) {
-        errorThrown = true;
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        // Verify the error message contains the expected tenant mode information
-        const errorString = JSON.stringify(error.getResponse?.() || error.message || '');
-        expect(errorString).toContain('Ed-Fi API and Management API URLs');
-        expect(errorString).toContain('SingleTenant');
-        expect(errorString).toContain('MultiTenant');
+      } catch (e) {
+        error = e;
       }
-      expect(errorThrown).toBe(true);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      // Verify the error message contains the expected tenant mode information
+      const typedError = error as ValidationHttpException;
+      const errorString = JSON.stringify(typedError.getResponse?.() || typedError.message || '');
+      expect(errorString).toContain('Ed-Fi API and Management API URLs');
+      expect(errorString).toContain('SingleTenant');
+      expect(errorString).toContain('MultiTenant');
     });
   });
 
@@ -249,7 +250,7 @@ describe('api-metadata-utils', () => {
     });
 
     it('should return undefined when adminApiInfo is null', () => {
-      const result = getAdminApiTenantMode(null as any);
+      const result = getAdminApiTenantMode(null as unknown as { tenancy?: { multitenantMode?: boolean } });
       expect(result).toBeUndefined();
     });
   });
@@ -281,10 +282,10 @@ describe('api-metadata-utils', () => {
   });
 
   describe('fetchOdsApiMetadata', () => {
-    const dto = { odsApiDiscoveryUrl: 'https://ods-api.example.com' } as any;
+    const dto = { odsApiDiscoveryUrl: 'https://ods-api.example.com' } as PostSbEnvironmentDto;
 
     it('should return response data on a successful fetch', async () => {
-      const mockData: Partial<OdsApiMeta> = { version: '7.2', urls: {} as any };
+      const mockData: Partial<OdsApiMeta> = { version: '7.2', urls: {} as OdsApiMeta['urls'] };
       mockedAxios.get.mockResolvedValue({ status: 200, data: mockData });
 
       const result = await fetchOdsApiMetadata(dto);
@@ -303,46 +304,37 @@ describe('api-metadata-utils', () => {
     });
 
     it('should throw ValidationHttpException with timeout message on ECONNABORTED error', async () => {
-      const timeoutError: any = new Error('Connection aborted');
+      const timeoutError = new Error('Connection aborted') as Error & { code?: string };
       timeoutError.code = 'ECONNABORTED';
       mockedAxios.get.mockRejectedValue(timeoutError);
 
-      try {
-        await fetchOdsApiMetadata(dto);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('odsApiDiscoveryUrl');
-        expect(errorString).toContain('timed out');
-      }
+      const error = await fetchOdsApiMetadata(dto).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('odsApiDiscoveryUrl');
+      expect(errorString).toContain('timed out');
     });
 
     it('should throw ValidationHttpException with timeout message when error message includes "timeout"', async () => {
       mockedAxios.get.mockRejectedValue(new Error('timeout of 5000ms exceeded'));
 
-      try {
-        await fetchOdsApiMetadata(dto);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('timed out');
-      }
+      const error = await fetchOdsApiMetadata(dto).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('timed out');
     });
 
     it('should throw ValidationHttpException with connection error message on generic network failure', async () => {
       mockedAxios.get.mockRejectedValue(new Error('Network Error'));
 
-      try {
-        await fetchOdsApiMetadata(dto);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('odsApiDiscoveryUrl');
-        expect(errorString).toContain('Failed to connect');
-      }
+      const error = await fetchOdsApiMetadata(dto).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('odsApiDiscoveryUrl');
+      expect(errorString).toContain('Failed to connect');
     });
   });
 
@@ -377,33 +369,27 @@ describe('api-metadata-utils', () => {
     });
 
     it('should throw ValidationHttpException with timeout message on ECONNABORTED error', async () => {
-      const timeoutError: any = new Error('Connection aborted');
+      const timeoutError = new Error('Connection aborted') as Error & { code?: string };
       timeoutError.code = 'ECONNABORTED';
       mockedAxios.get.mockRejectedValue(timeoutError);
 
-      try {
-        await fetchAdminApiInfo(adminApiUrl);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('adminApiUrl');
-        expect(errorString).toContain('timed out');
-      }
+      const error = await fetchAdminApiInfo(adminApiUrl).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('adminApiUrl');
+      expect(errorString).toContain('timed out');
     });
 
     it('should throw ValidationHttpException with connection error message on generic network failure', async () => {
       mockedAxios.get.mockRejectedValue(new Error('Network Error'));
 
-      try {
-        await fetchAdminApiInfo(adminApiUrl);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('adminApiUrl');
-        expect(errorString).toContain('Failed to connect');
-      }
+      const error = await fetchAdminApiInfo(adminApiUrl).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('adminApiUrl');
+      expect(errorString).toContain('Failed to connect');
     });
   });
 
@@ -578,14 +564,11 @@ describe('api-metadata-utils', () => {
       // no version field triggers a ValidationHttpException inside validateAdminApiUrl
       mockedAxios.get.mockResolvedValueOnce({ status: 200, data: {} });
 
-      try {
-        await validateAdminApiUrl(adminApiUrl, odsApiDiscoveryUrl);
-        fail('Expected ValidationHttpException to be thrown');
-      } catch (error: any) {
-        expect(error).toBeInstanceOf(ValidationHttpException);
-        const errorString = JSON.stringify(error.getResponse?.() ?? '');
-        expect(errorString).toContain('adminApiUrl');
-      }
+      const error = await validateAdminApiUrl(adminApiUrl, odsApiDiscoveryUrl).catch((e) => e);
+
+      expect(error).toBeInstanceOf(ValidationHttpException);
+      const errorString = JSON.stringify(error.getResponse?.() ?? '');
+      expect(errorString).toContain('adminApiUrl');
     });
   });
 });

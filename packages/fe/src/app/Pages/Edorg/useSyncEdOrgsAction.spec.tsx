@@ -32,7 +32,6 @@ jest.mock('../../helpers/mutationErrCallback', () => ({
 import { useTeamEdfiTenantNavContextLoaded, useAuthorize } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { edorgQueries } from '../../api';
-import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockUseAuthorize = useAuthorize as jest.Mock;

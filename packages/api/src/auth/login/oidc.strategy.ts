@@ -107,7 +107,7 @@ export class RegisterOidcIdpsService implements OnModuleInit {
         userinfo: UserinfoResponse,
         done: (err: Error | null, user?: User | false, info?: OidcLoginInfo) => void
       ) => {
-        let username: string | undefined = undefined;
+        let username: string;
         if (typeof userinfo.email !== 'string' || userinfo.email === '') {
           throw new Error('Invalid email from IdP');
         } else {

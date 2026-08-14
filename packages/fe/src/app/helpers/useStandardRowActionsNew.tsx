@@ -13,11 +13,11 @@ export const useReadTeamEntity = (props: {
     sbEnvironmentId?: string | number | undefined;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
   } & Record<any, string | number>;
-  privilege: TeamBasePrivilege | TeamEdfiTenantPrivilege;
+  privilege?: TeamBasePrivilege | TeamEdfiTenantPrivilege;
 }) => {
   const path = props.route.path!;
   const navigate = useNavigate();
-  const { params, entity, privilege } = props;
+  const { params, entity } = props;
   const pathParams = Object.fromEntries(
     Object.entries(params).map(([key, value]) => [
       key,

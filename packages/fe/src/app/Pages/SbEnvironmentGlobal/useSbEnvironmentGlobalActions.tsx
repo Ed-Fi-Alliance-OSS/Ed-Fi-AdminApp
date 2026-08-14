@@ -148,7 +148,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                     { entity: sbEnvironment, pathParams: null },
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess(result, variables, context) {
+                      onSuccess(result, _variables, _context) {
                         popSyncBanner({
                           popBanner,
                           syncQueue: result,
@@ -172,7 +172,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                     { entity: sbEnvironment, pathParams: null },
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess(result, variables, context) {
+                      onSuccess(result, _variables, _context) {
                         popBanner(result);
                       },
                     }

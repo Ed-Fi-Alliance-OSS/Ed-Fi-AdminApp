@@ -9,7 +9,7 @@ import { useOdsTerminology } from './useOdsTerminology';
 
 export const useOdssActions = (): ActionsType => {
   const navigate = useNavigate();
-  const { edfiTenantId, sbEnvironmentId, sbEnvironment, teamId } = useTeamSbEnvironmentNavContext();
+  const { edfiTenantId, sbEnvironmentId, teamId } = useTeamSbEnvironmentNavContext();
   const terminology = useOdsTerminology();
 
   const canPost = useAuthorize(

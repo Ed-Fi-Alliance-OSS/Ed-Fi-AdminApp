@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import { ArgumentsHost } from '@nestjs/common';
-import { AxiosError } from 'axios';
+import { AxiosError, InternalAxiosRequestConfig } from 'axios';
 import { AdminApiV3ExceptionFilter } from './admin-api-v3-exception.filter';
 
 describe('AdminApiV3ExceptionFilter', () => {
@@ -25,14 +25,14 @@ describe('AdminApiV3ExceptionFilter', () => {
       isAxiosError: true,
       name: 'AxiosError',
       message: 'Request failed',
-      config: {} as any,
+      config: {} as InternalAxiosRequestConfig,
       toJSON: () => ({}),
       response: {
         status,
         statusText: '',
         data,
         headers: {},
-        config: {} as any,
+        config: {} as InternalAxiosRequestConfig,
       },
     } as unknown as AxiosError;
   }

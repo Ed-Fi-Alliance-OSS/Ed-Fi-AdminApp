@@ -46,7 +46,7 @@ export const CreateIntegrationProviderPage = () => {
         queryClient.invalidateQueries({ queryKey: [QUERY_KEYS.integrationProviders] });
         navigate(paths.integrationProvider.view({ integrationProviderId }));
       },
-    }).catch(() => {});
+    }).catch(() => undefined); // error already handled by mutationErrCallback's onError above
   };
 
   return (

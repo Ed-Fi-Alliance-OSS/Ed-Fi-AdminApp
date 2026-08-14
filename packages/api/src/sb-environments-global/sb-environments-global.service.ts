@@ -1,6 +1,5 @@
 import {
   GetUserDto,
-  PostSbEnvironmentDto,
   PutEdfiTenantAdminApi,
   PutEdfiTenantAdminApiRegister,
   PutSbEnvironmentDto,
@@ -42,7 +41,7 @@ export class SbEnvironmentsGlobalService {
     });
   }
 
-  async remove(id: number, user: GetUserDto) {
+  async remove(id: number, _user: GetUserDto) {
     const old = await this.findOne(id).catch(throwNotFound);
     await this.sbEnvironmentsRepository.remove(old);
     return undefined;

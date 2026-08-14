@@ -3,7 +3,7 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { getEntityManagerToken } from '@nestjs/typeorm';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
-import { EdorgType } from '@edanalytics/models';
+import { EdorgType, PostSbEnvironmentDto } from '@edanalytics/models';
 import { V1AdminApiVersionStrategy } from './v1-admin-api-version.strategy';
 import { AdminApiServiceV1, StartingBlocksServiceV1 } from '../teams/edfi-tenants/starting-blocks';
 import { ValidationHttpException } from '../utils';
@@ -52,7 +52,7 @@ describe('V1AdminApiVersionStrategy', () => {
         startingBlocks: false,
         adminApiUrl: 'https://api.test.com',
         odsApiDiscoveryUrl: 'https://ods.test.com',
-      } as any,
+      } as PostSbEnvironmentDto,
       odsApiMetaResponse: { version: '5.3' },
       tenantMode: 'SingleTenant',
     });
@@ -71,7 +71,7 @@ describe('V1AdminApiVersionStrategy', () => {
 
   it('applyOdsUrlUpdate returns an edfiHostname patch with the https:// protocol stripped', () => {
     const patch = strategy.applyOdsUrlUpdate(
-      { version: 'v1', values: { edfiHostname: 'old.test.com', adminApiUrl: 'https://api.test.com' } } as any,
+      { version: 'v1', values: { edfiHostname: 'old.test.com', adminApiUrl: 'https://api.test.com' } },
       'https://new.test.com'
     );
     expect(patch).toEqual({ edfiHostname: 'new.test.com' });
@@ -79,7 +79,7 @@ describe('V1AdminApiVersionStrategy', () => {
 
   it('applyOdsUrlUpdate also strips the http:// protocol', () => {
     const patch = strategy.applyOdsUrlUpdate(
-      { version: 'v1', values: { edfiHostname: 'old.test.com', adminApiUrl: 'https://api.test.com' } } as any,
+      { version: 'v1', values: { edfiHostname: 'old.test.com', adminApiUrl: 'https://api.test.com' } },
       'http://new.test.com'
     );
     expect(patch).toEqual({ edfiHostname: 'new.test.com' });
@@ -115,7 +115,7 @@ describe('V1AdminApiVersionStrategy', () => {
 
     it('throws ValidationHttpException when no tenants are provided', async () => {
       await expect(
-        strategy.dispatchSync({ id: 1 } as SbEnvironment, { tenants: [] } as any)
+        strategy.dispatchSync({ id: 1 } as SbEnvironment, { tenants: [] } as PostSbEnvironmentDto)
       ).rejects.toThrow(ValidationHttpException);
     });
 
@@ -123,11 +123,22 @@ describe('V1AdminApiVersionStrategy', () => {
       const savedTenant = { id: 10, name: 'tenant-a', sbEnvironmentId: 1 };
       edfiTenantsRepository.find.mockResolvedValue([]);
       edfiTenantsRepository.save.mockResolvedValue(savedTenant);
-      jest.spyOn(strategy as any, 'createClientCredentials').mockResolvedValue({
-        clientId: 'client_1',
-        clientSecret: 'secret',
-        displayName: 'AdminApp-v4-abcd',
-      });
+      jest
+        .spyOn(
+          strategy as unknown as {
+            createClientCredentials: () => Promise<{
+              clientId: string;
+              clientSecret: string;
+              displayName: string;
+            }>;
+          },
+          'createClientCredentials'
+        )
+        .mockResolvedValue({
+          clientId: 'client_1',
+          clientSecret: 'secret',
+          displayName: 'AdminApp-v4-abcd',
+        });
       const persistSyncTenantSpy = jest
         .spyOn(syncOds, 'persistSyncTenant')
         .mockResolvedValue(undefined);
@@ -142,7 +153,7 @@ describe('V1AdminApiVersionStrategy', () => {
               odss: [{ id: 5, name: 'ODS One', dbName: 'ods_one_db', allowedEdOrgs: '100,200' }],
             },
           ],
-        } as any
+        } as PostSbEnvironmentDto
       );
 
       expect(result).toEqual({ kind: 'inline' });

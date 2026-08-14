@@ -42,7 +42,7 @@ const SecretPage = () => {
   const [secret, setSecret] = useState<string | null>(null);
 
   const fields = getFieldsFromSearchParams(search);
-  let secretJson = getSecretJson(secret, fields);
+  const secretJson = getSecretJson(secret, fields);
   const [isUnretrievable, setIsUnretrievable] = useBoolean(false);
 
   return (

@@ -336,7 +336,7 @@ export class AdminApiControllerV1 {
     let existingApplication: GetApplicationDto;
     try {
       existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
-    } catch (applicationNotFound) {
+    } catch (_applicationNotFound) {
       throw new NotFoundException();
     }
 
@@ -520,6 +520,7 @@ export class AdminApiControllerV1 {
           try {
             const yopassResult = await postYopassSecret({
               ...adminApiResponse,
+              secretSharingMethod: SecretSharingMethod.Yopass,
               url: GetApplicationDto.apiUrl(sbEnvironment.startingBlocks, sbEnvironment.domain, application.applicationName),
             });
 
