@@ -60,18 +60,20 @@ export async function pollJobStatus(
       if (status === 'completed') return 'completed';
       if (status === 'failed') return 'failed';
     } catch (error) {
-      // A 404 means this Admin API deployment doesn't support the jobs endpoint;
-      // log as warn and bail — retrying won't help.
+      // A 404 right after triggering the refresh can simply mean the job's status
+      // row hasn't been persisted yet (observed in practice: the job starts executing
+      // milliseconds after the first poll 404s) — keep retrying through the attempt
+      // budget instead of treating a single 404 as proof the endpoint is unsupported.
       if (isAxiosError(error) && error.response?.status === 404) {
         logger.warn(
-          `Jobs endpoint not found (404) for job ${jobId} — Admin API may not support job polling`
+          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} — retrying`
         );
       } else {
         logger.error(
           `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
         );
+        return 'timeout';
       }
-      return 'timeout';
     }
 
     if (attempt < maxAttempts) {
