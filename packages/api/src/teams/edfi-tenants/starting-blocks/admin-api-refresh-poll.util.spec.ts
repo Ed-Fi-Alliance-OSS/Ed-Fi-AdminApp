@@ -21,6 +21,7 @@ describe('pollJobStatus', () => {
     logger = new Logger('test');
     jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
     jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    jest.spyOn(logger, 'debug').mockImplementation(() => undefined);
   });
 
   it('retries past an initial 404 (job status row not yet persisted) and returns completed once the job is found', async () => {
@@ -34,6 +35,19 @@ describe('pollJobStatus', () => {
 
     expect(result).toBe('completed');
     expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('logs a per-attempt 404 at debug (not warn), including the environment name', async () => {
+    const get = jest
+      .fn()
+      .mockRejectedValueOnce(make404())
+      .mockResolvedValueOnce({ status: 'completed' });
+    const client = { get } as unknown as AxiosInstance;
+
+    await pollJobStatus(client, 'job-123', logger, 'Test Env');
+
+    expect(logger.debug).toHaveBeenCalledWith(expect.stringContaining('Test Env'));
+    expect(logger.warn).not.toHaveBeenCalled();
   });
 
   it('returns timeout after exhausting all attempts if every poll 404s', async () => {

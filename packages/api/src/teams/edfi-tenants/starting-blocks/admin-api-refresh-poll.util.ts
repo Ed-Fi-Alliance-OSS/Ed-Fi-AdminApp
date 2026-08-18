@@ -65,8 +65,8 @@ export async function pollJobStatus(
       // milliseconds after the first poll 404s) — keep retrying through the attempt
       // budget instead of treating a single 404 as proof the endpoint is unsupported.
       if (isAxiosError(error) && error.response?.status === 404) {
-        logger.warn(
-          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} — retrying`
+        logger.debug(
+          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for environment ${environmentName} — retrying`
         );
       } else {
         logger.error(
