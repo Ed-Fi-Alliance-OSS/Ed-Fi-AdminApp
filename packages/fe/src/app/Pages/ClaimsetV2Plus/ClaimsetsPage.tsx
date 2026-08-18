@@ -1,10 +1,10 @@
 import { PageActions, PageTemplate, SbaaTableAllInOne } from '@edanalytics/common-ui';
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { OnChangeFn, RowSelectionState } from '@tanstack/react-table';
 import { useState } from 'react';
-import { claimsetQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { NameCell } from './NameCell';
+import { ClaimsetEntity, useClaimsetConfig } from './claimsetConfig';
 import { useManyClaimsetActions } from './useClaimsetActions';
 
 export const ClaimsetsPageV2 = () => {
@@ -25,12 +25,15 @@ export const ClaimsetsPageContent = ({
   setSelectedRows: OnChangeFn<RowSelectionState>;
 }) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useClaimsetConfig();
 
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (ClaimsetEntity = V2 | V3 DTO, same as getAll returns).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    queries.getAll({
       teamId,
       edfiTenant,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
 
   return (
@@ -38,7 +41,7 @@ export const ClaimsetsPageContent = ({
       enableRowSelection
       rowSelectionState={selectedRows}
       onRowSelectionChange={setSelectedRows}
-      data={Object.values(claimsets?.data || {})}
+      data={Object.values(claimsets?.data || {}) as ClaimsetEntity[]}
       columns={[
         {
           accessorKey: 'displayName',

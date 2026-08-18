@@ -1,10 +1,17 @@
 import { Badge, BadgeProps, Box, Flex, IconButton, StyleProps, Text } from '@chakra-ui/react';
-import { GetClaimsetSingleDtoV2, GetResourceClaimDtoV2 } from '@edanalytics/models';
+import { GetClaimsetSingleDtoV3 } from '@edanalytics/models';
 import { CellContext, ColumnDef } from '@tanstack/react-table';
 import uniq from 'lodash/uniq';
 import { useMemo } from 'react';
 import { SbaaTableAllInOne, useSbaaTableContext } from '../sbaaTable';
 import { Icons } from '../Icons';
+import {
+  ResourceClaimRow,
+  actionSortRank,
+  extractActions,
+  groupByParent,
+  mapRows,
+} from './resourceClaimsTreeV3';
 
 const AuthStrategyBadge = (props: {
   authDefault: string | null;
@@ -26,10 +33,6 @@ const AuthStrategyBadge = (props: {
   );
 };
 
-type ResourceClaimRow = GetResourceClaimDtoV2 & {
-  actionsMap: Record<string, { default?: string; override?: string; enabled?: boolean }>;
-  subRows: ResourceClaimRow[];
-};
 const NameHeader = () => {
   const table = useSbaaTableContext().table;
   const canAnyExpand = table?.getCanSomeRowsExpand();
@@ -78,56 +81,13 @@ const NameCell = (props: CellContext<ResourceClaimRow, unknown>) => {
     </Box>
   );
 };
-const extractActions = (rc: GetResourceClaimDtoV2): string[] => {
-  return [
-    ...rc.authorizationStrategyOverridesForCRUD.map((as) => as.actionName),
-    ...rc._defaultAuthorizationStrategiesForCRUD.map((as) => as.actionName),
-    ...rc.actions.map((a) => a.name),
-    ...rc.children.flatMap(extractActions),
-  ];
-};
-const mapRows = (rc: GetResourceClaimDtoV2) => {
-  const output: ResourceClaimRow = {
-    ...rc,
-    actionsMap: {},
-    subRows: rc.children.map(mapRows),
-  };
-  rc.actions.forEach((action) => {
-    if (!output.actionsMap[action.name]) {
-      output.actionsMap[action.name] = {};
-    }
-    output.actionsMap[action.name].enabled = action.enabled;
-  });
 
-  rc.authorizationStrategyOverridesForCRUD.forEach((aso) => {
-    if (!output.actionsMap[aso.actionName]) {
-      output.actionsMap[aso.actionName] = {};
-    }
-    output.actionsMap[aso.actionName].override = aso.authorizationStrategies[0]?.authStrategyName;
-  });
-
-  rc._defaultAuthorizationStrategiesForCRUD.forEach((asd) => {
-    if (!output.actionsMap[asd.actionName]) {
-      output.actionsMap[asd.actionName] = {};
-    }
-    output.actionsMap[asd.actionName].default = asd.authorizationStrategies[0]?.authStrategyName;
-  });
-
-  return output;
-};
-const actionSortOrder = ['Read', 'Create', 'Update', 'Delete', 'ReadChanges'];
-// indexOf returns -1 for an action not in actionSortOrder, which would sort it
-// before every known action (-1 < 0). Rank unrecognized actions after all known
-// ones instead, with an alphabetical tie-breaker for deterministic ordering.
-const actionSortRank = (action: string) => {
-  const index = actionSortOrder.indexOf(action);
-  return index === -1 ? actionSortOrder.length : index;
-};
-
-export const ResourceClaimsTableV2 = ({ claimset }: { claimset: GetClaimsetSingleDtoV2 }) => {
+export const ResourceClaimsTableV3 = ({ claimset }: { claimset: GetClaimsetSingleDtoV3 }) => {
   const { data, columns } = useMemo(() => {
+    const byParent = groupByParent(claimset.resourceClaims);
+    const roots = byParent.get(null) ?? [];
     // TODO this dynamic-ness is to accommodate buggy Admin API (want to include even unexpected actions). It probably ought to be hardcoded. Revisit eventually.
-    const uniqueActions = uniq(claimset.resourceClaims.flatMap(extractActions)).sort(
+    const uniqueActions = uniq(roots.flatMap((rc) => extractActions(rc, byParent))).sort(
       (actionA, actionB) =>
         actionSortRank(actionA) - actionSortRank(actionB) || actionA.localeCompare(actionB)
     );
@@ -158,7 +118,7 @@ export const ResourceClaimsTableV2 = ({ claimset }: { claimset: GetClaimsetSingl
     ];
     return {
       uniqueActions,
-      data: claimset.resourceClaims.map(mapRows),
+      data: roots.map((rc) => mapRows(rc, byParent)),
       columns,
     };
   }, [claimset]);

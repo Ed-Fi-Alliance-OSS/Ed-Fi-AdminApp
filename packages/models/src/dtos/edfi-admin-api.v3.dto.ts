@@ -321,18 +321,28 @@ export class GetAuthStrategyDtoV3 {
 
 export const toGetAuthStrategyDtoV3 = makeSerializer(GetAuthStrategyDtoV3);
 
+export class GetClaimsetApplicationDtoV3 {
+  @Expose()
+  applicationName: string;
+}
+
 export class GetClaimsetMultipleDtoV3 {
   @Expose()
   id: number;
 
-  @Expose()
+  // Wire field is `claimSetName` in V3 (verified live against a V3-enabled
+  // Admin API — see 530-design.md); mapping it onto `name` here means every
+  // consumer (displayName getter, CopyClaimset, NameCell) reads the same
+  // property name regardless of version.
+  @Expose({ name: 'claimSetName' })
   name: string;
 
   @Expose()
   _isSystemReserved: boolean;
 
   @Expose()
-  _applications: GetApplicationDtoV3[];
+  @Type(() => GetClaimsetApplicationDtoV3)
+  _applications: GetClaimsetApplicationDtoV3[];
 
   get applicationsCount() {
     return this._applications.length;
@@ -343,7 +353,26 @@ export class GetClaimsetMultipleDtoV3 {
   }
 }
 
-export const toGetClaimsetMultipleDtoV3 = makeSerializer(GetClaimsetMultipleDtoV3);
+// makeSerializer's default InputType is derived from the class shape itself
+// (name: string), which no longer matches the wire shape now that `name` is
+// populated from `claimSetName` via @Expose({ name: ... }). applicationsCount
+// and displayName are getters computed from other fields and were never part
+// of the wire payload either. Overriding InputType explicitly keeps the
+// runtime rename working while the input type reflects what Admin API V3
+// actually sends.
+//
+// Exported so callers building the raw HTTP request (e.g. axios generics in
+// AdminApiServiceV3) can type the pre-transform response as what the wire
+// actually sends, rather than incorrectly reusing the post-transform DTO.
+export type ClaimsetMultipleWireDtoV3 = Omit<
+  GetClaimsetMultipleDtoV3,
+  'name' | 'applicationsCount' | 'displayName'
+> & { claimSetName: string };
+
+export const toGetClaimsetMultipleDtoV3 = makeSerializer<
+  GetClaimsetMultipleDtoV3,
+  ClaimsetMultipleWireDtoV3
+>(GetClaimsetMultipleDtoV3);
 
 export class GetClaimsetSingleDtoV3 extends GetClaimsetMultipleDtoV3 {
   @Expose()
@@ -351,7 +380,15 @@ export class GetClaimsetSingleDtoV3 extends GetClaimsetMultipleDtoV3 {
   resourceClaims: GetResourceClaimDtoV3[];
 }
 
-export const toGetClaimsetSingleDtoV3 = makeSerializer(GetClaimsetSingleDtoV3);
+export type ClaimsetSingleWireDtoV3 = Omit<
+  GetClaimsetSingleDtoV3,
+  'name' | 'applicationsCount' | 'displayName'
+> & { claimSetName: string };
+
+export const toGetClaimsetSingleDtoV3 = makeSerializer<
+  GetClaimsetSingleDtoV3,
+  ClaimsetSingleWireDtoV3
+>(GetClaimsetSingleDtoV3);
 
 export class ImportClaimsetSingleDtoV3 {
   @Expose()
@@ -366,11 +403,19 @@ export const toImportClaimsetSingleDtoV3 = makeSerializer(ImportClaimsetSingleDt
 
 export class ResourceClaimDtoV3 {
   @Expose()
-  id: string;
-
-  @Expose()
   @TrimWhitespace()
   name: string;
+
+  // Full claim URI (e.g. "http://ed-fi.org/identity/claims/ed-fi/school") —
+  // V2 only ever put the short name in `name`. Resource claims are
+  // identified by name/claimName in V3; there is no `id` field on the wire.
+  @Expose()
+  claimName: string;
+
+  // V3 sends a flat resourceClaims list joined by parentClaimName instead of
+  // V2's nested `children` array — null means a root/domain-level entry.
+  @Expose()
+  parentClaimName: string | null;
 
   @Expose()
   @Type(() => ClaimsetResourceClaimActionDtoV3)
@@ -378,17 +423,13 @@ export class ResourceClaimDtoV3 {
 
   @Expose()
   @Type(() => ClaimsetActionAuthStrategyDtoV3)
-  authorizationStrategyOverridesForCRUD: ClaimsetActionAuthStrategyDtoV3[];
-
-  @Expose()
-  @Type(() => GetResourceClaimDtoV3)
-  children: GetResourceClaimDtoV3[];
+  authorizationStrategyOverrides: ClaimsetActionAuthStrategyDtoV3[];
 }
 
 export class GetResourceClaimDtoV3 extends ResourceClaimDtoV3 {
   @Expose()
   @Type(() => ClaimsetActionAuthStrategyDtoV3)
-  _defaultAuthorizationStrategiesForCRUD: ClaimsetActionAuthStrategyDtoV3[];
+  _defaultAuthorizationStrategies: ClaimsetActionAuthStrategyDtoV3[];
 }
 export class ClaimsetResourceClaimActionDtoV3 {
   @Expose()
@@ -400,9 +441,6 @@ export class ClaimsetResourceClaimActionDtoV3 {
 
 export class ClaimsetActionAuthStrategyDtoV3 {
   @Expose()
-  actionId: number;
-
-  @Expose()
   actionName: string;
 
   @Expose()
@@ -412,13 +450,7 @@ export class ClaimsetActionAuthStrategyDtoV3 {
 
 export class ClaimsetAuthStrategyDtoV3 {
   @Expose()
-  authStrategyId: number;
-
-  @Expose()
   authStrategyName: string;
-
-  @Expose()
-  isInheritedFromParent: boolean;
 }
 
 export class PutClaimsetDtoV3 {

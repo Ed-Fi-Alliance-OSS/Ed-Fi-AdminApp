@@ -1,10 +1,10 @@
 import {
+  ClaimsetMultipleWireDtoV3,
+  ClaimsetSingleWireDtoV3,
   CopyClaimsetDtoV3,
   EducationOrganizationDto,
   GetApiClientDtoV3,
   GetApplicationDtoV3,
-  GetClaimsetMultipleDtoV3,
-  GetClaimsetSingleDtoV3,
   GetDataStoreSummaryDtoV3,
   GetProfileDtoV3,
   GetVendorDtoV3,
@@ -530,7 +530,7 @@ export class AdminApiServiceV3 {
   async getClaimsets(edfiTenant: EdfiTenant) {
     return toGetClaimsetMultipleDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetClaimsetMultipleDtoV3[], GetClaimsetMultipleDtoV3[]>(
+        .get<ClaimsetMultipleWireDtoV3[], ClaimsetMultipleWireDtoV3[]>(
           `claimSets?offset=0&limit=10000`,
         )
         .catch((err) => {
@@ -543,7 +543,7 @@ export class AdminApiServiceV3 {
   async postClaimset(edfiTenant: EdfiTenant, claimSet: PostClaimsetDtoV3) {
     return toGetClaimsetSingleDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .post<GetClaimsetSingleDtoV3, GetClaimsetSingleDtoV3>(`claimSets`, claimSet)
+        .post<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(`claimSets`, claimSet)
         .catch((err) => {
           this.logger.error(`Error creating claimset for tenant ${edfiTenant.id}: ${err}`);
           throw err;
@@ -555,9 +555,14 @@ export class AdminApiServiceV3 {
     const safeClaimSetId = this.sanitizeClaimSetId(claimSetId);
     return toGetClaimsetSingleDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetClaimsetSingleDtoV3, GetClaimsetSingleDtoV3>(`claimSets`, {
-          params: { id: safeClaimSetId },
-        })
+        // sanitizeClaimSetId already guarantees a positive integer (throws
+        // otherwise), so path-traversal/host-redirect via this segment is not
+        // actually reachable; encodeURIComponent is added on top so static
+        // analysis (CodeQL js/request-forgery) recognizes the URL segment as
+        // sanitized, since it doesn't model the custom integer check above.
+        .get<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(
+          `claimSets/${encodeURIComponent(safeClaimSetId)}`,
+        )
         .catch((err) => {
           this.logger.error(
             `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,
@@ -570,7 +575,7 @@ export class AdminApiServiceV3 {
   async putClaimset(edfiTenant: EdfiTenant, claimSetId: number, claimSet: PutClaimsetDtoV3) {
     return toGetClaimsetSingleDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .put<GetClaimsetSingleDtoV3, GetClaimsetSingleDtoV3>(
+        .put<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(
           `claimSets/${this.sanitizeClaimSetId(claimSetId)}`,
           claimSet,
         )
@@ -618,7 +623,7 @@ export class AdminApiServiceV3 {
   async exportClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
     return toGetClaimsetSingleDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetClaimsetSingleDtoV3, GetClaimsetSingleDtoV3>(`claimSets/${claimSetId}/export`)
+        .get<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(`claimSets/${claimSetId}/export`)
         .catch((err) => {
           this.logger.error(`Error exporting claimset for tenant ${edfiTenant.id}: ${err}`);
           throw err;
