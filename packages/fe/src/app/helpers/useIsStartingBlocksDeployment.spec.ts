@@ -37,9 +37,9 @@ describe('useIsStartingBlocksDeployment', () => {
     expect(sbEnvironmentQueries.getAll).toHaveBeenCalledWith({});
   });
 
-  it('defaults to true while environments are still loading', () => {
+  it('defaults to false while environments are still loading', () => {
     mockUseQuery.mockReturnValue({ data: undefined });
 
-    expect(useIsStartingBlocksDeployment()).toBe(true);
+    expect(useIsStartingBlocksDeployment()).toBe(false);
   });
 });
