@@ -36,6 +36,7 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { CellContext, ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { useSearchParams } from 'react-router';
 import { methods, queryKey } from '../../api';
+import { useIsStartingBlocksDeployment } from '../../helpers';
 import { SbSyncQueueLink } from '../../routes';
 import { useSbSyncQueueActions } from './useSbSyncQueueActions';
 
@@ -295,9 +296,10 @@ export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFi
 };
 
 export const SbSyncQueuesPage = () => {
+  const isStartingBlocks = useIsStartingBlocksDeployment();
   return (
     <PageTemplate
-      title="Starting Blocks sync queue"
+      title={isStartingBlocks ? 'Starting Blocks sync queue' : 'Ed-Fi Data Store Sync Queue'}
       //  actions={<PageActions actions={actions} />}
     >
       <SbSyncQueuesTable defaultFilters={[]} />
