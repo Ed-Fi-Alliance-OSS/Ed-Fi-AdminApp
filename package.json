@@ -135,7 +135,7 @@
     "@nx/storybook": "^23.1.1",
     "@nx/vite": "^23.1.1",
     "@nx/web": "^22.7.7",
-    "@nx/webpack": "^22.7.7",
+    "@nx/webpack": "^23.1.1",
     "@nx/workspace": "^23.0.0",
     "@playwright/test": "^1.62.1",
     "@pmmmwh/react-refresh-webpack-plugin": "^0.6.2",
