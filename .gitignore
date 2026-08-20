@@ -75,3 +75,4 @@ tests/e2e/.features-gen
 
 # ai auxiliary files, plans, specs, etc. that are not part of the source code
 docs/superpowers
+.worktrees/
