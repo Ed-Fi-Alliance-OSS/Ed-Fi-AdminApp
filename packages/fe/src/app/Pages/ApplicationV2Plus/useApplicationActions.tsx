@@ -1,10 +1,9 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 
-import { GetApplicationDtoV2, GetIntegrationAppDto, edorgKeyV2 } from '@edanalytics/models';
+import { edorgKeyV2 } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
 import { useLocation, useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { applicationQueriesV2 } from '../../api';
 import {
   useAuthorize,
   useNavToParent,
@@ -13,20 +12,22 @@ import {
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
-import { QUERY_KEYS } from '../../api-v2';
+import { QUERY_KEYS } from '../../api-v2/queryKeys';
+import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
 
 export const useSingleApplicationActions = ({
   application,
 }: {
-  application: (GetApplicationDtoV2 & GetIntegrationAppDto) | undefined;
+  application: ApplicationEntity | undefined;
 }): ActionsType => {
   const queryClient = useQueryClient();
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
   const location = useLocation();
   const popBanner = usePopBanner();
+  const { version, queries } = useApplicationConfig();
 
-  const deleteApplication = applicationQueriesV2.delete({
+  const deleteApplication = queries.delete({
     edfiTenant,
     teamId: asId,
   });
@@ -38,9 +39,12 @@ export const useSingleApplicationActions = ({
 
   const parentPath = useNavToParent();
 
+  const editDataStoreIds =
+    application && 'dataStoreIds' in application ? application.dataStoreIds : application?.odsInstanceIds;
+
   const canEdit = useAuthorize(
     application
-      ? application.odsInstanceIds.flatMap((odsInstanceId) =>
+      ? (editDataStoreIds ?? []).flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
             subject: {
@@ -71,9 +75,12 @@ export const useSingleApplicationActions = ({
     }
   ); */
 
+  const deleteDataStoreIds =
+    application && 'dataStoreIds' in application ? application.dataStoreIds : application?.odsInstanceIds;
+
   const canDelete = useAuthorize(
     application
-      ? application.odsInstanceIds.flatMap((odsInstanceId) =>
+      ? (deleteDataStoreIds ?? []).flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
             subject: {
@@ -106,17 +113,21 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
-        Manage: {
-          isDisabled: false,
-          icon: Icons.Application,
-          text: 'Manage creds',
-          title: 'Manage credentials for ' + application.applicationName,
-          to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`,
-          onClick: () =>
-            navigate(
-              `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`
-            ),
-        },
+        ...(version === 'v2'
+          ? {
+              Manage: {
+                isDisabled: false,
+                icon: Icons.Application,
+                text: 'Manage creds',
+                title: 'Manage credentials for ' + application.applicationName,
+                to: `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`,
+                onClick: () =>
+                  navigate(
+                    `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${application.id}/apiClients`
+                  ),
+              },
+            }
+          : undefined),
         ...(canEdit
           ? {
               Edit: {
@@ -150,7 +161,7 @@ export const useSingleApplicationActions = ({
                         queryClient.invalidateQueries({
                           queryKey: [QUERY_KEYS.edfiTenants, edfiTenantId, QUERY_KEYS.applications],
                         });
-                        if (application.integrationProviderId) {
+                        if ('integrationProviderId' in application && application.integrationProviderId) {
                           queryClient.invalidateQueries({
                             queryKey: [
                               QUERY_KEYS.integrationProviders,
