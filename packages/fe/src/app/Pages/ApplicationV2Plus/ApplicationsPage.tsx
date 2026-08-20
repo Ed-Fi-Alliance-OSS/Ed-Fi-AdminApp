@@ -61,6 +61,7 @@ export const AllApplicationsTable = () => {
   // is ever actually enabled/used for a given tenant.
   const { data: v2Applications } = useGetManyApplications({
     queryArgs: { edfiTenantId, teamId: asId },
+    enabled: version === 'v2',
   });
   // TypeScript cannot resolve union-typed overloaded functions; cast to the
   // actual return type (same pattern as ClaimsetsPage.tsx / ProfilesPage.tsx).

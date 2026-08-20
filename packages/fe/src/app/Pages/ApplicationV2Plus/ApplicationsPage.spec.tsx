@@ -64,4 +64,28 @@ describe('AllApplicationsTable', () => {
 
     expect(getAll).toHaveBeenCalled();
   });
+
+  it('disables the V2 useGetManyApplications hook when the tenant is v3', () => {
+    mockUseNavContext.mockReturnValue({ asId: 1, edfiTenantId: 3, edfiTenant: { id: 3 } });
+    const getAll = jest.fn(() => ({ queryKey: ['v3-apps'] }));
+    mockUseApplicationConfig.mockReturnValue({ version: 'v3', queries: { getAll } });
+
+    render(<AllApplicationsTable />);
+
+    expect(mockUseGetManyApplications).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: false })
+    );
+  });
+
+  it('enables the V2 useGetManyApplications hook when the tenant is v2', () => {
+    mockUseNavContext.mockReturnValue({ asId: 1, edfiTenantId: 3, edfiTenant: { id: 3 } });
+    mockUseApplicationConfig.mockReturnValue({ version: 'v2', queries: { getAll: jest.fn() } });
+    mockUseGetManyApplications.mockReturnValue({ data: [{ id: 1 }, { id: 2 }] });
+
+    render(<AllApplicationsTable />);
+
+    expect(mockUseGetManyApplications).toHaveBeenCalledWith(
+      expect.objectContaining({ enabled: true })
+    );
+  });
 });
