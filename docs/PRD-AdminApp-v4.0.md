@@ -246,7 +246,8 @@ include an optional feature for distributing an anonymously-accessed URL (that
 is, no sign-in required) with one-time display of credentials. When not used,
 the one-time display of credentials will only be accessible to the signed-in
 user.
-### JTBD 5: Transfer Claimsets Between Environments
+
+#### JTBD 5: Transfer Claimsets Between Environments
 
 **Personas:** SEA System Administrator, Managed Service Provider System
 Administrator
@@ -261,7 +262,6 @@ Administrator
 
 1. Configure claimset in the Staging environment, then export and import to Production (all personas).
 2. Export claimset used in one Tenant and copy to another tenant (Data Hub Operator persona). 
-
 
 ## 2. Enterprise Architecture
 
@@ -393,20 +393,6 @@ C4Context
   `EdFi_Admin` and `EdFi_Security` database pair.
 - **FR-TENANT-2**: Tenant management (create/delete) SHALL respect user
   permission assignments.
-
-### ODS Instance Management
-
-- **FR-ODS-1**: Users with appropriate permissions SHALL be able to create new
-  ODS instances within a tenant, specifying ODS name, connection/database
-  configuration, academic year, and data standards version.
-- **FR-ODS-2**: _(Known Limitation — Admin API v2 mode)_ Creating ODS Instances
-  in Admin API v2 mode requires manual population of the `odsinstances` and
-  `odsinstancecontexts` tables before applications can be registered. This
-  manual step will be automated in a future release.
-
-> [!NOTE]
-> In the future "ODS Instances" will have a different name, applicable as well
-> to Ed-Fi API v8. But this is the given name as of Admin App version 4.0.
 
 ### Vendor Management
 
