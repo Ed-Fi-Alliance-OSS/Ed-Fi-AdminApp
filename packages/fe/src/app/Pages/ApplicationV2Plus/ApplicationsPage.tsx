@@ -5,7 +5,7 @@ import {
   PageTemplate,
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
-import { GetApplicationDtoV2, GetClaimsetMultipleDtoV2, GetEdorgDto, GetIntegrationAppDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
+import { GetClaimsetMultipleDtoV2, GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
 import {
   claimsetQueriesV2,
   edorgQueries,
@@ -14,7 +14,7 @@ import {
   vendorQueriesV2,
 } from '../../api';
 
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
@@ -26,6 +26,13 @@ import { VendorLinkV2 } from '../../routes/vendor.routes';
 import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';
+import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+
+// V2 applications carry `odsInstanceIds`; V3 applications carry `dataStoreIds`
+// for the same concept. Reading both here keeps every column below oblivious
+// to which version is active.
+const getDataStoreIds = (application: ApplicationEntity): number[] =>
+  ('odsInstanceIds' in application ? application.odsInstanceIds : application.dataStoreIds) ?? [];
 
 export const ApplicationsPageV2 = () => {
   return (
@@ -47,10 +54,27 @@ export const ApplicationsPageActions = () => {
 
 export const AllApplicationsTable = () => {
   const { asId, edfiTenantId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { version, queries } = useApplicationConfig();
 
-  const { data: applications } = useGetManyApplications({
+  // v2 tenants keep using the hardcoded-v2-URL hook (unchanged); v3 tenants
+  // fetch through the versioned query builder instead. Only one of these two
+  // is ever actually enabled/used for a given tenant.
+  const { data: v2Applications } = useGetManyApplications({
     queryArgs: { edfiTenantId, teamId: asId },
   });
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ProfilesPage.tsx).
+  const v3Applications = useQuery({
+    ...(queries.getAll({ edfiTenant, teamId: asId }) as UseQueryOptions<
+      Record<string | number, ApplicationEntity>
+    >),
+    enabled: version === 'v3',
+  });
+
+  const applications: ApplicationEntity[] =
+    version === 'v2'
+      ? ((v2Applications ?? []) as ApplicationEntity[])
+      : Object.values(v3Applications.data ?? {});
 
   const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
   const odss = useQuery(odsQueries.getAll({ edfiTenant, teamId: asId }));
@@ -110,7 +134,7 @@ export const AllApplicationsTable = () => {
       columns={[
         {
           accessorKey: 'applicationName',
-          cell: NameCell as ColumnDef<GetApplicationDtoV2 & GetIntegrationAppDto>['cell'],
+          cell: NameCell,
           header: 'Name',
         },
         {
@@ -118,7 +142,7 @@ export const AllApplicationsTable = () => {
           accessorFn: (application) =>
             application.educationOrganizationIds
               .flatMap((edorgId) =>
-                application.odsInstanceIds.map((odsInstanceId) =>
+                getDataStoreIds(application).map((odsInstanceId) =>
                   getRelationDisplayName(
                     edorgKeyV2({
                       edorg: edorgId,
@@ -131,7 +155,8 @@ export const AllApplicationsTable = () => {
               .join(', '),
           header: 'Education organization',
           cell: (info) => {
-            const { educationOrganizationIds, odsInstanceIds } = info.row.original;
+            const { educationOrganizationIds } = info.row.original;
+            const odsInstanceIds = getDataStoreIds(info.row.original);
             const addCommas = educationOrganizationIds.length > 1;
             return (
               <CappedLinesText maxLines={2}>
@@ -159,12 +184,12 @@ export const AllApplicationsTable = () => {
         {
           id: 'ods',
           accessorFn: (application) =>
-            application.odsInstanceIds
+            getDataStoreIds(application)
               .map((odsInstanceId) => getRelationDisplayName(odsInstanceId, odssByInstanceId))
               .join(', '),
           header: 'Ods',
           cell: (info) => {
-            const { odsInstanceIds } = info.row.original;
+            const odsInstanceIds = getDataStoreIds(info.row.original);
             const addCommas = odsInstanceIds.length > 1;
             return (
               <>
@@ -226,9 +251,11 @@ export const AllApplicationsTable = () => {
         {
           id: 'integrationProvider',
           header: 'Integration Provider',
-          accessorKey: 'integrationProviderName',
+          // V3 applications have no integrationProviderName field; renders blank for those rows.
+          accessorFn: (application) =>
+            'integrationProviderName' in application ? application.integrationProviderName : undefined,
         },
-      ] as ColumnDef<GetApplicationDtoV2 & GetIntegrationAppDto>[]}
+      ] as ColumnDef<ApplicationEntity>[]}
     />
   );
 };
