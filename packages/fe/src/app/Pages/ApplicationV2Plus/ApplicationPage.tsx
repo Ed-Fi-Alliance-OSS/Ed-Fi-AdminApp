@@ -13,7 +13,6 @@ import {
   GetApplicationDtoV2,
   GetApplicationDtoV3,
   GetClaimsetMultipleDtoV2,
-  GetIntegrationAppDto,
 } from '@edanalytics/models';
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
@@ -134,13 +133,7 @@ export const ApplicationPageContent = () => {
   return application ? (
     edit ? (
       claimsets.isSuccess ? (
-        // `EditApplication` is not yet version-aware (Task 8 will update it); it
-        // still declares a V2-only prop type. Cast here rather than widen it
-        // ourselves, since v3 tenants are never routed to edit mode yet.
-        <EditApplication
-          application={application as GetApplicationDtoV2 & GetIntegrationAppDto}
-          claimset={claimset}
-        />
+        <EditApplication application={application} claimset={claimset} />
       ) : null
     ) : (
       <ViewApplication application={application} dataStoreIds={dataStoreIds ?? []} url={url} />

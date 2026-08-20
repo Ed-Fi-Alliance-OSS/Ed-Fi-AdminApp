@@ -15,17 +15,16 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import {
-  GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetEdorgDto,
-  GetIntegrationAppDto,
   PutApplicationFormDtoV2,
+  PutApplicationFormDtoV3,
   edorgKeyV2,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import {
@@ -46,14 +45,57 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
+import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
 
-const resolver = classValidatorResolver(PutApplicationFormDtoV2);
-
+// Dispatches on the resolved version via `.match()` rather than destructuring
+// `useApplicationConfig()` directly, so `EditApplicationForm`'s generic is
+// tied to the actual branch instead of the wider PutApplicationFormDtoV2 |
+// V3 union (see the caveat comment in vendorConfig.ts/applicationConfig.ts).
 export const EditApplication = (props: {
-  application: GetApplicationDtoV2 & GetIntegrationAppDto;
+  application: ApplicationEntity;
   claimset: GetClaimsetMultipleDtoV2 | undefined;
-}) => {
+}) =>
+  useApplicationConfig.match({
+    v2: (cfg) => (
+      <EditApplicationForm<PutApplicationFormDtoV2> config={cfg} odsFieldName="odsInstanceId" {...props} />
+    ),
+    v3: (cfg) => (
+      <EditApplicationForm<PutApplicationFormDtoV3> config={cfg} odsFieldName="dataStoreId" {...props} />
+    ),
+  });
+
+function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationFormDtoV3>(props: {
+  // `put`'s entity/options are parameterized by this component's own D
+  // rather than pinned to typeof applicationQueriesV2.put: V2's and V3's
+  // put() differ in response DTO (GetApplicationDtoV2 vs GetApplicationDtoV3)
+  // and request entity (PutApplicationFormDtoV2 vs V3), so a type fixed to
+  // one branch can't structurally accept the other. `options` is typed via
+  // `MutateOptions` (the same type `EntityQueryBuilder.put`'s
+  // `UseMutationResult['mutateAsync']` uses under the hood, see builder.ts)
+  // parameterized by `D` for TVariables, matching the `{ entity: D }` used
+  // for `mutateAsync`'s first argument, so `onSuccess`/`onError` (including
+  // the mutationErrCallback(...) spread at the call site below) stay checked
+  // without widening to `any`. TData is `unknown` since onSuccess here never
+  // reads the resolved response.
+  config: {
+    queries: {
+      put: (
+        params: Parameters<typeof applicationQueriesV2.put>[0]
+      ) => {
+        mutateAsync: (
+          args: { entity: D },
+          options?: MutateOptions<unknown, unknown, { entity: D }, unknown>
+        ) => Promise<unknown>;
+      };
+    };
+    PutFormDto: new () => D;
+  };
+  odsFieldName: 'odsInstanceId' | 'dataStoreId';
+  application: ApplicationEntity;
+  claimset: GetClaimsetMultipleDtoV2 | undefined;
+}) {
   const { application, claimset } = props;
+  const { queries, PutFormDto } = props.config;
   const { edfiTenantId, edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
   const edorgs = useQuery(
     edorgQueries.getAll({
@@ -78,7 +120,7 @@ export const EditApplication = (props: {
     })
   );
 
-  const { mutateAsync: putApplication } = applicationQueriesV2.put({
+  const { mutateAsync: putApplication } = queries.put({
     edfiTenant,
     teamId,
   });
@@ -92,15 +134,17 @@ export const EditApplication = (props: {
     );
   };
 
-  const defaultValues = new PutApplicationFormDtoV2();
+  const resolver = classValidatorResolver(PutFormDto);
+
+  const dataStoreIds = 'dataStoreIds' in application ? application.dataStoreIds : application.odsInstanceIds;
+  const defaultValues = new PutFormDto();
   defaultValues.id = application.id;
   defaultValues.applicationName = application.applicationName;
   defaultValues.claimsetId = claimset?.id as number;
-  defaultValues.integrationProviderId = application.integrationProviderId;
   defaultValues.profileIds = application.profileIds;
   defaultValues.vendorId = application.vendorId;
   defaultValues.educationOrganizationIds = application.educationOrganizationIds;
-  defaultValues.odsInstanceId = application.odsInstanceIds[0];
+  (defaultValues as unknown as Record<string, unknown>)[props.odsFieldName] = dataStoreIds[0];
 
   const {
     register,
@@ -110,22 +154,42 @@ export const EditApplication = (props: {
     setValue,
     watch,
     setError: setFormError,
-  } = useForm<PutApplicationFormDtoV2>({
+  } = useForm<D>({
     resolver,
-    defaultValues,
+    defaultValues: defaultValues as DefaultValues<D>,
   });
 
-  const selectedEdorgs = watch('educationOrganizationIds', defaultValues.educationOrganizationIds);
-  const watchedProfileIds = watch('profileIds', defaultValues.profileIds);
+  // field()/errorMessage() intersection-typed accessors for shared fields,
+  // same shape as CreateApplicationForm — parameter type is the field-name
+  // intersection of both branches (every field here except odsFieldName is
+  // identical in name across V2/V3):
+  const field = (
+    name: keyof PutApplicationFormDtoV2 & keyof PutApplicationFormDtoV3
+  ) => name as Path<D>;
+  const errorMessage = (
+    name: keyof PutApplicationFormDtoV2 & keyof PutApplicationFormDtoV3
+  ): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[name]?.message as string | undefined;
+  // Scoped accessor for the one field whose *name* diverges (odsInstanceId
+  // vs dataStoreId) — parameterized by props.odsFieldName instead of
+  // hardcoded to one branch.
+  const odsField = () => props.odsFieldName as Path<D>;
+  const odsErrorMessage = (): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[props.odsFieldName]?.message as
+      | string
+      | undefined;
+
+  const selectedEdorgs = watch(field('educationOrganizationIds'), defaultValues.educationOrganizationIds as never) as number[];
+  const watchedProfileIds = watch(field('profileIds'), defaultValues.profileIds as never) as number[];
   // Stabilize the array reference so it doesn't change identity on every
   // render (which would otherwise defeat the filteredProfileOptions memo below).
   const selectedProfileIds = useMemo(() => watchedProfileIds || [], [watchedProfileIds]);
-  const selectedOds = watch('odsInstanceId');
+  const selectedOds = watch(odsField()) as number;
   const setSelectedEdorgs = (edorgs: number[]) => {
-    setValue('educationOrganizationIds', edorgs);
+    setValue(field('educationOrganizationIds'), edorgs as never);
   };
   const setSelectedProfiles = (profiles: number[]) => {
-    setValue('profileIds', profiles);
+    setValue(field('profileIds'), profiles as never);
   };
 
   const filteredEdorgOptions = useMemo(() => {
@@ -173,16 +237,16 @@ export const EditApplication = (props: {
     );
   }, [profiles.data, selectedProfileIds]);
 
-  const onSubmit = async (data: PutApplicationFormDtoV2) => {
+  const onSubmit = async (data: D) => {
     return putApplication(
       { entity: data },
       {
         onSuccess() {
-          if (data.integrationProviderId) {
+          if ('integrationProviderId' in application && application.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,
-                data.integrationProviderId,
+                application.integrationProviderId,
                 QUERY_KEYS.integrationApps,
               ],
             });
@@ -206,7 +270,7 @@ export const EditApplication = (props: {
     ).catch(() => undefined);
   };
 
-  const hasIntegrationProvider = !!application.integrationProviderId;
+  const hasIntegrationProvider = 'integrationProviderId' in application && !!application.integrationProviderId;
 
   return edorgs.data && claimsets.data ? (
     <form onSubmit={handleSubmit(onSubmit)}>
@@ -220,27 +284,27 @@ export const EditApplication = (props: {
         )}
         <FormControl isInvalid={!!errors.applicationName}>
           <FormLabel>Application name</FormLabel>
-          <Input {...register('applicationName')} placeholder="name" />
-          <FormErrorMessage>{errors.applicationName?.message}</FormErrorMessage>
+          <Input {...register(field('applicationName'))} placeholder="name" />
+          <FormErrorMessage>{errorMessage('applicationName')}</FormErrorMessage>
         </FormControl>
 
-        <FormControl isInvalid={!!errors.odsInstanceId}>
+        <FormControl isInvalid={!!(errors as Record<string, unknown>)[props.odsFieldName]}>
           <FormLabel>ODS</FormLabel>
           <SelectOds
             useInstanceId
             value={selectedOds}
             onChange={(value) => {
-              setValue('odsInstanceId', value);
+              setValue(odsField(), value as never);
               setValue(
-                'educationOrganizationIds',
+                field('educationOrganizationIds'),
                 selectedEdorgs.filter(
                   (edorg) => !!edorgsByEdorgId.data[edorgKeyV2({ edorg, ods: value })]
-                )
+                ) as never
               );
             }}
             isDisabled={hasIntegrationProvider}
           />
-          <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
+          <FormErrorMessage>{odsErrorMessage()}</FormErrorMessage>
         </FormControl>
 
         <FormControl isInvalid={!!errors.educationOrganizationIds}>
@@ -297,13 +361,13 @@ export const EditApplication = (props: {
               />
             </>
           )}
-          <FormErrorMessage>{errors.educationOrganizationIds?.message}</FormErrorMessage>
+          <FormErrorMessage>{errorMessage('educationOrganizationIds')}</FormErrorMessage>
         </FormControl>
 
         <FormControl isInvalid={!!errors.vendorId}>
           <FormLabel>Vendor</FormLabel>
-          <SelectVendorV2 name="vendorId" control={control} />
-          <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
+          <SelectVendorV2 name={field('vendorId')} control={control} />
+          <FormErrorMessage>{errorMessage('vendorId')}</FormErrorMessage>
         </FormControl>
 
         <FormControl>
@@ -372,8 +436,8 @@ export const EditApplication = (props: {
               </chakra.span>
             </Tooltip>
           </FormLabel>
-          <SelectClaimsetV2 noReserved name="claimsetId" control={control} />
-          <FormErrorMessage>{errors.claimsetId?.message}</FormErrorMessage>
+          <SelectClaimsetV2 noReserved name={field('claimsetId')} control={control} />
+          <FormErrorMessage>{errorMessage('claimsetId')}</FormErrorMessage>
         </FormControl>
 
         <ButtonGroup mt={4} colorScheme="primary">
@@ -392,4 +456,4 @@ export const EditApplication = (props: {
       </Box>
     </form>
   ) : null;
-};
+}
