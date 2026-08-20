@@ -5,10 +5,12 @@ import {
   CopyClaimsetDtoV3,
   GetApiClientDtoV2,
   GetApplicationDtoV2,
+  GetApplicationDtoV3,
   GetClaimsetMultipleDtoV2,
   GetClaimsetMultipleDtoV3,
   GetClaimsetSingleDtoV2,
   GetClaimsetSingleDtoV3,
+  GetDataStoreSummaryDtoV3,
   GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
   GetProfileDtoV3,
@@ -20,6 +22,8 @@ import {
   PostInstanceDtoV2,
   ImportClaimsetSingleDtoV2,
   PostApplicationFormDtoV2,
+  PostApplicationFormDtoV3,
+  PostApplicationResponseDtoV3,
   PostClaimsetDtoV2,
   PostProfileDtoV2,
   PostProfileDtoV3,
@@ -27,6 +31,7 @@ import {
   PostVendorDtoV3,
   PutApiClientDtoV2,
   PutApplicationFormDtoV2,
+  PutApplicationFormDtoV3,
   PutClaimsetFormDtoV2,
   PutProfileDtoV2,
   PutProfileDtoV3,
@@ -74,6 +79,19 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
       })
   )
   .post('post', { ResDto: undefined as unknown as ApplicationResponseV2, ReqDto: PostApplicationFormDtoV2 })
+  .delete('delete')
+  .build();
+
+export const applicationQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Application',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll('getAll', { ResDto: GetApplicationDtoV3 })
+  .getOne('getOne', { ResDto: GetApplicationDtoV3 })
+  .put('put', { ResDto: GetApplicationDtoV3, ReqDto: PutApplicationFormDtoV3 })
+  .post('post', { ResDto: PostApplicationResponseDtoV3, ReqDto: PostApplicationFormDtoV3 })
   .delete('delete')
   .build();
 
@@ -340,6 +358,15 @@ export const odsInstancesV2 = new EntityQueryBuilder({
   includeTeam: TeamOptions.Required,
 })
   .getAll('getAll', { ResDto: GetOdsInstanceSummaryDtoV2 })
+  .build();
+
+export const dataStoresV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Datastore',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll('getAll', { ResDto: GetDataStoreSummaryDtoV3 })
   .build();
 
 export const instancesV2 = new EntityQueryBuilder({
