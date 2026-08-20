@@ -41,7 +41,7 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../api-v2';
 import { useApplicationConfig } from './applicationConfig';
 
@@ -79,17 +79,21 @@ function CreateApplicationForm<D extends PostApplicationFormDtoV2 | PostApplicat
   // post() differ in both response DTO (ApplicationResponseV2 vs
   // PostApplicationResponseDtoV3) and request entity (PostApplicationFormDtoV2
   // vs V3), so a type fixed to one branch can't structurally accept the
-  // other. `options` is loosely typed (not `unknown`, which functions are
-  // never assignable to) since the component only relies on `onSuccess` and
-  // the mutationErrCallback(...) spread, both verified at the call site
-  // below, not by this prop's declared shape.
+  // other. `options` is typed via `MutateOptions` (the same type
+  // `EntityQueryBuilder.post`'s `UseMutationResult['mutateAsync']` uses
+  // under the hood, see builder.ts) parameterized by `D` for TVariables,
+  // matching the `{ entity: D }` used for `mutateAsync`'s first argument, so
+  // `onSuccess`/`onError` (including the mutationErrCallback(...) spread at
+  // the call site below) stay checked without widening to `any`.
   config: {
     queries: {
       post: (
         params: Parameters<typeof applicationQueriesV2.post>[0]
       ) => {
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        mutateAsync: (args: { entity: D }, options?: any) => Promise<{ id: number }>;
+        mutateAsync: (
+          args: { entity: D },
+          options?: MutateOptions<{ id: number }, unknown, { entity: D }, unknown>
+        ) => Promise<{ id: number }>;
       };
     };
     PostFormDto: new () => D;
