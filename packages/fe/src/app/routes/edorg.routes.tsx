@@ -31,7 +31,7 @@ export const edorgIndexRoute: RouteObject = {
 };
 export const edorgCreateRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/edorgs/create',
-  element: <VersioningHoc v2={<CreateEdorg />} />,
+  element: <VersioningHoc v2={<CreateEdorg />} v3={<CreateEdorg />} />,
   handle: { crumb: () => 'Create ed-org' },
 };
 
