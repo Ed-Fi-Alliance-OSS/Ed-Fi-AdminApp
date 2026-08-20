@@ -134,7 +134,7 @@ export class EdorgsController {
     return this.edorgService.add(sbEnvironment, edfiTenant, dto);
   }
 
-  @SbVersion('v2')
+  @SbVersion('v2', 'v3')
   @Operation('Deleting edorgs')
   @Delete(':edorgId')
   @Authorize({
@@ -194,7 +194,7 @@ export class EdorgsController {
     );
   }
 
-  @SbVersion('v2')
+  @SbVersion('v2', 'v3')
   @Post('sync-edorgs')
   @Authorize({
     privilege: EDORG_PRIVILEGES.READ,

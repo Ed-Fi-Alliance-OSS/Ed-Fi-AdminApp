@@ -19,6 +19,7 @@ describe('EdorgsService - syncAllEdOrgs', () => {
   let mockOdsRepository: Partial<Repository<Ods>>;
   let mockSbServiceV2: Partial<StartingBlocksServiceV2>;
   let mockAdminApiServiceV2: any;
+  let mockAdminApiServiceV3: any;
   let mockDataSource: Partial<DataSource>;
   let mockEntityManager: Partial<EntityManager>;
 
@@ -26,8 +27,18 @@ describe('EdorgsService - syncAllEdOrgs', () => {
     id: 1,
     name: 'Test Environment',
     adminApiUrl: 'https://api.test.com',
+    version: 'v2',
     configPublic: {
       version: 'v2',
+      values: {},
+    } as any,
+  };
+
+  const mockSbEnvironmentV3: Partial<SbEnvironment> = {
+    ...mockSbEnvironment,
+    version: 'v3',
+    configPublic: {
+      version: 'v3',
       values: {},
     } as any,
   };
@@ -61,6 +72,10 @@ describe('EdorgsService - syncAllEdOrgs', () => {
       getAllEdOrgsForTenant: jest.fn(),
     };
 
+    mockAdminApiServiceV3 = {
+      getAllEdOrgsForTenant: jest.fn(),
+    };
+
     mockSbServiceV2 = {};
 
     service = new EdorgsService(
@@ -68,6 +83,7 @@ describe('EdorgsService - syncAllEdOrgs', () => {
       mockOdsRepository as Repository<Ods>,
       mockSbServiceV2 as StartingBlocksServiceV2,
       mockAdminApiServiceV2,
+      mockAdminApiServiceV3,
       mockDataSource as DataSource
     );
 
@@ -444,5 +460,50 @@ describe('EdorgsService - syncAllEdOrgs', () => {
         ]),
       })
     );
+  });
+
+  it('calls adminApiServiceV3.getAllEdOrgsForTenant for a v3 tenant', async () => {
+    const mockEdOrgs: EducationOrganizationDto[] = [
+      {
+        instanceId: 1,
+        instanceName: 'ODS One',
+        educationOrganizationId: 255901,
+        nameOfInstitution: 'School One',
+        shortNameOfInstitution: null,
+        discriminator: 'edfi.School',
+        parentId: null,
+      },
+    ];
+    const mockOdsInstances: Partial<Ods>[] = [
+      { id: 10, odsInstanceId: 1, odsInstanceName: 'ODS One', dbName: 'EdFi_Ods_One', edfiTenantId: 1 },
+    ];
+
+    (mockAdminApiServiceV3.getAllEdOrgsForTenant as jest.Mock).mockResolvedValue(mockEdOrgs);
+    (mockOdsRepository.find as jest.Mock).mockResolvedValue(mockOdsInstances);
+    (persistSyncTenant as jest.Mock).mockResolvedValue({
+      status: 'SUCCESS',
+      data: {
+        edorg: { inserted: 1, updated: 0, deleted: 0 },
+        ods: { inserted: 0, updated: 0, deleted: 0 },
+      },
+    });
+
+    const result = await service.syncAllEdOrgs(
+      mockSbEnvironmentV3 as SbEnvironment,
+      mockEdfiTenant as EdfiTenant
+    );
+
+    expect(result).toEqual({ synced: 1, skipped: 0 });
+    expect(mockAdminApiServiceV3.getAllEdOrgsForTenant).toHaveBeenCalledWith(mockEdfiTenant);
+    expect(mockAdminApiServiceV2.getAllEdOrgsForTenant).not.toHaveBeenCalled();
+  });
+
+  it('still calls adminApiServiceV2.getAllEdOrgsForTenant for a v2 tenant', async () => {
+    (mockAdminApiServiceV2.getAllEdOrgsForTenant as jest.Mock).mockResolvedValue([]);
+
+    await service.syncAllEdOrgs(mockSbEnvironment as SbEnvironment, mockEdfiTenant as EdfiTenant);
+
+    expect(mockAdminApiServiceV2.getAllEdOrgsForTenant).toHaveBeenCalledWith(mockEdfiTenant);
+    expect(mockAdminApiServiceV3.getAllEdOrgsForTenant).not.toHaveBeenCalled();
   });
 });
