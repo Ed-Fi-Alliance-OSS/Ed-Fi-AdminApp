@@ -110,7 +110,7 @@ export const AllApplicationsTable = () => {
       columns={[
         {
           accessorKey: 'applicationName',
-          cell: NameCell,
+          cell: NameCell as ColumnDef<GetApplicationDtoV2 & GetIntegrationAppDto>['cell'],
           header: 'Name',
         },
         {
