@@ -6,10 +6,8 @@ import {
   ContentSection,
 } from '@edanalytics/common-ui';
 import {
-  GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
   GetEdorgDto,
-  GetIntegrationAppDto,
   GetOdsDto,
   edorgKeyV2,
 } from '@edanalytics/models';
@@ -23,11 +21,16 @@ import {
 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
+import { ApplicationEntity } from './applicationConfig';
 
 export const ViewApplication = ({
   application,
+  dataStoreIds,
+  url,
 }: {
-  application: GetApplicationDtoV2 & GetIntegrationAppDto;
+  application: ApplicationEntity;
+  dataStoreIds: number[];
+  url?: string;
 }) => {
   const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
 
@@ -94,21 +97,12 @@ export const ViewApplication = ({
     }, {}),
   };
 
-  const url = edfiTenant?.sbEnvironment.domain
-    ? GetApplicationDtoV2.apiUrl(
-        edfiTenant?.sbEnvironment.startingBlocks,
-        edfiTenant?.sbEnvironment.domain,
-        application.applicationName,
-        edfiTenant.name
-      )
-    : undefined;
-
   return application ? (
     <ContentSection>
       <AttributesGrid>
         <Attribute isCopyable label="Application name" value={application.applicationName} />
         <AttributeContainer label="ODS">
-          {application.odsInstanceIds
+          {dataStoreIds
             .map((odsInstanceId) => (
               <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
             ))
@@ -137,7 +131,7 @@ export const ViewApplication = ({
         <AttributeContainer label="Ed-org">
           {application.educationOrganizationIds?.length ? (
             <UnorderedList>
-              {application.odsInstanceIds.flatMap((odsInstanceId) =>
+              {dataStoreIds.flatMap((odsInstanceId) =>
                 application.educationOrganizationIds.map((edorgId) => (
                   <ListItem key={edorgId}>
                     <EdorgLink
@@ -156,7 +150,12 @@ export const ViewApplication = ({
             '-'
           )}
         </AttributeContainer>
-        <Attribute label="Integration Provider" value={application.integrationProviderName} />
+        <Attribute
+          label="Integration Provider"
+          value={
+            'integrationProviderName' in application ? application.integrationProviderName : undefined
+          }
+        />
         <Attribute label="URL" value={url} isUrl isUrlExternal isCopyable />
       </AttributesGrid>
     </ContentSection>
