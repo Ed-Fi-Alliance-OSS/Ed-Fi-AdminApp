@@ -1,7 +1,7 @@
 import { HStack, Link } from '@chakra-ui/react';
 import { TableRowActions } from '@edanalytics/common-ui';
-import { GetApplicationDtoV2, GetIntegrationAppDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
+import { GetApplicationDtoV2, GetIntegrationAppDto } from '@edanalytics/models';
 
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { Link as RouterLink } from 'react-router';

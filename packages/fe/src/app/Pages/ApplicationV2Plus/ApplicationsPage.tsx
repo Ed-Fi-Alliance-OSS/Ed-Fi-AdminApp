@@ -5,7 +5,7 @@ import {
   PageTemplate,
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
-import { GetClaimsetMultipleDtoV2, GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
+import { GetApplicationDtoV2, GetClaimsetMultipleDtoV2, GetEdorgDto, GetIntegrationAppDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
 import {
   claimsetQueriesV2,
   edorgQueries,
@@ -15,6 +15,7 @@ import {
 } from '../../api';
 
 import { useQuery } from '@tanstack/react-query';
+import { ColumnDef } from '@tanstack/react-table';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLinkV2 } from '../../routes/claimset.routes';
@@ -227,7 +228,7 @@ export const AllApplicationsTable = () => {
           header: 'Integration Provider',
           accessorKey: 'integrationProviderName',
         },
-      ]}
+      ] as ColumnDef<GetApplicationDtoV2 & GetIntegrationAppDto>[]}
     />
   );
 };
