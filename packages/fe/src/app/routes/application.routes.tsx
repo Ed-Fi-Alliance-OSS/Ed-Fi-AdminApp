@@ -1,6 +1,6 @@
 import { Link, Text } from '@chakra-ui/react';
-import { GetApplicationDto, GetApplicationDtoV2 } from '@edanalytics/models';
-import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { GetApplicationDto, GetApplicationDtoV2, GetApplicationDtoV3 } from '@edanalytics/models';
+import { UseQueryOptions, UseQueryResult, useQuery } from '@tanstack/react-query';
 import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { ApplicationPage } from '../Pages/Application/ApplicationPage';
 import { ApplicationsPage } from '../Pages/Application/ApplicationsPage';
@@ -8,7 +8,8 @@ import { CreateApplicationPage } from '../Pages/Application/CreateApplicationPag
 import { ApplicationPageV2 } from '../Pages/ApplicationV2Plus/ApplicationPage';
 import { ApplicationsPageV2 } from '../Pages/ApplicationV2Plus/ApplicationsPage';
 import { CreateApplicationPageV2 } from '../Pages/ApplicationV2Plus/CreateApplicationPage';
-import { applicationQueriesV1, applicationQueriesV2 } from '../api';
+import { applicationQueriesV1, applicationQueriesV2, applicationQueriesV3 } from '../api';
+import { createVersionedResource } from '../api/queries/versioned';
 import {
   VersioningHoc,
   getRelationDisplayName,
@@ -30,43 +31,62 @@ const ApplicationBreadcrumbV1 = () => {
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (application.data?.displayName ?? params.applicationId) as any;
 };
-const ApplicationBreadcrumbV2 = () => {
-  const params = useParams() as {
-    applicationId: string;
-  };
+// v2/v3 breadcrumbs are byte-for-byte identical except which queries module
+// they call — same dedupe shape as vendor.routes.tsx's useVendorBreadcrumbQueries.
+// Unlike vendor's V2/V3 DTOs (structurally identical), Application's V2/V3
+// `getOne` return types differ (odsInstanceIds vs dataStoreIds), so this must
+// be a real discriminated union rather than one shared function type.
+type ApplicationBreadcrumbConfig =
+  | { version: 'v2'; getOne: typeof applicationQueriesV2.getOne }
+  | { version: 'v3'; getOne: typeof applicationQueriesV3.getOne };
+
+const useApplicationBreadcrumbQueries = createVersionedResource<ApplicationBreadcrumbConfig>({
+  v2: { version: 'v2', getOne: applicationQueriesV2.getOne },
+  v3: { version: 'v3', getOne: applicationQueriesV3.getOne },
+});
+
+const ApplicationBreadcrumbV2Plus = () => {
+  const params = useParams() as { applicationId: string };
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { getOne } = useApplicationBreadcrumbQueries();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type. Same workaround as ClaimsetPage.tsx's ClaimsetPageTitle.
   const application = useQuery(
-    applicationQueriesV2.getOne({
-      id: params.applicationId,
-      edfiTenant,
-      teamId,
-    })
+    getOne({ id: params.applicationId, edfiTenant, teamId }) as UseQueryOptions<
+      GetApplicationDtoV2 | GetApplicationDtoV3
+    >
   );
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (application.data?.displayName ?? params.applicationId) as any;
 };
 export const applicationIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/:applicationId/',
-  element: <VersioningHoc v1={<ApplicationPage />} v2={<ApplicationPageV2 />} />,
+  element: <VersioningHoc v1={<ApplicationPage />} v2={<ApplicationPageV2 />} v3={<ApplicationPageV2 />} />,
 };
 export const applicationCreateRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/create',
   handle: { crumb: () => 'Create' },
-  element: <VersioningHoc v1={<CreateApplicationPage />} v2={<CreateApplicationPageV2 />} />,
+  element: (
+    <VersioningHoc v1={<CreateApplicationPage />} v2={<CreateApplicationPageV2 />} v3={<CreateApplicationPageV2 />} />
+  ),
 };
 
 export const applicationRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/:applicationId',
   handle: {
     crumb: withLoader(() => (
-      <VersioningHoc v1={<ApplicationBreadcrumbV1 />} v2={<ApplicationBreadcrumbV2 />} />
+      <VersioningHoc
+        v1={<ApplicationBreadcrumbV1 />}
+        v2={<ApplicationBreadcrumbV2Plus />}
+        v3={<ApplicationBreadcrumbV2Plus />}
+      />
     )),
     fallbackCrumb: () => 'Application',
   },
 };
 export const applicationsIndexRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications/',
-  element: <VersioningHoc v1={<ApplicationsPage />} v2={<ApplicationsPageV2 />} />,
+  element: <VersioningHoc v1={<ApplicationsPage />} v2={<ApplicationsPageV2 />} v3={<ApplicationsPageV2 />} />,
 };
 export const applicationsRoute: RouteObject = {
   path: '/as/:asId/sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/applications',
