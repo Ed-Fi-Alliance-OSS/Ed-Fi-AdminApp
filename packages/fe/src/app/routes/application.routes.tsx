@@ -5,9 +5,9 @@ import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { ApplicationPage } from '../Pages/Application/ApplicationPage';
 import { ApplicationsPage } from '../Pages/Application/ApplicationsPage';
 import { CreateApplicationPage } from '../Pages/Application/CreateApplicationPage';
-import { ApplicationPageV2 } from '../Pages/ApplicationV2/ApplicationPage';
-import { ApplicationsPageV2 } from '../Pages/ApplicationV2/ApplicationsPage';
-import { CreateApplicationPageV2 } from '../Pages/ApplicationV2/CreateApplicationPage';
+import { ApplicationPageV2 } from '../Pages/ApplicationV2Plus/ApplicationPage';
+import { ApplicationsPageV2 } from '../Pages/ApplicationV2Plus/ApplicationsPage';
+import { CreateApplicationPageV2 } from '../Pages/ApplicationV2Plus/CreateApplicationPage';
 import { applicationQueriesV1, applicationQueriesV2 } from '../api';
 import {
   VersioningHoc,
