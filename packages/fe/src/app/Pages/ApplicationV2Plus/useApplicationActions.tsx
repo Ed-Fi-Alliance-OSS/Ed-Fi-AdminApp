@@ -39,12 +39,12 @@ export const useSingleApplicationActions = ({
 
   const parentPath = useNavToParent();
 
-  const editDataStoreIds =
+  const dataStoreIds =
     application && 'dataStoreIds' in application ? application.dataStoreIds : application?.odsInstanceIds;
 
   const canEdit = useAuthorize(
     application
-      ? (editDataStoreIds ?? []).flatMap((odsInstanceId) =>
+      ? (dataStoreIds ?? []).flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
             subject: {
@@ -75,12 +75,9 @@ export const useSingleApplicationActions = ({
     }
   ); */
 
-  const deleteDataStoreIds =
-    application && 'dataStoreIds' in application ? application.dataStoreIds : application?.odsInstanceIds;
-
   const canDelete = useAuthorize(
     application
-      ? (deleteDataStoreIds ?? []).flatMap((odsInstanceId) =>
+      ? (dataStoreIds ?? []).flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
             subject: {

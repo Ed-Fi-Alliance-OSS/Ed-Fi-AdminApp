@@ -44,6 +44,7 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../api-v2';
 import { useApplicationConfig } from './applicationConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 // Dispatches on the resolved version via `.match()` rather than destructuring
 // `useApplicationConfig()` directly, so `CreateApplicationForm`'s generic is
@@ -103,6 +104,7 @@ function CreateApplicationForm<D extends PostApplicationFormDtoV2 | PostApplicat
 }) {
   const { queries, PostFormDto } = props.config;
   const navigate = useNavigate();
+  const odsTerminology = useOdsTerminology();
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navToParentOptions = useNavToParent();
   const popGlobalBanner = usePopBanner();
@@ -227,7 +229,7 @@ function CreateApplicationForm<D extends PostApplicationFormDtoV2 | PostApplicat
 
       if (!odsInstanceAdminApi) {
         setFormError(odsField(), {
-          message: `ODS instance "${selectedAppOdsInstanceName}" does not exist in Admin API`,
+          message: `${odsTerminology.singular} instance "${selectedAppOdsInstanceName}" does not exist in Admin API`,
         });
         return;
       } else {
@@ -289,7 +291,7 @@ function CreateApplicationForm<D extends PostApplicationFormDtoV2 | PostApplicat
         </FormControl>
 
         <FormControl isInvalid={!!(errors as Record<string, unknown>)[props.odsFieldName]}>
-          <FormLabel>ODS</FormLabel>
+          <FormLabel>{odsTerminology.singular}</FormLabel>
           <SelectOds
             useInstanceId
             value={selectedOds}

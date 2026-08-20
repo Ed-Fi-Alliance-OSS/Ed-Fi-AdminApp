@@ -23,16 +23,23 @@ jest.mock('../../helpers/EntitySelectors', () => ({
   SelectProfile: () => null,
   SelectVendorV2: () => null,
 }));
-jest.mock('../../api', () => ({ applicationQueriesV2: { put: jest.fn() }, claimsetQueriesV2: { getAll: jest.fn() }, edorgQueries: { getAll: jest.fn() }, profileQueriesV2: { getAll: jest.fn() }, queryKey: jest.fn() }));
+jest.mock('../../api', () => ({ applicationQueriesV2: { put: jest.fn() }, edorgQueries: { getAll: jest.fn() }, profileQueriesV2: { getAll: jest.fn() }, queryKey: jest.fn() }));
 jest.mock('../../api-v2', () => ({ QUERY_KEYS: { edfiTenants: 'edfiTenants', applications: 'applications', integrationProviders: 'integrationProviders', integrationApps: 'integrationApps' } }));
 jest.mock('@edanalytics/common-ui', () => ({ Icons: { Delete: () => null, InfoCircle: () => null } }));
 jest.mock('./applicationConfig', () => ({ useApplicationConfig: Object.assign(jest.fn(), { match: jest.fn() }) }));
+jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
+jest.mock('../Ods/useOdsTerminology', () => ({
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
+
+import { useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 
 const mockUseForm = useForm as jest.Mock;
 const mockUseNavigate = useNavigate as jest.Mock;
 const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockMatch = useApplicationConfig.match as jest.Mock;
+const mockUseClaimsetConfig = useClaimsetConfig as jest.Mock;
 
 const defaultApplication = {
   id: 1,
@@ -52,11 +59,12 @@ const getFormElement = (application: Record<string, unknown> = defaultApplicatio
   return (outer.type as (props: unknown) => React.ReactElement)(outer.props);
 };
 
-const setup = (version: 'v2' | 'v3') => {
+const setup = (version: 'v2' | 'v3', claimsetGetAll = jest.fn()) => {
   const putMutateAsync = jest.fn().mockResolvedValue(undefined);
   mockUseNavigate.mockReturnValue(jest.fn());
   mockUseQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
   mockUseNavContext.mockReturnValue({ edfiTenantId: 3, teamId: 1, edfiTenant: { id: 3, sbEnvironmentId: 2 } });
+  mockUseClaimsetConfig.mockReturnValue({ queries: { getAll: claimsetGetAll } });
   // handleSubmit's submit callback merges the real `defaultValues` passed to
   // useForm(...) with a couple overrides, mirroring how react-hook-form
   // actually includes unregistered defaultValues fields (e.g.
@@ -109,5 +117,12 @@ describe('EditApplication', () => {
       expect.objectContaining({ entity: expect.objectContaining({ integrationProviderId: 42 }) }),
       expect.anything()
     );
+  });
+
+  it('looks up claimsets via useClaimsetConfig().queries for a v3 tenant, not a hardcoded v2 query', () => {
+    const claimsetGetAll = jest.fn(() => ({ queryKey: ['v3-claimsets'] }));
+    setup('v3', claimsetGetAll);
+    getFormElement();
+    expect(claimsetGetAll).toHaveBeenCalled();
   });
 });

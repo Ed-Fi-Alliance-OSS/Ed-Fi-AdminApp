@@ -5,14 +5,8 @@ import {
   PageTemplate,
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
-import { GetClaimsetMultipleDtoV2, GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
-import {
-  claimsetQueriesV2,
-  edorgQueries,
-  odsQueries,
-  profileQueriesV2,
-  vendorQueriesV2,
-} from '../../api';
+import { GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
+import { edorgQueries, odsQueries, profileQueriesV2, vendorQueriesV2 } from '../../api';
 
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
@@ -27,6 +21,8 @@ import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';
 import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 // V2 applications carry `odsInstanceIds`; V3 applications carry `dataStoreIds`
 // for the same concept. Reading both here keeps every column below oblivious
@@ -55,6 +51,7 @@ export const ApplicationsPageActions = () => {
 export const AllApplicationsTable = () => {
   const { asId, edfiTenantId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const { version, queries } = useApplicationConfig();
+  const odsTerminology = useOdsTerminology();
 
   // v2 tenants keep using the hardcoded-v2-URL hook (unchanged); v3 tenants
   // fetch through the versioned query builder instead. Only one of these two
@@ -112,15 +109,18 @@ export const AllApplicationsTable = () => {
     })
   );
 
+  const { queries: claimsetQueries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    claimsetQueries.getAll({
       teamId: asId,
       edfiTenant: edfiTenant,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
   const claimsetsByName = {
     ...claimsets,
-    data: Object.values(claimsets.data ?? {}).reduce<Record<string, GetClaimsetMultipleDtoV2>>(
+    data: Object.values(claimsets.data ?? {}).reduce<Record<string, ClaimsetEntity>>(
       (map, claimset) => {
         map[claimset.name] = claimset;
         return map;
@@ -188,7 +188,7 @@ export const AllApplicationsTable = () => {
             getDataStoreIds(application)
               .map((odsInstanceId) => getRelationDisplayName(odsInstanceId, odssByInstanceId))
               .join(', '),
-          header: 'Ods',
+          header: odsTerminology.plural,
           cell: (info) => {
             const odsInstanceIds = getDataStoreIds(info.row.original);
             const addCommas = odsInstanceIds.length > 1;

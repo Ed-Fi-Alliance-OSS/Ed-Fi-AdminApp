@@ -35,6 +35,9 @@ jest.mock('../../api', () => ({ edorgQueries: { getAll: jest.fn() }, profileQuer
 jest.mock('../../api/queries/queries.v7', () => ({ odsInstancesV2: { getAll: jest.fn() }, dataStoresV3: { getAll: jest.fn() } }));
 jest.mock('../../api-v2', () => ({ QUERY_KEYS: { edfiTenants: 'edfiTenants', applications: 'applications', integrationProviders: 'integrationProviders', integrationApps: 'integrationApps' } }));
 jest.mock('./applicationConfig', () => ({ useApplicationConfig: Object.assign(jest.fn(), { match: jest.fn() }) }));
+jest.mock('../Ods/useOdsTerminology', () => ({
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
 
 const mockUseForm = useForm as jest.Mock;
 const mockUseNavigate = useNavigate as jest.Mock;

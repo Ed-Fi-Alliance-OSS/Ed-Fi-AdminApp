@@ -13,7 +13,6 @@ jest.mock('@edanalytics/common-ui', () => ({
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn(() => ({ data: {} })) }));
 
 jest.mock('../../api', () => ({
-  claimsetQueriesV2: { getAll: jest.fn() },
   edorgQueries: { getAll: jest.fn() },
   odsQueries: { getAll: jest.fn() },
   profileQueriesV2: { getAll: jest.fn() },
@@ -31,17 +30,26 @@ jest.mock('./NameCell', () => ({ NameCell: () => null }));
 jest.mock('./useApplicationActions', () => ({ useMultiApplicationActions: jest.fn(() => ({})) }));
 jest.mock('../../api-v2', () => ({ useGetManyApplications: jest.fn(() => ({ data: [{ id: 1 }] })) }));
 jest.mock('./applicationConfig', () => ({ useApplicationConfig: jest.fn() }));
+jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
+jest.mock('../Ods/useOdsTerminology', () => ({
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
 
 import { render, screen } from '@testing-library/react';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useGetManyApplications } from '../../api-v2';
 import { useApplicationConfig } from './applicationConfig';
+import { useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockUseGetManyApplications = useGetManyApplications as jest.Mock;
 const mockUseApplicationConfig = useApplicationConfig as jest.Mock;
+const mockUseClaimsetConfig = useClaimsetConfig as jest.Mock;
 
 describe('AllApplicationsTable', () => {
+  beforeEach(() => {
+    mockUseClaimsetConfig.mockReturnValue({ queries: { getAll: jest.fn() } });
+  });
   afterEach(() => jest.clearAllMocks());
 
   it('renders v2 applications from useGetManyApplications', () => {
@@ -87,5 +95,16 @@ describe('AllApplicationsTable', () => {
     expect(mockUseGetManyApplications).toHaveBeenCalledWith(
       expect.objectContaining({ enabled: true })
     );
+  });
+
+  it('looks up claimsets via useClaimsetConfig().queries for a v3 tenant, not a hardcoded v2 query', () => {
+    mockUseNavContext.mockReturnValue({ asId: 1, edfiTenantId: 3, edfiTenant: { id: 3 } });
+    mockUseApplicationConfig.mockReturnValue({ version: 'v3', queries: { getAll: jest.fn() } });
+    const claimsetGetAll = jest.fn(() => ({ queryKey: ['v3-claimsets'] }));
+    mockUseClaimsetConfig.mockReturnValue({ queries: { getAll: claimsetGetAll } });
+
+    render(<AllApplicationsTable />);
+
+    expect(claimsetGetAll).toHaveBeenCalled();
   });
 });

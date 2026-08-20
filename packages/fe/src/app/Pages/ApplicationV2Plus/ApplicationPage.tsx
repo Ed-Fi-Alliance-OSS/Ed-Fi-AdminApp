@@ -7,13 +7,8 @@ import {
 import omit from 'lodash/omit';
 import { ErrorBoundary } from 'react-error-boundary';
 import { useParams } from 'react-router';
-import { claimsetQueriesV2 } from '../../api';
 
-import {
-  GetApplicationDtoV2,
-  GetApplicationDtoV3,
-  GetClaimsetMultipleDtoV2,
-} from '@edanalytics/models';
+import { GetApplicationDtoV2, GetApplicationDtoV3 } from '@edanalytics/models';
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useSearchParamsObject } from '../../helpers/useSearch';
@@ -22,6 +17,7 @@ import { ViewApplication } from './ViewApplication';
 import { useSingleApplicationActions } from './useApplicationActions';
 import { useGetOneApplication } from '../../api-v2';
 import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 
 // V2 tenants keep using the hardcoded-v2-URL hook (unchanged); v3 tenants
 // fetch through the versioned query builder instead. Only one of these two
@@ -88,18 +84,22 @@ export const ApplicationPageContent = () => {
 
   const { data: application, version } = useApplicationDetail(Number(params.applicationId));
 
+  const { queries: claimsetQueries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    claimsetQueries.getAll({
       edfiTenant: edfiTenant,
       teamId: asId,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
-  const claimsetsByName = Object.values(claimsets.data ?? {}).reduce<
-    Record<string, GetClaimsetMultipleDtoV2>
-  >((map, claimset) => {
-    map[claimset.name] = claimset;
-    return map;
-  }, {});
+  const claimsetsByName = Object.values(claimsets.data ?? {}).reduce<Record<string, ClaimsetEntity>>(
+    (map, claimset) => {
+      map[claimset.name] = claimset;
+      return map;
+    },
+    {}
+  );
   const claimset =
     claimsetsByName && application ? claimsetsByName[application.claimSetName] : undefined;
 

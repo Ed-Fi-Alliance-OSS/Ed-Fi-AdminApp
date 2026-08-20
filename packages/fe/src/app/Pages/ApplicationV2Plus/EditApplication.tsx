@@ -15,25 +15,18 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import {
-  GetClaimsetMultipleDtoV2,
   GetEdorgDto,
   PutApplicationFormDtoV2,
   PutApplicationFormDtoV3,
   edorgKeyV2,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { MutateOptions, UseQueryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import {
-  applicationQueriesV2,
-  claimsetQueriesV2,
-  edorgQueries,
-  profileQueriesV2,
-  queryKey,
-} from '../../api';
+import { applicationQueriesV2, edorgQueries, profileQueriesV2, queryKey } from '../../api';
 import { getRelationDisplayName, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import {
   SelectClaimsetV2,
@@ -46,6 +39,8 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
 import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 // Dispatches on the resolved version via `.match()` rather than destructuring
 // `useApplicationConfig()` directly, so `EditApplicationForm`'s generic is
@@ -53,7 +48,7 @@ import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
 // V3 union (see the caveat comment in vendorConfig.ts/applicationConfig.ts).
 export const EditApplication = (props: {
   application: ApplicationEntity;
-  claimset: GetClaimsetMultipleDtoV2 | undefined;
+  claimset: ClaimsetEntity | undefined;
 }) =>
   useApplicationConfig.match({
     v2: (cfg) => (
@@ -92,11 +87,13 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   };
   odsFieldName: 'odsInstanceId' | 'dataStoreId';
   application: ApplicationEntity;
-  claimset: GetClaimsetMultipleDtoV2 | undefined;
+  claimset: ClaimsetEntity | undefined;
 }) {
   const { application, claimset } = props;
   const { queries, PutFormDto } = props.config;
   const { edfiTenantId, edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const odsTerminology = useOdsTerminology();
+  const { queries: claimsetQueries } = useClaimsetConfig();
   const edorgs = useQuery(
     edorgQueries.getAll({
       edfiTenant,
@@ -113,11 +110,13 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
     };
   }, [edorgs.data]);
 
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    claimsetQueries.getAll({
       edfiTenant,
       teamId,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
 
   const { mutateAsync: putApplication } = queries.put({
@@ -288,7 +287,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
           <Text>
             Integration Applications do not allow the editing of:
             <br />
-            ODS, Ed-orgs, or Integration Providers.
+            {odsTerminology.singular}, Ed-orgs, or Integration Providers.
           </Text>
         )}
         <FormControl isInvalid={!!errors.applicationName}>
@@ -298,7 +297,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
         </FormControl>
 
         <FormControl isInvalid={!!(errors as Record<string, unknown>)[props.odsFieldName]}>
-          <FormLabel>ODS</FormLabel>
+          <FormLabel>{odsTerminology.singular}</FormLabel>
           <SelectOds
             useInstanceId
             value={selectedOds}
