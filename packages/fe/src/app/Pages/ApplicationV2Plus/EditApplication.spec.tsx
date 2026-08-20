@@ -34,9 +34,19 @@ const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockUseNavContext = useTeamEdfiTenantNavContextLoaded as jest.Mock;
 const mockMatch = useApplicationConfig.match as jest.Mock;
 
-const getFormElement = () => {
+const defaultApplication = {
+  id: 1,
+  applicationName: 'App',
+  vendorId: 1,
+  claimSetName: 'CS',
+  profileIds: [],
+  educationOrganizationIds: [2],
+  dataStoreIds: [3],
+};
+
+const getFormElement = (application: Record<string, unknown> = defaultApplication) => {
   const outer = EditApplication({
-    application: { id: 1, applicationName: 'App', vendorId: 1, claimSetName: 'CS', profileIds: [], educationOrganizationIds: [2], dataStoreIds: [3] } as never,
+    application: application as never,
     claimset: { id: 5, name: 'CS' } as never,
   }) as React.ReactElement;
   return (outer.type as (props: unknown) => React.ReactElement)(outer.props);
@@ -47,15 +57,24 @@ const setup = (version: 'v2' | 'v3') => {
   mockUseNavigate.mockReturnValue(jest.fn());
   mockUseQueryClient.mockReturnValue({ invalidateQueries: jest.fn() });
   mockUseNavContext.mockReturnValue({ edfiTenantId: 3, teamId: 1, edfiTenant: { id: 3, sbEnvironmentId: 2 } });
-  mockUseForm.mockReturnValue({
+  // handleSubmit's submit callback merges the real `defaultValues` passed to
+  // useForm(...) with a couple overrides, mirroring how react-hook-form
+  // actually includes unregistered defaultValues fields (e.g.
+  // integrationProviderId, which has no FormControl/register call) in the
+  // object it hands to onSubmit — a fully-literal stub here would hide
+  // regressions in the defaultValues construction itself.
+  mockUseForm.mockImplementation((options: { defaultValues?: Record<string, unknown> }) => ({
     register: jest.fn(() => ({})),
     control: {},
     watch: jest.fn(() => []),
     setValue: jest.fn(),
-    handleSubmit: (submit: (data: Record<string, unknown>) => Promise<void>) => () => submit({ id: 1, applicationName: 'App' }),
+    handleSubmit:
+      (submit: (data: Record<string, unknown>) => Promise<void>) =>
+      () =>
+        submit({ ...options.defaultValues, id: 1, applicationName: 'App' }),
     setError: jest.fn(),
     formState: { errors: {}, isSubmitting: false },
-  });
+  }));
   const config = {
     version,
     queries: { put: jest.fn(() => ({ mutateAsync: putMutateAsync })) },
@@ -80,5 +99,15 @@ describe('EditApplication', () => {
     const form = getFormElement();
     await form.props.onSubmit();
     expect(putMutateAsync).toHaveBeenCalled();
+  });
+
+  it('carries the existing integrationProviderId through to the submitted entity for a v2 tenant', async () => {
+    const { putMutateAsync } = setup('v2');
+    const form = getFormElement({ ...defaultApplication, integrationProviderId: 42 });
+    await form.props.onSubmit();
+    expect(putMutateAsync).toHaveBeenCalledWith(
+      expect.objectContaining({ entity: expect.objectContaining({ integrationProviderId: 42 }) }),
+      expect.anything()
+    );
   });
 });

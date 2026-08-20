@@ -145,6 +145,15 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   defaultValues.vendorId = application.vendorId;
   defaultValues.educationOrganizationIds = application.educationOrganizationIds;
   (defaultValues as unknown as Record<string, unknown>)[props.odsFieldName] = dataStoreIds[0];
+  // Not registered via FormControl (Integration Provider stays unimplemented
+  // for both V2 and V3 editing per this task's scope), but must still flow
+  // through as an unregistered defaultValues field so react-hook-form
+  // includes it in the submitted data — matching the pre-Task-8 behavior for
+  // V2 tenants editing an existing integration application. For V3,
+  // `application` never has this field (GetApplicationDtoV3 doesn't return
+  // it), so this is a no-op `undefined` assignment there.
+  (defaultValues as unknown as Record<string, unknown>).integrationProviderId =
+    'integrationProviderId' in application ? application.integrationProviderId : undefined;
 
   const {
     register,
