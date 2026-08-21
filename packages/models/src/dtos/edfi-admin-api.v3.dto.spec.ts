@@ -1,9 +1,15 @@
 import 'reflect-metadata';
+import { validate } from 'class-validator';
 import {
   GetApiClientDtoV3,
+  GetClaimsetMultipleDtoV3,
+  GetClaimsetSingleDtoV3,
   GetDataStoreDetailDtoV3,
   GetDataStoreSummaryDtoV3,
+  PostInstanceDtoV3,
   toGetApiClientDtoV3,
+  toGetClaimsetMultipleDtoV3,
+  toGetClaimsetSingleDtoV3,
   toGetDataStoreDetailDtoV3,
   toGetDataStoreSummaryDtoV3,
 } from './edfi-admin-api.v3.dto';
@@ -49,5 +55,87 @@ describe('edfi-admin-api.v3.dto', () => {
     expect(result).toBeInstanceOf(GetDataStoreDetailDtoV3);
     expect(result.dataStoreContexts[0].dataStoreId).toBe(1);
     expect(result.dataStoreDerivatives[0].derivativeType).toBe('ReadReplica');
+  });
+
+  it('serializes GetClaimsetMultipleDtoV3 using claimSetName (not name) from the wire', () => {
+    const raw = {
+      id: 1,
+      claimSetName: 'SIS Vendor',
+      _isSystemReserved: true,
+      _applications: [{ applicationName: 'Test Application' }],
+    };
+    const result = toGetClaimsetMultipleDtoV3(raw);
+
+    expect(result).toBeInstanceOf(GetClaimsetMultipleDtoV3);
+    expect(result.name).toBe('SIS Vendor');
+    expect(result.displayName).toBe('SIS Vendor');
+    expect(result.applicationsCount).toBe(1);
+  });
+
+  it('serializes GetClaimsetSingleDtoV3 resourceClaims as a flat list with claimName/parentClaimName', () => {
+    const raw = {
+      id: 1,
+      claimSetName: 'SIS Vendor',
+      _isSystemReserved: true,
+      _applications: [],
+      resourceClaims: [
+        {
+          name: 'managedDescriptors',
+          claimName: 'http://ed-fi.org/ods/identity/claims/domains/managedDescriptors',
+          parentClaimName: null,
+          actions: [{ name: 'Create', enabled: true }],
+          _defaultAuthorizationStrategies: [
+            { actionName: 'Create', authorizationStrategies: [{ authStrategyName: 'NamespaceBased' }] },
+          ],
+          authorizationStrategyOverrides: [],
+        },
+        {
+          name: 'school',
+          claimName: 'http://ed-fi.org/identity/claims/ed-fi/school',
+          parentClaimName: 'http://ed-fi.org/ods/identity/claims/domains/managedDescriptors',
+          actions: [{ name: 'Read', enabled: true }],
+          _defaultAuthorizationStrategies: [],
+          authorizationStrategyOverrides: [
+            { actionName: 'Read', authorizationStrategies: [{ authStrategyName: 'NoFurtherAuthorizationRequired' }] },
+          ],
+        },
+      ],
+    };
+    const result = toGetClaimsetSingleDtoV3(raw);
+
+    expect(result).toBeInstanceOf(GetClaimsetSingleDtoV3);
+    expect(result.resourceClaims).toHaveLength(2);
+    expect(result.resourceClaims[0].claimName).toBe(
+      'http://ed-fi.org/ods/identity/claims/domains/managedDescriptors'
+    );
+    expect(result.resourceClaims[1].parentClaimName).toBe(
+      'http://ed-fi.org/ods/identity/claims/domains/managedDescriptors'
+    );
+    expect(result.resourceClaims[1].authorizationStrategyOverrides[0].authorizationStrategies[0].authStrategyName).toBe(
+      'NoFurtherAuthorizationRequired'
+    );
+    // Fields removed in V3 must not survive serialization onto the instance.
+    expect((result.resourceClaims[0] as unknown as { id?: unknown }).id).toBeUndefined();
+    expect((result.resourceClaims[0] as unknown as { children?: unknown }).children).toBeUndefined();
+  });
+});
+
+describe('PostInstanceDtoV3', () => {
+  it('requires name and databaseTemplate', async () => {
+    const dto = new PostInstanceDtoV3();
+    const result = await validate(dto);
+    const fieldsWithErrors = result.map((error) => error.property);
+
+    expect(fieldsWithErrors).toContain('name');
+    expect(fieldsWithErrors).toContain('databaseTemplate');
+  });
+
+  it('accepts name and databaseTemplate', async () => {
+    const dto = Object.assign(new PostInstanceDtoV3(), {
+      name: 'My DB Instance',
+      databaseTemplate: 'Minimal',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
   });
 });

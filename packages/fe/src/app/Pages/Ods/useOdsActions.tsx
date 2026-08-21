@@ -10,6 +10,7 @@ import {
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { useOdsTerminology } from './useOdsTerminology';
 
 const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
   Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
@@ -20,6 +21,7 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'instanceManageId' | '
   const popBanner = usePopBanner();
   const { odsId } = useParams();
   const queryClient = useQueryClient();
+  const terminology = useOdsTerminology();
 
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(
@@ -60,8 +62,8 @@ export const useOdsActions = (ods: Pick<GetOdsDto, 'id' | 'instanceManageId' | '
             icon: Icons.Delete,
             isPending: deleteMutation.isPending,
             text: 'Delete',
-            title: 'Delete ODS',
-            confirmBody: 'This will permanently delete the ODS.',
+            title: `Delete ${terminology.singular}`,
+            confirmBody: `This will permanently delete the ${terminology.singular}.`,
             onClick: () => {
               if (!isStartingBlocks) applyPendingDeleteOptimistic();
               return deleteMutation.mutateAsync(

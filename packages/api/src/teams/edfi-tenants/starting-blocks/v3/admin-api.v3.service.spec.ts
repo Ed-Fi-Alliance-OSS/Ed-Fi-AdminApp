@@ -164,7 +164,7 @@ describe('AdminApiServiceV3', () => {
       const mockGet = jest
         .fn()
         .mockResolvedValue([
-          { id: 1, name: 'Default', _isSystemReserved: true, _applications: [] },
+          { id: 1, claimSetName: 'Default', _isSystemReserved: true, _applications: [] },
         ]);
       jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
 
@@ -172,6 +172,25 @@ describe('AdminApiServiceV3', () => {
 
       expect(mockGet).toHaveBeenCalledWith('claimSets?offset=0&limit=10000');
       expect(result[0].displayName).toBe('Default');
+    });
+  });
+
+  describe('getClaimset', () => {
+    it('requests the single claimSet detail route and returns the mapped DTO', async () => {
+      const mockGet = jest.fn().mockResolvedValue({
+        id: 1,
+        claimSetName: 'SIS Vendor',
+        _isSystemReserved: true,
+        _applications: [],
+        resourceClaims: [],
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset(mockEdfiTenant as EdfiTenant, 1);
+
+      expect(mockGet).toHaveBeenCalledWith('claimSets/1');
+      expect(result.id).toBe(1);
+      expect(result.displayName).toBe('SIS Vendor');
     });
   });
 
@@ -370,6 +389,61 @@ describe('AdminApiServiceV3', () => {
 
       expect(result).toBe('timeout');
       expect(errorSpy).toHaveBeenCalledWith(expect.stringContaining('Poll attempt'));
+    });
+  });
+
+  describe('postInstance', () => {
+    it('posts instance payload to dataStores/manage and returns id from location header', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({
+        headers: { location: '/v3/dataStores/manage/123' },
+      });
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ post: mockPost });
+
+      const result = await service.postInstance({ id: 1 } as any, payload as any);
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockPost).toHaveBeenCalledWith('dataStores/manage', payload);
+      expect(result).toEqual({ id: 123 });
+    });
+
+    it('throws when Location header is missing or invalid', async () => {
+      const payload = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+      const mockPost = jest.fn().mockResolvedValue({ headers: { location: undefined } });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ post: mockPost });
+
+      await expect(service.postInstance({ id: 1 } as any, payload as any)).rejects.toThrow(
+        'Admin API did not return a Location header containing the created instance id.'
+      );
+      expect(mockPost).toHaveBeenCalledWith('dataStores/manage', payload);
+    });
+  });
+
+  describe('deleteInstance', () => {
+    it('calls admin API DELETE dataStores/manage/:id and resolves undefined', async () => {
+      const instanceManageId = 123;
+      const mockDelete = jest.fn().mockResolvedValue(undefined);
+      const getAdminApiClientSpy = jest
+        .spyOn(service as any, 'getAdminApiClient')
+        .mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteInstance({ id: 1 } as any, instanceManageId)).resolves.toBeUndefined();
+
+      expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
+      expect(mockDelete).toHaveBeenCalledWith(`dataStores/manage/${instanceManageId}`);
+    });
+
+    it('rethrows when admin API delete fails', async () => {
+      const instanceManageId = 123;
+      const mockDelete = jest.fn().mockRejectedValue(new Error('failed to delete'));
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ delete: mockDelete });
+
+      await expect(service.deleteInstance({ id: 1 } as any, instanceManageId)).rejects.toThrow(
+        'failed to delete'
+      );
+      expect(mockDelete).toHaveBeenCalledWith(`dataStores/manage/${instanceManageId}`);
     });
   });
 });

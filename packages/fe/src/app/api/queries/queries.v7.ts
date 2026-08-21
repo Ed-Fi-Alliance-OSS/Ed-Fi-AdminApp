@@ -2,10 +2,13 @@ import {
   ApiClientResponseV2,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
+  CopyClaimsetDtoV3,
   GetApiClientDtoV2,
   GetApplicationDtoV2,
   GetClaimsetMultipleDtoV2,
+  GetClaimsetMultipleDtoV3,
   GetClaimsetSingleDtoV2,
+  GetClaimsetSingleDtoV3,
   GetOdsInstanceSummaryDtoV2,
   GetProfileDtoV2,
   GetProfileDtoV3,
@@ -30,8 +33,21 @@ import {
   PutVendorDtoV2,
   PutVendorDtoV3,
 } from '@edanalytics/models';
+import { GetEdfiTenantDto } from '@edanalytics/models';
 import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
+
+// See the comment above apiClientQueriesV2's `.delete(...)` call for why this
+// shape (rather than the builder's declared `path` overload type) is needed.
+type ApiClientDeletePathBase = {
+  id: string | number;
+  edfiTenant?: GetEdfiTenantDto;
+  teamId?: string | number;
+  queryParams?: {
+    edfiTenant?: GetEdfiTenantDto;
+    teamId?: string | number;
+  };
+};
 
 export const applicationQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
@@ -135,9 +151,15 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   .delete(
     'delete',
     {},
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    // The builder's `path` overload types its 3rd arg as a bare function, but the
+    // runtime implementation (builder.ts's `delete()`) only recognizes it when it's
+    // wrapped as `{ path: fn }` (it does `'path' in pathConfig`), and calls it with
+    // either `{ queryParams, id }` (from mutationFn) or `{ ...queryParams, id }`
+    // (from onSuccess) depending on caller - hence the dual `queryParams?.x ?? x`
+    // lookups below. Cast through `unknown` (not `any`) since the declared overload
+    // type doesn't describe this actual shape.
     {
-      path: (base: any) => {
+      path: (base: ApiClientDeletePathBase) => {
         const edfiTenant = base.queryParams?.edfiTenant ?? base.edfiTenant;
         const teamId = base.queryParams?.teamId ?? base.teamId;
         return standardPath({
@@ -148,7 +170,10 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
           id: base.id,
         });
       },
-    } as any
+    } as unknown as (
+      base: { id: string | number },
+      extras: unknown
+    ) => string
   )
   .build();
 
@@ -201,6 +226,40 @@ export const claimsetQueriesV2 = new EntityQueryBuilder({
     {
       ResDto: Id,
       ReqDto: CopyClaimsetDtoV2,
+      keysToInvalidate: (params) => [
+        params.standard,
+        queryKeyNew({
+          kebabCaseName: 'claimset',
+          edfiTenant: params.edfiTenant,
+          id: false,
+        }),
+      ],
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'claimset',
+        adminApi: true,
+        id: `copy`,
+      })
+  )
+  .delete('delete')
+  .build();
+
+export const claimsetQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'Claimset',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getOne('getOne', { ResDto: GetClaimsetSingleDtoV3 })
+  .getAll('getAll', { ResDto: GetClaimsetMultipleDtoV3 })
+  .post(
+    'copy',
+    {
+      ResDto: Id,
+      ReqDto: CopyClaimsetDtoV3,
       keysToInvalidate: (params) => [
         params.standard,
         queryKeyNew({

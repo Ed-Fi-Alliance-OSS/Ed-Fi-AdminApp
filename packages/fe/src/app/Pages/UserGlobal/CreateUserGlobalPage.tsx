@@ -9,7 +9,6 @@ import {
   FormLabel,
   Icon,
   Input,
-  Link,
   Radio,
   RadioGroup,
   Stack,
@@ -17,7 +16,7 @@ import {
   Tooltip,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { GetUserDto, PostUserDto, RoleType } from '@edanalytics/models';
+import { PostUserDto, RoleType } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';

@@ -29,7 +29,7 @@ export const SbEnvironmentSyncDateOverlay = (props: { left?: boolean }) => {
 };
 
 export const SbEnvironmentSyncDateValue = forwardRef<StyleProps, 'span'>((props, ref) => {
-  const { teamId, asId } = useTeamNavContext();
+  const { teamId } = useTeamNavContext();
   const params = useParams() as {
     sbEnvironmentId: string;
   };

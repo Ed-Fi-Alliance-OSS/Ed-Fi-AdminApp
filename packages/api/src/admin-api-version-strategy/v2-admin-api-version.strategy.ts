@@ -5,6 +5,7 @@ import { SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
 import {
   ISbEnvironmentConfigPrivateV2,
   ISbEnvironmentConfigPublicV2,
+  SbEnvironmentConfigPublic,
   SbV2MetaEnv,
   TenantDto,
 } from '@edanalytics/models';
@@ -13,7 +14,12 @@ import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
-import { AdminApiVersionStrategy, BuildConfigPublicInput, DispatchSyncResult } from './admin-api-version-strategy.interface';
+import {
+  AdminApiVersionStrategy,
+  AnyAdminApiService,
+  BuildConfigPublicInput,
+  DispatchSyncResult,
+} from './admin-api-version-strategy.interface';
 
 @Injectable()
 export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
@@ -37,7 +43,7 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     protected readonly adminApiServiceV2?: AdminApiServiceV2
   ) {}
 
-  getAdminApiService() {
+  getAdminApiService(): AnyAdminApiService {
     // Always defined for a real V2 strategy instance; only undefined when a
     // subclass (V3) that overrides this method calls super() without it.
     return this.adminApiServiceV2!;
@@ -63,11 +69,15 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
         } satisfies SbV2MetaEnv,
         adminApiUuid: randomUUID(),
       },
-    } as any;
+    } as SbEnvironmentConfigPublic;
   }
 
-  applyOdsUrlUpdate(existingConfigPublic: any, newOdsApiDiscoveryUrl: string) {
-    const existingValues = existingConfigPublic?.values ?? {};
+  applyOdsUrlUpdate(
+    existingConfigPublic: SbEnvironmentConfigPublic,
+    newOdsApiDiscoveryUrl: string
+  ): Record<string, unknown> {
+    const existingValues: Partial<ISbEnvironmentConfigPublicV2> =
+      (existingConfigPublic?.values as ISbEnvironmentConfigPublicV2 | undefined) ?? {};
     return {
       ...existingValues,
       meta: {
@@ -275,9 +285,12 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     } catch (error) {
       this.logger.error(`Failed to register client credentials for tenant ${tenantName}:`, error);
       if (error.response?.status === 400 && isMultiTenant) {
-        throw new Error(`Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`);
+        throw new Error(
+          `Tenant '${tenantName}' does not exist or is not properly configured in the Admin API`,
+          { cause: error }
+        );
       }
-      throw new Error(`Failed to create credentials: ${error.message}`);
+      throw new Error(`Failed to create credentials: ${error.message}`, { cause: error });
     }
   }
 }

@@ -15,7 +15,7 @@ import { CreateEdorg } from '../Pages/Edorg/CreateEdorgPage';
 
 const EdorgBreadcrumb = () => {
   const params = useParams() as { edorgId: string };
-  const { edfiTenant, edfiTenantId, teamId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
   const edorg = useQuery(
     edorgQueries.getOne({
       id: params.edorgId,

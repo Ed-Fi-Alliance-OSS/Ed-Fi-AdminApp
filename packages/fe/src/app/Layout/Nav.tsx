@@ -113,7 +113,7 @@ const NavContent = ({
 
   const setteamId = useMemo(() => {
     return (newteamId: number | undefined) => {
-      let realNewValue = newteamId;
+      let realNewValue: number | undefined;
       if (newteamId === undefined) {
         switchingToGlobalRef.current = true;
         if (params.asId) {
@@ -236,13 +236,13 @@ const NavContent = ({
             ]}
             selectedOptionStyle="check"
             chakraStyles={{
-              option: (styles, { data, isDisabled, isFocused, isSelected }) => {
+              option: (styles, { data }) => {
                 return {
                   ...styles,
                   ...data?.styles,
                 };
               },
-              singleValue: (styles, { data, isDisabled }) => {
+              singleValue: (styles, { data }) => {
                 return {
                   ...styles,
                   ...data?.styles,

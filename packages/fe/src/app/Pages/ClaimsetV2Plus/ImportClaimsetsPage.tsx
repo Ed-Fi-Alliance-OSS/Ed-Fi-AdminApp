@@ -80,13 +80,13 @@ export const ImportClaimsetsPageV2 = () => {
                   } else {
                     setError('Did not find array of claimsets in file');
                   }
-                } catch (ParsingError) {
+                } catch {
                   setError('Did not find expected JSON structure in file');
                 }
-              } catch (JSONParseError) {
+              } catch {
                 setError('Invalid JSON file');
               }
-            } catch (NoFileError) {
+            } catch {
               setError('No file selected');
             }
             setClaimsets([]);

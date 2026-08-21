@@ -103,7 +103,6 @@ export const EditSbEnvironmentGlobalPage = () => {
   const formValues = watch(); // Watch all form values
   const tenants = (formValues.tenants || []) as (PostSbEnvironmentTenantDTO & { id?: number })[];
   const isMultitenant = formValues.isMultitenant || false;
-  const originalVersion = sbEnvironment?.version; // Store original version for validation
   const originalOdsVersion = sbEnvironment?.odsApiVersion ?? ''; // Store original version for validation
 
   // Update form when data loads - use reset() for proper form initialization

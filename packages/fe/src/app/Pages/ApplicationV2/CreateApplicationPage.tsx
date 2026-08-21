@@ -36,7 +36,6 @@ import {
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { SelectIntegrationProvider } from '../IntegrationProvider/SelectIntegrationProvider';
 import { QUERY_KEYS } from '../../api-v2';
 const resolver = classValidatorResolver(PostApplicationFormDtoV2);
 
@@ -162,7 +161,7 @@ export const CreateApplicationPageV2 = () => {
                 odsInstanceId: odsInstanceAdminApi.id
               }
             });
-          } catch (error) {
+          } catch {
             setFormError('odsInstanceId', { message: 'Failed to update ODS instance' });
             return;
           }

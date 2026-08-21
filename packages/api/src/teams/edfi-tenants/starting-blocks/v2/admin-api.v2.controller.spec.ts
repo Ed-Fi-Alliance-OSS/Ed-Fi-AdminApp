@@ -1,19 +1,24 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
-import { Ids } from '@edanalytics/models';
+import { Edorg, EdfiTenant, Ods } from '@edanalytics/models-server';
+import { Ids, PostInstanceDtoV2, PostProfileDtoV2 } from '@edanalytics/models';
+import { Repository } from 'typeorm';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
+import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { CustomHttpException, ValidationHttpException } from '../../../../utils';
 import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
+import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
+import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
 
 describe('AdminApiControllerV2 - exportClaimset', () => {
   let controller: AdminApiControllerV2;
   let mockSbService: { exportClaimset: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironmentId: 2,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
   beforeEach(() => {
     mockSbService = {
@@ -23,11 +28,11 @@ describe('AdminApiControllerV2 - exportClaimset', () => {
       }),
     };
     controller = new AdminApiControllerV2(
-      null as any,
-      mockSbService as any,
-      null as any,
-      null as any,
-      null as any
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService
     );
   });
 
@@ -124,12 +129,15 @@ describe('AdminApiControllerV2 - postProfile', () => {
   let controller: AdminApiControllerV2;
   let mockSbService: { postProfile: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
-  const mockProfile: any = { name: 'Test Profile', definition: '<Profile />' };
+  const mockProfile: PostProfileDtoV2 = {
+    name: 'Test Profile',
+    definition: '<Profile />',
+  };
 
   const makeAxiosError = (data: unknown) => ({
     isAxiosError: true,
@@ -142,11 +150,11 @@ describe('AdminApiControllerV2 - postProfile', () => {
       postProfile: jest.fn(),
     };
     controller = new AdminApiControllerV2(
-      null as any,
-      mockSbService as any,
-      null as any,
-      null as any,
-      null as any
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService
     );
   });
 
@@ -221,12 +229,15 @@ describe('AdminApiControllerV2 - postInstance', () => {
   let mockOdsRepository: { save: jest.Mock };
   let mockJobQueue: { send: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
-  const mockInstance: any = { name: 'My DB Instance', databaseTemplate: 'Minimal' };
+  const mockInstance: PostInstanceDtoV2 = {
+    name: 'My DB Instance',
+    databaseTemplate: 'Minimal',
+  };
 
   const makeAxiosError = (data: unknown) => ({
     isAxiosError: true,
@@ -245,11 +256,11 @@ describe('AdminApiControllerV2 - postInstance', () => {
       send: jest.fn(),
     };
     controller = new AdminApiControllerV2(
-      null as any,
-      mockSbService as any,
-      null as any,
-      mockOdsRepository as any,
-      mockJobQueue as any
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      mockOdsRepository as unknown as Repository<Ods>,
+      mockJobQueue as unknown as IJobQueueService
     );
   });
 
@@ -349,11 +360,11 @@ describe('AdminApiControllerV2 - deleteInstance', () => {
   let mockOdsRepository: { findOneBy: jest.Mock; save: jest.Mock };
   let mockJobQueue: { send: jest.Mock };
 
-  const mockEdfiTenant: any = {
+  const mockEdfiTenant = {
     id: 1,
     sbEnvironmentId: 2,
     sbEnvironment: { envLabel: 'Test Env' },
-  };
+  } as unknown as EdfiTenant;
 
   beforeEach(() => {
     mockSbService = {
@@ -375,11 +386,11 @@ describe('AdminApiControllerV2 - deleteInstance', () => {
       send: jest.fn().mockResolvedValue('job-123'),
     };
     controller = new AdminApiControllerV2(
-      null as any,
-      mockSbService as any,
-      null as any,
-      mockOdsRepository as any,
-      mockJobQueue as any
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      mockOdsRepository as unknown as Repository<Ods>,
+      mockJobQueue as unknown as IJobQueueService
     );
   });
 

@@ -20,6 +20,7 @@ import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
 import { OdsRowCountsTable } from './OdsRowCountsTable';
 import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
+import { useOdsTerminology } from './useOdsTerminology';
 
 export const OdsPage = () => {
   const params = useParams() as {
@@ -41,9 +42,10 @@ export const OdsPage = () => {
   });
   const edorgsActions = useEdorgsActions({ ods });
   const syncEdOrgsActions = useSyncEdOrgsAction();
+  const terminology = useOdsTerminology();
   return (
     <PageTemplate
-      title={ods?.displayName || 'Ods'}
+      title={ods?.displayName || terminology.singular}
       actions={<PageActions actions={omit(actions, 'View')} />}
       customPageContentCard
     >

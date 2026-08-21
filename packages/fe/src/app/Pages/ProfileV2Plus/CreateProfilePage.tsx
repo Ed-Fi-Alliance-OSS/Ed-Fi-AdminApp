@@ -8,6 +8,7 @@ import {
   Text,
   chakra,
 } from '@chakra-ui/react';
+import { ChangeEvent } from 'react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { PostProfileDtoV2, PostProfileDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
@@ -77,8 +78,8 @@ function CreateProfileForm<D extends PostProfileDtoV2 | PostProfileDtoV3>(props:
       | string
       | undefined;
 
-  const handleFileChange = (e: any) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {

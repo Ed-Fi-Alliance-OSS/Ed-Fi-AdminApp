@@ -19,7 +19,7 @@ export const IntegrationAppLink = ({
         {applicationName}
       </RouterLink>
     </Link>
-  ) : !!integrationAppId ? (
+  ) : integrationAppId ? (
     <Text
       title="Integration application may have been deleted, or you lack access."
       as="i"

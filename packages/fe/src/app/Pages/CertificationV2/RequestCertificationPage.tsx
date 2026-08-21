@@ -81,7 +81,7 @@ export const RequestCertificationPage = () => {
       }
 
       seen.add(key);
-      const { scenarioStep, ...scenarioWithoutStep } = item;
+      const { scenarioStep: _scenarioStep, ...scenarioWithoutStep } = item;
       acc.push(scenarioWithoutStep);
       return acc;
     }, []);

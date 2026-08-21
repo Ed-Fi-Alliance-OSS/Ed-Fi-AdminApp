@@ -27,7 +27,6 @@ import {
 import axios from 'axios';
 import { persistSyncTenant, SyncableOds } from '../sb-sync/sync-ods';
 import { randomBytes, randomUUID } from 'crypto';
-import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import { AdminApiVersionStrategyFactory } from '../admin-api-version-strategy';
 

@@ -9,7 +9,7 @@ import { useVendorActions } from './useVendorActions';
 import { VendorEntity, useVendorConfig } from './vendorConfig';
 
 export const NameCell = (info: CellContext<VendorEntity, unknown>) => {
-  const { edfiTenant, teamId, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
   const { queries } = useVendorConfig();
   const vendors = useQuery(
     queries.getAll({

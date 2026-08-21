@@ -1,36 +1,35 @@
 import { Link } from '@chakra-ui/react';
 import { ActionsType, Icons } from '@edanalytics/common-ui';
-import { GetClaimsetMultipleDtoV2 } from '@edanalytics/models';
 import { RowSelectionState } from '@tanstack/react-table';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { claimsetQueriesV2, API_URL } from '../../api';
 import { claimsetAuthConfig, useAuthorize, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { ClaimsetEntity, useClaimsetConfig } from './claimsetConfig';
 
 export const useClaimsetActions = ({
   claimset,
 }: {
-  claimset: GetClaimsetMultipleDtoV2 | undefined;
+  claimset: ClaimsetEntity | undefined;
 }): ActionsType => {
   const { edfiTenant, asId, edfiTenantId, teamId } = useTeamEdfiTenantNavContextLoaded();
   const navigate = useNavigate();
   const to = (id: number | string) =>
     `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/${id}`;
-  const deleteClaimset = claimsetQueriesV2.delete({ edfiTenant, teamId: asId });
-  const copyClaimset = claimsetQueriesV2.copy({ edfiTenant, teamId: asId });
-  const createExport = claimsetQueriesV2.createExport({ edfiTenant, teamId: asId });
+  const { version, queries } = useClaimsetConfig();
+  const deleteClaimset = queries.delete({ edfiTenant, teamId: asId });
+  // Export is a V2-only capability (deferred for V3 per AC-530's scope) —
+  // `createExport` isn't a member of the V3 branch's queries type at all,
+  // so it's read from the real claimsetQueriesV2 module directly rather
+  // than through useClaimsetConfig(), gated behind an explicit version check.
+  const createExport =
+    version === 'v2' ? claimsetQueriesV2.createExport({ edfiTenant, teamId: asId }) : undefined;
   const popBanner = usePopBanner();
 
   const canView = useAuthorize(
     claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:read')
   );
-  const canEdit =
-    useAuthorize(
-      claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:update')
-    ) &&
-    claimset &&
-    !claimset._isSystemReserved;
   const canDelete =
     useAuthorize(
       claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:delete')
@@ -52,43 +51,47 @@ export const useClaimsetActions = ({
                 to: to(claimset.id),
                 onClick: () => navigate(to(claimset.id)),
               },
-              Export: {
-                icon: Icons.Export,
-                text: 'Export',
-                title: 'Export ' + claimset.displayName,
-                isPending: createExport.isPending,
-                onClick: () =>
-                  createExport.mutateAsync(
-                    { entity: {}, pathParams: { ids: [claimset.id] } },
-                    {
-                      ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: (data) => {
-                        popBanner({
-                          type: 'Success',
-                          title: claimset.displayName + ' export created',
-                          message: (
-                            <>
-                              Download the file{' '}
-                              <Link
-                                color="blue.500"
-                                textDecor="underline"
-                                target="_blank"
-                                as={RouterLink}
-                                to={`${API_URL}/teams/${teamId}/edfi-tenants/${
-                                  edfiTenant.id
-                                }/admin-api/v2/claimsets/export/${data.id}`}
-                              >
-                                here
-                              </Link>
-                              .
-                            </>
-                          ),
-                          regarding: 'Expires after five minutes.',
-                        });
-                      },
-                    }
-                  ),
-              },
+              ...(createExport
+                ? {
+                    Export: {
+                      icon: Icons.Export,
+                      text: 'Export',
+                      title: 'Export ' + claimset.displayName,
+                      isPending: createExport.isPending,
+                      onClick: () =>
+                        createExport.mutateAsync(
+                          { entity: {}, pathParams: { ids: [claimset.id] } },
+                          {
+                            ...mutationErrCallback({ popGlobalBanner: popBanner }),
+                            onSuccess: (data) => {
+                              popBanner({
+                                type: 'Success',
+                                title: claimset.displayName + ' export created',
+                                message: (
+                                  <>
+                                    Download the file{' '}
+                                    <Link
+                                      color="blue.500"
+                                      textDecor="underline"
+                                      target="_blank"
+                                      as={RouterLink}
+                                      to={`${API_URL}/teams/${teamId}/edfi-tenants/${
+                                        edfiTenant.id
+                                      }/admin-api/v2/claimsets/export/${data.id}`}
+                                    >
+                                      here
+                                    </Link>
+                                    .
+                                  </>
+                                ),
+                                regarding: 'Expires after five minutes.',
+                              });
+                            },
+                          }
+                        ),
+                    },
+                  }
+                : {}),
             }
           : {}),
 
@@ -117,13 +120,6 @@ export const useClaimsetActions = ({
           : {}),
         ...(canCreate
           ? {
-              // Create: {
-              //   icon: BiPlus,
-              //   text: 'New',
-              //   title: 'New claimset',
-              //   to: toCreate,
-              //   onClick: () => navigate(toCreate),
-              // },
               Import: {
                 icon: Icons.Copy,
                 text: 'Copy',
@@ -143,12 +139,15 @@ export const useManyClaimsetActions = ({
   selectionState: RowSelectionState;
 }): ActionsType => {
   const { asId, edfiTenantId, edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const { version } = useClaimsetConfig();
 
-  const createExport = claimsetQueriesV2.createExport({ edfiTenant, teamId: asId });
+  // Bulk Export/Import are both V2-only for the same reason as the
+  // single-entity Export action above — see 530-design.md's scope boundaries.
+  const createExport =
+    version === 'v2' ? claimsetQueriesV2.createExport({ edfiTenant, teamId: asId }) : undefined;
   const popBanner = usePopBanner();
 
   const navigate = useNavigate();
-  const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/create`;
   const toImport = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/claimsets/import`;
   const canCreate = useAuthorize(
     claimsetAuthConfig(edfiTenantId, asId, 'team.sb-environment.edfi-tenant.claimset:create')
@@ -158,15 +157,8 @@ export const useManyClaimsetActions = ({
   );
 
   return {
-    ...(canCreate
+    ...(canCreate && version === 'v2'
       ? {
-          // Create: {
-          //   icon: BiPlus,
-          //   text: 'New',
-          //   title: 'New claimset',
-          //   to: toCreate,
-          //   onClick: () => navigate(toCreate),
-          // },
           Import: {
             icon: Icons.Import,
             text: 'Import',
@@ -176,7 +168,7 @@ export const useManyClaimsetActions = ({
           },
         }
       : {}),
-    ...(canRead && Object.keys(selectionState).length > 0
+    ...(createExport && canRead && Object.keys(selectionState).length > 0
       ? {
           Export: {
             icon: Icons.Export,

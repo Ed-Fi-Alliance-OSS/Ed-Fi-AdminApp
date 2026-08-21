@@ -239,6 +239,64 @@ element: <VersioningHoc v1={<VendorsPage />} v2={<VendorsPageByAdminApiVersion /
 
 ---
 
+## Config modules must bypass the `api` barrel (production-build circular-import trap)
+
+The versioned entities (Vendor, Profile, Claimset, …) each have a
+`Pages/<Entity>V2Plus/<entity>Config.ts` that builds a per-version config with
+`createVersionedResource({ v2: { queries: <entity>QueriesV2, ... }, v3: { ... } })`.
+That object literal **captures the query builders at module-init time**.
+
+Those `<entity>QueriesV2/V3` builders live in `api/queries/queries.v7.ts`. A
+config module **must import them directly from `../../api/queries/queries.v7`,
+never from the `../../api` barrel.**
+
+### Why
+
+There is a pervasive circular dependency in the app:
+
+```
+api/index.ts (barrel)
+  → api/queries/index.ts
+      → export * from './queries'      (V1 queries.ts — runs BEFORE queries.v7)
+          → helpers → routes barrel → <entity>.routes.tsx → page → <entity>Config.ts
+      → export * from './queries.v7'   (V2/V3 builders defined HERE — runs later)
+```
+
+`api/queries/index.ts` re-exports the V1 `./queries` **before** `./queries.v7`.
+If a config module is pulled into that cycle and reads the builders **through
+the barrel** during this window, `queries.v7` has not executed yet, so the
+builders are `undefined` — and the config literal captures `queries: undefined`
+**permanently**. At render, `queries.getAll(...)` then throws
+`TypeError: Cannot read properties of undefined (reading 'getAll')`, with **no
+network request** (it fails before any query runs).
+
+Importing directly from `queries.v7` forces that module to initialize before the
+capture (its dependency tree — `builder → methods` — has no back-edge into the
+routes cycle).
+
+### Two conditions must both hold to trigger it — so keep either from being true
+
+1. **The config reads builders via the barrel.** → Always import from
+   `../../api/queries/queries.v7` directly. (Done for Vendor/Profile/Claimset.)
+2. **Something pulls the config into the cycle at init.** For Claimset this was
+   `claimset.routes.tsx` doing a runtime `import { useClaimsetConfig }` (for a
+   breadcrumb). → In `*.routes.tsx`, use `import type { <Entity>Entity }` when you
+   only need the config's **types** (as `profile.routes.tsx` does); reach for a
+   runtime import of the hook only when a component defined in the routes file
+   actually calls it.
+
+### Notes
+
+- **Dev and jest will NOT catch this.** The Vite dev server evaluates modules
+  lazily/on-demand (config runs after `queries.v7`), and jest resolves modules
+  via its own transform. The bug only appears in the **Rollup production bundle**
+  (i.e. the Dockerized FE served by nginx). Verify fixes against a production
+  build / the container, not just `nx serve` or unit tests.
+- Diagnose circular imports with
+  `npx madge --circular --extensions ts,tsx <entry-file>`.
+
+---
+
 ## API Contracts: V1 vs V2 vs V3
 
 ### Data Transfer Objects (DTOs)

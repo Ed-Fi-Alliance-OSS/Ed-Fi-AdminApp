@@ -1,6 +1,6 @@
 import { SbaaTableAllInOne } from '@edanalytics/common-ui';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { useGetManyApplications, useGetManyIntegrationProviders } from '../../api-v2';
+import { useGetManyApplications } from '../../api-v2';
 import { NameCell } from './NameCell';
 
 export function IntegrationProviderAppsTable() {

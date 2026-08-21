@@ -5,7 +5,6 @@ import { RouteObject, useParams, Link as RouterLink } from 'react-router';
 import { SbEnvironmentGlobalPage } from '../Pages/SbEnvironmentGlobal/SbEnvironmentGlobalPage';
 import { SbEnvironmentsGlobalPage } from '../Pages/SbEnvironmentGlobal/SbEnvironmentsGlobalPage';
 import { sbEnvironmentQueries } from '../api';
-import { getRelationDisplayName } from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 import { CreateSbEnvironmentGlobalPage } from '../Pages/SbEnvironmentGlobal/CreateSbEnvironmentGlobalPage';
 import { EditSbEnvironmentGlobalPage } from '../Pages/SbEnvironmentGlobal/EditSbEnvironmentGlobalPage';

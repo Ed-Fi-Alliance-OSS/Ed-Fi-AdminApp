@@ -1,4 +1,4 @@
-import { AddEdorgDtoV2, EducationOrganizationDto, SbV1MetaEdorg } from '@edanalytics/models';
+import { AddEdorgDtoV2, EducationOrganizationDto } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, regarding } from '@edanalytics/models-server';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';

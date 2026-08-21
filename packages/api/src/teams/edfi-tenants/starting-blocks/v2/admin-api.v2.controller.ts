@@ -25,7 +25,6 @@ import {
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV2,
-  toPostApplicationResponseDto,
   toPostApplicationResponseDtoV2,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
@@ -72,6 +71,7 @@ import { checkId } from '../../../../auth/helpers/where-ids';
 import {
   CustomHttpException,
   ValidationHttpException,
+  asBool,
   isIAdminApiValidationError,
   postYopassSecret,
 } from '../../../../utils';
@@ -316,7 +316,7 @@ export class AdminApiControllerV2 {
           ...application,
           id: application.id,
         };
-      } catch (error) {
+      } catch (_error) {
         return application;
       }
     } else {
@@ -345,7 +345,7 @@ export class AdminApiControllerV2 {
     let claimset: GetClaimsetSingleDtoV2;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
-    } catch (claimsetNotFound) {
+    } catch (_claimsetNotFound) {
       throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot retrieve claimset for validation',
@@ -545,7 +545,7 @@ export class AdminApiControllerV2 {
           sbEnvironmentId: sbEnvironment.id,
         });
       }
-      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      if (asBool(config.USE_YOPASS)) {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -718,7 +718,7 @@ export class AdminApiControllerV2 {
 
     const adminApiResponse = await this.sbService.postApiClient(edfiTenant, apiClient);
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
@@ -777,7 +777,7 @@ export class AdminApiControllerV2 {
       apiClientId
     );
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,

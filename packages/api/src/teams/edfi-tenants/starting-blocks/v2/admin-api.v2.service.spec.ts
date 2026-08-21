@@ -3,6 +3,7 @@ import { SbEnvironment } from '@edanalytics/models-server';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { AxiosError } from 'axios';
+import { CustomHttpException } from '../../../../utils';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 describe('AdminApiServiceV2 - Extension Methods', () => {
@@ -1074,6 +1075,26 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       );
       expect(getAdminApiClientSpy).toHaveBeenCalledWith({ id: 1 }, true);
       expect(mockDelete).toHaveBeenCalledWith(`odsInstances/manage/${instanceManageId}`);
+    });
+  });
+
+  describe('getClaimset', () => {
+    it.each([
+      ['NaN', NaN],
+      ['zero', 0],
+      ['negative', -5],
+      ['non-integer', 1.5],
+      ['Infinity', Infinity],
+    ])('should reject with a 400 CustomHttpException for a %s claimSetId', async (_desc, claimSetId) => {
+      const error: CustomHttpException = await service
+        .getClaimset({ id: 1 } as any, claimSetId)
+        .then(() => {
+          throw new Error('expected getClaimset to reject');
+        })
+        .catch((e) => e);
+
+      expect(error).toBeInstanceOf(CustomHttpException);
+      expect(error.getStatus()).toBe(400);
     });
   });
 });

@@ -235,7 +235,7 @@ export const computeOdsTreeDeltas = (
       nameOfInstitution: metaEdorg.nameofinstitution,
       shortNameOfInstitution: metaEdorg.shortnameofinstitution,
     };
-    let isChanged = false;
+    let isChanged: boolean;
     if (parent) {
       // can only set parents once all individually created above. thus the check below for insert vs true update
       if (parent.id !== undefined) {
@@ -292,12 +292,6 @@ export const persistSyncTenant = async ({
     update: [] as Edorg[],
     delete: [] as number[],
   };
-  let odsDeltas = {
-    insert: [] as Ods[],
-    update: [] as Ods[],
-    delete: [] as number[],
-  };
-
   // Partition incoming ODS by matching strategy
   const metaOdssById = new Map(odss.filter(o => o.id !== null).map((o) => [o.id, o]));
   const metaOdssByDbName = new Map(odss.filter(o => o.id === null).map((o) => [o.dbName, o]));
@@ -310,7 +304,7 @@ export const persistSyncTenant = async ({
 
   Logger.log(`  Found ${existingOdss.length} existing ODS in database`);
 
-  odsDeltas = computeOdsListDeltas(odss, existingOdss, edfiTenant, em);
+  const odsDeltas = computeOdsListDeltas(odss, existingOdss, edfiTenant, em);
 
   // Build lookup maps for ODS entities after the delta computation
   const allCurrentOdss = await em.getRepository(Ods).find({ where: { edfiTenantId: edfiTenant.id } });
@@ -412,9 +406,11 @@ export const persistSyncTenant = async ({
     Logger.log('No ODS changes to save');
   }
 
-  odsDeltas.delete.length && (await em.getRepository(Ods).delete(odsDeltas.delete));
+  if (odsDeltas.delete.length) {
+    await em.getRepository(Ods).delete(odsDeltas.delete);
+  }
 
-  let newRootEdorgs: Edorg[] = [];
+  const newRootEdorgs: Edorg[] = [];
   for (const edorg of edorgDeltas.insert) {
     if (!edorg.parent || typeof edorg.parent.id === 'number') {
       newRootEdorgs.push(edorg);
@@ -437,7 +433,7 @@ export const persistSyncTenant = async ({
   newRootEdorgs.forEach((edorg) => putEdorgInLevel(edorg, 0));
 
   for (const level of treeLevels) {
-    newRootEdorgs = await em.getRepository(Edorg).save(level, { chunk: 500 });
+    await em.getRepository(Edorg).save(level, { chunk: 500 });
   }
   // const newEdorgs = new Map<string, Edorg>();
 
@@ -449,8 +445,8 @@ export const persistSyncTenant = async ({
   // };
   // newRootEdorgs.forEach((edorg) => flattenEdorgTree(edorg));
 
-  edorgDeltas.update.length &&
-    (await em.getRepository(Edorg).save(
+  if (edorgDeltas.update.length) {
+    await em.getRepository(Edorg).save(
       edorgDeltas.update /* .map((edorg) =>
         edorg.parent && typeof edorg.parent.id === undefined
           ? // need to reassign parent because save above doesn't mutate existing variables with new ids
@@ -462,9 +458,12 @@ export const persistSyncTenant = async ({
           : edorg
       ) */,
       { chunk: 500 }
-    ));
+    );
+  }
 
-  edorgDeltas.delete.length && (await em.getRepository(Edorg).delete(edorgDeltas.delete));
+  if (edorgDeltas.delete.length) {
+    await em.getRepository(Edorg).delete(edorgDeltas.delete);
+  }
 
   const data = {
     edorg: {
@@ -540,7 +539,7 @@ export const persistSyncOds = async ({
     edorg.ods = entityOds;
   }
 
-  let newRootEdorgs: Edorg[] = [];
+  const newRootEdorgs: Edorg[] = [];
   for (const edorg of edorgDeltas.insert) {
     if (!edorg.parent || typeof edorg.parent.id === 'number') {
       newRootEdorgs.push(edorg);
@@ -563,13 +562,16 @@ export const persistSyncOds = async ({
   newRootEdorgs.forEach((edorg) => putEdorgInLevel(edorg, 0));
 
   for (const level of treeLevels) {
-    newRootEdorgs = await em.getRepository(Edorg).save(level, { chunk: 500 });
+    await em.getRepository(Edorg).save(level, { chunk: 500 });
   }
 
-  edorgDeltas.update.length &&
-    (await em.getRepository(Edorg).save(edorgDeltas.update, { chunk: 500 }));
+  if (edorgDeltas.update.length) {
+    await em.getRepository(Edorg).save(edorgDeltas.update, { chunk: 500 });
+  }
 
-  edorgDeltas.delete.length && (await em.getRepository(Edorg).delete(edorgDeltas.delete));
+  if (edorgDeltas.delete.length) {
+    await em.getRepository(Edorg).delete(edorgDeltas.delete);
+  }
 
   const data = {
     edorg: {
@@ -608,7 +610,6 @@ export const persistSyncOds = async ({
 
 export const persistSyncDeleteOds = async ({
   ods,
-  edfiTenant,
   em,
 }: {
   ods: Ods;

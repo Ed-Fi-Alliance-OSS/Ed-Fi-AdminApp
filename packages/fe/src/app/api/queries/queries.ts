@@ -1,6 +1,5 @@
 import {
   AddEdorgDtoV2,
-  ApplicationYopassResponseDto,
   EnvNavDto,
   GetApplicationDto,
   GetClaimsetDto,
@@ -48,7 +47,6 @@ import {
   SbSyncQueueDto,
   SpecificIds,
   ApplicationResponseV1,
-  PostApplicationResponseDto,
   PutOdsDto,
   SyncEdOrgsResponseDto
 } from '@edanalytics/models';

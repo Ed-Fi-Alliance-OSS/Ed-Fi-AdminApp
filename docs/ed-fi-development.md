@@ -84,6 +84,13 @@ npx prettier compose/readme.md
 npx prettier --write compose/readme.md
 ```
 
+### Pre-commit ESLint hook (Husky)
+
+This repo uses `husky` to run a pre-commit hook (`.husky/pre-commit`) that invokes `lint-staged`. `lint-staged` runs `eslint --max-warnings 0` against staged `.ts`/`.tsx`/`.js`/`.jsx` files (config in `package.json`'s `lint-staged` field), so a commit is blocked if any staged file has ESLint errors or warnings.
+
+- Run `npm run lint:check` locally before committing to catch issues early.
+- Fix the reported lint errors/warnings rather than bypassing the hook with `git commit --no-verify`.
+
 ## Troubleshooting
 
 ### The Nx Daemon is unsupported in WebAssembly environments

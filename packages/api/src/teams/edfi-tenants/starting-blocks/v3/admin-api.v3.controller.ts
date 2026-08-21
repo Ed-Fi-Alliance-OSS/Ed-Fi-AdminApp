@@ -10,6 +10,7 @@ import {
   PostApplicationDtoV3,
   PostApiClientDtoV3,
   PostApplicationFormDtoV3,
+  PostInstanceDtoV3,
   PutApiClientDtoV3,
   PostClaimsetDtoV3,
   PostProfileDtoV3,
@@ -24,7 +25,6 @@ import {
   toApiClientYopassResponseDto,
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV3,
-  toPostApplicationResponseDto,
   toPostApplicationResponseDtoV3,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
@@ -38,6 +38,7 @@ import {
   ForbiddenException,
   Get,
   HttpException,
+  Inject,
   Injectable,
   InternalServerErrorException,
   Logger,
@@ -70,12 +71,15 @@ import { checkId } from '../../../../auth/helpers/where-ids';
 import {
   CustomHttpException,
   ValidationHttpException,
+  asBool,
   isIAdminApiValidationError,
   postYopassSecret,
 } from '../../../../utils';
 import { AdminApiV3ExceptionFilter } from './admin-api-v3-exception.filter';
 import { AdminApiServiceV3 } from './admin-api.v3.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
+import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
+import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
 import config from 'config';
 
 @Injectable()
@@ -103,6 +107,7 @@ export class AdminApiControllerV3 {
     private readonly sbService: AdminApiServiceV3,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
+    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService,
   ) {}
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
@@ -311,7 +316,7 @@ export class AdminApiControllerV3 {
           ...application,
           id: application.id,
         };
-      } catch (error) {
+      } catch (_error) {
         return application;
       }
     } else {
@@ -340,7 +345,7 @@ export class AdminApiControllerV3 {
     let claimset: GetClaimsetSingleDtoV3;
     try {
       claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
-    } catch (claimsetNotFound) {
+    } catch (_claimsetNotFound) {
       throw new ValidationHttpException({
         field: 'claimsetId',
         message: 'Cannot retrieve claimset for validation',
@@ -540,7 +545,7 @@ export class AdminApiControllerV3 {
           sbEnvironmentId: sbEnvironment.id,
         });
       }
-      if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+      if (asBool(config.USE_YOPASS)) {
         try {
           const yopassResult = await postYopassSecret({
             ...adminApiResponse,
@@ -710,7 +715,7 @@ export class AdminApiControllerV3 {
 
     const adminApiResponse = await this.sbService.postApiClient(edfiTenant, apiClient);
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
@@ -769,7 +774,7 @@ export class AdminApiControllerV3 {
       apiClientId,
     );
 
-    if (config.USE_YOPASS === true || config.USE_YOPASS === 'true') {
+    if (asBool(config.USE_YOPASS)) {
       try {
         const yopassResult = await postYopassSecret({
           ...adminApiResponse,
@@ -864,9 +869,9 @@ export class AdminApiControllerV3 {
     @Query('id') _ids: string[] | string,
     @InjectFilter('team.sb-environment.edfi-tenant.claimset:read') validIds: Ids,
   ) {
-    if (_ids === undefined)
+    const ids = Array.isArray(_ids) ? _ids : _ids === undefined || _ids === '' ? [] : [_ids];
+    if (ids.length === 0)
       throw new BadRequestException('At least one claimset ID must be provided');
-    const ids = Array.isArray(_ids) ? _ids : [_ids];
     const parsedIds = ids.map((id) => {
       const trimmed = id.trim();
       const n = parseInt(trimmed, 10);
@@ -1090,6 +1095,107 @@ export class AdminApiControllerV3 {
   ) {
     const allDataStores = await this.sbService.getDataStores(edfiTenant);
     return allDataStores.filter((c) => checkId(c.id, validIds));
+  }
+
+  @Post('instances')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:create-ods',
+    subject: { id: '__filtered__', edfiTenantId: 'edfiTenantId', teamId: 'teamId' },
+  })
+  async postInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Body() instance: PostInstanceDtoV3,
+  ) {
+    try {
+      const createdInstance = await this.sbService.postInstance(edfiTenant, instance);
+      const createdOds = await this.odsRepository.save({
+        edfiTenantId: edfiTenant.id,
+        sbEnvironmentId: edfiTenant.sbEnvironmentId,
+        odsInstanceId: createdInstance.id,
+        dbName: instance.name,
+        odsInstanceName: instance.name,
+        instanceType: instance.databaseTemplate,
+        databaseTemplate: instance.databaseTemplate,
+        status: 'PendingCreate',
+      });
+
+      await this.jobQueue.send(
+        ENV_SYNC_CHNL,
+        { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+        { expireInHours: 2 },
+      );
+
+      return { id: createdOds.id };
+    } catch (PostError: unknown) {
+      Logger.error(
+        'Admin API postInstance failed: ' +
+          (axios.isAxiosError(PostError)
+            ? PostError.message + ' (status ' + (PostError.response?.status ?? 'unknown') + ')'
+            : String(PostError)),
+      );
+      if (
+        axios.isAxiosError(PostError) &&
+        isIAdminApiValidationError(PostError.response?.data) &&
+        Object.keys(PostError.response.data.errors).length > 0
+      ) {
+        const [apiField, apiMessages] = Object.entries(PostError.response.data.errors)[0];
+        const apiMessage = apiMessages[0];
+        if (apiField.toLowerCase() === 'name') {
+          throw new ValidationHttpException({ field: 'name', message: apiMessage });
+        }
+        if (apiField.toLowerCase() === 'databasetemplate') {
+          throw new ValidationHttpException({ field: 'databaseTemplate', message: apiMessage });
+        }
+        throw new CustomHttpException(
+          { title: 'Validation error', type: 'Error', data: PostError.response.data },
+          400,
+        );
+      }
+      throw PostError;
+    }
+  }
+
+  @Delete('instances/:instanceManageId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:delete-ods',
+    subject: { id: 'instanceManageId', edfiTenantId: 'edfiTenantId', teamId: 'teamId' },
+  })
+  async deleteInstance(
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number,
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('instanceManageId', new ParseIntPipe()) instanceManageId: number,
+  ) {
+    if (instanceManageId <= 0) {
+      throw new BadRequestException('instanceManageId must be greater than zero');
+    }
+
+    const localOds = await this.odsRepository.findOneBy({
+      edfiTenantId: edfiTenant.id,
+      instanceManageId,
+    });
+
+    if (!localOds) {
+      throw new NotFoundException('ODS not found for instanceManageId');
+    }
+
+    if (localOds.status !== 'Created') {
+      throw new BadRequestException("ODS must be in 'Created' status to delete by instanceManageId");
+    }
+
+    await this.sbService.deleteInstance(edfiTenant, instanceManageId);
+
+    await this.odsRepository.save({ ...localOds, status: 'PendingDelete' });
+
+    await this.jobQueue.send(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: edfiTenant.sbEnvironmentId },
+      { expireInHours: 2 },
+    );
+
+    return undefined;
   }
 
   //

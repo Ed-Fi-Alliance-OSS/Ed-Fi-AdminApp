@@ -10,7 +10,7 @@ import {
 import { PutProfileDtoV2, PutProfileDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { noop } from '@tanstack/react-table';
-import { useMemo, useState } from 'react';
+import { ChangeEvent, useMemo, useState } from 'react';
 import { DefaultValues, Path, PathValue, useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
@@ -72,8 +72,8 @@ function EditProfileForm<D extends PutProfileDtoV2 | PutProfileDtoV3>(props: {
       | string
       | undefined;
 
-  const handleFileChange = (e: any) => {
-    const file = e.target.files[0];
+  const handleFileChange = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
     if (file) {
       const reader = new FileReader();
       reader.onload = (event) => {

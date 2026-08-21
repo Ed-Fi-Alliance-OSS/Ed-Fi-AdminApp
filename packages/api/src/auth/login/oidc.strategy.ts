@@ -2,33 +2,31 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-// Loads the express-session types so the SessionData augmentation below resolves
-import type {} from 'express-session';
 import { BaseClient, Issuer, Strategy, TokenSet, UserinfoResponse } from 'openid-client';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
-
-declare module 'express-session' {
-  interface SessionData {
-    oidcId?: number;
-    idToken?: string;
-  }
-}
+import { OidcProviderRegistry } from './oidc-provider.registry';
 
 export interface OidcLoginInfo {
   idToken?: string;
 }
 
-@Injectable()
-export class RegisterOidcIdpsService implements OnModuleInit {
-  private readonly oidcClients = new Map<number, BaseClient>();
+const DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS = 10000;
 
+/**
+ * Discovers and registers the configured OIDC providers at startup: it loads
+ * the provider rows, runs discovery (bounded by a timeout), wires each one into
+ * Passport, and populates the OidcProviderRegistry the rest of the app queries.
+ */
+@Injectable()
+export class OidcIdpBootstrapper implements OnModuleInit {
   constructor(
     @InjectRepository(Oidc)
     private readonly oidcRepo: Repository<Oidc>,
     @Inject(AuthService)
-    private readonly authService: AuthService
+    private readonly authService: AuthService,
+    private readonly registry: OidcProviderRegistry
   ) {}
 
   async onModuleInit(): Promise<void> {
@@ -39,56 +37,61 @@ export class RegisterOidcIdpsService implements OnModuleInit {
       Logger.error(`Error loading OIDC provider configurations: ${err}`);
       return;
     }
+    this.registry.setConfiguredProviderCount(oidcConfigs.length);
+    this.registry.clearFailures();
     await Promise.all(
       oidcConfigs.map((oidcConfig) =>
-        this.registerIdp(oidcConfig).catch((err) =>
-          Logger.error(`Unexpected error registering OIDC provider ${oidcConfig.issuer}: ${err}`)
-        )
+        this.registerIdp(oidcConfig).catch((err) => {
+          this.registry.markFailed(oidcConfig.id);
+          Logger.error(`Unexpected error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
+        })
       )
     );
+
+    const failedIds = this.registry.getFailedProviderIds();
+    if (failedIds.length > 0) {
+      Logger.warn(
+        `OIDC provider registration incomplete: ${failedIds.length} of ${this.registry.configuredProviderTotal} configured provider(s) failed to register (ids: ${failedIds.join(', ')}). Logout for sessions on those providers will be local-only.`
+      );
+    }
   }
 
   /**
-   * Returns the id of the only registered provider when exactly one exists.
-   * Used as a logout fallback for sessions created before the login provider
-   * was tracked on the session.
+   * Runs OIDC discovery with a bounded timeout so a slow or unresponsive
+   * provider cannot stall application bootstrap. Rejects when the provider does
+   * not answer within the configured budget.
    */
-  getSoleOidcId(): number | undefined {
-    if (this.oidcClients.size === 1) {
-      return this.oidcClients.keys().next().value;
-    }
-    return undefined;
-  }
-
-  /**
-   * Builds the RP-Initiated Logout URL for the provider the user logged in with,
-   * based on the end_session_endpoint discovered from the provider's metadata.
-   * Returns null when the provider does not expose an end_session_endpoint
-   * (e.g. Google), in which case only a local logout is possible.
-   */
-  getEndSessionUrl(oidcId: number, idToken?: string): string | null {
-    const client = this.oidcClients.get(oidcId);
-    if (!client?.issuer.metadata.end_session_endpoint) {
-      return null;
-    }
-    return client.endSessionUrl({
-      id_token_hint: idToken,
-      post_logout_redirect_uri: `${config.MY_URL_API_PATH}/auth/post-logout`,
-      client_id: client.metadata.client_id,
+  private async discoverWithTimeout(discoveryUrl: string, timeoutMs: number): Promise<Issuer> {
+    let timer: NodeJS.Timeout | undefined;
+    const timeout = new Promise<never>((_resolve, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`OIDC discovery timed out after ${timeoutMs}ms`)),
+        timeoutMs
+      );
     });
+    try {
+      return await Promise.race([Issuer.discover(discoveryUrl), timeout]);
+    } finally {
+      if (timer) {
+        clearTimeout(timer);
+      }
+    }
   }
 
   private async registerIdp(oidcConfig: Oidc): Promise<void> {
     let client: BaseClient;
     try {
-      const trustIssuer = await Issuer.discover(
-        `${oidcConfig.issuer}/.well-known/openid-configuration`
+      const timeoutMs = config.OIDC_DISCOVERY_TIMEOUT_MS ?? DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS;
+      const trustIssuer = await this.discoverWithTimeout(
+        `${oidcConfig.issuer}/.well-known/openid-configuration`,
+        timeoutMs
       );
       client = new trustIssuer.Client({
         client_id: oidcConfig.clientId,
         client_secret: oidcConfig.clientSecret,
       });
     } catch (err) {
+      this.registry.markFailed(oidcConfig.id);
       Logger.error(`Error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
       return;
     }
@@ -107,7 +110,7 @@ export class RegisterOidcIdpsService implements OnModuleInit {
         userinfo: UserinfoResponse,
         done: (err: Error | null, user?: User | false, info?: OidcLoginInfo) => void
       ) => {
-        let username: string | undefined = undefined;
+        let username: string;
         if (typeof userinfo.email !== 'string' || userinfo.email === '') {
           throw new Error('Invalid email from IdP');
         } else {
@@ -146,7 +149,7 @@ export class RegisterOidcIdpsService implements OnModuleInit {
       }
     );
     Logger.log(`Registering OIDC provider ${oidcConfig.issuer} with id ${oidcConfig.id}`);
-    this.oidcClients.set(oidcConfig.id, client);
+    this.registry.register(oidcConfig.id, client);
     passport.use(`oidc-${oidcConfig.id}`, strategy);
   }
 }

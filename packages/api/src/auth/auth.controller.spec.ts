@@ -2,8 +2,8 @@ import 'reflect-metadata';
 import { BadRequestException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import passport from 'passport';
-import { AuthController, LOCAL_ONLY_LOGOUT_MESSAGE } from './auth.controller';
-import { USER_NOT_FOUND } from './login/oidc.strategy';
+import { AuthController, LOCAL_ONLY_LOGOUT_MESSAGE, SIGNED_OUT_MESSAGE } from './auth.controller';
+import { NO_ROLE, USER_NOT_FOUND } from './login/oidc.strategy';
 
 jest.mock('config', () => ({
   FE_URL: 'http://frontend',
@@ -95,7 +95,7 @@ describe('AuthController', () => {
       expect(response.redirect).toHaveBeenCalledWith('http://idp/end-session');
     });
 
-    it('redirects to the frontend when no provider is tracked and multiple providers are registered', async () => {
+    it('confirms the local sign-out when no provider is tracked and multiple providers are registered', async () => {
       const request = buildRequest({});
       getSoleOidcId.mockReturnValue(undefined);
 
@@ -103,7 +103,9 @@ describe('AuthController', () => {
 
       expect(request.session.destroy).toHaveBeenCalled();
       expect(getEndSessionUrl).not.toHaveBeenCalled();
-      expect(response.redirect).toHaveBeenCalledWith('http://frontend');
+      expect(response.redirect).toHaveBeenCalledWith(
+        `http://frontend/unauthenticated?msg=${encodeURIComponent(SIGNED_OUT_MESSAGE)}`
+      );
     });
 
     it('redirects to the frontend when destroying the session fails', async () => {
@@ -173,6 +175,74 @@ describe('AuthController', () => {
 
       expect(request.logIn).not.toHaveBeenCalled();
       expect(response.redirect).toHaveBeenCalledWith('http://frontend/unauthenticated');
+    });
+
+    const errorBranches = [
+      { name: 'NO_ROLE', message: NO_ROLE, fragment: 'quite complete' },
+      {
+        name: 'missing authorization request details',
+        message: 'did not find expected authorization request details in session',
+        fragment: 'There may be an issue',
+      },
+      {
+        name: 'invalid_grant',
+        message: 'invalid_grant (Code not valid)',
+        fragment: 'hiccup during login',
+      },
+      {
+        name: 'database connection error',
+        message: 'Database connection error during authentication',
+        fragment: 'temporarily unavailable',
+      },
+      { name: 'an unmapped error', message: 'something unexpected', fragment: 'was not successful' },
+    ];
+
+    it.each(errorBranches)(
+      'redirects with the mapped message for $name',
+      ({ message, fragment }) => {
+        mockAuthenticate({ error: new Error(message) });
+        const request = buildRequest({});
+        request.query = {};
+
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        controller.oidcLoginCallback('3' as any, request, response);
+
+        expect(request.logIn).not.toHaveBeenCalled();
+        expect(response.redirect).toHaveBeenCalledWith(expect.stringContaining(fragment));
+      }
+    );
+
+    it('redirects with the mapped message when request.logIn fails', () => {
+      mockAuthenticate({ user });
+      const request = buildRequest({});
+      request.query = {};
+      (request.logIn as jest.Mock).mockImplementation(
+        (_user: unknown, callback: (err?: Error) => void) =>
+          callback(new Error('session regeneration failed'))
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      controller.oidcLoginCallback('3' as any, request, response);
+
+      expect(request.session.save).not.toHaveBeenCalled();
+      expect(response.redirect).toHaveBeenCalledWith(expect.stringContaining('was not successful'));
+    });
+
+    it('fails the login instead of redirecting as success when the session cannot be saved', () => {
+      mockAuthenticate({ user, info: { idToken: 'the-id-token' } });
+      const request = buildRequest({});
+      request.query = { state: JSON.stringify({ redirect: '/teams' }) };
+      (request.session.save as jest.Mock).mockImplementation((callback: (err?: Error) => void) =>
+        callback(new Error('session store unavailable'))
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      controller.oidcLoginCallback('3' as any, request, response);
+
+      expect(response.redirect).toHaveBeenCalledWith(
+        expect.stringContaining('/unauthenticated?msg=')
+      );
+      expect(response.redirect).not.toHaveBeenCalledWith('http://frontend/teams');
     });
   });
 });

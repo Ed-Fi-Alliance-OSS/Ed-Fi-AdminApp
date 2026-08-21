@@ -1,11 +1,19 @@
 import 'reflect-metadata';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
+import { PutEdfiTenantAdminApi } from '@edanalytics/models';
+import { Repository } from 'typeorm';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
+import { AdminApiServiceV1 } from '../teams/edfi-tenants/starting-blocks/v1/admin-api.v1.service';
+import {
+  StartingBlocksServiceV1,
+  StartingBlocksServiceV2,
+} from '../teams/edfi-tenants/starting-blocks';
+import { EdfiTenantsService } from '../teams/edfi-tenants/edfi-tenants.service';
 
 describe('SbEnvironmentsGlobalService - updateAdminApi', () => {
   let service: SbEnvironmentsGlobalService;
   let mockRepository: { save: jest.Mock };
-  let mockAdminApiServiceV1: any;
+  let mockAdminApiServiceV1: Partial<AdminApiServiceV1>;
   let mockStartingBlocksServiceV1: { saveAdminApiCredentials: jest.Mock };
   let mockStartingBlocksServiceV2: { saveAdminApiCredentials: jest.Mock };
   let mockEdfiTenantService: { pingAdminApi: jest.Mock };
@@ -29,11 +37,11 @@ describe('SbEnvironmentsGlobalService - updateAdminApi', () => {
     };
 
     service = new SbEnvironmentsGlobalService(
-      mockRepository as any,
-      mockAdminApiServiceV1,
-      mockStartingBlocksServiceV1 as any,
-      mockStartingBlocksServiceV2 as any,
-      mockEdfiTenantService as any
+      mockRepository as unknown as Repository<SbEnvironment>,
+      mockAdminApiServiceV1 as AdminApiServiceV1,
+      mockStartingBlocksServiceV1 as unknown as StartingBlocksServiceV1,
+      mockStartingBlocksServiceV2 as unknown as StartingBlocksServiceV2,
+      mockEdfiTenantService as unknown as EdfiTenantsService
     );
   });
 
@@ -41,7 +49,7 @@ describe('SbEnvironmentsGlobalService - updateAdminApi', () => {
     const sbEnvironment = { version: 'v3' } as SbEnvironment;
     const edfiTenant = { sbEnvironmentId: 1 } as EdfiTenant;
 
-    await service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as any);
+    await service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as unknown as PutEdfiTenantAdminApi);
 
     expect(mockStartingBlocksServiceV2.saveAdminApiCredentials).toHaveBeenCalledWith(
       edfiTenant,
@@ -55,7 +63,7 @@ describe('SbEnvironmentsGlobalService - updateAdminApi', () => {
     const sbEnvironment = { version: 'v2' } as SbEnvironment;
     const edfiTenant = { sbEnvironmentId: 1 } as EdfiTenant;
 
-    await service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as any);
+    await service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as unknown as PutEdfiTenantAdminApi);
 
     expect(mockStartingBlocksServiceV2.saveAdminApiCredentials).toHaveBeenCalledWith(
       edfiTenant,
@@ -69,7 +77,8 @@ describe('SbEnvironmentsGlobalService - updateAdminApi', () => {
     const edfiTenant = { sbEnvironmentId: 1 } as EdfiTenant;
 
     await expect(
-      service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as any)
+      service.updateAdminApi(sbEnvironment, edfiTenant, updateDto as unknown as PutEdfiTenantAdminApi)
     ).rejects.toThrow('Environment does not have an established version. Please sync metadata first.');
   });
 });
+

@@ -19,7 +19,7 @@ import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 
 const ApplicationBreadcrumbV1 = () => {
   const params = useParams() as { applicationId: string };
-  const { edfiTenant, edfiTenantId, teamId, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
   const application = useQuery(
     applicationQueriesV1.getOne({
       id: params.applicationId,

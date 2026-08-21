@@ -121,8 +121,8 @@ export const CreateOwnershipGlobalPage = () => {
     const filteredEdorgs = { ...edorgs.data };
     return Object.fromEntries(
       Object.entries(filteredEdorgs)
-        .filter(([key, v]) => v.odsId === Number(odsId))
-        .map(([key, v]) => [
+        .filter(([_key, v]) => v.odsId === Number(odsId))
+        .map(([_key, v]) => [
           v.id,
           {
             value: v.id,
@@ -157,7 +157,8 @@ export const CreateOwnershipGlobalPage = () => {
         ...mutationErrCallback({ setFormError, popGlobalBanner }),
         onSuccess: (result) => navigate(`/ownerships/${result.id}`),
       }
-    ).catch(() => {});
+      // error already handled by mutationErrCallback's onError above
+    ).catch(() => undefined);
   };
 
   return teams.data && sbEnvironments.data ? (

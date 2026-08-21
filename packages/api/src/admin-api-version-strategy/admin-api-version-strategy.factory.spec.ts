@@ -35,7 +35,7 @@ describe('AdminApiVersionStrategyFactory', () => {
   });
 
   it('throws for an unknown or missing version', () => {
-    expect(() => factory.getStrategy('v4' as any)).toThrow('Invalid API version: v4');
+    expect(() => factory.getStrategy('v4')).toThrow('Invalid API version: v4');
     expect(() => factory.getStrategy(undefined)).toThrow('Invalid API version: undefined');
   });
 });

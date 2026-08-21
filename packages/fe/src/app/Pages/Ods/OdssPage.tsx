@@ -14,6 +14,7 @@ import { GetOdsDto } from '@edanalytics/models';
 import { odsStatusDisplayMap } from './Utils';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
+import { useOdsTerminology } from './useOdsTerminology';
 
 const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
   Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });
@@ -23,6 +24,7 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   const navigate = useNavigate();
   const popBanner = usePopBanner();
   const queryClient = useQueryClient();
+  const terminology = useOdsTerminology();
   const canDelete = useAuthorize(
     teamEdfiTenantAuthConfig(ods.id, edfiTenant.id, teamId, 'team.sb-environment.edfi-tenant:delete-ods')
   );
@@ -36,8 +38,8 @@ const useOdsRowActions = (ods: GetOdsDto) => {
     ? {
         icon: Icons.Delete,
         text: 'Delete',
-        title: 'Delete ODS',
-        confirmBody: 'This will permanently delete the ODS.',
+        title: `Delete ${terminology.singular}`,
+        confirmBody: `This will permanently delete the ${terminology.singular}.`,
         confirm: true,
         onClick: () =>
           deleteOds.mutateAsync({ id: ods.id }, mutationErrCallback({ popGlobalBanner: popBanner })),
@@ -46,8 +48,8 @@ const useOdsRowActions = (ods: GetOdsDto) => {
       ? {
           icon: Icons.Delete,
           text: 'Delete',
-          title: 'Delete ODS',
-          confirmBody: 'This will permanently delete the ODS.',
+          title: `Delete ${terminology.singular}`,
+          confirmBody: `This will permanently delete the ${terminology.singular}.`,
           confirm: true,
           onClick: () => {
             queryClient.setQueryData<Record<number, GetOdsDto>>(
@@ -85,13 +87,14 @@ const useOdsRowActions = (ods: GetOdsDto) => {
 
 const NameCell = (info: CellContext<GetOdsDto, unknown>) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const terminology = useOdsTerminology();
   const { id, displayName } = info.row.original;
   const to = `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/${id}/`;
   const actions = useOdsRowActions(info.row.original);
   return (
     <HStack justify="space-between">
       <Link as="span">
-        <RouterLink title="Go to ODS" to={to}>
+        <RouterLink title={`Go to ${terminology.singular}`} to={to}>
           {displayName}
         </RouterLink>
       </Link>
@@ -102,8 +105,9 @@ const NameCell = (info: CellContext<GetOdsDto, unknown>) => {
 
 export const OdssPage = () => {
   const actions = useOdssActions();
+  const terminology = useOdsTerminology();
   return (
-    <PageTemplate actions={<PageActions actions={actions} />} title="Operational Data Stores">
+    <PageTemplate actions={<PageActions actions={actions} />} title={terminology.listTitle}>
       <OdssTable />
     </PageTemplate>
   );
