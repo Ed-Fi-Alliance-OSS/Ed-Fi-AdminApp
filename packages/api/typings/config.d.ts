@@ -82,6 +82,9 @@ declare module 'config' {
     OPEN_API: boolean;
     EDFI_URLS_TIMEOUT_MS: number;
 
+    /** Per-provider OIDC discovery timeout in milliseconds (default: 10000) */
+    OIDC_DISCOVERY_TIMEOUT_MS: number;
+
     RATE_LIMIT_TTL: number; // The time to live in milliseconds
     RATE_LIMIT_LIMIT: number; // The maximum number of requests within the ttl
 
