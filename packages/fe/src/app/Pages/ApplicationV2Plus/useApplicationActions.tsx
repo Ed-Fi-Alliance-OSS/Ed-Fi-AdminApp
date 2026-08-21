@@ -13,7 +13,7 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { QUERY_KEYS } from '../../api-v2/queryKeys';
-import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 
 export const useSingleApplicationActions = ({
   application,
@@ -39,12 +39,11 @@ export const useSingleApplicationActions = ({
 
   const parentPath = useNavToParent();
 
-  const dataStoreIds =
-    application && 'dataStoreIds' in application ? application.dataStoreIds : application?.odsInstanceIds;
+  const dataStoreIds = application ? getDataStoreIds(application) : [];
 
   const canEdit = useAuthorize(
     application
-      ? (dataStoreIds ?? []).flatMap((odsInstanceId) =>
+      ? dataStoreIds.flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:update',
             subject: {
@@ -77,7 +76,7 @@ export const useSingleApplicationActions = ({
 
   const canDelete = useAuthorize(
     application
-      ? (dataStoreIds ?? []).flatMap((odsInstanceId) =>
+      ? dataStoreIds.flatMap((odsInstanceId) =>
           application.educationOrganizationIds.map((educationOrganizationIds) => ({
             privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
             subject: {

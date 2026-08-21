@@ -38,7 +38,7 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
-import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
@@ -135,7 +135,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
 
   const resolver = classValidatorResolver(PutFormDto);
 
-  const dataStoreIds = 'dataStoreIds' in application ? application.dataStoreIds : application.odsInstanceIds;
+  const dataStoreIds = getDataStoreIds(application);
   const defaultValues = new PutFormDto();
   defaultValues.id = application.id;
   defaultValues.applicationName = application.applicationName;

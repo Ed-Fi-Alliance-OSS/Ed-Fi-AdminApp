@@ -1,7 +1,4 @@
 import {
-  GetApplicationDtoV2,
-  GetApplicationDtoV3,
-  GetIntegrationAppDto,
   PostApplicationFormDtoV2,
   PostApplicationFormDtoV3,
   PutApplicationFormDtoV2,
@@ -16,16 +13,13 @@ import {
 import { applicationQueriesV2, applicationQueriesV3 } from '../../api/queries/queries.v7';
 import { createVersionedResource } from '../../api/queries/versioned';
 
-// Both V2 and V3 application data carry the merged integration-app fields:
-// V2 via useGetOneApplication.ts/useGetManyApplications.ts (requested via
-// `getIntegrationAppDetails`), and V3 via AdminApiControllerV3.getApplications/
-// getApplication (packages/api/.../v3/admin-api.v3.controller.ts), which merge
-// the same IntegrationApp record into the response regardless of version.
-// `GetApplicationDtoV3` doesn't declare these fields, but `plainToInstance`
-// (packages/fe/src/app/api/methods.ts) runs without `excludeExtraneousValues`,
-// so they reach the deserialized instance anyway — this type just makes that
-// runtime reality explicit instead of forcing every consumer to `'x' in application`.
-export type ApplicationEntity = (GetApplicationDtoV2 & GetIntegrationAppDto) | (GetApplicationDtoV3 & GetIntegrationAppDto);
+// Re-exported for existing consumers/imports of `./applicationConfig` — the
+// type and helper themselves live in applicationEntity.ts, which has no
+// dependency on the query-builder chain below, so specs that mock this whole
+// module can still pull in the real `getDataStoreIds` without dragging that
+// chain (and its ESM-only packages) into Jest.
+export { getDataStoreIds } from './applicationEntity';
+export type { ApplicationEntity } from './applicationEntity';
 
 export type ApplicationConfig =
   | {

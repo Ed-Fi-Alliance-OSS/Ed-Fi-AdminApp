@@ -16,7 +16,7 @@ import { EditApplication } from './EditApplication';
 import { ViewApplication } from './ViewApplication';
 import { useSingleApplicationActions } from './useApplicationActions';
 import { useGetOneApplication } from '../../api-v2';
-import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 
 // V2 tenants keep using the hardcoded-v2-URL hook (unchanged); v3 tenants
@@ -107,11 +107,7 @@ export const ApplicationPageContent = () => {
     edit: 'edit' in value && value.edit === 'true',
   }));
 
-  const dataStoreIds = application
-    ? 'dataStoreIds' in application
-      ? application.dataStoreIds
-      : application.odsInstanceIds
-    : [];
+  const dataStoreIds = application ? getDataStoreIds(application) : [];
 
   const url =
     application && edfiTenant?.sbEnvironment.domain
@@ -136,7 +132,7 @@ export const ApplicationPageContent = () => {
         <EditApplication application={application} claimset={claimset} />
       ) : null
     ) : (
-      <ViewApplication application={application} dataStoreIds={dataStoreIds ?? []} url={url} />
+      <ViewApplication application={application} dataStoreIds={dataStoreIds} url={url} />
     )
   ) : null;
 };

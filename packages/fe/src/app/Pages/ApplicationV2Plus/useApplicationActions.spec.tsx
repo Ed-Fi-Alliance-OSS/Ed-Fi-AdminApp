@@ -27,6 +27,7 @@ jest.mock('../../helpers/useSearch', () => ({
 
 jest.mock('./applicationConfig', () => ({
   useApplicationConfig: jest.fn(),
+  getDataStoreIds: jest.requireActual('./applicationEntity').getDataStoreIds,
 }));
 
 jest.mock('@tanstack/react-query', () => ({

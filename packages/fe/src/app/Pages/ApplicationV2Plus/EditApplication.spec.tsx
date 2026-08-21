@@ -26,7 +26,10 @@ jest.mock('../../helpers/EntitySelectors', () => ({
 jest.mock('../../api', () => ({ applicationQueriesV2: { put: jest.fn() }, edorgQueries: { getAll: jest.fn() }, profileQueriesV2: { getAll: jest.fn() }, queryKey: jest.fn() }));
 jest.mock('../../api-v2', () => ({ QUERY_KEYS: { edfiTenants: 'edfiTenants', applications: 'applications', integrationProviders: 'integrationProviders', integrationApps: 'integrationApps' } }));
 jest.mock('@edanalytics/common-ui', () => ({ Icons: { Delete: () => null, InfoCircle: () => null } }));
-jest.mock('./applicationConfig', () => ({ useApplicationConfig: Object.assign(jest.fn(), { match: jest.fn() }) }));
+jest.mock('./applicationConfig', () => ({
+  useApplicationConfig: Object.assign(jest.fn(), { match: jest.fn() }),
+  getDataStoreIds: jest.requireActual('./applicationEntity').getDataStoreIds,
+}));
 jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
 jest.mock('../Ods/useOdsTerminology', () => ({
   useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),

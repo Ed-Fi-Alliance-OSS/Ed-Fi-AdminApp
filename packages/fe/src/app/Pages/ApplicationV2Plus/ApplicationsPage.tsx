@@ -20,15 +20,9 @@ import { VendorLinkV2 } from '../../routes/vendor.routes';
 import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';
-import { ApplicationEntity, useApplicationConfig } from './applicationConfig';
+import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 import { useOdsTerminology } from '../Ods/useOdsTerminology';
-
-// V2 applications carry `odsInstanceIds`; V3 applications carry `dataStoreIds`
-// for the same concept. Reading both here keeps every column below oblivious
-// to which version is active.
-const getDataStoreIds = (application: ApplicationEntity): number[] =>
-  ('odsInstanceIds' in application ? application.odsInstanceIds : application.dataStoreIds) ?? [];
 
 export const ApplicationsPageV2 = () => {
   return (

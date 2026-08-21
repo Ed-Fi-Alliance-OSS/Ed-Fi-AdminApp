@@ -29,7 +29,10 @@ jest.mock('../../routes/vendor.routes', () => ({ VendorLinkV2: () => null }));
 jest.mock('./NameCell', () => ({ NameCell: () => null }));
 jest.mock('./useApplicationActions', () => ({ useMultiApplicationActions: jest.fn(() => ({})) }));
 jest.mock('../../api-v2', () => ({ useGetManyApplications: jest.fn(() => ({ data: [{ id: 1 }] })) }));
-jest.mock('./applicationConfig', () => ({ useApplicationConfig: jest.fn() }));
+jest.mock('./applicationConfig', () => ({
+  useApplicationConfig: jest.fn(),
+  getDataStoreIds: jest.requireActual('./applicationEntity').getDataStoreIds,
+}));
 jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
 jest.mock('../Ods/useOdsTerminology', () => ({
   useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
