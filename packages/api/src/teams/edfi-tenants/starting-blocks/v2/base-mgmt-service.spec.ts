@@ -22,7 +22,7 @@ describe('BaseMgmtServiceV2 - executeMgmtFunction version support', () => {
             values: { meta: { edorgManagementFunctionArn: arn } },
           },
         }
-      : { envLabel: 'test-env', configPublic: { version: undefined, values: undefined } }) as unknown as Partial<SbEnvironment>;
+      : { envLabel: 'test-env', configPublic: { version: undefined, values: undefined } }) as Partial<SbEnvironment>;
 
   beforeEach(() => {
     service = new BaseMgmtServiceV2('edorgManagementFunctionArn');
