@@ -7,6 +7,7 @@ import { CustomHttpException, ValidationHttpException, buildEdOrgTree } from '..
 import { StartingBlocksServiceV2 } from '../starting-blocks';
 import { persistSyncTenant, SyncableOds } from '../../../sb-sync/sync-ods';
 import { AdminApiServiceV2 } from '../starting-blocks/v2/admin-api.v2.service';
+import { AdminApiServiceV3 } from '../starting-blocks/v3/admin-api.v3.service';
 
 @Injectable()
 export class EdorgsService {
@@ -19,6 +20,7 @@ export class EdorgsService {
     private odsRepository: Repository<Ods>,
     private sbServiceV2: StartingBlocksServiceV2,
     private adminApiServiceV2: AdminApiServiceV2,
+    private adminApiServiceV3: AdminApiServiceV3,
     private dataSource: DataSource
   ) {}
 
@@ -93,22 +95,25 @@ export class EdorgsService {
 
   /**
    * Sync all education organizations across all ODS instances for a tenant
-   * Fetches Ed-Orgs from Admin API v2 and persists them to the database
+   * Fetches Ed-Orgs from the tenant's Admin API version (v2 or v3) and persists them to the database
    * Uses persistSyncTenant to handle all ODS instances atomically
    *
-   * @param _sbEnvironment - The Starting Blocks environment (unused but required by interface)
+   * @param sbEnvironment - The tenant's environment, used to select the v2/v3 Admin API service
    * @param edfiTenant - The tenant to sync Ed-Orgs for
    * @returns Summary of sync operation with counts
    */
   async syncAllEdOrgs(
-    _sbEnvironment: SbEnvironment,
+    sbEnvironment: SbEnvironment,
     edfiTenant: EdfiTenant
   ): Promise<{ synced: number; skipped: number }> {
     this.logger.log(`Starting Ed-Org sync for tenant ${edfiTenant.name} (id=${edfiTenant.id})`);
 
     try {
-      // Step 1: Fetch all Ed-Orgs from Admin API
-      const allEdOrgs = await this.adminApiServiceV2.getAllEdOrgsForTenant(edfiTenant);
+      // Step 1: Fetch all Ed-Orgs from the tenant's Admin API version
+      const allEdOrgs =
+        sbEnvironment.version === 'v3'
+          ? await this.adminApiServiceV3.getAllEdOrgsForTenant(edfiTenant)
+          : await this.adminApiServiceV2.getAllEdOrgsForTenant(edfiTenant);
       this.logger.log(`Fetched ${allEdOrgs.length} Ed-Orgs from Admin API`);
 
       if (allEdOrgs.length === 0) {
