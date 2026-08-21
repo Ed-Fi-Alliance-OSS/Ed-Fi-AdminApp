@@ -99,7 +99,7 @@ export const ViewEdfiTenant = ({ edfiTenant }: { edfiTenant: GetEdfiTenantDto })
               Claimsets &rarr;
             </Link>
           </AuthorizeComponent>
-          {sbEnvironment?.version === 'v2' && (
+          {sbEnvironment?.version !== 'v1' && (
             <AuthorizeComponent
               config={{
                 privilege: 'team.sb-environment.edfi-tenant.profile:read',
