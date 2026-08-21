@@ -63,7 +63,7 @@ export const AllApplicationsTable = () => {
   // TypeScript cannot resolve union-typed overloaded functions; cast to the
   // actual return type (same pattern as ClaimsetsPage.tsx / ProfilesPage.tsx).
   const v3Applications = useQuery({
-    ...(queries.getAll({ edfiTenant, teamId: asId }) as UseQueryOptions<
+    ...(queries.getAll({ edfiTenant, teamId: asId }) as unknown as UseQueryOptions<
       Record<string | number, ApplicationEntity>
     >),
     enabled: version === 'v3',
@@ -252,9 +252,7 @@ export const AllApplicationsTable = () => {
         {
           id: 'integrationProvider',
           header: 'Integration Provider',
-          // V3 applications have no integrationProviderName field; renders blank for those rows.
-          accessorFn: (application) =>
-            'integrationProviderName' in application ? application.integrationProviderName : undefined,
+          accessorFn: (application) => application.integrationProviderName,
         },
       ] as ColumnDef<ApplicationEntity>[]}
     />

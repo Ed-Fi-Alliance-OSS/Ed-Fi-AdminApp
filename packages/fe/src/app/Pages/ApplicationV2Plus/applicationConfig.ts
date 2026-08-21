@@ -16,10 +16,16 @@ import {
 import { applicationQueriesV2, applicationQueriesV3 } from '../../api/queries/queries.v7';
 import { createVersionedResource } from '../../api/queries/versioned';
 
-// V2 application data always carries the merged integration-app fields
-// (see useGetOneApplication.ts / useGetManyApplications.ts, which request
-// them via `getIntegrationAppDetails`); V3 has no such merge.
-export type ApplicationEntity = (GetApplicationDtoV2 & GetIntegrationAppDto) | GetApplicationDtoV3;
+// Both V2 and V3 application data carry the merged integration-app fields:
+// V2 via useGetOneApplication.ts/useGetManyApplications.ts (requested via
+// `getIntegrationAppDetails`), and V3 via AdminApiControllerV3.getApplications/
+// getApplication (packages/api/.../v3/admin-api.v3.controller.ts), which merge
+// the same IntegrationApp record into the response regardless of version.
+// `GetApplicationDtoV3` doesn't declare these fields, but `plainToInstance`
+// (packages/fe/src/app/api/methods.ts) runs without `excludeExtraneousValues`,
+// so they reach the deserialized instance anyway — this type just makes that
+// runtime reality explicit instead of forcing every consumer to `'x' in application`.
+export type ApplicationEntity = (GetApplicationDtoV2 & GetIntegrationAppDto) | (GetApplicationDtoV3 & GetIntegrationAppDto);
 
 export type ApplicationConfig =
   | {

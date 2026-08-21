@@ -158,7 +158,7 @@ export const useSingleApplicationActions = ({
                         queryClient.invalidateQueries({
                           queryKey: [QUERY_KEYS.edfiTenants, edfiTenantId, QUERY_KEYS.applications],
                         });
-                        if ('integrationProviderId' in application && application.integrationProviderId) {
+                        if (application.integrationProviderId) {
                           queryClient.invalidateQueries({
                             queryKey: [
                               QUERY_KEYS.integrationProviders,

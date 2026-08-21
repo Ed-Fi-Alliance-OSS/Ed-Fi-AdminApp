@@ -38,7 +38,7 @@ const useApplicationDetail = (applicationId: number) => {
   // TypeScript cannot resolve union-typed overloaded functions; cast to the
   // actual return type (same pattern as ApplicationsPage.tsx / ClaimsetsPage.tsx / ProfilesPage.tsx).
   const v3Query = useQuery({
-    ...(queries.getOne({ id: applicationId, edfiTenant, teamId: asId }) as UseQueryOptions<ApplicationEntity>),
+    ...(queries.getOne({ id: applicationId, edfiTenant, teamId: asId }) as unknown as UseQueryOptions<ApplicationEntity>),
     enabled: version === 'v3',
   });
 

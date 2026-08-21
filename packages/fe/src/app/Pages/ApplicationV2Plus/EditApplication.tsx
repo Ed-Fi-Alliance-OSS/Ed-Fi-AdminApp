@@ -148,11 +148,10 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   // for both V2 and V3 editing per this task's scope), but must still flow
   // through as an unregistered defaultValues field so react-hook-form
   // includes it in the submitted data — matching the pre-Task-8 behavior for
-  // V2 tenants editing an existing integration application. For V3,
-  // `application` never has this field (GetApplicationDtoV3 doesn't return
-  // it), so this is a no-op `undefined` assignment there.
+  // V2 tenants editing an existing integration application. V3 applications
+  // carry this field too (merged server-side, see applicationConfig.ts).
   (defaultValues as unknown as Record<string, unknown>).integrationProviderId =
-    'integrationProviderId' in application ? application.integrationProviderId : undefined;
+    application.integrationProviderId;
 
   const {
     register,
@@ -250,7 +249,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
       { entity: data },
       {
         onSuccess() {
-          if ('integrationProviderId' in application && application.integrationProviderId) {
+          if (application.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,
@@ -278,7 +277,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
     ).catch(() => undefined);
   };
 
-  const hasIntegrationProvider = 'integrationProviderId' in application && !!application.integrationProviderId;
+  const hasIntegrationProvider = !!application.integrationProviderId;
 
   return edorgs.data && claimsets.data ? (
     <form onSubmit={handleSubmit(onSubmit)}>

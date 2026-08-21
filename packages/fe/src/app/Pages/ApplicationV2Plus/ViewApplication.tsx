@@ -147,12 +147,7 @@ export const ViewApplication = ({
             '-'
           )}
         </AttributeContainer>
-        <Attribute
-          label="Integration Provider"
-          value={
-            'integrationProviderName' in application ? application.integrationProviderName : undefined
-          }
-        />
+        <Attribute label="Integration Provider" value={application.integrationProviderName} />
         <Attribute label="URL" value={url} isUrl isUrlExternal isCopyable />
       </AttributesGrid>
     </ContentSection>
