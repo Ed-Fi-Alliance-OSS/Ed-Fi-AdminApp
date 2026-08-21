@@ -155,6 +155,7 @@ module.exports = {
   OPENAPI_TITLE: 'Starting Blocks Admin App',
   OPENAPI_DESCRIPTION: 'OpenAPI spec for the EA Starting Blocks admin application.',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+  OIDC_DISCOVERY_TIMEOUT_MS: 10000, // 10 seconds
 
   // The time to live in milliseconds
   RATE_LIMIT_TTL: 60000,

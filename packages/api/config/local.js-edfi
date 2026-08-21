@@ -12,6 +12,7 @@ module.exports = {
   USE_YOPASS: false,
   YOPASS_URL: 'http://localhost:8082',
   EDFI_URLS_TIMEOUT_MS: 5000, // 5 seconds
+  OIDC_DISCOVERY_TIMEOUT_MS: 10000, // 10 seconds
 
   DB_ENGINE: 'pgsql', // 'pgsql' or 'mssql'
   DB_TRUST_CERTIFICATE: true, // For MSSQL local development using self-signed certs, set to true
