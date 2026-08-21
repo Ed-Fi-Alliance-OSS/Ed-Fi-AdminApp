@@ -125,4 +125,28 @@ describe('EditApplication', () => {
     getFormElement();
     expect(claimsetGetAll).toHaveBeenCalled();
   });
+
+  it('writes the resolved ODS id to odsInstanceId (not dataStoreId) for a v2 tenant', async () => {
+    const { putMutateAsync } = setup('v2');
+    // A real V2 application never has `dataStoreIds` — only `odsInstanceIds`.
+    // (`in` checks key presence, not truthiness, so the key must be absent
+    // entirely rather than set to `undefined`.)
+    const { dataStoreIds: _dataStoreIds, ...v2Base } = defaultApplication;
+    const v2Application = { ...v2Base, odsInstanceIds: [3] };
+    const form = getFormElement(v2Application);
+    await form.props.onSubmit();
+    const [[{ entity }]] = putMutateAsync.mock.calls;
+    expect(entity.odsInstanceId).toBe(3);
+    expect(entity).not.toHaveProperty('dataStoreId');
+  });
+
+  it('writes the resolved ODS id to dataStoreId (not odsInstanceId) for a v3 tenant', async () => {
+    const { putMutateAsync } = setup('v3');
+    // defaultApplication is already V3-shaped: `dataStoreIds`, no `odsInstanceIds`.
+    const form = getFormElement(defaultApplication);
+    await form.props.onSubmit();
+    const [[{ entity }]] = putMutateAsync.mock.calls;
+    expect(entity.dataStoreId).toBe(3);
+    expect(entity).not.toHaveProperty('odsInstanceId');
+  });
 });
