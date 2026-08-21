@@ -61,11 +61,16 @@ story:
 
 **Side effect, intentionally accepted, not hidden:** `BaseMgmtServiceV2` is
 shared by `TenantMgmtServiceV2` and `OdsMgmtServiceV2` too. Widening its
-version check also fixes Tenant/ODS Lambda-based create/delete for V3
-Starting-Blocks environments as an incidental consequence. This ticket does
-not add new test coverage for Tenant/ODS beyond confirming their existing V2
-specs still pass unchanged — re-verifying those flows belongs to whichever
-ticket actually exercises Starting-Blocks V3 for Tenant/ODS, not this one.
+version check also fixes **ODS** Lambda-based create/delete for V3
+Starting-Blocks environments as an incidental consequence — `odss.controller.ts`'s
+`create()`/`remove()` carry no `@SbVersion` decorator, so they were only ever
+blocked by `base-mgmt-service.ts`'s config check. **Tenant** create/delete are
+not affected: `edfi-tenants.controller.ts:86,109` still carry their own
+unwidened `@SbVersion('v2')` decorators, so those endpoints remain rejected
+for v3 regardless of this change. This ticket does not add new test coverage
+for ODS beyond confirming its existing V2 specs still pass unchanged —
+re-verifying that flow belongs to whichever ticket actually exercises
+Starting-Blocks V3 for ODS, not this one.
 
 ## Approach
 
@@ -180,9 +185,11 @@ removing the artificial V2-only restriction on Starting-Blocks Create/Delete
 EdOrg; the shared `@SbVersion` decorator generalization needed to do the
 above without per-endpoint special-casing.
 
-**Out of scope:** Any V1 behavior change; any new Tenant/ODS test coverage
-(their Lambda-mgmt V3 unlock is an accepted side effect, not a deliverable of
-this ticket); any DTO-level V2/V3 divergence for EdOrg (none exists); any
+**Out of scope:** Any V1 behavior change; any new ODS test coverage (its
+Lambda-mgmt V3 unlock is an accepted side effect, not a deliverable of this
+ticket — Tenant create/delete are unaffected, still blocked for v3 by their
+own unwidened `@SbVersion('v2')` decorators); any DTO-level V2/V3 divergence
+for EdOrg (none exists); any
 change to the automatic Starting-Blocks sync path (`dataFreshnessFunctionArn`,
 `syncTenantResourceTree`) beyond what `base-mgmt-service.ts`'s widening
 already unlocks incidentally.

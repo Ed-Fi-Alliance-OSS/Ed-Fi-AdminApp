@@ -64,9 +64,7 @@ const setupMocks = (
     sbEnvironment: buildSbEnvironment(version, startingBlocks),
     teamId: 1,
   });
-  mockUseAuthorize.mockReturnValue(
-    canSyncEdOrgs && (version === 'v2' || version === 'v3') && !startingBlocks
-  );
+  mockUseAuthorize.mockReturnValue(canSyncEdOrgs);
   const mutation = buildMutation();
   mockSyncEdOrgsQuery.mockReturnValue(mutation);
   return mutation;
