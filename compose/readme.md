@@ -129,6 +129,12 @@ To use SQL Server instead of PostgreSQL:
    DB_ENGINE=mssql
    ```
 
+   Also switch `DB_SECRET_VALUE` from the PostgreSQL default to the SQL Server variant so the API connects to the SQL Server container:
+
+   ```bash
+   DB_SECRET_VALUE={"MSSQL_DB_HOST":"edfiadminapp-mssql","MSSQL_DB_PORT":1433,"MSSQL_DB_USERNAME":"sa","MSSQL_DB_PASSWORD":"YourStrong!Passw0rd","MSSQL_DB_DATABASE":"sbaa"}
+   ```
+
 2. **Password Requirements**: The `MSSQL_SA_PASSWORD` must meet SQL Server requirements:
 
    - At least 8 characters
@@ -143,18 +149,6 @@ To use SQL Server instead of PostgreSQL:
    ```powershell
    ./start-services.ps1 -Rebuild -MSSQL
    ```
-
-4. **Update Docker Compose to use SQL Server**:
-  Ensure the API service explicitly waits for the MSSQL container to be healthy by updating the `depends_on` section in `adminapp-services.yml`:
-
-    ```yml
-
-    edfiadminapp-api:
-     ....
-     depends_on:
-      edfiadminapp-mssql:
-        condition: service_healthy
-    ```
 
 ### Database Management
 
@@ -235,15 +229,18 @@ repo. Configure the following in your `.env` file:
 Typical source: Azure Artifacts (NuGet packages for Ed-Fi ODS templates). For
 example:
 
-- Minimal template:
-  <https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068>
-- Populated template:
-  <https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068>
+- [Minimal template for ODS/API 7.3.2, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
+- [Populated template for ODS/API 7.3.2, Data Standard 4](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/overview/7.3.20068)
+- [Minimal template for ODS/API 7.3.2, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
+- [Populated template for ODS/API 7.3.2, Data Standard 5.2](https://dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_artifacts/feed/EdFi/NuGet/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.5.2.0/overview/7.3.20057)
 
 > [!NOTE]
 > Data Standard and package version may vary by environment/release. Download
 > the matching Minimal and Populated template versions for your target stack,
-> then place both `.sql` files in your `SQL_BACKUPS_FOLDER`.
+> open the downloaded file as a Zip file, then place both `.sql` files in your
+> `SQL_BACKUPS_FOLDER`.
+
+Set the following environment variables:
 
 - **`SQL_BACKUPS_FOLDER`**: host path to a folder containing
   `EdFi.Ods.Minimal.Template.sql` and `EdFi.Ods.Populated.Template.sql`. This
@@ -415,9 +412,6 @@ authentication flow:
      CLIENT_ID: 'edfiadminapp',
      CLIENT_SECRET: 'big-secret-123',
      MACHINE_AUDIENCE: 'edfiadminapp-api',
-     MANAGEMENT_DOMAIN: 'localhost',
-     MANAGEMENT_CLIENT_ID: 'edfiadminapp-machine',
-     MANAGEMENT_CLIENT_SECRET: 'edfi-machine-secret-456',
    }
    ```
 
@@ -445,6 +439,102 @@ authentication flow:
 > 4. Ensure "Is Active" is checked or authentication will fail
 > 5. Role assignment determines what API endpoints the machine user can
 >    access
+
+### Machine-to-Machine Authentication with Microsoft Entra ID
+
+The Admin App's machine-token validation (`AuthenticatedGuard`) is IdP-agnostic:
+it accepts any OIDC access token as long as the `aud` claim matches the
+configured `MACHINE_AUDIENCE` and the token carries a `login:app` grant. For
+Keycloak/Auth0 that grant arrives as a space-delimited `scope` claim; for an
+Entra **app-only** (client credentials) token it arrives as a `roles` array,
+and the calling client id arrives as `azp` (v2.0 tokens) or `appid` (v1.0
+tokens) instead of Keycloak's `client_id`. There is no local/dockerized Entra
+equivalent to the Keycloak container above, so this setup targets a real Entra
+tenant.
+
+> [!NOTE]
+> This is a manual, documentation-only setup for now. Unlike the Keycloak
+> flow, it isn't wired into an automated bootstrap or E2E script (see
+> [`eng/testing/README.md`](../eng/testing/README.md) for the Keycloak-based
+> Bruno E2E tooling) because doing so would require a dedicated Entra test
+> tenant with stored credentials rather than an ephemeral local container. The
+> [`idp-entra-setup.ps1`](https://github.com/Ed-Fi-Exchange-OSS/Admin-App-Installation-Scripts/blob/main/windows-install/idp-entra-setup.ps1)
+> script in the Admin-App-Installation-Scripts repo automates the *human
+> login* (delegated OIDC) app registration, but not this app-only/M2M flow —
+> it's referenced below only for the general shape of scripting an app
+> registration via Microsoft Graph, not as a drop-in.
+
+#### Setup Steps
+
+1. **Register the resource app** (representing the Admin App API) in the
+   Entra tenant, or reuse an existing single-tenant App Registration:
+   - **Entra admin center** → **App registrations** → **New registration**
+   - Supported account types: **Accounts in this organizational directory
+     only** (single tenant)
+   - No redirect URI is needed for this app-only flow
+
+2. **Expose an app role** on the resource app so `client_credentials` tokens
+   can carry `login:app` in their `roles` claim:
+   - Open the resource app → **App roles** → **Create app role**
+   - Display name: `Admin App Machine Access` (or similar)
+   - **Allowed member types**: `Applications`
+   - Value: `login:app` (this is the exact string `AuthenticatedGuard` checks
+     for)
+   - Description: "Access to Ed-Fi Admin App API"
+
+3. **Register (or reuse) a client app** representing the machine caller:
+   - **App registrations** → **New registration** (single tenant, no redirect
+     URI needed)
+   - Under **Certificates & secrets**, create a new client secret and record
+     its value — it is only shown once
+   - Record the client app's **Application (client) ID**; this is the value
+     that will show up as `azp`/`appid` in issued tokens
+
+4. **Grant the client app the `login:app` app role** on the resource app:
+   - On the client app → **API permissions** → **Add a permission** → **APIs
+     my organization uses** → select the resource app from step 1
+   - Choose **Application permissions** (not Delegated) → select the
+     `login:app` role from step 2
+   - Click **Grant admin consent** for the tenant (requires an Entra role
+     such as Cloud Application Administrator or Global Administrator)
+
+5. **Update the application configuration**. Update the `AUTH0_CONFIG_SECRET`
+   section in the `local.js` file:
+
+   ```js
+   AUTH0_CONFIG_SECRET_VALUE: {
+     ISSUER: 'https://login.microsoftonline.com/<tenant-id>/v2.0',
+     CLIENT_ID: '<resource-app-application-id>',
+     CLIENT_SECRET: '<not used for token validation; kept for parity with other IdPs>',
+     MACHINE_AUDIENCE: '<resource-app-application-id-or-app-id-uri>',
+   }
+   ```
+
+   `MACHINE_AUDIENCE` must exactly match the `aud` claim Entra puts on the
+   issued token — decode a test token (e.g. at <https://jwt.ms>) against the
+   resource app's Application ID URI (**Expose an API** blade) to confirm
+   which value it uses before setting this.
+
+6. **Create the Machine User in the Admin App frontend**, same as the
+   Keycloak flow above, except:
+   - **Client ID**: the client app's **Application (client) ID** from step 3
+     (CRITICAL: must match the `azp`/`appid` claim on issued tokens)
+
+#### Acquiring a token for manual testing
+
+```http
+POST https://login.microsoftonline.com/<tenant-id>/oauth2/v2.0/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=client_credentials
+&client_id=<client-app-application-id>
+&client_secret=<client-app-secret>
+&scope=<resource-app-application-id-or-app-id-uri>/.default
+```
+
+The `roles` claim on the resulting `access_token` should contain `login:app`;
+use it the same way as the Keycloak machine token in
+[machine-user-jwt-testing.http](./http/machine-user-jwt-testing.http).
 
 ## Troubleshooting
 

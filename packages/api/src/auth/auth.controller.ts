@@ -36,11 +36,14 @@ import { Authorize, NoAuthorization } from './authorization';
 import { Public } from './authorization/public.decorator';
 import { AuthCache } from './helpers/inject-auth-cache';
 import { ReqUser } from './helpers/user.decorator';
-import { NO_ROLE, OidcLoginInfo, RegisterOidcIdpsService, USER_NOT_FOUND } from './login/oidc.strategy';
+import { NO_ROLE, OidcLoginInfo, USER_NOT_FOUND } from './login/oidc.strategy';
+import { OidcProviderRegistry } from './login/oidc-provider.registry';
 import { AuthService } from './auth.service';
 
 export const LOCAL_ONLY_LOGOUT_MESSAGE =
-  "You've been signed out of Admin App. You may still be signed in with your identity provider. To completely end your session, sign out of your identity provider account.";
+  "You've been signed out of Admin App. You may still be signed in through your organization's sign-in provider. To fully sign out, also sign out of that account.";
+
+export const SIGNED_OUT_MESSAGE = "You've been signed out of Admin App.";
 
 @ApiTags('Auth')
 @Controller('auth')
@@ -49,7 +52,7 @@ export class AuthController {
     @InjectRepository(Team)
     private readonly teamsRepository: Repository<Team>,
     private readonly authService: AuthService,
-    private readonly registerOidcIdpsService: RegisterOidcIdpsService
+    private readonly oidcProviderRegistry: OidcProviderRegistry
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -119,7 +122,18 @@ export class AuthController {
           // Must happen after logIn, which regenerates the session.
           request.session.oidcId = Number(oidcId);
           request.session.idToken = info?.idToken;
-          request.session.save(() => response.redirect(`${config.FE_URL}${redirect}`));
+          request.session.save((saveError: Error | null) => {
+            if (saveError) {
+              // The provider/id_token failed to persist: a later logout could
+              // not do a provider-aware IdP logout. Fail the login instead of
+              // redirecting as if it succeeded.
+              Logger.error(
+                `Failed to persist session after login for provider ${oidcId}: ${saveError}`
+              );
+              return this.redirectLoginFailure(saveError, response);
+            }
+            return response.redirect(`${config.FE_URL}${redirect}`);
+          });
         });
       }
     )(request, response, (error: Error) => this.redirectLoginFailure(error, response));
@@ -288,14 +302,18 @@ export class AuthController {
 
       // Sessions created before provider tracking carry no oidcId; fall back
       // to the only registered provider when unambiguous
-      const loginOidcId = oidcId ?? this.registerOidcIdpsService.getSoleOidcId();
+      const loginOidcId = oidcId ?? this.oidcProviderRegistry.getSoleOidcId();
 
       if (loginOidcId === undefined) {
         Logger.warn('No login provider tracked on session, skipping IdP logout');
-        return response.redirect(config.FE_URL);
+        // Still confirm the local sign-out instead of dropping the user on the
+        // app root with no explanation that their session ended.
+        return response.redirect(
+          `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(SIGNED_OUT_MESSAGE)}`
+        );
       }
 
-      const endSessionUrl = this.registerOidcIdpsService.getEndSessionUrl(loginOidcId, idToken);
+      const endSessionUrl = this.oidcProviderRegistry.getEndSessionUrl(loginOidcId, idToken);
 
       if (endSessionUrl) {
         // Full RP-Initiated Logout against the provider the user logged in with

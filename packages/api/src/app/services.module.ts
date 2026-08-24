@@ -26,7 +26,8 @@ import {
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service';
 import { SessionSerializer } from '../auth/helpers/session.serializer';
-import { RegisterOidcIdpsService } from '../auth/login/oidc.strategy';
+import { OidcIdpBootstrapper } from '../auth/login/oidc.strategy';
+import { OidcProviderRegistry } from '../auth/login/oidc-provider.registry';
 import { EdorgsGlobalService } from '../edfi-tenants-global/edorgs-global/edorgs-global.service';
 import { OdssGlobalService } from '../edfi-tenants-global/odss-global/odss-global.service';
 import { OwnershipsGlobalService } from '../ownerships-global/ownerships-global.service';
@@ -102,7 +103,8 @@ const providers = [
   OdssService,
   OwnershipsGlobalService,
   OwnershipsService,
-  RegisterOidcIdpsService,
+  OidcIdpBootstrapper,
+  OidcProviderRegistry,
   RolesGlobalService,
   RolesService,
   SbEnvironmentsGlobalService,
