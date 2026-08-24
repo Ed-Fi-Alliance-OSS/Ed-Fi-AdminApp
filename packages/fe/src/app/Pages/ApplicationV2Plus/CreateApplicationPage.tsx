@@ -15,13 +15,19 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
-import { GetEdorgDto, PostApplicationFormDtoV2, edorgKeyV2 } from '@edanalytics/models';
+import {
+  GetEdorgDto,
+  PostApplicationFormDtoV2,
+  PostApplicationFormDtoV3,
+  edorgKeyV2,
+} from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useMemo } from 'react';
-import { useForm } from 'react-hook-form';
+import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { applicationQueriesV2, edorgQueries, profileQueriesV2, odsInstancesV2, odsQueries } from '../../api';
+import { edorgQueries, profileQueriesV2, odsQueries } from '../../api';
+import { odsInstancesV2, dataStoresV3, applicationQueriesV2 } from '../../api/queries/queries.v7';
 import {
   getRelationDisplayName,
   useNavToParent,
@@ -35,35 +41,81 @@ import {
   SelectVendorV2,
 } from '../../helpers/EntitySelectors';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../api-v2';
-const resolver = classValidatorResolver(PostApplicationFormDtoV2);
+import { useApplicationConfig } from './applicationConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
-export const CreateApplicationPageV2 = () => {
+// Dispatches on the resolved version via `.match()` rather than destructuring
+// `useApplicationConfig()` directly, so `CreateApplicationForm`'s generic is
+// tied to the actual branch instead of the wider PostApplicationFormDtoV2 |
+// V3 union (see the caveat comment in vendorConfig.ts/applicationConfig.ts).
+export const CreateApplicationPageV2 = () =>
+  useApplicationConfig.match({
+    v2: (cfg) => (
+      <CreateApplicationForm<PostApplicationFormDtoV2>
+        config={cfg}
+        odsFieldName="odsInstanceId"
+        dataStoreQuery={odsInstancesV2}
+      />
+    ),
+    v3: (cfg) => (
+      <CreateApplicationForm<PostApplicationFormDtoV3>
+        config={cfg}
+        odsFieldName="dataStoreId"
+        // dataStoresV3.getAll's TData (GetDataStoreSummaryDtoV3) has the same
+        // `id`/`name` fields the reconciliation logic below reads, but isn't
+        // structurally identical to odsInstancesV2.getAll's TData
+        // (GetOdsInstanceSummaryDtoV2 has `instanceType` instead of
+        // `dataStoreType`) — cast through `unknown` since the component only
+        // ever reads the fields both share.
+        dataStoreQuery={dataStoresV3 as unknown as { getAll: typeof odsInstancesV2.getAll }}
+      />
+    ),
+  });
+
+function CreateApplicationForm<D extends PostApplicationFormDtoV2 | PostApplicationFormDtoV3>(props: {
+  // `post`'s entity/options are parameterized by this component's own D
+  // rather than pinned to typeof applicationQueriesV2.post: V2's and V3's
+  // post() differ in both response DTO (ApplicationResponseV2 vs
+  // PostApplicationResponseDtoV3) and request entity (PostApplicationFormDtoV2
+  // vs V3), so a type fixed to one branch can't structurally accept the
+  // other. `options` is typed via `MutateOptions` (the same type
+  // `EntityQueryBuilder.post`'s `UseMutationResult['mutateAsync']` uses
+  // under the hood, see builder.ts) parameterized by `D` for TVariables,
+  // matching the `{ entity: D }` used for `mutateAsync`'s first argument, so
+  // `onSuccess`/`onError` (including the mutationErrCallback(...) spread at
+  // the call site below) stay checked without widening to `any`.
+  config: {
+    queries: {
+      post: (
+        params: Parameters<typeof applicationQueriesV2.post>[0]
+      ) => {
+        mutateAsync: (
+          args: { entity: D },
+          options?: MutateOptions<{ id: number }, unknown, { entity: D }, unknown>
+        ) => Promise<{ id: number }>;
+      };
+    };
+    PostFormDto: new () => D;
+  };
+  odsFieldName: 'odsInstanceId' | 'dataStoreId';
+  dataStoreQuery: { getAll: typeof odsInstancesV2.getAll };
+}) {
+  const { queries, PostFormDto } = props.config;
   const navigate = useNavigate();
+  const odsTerminology = useOdsTerminology();
   const { edfiTenantId, asId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const navToParentOptions = useNavToParent();
   const popGlobalBanner = usePopBanner();
-  const { mutateAsync: postApplication } = applicationQueriesV2.post({
-    edfiTenant: edfiTenant,
-    teamId: asId,
-  });
+  const { mutateAsync: postApplication } = queries.post({ edfiTenant, teamId: asId });
   const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
   const profiles = useQuery(profileQueriesV2.getAll({ edfiTenant, teamId: asId }));
   const appOdsInstances = useQuery(odsQueries.getAll({ teamId: asId, edfiTenant }));
-  const odsInstancesAdminApi = useQuery(odsInstancesV2.getAll({ edfiTenant, teamId: asId }));
+  const odsInstancesAdminApi = useQuery(props.dataStoreQuery.getAll({ edfiTenant, teamId: asId }));
   const { mutateAsync: updateOds } = odsQueries.put({ edfiTenant, teamId: asId });
-
   const queryClient = useQueryClient();
-
-  const edorgsByEdorgId = useMemo(() => {
-    return {
-      data: Object.values(edorgs.data ?? {}).reduce<Record<string, GetEdorgDto>>((map, edorg) => {
-        map[edorgKeyV2({ edorg: edorg.educationOrganizationId, ods: edorg.odsInstanceId })] = edorg;
-        return map;
-      }, {}),
-    };
-  }, [edorgs.data]);
+  const resolver = classValidatorResolver(PostFormDto);
 
   const {
     register,
@@ -73,15 +125,46 @@ export const CreateApplicationPageV2 = () => {
     watch,
     setValue,
     control,
-  } = useForm<PostApplicationFormDtoV2>({
-    resolver,
-    defaultValues: new PostApplicationFormDtoV2(),
-  });
+  } = useForm<D>({ resolver, defaultValues: new PostFormDto() as DefaultValues<D> });
 
-  const selectedOds = watch('odsInstanceId');
+  // field()/errorMessage() intersection-typed accessors for shared fields,
+  // same shape as CreateVendorForm — parameter type is the field-name
+  // intersection of both branches (every field here except odsFieldName is
+  // identical in name across V2/V3):
+  const field = (
+    name: keyof PostApplicationFormDtoV2 & keyof PostApplicationFormDtoV3
+  ) => name as Path<D>;
+  const errorMessage = (
+    name: keyof PostApplicationFormDtoV2 & keyof PostApplicationFormDtoV3
+  ): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[name]?.message as string | undefined;
+  // Scoped accessor for the one field whose *name* diverges (odsInstanceId
+  // vs dataStoreId) — same shape as 527-design.md's v3Field, except this
+  // field exists on both branches under a different name, so it's
+  // parameterized by props.odsFieldName instead of hardcoded to one branch.
+  const odsField = () => props.odsFieldName as Path<D>;
+  const odsErrorMessage = (): string | undefined =>
+    (errors as Record<string, { message?: unknown } | undefined>)[props.odsFieldName]?.message as
+      | string
+      | undefined;
 
-  const selectedEdorgs = watch('educationOrganizationIds', []);
-  const setSelectedEdorgs = (edorgs: number[]) => setValue('educationOrganizationIds', edorgs);
+  const edorgsByEdorgId = useMemo(
+    () => ({
+      data: Object.values(edorgs.data ?? {}).reduce<Record<string, GetEdorgDto>>((map, edorg) => {
+        map[edorgKeyV2({ edorg: edorg.educationOrganizationId, ods: edorg.odsInstanceId })] = edorg;
+        return map;
+      }, {}),
+    }),
+    [edorgs.data]
+  );
+
+  const selectedOds = watch(props.odsFieldName as Path<D>) as number;
+  const watchedEdorgs = watch('educationOrganizationIds' as Path<D>, [] as never) as number[];
+  // useMemo (not `?? []` inline) so `filteredEdorgOptions`'s dependency below
+  // doesn't see a fresh array identity on every render when watch()'s
+  // default-value fallback isn't honored (e.g. by the test's watch mock).
+  const selectedEdorgs = useMemo(() => watchedEdorgs ?? [], [watchedEdorgs]);
+  const setSelectedEdorgs = (edorgs: number[]) => setValue('educationOrganizationIds' as Path<D>, edorgs as never);
   const filteredEdorgOptions = useMemo(() => {
     const filteredEdorgs = { ...edorgsByEdorgId.data };
     const selectedEdorgsSet = new Set(selectedEdorgs);
@@ -113,8 +196,8 @@ export const CreateApplicationPageV2 = () => {
     );
   }, [edorgsByEdorgId, selectedEdorgs, selectedOds]);
 
-  const selectedProfileIds = watch('profileIds', []);
-  const setSelectedProfiles = (profiles: number[]) => setValue('profileIds', profiles);
+  const selectedProfileIds = watch('profileIds' as Path<D>, [] as never) as number[];
+  const setSelectedProfiles = (profiles: number[]) => setValue('profileIds' as Path<D>, profiles as never);
   const filteredProfileOptions = useMemo(() => {
     const filteredProfiles = { ...profiles.data };
     const selectedProfiles = new Set(selectedProfileIds);
@@ -129,11 +212,11 @@ export const CreateApplicationPageV2 = () => {
     );
   }, [profiles.data, selectedProfileIds]);
 
-  const onSubmit = async (data: PostApplicationFormDtoV2) => {
+  const onSubmit = async (data: D) => {
     // Create a copy of the payload before modifications
-    const dataCopy: PostApplicationFormDtoV2 = { ...data };
+    const dataCopy = { ...data } as D;
 
-    if (selectedOds > 0) {
+    if (selectedOds && selectedOds > 0) {
       const selectedAppOdsInstance = Object.values(appOdsInstances.data ?? {}).find(
         (instance) => instance.odsInstanceId === selectedOds
       );
@@ -145,11 +228,11 @@ export const CreateApplicationPageV2 = () => {
       );
 
       if (!odsInstanceAdminApi) {
-        setFormError('odsInstanceId', { message: `ODS instance "${selectedAppOdsInstanceName}" does not exist in Admin API` });
+        setFormError(odsField(), {
+          message: `${odsTerminology.singular} instance "${selectedAppOdsInstanceName}" does not exist in Admin API`,
+        });
         return;
-      }
-      else
-      {
+      } else {
         // Update the local ODS record with the Admin API ODS instance ID
         if (selectedAppOdsInstance) {
           try {
@@ -158,28 +241,29 @@ export const CreateApplicationPageV2 = () => {
                 id: selectedAppOdsInstance.id,
                 edfiTenantId: selectedAppOdsInstance.edfiTenantId,
                 name: selectedAppOdsInstance.dbName,
-                odsInstanceId: odsInstanceAdminApi.id
-              }
+                odsInstanceId: odsInstanceAdminApi.id,
+              },
             });
           } catch {
-            setFormError('odsInstanceId', { message: 'Failed to update ODS instance' });
+            setFormError(odsField(), { message: 'Failed to update ODS instance' });
             return;
           }
         }
 
-        dataCopy.odsInstanceId = odsInstanceAdminApi.id;
+        (dataCopy as unknown as Record<string, unknown>)[props.odsFieldName] = odsInstanceAdminApi.id;
       }
     }
 
     return postApplication(
       { entity: dataCopy },
       {
-        onSuccess(response) {
-          if (dataCopy.integrationProviderId) {
+        onSuccess(response: { id: number }) {
+          const dataCopyUntyped = dataCopy as unknown as Record<string, unknown>;
+          if (dataCopyUntyped.integrationProviderId) {
             queryClient.invalidateQueries({
               queryKey: [
                 QUERY_KEYS.integrationProviders,
-                dataCopy.integrationProviderId,
+                dataCopyUntyped.integrationProviderId,
                 QUERY_KEYS.integrationApps,
               ],
             });
@@ -202,26 +286,24 @@ export const CreateApplicationPageV2 = () => {
       <chakra.form w="form-width" onSubmit={handleSubmit(onSubmit)}>
         <FormControl isInvalid={!!errors.applicationName}>
           <FormLabel>Application name</FormLabel>
-          <Input {...register('applicationName')} placeholder="name" />
-          <FormErrorMessage>{errors.applicationName?.message}</FormErrorMessage>
+          <Input {...register(field('applicationName'))} placeholder="name" />
+          <FormErrorMessage>{errorMessage('applicationName')}</FormErrorMessage>
         </FormControl>
 
-        <FormControl isInvalid={!!errors.odsInstanceId}>
-          <FormLabel>ODS</FormLabel>
+        <FormControl isInvalid={!!(errors as Record<string, unknown>)[props.odsFieldName]}>
+          <FormLabel>{odsTerminology.singular}</FormLabel>
           <SelectOds
             useInstanceId
             value={selectedOds}
             onChange={(value) => {
-              setValue('odsInstanceId', value);
+              setValue(odsField(), value as never);
               setValue(
-                'educationOrganizationIds',
-                selectedEdorgs.filter(
-                  (edorg) => !!edorgsByEdorgId.data[edorgKeyV2({ edorg, ods: value })]
-                )
+                'educationOrganizationIds' as Path<D>,
+                selectedEdorgs.filter((edorg) => !!edorgsByEdorgId.data[edorgKeyV2({ edorg, ods: value })]) as never
               );
             }}
           />
-          <FormErrorMessage>{errors.odsInstanceId?.message}</FormErrorMessage>
+          <FormErrorMessage>{odsErrorMessage()}</FormErrorMessage>
         </FormControl>
 
         <FormControl isInvalid={!!errors.educationOrganizationIds}>
@@ -277,13 +359,13 @@ export const CreateApplicationPageV2 = () => {
               />
             </>
           )}
-          <FormErrorMessage>{errors.educationOrganizationIds?.message}</FormErrorMessage>
+          <FormErrorMessage>{errorMessage('educationOrganizationIds')}</FormErrorMessage>
         </FormControl>
 
         <FormControl isInvalid={!!errors.vendorId}>
           <FormLabel>Vendor</FormLabel>
-          <SelectVendorV2 name="vendorId" control={control} />
-          <FormErrorMessage>{errors.vendorId?.message}</FormErrorMessage>
+          <SelectVendorV2 name={field('vendorId')} control={control} />
+          <FormErrorMessage>{errorMessage('vendorId')}</FormErrorMessage>
         </FormControl>
 
         <FormControl>
@@ -349,8 +431,8 @@ export const CreateApplicationPageV2 = () => {
               </chakra.span>
             </Tooltip>
           </FormLabel>
-          <SelectClaimsetV2 noReserved name="claimsetId" control={control} />
-          <FormErrorMessage>{errors.claimsetId?.message}</FormErrorMessage>
+          <SelectClaimsetV2 noReserved name={field('claimsetId')} control={control} />
+          <FormErrorMessage>{errorMessage('claimsetId')}</FormErrorMessage>
         </FormControl>
 
         <ButtonGroup mt={4} colorScheme="primary">
@@ -376,4 +458,4 @@ export const CreateApplicationPageV2 = () => {
       </chakra.form>
     </PageTemplate>
   );
-};
+}

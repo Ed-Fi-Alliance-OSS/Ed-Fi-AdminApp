@@ -1,14 +1,13 @@
 import { Checkbox, Text } from '@chakra-ui/react';
 import { EdorgType, EdorgTypeShort, RoleType, edorgCategories } from '@edanalytics/models';
 import { enumValues } from '@edanalytics/utils';
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import uniq from 'lodash/uniq';
 import { useMemo, useState } from 'react';
 import {
   applicationQueriesV1,
   applicationQueriesV2,
   claimsetQueriesV1,
-  claimsetQueriesV2,
   edfiTenantQueries,
   edfiTenantQueriesGlobal,
   edorgQueries,
@@ -22,6 +21,7 @@ import {
   vendorQueriesV1,
   vendorQueriesV2,
 } from '../api';
+import { ClaimsetEntity, useClaimsetConfig } from '../Pages/ClaimsetV2Plus/claimsetConfig';
 import { SelectWrapper, StandardSelector } from './StandardSelector';
 import {
   useEdfiTenantNavContextLoaded,
@@ -89,7 +89,14 @@ export const SelectClaimsetV2: StandardSelector<{
 }> = (props) => {
   const { options: externalOptions, ...others } = props;
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const claimsets = useQuery(claimsetQueriesV2.getAll({ teamId, edfiTenant }));
+  const { queries: claimsetQueries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
+  const claimsets = useQuery(
+    claimsetQueries.getAll({ teamId, edfiTenant }) as UseQueryOptions<
+      Record<string | number, ClaimsetEntity>
+    >
+  );
   const claimsetsArr = props.noReserved
     ? Object.values(claimsets.data ?? {}).filter((claimset) => !claimset._isSystemReserved)
     : Object.values(claimsets.data ?? {});
