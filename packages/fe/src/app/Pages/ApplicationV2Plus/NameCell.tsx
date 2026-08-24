@@ -1,15 +1,13 @@
 import { HStack, Link } from '@chakra-ui/react';
 import { TableRowActions } from '@edanalytics/common-ui';
-import { GetApplicationDtoV2, GetIntegrationAppDto } from '@edanalytics/models';
 import { CellContext } from '@tanstack/react-table';
 
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { Link as RouterLink } from 'react-router';
 import { useSingleApplicationActions } from './useApplicationActions';
+import { ApplicationEntity } from './applicationConfig';
 
-export const NameCell = (
-  info: CellContext<GetApplicationDtoV2 & GetIntegrationAppDto, unknown>
-) => {
+export const NameCell = (info: CellContext<ApplicationEntity, unknown>) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const actions = useSingleApplicationActions({
     application: info.row.original,

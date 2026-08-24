@@ -5,16 +5,11 @@ import {
   PageTemplate,
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
-import { GetClaimsetMultipleDtoV2, GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
-import {
-  claimsetQueriesV2,
-  edorgQueries,
-  odsQueries,
-  profileQueriesV2,
-  vendorQueriesV2,
-} from '../../api';
+import { GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
+import { edorgQueries, odsQueries, profileQueriesV2, vendorQueriesV2 } from '../../api';
 
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
+import { ColumnDef } from '@tanstack/react-table';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLinkV2 } from '../../routes/claimset.routes';
@@ -25,6 +20,9 @@ import { VendorLinkV2 } from '../../routes/vendor.routes';
 import { NameCell } from './NameCell';
 import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';
+import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
+import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 export const ApplicationsPageV2 = () => {
   return (
@@ -46,10 +44,29 @@ export const ApplicationsPageActions = () => {
 
 export const AllApplicationsTable = () => {
   const { asId, edfiTenantId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
+  const { version, queries } = useApplicationConfig();
+  const odsTerminology = useOdsTerminology();
 
-  const { data: applications } = useGetManyApplications({
+  // v2 tenants keep using the hardcoded-v2-URL hook (unchanged); v3 tenants
+  // fetch through the versioned query builder instead. Only one of these two
+  // is ever actually enabled/used for a given tenant.
+  const { data: v2Applications } = useGetManyApplications({
     queryArgs: { edfiTenantId, teamId: asId },
+    enabled: version === 'v2',
   });
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ProfilesPage.tsx).
+  const v3Applications = useQuery({
+    ...(queries.getAll({ edfiTenant, teamId: asId }) as unknown as UseQueryOptions<
+      Record<string | number, ApplicationEntity>
+    >),
+    enabled: version === 'v3',
+  });
+
+  const applications: ApplicationEntity[] =
+    version === 'v2'
+      ? ((v2Applications ?? []) as ApplicationEntity[])
+      : Object.values(v3Applications.data ?? {});
 
   const edorgs = useQuery(edorgQueries.getAll({ edfiTenant, teamId: asId }));
   const odss = useQuery(odsQueries.getAll({ edfiTenant, teamId: asId }));
@@ -86,15 +103,18 @@ export const AllApplicationsTable = () => {
     })
   );
 
+  const { queries: claimsetQueries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    claimsetQueries.getAll({
       teamId: asId,
       edfiTenant: edfiTenant,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
   const claimsetsByName = {
     ...claimsets,
-    data: Object.values(claimsets.data ?? {}).reduce<Record<string, GetClaimsetMultipleDtoV2>>(
+    data: Object.values(claimsets.data ?? {}).reduce<Record<string, ClaimsetEntity>>(
       (map, claimset) => {
         map[claimset.name] = claimset;
         return map;
@@ -117,7 +137,7 @@ export const AllApplicationsTable = () => {
           accessorFn: (application) =>
             application.educationOrganizationIds
               .flatMap((edorgId) =>
-                application.odsInstanceIds.map((odsInstanceId) =>
+                getDataStoreIds(application).map((odsInstanceId) =>
                   getRelationDisplayName(
                     edorgKeyV2({
                       edorg: edorgId,
@@ -130,7 +150,8 @@ export const AllApplicationsTable = () => {
               .join(', '),
           header: 'Education organization',
           cell: (info) => {
-            const { educationOrganizationIds, odsInstanceIds } = info.row.original;
+            const { educationOrganizationIds } = info.row.original;
+            const odsInstanceIds = getDataStoreIds(info.row.original);
             const addCommas = educationOrganizationIds.length > 1;
             return (
               <CappedLinesText maxLines={2}>
@@ -158,12 +179,12 @@ export const AllApplicationsTable = () => {
         {
           id: 'ods',
           accessorFn: (application) =>
-            application.odsInstanceIds
+            getDataStoreIds(application)
               .map((odsInstanceId) => getRelationDisplayName(odsInstanceId, odssByInstanceId))
               .join(', '),
-          header: 'Ods',
+          header: odsTerminology.plural,
           cell: (info) => {
-            const { odsInstanceIds } = info.row.original;
+            const odsInstanceIds = getDataStoreIds(info.row.original);
             const addCommas = odsInstanceIds.length > 1;
             return (
               <>
@@ -225,9 +246,9 @@ export const AllApplicationsTable = () => {
         {
           id: 'integrationProvider',
           header: 'Integration Provider',
-          accessorKey: 'integrationProviderName',
+          accessorFn: (application) => application.integrationProviderName,
         },
-      ]}
+      ] as ColumnDef<ApplicationEntity>[]}
     />
   );
 };

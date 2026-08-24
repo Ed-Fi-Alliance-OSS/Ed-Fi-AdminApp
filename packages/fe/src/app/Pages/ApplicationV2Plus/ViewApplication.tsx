@@ -5,31 +5,26 @@ import {
   AttributesGrid,
   ContentSection,
 } from '@edanalytics/common-ui';
-import {
-  GetApplicationDtoV2,
-  GetClaimsetMultipleDtoV2,
-  GetEdorgDto,
-  GetIntegrationAppDto,
-  GetOdsDto,
-  edorgKeyV2,
-} from '@edanalytics/models';
-import { useQuery } from '@tanstack/react-query';
-import {
-  claimsetQueriesV2,
-  edorgQueries,
-  odsQueries,
-  profileQueriesV2,
-  vendorQueriesV2,
-} from '../../api';
+import { GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
+import { edorgQueries, odsQueries, profileQueriesV2, vendorQueriesV2 } from '../../api';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
+import { ApplicationEntity } from './applicationConfig';
+import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
+import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 export const ViewApplication = ({
   application,
+  dataStoreIds,
+  url,
 }: {
-  application: GetApplicationDtoV2 & GetIntegrationAppDto;
+  application: ApplicationEntity;
+  dataStoreIds: number[];
+  url?: string;
 }) => {
   const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const odsTerminology = useOdsTerminology();
 
   const vendors = useQuery(
     vendorQueriesV2.getAll({
@@ -37,11 +32,14 @@ export const ViewApplication = ({
       teamId,
     })
   );
+  const { queries: claimsetQueries } = useClaimsetConfig();
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type (same pattern as ClaimsetsPage.tsx / ClaimsetPage.tsx).
   const claimsets = useQuery(
-    claimsetQueriesV2.getAll({
+    claimsetQueries.getAll({
       edfiTenant,
       teamId,
-    })
+    }) as UseQueryOptions<Record<string | number, ClaimsetEntity>>
   );
 
   const edorgs = useQuery(
@@ -71,7 +69,7 @@ export const ViewApplication = ({
   };
   const claimsetsByName = {
     ...claimsets,
-    data: Object.values(claimsets.data ?? {}).reduce<Record<string, GetClaimsetMultipleDtoV2>>(
+    data: Object.values(claimsets.data ?? {}).reduce<Record<string, ClaimsetEntity>>(
       (map, claimset) => {
         map[claimset.name] = claimset;
         return map;
@@ -94,26 +92,19 @@ export const ViewApplication = ({
     }, {}),
   };
 
-  const url = edfiTenant?.sbEnvironment.domain
-    ? GetApplicationDtoV2.apiUrl(
-        edfiTenant?.sbEnvironment.startingBlocks,
-        edfiTenant?.sbEnvironment.domain,
-        application.applicationName,
-        edfiTenant.name
-      )
-    : undefined;
-
   return application ? (
     <ContentSection>
       <AttributesGrid>
         <Attribute isCopyable label="Application name" value={application.applicationName} />
-        <AttributeContainer label="ODS">
-          {application.odsInstanceIds
-            .map((odsInstanceId) => (
-              <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
-            ))
-            // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            .reduce((prev, curr) => [prev, ', ', curr] as any)}
+        <AttributeContainer label={odsTerminology.singular}>
+          {dataStoreIds.length
+            ? dataStoreIds
+                .map((odsInstanceId) => (
+                  <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
+                ))
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                .reduce((prev, curr) => [prev, ', ', curr] as any)
+            : '-'}
         </AttributeContainer>{' '}
         <AttributeContainer label="Vendor">
           <VendorLinkV2 id={application.vendorId} query={vendors} />
@@ -137,7 +128,7 @@ export const ViewApplication = ({
         <AttributeContainer label="Ed-org">
           {application.educationOrganizationIds?.length ? (
             <UnorderedList>
-              {application.odsInstanceIds.flatMap((odsInstanceId) =>
+              {dataStoreIds.flatMap((odsInstanceId) =>
                 application.educationOrganizationIds.map((edorgId) => (
                   <ListItem key={edorgId}>
                     <EdorgLink
