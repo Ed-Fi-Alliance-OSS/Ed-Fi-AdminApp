@@ -174,3 +174,28 @@ describe('lowercaseFirstLetterOfKeys', () => {
     expect(result.name).toBe('x');
   });
 });
+
+describe('ImportClaimsetsPageV3 / stale state on invalid input', () => {
+  // Regression guard for PR #330 review: list items are index-keyed, so this
+  // component instance is reused when a new file is loaded. The array and
+  // parse-error branches must clear `claimset`, or a previously valid name
+  // renders beside the new error.
+  it('clears a previously parsed claimset when the entry is replaced by an array', async () => {
+    const { rerender } = render(
+      <ClaimsetItemV3 maybeClaimset={{ name: 'ValidName', resourceClaims: [] }} />
+    );
+    await act(async () => {
+      await Promise.resolve();
+    });
+    expect(screen.getByText('ValidName')).toBeTruthy();
+
+    rerender(<ClaimsetItemV3 maybeClaimset={[{ name: 'ValidName' }]} />);
+    await act(async () => {
+      await Promise.resolve();
+    });
+
+    expect(screen.queryByText('ValidName')).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Import' })).toBeNull();
+    expect(screen.getByText('Expected object, got array')).toBeTruthy();
+  });
+});

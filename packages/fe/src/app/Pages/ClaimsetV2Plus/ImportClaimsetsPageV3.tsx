@@ -155,6 +155,10 @@ export const ClaimsetItemV3 = ({
     try {
       if (Array.isArray(maybeClaimset)) {
         setIsInvalid(true);
+        // List items are index-keyed, so this component instance can be reused for a
+        // different entry when a new file is loaded. Clear any previously parsed
+        // claimset, otherwise a stale name renders beside the new error.
+        setClaimset(undefined);
         setError({
           title: 'Expected object, got array',
           type: 'Error',
@@ -187,6 +191,8 @@ export const ClaimsetItemV3 = ({
       }
     } catch (err) {
       setIsInvalid(true);
+      // Same index-keyed reuse concern as the array branch above.
+      setClaimset(undefined);
       setError({
         title: 'Unable to parse claimset',
         type: 'Error',
@@ -241,7 +247,7 @@ export const ClaimsetItemV3 = ({
       ) : null}
       {error ? (
         <>
-          <Text as="button" color="red.500">
+          <Text color="red.500">
             {isExplicitStatusResponse(error) ? error.title : 'Error '}
           </Text>
           {typeof error === 'object' && 'data' in error && error?.data ? (
