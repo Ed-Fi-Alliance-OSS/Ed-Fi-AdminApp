@@ -42,11 +42,3 @@ export class GetEdorgDto
 }
 export const toGetEdorgDto = makeSerializer<GetEdorgDto, IEdorg>(GetEdorgDto);
 
-export class SyncEdOrgsResponseDto {
-  @Expose()
-  synced: number;
-
-  @Expose()
-  skipped: number;
-}
-
