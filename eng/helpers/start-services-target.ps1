@@ -132,6 +132,7 @@ $adminAppDbService = 'edfiadminapp-postgres'
 if ($MSSQL) {
     $composeProfile = 'mssql'
     $adminAppDbService = 'edfiadminapp-mssql'
+    $env:DB_ENGINE = 'mssql'
 }
 
 $commonServices = @(

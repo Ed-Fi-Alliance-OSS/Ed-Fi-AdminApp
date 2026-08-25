@@ -60,12 +60,20 @@ $EnvFile = Join-Path $PSScriptRoot ".env"
 # The -MSSQL switch only selects the SQL Server container profile. The API still
 # reads DB_ENGINE and DB_SECRET_VALUE from .env, so warn when they do not match the
 # selected profile -- otherwise the API silently starts against the wrong database.
+# Do not "helpfully" override DB_ENGINE here: DB_SECRET_VALUE still comes from .env,
+# so overriding only the engine pairs it with the other engine's credentials.
 $expectedEngine = if ($MSSQL) { "mssql" } else { "pgsql" }
+$expectedSecretKey = if ($MSSQL) { 'MSSQL_DB_HOST' } else { 'DB_HOST' }
 if (Test-Path $EnvFile) {
     $engineLine = Select-String -Path $EnvFile -Pattern '^\s*DB_ENGINE\s*=\s*(\S+)' | Select-Object -First 1
     $configuredEngine = if ($engineLine) { $engineLine.Matches.Groups[1].Value } else { "pgsql" }
     if ($configuredEngine -ne $expectedEngine) {
         Write-Warning "DB_ENGINE in .env is '$configuredEngine' but the selected profile expects '$expectedEngine'. Set DB_ENGINE=$expectedEngine and the matching DB_SECRET_VALUE in .env before starting."
+    }
+
+    $dbSecretLine = Select-String -Path $EnvFile -Pattern '^\s*DB_SECRET_VALUE\s*=\s*(.+)$' | Select-Object -First 1
+    if (-not $dbSecretLine -or $dbSecretLine.Matches.Groups[1].Value -notmatch "`"$expectedSecretKey`"") {
+        Write-Warning "DB_SECRET_VALUE does not appear to contain '$expectedSecretKey'. Update it for the selected '$expectedEngine' database before the API can connect."
     }
 }
 
