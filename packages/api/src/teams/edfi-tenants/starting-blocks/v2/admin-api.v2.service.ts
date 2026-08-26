@@ -857,29 +857,6 @@ export class AdminApiServiceV2 {
     );
   }
 
-  async getEdOrgsForOdsInstance(
-    edfiTenant: EdfiTenant,
-    odsInstanceId: number
-  ): Promise<EducationOrganizationDto[]> {
-    type OdsInstanceEdOrgsResponse = {
-      id: number;
-      name: string;
-      instanceType: string | null;
-      educationOrganizations?: EducationOrganizationDto[];
-    };
-    const response = await this.getAdminApiClient(edfiTenant)
-      .get<OdsInstanceEdOrgsResponse[], OdsInstanceEdOrgsResponse[]>(
-        `odsInstances/${odsInstanceId}/edOrgs`
-      )
-      .catch((err) => {
-        this.logger.error(
-          `Error getting Ed-Orgs for ODS instance ${odsInstanceId} for tenant ${edfiTenant.id}: ${err}`
-        );
-        throw err;
-      });
-    return response.flatMap((instance) => instance.educationOrganizations ?? []);
-  }
-
   async getOdsInstances(edfiTenant: EdfiTenant) {
     return toGetOdsInstanceSummaryDtoV2(
       await this.getAdminApiClient(edfiTenant)
@@ -1593,68 +1570,6 @@ export class AdminApiServiceV2 {
       this.logger.error(
         `Failed to get tenants for environment ${environment.name}: ${errorMessage}`,
         errorStack
-      );
-      throw error;
-    }
-  }
-
-  /**
-   * Get all education organizations across all ODS instances for a tenant
-   * Calls GET odsInstances/edOrgs endpoint which returns Ed-Orgs grouped by ODS instance
-   *
-   * @param edfiTenant - The tenant to get Ed-Orgs for
-   * @returns Promise resolving to array of EducationOrganizationDto objects with instanceId populated
-   */
-  async getAllEdOrgsForTenant(edfiTenant: EdfiTenant): Promise<EducationOrganizationDto[]> {
-    this.logger.log(`Getting all Ed-Orgs for tenant ${edfiTenant.name} (id=${edfiTenant.id})`);
-
-    try {
-      type AdminApiEdOrg = {
-        educationOrganizationId: number;
-        nameOfInstitution: string;
-        shortNameOfInstitution?: string | null;
-        discriminator: string;
-        parentId?: number | null;
-      };
-
-      type OdsInstanceEdOrgsResponse = {
-        id: number;
-        name: string;
-        instanceType: string | null;
-        educationOrganizations?: AdminApiEdOrg[];
-      };
-      
-      const response = await this.getAdminApiClient(edfiTenant)
-        .get<OdsInstanceEdOrgsResponse[], OdsInstanceEdOrgsResponse[]>('odsInstances/edOrgs')
-        .catch((err) => {
-          this.logger.error(
-            `Error getting Ed-Orgs for tenant ${edfiTenant.id}: ${err.message || err}`,
-            err.stack
-          );
-          throw err;
-        });
-
-      // Flatten Ed-Orgs from all ODS instances, enriching each with instanceId and instanceName
-      const allEdOrgs: EducationOrganizationDto[] = response.flatMap((instance) =>
-        (instance.educationOrganizations ?? []).map((edOrg) => ({
-          instanceId: instance.id,
-          instanceName: instance.name,
-          educationOrganizationId: edOrg.educationOrganizationId,
-          nameOfInstitution: edOrg.nameOfInstitution,
-          shortNameOfInstitution: edOrg.shortNameOfInstitution ?? null,
-          discriminator: edOrg.discriminator,
-          parentId: edOrg.parentId ?? null,
-        }))
-      );
-
-      this.logger.log(
-        `Successfully retrieved ${allEdOrgs.length} Ed-Orgs from ${response.length} ODS instance(s) for tenant ${edfiTenant.name}`
-      );
-
-      return allEdOrgs;
-    } catch (error) {
-      this.logger.error(
-        `Failed to get all Ed-Orgs for tenant ${edfiTenant.name}: ${error instanceof Error ? error.message : String(error)}`
       );
       throw error;
     }
