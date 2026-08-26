@@ -41,4 +41,3 @@ export class GetEdorgDto
   }
 }
 export const toGetEdorgDto = makeSerializer<GetEdorgDto, IEdorg>(GetEdorgDto);
-
