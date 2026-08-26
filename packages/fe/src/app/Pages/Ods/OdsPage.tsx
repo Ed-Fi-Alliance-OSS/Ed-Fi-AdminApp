@@ -19,7 +19,6 @@ import { OdsEdorgsTable } from './OdsEdorgsTable';
 import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
 import { OdsRowCountsTable } from './OdsRowCountsTable';
-import { useSyncEdOrgsAction } from './useSyncEdOrgsAction';
 import { useOdsTerminology } from './useOdsTerminology';
 
 export const OdsPage = () => {
@@ -41,7 +40,6 @@ export const OdsPage = () => {
     status: ods?.status ?? null,
   });
   const edorgsActions = useEdorgsActions({ ods });
-  const syncEdOrgsActions = useSyncEdOrgsAction();
   const terminology = useOdsTerminology();
   return (
     <PageTemplate
@@ -65,7 +63,7 @@ export const OdsPage = () => {
             }}
           >
             <PageContentCard>
-              <PageSectionActions actions={{ ...edorgsActions, ...syncEdOrgsActions }} />
+              <PageSectionActions actions={edorgsActions} />
               <ContentSection heading="Ed-Orgs">
                 <OdsEdorgsTable />
               </ContentSection>
