@@ -18,6 +18,14 @@ This folder contains local engineering and test automation scripts used by Admin
 
   Requirements: Docker must be installed and running; `compose/.env` must exist before the script runs; run it from a clone of the repository so relative paths resolve correctly.
 
+- `check-ignored-vuln-fixes.ps1` — Reports whether any GHSA ID ignored in `osv-scanner.toml` (the `[[IgnoredVulns]]` entries that suppress OpenSSF Scorecard's "Vulnerabilities" check) now has an upstream fix. Reads the GHSA IDs straight out of `osv-scanner.toml`, resolves each affected package's version(s) from `package-lock.json`, and checks a patched version is reachable (the latest published npm CLI release for packages bundled inside npm itself, or the latest registry release otherwise) before comparing against the GitHub Security Advisories API. Prints a status table and exits non-zero if any entry can now be removed. Read-only — never modifies `osv-scanner.toml`, `package.json`, or `package-lock.json`. Also runs as an informational (non-blocking) step in `.github/workflows/scorecard.yml`.
+
+  ```powershell
+  pwsh ./eng/helpers/check-ignored-vuln-fixes.ps1
+  ```
+
+  Requirements: `npm` on PATH (queries the registry and unpacks the `npm` CLI package to inspect its bundled dependencies); network access to the npm registry and `api.github.com`. Optionally pass `-GitHubToken` (or set `$env:GITHUB_TOKEN`/`$env:GH_TOKEN`) to raise the unauthenticated GitHub API rate limit.
+
 ### `eng\testing`
 
 - `run-bruno.ps1` — Main runner for Bruno API tests, including optional service startup, auth bootstrap, token acquisition, and collection/request filters.
