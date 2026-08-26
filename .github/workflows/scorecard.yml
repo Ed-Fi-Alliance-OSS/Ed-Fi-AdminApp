@@ -74,6 +74,7 @@ jobs:
   check-ignored-vuln-fixes:
     name: Check whether ignored vulnerabilities now have upstream fixes
     runs-on: ubuntu-latest
+    continue-on-error: true
     permissions:
       contents: read
     steps:
@@ -86,7 +87,6 @@ jobs:
       # now has an upstream fix, so it can be pruned. Does not fail the workflow.
       - name: Check whether ignored vulnerabilities now have upstream fixes
         shell: pwsh
-        continue-on-error: true
         run: ./eng/helpers/check-ignored-vuln-fixes.ps1 -GitHubToken $env:GITHUB_TOKEN
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
