@@ -68,6 +68,7 @@ describe('OwnershipsGlobalService', () => {
       integrationProviderId: undefined,
     } as unknown as PostOwnershipDto;
     await service.create(dto);
+    expect(mockRepo.findBy).toHaveBeenCalledWith({ teamId: 2, edorgId: 10 });
     expect(mockRepo.save).toHaveBeenCalled();
     expect(mockAuthService.reloadTeamOwnershipCache).toHaveBeenCalledWith(2);
   });

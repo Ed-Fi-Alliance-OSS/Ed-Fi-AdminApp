@@ -264,7 +264,7 @@ export class SbEnvironmentsGlobalController {
     // Load environment with tenant and ODS relations for the edit page
     const environment = await this.sbEnvironmentsRepository.findOne({
       where: { id: sbEnvironmentId },
-      relations: ['edfiTenants', 'edfiTenants.odss', 'edfiTenants.odss.edorgs'],
+      relations: { edfiTenants: { odss: { edorgs: true } } },
     });
 
     if (!environment) {

@@ -110,7 +110,7 @@ export class AdminApiSyncService {
         name: transformedData.name,
         sbEnvironmentId: sbEnvironment.id,
       },
-      relations: ['odss', 'odss.edorgs'],
+      relations: { odss: { edorgs: true } },
     });
 
     if (!edfiTenant) {
@@ -430,7 +430,7 @@ export class AdminApiSyncService {
       // Load the tenant with its parent environment
       const tenantWithEnvironment = await this.edfiTenantsRepository.findOne({
         where: { id: edfiTenant.id },
-        relations: ['sbEnvironment'],
+        relations: { sbEnvironment: true },
       });
 
       if (!tenantWithEnvironment || !tenantWithEnvironment.sbEnvironment) {

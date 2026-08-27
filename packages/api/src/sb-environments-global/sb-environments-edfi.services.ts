@@ -379,7 +379,7 @@ export class SbEnvironmentsEdFiService {
       // Find the existing environment
       const existingEnvironment = await this.sbEnvironmentsRepository.findOne({
         where: { id },
-        relations: ['edfiTenants', 'edfiTenants.odss', 'edfiTenants.odss.edorgs'],
+        relations: { edfiTenants: { odss: { edorgs: true } } },
       });
 
       if (!existingEnvironment) {
@@ -502,7 +502,7 @@ export class SbEnvironmentsEdFiService {
       // Reload the environment with updated relations
       const reloadedEnvironment = await this.sbEnvironmentsRepository.findOne({
         where: { id },
-        relations: ['edfiTenants', 'edfiTenants.odss', 'edfiTenants.odss.edorgs'],
+        relations: { edfiTenants: { odss: { edorgs: true } } },
       });
 
       if (!reloadedEnvironment) {
@@ -530,7 +530,7 @@ export class SbEnvironmentsEdFiService {
       // Get existing tenants
       const existingTenants = await this.edfiTenantsRepository.find({
         where: { sbEnvironmentId: sbEnvironment.id },
-        relations: ['odss', 'odss.edorgs'],
+        relations: { odss: { edorgs: true } },
       });
 
       // Create a map of existing tenants by name for quick lookup

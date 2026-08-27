@@ -329,7 +329,7 @@ describe('AdminApiSyncService', () => {
             name: 'tenant-one',
             sbEnvironmentId: 1,
           },
-          relations: ['odss', 'odss.edorgs'],
+          relations: { odss: { edorgs: true } },
         });
         expect(edfiTenantsRepository.save).not.toHaveBeenCalled();
       });

@@ -206,7 +206,7 @@ export class SbSyncConsumer implements OnModuleInit {
       where: {
         id: edfiTenantId,
       },
-      relations: ['sbEnvironment'],
+      relations: { sbEnvironment: true },
     });
     const sbEnvironment = edfiTenant.sbEnvironment;
     const sbMeta = await this.metadataService.getMetadata(sbEnvironment);
