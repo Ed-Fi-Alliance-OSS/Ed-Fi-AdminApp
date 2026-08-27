@@ -114,7 +114,7 @@ export class StartingBlocksServiceV1 {
   async syncTenantResourceTree(edfiTenant: EdfiTenant, meta: SbV1MetaEnv) {
     const sbEnvironment = await this.sbEnvironmentsRepository.findOne({
       where: { id: edfiTenant.sbEnvironmentId },
-      relations: ['edfiTenants'],
+      relations: { edfiTenants: true },
     });
 
     if (sbEnvironment.edfiTenants.length !== 1) {

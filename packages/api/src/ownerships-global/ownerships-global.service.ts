@@ -23,15 +23,22 @@ export class OwnershipsGlobalService {
     @Inject(AuthService) private readonly authService: AuthService
   ) {}
   async create(createOwnershipDto: PostOwnershipDto) {
-    const isRedundant = !!(
-      await this.ownershipsRepository.findBy({
-        teamId: createOwnershipDto.teamId,
-        edorgId: createOwnershipDto.edorgId,
-        odsId: createOwnershipDto.odsId,
+    const where = {
+      teamId: createOwnershipDto.teamId,
+      ...(createOwnershipDto.edorgId !== undefined && { edorgId: createOwnershipDto.edorgId }),
+      ...(createOwnershipDto.odsId !== undefined && { odsId: createOwnershipDto.odsId }),
+      ...(createOwnershipDto.edfiTenantId !== undefined && {
         edfiTenantId: createOwnershipDto.edfiTenantId,
+      }),
+      ...(createOwnershipDto.sbEnvironmentId !== undefined && {
         sbEnvironmentId: createOwnershipDto.sbEnvironmentId,
+      }),
+      ...(createOwnershipDto.integrationProviderId !== undefined && {
         integrationProviderId: createOwnershipDto.integrationProviderId,
-      })
+      }),
+    };
+    const isRedundant = !!(
+      await this.ownershipsRepository.findBy(where)
     ).length;
 
     if (isRedundant) {
