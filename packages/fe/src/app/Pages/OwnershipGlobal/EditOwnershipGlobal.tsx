@@ -40,7 +40,7 @@ export const EditOwnershipGlobal = (props: { ownership: GetOwnershipDto }) => {
     handleSubmit,
     setError,
     formState: { errors, isSubmitting },
-  } = useForm({
+  } = useForm<PutOwnershipDto>({
     resolver,
     defaultValues: ownershipFormDefaults,
   });

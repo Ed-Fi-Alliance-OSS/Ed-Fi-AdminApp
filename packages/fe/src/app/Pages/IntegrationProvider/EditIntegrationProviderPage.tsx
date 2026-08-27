@@ -11,7 +11,6 @@ import {
 import {
   GetIntegrationProviderDto,
   PutIntegrationProviderDto,
-  PutTeamDto,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
@@ -28,7 +27,7 @@ import {
 } from '../../api-v2';
 import { ContentSection, PageContentCard } from '@edanalytics/common-ui';
 
-const resolver = classValidatorResolver(PutTeamDto);
+const resolver = classValidatorResolver(PutIntegrationProviderDto);
 
 export const EditIntegrationProviderPage = () => {
   const paths = usePaths();

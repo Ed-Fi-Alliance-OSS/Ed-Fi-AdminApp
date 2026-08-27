@@ -84,16 +84,16 @@ export const CreateOwnershipGlobalPage = () => {
     setValue,
     watch,
     setError: setFormError,
-  } = useForm({
+  } = useForm<PostOwnershipDto>({
     resolver,
     defaultValues: useMemo(() => Object.assign(new PostOwnershipDto(), search), [search]),
   });
 
   const [edfiTenantId, integrationProviderId, odsId, sbEnvironmentId, type]: [
-    number,
-    number,
-    number,
-    number,
+    number | undefined,
+    number | undefined,
+    number | undefined,
+    number | undefined,
     PostOwnershipDto['type']
   ] = watch(['edfiTenantId', 'integrationProviderId', 'odsId', 'sbEnvironmentId', 'type']);
   const isSbEnvironment = type === OWNERSHIP_RESOURCE_TYPE.sbEnvironment;
@@ -104,8 +104,8 @@ export const CreateOwnershipGlobalPage = () => {
 
   const { data: edfiTenant } = useQuery(
     edfiTenantQueriesGlobal.getOne({
-      id: edfiTenantId,
-      sbEnvironmentId: sbEnvironmentId,
+      id: edfiTenantId ?? 0,
+      sbEnvironmentId: sbEnvironmentId ?? 0,
       enabled: !!edfiTenantId,
     })
   );
