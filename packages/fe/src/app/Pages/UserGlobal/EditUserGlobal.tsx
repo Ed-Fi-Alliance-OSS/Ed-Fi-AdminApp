@@ -55,7 +55,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
     setError,
     watch,
     formState: { errors, isSubmitting },
-  } = useForm({
+  } = useForm<PutUserDto>({
     resolver,
     defaultValues: userFormDefaults,
   });
