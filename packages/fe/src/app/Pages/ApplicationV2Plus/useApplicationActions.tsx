@@ -109,7 +109,7 @@ export const useSingleApplicationActions = ({
               },
             }
           : undefined),
-        ...(version === 'v2'
+        ...(version === 'v2' || version === 'v3'
           ? {
               Manage: {
                 isDisabled: false,

@@ -14,6 +14,7 @@ import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
+  PostApiClientFormBase,
   PostApiClientResponseDtoBase,
   PostApplicationDtoBase,
   PostApplicationFormBase,
@@ -172,48 +173,16 @@ export class PostApiClientResponseDtoV2 extends PostApiClientResponseDtoBase {
   id: number;
 }
 
-export class PostApiClientFormDtoV2 {
-  @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  name: string;
-
-  @Expose()
-  @IsBoolean()
-  isApproved: boolean;
-
-  @Expose()
-  @IsNumber()
-  applicationId: number;
-  
+export class PostApiClientFormDtoV2 extends PostApiClientFormBase {
   @Expose()
   @IsNumber()
   odsInstanceId: number;
 }
 
-export class PutApiClientFormDtoV2 {
-  @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  name: string;
-
-  @Expose()
-  @IsBoolean()
-  isApproved: boolean;
-
-  @Expose()
-  @IsNumber()
-  odsInstanceId: number;
-
+export class PutApiClientFormDtoV2 extends PostApiClientFormDtoV2 {
   @Expose()
   @IsNumber()
   id: number;
-
-  @Expose()
-  @IsNumber()
-  applicationId: number;
 }
 
 export const toGetApiClientDtoV2 = makeSerializer(GetApiClientDtoV2);

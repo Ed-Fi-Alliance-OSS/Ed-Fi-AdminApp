@@ -5,10 +5,14 @@ import { RouteObject, Link as RouterLink, useParams } from 'react-router';
 import { OdsPage } from '../Pages/Ods/OdsPage';
 import { OdssPage } from '../Pages/Ods/OdssPage';
 import { odsQueries } from '../api';
-import { getRelationDisplayName, useTeamEdfiTenantNavContextLoaded, withLoader } from '../helpers';
+import {
+  getRelationDisplayName,
+  useOdsTerminology,
+  useTeamEdfiTenantNavContextLoaded,
+  withLoader,
+} from '../helpers';
 import { getEntityFromQuery } from '../helpers/getEntityFromQuery';
 import { CreateOds } from '../Pages/Ods/CreateOdsPage';
-import { useOdsTerminology } from '../Pages/Ods/useOdsTerminology';
 
 const OdsBreadcrumb = withLoader(() => {
   const params = useParams() as { odsId: string };

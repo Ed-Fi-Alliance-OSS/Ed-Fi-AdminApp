@@ -4,11 +4,11 @@ import {
   SbaaTableAllInOne,
 } from '@edanalytics/common-ui';
 import { Badge } from '@chakra-ui/react';
-import { useQuery } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { NameCell } from './NameCell';
 import { useMultiApiClientsActions } from './useApiClientActions';
-import { apiClientQueriesV2 } from '../../api';
+import { ApiClientEntity, useApiClientConfig } from './apiClientConfig';
 import { useParams } from 'react-router';
 
 export const ApiClientsPageV2 = () => {
@@ -34,9 +34,12 @@ export const AllApiClientsTable = () => {
   const params = useParams() as { applicationId: string; };
 
   const { edfiTenant, asId } = useTeamEdfiTenantNavContextLoaded();
+  const { queries } = useApiClientConfig();
 
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type. Same workaround as ClaimsetsPage.tsx/NameCell.tsx.
   const apiClients = useQuery(
-    apiClientQueriesV2.getAll(
+    queries.getAll(
       {
         teamId: asId,
         edfiTenant,
@@ -44,7 +47,7 @@ export const AllApiClientsTable = () => {
       {
         applicationId: Number(params.applicationId),
       }
-    )
+    ) as UseQueryOptions<Record<string | number, ApiClientEntity>>
   );
   return (
     <SbaaTableAllInOne
@@ -68,10 +71,6 @@ export const AllApiClientsTable = () => {
             </Badge>
           ),
         },
-        {
-          accessorKey: 'keyStatus',
-          header: 'Status',
-        }
       ]}
     />
   );

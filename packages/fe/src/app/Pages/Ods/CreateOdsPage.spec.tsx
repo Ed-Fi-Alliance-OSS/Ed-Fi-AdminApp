@@ -26,11 +26,32 @@ jest.mock('../../Layout/FeedbackBanner', () => ({
   usePopBanner: jest.fn(() => jest.fn()),
 }));
 
-jest.mock('../../helpers', () => ({
-  SelectOdsTemplate: () => null,
-  useNavToParent: jest.fn(() => '/parent'),
-  useTeamEdfiTenantNavContextLoaded: jest.fn(),
-}));
+jest.mock('../../helpers', () => {
+  const useTeamEdfiTenantNavContextLoaded = jest.fn();
+  return {
+    SelectOdsTemplate: () => null,
+    useNavToParent: jest.fn(() => '/parent'),
+    useTeamEdfiTenantNavContextLoaded,
+    // Mirrors the real useOdsTerminology (now in helpers/) so this pre-existing
+    // mock of the whole '../../helpers' barrel doesn't shadow it with `undefined`.
+    useOdsTerminology: () => {
+      const { sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
+      return sbEnvironment.version === 'v3'
+        ? {
+            singular: 'Data Store',
+            plural: 'Data Stores',
+            listTitle: 'Data Stores',
+            createTitle: 'Create new Data Store',
+          }
+        : {
+            singular: 'ODS',
+            plural: "ODS's",
+            listTitle: 'Operational Data Stores',
+            createTitle: 'Create new ODS',
+          };
+    },
+  };
+});
 
 jest.mock('../../helpers/mutationErrCallback', () => ({
   mutationErrCallback: jest.fn(() => ({})),

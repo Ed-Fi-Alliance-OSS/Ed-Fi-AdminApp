@@ -1,8 +1,8 @@
 import 'reflect-metadata';
 import { useOdsTerminology } from './useOdsTerminology';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useTeamEdfiTenantNavContextLoaded } from './navContext';
 
-jest.mock('../../helpers', () => ({
+jest.mock('./navContext', () => ({
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
 }));
 

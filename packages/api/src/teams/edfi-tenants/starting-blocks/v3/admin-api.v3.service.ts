@@ -1,9 +1,9 @@
 import {
+  ApiClientWireDtoV3,
   ClaimsetMultipleWireDtoV3,
   ClaimsetSingleWireDtoV3,
   CopyClaimsetDtoV3,
   EducationOrganizationDto,
-  GetApiClientDtoV3,
   GetApplicationDtoV3,
   GetDataStoreSummaryDtoV3,
   GetProfileDtoV3,
@@ -446,8 +446,8 @@ export class AdminApiServiceV3 {
   async getApiClients(edfiTenant: EdfiTenant, applicationId: number) {
     return toGetApiClientDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetApiClientDtoV3[], GetApiClientDtoV3[]>(
-          `apiclients?offset=0&limit=10000&applicationId=${applicationId}`,
+        .get<ApiClientWireDtoV3[], ApiClientWireDtoV3[]>(
+          `apiClients?offset=0&limit=10000&applicationId=${applicationId}`,
         )
         .catch((err) => {
           this.logger.error(`Error getting API clients for tenant ${edfiTenant.id}: ${err}`);
@@ -459,7 +459,7 @@ export class AdminApiServiceV3 {
   async getApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
     return toGetApiClientDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .get<GetApiClientDtoV3, GetApiClientDtoV3>(`apiclients/${apiClientId}`)
+        .get<ApiClientWireDtoV3, ApiClientWireDtoV3>(`apiClients/${apiClientId}`)
         .catch((err) => {
           this.logger.error(
             `Error getting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`,
@@ -472,7 +472,7 @@ export class AdminApiServiceV3 {
   async putApiClient(edfiTenant: EdfiTenant, apiClientId: number, apiClient: PutApiClientDtoV3) {
     return toGetApiClientDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .put<GetApiClientDtoV3, GetApiClientDtoV3>(`apiclients/${apiClientId}`, apiClient)
+        .put<ApiClientWireDtoV3, ApiClientWireDtoV3>(`apiClients/${apiClientId}`, apiClient)
         .catch((err) => {
           this.logger.error(
             `Error updating API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`,
@@ -488,7 +488,7 @@ export class AdminApiServiceV3 {
   ): Promise<PostApiClientResponseDtoV3> {
     return toPostApiClientResponseDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        .post<PostApiClientResponseDtoV3, PostApiClientResponseDtoV3>(`apiclients`, apiClient)
+        .post<PostApiClientResponseDtoV3, PostApiClientResponseDtoV3>(`apiClients`, apiClient)
         .catch((err) => {
           this.logger.error(`Error creating API client for tenant ${edfiTenant.id}: ${err}`);
           throw err;
@@ -500,7 +500,7 @@ export class AdminApiServiceV3 {
     return toPostApiClientResponseDtoV3(
       await this.getAdminApiClient(edfiTenant)
         .put<PostApiClientResponseDtoV3, PostApiClientResponseDtoV3>(
-          `apiclients/${apiClientId}/reset-credential`,
+          `apiClients/${apiClientId}/reset-credential`,
         )
         .catch((err) => {
           this.logger.error(
@@ -513,7 +513,7 @@ export class AdminApiServiceV3 {
 
   async deleteApiClient(edfiTenant: EdfiTenant, apiClientId: number) {
     await this.getAdminApiClient(edfiTenant)
-      .delete(`apiclients/${apiClientId}`)
+      .delete(`apiClients/${apiClientId}`)
       .catch((err) => {
         this.logger.error(
           `Error deleting API client ${apiClientId} for tenant ${edfiTenant.id}: ${err}`,

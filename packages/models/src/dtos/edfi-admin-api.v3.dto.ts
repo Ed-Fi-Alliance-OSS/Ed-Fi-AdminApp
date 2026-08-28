@@ -15,6 +15,7 @@ import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
+  PostApiClientFormBase,
   PostApiClientResponseDtoBase,
   PostApplicationDtoBase,
   PostApplicationFormBase,
@@ -88,7 +89,22 @@ export class GetApiClientDtoV3 {
   id: number;
   @Expose()
   name: string;
-  @Expose()
+  // Wire field is `clientId` on GET/list responses (verified live against a
+  // V3-enabled Admin API) — inconsistent with the same Admin API's own POST
+  // /v3/apiClients response, which uses `key` for the identical value (see
+  // ApiClientResult vs ApiClient in its own OpenAPI schema). Mapping both onto
+  // `key` here means every consumer (the Credentials table's Key column,
+  // ViewApiClient) reads the same property name regardless of which endpoint
+  // populated it.
+  //
+  // Deliberately NOT `toClassOnly`: the rename has to stay bidirectional. The
+  // API's global ClassSerializerInterceptor re-emits this as `clientId` on the
+  // wire to the FE, and the FE deserializes that response through this very
+  // same DTO (`ResDto: GetApiClientDtoV3` in queries.v7.ts), mapping it back to
+  // `key` for the Credentials table. Adding `toClassOnly` makes the API emit
+  // `key`, which the FE's own plain→class pass then ignores — reproducing the
+  // empty Key column exactly. Verified live in the browser, both ways.
+  @Expose({ name: 'clientId' })
   key: string;
   @Expose()
   isApproved: boolean;
@@ -173,51 +189,33 @@ export class PostApiClientResponseDtoV3 extends PostApiClientResponseDtoBase {
   id: number;
 }
 
-export class PostApiClientFormDtoV3 {
-  @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  name: string;
-
-  @Expose()
-  @IsBoolean()
-  isApproved: boolean;
-
-  @Expose()
-  @IsNumber()
-  applicationId: number;
-
+export class PostApiClientFormDtoV3 extends PostApiClientFormBase {
   @Expose()
   @IsNumber()
   dataStoreId: number;
 }
 
-export class PutApiClientFormDtoV3 {
-  @Expose()
-  @IsString()
-  @MinLength(3)
-  @MaxLength(50)
-  name: string;
-
-  @Expose()
-  @IsBoolean()
-  isApproved: boolean;
-
-  @Expose()
-  @IsNumber()
-  dataStoreId: number;
-
+export class PutApiClientFormDtoV3 extends PostApiClientFormDtoV3 {
   @Expose()
   @IsNumber()
   id: number;
-
-  @Expose()
-  @IsNumber()
-  applicationId: number;
 }
 
-export const toGetApiClientDtoV3 = makeSerializer(GetApiClientDtoV3);
+// makeSerializer's default InputType is derived from the class shape itself
+// (key: string), which no longer matches the wire shape now that `key` is
+// populated from `clientId` via @Expose({ name: ... }). Overriding InputType
+// explicitly keeps the runtime rename working while the input type reflects
+// what Admin API V3 actually sends. Exported so callers building the raw HTTP
+// request (e.g. axios generics in AdminApiServiceV3) can type the pre-transform
+// response as what the wire actually sends, rather than incorrectly reusing
+// the post-transform DTO.
+export type ApiClientWireDtoV3 = Omit<GetApiClientDtoV3, 'key' | 'displayName'> & {
+  clientId: string;
+};
+
+export const toGetApiClientDtoV3 = makeSerializer<GetApiClientDtoV3, ApiClientWireDtoV3>(
+  GetApiClientDtoV3
+);
 
 export const toPostApiClientResponseDtoV3 = makeSerializer(PostApiClientResponseDtoV3);
 

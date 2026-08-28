@@ -16,6 +16,7 @@ import { makeSerializer } from '../utils/make-serializer';
 import { SbaaAdminApiVersion } from '../interfaces';
 import { SecretSharingMethod } from '../enums';
 import { PostApiClientResponseDtoV2, PostApplicationResponseDtoV2 } from './edfi-admin-api.v2.dto';
+import { PostApiClientResponseDtoV3 } from './edfi-admin-api.v3.dto';
 
 export class PostVendorDto {
   @Expose()
@@ -218,6 +219,22 @@ export class PostApplicationFormBase {
   @IsNumber()
   claimsetId: number;
 }
+export class PostApiClientFormBase {
+  @Expose()
+  @IsString()
+  @MinLength(3)
+  @MaxLength(50)
+  name: string;
+
+  @Expose()
+  @IsBoolean()
+  isApproved: boolean;
+
+  @Expose()
+  @IsNumber()
+  applicationId: number;
+}
+
 export class PostApplicationForm extends PostApplicationFormBase {
   @Expose()
   @IsOptional()
@@ -437,3 +454,6 @@ export type ApplicationResponseV1 = ApplicationYopassResponseDto | PostApplicati
 export type ApplicationResponseV2 = ApplicationYopassResponseDto | PostApplicationResponseDtoV2;
 
 export type ApiClientResponseV2 = ApiClientYopassResponseDto | PostApiClientResponseDtoV2;
+
+// Union types for AdminAPI v3 - Yopass Link & ID OR Ed-Fi Application Key & Secret
+export type ApiClientResponseV3 = ApiClientYopassResponseDto | PostApiClientResponseDtoV3;

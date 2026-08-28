@@ -79,10 +79,13 @@ describe('useSingleApplicationActions', () => {
     expect(actions.Manage).toBeDefined();
   });
 
-  it('omits Manage creds for a v3 tenant', () => {
+  it('includes Manage creds for a v3 tenant', () => {
     setup('v3');
     const actions = useSingleApplicationActions({ application: buildApplication() as never });
-    expect(actions.Manage).toBeUndefined();
+    expect(actions.Manage).toBeDefined();
+    expect(actions.Manage?.to).toBe(
+      '/as/1/sb-environments/2/edfi-tenants/3/applications/7/apiClients'
+    );
   });
 
   it('deletes via useApplicationConfig().queries for a v3 tenant', () => {

@@ -19,7 +19,10 @@ jest.mock('../../api', () => ({
   vendorQueriesV2: { getAll: jest.fn() },
 }));
 
-jest.mock('../../helpers', () => ({ useTeamEdfiTenantNavContextLoaded: jest.fn() }));
+jest.mock('../../helpers', () => ({
+  useTeamEdfiTenantNavContextLoaded: jest.fn(),
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
 jest.mock('../../helpers/getRelationDisplayName', () => ({ getRelationDisplayName: jest.fn(() => '-') }));
 jest.mock('../../routes/claimset.routes', () => ({ ClaimsetLinkV2: () => null }));
 jest.mock('../../routes/edorg.routes', () => ({ EdorgLink: () => null }));
@@ -34,10 +37,6 @@ jest.mock('./applicationConfig', () => ({
   getDataStoreIds: jest.requireActual('./applicationEntity').getDataStoreIds,
 }));
 jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
-jest.mock('../Ods/useOdsTerminology', () => ({
-  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
-}));
-
 import { render, screen } from '@testing-library/react';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { useGetManyApplications } from '../../api-v2';

@@ -8,7 +8,9 @@ import {
   GetDataStoreDetailDtoV3,
   GetDataStoreSummaryDtoV3,
   ImportClaimsetSingleDtoV3,
+  PostApiClientFormDtoV3,
   PostInstanceDtoV3,
+  PutApiClientFormDtoV3,
   toGetApiClientDtoV3,
   toGetClaimsetMultipleDtoV3,
   toGetClaimsetSingleDtoV3,
@@ -29,7 +31,7 @@ describe('edfi-admin-api.v3.dto', () => {
     const raw = {
       id: 1,
       name: 'client',
-      key: 'key',
+      clientId: 'the-key',
       isApproved: true,
       useSandbox: false,
       sandboxType: 0,
@@ -42,6 +44,32 @@ describe('edfi-admin-api.v3.dto', () => {
     expect(result).toBeInstanceOf(GetApiClientDtoV3);
     expect(result.dataStoreIds).toEqual([10, 20]);
     expect(result.displayName).toBe('client');
+  });
+
+  // Admin API V3's GET/list apiClients response uses `clientId` for the same
+  // value its own POST response returns as `key` (verified live: GET
+  // /v3/apiClients returns `{..., clientId: "..."}` with no `key` property at
+  // all, while POST /v3/apiClients returns `{..., key: "..."}` per its own
+  // OpenAPI schema — ApiClientResult vs ApiClient). Without this rename,
+  // `key` silently comes back `undefined` for every client fetched via
+  // list/get, though creation still displays it correctly (it reads the POST
+  // response directly, not this DTO). This is what broke the Credentials
+  // table's Key column for V3 (V2 unaffected — see 569-design.md).
+  it('maps `key` from the wire field `clientId`, not a same-named `key` field', () => {
+    const raw = {
+      id: 1,
+      name: 'client',
+      clientId: 'Ihu78396gvdt',
+      isApproved: true,
+      useSandbox: false,
+      sandboxType: 0,
+      applicationId: 2,
+      keyStatus: 'Active',
+      dataStoreIds: [10, 20],
+    };
+    const result = toGetApiClientDtoV3(raw);
+
+    expect(result.key).toBe('Ihu78396gvdt');
   });
 
   it('serializes nested GetDataStoreDetailDtoV3 contexts/derivatives under renamed keys', () => {
@@ -219,5 +247,33 @@ describe('V3 claim set name validation', () => {
     it('rejects a whitespace-only name', async () => {
       expect(await namesOf(make('   '))).toContain('name');
     });
+  });
+});
+
+describe('ApiClient form DTOs V3 (shape preserved after extracting the base)', () => {
+  it('PostApiClientFormDtoV3 validates all four fields', async () => {
+    const errs = await validate(new PostApiClientFormDtoV3());
+    expect(errs.map((e) => e.property).sort()).toEqual(
+      ['applicationId', 'dataStoreId', 'isApproved', 'name']
+    );
+  });
+
+  it('PutApiClientFormDtoV3 validates all five fields, including id', async () => {
+    const errs = await validate(new PutApiClientFormDtoV3());
+    expect(errs.map((e) => e.property).sort()).toEqual(
+      ['applicationId', 'dataStoreId', 'id', 'isApproved', 'name']
+    );
+  });
+
+  it('keeps the name length rule from the base', async () => {
+    const dto = Object.assign(new PostApiClientFormDtoV3(), {
+      name: 'ab', isApproved: true, applicationId: 1, dataStoreId: 1,
+    });
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
+  });
+
+  it('has no V2 field', async () => {
+    const errs = await validate(new PostApiClientFormDtoV3());
+    expect(errs.map((e) => e.property)).not.toContain('odsInstanceId');
   });
 });

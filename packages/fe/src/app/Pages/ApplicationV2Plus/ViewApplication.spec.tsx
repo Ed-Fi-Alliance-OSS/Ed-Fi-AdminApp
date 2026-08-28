@@ -4,7 +4,10 @@ import { render, screen } from '@testing-library/react';
 import { ViewApplication } from './ViewApplication';
 
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn(() => ({ data: {} })) }));
-jest.mock('../../helpers', () => ({ useTeamEdfiTenantNavContextLoaded: jest.fn(() => ({ edfiTenant: {}, teamId: 1 })) }));
+jest.mock('../../helpers', () => ({
+  useTeamEdfiTenantNavContextLoaded: jest.fn(() => ({ edfiTenant: {}, teamId: 1 })),
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
 jest.mock('../../api', () => ({
   edorgQueries: { getAll: jest.fn() },
   odsQueries: { getAll: jest.fn() },
@@ -13,9 +16,6 @@ jest.mock('../../api', () => ({
 }));
 jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({
   useClaimsetConfig: jest.fn(() => ({ queries: { getAll: jest.fn() } })),
-}));
-jest.mock('../Ods/useOdsTerminology', () => ({
-  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
 }));
 jest.mock('../../routes', () => ({
   ClaimsetLinkV2: () => null,

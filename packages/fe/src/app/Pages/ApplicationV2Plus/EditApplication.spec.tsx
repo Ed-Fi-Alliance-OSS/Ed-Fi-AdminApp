@@ -14,7 +14,11 @@ jest.mock('react-hook-form', () => ({ useForm: jest.fn() }));
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn(() => ({ data: {} })), useQueryClient: jest.fn() }));
 jest.mock('@hookform/resolvers/class-validator', () => ({ classValidatorResolver: jest.fn((Dto) => Dto) }));
 jest.mock('../../Layout/FeedbackBanner', () => ({ usePopBanner: jest.fn(() => jest.fn()) }));
-jest.mock('../../helpers', () => ({ useTeamEdfiTenantNavContextLoaded: jest.fn(), getRelationDisplayName: jest.fn(() => '-') }));
+jest.mock('../../helpers', () => ({
+  useTeamEdfiTenantNavContextLoaded: jest.fn(),
+  getRelationDisplayName: jest.fn(() => '-'),
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
+}));
 jest.mock('../../helpers/mutationErrCallback', () => ({ mutationErrCallback: jest.fn(() => ({})) }));
 jest.mock('../../helpers/EntitySelectors', () => ({
   SelectClaimsetV2: () => null,
@@ -31,10 +35,6 @@ jest.mock('./applicationConfig', () => ({
   getDataStoreIds: jest.requireActual('./applicationEntity').getDataStoreIds,
 }));
 jest.mock('../ClaimsetV2Plus/claimsetConfig', () => ({ useClaimsetConfig: jest.fn() }));
-jest.mock('../Ods/useOdsTerminology', () => ({
-  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
-}));
-
 import { useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
 
 const mockUseForm = useForm as jest.Mock;

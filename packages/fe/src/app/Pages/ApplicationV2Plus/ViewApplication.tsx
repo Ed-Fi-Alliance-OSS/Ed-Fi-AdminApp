@@ -8,11 +8,10 @@ import {
 import { GetEdorgDto, GetOdsDto, edorgKeyV2 } from '@edanalytics/models';
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { edorgQueries, odsQueries, profileQueriesV2, vendorQueriesV2 } from '../../api';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useOdsTerminology, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { ClaimsetLinkV2, EdorgLink, OdsLink, ProfileLink, VendorLinkV2 } from '../../routes';
 import { ApplicationEntity } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
-import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 export const ViewApplication = ({
   application,

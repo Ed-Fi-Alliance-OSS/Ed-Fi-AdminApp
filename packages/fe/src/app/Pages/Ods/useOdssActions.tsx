@@ -3,9 +3,9 @@ import { useNavigate } from 'react-router';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
+  useOdsTerminology,
   useTeamSbEnvironmentNavContext,
 } from '../../helpers';
-import { useOdsTerminology } from './useOdsTerminology';
 
 export const useOdssActions = (): ActionsType => {
   const navigate = useNavigate();

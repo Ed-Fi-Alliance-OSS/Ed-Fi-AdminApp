@@ -4,6 +4,8 @@ import {
   PostInstanceDtoV2,
   CopyClaimsetDtoV2,
   ImportClaimsetSingleDtoV2,
+  PostApiClientFormDtoV2,
+  PutApiClientFormDtoV2,
 } from './edfi-admin-api.v2.dto';
 
 describe('PostInstanceDtoV2', () => {
@@ -59,5 +61,33 @@ describe('V2 claim set name validation', () => {
       resourceClaims: [],
     });
     expect(await namesOf(dto)).toContain('name');
+  });
+});
+
+describe('ApiClient form DTOs V2 (shape preserved after extracting the base)', () => {
+  it('PostApiClientFormDtoV2 validates all four fields', async () => {
+    const errs = await validate(new PostApiClientFormDtoV2());
+    expect(errs.map((e) => e.property).sort()).toEqual(
+      ['applicationId', 'isApproved', 'name', 'odsInstanceId']
+    );
+  });
+
+  it('PutApiClientFormDtoV2 validates all five fields, including id', async () => {
+    const errs = await validate(new PutApiClientFormDtoV2());
+    expect(errs.map((e) => e.property).sort()).toEqual(
+      ['applicationId', 'id', 'isApproved', 'name', 'odsInstanceId']
+    );
+  });
+
+  it('keeps the name length rule from the base', async () => {
+    const dto = Object.assign(new PostApiClientFormDtoV2(), {
+      name: 'ab', isApproved: true, applicationId: 1, odsInstanceId: 1,
+    });
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
+  });
+
+  it('has no V3 field', async () => {
+    const errs = await validate(new PostApiClientFormDtoV2());
+    expect(errs.map((e) => e.property)).not.toContain('dataStoreId');
   });
 });
