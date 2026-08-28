@@ -48,6 +48,16 @@ Normalization is never lengthening — spaces become underscores (length-preserv
 canonical prefix is stripped, and `Trim('_')` only shortens. So 46 is a true ceiling, not an
 approximation.
 
+### Characters vs. bytes
+
+PostgreSQL's limit is 63 *bytes*, while `@MaxLength` counts UTF-16 code units. The two coincide
+only for ASCII. `PostOdsDto` guarantees ASCII through its existing
+`@Matches(/^[A-Za-z0-9 _]+$/)`, so the form can never submit a name whose byte length exceeds its
+character length. The V2/V3 instance DTOs deliberately do not mirror that pattern (see below), so
+AdminApp's cap alone does not enforce the byte ceiling for a direct API caller — ODS-Admin-API's
+own `_validOdsInstanceManageNamePattern` / `_validDataStoreManageNamePattern` reject non-ASCII
+before any database is provisioned. The guarantee is therefore joint, not AdminApp's alone.
+
 ## Design
 
 ### 1. A single derived constant
@@ -146,13 +156,31 @@ already used for text in `CreateOdsPage.tsx`.
   Those stay as the server-side backstop; this is an AdminApp-side change.
 - Data migration. Names of 30–46 characters cannot exist, since 29 was the prior cap.
 
-## Open risk
+## Starting Blocks: known gap, accepted
 
 No rationale for the original `MaxLength(29)` exists in code, tests, or git history. If Starting
 Blocks provisioning enforces its own naming limit outside this repository, a 30–46 character SB
-name would fail at creation time and nothing in this repository would catch it. This should be
-confirmed with the owner of SB provisioning before the change ships. It cannot be settled from
-this codebase.
+name would fail at creation time and nothing in this repository would catch it. It cannot be
+settled from this codebase.
+
+The gap is sharper than it first appears: the Starting Blocks branch never reaches the AdminApi
+formatter at all. `odss.service.ts` routes it to `startingBlocksServiceV2.createOds`, so for SB
+users the 46 cap — and its message about the generated database name — is justified by a
+constraint that does not govern their flow. The number is not *wrong* for them (46 is looser than
+the 29 they had), but it has no verified basis on that side.
+
+**Decision (2026-08-28): accepted, not fixed.** Starting Blocks support is slated for removal, so
+the team chose not to make the cap branch-aware for a flow that is being retired. AC-610 was
+scoped as a small change and stays that way. Nothing regresses for SB users — 46 is looser than
+the 29 they had, so no name that worked before stops working.
+
+If SB support outlives this decision and turns out to need its own limit, the fix is a separate
+ticket and the shape is known: the two flows are already fully separated server-side
+(`PostOdsDto` via `POST .../odss` for SB; `PostInstanceDtoV2`/`V3` via
+`POST .../admin-api/{version}/instances` for the rest), so only the shared form resolver in
+`CreateOdsPage` needs splitting. Note that class-validator unions parent and child rules, so a
+subclass can only tighten a cap, never relax one — two standalone form DTOs are required, not
+inheritance.
 
 ## Verification
 

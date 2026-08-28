@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { validate } from 'class-validator';
+import { MAX_ODS_NAME_LENGTH } from '../utils';
 import {
   PostInstanceDtoV2,
   CopyClaimsetDtoV2,
@@ -25,6 +26,24 @@ describe('PostInstanceDtoV2', () => {
     });
 
     await expect(validate(dto)).resolves.toHaveLength(0);
+  });
+
+  it('accepts a name at the maximum length', async () => {
+    const dto = Object.assign(new PostInstanceDtoV2(), {
+      name: 'a'.repeat(MAX_ODS_NAME_LENGTH),
+      databaseTemplate: 'Minimal',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+  });
+
+  it('rejects a name one character over the maximum length', async () => {
+    const dto = Object.assign(new PostInstanceDtoV2(), {
+      name: 'a'.repeat(MAX_ODS_NAME_LENGTH + 1),
+      databaseTemplate: 'Minimal',
+    });
+
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
   });
 });
 

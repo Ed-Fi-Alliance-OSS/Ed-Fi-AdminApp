@@ -3,13 +3,14 @@ import {
   ButtonGroup,
   FormControl,
   FormErrorMessage,
+  FormHelperText,
   FormLabel,
   Input,
   Select,
   Text,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
-import { PostOdsDto } from '@edanalytics/models';
+import { MAX_ODS_NAME_LENGTH, PostOdsDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
@@ -58,11 +59,16 @@ export const CreateOds = () => {
     control,
     handleSubmit,
     setError,
+    watch,
     formState: { errors, isSubmitting },
   } = useForm<PostOdsDto>({
     resolver,
     defaultValues: Object.assign(new PostOdsDto(), {}),
   });
+
+  // Trimmed to match what is actually validated: @TrimWhitespace() runs before
+  // @MaxLength, so a trailing space is not part of the name being measured.
+  const nameLength = (watch('name') ?? '').trim().length;
 
   return (
     <PageTemplate title={terminology.createTitle} actions={undefined}>
@@ -110,7 +116,10 @@ export const CreateOds = () => {
       >
         <FormControl w="form-width" isInvalid={!!errors.name}>
           <FormLabel>Name</FormLabel>
-          <Input {...register('name')} />
+          <Input {...register('name')} maxLength={MAX_ODS_NAME_LENGTH} />
+          <FormHelperText color={nameLength >= MAX_ODS_NAME_LENGTH ? 'red.500' : undefined}>
+            {nameLength}/{MAX_ODS_NAME_LENGTH} characters
+          </FormHelperText>
           <FormErrorMessage>{errors.name?.message}</FormErrorMessage>
         </FormControl>
         <FormControl w="form-width" isInvalid={!!(isStartingBlocks ? errors.templateName : errors.databaseTemplate)}>

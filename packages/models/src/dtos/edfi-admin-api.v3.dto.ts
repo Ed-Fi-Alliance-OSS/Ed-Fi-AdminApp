@@ -12,7 +12,7 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
-import { TrimWhitespace } from '../utils';
+import { MAX_ODS_NAME_LENGTH, MAX_ODS_NAME_LENGTH_MESSAGE, TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
   PostApiClientFormBase,
@@ -530,6 +530,7 @@ export const toGetDataStoreSummaryDtoV3 = makeSerializer(GetDataStoreSummaryDtoV
 export class PostInstanceDtoV3 {
   @Expose()
   @IsString()
+  @MaxLength(MAX_ODS_NAME_LENGTH, { message: MAX_ODS_NAME_LENGTH_MESSAGE })
   @TrimWhitespace()
   name: string;
 
