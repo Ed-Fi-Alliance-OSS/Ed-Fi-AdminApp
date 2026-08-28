@@ -22,6 +22,7 @@ jest.mock('../../helpers', () => ({
   useNavToParent: jest.fn(() => '/parent'),
   useTeamEdfiTenantNavContextLoaded: jest.fn(),
   getRelationDisplayName: jest.fn(() => '-'),
+  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
 }));
 jest.mock('../../helpers/mutationErrCallback', () => ({ mutationErrCallback: jest.fn(() => ({})) }));
 jest.mock('../../helpers/EntitySelectors', () => ({
@@ -49,10 +50,6 @@ jest.mock('../../api/queries/queries.v7', () => ({
 }));
 jest.mock('../../api-v2', () => ({ QUERY_KEYS: { edfiTenants: 'edfiTenants', applications: 'applications', integrationProviders: 'integrationProviders', integrationApps: 'integrationApps' } }));
 jest.mock('./applicationConfig', () => ({ useApplicationConfig: Object.assign(jest.fn(), { match: jest.fn() }) }));
-jest.mock('../Ods/useOdsTerminology', () => ({
-  useOdsTerminology: jest.fn(() => ({ singular: 'ODS', plural: 'Ods', listTitle: 'ODS', createTitle: 'Create ODS' })),
-}));
-
 const mockUseForm = useForm as jest.Mock;
 const mockUseNavigate = useNavigate as jest.Mock;
 const mockUseQuery = useQuery as jest.Mock;

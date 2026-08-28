@@ -6,7 +6,6 @@ import {
 } from '@edanalytics/common-ui';
 import { Badge } from '@chakra-ui/react';
 import {
-  GetApiClientDtoV2,
   GetOdsDto,
 } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
@@ -14,15 +13,17 @@ import { useMemo } from 'react';
 import {
   odsQueries,
 } from '../../api';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useOdsTerminology, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { OdsLink } from '../../routes';
+import { ApiClientEntity, getDataStoreIds } from './apiClientConfig';
 
 interface ViewApiClientProps {
-  apiClient: GetApiClientDtoV2;
+  apiClient: ApiClientEntity;
 }
 
 export const ViewApiClient = ({ apiClient }: ViewApiClientProps) => {
   const { edfiTenant, teamId } = useTeamEdfiTenantNavContextLoaded();
+  const odsTerminology = useOdsTerminology();
 
   const odss = useQuery(
     odsQueries.getAll({
@@ -44,11 +45,11 @@ export const ViewApiClient = ({ apiClient }: ViewApiClientProps) => {
     <ContentSection>
       <AttributesGrid>
         <Attribute isCopyable label="Name" value={apiClient.name} />
-        <AttributeContainer label="ODS">
-          {apiClient.odsInstanceIds.length > 0 &&
-            apiClient.odsInstanceIds
-              .map((odsInstanceId) => (
-                <OdsLink key={odsInstanceId} id={odsInstanceId} query={odssByInstanceId} />
+        <AttributeContainer label={odsTerminology.singular}>
+          {getDataStoreIds(apiClient).length > 0 &&
+            getDataStoreIds(apiClient)
+              .map((dataStoreId) => (
+                <OdsLink key={dataStoreId} id={dataStoreId} query={odssByInstanceId} />
               ))
               // eslint-disable-next-line @typescript-eslint/no-explicit-any
               .reduce((prev, curr) => [prev, ', ', curr] as any)}
@@ -60,9 +61,6 @@ export const ViewApiClient = ({ apiClient }: ViewApiClientProps) => {
           <Badge colorScheme={apiClient.isApproved ? 'green' : 'red'}>
             {apiClient.isApproved ? 'Enabled' : 'Disabled'}
           </Badge>
-        </AttributeContainer>
-        <AttributeContainer label="Status" >
-          {apiClient.keyStatus}
         </AttributeContainer>
       </AttributesGrid>
     </ContentSection>

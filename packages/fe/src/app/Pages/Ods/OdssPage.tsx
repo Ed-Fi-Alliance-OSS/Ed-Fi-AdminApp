@@ -4,6 +4,7 @@ import { instancesV2, odsQueries } from '../../api';
 import {
   teamEdfiTenantAuthConfig,
   useAuthorize,
+  useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { CellContext } from '@tanstack/react-table';
@@ -14,7 +15,6 @@ import { GetOdsDto } from '@edanalytics/models';
 import { odsStatusDisplayMap } from './Utils';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
-import { useOdsTerminology } from './useOdsTerminology';
 
 const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
   Object.assign(Object.create(Object.getPrototypeOf(value)), value, { status: 'PendingDelete' });

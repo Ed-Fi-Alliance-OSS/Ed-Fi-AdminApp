@@ -1,4 +1,4 @@
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useTeamEdfiTenantNavContextLoaded } from './navContext';
 
 export interface OdsTerminology {
   singular: string;

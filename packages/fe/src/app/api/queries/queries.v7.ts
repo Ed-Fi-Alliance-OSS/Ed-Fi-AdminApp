@@ -1,9 +1,11 @@
 import {
   ApiClientResponseV2,
+  ApiClientResponseV3,
   ApplicationResponseV2,
   CopyClaimsetDtoV2,
   CopyClaimsetDtoV3,
   GetApiClientDtoV2,
+  GetApiClientDtoV3,
   GetApplicationDtoV2,
   GetApplicationDtoV3,
   GetClaimsetMultipleDtoV2,
@@ -18,7 +20,9 @@ import {
   GetVendorDtoV3,
   Id,
   PostApiClientDtoV2,
+  PostApiClientDtoV3,
   PostApiClientResponseDtoV2,
+  PostApiClientResponseDtoV3,
   PostInstanceDtoV2,
   ImportClaimsetSingleDtoV2,
   ImportClaimsetSingleDtoV3,
@@ -31,6 +35,7 @@ import {
   PostVendorDtoV2,
   PostVendorDtoV3,
   PutApiClientDtoV2,
+  PutApiClientDtoV3,
   PutApplicationFormDtoV2,
   PutApplicationFormDtoV3,
   PutClaimsetFormDtoV2,
@@ -159,6 +164,106 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   .post(
     'post',
     { ResDto: PostApiClientResponseDtoV2, ReqDto: PostApiClientDtoV2 },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiClient',
+        adminApi: true,
+      })
+  )
+  .delete(
+    'delete',
+    {},
+    // The builder's `path` overload types its 3rd arg as a bare function, but the
+    // runtime implementation (builder.ts's `delete()`) only recognizes it when it's
+    // wrapped as `{ path: fn }` (it does `'path' in pathConfig`), and calls it with
+    // either `{ queryParams, id }` (from mutationFn) or `{ ...queryParams, id }`
+    // (from onSuccess) depending on caller - hence the dual `queryParams?.x ?? x`
+    // lookups below. Cast through `unknown` (not `any`) since the declared overload
+    // type doesn't describe this actual shape.
+    {
+      path: (base: ApiClientDeletePathBase) => {
+        const edfiTenant = base.queryParams?.edfiTenant ?? base.edfiTenant;
+        const teamId = base.queryParams?.teamId ?? base.teamId;
+        return standardPath({
+          edfiTenant,
+          teamId,
+          kebabCaseName: 'apiClient',
+          adminApi: true,
+          id: base.id,
+        });
+      },
+    } as unknown as (
+      base: { id: string | number },
+      extras: unknown
+    ) => string
+  )
+  .build();
+
+export const apiClientQueriesV3 = new EntityQueryBuilder({
+  adminApi: true,
+  name: 'ApiClient',
+  includeEdfiTenant: true,
+  includeTeam: TeamOptions.Required,
+})
+  .getAll(
+    'getAll',
+    { ResDto: GetApiClientDtoV3 },
+    (base, extras: { applicationId?: number }) => {
+      const query =
+        extras?.applicationId === undefined
+          ? ''
+          : `?applicationId=${extras.applicationId}`;
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiClient',
+        adminApi: true,
+        id: query,
+      });
+    }
+  )
+  .getOne('getOne', { ResDto: GetApiClientDtoV3 },
+    (base) => {
+      return standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiClient',
+        adminApi: true,
+        id: base.id,
+      });
+    })
+  .put(
+    'put',
+    { ResDto: GetApiClientDtoV3, ReqDto: PutApiClientDtoV3 },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiClient',
+        adminApi: true,
+        id: base.entity.id,
+      })
+  )
+  .put(
+    'resetCreds',
+    {
+      ResDto: undefined as unknown as ApiClientResponseV3,
+      ReqDto: Id,
+    },
+    (base) =>
+      standardPath({
+        edfiTenant: base.edfiTenant,
+        teamId: base.teamId,
+        kebabCaseName: 'apiClient',
+        adminApi: true,
+        id: `${base.entity.id}/reset-credential`,
+      })
+  )
+  .post(
+    'post',
+    { ResDto: PostApiClientResponseDtoV3, ReqDto: PostApiClientDtoV3 },
     (base) =>
       standardPath({
         edfiTenant: base.edfiTenant,

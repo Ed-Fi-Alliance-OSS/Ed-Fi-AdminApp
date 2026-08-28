@@ -31,6 +31,7 @@ import { odsInstancesV2, dataStoresV3, applicationQueriesV2 } from '../../api/qu
 import {
   getRelationDisplayName,
   useNavToParent,
+  useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import {
@@ -44,7 +45,6 @@ import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { MutateOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { QUERY_KEYS } from '../../api-v2';
 import { useApplicationConfig } from './applicationConfig';
-import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 // Dispatches on the resolved version via `.match()` rather than destructuring
 // `useApplicationConfig()` directly, so `CreateApplicationForm`'s generic is

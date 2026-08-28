@@ -27,7 +27,11 @@ import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { applicationQueriesV2, edorgQueries, profileQueriesV2, queryKey } from '../../api';
-import { getRelationDisplayName, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import {
+  getRelationDisplayName,
+  useOdsTerminology,
+  useTeamEdfiTenantNavContextLoaded,
+} from '../../helpers';
 import {
   SelectClaimsetV2,
   SelectEdorg,
@@ -40,7 +44,6 @@ import { QUERY_KEYS } from '../../api-v2';
 import { Icons } from '@edanalytics/common-ui';
 import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
-import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 // Dispatches on the resolved version via `.match()` rather than destructuring
 // `useApplicationConfig()` directly, so `EditApplicationForm`'s generic is

@@ -10,7 +10,7 @@ import { edorgQueries, odsQueries, profileQueriesV2, vendorQueriesV2 } from '../
 
 import { UseQueryOptions, useQuery } from '@tanstack/react-query';
 import { ColumnDef } from '@tanstack/react-table';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { useOdsTerminology, useTeamEdfiTenantNavContextLoaded } from '../../helpers';
 import { getRelationDisplayName } from '../../helpers/getRelationDisplayName';
 import { ClaimsetLinkV2 } from '../../routes/claimset.routes';
 import { EdorgLink } from '../../routes/edorg.routes';
@@ -22,7 +22,6 @@ import { useMultiApplicationActions } from './useApplicationActions';
 import { useGetManyApplications } from '../../api-v2';
 import { ApplicationEntity, getDataStoreIds, useApplicationConfig } from './applicationConfig';
 import { ClaimsetEntity, useClaimsetConfig } from '../ClaimsetV2Plus/claimsetConfig';
-import { useOdsTerminology } from '../Ods/useOdsTerminology';
 
 export const ApplicationsPageV2 = () => {
   return (

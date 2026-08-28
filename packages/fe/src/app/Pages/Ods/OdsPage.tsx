@@ -11,6 +11,7 @@ import { useParams } from 'react-router';
 import { odsQueries } from '../../api';
 import {
   AuthorizeComponent,
+  useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
   VersioningHoc,
 } from '../../helpers';
@@ -19,7 +20,6 @@ import { OdsEdorgsTable } from './OdsEdorgsTable';
 import { ViewOds } from './ViewOds';
 import { useOdsActions } from './useOdsActions';
 import { OdsRowCountsTable } from './OdsRowCountsTable';
-import { useOdsTerminology } from './useOdsTerminology';
 
 export const OdsPage = () => {
   const params = useParams() as {

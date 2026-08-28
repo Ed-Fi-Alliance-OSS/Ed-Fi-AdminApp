@@ -25,6 +25,14 @@ jest.mock('../../helpers', () => ({
     privilege,
     subject: { id, edfiTenantId, teamId },
   })),
+  // This spec never varies sbEnvironment.version or asserts on terminology text,
+  // so a static (v2) stub is sufficient — see the real hook in helpers/useOdsTerminology.ts.
+  useOdsTerminology: jest.fn(() => ({
+    singular: 'ODS',
+    plural: "ODS's",
+    listTitle: 'Operational Data Stores',
+    createTitle: 'Create new ODS',
+  })),
 }));
 
 jest.mock('../../Layout/FeedbackBanner', () => ({

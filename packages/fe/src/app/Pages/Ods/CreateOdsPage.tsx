@@ -20,6 +20,7 @@ import { instancesV2, odsQueries } from '../../api';
 import {
   SelectOdsTemplate,
   useNavToParent,
+  useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
@@ -27,7 +28,6 @@ import {
   FIXED_NON_SB_TEMPLATE_OPTIONS,
   getTemplateFieldName,
 } from './createOdsTemplateBehavior';
-import { useOdsTerminology } from './useOdsTerminology';
 
 const resolver = classValidatorResolver(PostOdsDto);
 

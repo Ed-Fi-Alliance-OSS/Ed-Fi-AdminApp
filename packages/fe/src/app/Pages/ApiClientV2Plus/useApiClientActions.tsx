@@ -1,6 +1,5 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 
-import { GetApiClientDtoV2 } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import {
@@ -9,8 +8,7 @@ import {
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
-import { apiClientQueriesV2 } from '../../api';
-import { useResetIntegrationApiClientCredentials } from '../../api-v2';
+import { ApiClientEntity, useApiClientConfig } from './apiClientConfig';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 
@@ -18,7 +16,7 @@ export const useSingleApiClientActions = ({
   apiClient,
   applicationId,
 }: {
-  apiClient: GetApiClientDtoV2 | undefined;
+  apiClient: ApiClientEntity | undefined;
   applicationId: number;
 }): ActionsType => {
   const queryClient = useQueryClient();
@@ -26,12 +24,19 @@ export const useSingleApiClientActions = ({
   const navigate = useNavigate();
   const { apiClientId } = useParams();
   const popBanner = usePopBanner();
+  const { queries } = useApiClientConfig();
 
-  const deleteApiClient = apiClientQueriesV2.delete({
+  const deleteApiClient = queries.delete({
     edfiTenant,
     teamId: asId,
   });
-  const resetApiClientCredentials = useResetIntegrationApiClientCredentials();
+  // Resolved through the version config rather than the api-v2
+  // `useResetIntegrationApiClientCredentials` hook (which is hard-wired to
+  // apiClientQueriesV2), so a v3 tenant hits the V3 reset-credential endpoint.
+  const resetApiClientCredentials = queries.resetCreds({
+    edfiTenant,
+    teamId: asId,
+  });
 
   const search = useSearchParamsObject();
   const onApiClientPage = !!apiClientId;
@@ -133,7 +138,7 @@ export const useSingleApiClientActions = ({
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => {
                         queryClient.invalidateQueries({
-                          queryKey: apiClientQueriesV2.getAll(
+                          queryKey: queries.getAll(
                             {
                               teamId: asId,
                               edfiTenant,

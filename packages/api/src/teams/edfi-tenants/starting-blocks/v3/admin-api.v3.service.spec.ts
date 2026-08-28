@@ -141,7 +141,7 @@ describe('AdminApiServiceV3', () => {
         {
           id: 1,
           name: 'client',
-          key: 'key',
+          clientId: 'key',
           isApproved: true,
           useSandbox: false,
           sandboxType: 0,
@@ -154,8 +154,33 @@ describe('AdminApiServiceV3', () => {
 
       const result = await service.getApiClients(mockEdfiTenant as EdfiTenant, 5);
 
-      expect(mockGet).toHaveBeenCalledWith('apiclients?offset=0&limit=10000&applicationId=5');
+      expect(mockGet).toHaveBeenCalledWith('apiClients?offset=0&limit=10000&applicationId=5');
       expect(result[0].dataStoreIds).toEqual([10]);
+    });
+
+    // Admin API V3's GET/list apiClients response uses `clientId`, not `key`,
+    // for the credential value (its own POST response uses `key` for the same
+    // concept) — see edfi-admin-api.v3.dto.spec.ts for the DTO-level test.
+    // This test guards the service-layer wiring end to end.
+    it('maps the wire field `clientId` onto `key`', async () => {
+      const mockGet = jest.fn().mockResolvedValue([
+        {
+          id: 1,
+          name: 'client',
+          clientId: 'Ihu78396gvdt',
+          isApproved: true,
+          useSandbox: false,
+          sandboxType: 0,
+          applicationId: 5,
+          keyStatus: 'Active',
+          dataStoreIds: [10],
+        },
+      ]);
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getApiClients(mockEdfiTenant as EdfiTenant, 5);
+
+      expect(result[0].key).toBe('Ihu78396gvdt');
     });
   });
 
