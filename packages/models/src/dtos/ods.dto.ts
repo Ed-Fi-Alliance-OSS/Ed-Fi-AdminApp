@@ -5,7 +5,13 @@ import { makeSerializer } from '../utils/make-serializer';
 import { DtoPostBase, PostDto } from '../utils/post-base.dto';
 import { DtoPutBase, PutDto } from '../utils/put-base.dto';
 import { MinLength, MaxLength, Matches } from 'class-validator';
-import { TrimWhitespace } from '../utils';
+import {
+  MAX_ODS_NAME_LENGTH,
+  MAX_ODS_NAME_LENGTH_MESSAGE,
+  ODS_NAME_PATTERN,
+  ODS_NAME_PATTERN_MESSAGE,
+  TrimWhitespace,
+} from '../utils';
 
 // This is a Get DTO that should not have whitespace trimmed
 export class OdsTemplateOptionDto {
@@ -128,8 +134,8 @@ export class PostOdsDto
 {
   @Expose()
   @MinLength(3)
-  @MaxLength(29)
-  @Matches(/^[A-Za-z0-9 _]+$/, { message: 'Name must only contain letters, numbers, spaces, and underscores.' })
+  @MaxLength(MAX_ODS_NAME_LENGTH, { message: MAX_ODS_NAME_LENGTH_MESSAGE })
+  @Matches(ODS_NAME_PATTERN, { message: ODS_NAME_PATTERN_MESSAGE })
   @TrimWhitespace()
   name: string;
 

@@ -1,5 +1,6 @@
 import 'reflect-metadata';
 import { validate } from 'class-validator';
+import { MAX_ODS_NAME_LENGTH, MAX_PORTABLE_DATABASE_NAME_LENGTH } from '../utils';
 import {
   PostInstanceDtoV2,
   CopyClaimsetDtoV2,
@@ -25,6 +26,44 @@ describe('PostInstanceDtoV2', () => {
     });
 
     await expect(validate(dto)).resolves.toHaveLength(0);
+  });
+
+  it('accepts a name at the maximum length', async () => {
+    const dto = Object.assign(new PostInstanceDtoV2(), {
+      name: 'a'.repeat(MAX_ODS_NAME_LENGTH),
+      databaseTemplate: 'Minimal',
+    });
+
+    await expect(validate(dto)).resolves.toHaveLength(0);
+  });
+
+  it('rejects a name one character over the maximum length', async () => {
+    const dto = Object.assign(new PostInstanceDtoV2(), {
+      name: 'a'.repeat(MAX_ODS_NAME_LENGTH + 1),
+      databaseTemplate: 'Minimal',
+    });
+
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
+  });
+
+  it('rejects a non-ASCII name, keeping the character cap a byte cap', async () => {
+    // 46 characters passes MaxLength, but is ~138 bytes in UTF-8 — over the portable
+    // limit the cap exists to protect. The character-set rule is what closes that.
+    const name = '数'.repeat(MAX_ODS_NAME_LENGTH);
+    const dto = Object.assign(new PostInstanceDtoV2(), { name, databaseTemplate: 'Minimal' });
+
+    expect(name).toHaveLength(MAX_ODS_NAME_LENGTH);
+    expect(Buffer.byteLength(name, 'utf8')).toBeGreaterThan(MAX_PORTABLE_DATABASE_NAME_LENGTH);
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
+  });
+
+  it('rejects a name with unsupported punctuation', async () => {
+    const dto = Object.assign(new PostInstanceDtoV2(), {
+      name: 'Instance-One',
+      databaseTemplate: 'Minimal',
+    });
+
+    expect((await validate(dto)).map((e) => e.property)).toContain('name');
   });
 });
 
