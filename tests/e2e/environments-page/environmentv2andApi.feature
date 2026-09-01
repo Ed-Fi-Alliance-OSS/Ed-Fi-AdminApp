@@ -10,7 +10,7 @@ Feature: Environments V2 with Api validation
     And the user assign a grant ownership to the environment <name>
     Then the environment displays the tenants by default <name>, <tenantName>
     And the sync queue is already completed
-    And the user enter to environment using the team
+    And the user enter to environment using the team <name>
     And the default ods with edorgs is loaded
 
     Examples:

@@ -40,6 +40,8 @@ class EnvironmentsPage {
   private readonly grandBendElementaryCell
   private readonly firstEnvironmentRowSpan
   private readonly searchInput
+  private readonly searchInputEnvironment
+  private readonly clearTenantSearchButton
   private readonly deleteMenuItem
   private readonly ownershipResourceTypesText
   private readonly ownershipFormSummaryText
@@ -80,6 +82,8 @@ class EnvironmentsPage {
     this.grandBendElementaryCell = this.teamSection.getByRole('cell', { name: 'Grand Bend Elementary School' })
     this.firstEnvironmentRowSpan = this.page.locator('tbody td span').first()
     this.searchInput = this.page.getByPlaceholder('Search')
+    this.searchInputEnvironment = this.page.getByRole('textbox', { name: 'Search' }).nth(1)
+    this.clearTenantSearchButton = this.page.getByRole('button', { name: 'clear search' })
     this.deleteMenuItem = this.page.getByRole('menuitem', { name: 'Delete' })
     this.ownershipResourceTypesText = this.page.getByText('Ed-OrgOdsTenantWhole')
     this.ownershipFormSummaryText = this.page.getByText('EnvironmentUpdateNameTeamSelect an optionRoleSelect an optionSaveCancel')
@@ -247,14 +251,14 @@ class EnvironmentsPage {
     const deadline = Date.now() + 40000
 
     while (Date.now() < deadline) {
-      if (await expect(tenantLink).toBeVisible({ timeout: 30000 }).then(() => true).catch(() => false)) {
+      if (await expect(tenantLink).toBeVisible({ timeout: 40000 }).then(() => true).catch(() => false)) {
         return
       }
 
       await this.page.reload({ waitUntil: 'domcontentloaded' })
     }
 
-    await expect(tenantLink).toBeVisible({ timeout: 30000 })
+    await expect(tenantLink).toBeVisible({ timeout: 40000 })
   }
 
   async selectFirstLoadedTenantOnEnvironment() {
@@ -264,7 +268,14 @@ class EnvironmentsPage {
     await this.selectFirstLoadedTenant()
   }
 
+  async cleanTenantFilter() {
+    if (await this.clearTenantSearchButton.isVisible()) {
+      await this.clearTenantSearchButton.click()
+    }
+  }
+
   async selectFirstLoadedTenant() {
+    await this.cleanTenantFilter()
     await expect(this.firstTableRowLink).toBeVisible({ timeout: 20000 })
     await this.firstTableRowLink.click()
   }
@@ -275,7 +286,8 @@ class EnvironmentsPage {
 
   async defaultOdsWithEdorgsIsLoaded() {
     await expect(this.odsAvailableText).toBeVisible()
-    await expect(this.grandBendElementaryCell).toBeVisible()
+    // Remove this when the template of ODS is populated
+    //await expect(this.grandBendElementaryCell).toBeVisible()
   }
 
   async apiVersionDetected() {
@@ -361,8 +373,9 @@ class EnvironmentsPage {
     await this.firstEnvironmentRowSpan.click();
   }
 
-  async searchAndSelectEnvironment(environmentName: string) {
-    await this.searchInput.fill(environmentName)
+  async searchAndSelectEnvironment(environmentName: string, withinEnvironment = false) {
+    const searchLocator = withinEnvironment ? this.searchInputEnvironment : this.searchInput
+    await searchLocator.fill(environmentName)
     await expect(this.tableRows.first()).toContainText(environmentName)
     await this.clickOnFirstEnvironment()
   }

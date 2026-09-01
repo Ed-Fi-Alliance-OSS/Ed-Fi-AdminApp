@@ -111,9 +111,9 @@ Then('the sync queue is already completed', async () => {
   await environmentsPage.syncQueueIsCompleted()
 })
 
-Then('the user enter to environment using the team', async () => {
+Then(/^the user enter to environment using the team (.+)$/, async ({}, name: string) => {
   await environmentsPage.selectGlobalTeam('Sample Team')
-  await environmentsPage.clickOnFirstEnvironment()
+  await environmentsPage.searchAndSelectEnvironment(name, true)
   await environmentsPage.selectFirstLoadedTenantOnEnvironment()
 })
 
