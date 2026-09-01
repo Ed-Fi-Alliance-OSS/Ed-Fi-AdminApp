@@ -66,9 +66,10 @@ export const CreateOds = () => {
     defaultValues: Object.assign(new PostOdsDto(), {}),
   });
 
-  // Trimmed to match what is actually validated: @TrimWhitespace() runs before
-  // @MaxLength, so a trailing space is not part of the name being measured.
-  const nameLength = (watch('name') ?? '').trim().length;
+  // Counts the raw value so the counter agrees with the maxLength ceiling the input
+  // enforces — a trimmed count would show headroom the field will not actually accept.
+  // Validation trims first, so a space-padded name can validate one shorter than this.
+  const nameLength = (watch('name') ?? '').length;
 
   return (
     <PageTemplate title={terminology.createTitle} actions={undefined}>

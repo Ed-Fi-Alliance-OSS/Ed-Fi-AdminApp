@@ -244,10 +244,18 @@ describe('CreateOds', () => {
     expect(counterText(getCounter())).toBe(`0/${MAX_ODS_NAME_LENGTH} characters`);
   });
 
-  it('ignores surrounding whitespace, which is trimmed before validation', () => {
+  it('counts surrounding whitespace, which the maxLength ceiling also counts', () => {
     setup(false, { name: '  Instance One  ', databaseTemplate: 'Minimal' });
 
-    expect(counterText(getCounter())).toBe(`12/${MAX_ODS_NAME_LENGTH} characters`);
+    // 16 raw characters. Validation trims to 12, but the input stops accepting at 46
+    // raw, so the counter has to agree with the raw ceiling to stay truthful.
+    expect(counterText(getCounter())).toBe(`16/${MAX_ODS_NAME_LENGTH} characters`);
+  });
+
+  it('marks the counter when whitespace padding reaches the maximum', () => {
+    setup(false, { name: ` ${'a'.repeat(MAX_ODS_NAME_LENGTH - 1)}`, databaseTemplate: 'Minimal' });
+
+    expect(getCounter()?.props).toMatchObject({ color: 'red.500' });
   });
 
   it('marks the counter once the name reaches the maximum', () => {

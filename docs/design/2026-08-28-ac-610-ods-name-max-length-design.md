@@ -51,12 +51,17 @@ approximation.
 ### Characters vs. bytes
 
 PostgreSQL's limit is 63 *bytes*, while `@MaxLength` counts UTF-16 code units. The two coincide
-only for ASCII. `PostOdsDto` guarantees ASCII through its existing
-`@Matches(/^[A-Za-z0-9 _]+$/)`, so the form can never submit a name whose byte length exceeds its
-character length. The V2/V3 instance DTOs deliberately do not mirror that pattern (see below), so
-AdminApp's cap alone does not enforce the byte ceiling for a direct API caller — ODS-Admin-API's
-own `_validOdsInstanceManageNamePattern` / `_validDataStoreManageNamePattern` reject non-ASCII
-before any database is provisioned. The guarantee is therefore joint, not AdminApp's alone.
+only for ASCII, so the length cap is only meaningful alongside a character-set rule. All three
+DTOs therefore carry `@Matches(ODS_NAME_PATTERN)`, mirroring ODS-Admin-API's own
+`_validOdsInstanceManageNamePattern` / `_validDataStoreManageNamePattern`. AdminApp enforces the
+byte ceiling on its own; it does not depend on the downstream check.
+
+An earlier revision applied `@MaxLength` alone to the V2/V3 instance DTOs, on the reasoning that
+mirroring the pattern risked rejecting names other callers send successfully. PR review showed
+that reasoning was wrong: those DTOs are the request bodies for `POST .../instances`, which
+forwards to `odsInstances/manage` (V2) and `dataStores/manage` (V3) — both of which already
+enforce the identical pattern. Any name AdminApp newly rejects was already rejected downstream,
+so the guard costs nothing and moves the error earlier, onto the right field.
 
 ## Design
 
@@ -92,7 +97,7 @@ a future longer `SandboxType` value tightens the cap automatically instead of si
 | File | Change |
 |---|---|
 | `packages/models/src/dtos/ods.dto.ts` | `@MaxLength(29)` → `@MaxLength(MAX_ODS_NAME_LENGTH, { message })` on `PostOdsDto.name`. Reaches the form via `classValidatorResolver`, covering both `CreateOdsPage` branches. `@MinLength(3)` and `@Matches` unchanged. |
-| `packages/models/src/dtos/edfi-admin-api.v2.dto.ts` | Add `@MaxLength(MAX_ODS_NAME_LENGTH, { message })` to `PostInstanceDtoV2.name`. |
+| `packages/models/src/dtos/edfi-admin-api.v2.dto.ts` | Add `@MaxLength(MAX_ODS_NAME_LENGTH)` and `@Matches(ODS_NAME_PATTERN)` to `PostInstanceDtoV2.name`. |
 | `packages/models/src/dtos/edfi-admin-api.v3.dto.ts` | Add the same to `PostInstanceDtoV3.name`. |
 
 Shared message, exported from the same module as the constant so the two cannot drift:
@@ -112,8 +117,8 @@ message via `errors.name?.message`.
 `edfiTenant.sbEnvironment.version` — and both NestJS controllers expose `POST instances`. Adding
 the rule to both DTOs is what makes this apply to V2 and V3.
 
-Only `@MaxLength` is mirrored, not `@MinLength`/`@Matches`. Those would broaden the ticket and
-risk rejecting request shapes that succeed today.
+`@MaxLength` and `@Matches` are mirrored; `@MinLength` is not, since a short name is a form-level
+concern with no bearing on the generated database name.
 
 ### 3. Form — input filter and character counter
 
@@ -128,9 +133,15 @@ const nameLength = watch('name')?.length ?? 0;
 </FormHelperText>
 ```
 
-`?? 0` because `defaultValues` leaves `name` undefined. Neutral until the cap, red at it — no
+`?? ''` because `defaultValues` leaves `name` undefined. Neutral until the cap, red at it — no
 intermediate amber state. `register` emits only `{ name, onChange, onBlur, ref }`, so the spread
 cannot clobber `maxLength`.
+
+The counter measures the **raw** value, not the trimmed one, so it agrees with the `maxLength`
+ceiling the input actually enforces. Counting the trimmed value would show headroom the field
+refuses to accept — a space-padded name would sit at `45/46` while the next keystroke is blocked.
+Validation trims first, so a padded name can validate one character shorter than the counter
+shows; that mismatch is invisible, whereas a lying counter is not.
 
 `maxLength` is an input filter, not validation: it stops the DOM from ever holding more than 46
 characters. Browsers apply it to paste as well as typing, so an over-long pasted name is

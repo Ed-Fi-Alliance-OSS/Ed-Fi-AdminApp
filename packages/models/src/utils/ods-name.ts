@@ -33,3 +33,15 @@ export const MAX_ODS_NAME_LENGTH =
 export const MAX_ODS_NAME_LENGTH_MESSAGE =
   `Name must be ${MAX_ODS_NAME_LENGTH} characters or fewer so the generated database name ` +
   `stays within the ${MAX_PORTABLE_DATABASE_NAME_LENGTH}-character limit.`;
+
+/**
+ * Characters ODS-Admin-API accepts in an ODS / Data Store name, mirroring
+ * `_validOdsInstanceManageNamePattern` (V2) and `_validDataStoreManageNamePattern` (V3).
+ *
+ * This is also what keeps {@link MAX_ODS_NAME_LENGTH} meaningful: PostgreSQL's limit is 63
+ * *bytes* while `@MaxLength` counts UTF-16 code units, and the two coincide only for ASCII.
+ */
+export const ODS_NAME_PATTERN = /^[A-Za-z0-9 _]+$/;
+
+export const ODS_NAME_PATTERN_MESSAGE =
+  'Name must only contain letters, numbers, spaces, and underscores.';

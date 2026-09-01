@@ -12,7 +12,13 @@ import {
   ValidateNested,
 } from 'class-validator';
 import { sanitizeForUrl, trimTrailingSlashes } from '@edanalytics/utils';
-import { MAX_ODS_NAME_LENGTH, MAX_ODS_NAME_LENGTH_MESSAGE, TrimWhitespace } from '../utils';
+import {
+  MAX_ODS_NAME_LENGTH,
+  MAX_ODS_NAME_LENGTH_MESSAGE,
+  ODS_NAME_PATTERN,
+  ODS_NAME_PATTERN_MESSAGE,
+  TrimWhitespace,
+} from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 import {
   PostApiClientFormBase,
@@ -531,6 +537,9 @@ export class PostInstanceDtoV3 {
   @Expose()
   @IsString()
   @MaxLength(MAX_ODS_NAME_LENGTH, { message: MAX_ODS_NAME_LENGTH_MESSAGE })
+  // Mirrors ODS-Admin-API's own name pattern. Also what makes the character-based
+  // MaxLength above a real byte-length guarantee rather than an ASCII-only one.
+  @Matches(ODS_NAME_PATTERN, { message: ODS_NAME_PATTERN_MESSAGE })
   @TrimWhitespace()
   name: string;
 
