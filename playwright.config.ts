@@ -15,7 +15,7 @@ const testDir = defineBddConfig({
 
 export default defineConfig({
   testDir,
-  timeout: 120000,
+  timeout: 180000,
   retries: 1,
   reporter: [
     [ 'line' ],

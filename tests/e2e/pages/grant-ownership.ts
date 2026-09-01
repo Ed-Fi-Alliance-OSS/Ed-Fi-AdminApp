@@ -6,30 +6,30 @@
 import { Page } from '@playwright/test'
 
 class GrantOwnershipPage {
-	constructor(private readonly page: Page) {}
+  constructor(private readonly page: Page) {}
 
-	async assignEnvironmentAccess(
-		resourceType: string,
-		environment: string,
-		team: string,
-		role: string
-	) {
-		await this.page.getByRole('radio', { name: resourceType, exact: true }).check()
-		await this.selectComboboxOption('Environment', environment)
-		await this.selectComboboxOption('Team', team)
-		await this.selectComboboxOption('Role', role)
-		await this.page.getByRole('button', { name: 'Save', exact: true }).click()
-	}
+  async assignEnvironmentAccess(
+    resourceType: string,
+    environment: string,
+    team: string,
+    role: string
+  ) {
+    await this.page.getByRole('radio', { name: resourceType, exact: true }).check()
+    await this.selectComboboxOption('Environment', environment)
+    await this.selectComboboxOption('Team', team)
+    await this.selectComboboxOption('Role', role)
+    await this.page.getByRole('button', { name: 'Save', exact: true }).click()
+  }
 
-	private async selectComboboxOption(label: string, optionText: string) {
-		const combobox =
-			label === 'Team'
-				? this.page.locator('div').filter({ hasText: /^Select an option$/ }).nth(4)
-				: this.page.getByRole('combobox', { name: label }).first()
-		await combobox.click()
-		await this.page.keyboard.type(optionText)
-		await this.page.keyboard.press('Enter')
-	}
+  private async selectComboboxOption(label: string, optionText: string) {
+    const combobox =
+      label === 'Team'
+        ? this.page.locator('div').filter({ hasText: /^Select an option$/ }).nth(4)
+        : this.page.getByRole('combobox', { name: label }).first()
+    await combobox.click()
+    await this.page.keyboard.type(optionText)
+    await this.page.keyboard.press('Enter')
+  }
 }
 
 export default GrantOwnershipPage

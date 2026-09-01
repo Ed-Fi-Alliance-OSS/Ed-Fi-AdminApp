@@ -117,8 +117,8 @@ Then(/^the user enter to environment using the team (.+)$/, async ({}, name: str
   await environmentsPage.selectFirstLoadedTenantOnEnvironment()
 })
 
-Then('the default ods with edorgs is loaded', async () => {
-  await environmentsPage.defaultOdsWithEdorgsIsLoaded()
+Then('the default ods loaded', async () => {
+  await environmentsPage.defaultOdsIsLoaded()
 })
 
 Then('the API version is detected according to the edfi api version', async () => {

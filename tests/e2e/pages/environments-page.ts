@@ -37,7 +37,6 @@ class EnvironmentsPage {
   private readonly odssTabLink
   private readonly syncQueueCompletedText
   private readonly odsAvailableText
-  private readonly grandBendElementaryCell
   private readonly firstEnvironmentRowSpan
   private readonly searchInput
   private readonly searchInputEnvironment
@@ -79,7 +78,6 @@ class EnvironmentsPage {
     this.odssTabLink = this.page.getByRole('link', { name: 'ODSs' })
     this.syncQueueCompletedText = this.page.getByText('completed', { exact: true })
     this.odsAvailableText = this.environmentsMainContainer.getByText('Available', { exact: true })
-    this.grandBendElementaryCell = this.teamSection.getByRole('cell', { name: 'Grand Bend Elementary School' })
     this.firstEnvironmentRowSpan = this.page.locator('tbody td span').first()
     this.searchInput = this.page.getByPlaceholder('Search')
     this.searchInputEnvironment = this.page.getByRole('textbox', { name: 'Search' }).nth(1)
@@ -284,10 +282,8 @@ class EnvironmentsPage {
     await expect(this.syncQueueCompletedText).toBeVisible({ timeout: 120000 })
   }
 
-  async defaultOdsWithEdorgsIsLoaded() {
+  async defaultOdsIsLoaded() {
     await expect(this.odsAvailableText).toBeVisible()
-    // Remove this when the template of ODS is populated
-    //await expect(this.grandBendElementaryCell).toBeVisible()
   }
 
   async apiVersionDetected() {

@@ -11,7 +11,7 @@ Feature: Environments V2 with Api validation
     Then the environment displays the tenants by default <name>, <tenantName>
     And the sync queue is already completed
     And the user enter to environment using the team <name>
-    And the default ods with edorgs is loaded
+    And the default ods loaded
 
     Examples:
       | name                    | edfiApi                                    | edfiManagement                                  | label      | tenantName |
