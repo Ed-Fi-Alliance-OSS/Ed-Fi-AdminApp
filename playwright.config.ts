@@ -43,7 +43,7 @@ export default defineConfig({
     {
       name: 'chromium',
       dependencies: ['setup'],
-      testIgnore: /(login-page\/login\.feature\.spec\.js)/,
+      testIgnore: [/login-page\/login\.feature\.spec\.js/, /environmentv2andApi\.feature\.spec\.js/],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
@@ -54,6 +54,15 @@ export default defineConfig({
       testMatch: /login-page\/login\.feature\.spec\.js/,
       use: {
         ...devices['Desktop Chrome'],
+      }
+    },
+    {
+      name: 'chromium-environmentv2andApi',
+      dependencies: ['setup', 'chromium'],
+      testMatch: /environmentv2andApi\.feature\.spec\.js/,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
       }
     }
   ],
