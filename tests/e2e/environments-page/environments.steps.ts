@@ -62,6 +62,14 @@ When('the user click on save button', async () => {
   await environmentsPage.clickSaveButton()
 })
 
+When('the sync queue has a queued job', async () => {
+  await environmentsPage.syncQueueHasStarted()
+})
+
+When(/^the user assign a grant ownership to the environment (.+)$/, async ({}, name: string) => {
+  await environmentsPage.grantOwnershipToAdminUser('Whole environment', name, 'Sample Team', 'Full ownership')
+})
+
 When('the user click on cancel button', async () => {
   await environmentsPage.clickCancelButton()
 })
@@ -91,6 +99,26 @@ Then('the new environment details should be loaded in the main page', async () =
 
 Then('contains the Team with Tenants sections displayed', async () => {
   await environmentsPage.teamWithTenantsSectionsDisplayed()
+})
+
+Then(/^the environment displays the tenants by default ([^,]+), (.+)$/, async ({}, name: string, tenantName: string) => {
+  await environmentsPage.clickEnvironmentOption()
+  await environmentsPage.searchAndSelectEnvironment(name)
+  await environmentsPage.tenantIsDisplayed(tenantName)
+})
+
+Then('the sync queue is already completed', async () => {
+  await environmentsPage.syncQueueIsCompleted()
+})
+
+Then(/^the user enter to environment using the team (.+)$/, async ({}, name: string) => {
+  await environmentsPage.selectGlobalTeam('Sample Team')
+  await environmentsPage.searchAndSelectEnvironment(name, true)
+  await environmentsPage.selectFirstLoadedTenantOnEnvironment()
+})
+
+Then('the default ods loaded', async () => {
+  await environmentsPage.defaultOdsIsLoaded()
 })
 
 Then('the API version is detected according to the edfi api version', async () => {

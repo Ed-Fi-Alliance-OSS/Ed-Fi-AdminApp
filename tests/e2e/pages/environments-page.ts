@@ -4,6 +4,15 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import { Page, expect } from '@playwright/test'
+import GrantOwnershipPage from './grant-ownership'
+import {
+  API_FETCH_TIMEOUT_MS,
+  API_WRITE_TIMEOUT_MS,
+  POLL_ATTEMPT_TIMEOUT_MS,
+  SYNC_COMPLETE_TIMEOUT_MS,
+  UI_RENDER_TIMEOUT_MS,
+  selectComboboxOptionIn,
+} from './support'
 
 class EnvironmentsPage {
   private readonly environmentOption
@@ -26,6 +35,24 @@ class EnvironmentsPage {
   private readonly editEnvDetails
   private readonly deleteEnvDetails
   private readonly grantownership
+  private readonly tenantsSection
+  private readonly syncQueueSection
+  private readonly syncQueueSectionBody
+  private readonly globalTeamDropdown
+  private readonly syncQueueStatusBadge
+  private readonly tableRows
+  private readonly firstTableRowLink
+  private readonly firstTenantSectionOnEnvironment
+  private readonly odssTabLink
+  private readonly syncQueueCompletedText
+  private readonly odsAvailableText
+  private readonly firstEnvironmentRowSpan
+  private readonly searchInput
+  private readonly searchInputEnvironment
+  private readonly clearTenantSearchButton
+  private readonly deleteMenuItem
+  private readonly ownershipResourceTypesText
+  private readonly ownershipFormSummaryText
   private readonly runSuffix = Date.now().toString(36)
   private rowCountBeforeDelete = 0
 
@@ -50,10 +77,36 @@ class EnvironmentsPage {
     this.editEnvDetails = this.page.locator('a[title="Edit environment details"]')
     this.deleteEnvDetails = this.page.locator('button[title="Delete environment"]')
     this.grantownership = this.page.getByRole('link', { name: 'Grant ownership' })
+    this.tenantsSection = this.page.getByRole('heading', { name: 'Tenants' })
+    this.syncQueueSection = this.page.getByRole('heading', { name: 'Sync queue' })
+    this.syncQueueSectionBody = this.page
+      .locator('.content-section')
+      .filter({ has: this.syncQueueSection })
+    this.globalTeamDropdown = this.page.getByRole('combobox', {
+      name: 'Select a team (or global) context',
+    })
+    this.syncQueueStatusBadge = this.syncQueueSectionBody.getByText(/^(active|completed)$/).first()
+    this.tableRows = this.page.locator('tbody tr')
+    this.firstTableRowLink = this.tableRows.first().getByRole('link').first()
+    this.firstTenantSectionOnEnvironment = this.teamSection.first()
+    this.odssTabLink = this.page.getByRole('link', { name: 'ODSs' })
+    this.syncQueueCompletedText = this.syncQueueSectionBody.getByText('completed', { exact: true }).first()
+    this.odsAvailableText = this.environmentsMainContainer.getByText('Available', { exact: true })
+    this.firstEnvironmentRowSpan = this.page.locator('tbody td span').first()
+    this.searchInput = this.page.getByPlaceholder('Search')
+    this.searchInputEnvironment = this.page.getByRole('textbox', { name: 'Search' }).nth(1)
+    this.clearTenantSearchButton = this.page.getByRole('button', { name: 'clear search' })
+    this.deleteMenuItem = this.page.getByRole('menuitem', { name: 'Delete' })
+    this.ownershipResourceTypesText = this.page.getByText('Ed-OrgOdsTenantWhole')
+    this.ownershipFormSummaryText = this.page.getByText('EnvironmentUpdateNameTeamSelect an optionRoleSelect an optionSaveCancel')
   }
 
   async clickEnvironmentOption() {
     await this.environmentOption.click()
+  }
+
+  async selectGlobalTeam(teamName: string) {
+    await selectComboboxOptionIn(this.page, this.globalTeamDropdown, teamName)
   }
 
   async clickConnectButton() {
@@ -162,7 +215,7 @@ class EnvironmentsPage {
 
   async clickSaveButton() {
     await this.saveButton.click()
-    await expect(this.page.getByRole('button', { name: 'Loading... Cancel' })).not.toBeVisible({ timeout: 20000 });
+    await expect(this.page.getByRole('button', { name: 'Loading... Cancel' })).not.toBeVisible({ timeout: API_WRITE_TIMEOUT_MS });
   }
 
   async clickCancelButton() {
@@ -178,11 +231,92 @@ class EnvironmentsPage {
   }
 
   async teamWithTenantsSectionsDisplayed() {
-    await expect(this.teamSection).toBeVisible({ timeout: 30000 })
+    await expect(this.teamSection).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+  }
+
+  async syncQueueHasStarted() {
+    await expect(this.syncQueueSection, 'Sync queue section never rendered on the environment page')
+      .toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    // A sync can finish before this check runs, so "completed" is as valid as "active";
+    // this only proves the job was queued, not that it is still running.
+    await expect(
+      this.syncQueueStatusBadge,
+      'Sync queue never reported an "active" or "completed" job, so the environment sync was never queued'
+    ).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+  }
+
+  async grantOwnershipToAdminUser(
+    resourceType: string,
+    environment: string,
+    team: string,
+    role: string
+  ) {
+    await expect(this.grantownership).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await this.grantownership.click()
+    await new GrantOwnershipPage(this.page).assignEnvironmentAccess(
+      resourceType,
+      environment,
+      team,
+      role
+    )
+  }
+
+  async tenantIsDisplayed(tenantName: string) {
+    const tenantLink = this.page.getByRole('link', { name: tenantName, exact: true })
+
+    // Tenants appear only once the background sync writes them, and the page does not
+    // live-update, so a failed attempt reloads before the next one re-checks.
+    await expect(async () => {
+      try {
+        await expect(tenantLink).toBeVisible({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      } catch (error) {
+        await this.page.reload({ waitUntil: 'domcontentloaded' })
+        throw error
+      }
+    }, `Tenant "${tenantName}" never appeared after the environment sync`).toPass({
+      timeout: SYNC_COMPLETE_TIMEOUT_MS,
+      intervals: [POLL_ATTEMPT_TIMEOUT_MS],
+    })
+  }
+
+  async selectFirstLoadedTenantOnEnvironment() {
+    await expect(this.firstTenantSectionOnEnvironment).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
+    await this.selectFirstLoadedTenant()
+    await this.odssTabLink.click()
+    await this.selectFirstLoadedTenant()
+  }
+
+  async cleanTenantFilter() {
+    if (await this.clearTenantSearchButton.isVisible()) {
+      await this.clearTenantSearchButton.click()
+    }
+  }
+
+  async selectFirstLoadedTenant() {
+    await this.cleanTenantFilter()
+    await expect(this.firstTableRowLink).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
+    await this.firstTableRowLink.click()
+  }
+
+  async syncQueueIsCompleted() {
+    await expect(
+      this.syncQueueCompletedText,
+      'Environment sync never reached "completed" in the sync queue'
+    ).toBeVisible({ timeout: SYNC_COMPLETE_TIMEOUT_MS })
+  }
+
+  async defaultOdsIsLoaded() {
+    await expect(
+      this.odsAvailableText,
+      'The synced ODS never reported "Available"'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async apiVersionDetected() {
-    await expect(this.apiVersionElement).toBeVisible({ timeout: 20000 })
+    await expect(
+      this.apiVersionElement,
+      'The environment never reported a detected Ed-Fi API version'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async environmentMainPageLoadedWithoutEnvironmentCreated() {
@@ -261,7 +395,14 @@ class EnvironmentsPage {
   }
 
   async clickOnFirstEnvironment() {
-    await this.page.locator('tbody td span').first().click();
+    await this.firstEnvironmentRowSpan.click();
+  }
+
+  async searchAndSelectEnvironment(environmentName: string, withinEnvironment = false) {
+    const searchLocator = withinEnvironment ? this.searchInputEnvironment : this.searchInput
+    await searchLocator.fill(environmentName)
+    await expect(this.tableRows.first()).toContainText(environmentName)
+    await this.clickOnFirstEnvironment()
   }
 
   async clickOnTabOption(optionName: string) {
@@ -292,7 +433,7 @@ class EnvironmentsPage {
   }
 
   async clickOnTheFirstOptionFromThreeDots(optionName: string) {
-    const firstRow = this.page.locator('tbody tr').first()
+    const firstRow = this.tableRows.first()
     await firstRow.hover()
 
     switch (optionName.trim().toLowerCase()) {
@@ -300,7 +441,7 @@ class EnvironmentsPage {
         await firstRow.getByRole('link', { name: optionName, exact: true }).click()
         break
       case 'delete':
-        this.rowCountBeforeDelete = await this.page.locator('tbody tr').count()
+        this.rowCountBeforeDelete = await this.tableRows.count()
         await firstRow.getByRole('button', { name: optionName, exact: true }).click()
         break
       default:
@@ -309,16 +450,16 @@ class EnvironmentsPage {
   }
 
   async clickOnTheOptionFromMoreThreeDots(optionName: string) {
-    const firstRow = this.page.locator('tbody tr').first()
+    const firstRow = this.tableRows.first()
     await firstRow.hover()
     switch (optionName.trim().toLowerCase()) {
       case 'delete':
-        this.rowCountBeforeDelete = await this.page.locator('tbody tr').count()
+        this.rowCountBeforeDelete = await this.tableRows.count()
         await firstRow.getByRole('button', { name: 'more', exact: true }).click()
-        await this.page.getByRole('menuitem', { name: 'Delete' }).click()
+        await this.deleteMenuItem.click()
         break
       case 'grantownership':
-        await this.page.getByRole('link', { name: 'Grant ownership' }).click()
+        await this.grantownership.click()
         break
       default:
         throw new Error(`Unsupported option name: ${optionName}`)
@@ -341,12 +482,12 @@ class EnvironmentsPage {
 
   async environmentStillAvailableAfterCancel() {
     await expect(this.environmentsMainContainer).toBeVisible()
-    await expect(this.page.locator('tbody tr')).toHaveCount(this.rowCountBeforeDelete)
+    await expect(this.tableRows).toHaveCount(this.rowCountBeforeDelete)
   }
 
   async ownershipsFormIsDisplayed() {
-    await expect(this.page.getByText('Ed-OrgOdsTenantWhole')).toBeVisible();
-    await expect(this.page.getByText('EnvironmentUpdateNameTeamSelect an optionRoleSelect an optionSaveCancel')).toBeVisible();
+    await expect(this.ownershipResourceTypesText).toBeVisible();
+    await expect(this.ownershipFormSummaryText).toBeVisible();
   }
 }
 
