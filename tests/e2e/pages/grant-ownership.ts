@@ -4,9 +4,14 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import { Page } from '@playwright/test'
+import { selectComboboxOption } from './support'
 
 class GrantOwnershipPage {
-  constructor(private readonly page: Page) {}
+  private readonly saveButton
+
+  constructor(private readonly page: Page) {
+    this.saveButton = this.page.getByRole('button', { name: 'Save', exact: true })
+  }
 
   async assignEnvironmentAccess(
     resourceType: string,
@@ -15,20 +20,10 @@ class GrantOwnershipPage {
     role: string
   ) {
     await this.page.getByRole('radio', { name: resourceType, exact: true }).check()
-    await this.selectComboboxOption('Environment', environment)
-    await this.selectComboboxOption('Team', team)
-    await this.selectComboboxOption('Role', role)
-    await this.page.getByRole('button', { name: 'Save', exact: true }).click()
-  }
-
-  private async selectComboboxOption(label: string, optionText: string) {
-    const combobox =
-      label === 'Team'
-        ? this.page.locator('div').filter({ hasText: /^Select an option$/ }).nth(4)
-        : this.page.getByRole('combobox', { name: label }).first()
-    await combobox.click()
-    await this.page.keyboard.type(optionText)
-    await this.page.keyboard.press('Enter')
+    await selectComboboxOption(this.page, 'Environment', environment)
+    await selectComboboxOption(this.page, 'Team', team)
+    await selectComboboxOption(this.page, 'Role', role)
+    await this.saveButton.click()
   }
 }
 

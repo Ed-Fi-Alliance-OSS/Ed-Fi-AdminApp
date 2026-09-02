@@ -5,6 +5,14 @@
 
 import { Page, expect } from '@playwright/test'
 import GrantOwnershipPage from './grant-ownership'
+import {
+  API_FETCH_TIMEOUT_MS,
+  API_WRITE_TIMEOUT_MS,
+  POLL_ATTEMPT_TIMEOUT_MS,
+  SYNC_COMPLETE_TIMEOUT_MS,
+  UI_RENDER_TIMEOUT_MS,
+  selectComboboxOptionIn,
+} from './support'
 
 class EnvironmentsPage {
   private readonly environmentOption
@@ -29,6 +37,7 @@ class EnvironmentsPage {
   private readonly grantownership
   private readonly tenantsSection
   private readonly syncQueueSection
+  private readonly syncQueueSectionBody
   private readonly globalTeamDropdown
   private readonly syncQueueStatusBadge
   private readonly tableRows
@@ -70,13 +79,18 @@ class EnvironmentsPage {
     this.grantownership = this.page.getByRole('link', { name: 'Grant ownership' })
     this.tenantsSection = this.page.getByRole('heading', { name: 'Tenants' })
     this.syncQueueSection = this.page.getByRole('heading', { name: 'Sync queue' })
-    this.globalTeamDropdown = this.page.locator('div').filter({ hasText: /^No team \(global\)$/ }).nth(3)
-    this.syncQueueStatusBadge = this.page.locator('xpath=//*[@id="borderGlobal"]/main/div[2]/div/div[2]/div[1]/div/div[4]').getByText(/^(active|completed)$/)
+    this.syncQueueSectionBody = this.page
+      .locator('.content-section')
+      .filter({ has: this.syncQueueSection })
+    this.globalTeamDropdown = this.page.getByRole('combobox', {
+      name: 'Select a team (or global) context',
+    })
+    this.syncQueueStatusBadge = this.syncQueueSectionBody.getByText(/^(active|completed)$/).first()
     this.tableRows = this.page.locator('tbody tr')
     this.firstTableRowLink = this.tableRows.first().getByRole('link').first()
     this.firstTenantSectionOnEnvironment = this.teamSection.first()
     this.odssTabLink = this.page.getByRole('link', { name: 'ODSs' })
-    this.syncQueueCompletedText = this.page.getByText('completed', { exact: true })
+    this.syncQueueCompletedText = this.syncQueueSectionBody.getByText('completed', { exact: true }).first()
     this.odsAvailableText = this.environmentsMainContainer.getByText('Available', { exact: true })
     this.firstEnvironmentRowSpan = this.page.locator('tbody td span').first()
     this.searchInput = this.page.getByPlaceholder('Search')
@@ -92,9 +106,7 @@ class EnvironmentsPage {
   }
 
   async selectGlobalTeam(teamName: string) {
-    await this.globalTeamDropdown.click()
-    await this.page.keyboard.type(teamName)
-    await this.page.keyboard.press('Enter')
+    await selectComboboxOptionIn(this.page, this.globalTeamDropdown, teamName)
   }
 
   async clickConnectButton() {
@@ -203,7 +215,7 @@ class EnvironmentsPage {
 
   async clickSaveButton() {
     await this.saveButton.click()
-    await expect(this.page.getByRole('button', { name: 'Loading... Cancel' })).not.toBeVisible({ timeout: 20000 });
+    await expect(this.page.getByRole('button', { name: 'Loading... Cancel' })).not.toBeVisible({ timeout: API_WRITE_TIMEOUT_MS });
   }
 
   async clickCancelButton() {
@@ -219,13 +231,18 @@ class EnvironmentsPage {
   }
 
   async teamWithTenantsSectionsDisplayed() {
-    await expect(this.teamSection).toBeVisible({ timeout: 30000 })
+    await expect(this.teamSection).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
   }
 
-  async syncQueueIsActive() {
-    await expect(this.syncQueueSection).toBeVisible({ timeout: 30000 })
-    // Sync can finish before this check runs, so accept either "active" or "completed"
-    await expect(this.syncQueueStatusBadge).toBeVisible({ timeout: 30000 })
+  async syncQueueHasStarted() {
+    await expect(this.syncQueueSection, 'Sync queue section never rendered on the environment page')
+      .toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    // A sync can finish before this check runs, so "completed" is as valid as "active";
+    // this only proves the job was queued, not that it is still running.
+    await expect(
+      this.syncQueueStatusBadge,
+      'Sync queue never reported an "active" or "completed" job, so the environment sync was never queued'
+    ).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
   }
 
   async grantOwnershipToAdminUser(
@@ -234,7 +251,7 @@ class EnvironmentsPage {
     team: string,
     role: string
   ) {
-    await expect(this.grantownership).toBeVisible({ timeout: 30000 })
+    await expect(this.grantownership).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await this.grantownership.click()
     await new GrantOwnershipPage(this.page).assignEnvironmentAccess(
       resourceType,
@@ -246,21 +263,24 @@ class EnvironmentsPage {
 
   async tenantIsDisplayed(tenantName: string) {
     const tenantLink = this.page.getByRole('link', { name: tenantName, exact: true })
-    const deadline = Date.now() + 40000
 
-    while (Date.now() < deadline) {
-      if (await expect(tenantLink).toBeVisible({ timeout: 40000 }).then(() => true).catch(() => false)) {
-        return
+    // Tenants appear only once the background sync writes them, and the page does not
+    // live-update, so a failed attempt reloads before the next one re-checks.
+    await expect(async () => {
+      try {
+        await expect(tenantLink).toBeVisible({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      } catch (error) {
+        await this.page.reload({ waitUntil: 'domcontentloaded' })
+        throw error
       }
-
-      await this.page.reload({ waitUntil: 'domcontentloaded' })
-    }
-
-    await expect(tenantLink).toBeVisible({ timeout: 40000 })
+    }, `Tenant "${tenantName}" never appeared after the environment sync`).toPass({
+      timeout: SYNC_COMPLETE_TIMEOUT_MS,
+      intervals: [POLL_ATTEMPT_TIMEOUT_MS],
+    })
   }
 
   async selectFirstLoadedTenantOnEnvironment() {
-    await expect(this.firstTenantSectionOnEnvironment).toBeVisible({ timeout: 20000 })
+    await expect(this.firstTenantSectionOnEnvironment).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
     await this.selectFirstLoadedTenant()
     await this.odssTabLink.click()
     await this.selectFirstLoadedTenant()
@@ -274,20 +294,29 @@ class EnvironmentsPage {
 
   async selectFirstLoadedTenant() {
     await this.cleanTenantFilter()
-    await expect(this.firstTableRowLink).toBeVisible({ timeout: 20000 })
+    await expect(this.firstTableRowLink).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
     await this.firstTableRowLink.click()
   }
 
   async syncQueueIsCompleted() {
-    await expect(this.syncQueueCompletedText).toBeVisible({ timeout: 120000 })
+    await expect(
+      this.syncQueueCompletedText,
+      'Environment sync never reached "completed" in the sync queue'
+    ).toBeVisible({ timeout: SYNC_COMPLETE_TIMEOUT_MS })
   }
 
   async defaultOdsIsLoaded() {
-    await expect(this.odsAvailableText).toBeVisible()
+    await expect(
+      this.odsAvailableText,
+      'The synced ODS never reported "Available"'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async apiVersionDetected() {
-    await expect(this.apiVersionElement).toBeVisible({ timeout: 20000 })
+    await expect(
+      this.apiVersionElement,
+      'The environment never reported a detected Ed-Fi API version'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async environmentMainPageLoadedWithoutEnvironmentCreated() {

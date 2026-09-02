@@ -15,7 +15,7 @@ const testDir = defineBddConfig({
 
 export default defineConfig({
   testDir,
-  timeout: 180000,
+  timeout: 120000,
   retries: 1,
   reporter: [
     [ 'line' ],
@@ -57,9 +57,16 @@ export default defineConfig({
       }
     },
     {
+      // Isolated from `chromium` because it drives a full environment sync (Admin API
+      // discovery plus tenant/ODS ingest), which needs a longer per-test timeout than the
+      // rest of the suite. It depends only on `setup`: depending on `chromium` would make
+      // Playwright skip these tests whenever any unrelated spec fails, hiding sync
+      // regressions. Declared last so that, with `workers: 1`, it still runs after the
+      // rest of the suite.
       name: 'chromium-environmentv2andApi',
-      dependencies: ['setup', 'chromium'],
+      dependencies: ['setup'],
       testMatch: /environmentv2andApi\.feature\.spec\.js/,
+      timeout: 180000,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',

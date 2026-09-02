@@ -62,8 +62,8 @@ When('the user click on save button', async () => {
   await environmentsPage.clickSaveButton()
 })
 
-When('the sync queue is created as active', async () => {
-  await environmentsPage.syncQueueIsActive()
+When('the sync queue has a queued job', async () => {
+  await environmentsPage.syncQueueHasStarted()
 })
 
 When(/^the user assign a grant ownership to the environment (.+)$/, async ({}, name: string) => {

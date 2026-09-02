@@ -6,7 +6,8 @@ Feature: Environments V2 with Api validation
     And the user click on Connect button
     And the user fill all the required fields on v2 <name>, <edfiApi>, <edfiManagement>, <label>
     And the user click on save button
-    And the sync queue is created as active
+    And the API version is detected according to the edfi api version
+    And the sync queue has a queued job
     And the user assign a grant ownership to the environment <name>
     Then the environment displays the tenants by default <name>, <tenantName>
     And the sync queue is already completed
