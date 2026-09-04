@@ -18,7 +18,7 @@
     "migrations:run:mssql": "cross-env DB_ENGINE=mssql nx run api:migrations:run",
     "migrations:revert": "nx run api:migrations:revert",
     "generate:icons": "./scripts/generateIcons.sh",
-    "test:api": "nx run api:test",
+    "test:api": "cross-env NODE_OPTIONS=--experimental-vm-modules nx run api:test",
     "test:fe": "nx run fe:test",
     "test:e2e:bdd": "npx bddgen --config playwright.config.ts && npx playwright test",
     "test:models-server": "nx run models-server:test",
