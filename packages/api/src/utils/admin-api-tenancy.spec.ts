@@ -136,6 +136,15 @@ describe('fetchAdminApiTenancy', () => {
     expect(error.kind).toBe('UNAVAILABLE');
   });
 
+  it('throws UNAVAILABLE on a 403', async () => {
+    mockedAxios.get.mockRejectedValue({ response: { status: 403, data: {} } });
+
+    const error = await fetchAdminApiTenancy(infoWithTenancy).catch((e) => e);
+
+    expect(error).toBeInstanceOf(AdminApiTenancyError);
+    expect(error.kind).toBe('UNAVAILABLE');
+  });
+
   it('throws UNAVAILABLE when the request fails with no response at all', async () => {
     mockedAxios.get.mockRejectedValue(new Error('ECONNREFUSED'));
 

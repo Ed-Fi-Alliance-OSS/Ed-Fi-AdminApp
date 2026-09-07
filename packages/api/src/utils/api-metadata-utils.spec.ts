@@ -7,6 +7,7 @@ import {
   fetchOdsApiMetadata,
   fetchAdminApiInfo,
   validateAdminApiUrl,
+  resolveTenantNames,
 } from './api-metadata-utils';
 import { ValidationHttpException } from './customExceptions';
 import { OdsApiMeta, PostSbEnvironmentDto } from '@edanalytics/models';
@@ -619,6 +620,57 @@ describe('api-metadata-utils', () => {
         expect.stringContaining('/tenancy'),
         expect.anything()
       );
+    });
+  });
+
+  describe('resolveTenantNames', () => {
+    // These exercise the real (non-mocked) fetchAdminApiTenancy() — only axios is
+    // mocked — unlike the v2/v3 getTenants() specs, which mock fetchAdminApiTenancy
+    // directly and so never exercise this integration boundary.
+    const adminApiUrl = 'https://admin-api.example.com';
+
+    it('returns the discovered tenant list when the tenancy endpoint reports tenants', async () => {
+      mockedAxios.get
+        .mockResolvedValueOnce({
+          status: 200,
+          data: { specificationVersion: 'v2', urls: { tenancy: `${adminApiUrl}/tenancy` } },
+        })
+        .mockResolvedValueOnce({ status: 200, data: { tenants: ['tenant-a', 'tenant-b'] } });
+
+      await expect(resolveTenantNames(adminApiUrl)).resolves.toEqual(['tenant-a', 'tenant-b']);
+    });
+
+    it("returns ['default'] when urls.tenancy is empty (no tenancy endpoint, e.g. v1)", async () => {
+      mockedAxios.get.mockResolvedValueOnce({
+        status: 200,
+        data: { specificationVersion: 'v1', urls: { tenancy: '' } },
+      });
+
+      await expect(resolveTenantNames(adminApiUrl)).resolves.toEqual(['default']);
+      // fetchAdminApiTenancy() skips the HTTP call entirely when urls.tenancy is empty.
+      expect(mockedAxios.get).toHaveBeenCalledTimes(1);
+    });
+
+    it("returns ['default'] when the tenancy endpoint answers with an empty tenant list", async () => {
+      mockedAxios.get
+        .mockResolvedValueOnce({
+          status: 200,
+          data: { specificationVersion: 'v2', urls: { tenancy: `${adminApiUrl}/tenancy` } },
+        })
+        .mockResolvedValueOnce({ status: 200, data: { tenants: [] } });
+
+      await expect(resolveTenantNames(adminApiUrl)).resolves.toEqual(['default']);
+    });
+
+    it('propagates a tenancy failure rather than falling back to default', async () => {
+      mockedAxios.get
+        .mockResolvedValueOnce({
+          status: 200,
+          data: { specificationVersion: 'v2', urls: { tenancy: `${adminApiUrl}/tenancy` } },
+        })
+        .mockRejectedValueOnce({ response: { status: 401, data: {} } });
+
+      await expect(resolveTenantNames(adminApiUrl)).rejects.toThrow();
     });
   });
 });
