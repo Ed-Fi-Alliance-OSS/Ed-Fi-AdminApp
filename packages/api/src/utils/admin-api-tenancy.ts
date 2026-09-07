@@ -182,17 +182,21 @@ export const describeTenancyFailure = (error: AdminApiTenancyError): TenancyFail
  * Translates a failure raised by `fetchAdminApiTenancy` into the
  * `ValidationHttpException` shape both environment-creation validation call
  * sites (`sb-environments-edfi.services.ts` and
- * `sb-environments-global.controller.ts`) surface to the client.
+ * `sb-environments-global.controller.ts`) surface to the client, and throws
+ * it. Anything that is not an `AdminApiTenancyError` is re-thrown unchanged —
+ * this function only translates the tenancy-specific failure shape.
  *
  * `MISCONFIGURED` surfaces Admin API's own message verbatim; `UNAVAILABLE`
  * uses neutral wording that never repeats the underlying failure text.
- * Anything that is not an `AdminApiTenancyError` is re-thrown unchanged —
- * this function only translates the tenancy-specific failure shape.
+ *
+ * Always throws rather than returning — the `never` return type makes that
+ * the caller's responsibility to rely on, not just a convention every call
+ * site happens to follow with its own `throw`.
  */
-export const translateTenancyError = (error: unknown): ValidationHttpException => {
+export const translateTenancyError = (error: unknown): never => {
   if (error instanceof AdminApiTenancyError) {
     const { isMisconfigured, detail } = describeTenancyFailure(error);
-    return new ValidationHttpException({
+    throw new ValidationHttpException({
       field: 'adminApiUrl',
       message: isMisconfigured
         ? (detail as string)
