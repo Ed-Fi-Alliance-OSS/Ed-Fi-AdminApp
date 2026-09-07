@@ -156,6 +156,28 @@ export const fetchAdminApiTenancy = async (
   return { supported: true, tenants, mode };
 };
 
+export interface TenancyFailureDetail {
+  isMisconfigured: boolean;
+  /** Admin API's own message, safe to show verbatim. Only set when `isMisconfigured`. */
+  detail?: string;
+}
+
+/**
+ * Extracts the caller-agnostic parts of a tenancy failure: whether it's a
+ * MISCONFIGURED appsettings problem (Admin API's own `detail`, safe to show
+ * verbatim) or any other UNAVAILABLE failure (caller supplies its own
+ * wording). Centralizes the `kind` branch that `translateTenancyError()` and
+ * `adminapi-sync.service.ts` previously reimplemented independently with
+ * matching-by-convention string literals.
+ */
+export const describeTenancyFailure = (error: AdminApiTenancyError): TenancyFailureDetail => {
+  const isMisconfigured = error.kind === 'MISCONFIGURED';
+  return {
+    isMisconfigured,
+    detail: isMisconfigured ? (error.detail ?? error.message) : undefined,
+  };
+};
+
 /**
  * Translates a failure raised by `fetchAdminApiTenancy` into the
  * `ValidationHttpException` shape both environment-creation validation call
@@ -169,12 +191,12 @@ export const fetchAdminApiTenancy = async (
  */
 export const translateTenancyError = (error: unknown): ValidationHttpException => {
   if (error instanceof AdminApiTenancyError) {
+    const { isMisconfigured, detail } = describeTenancyFailure(error);
     return new ValidationHttpException({
       field: 'adminApiUrl',
-      message:
-        error.kind === 'MISCONFIGURED'
-          ? (error.detail ?? error.message)
-          : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
+      message: isMisconfigured
+        ? (detail as string)
+        : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
     });
   }
   throw error;

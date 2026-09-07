@@ -7,7 +7,7 @@ import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
 import { AdminApiVersionStrategyFactory } from '../../admin-api-version-strategy';
-import { AdminApiTenancyError } from '../../utils/admin-api-tenancy';
+import { AdminApiTenancyError, describeTenancyFailure } from '../../utils/admin-api-tenancy';
 import { ValidationHttpException } from '../../utils/customExceptions';
 
 export interface SyncResult {
@@ -225,9 +225,10 @@ export class AdminApiSyncService {
           this.logger.error(
             `Environment ${sbEnvironment.name}: tenancy could not be determined (${error.kind}): ${error.message}`
           );
+          const { isMisconfigured, detail } = describeTenancyFailure(error);
           return {
-            status: error.kind === 'MISCONFIGURED' ? 'ADMIN_API_MISCONFIGURED' : 'TENANCY_UNAVAILABLE',
-            message: error.kind === 'MISCONFIGURED' ? error.detail : error.message,
+            status: isMisconfigured ? 'ADMIN_API_MISCONFIGURED' : 'TENANCY_UNAVAILABLE',
+            message: isMisconfigured ? detail : error.message,
           };
         }
         if (error instanceof ValidationHttpException) {
