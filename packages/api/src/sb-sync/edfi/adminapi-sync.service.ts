@@ -202,7 +202,7 @@ export class AdminApiSyncService {
         this.logger.error(`Environment ${sbEnvironment.name} has invalid or missing version: ${sbEnvironment.version}`);
         return {
           status: 'INVALID_VERSION',
-          message: (error as Error).message,
+          message: error instanceof Error ? error.message : String(error),
         };
       }
 
@@ -494,7 +494,7 @@ export class AdminApiSyncService {
         this.logger.error(`Environment for tenant ${edfiTenant.name} has invalid version: ${sbEnvironment.version}`);
         return {
           status: 'INVALID_VERSION',
-          message: (error as Error).message,
+          message: error instanceof Error ? error.message : String(error),
         };
       }
 
