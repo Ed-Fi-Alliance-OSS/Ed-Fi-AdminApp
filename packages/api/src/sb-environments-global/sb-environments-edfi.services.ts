@@ -8,7 +8,7 @@ import {
   validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
-import { fetchAdminApiTenancy, AdminApiTenancyError } from '../utils/admin-api-tenancy';
+import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { addUserCreating, EdfiTenant, SbEnvironment, Edorg, Ods, SbSyncQueue } from '@edanalytics/models-server';
 import { EntityManager, Repository } from 'typeorm';
@@ -184,20 +184,11 @@ export class SbEnvironmentsEdFiService {
 
           // Fetch the tenancy result once so both tenant-mode detection and the
           // compatibility check below use the same Admin API signal.
-          let tenancy;
+          let tenancy: TenancyResult | undefined;
           try {
             tenancy = adminApiInfo ? await fetchAdminApiTenancy(adminApiInfo) : undefined;
           } catch (error) {
-            if (error instanceof AdminApiTenancyError) {
-              throw new ValidationHttpException({
-                field: 'adminApiUrl',
-                message:
-                  error.kind === 'MISCONFIGURED'
-                    ? error.detail!
-                    : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
-              });
-            }
-            throw error;
+            throw translateTenancyError(error);
           }
 
           // Determine tenant mode - pass both ODS and Admin API tenancy signal, function prioritizes Admin API field

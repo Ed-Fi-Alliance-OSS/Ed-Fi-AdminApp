@@ -135,7 +135,11 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     // check (a separate, correctly-firing validator) rejects the request —
     // that rejection is expected and orthogonal to what this test proves. We
     // assert on `dto.isMultitenant`, which is set from the Admin signal
-    // before the compatibility check ever runs.
+    // before the compatibility check ever runs, and we pin down exactly why
+    // the rejection happens (a tenant-mode-mismatch ValidationHttpException,
+    // not some unrelated failure) so this test cannot be satisfied by a
+    // TypeError, a mock misconfiguration, or an unrelated bug elsewhere in
+    // the function.
     jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({
       supported: true,
       tenants: ['tenant-a', 'tenant-b'],
@@ -150,12 +154,22 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
       startingBlocks: false,
     } as unknown as PostSbEnvironmentDto;
 
-    await service.create(dto, undefined).catch(() => undefined);
+    const error = await service.create(dto, undefined).catch((e) => e);
 
     expect(dto.isMultitenant).toBe(true);
     // The tenancy endpoint must be fetched once per call site, not once for
     // tenant-mode detection and again for the compatibility check.
     expect(adminApiTenancy.fetchAdminApiTenancy).toHaveBeenCalledTimes(1);
+
+    // Confirm the rejection is specifically the expected tenant-mode
+    // mismatch, not an unrelated failure the .catch would otherwise mask.
+    expect(error).toBeInstanceOf(ValidationHttpException);
+    const response = error.getResponse();
+    expect(response.data.errors.adminApiUrl.message).toMatch(
+      /must both be configured with the same tenant mode/
+    );
+    expect(response.data.errors.adminApiUrl.message).toContain('Ed-Fi API = SingleTenant');
+    expect(response.data.errors.adminApiUrl.message).toContain('Management API = MultiTenant');
   });
 });
 

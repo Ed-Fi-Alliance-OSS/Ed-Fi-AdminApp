@@ -1,6 +1,7 @@
 import { Logger } from '@nestjs/common';
 import axios from 'axios';
 import config from 'config';
+import { ValidationHttpException } from './customExceptions';
 
 /**
  * The `urls` block on Admin API's Information response (`GET /`).
@@ -127,4 +128,28 @@ export const fetchAdminApiTenancy = async (
   const mode = tenants.length > 0 ? 'MultiTenant' : 'SingleTenant';
   Logger.log(`Admin API tenancy: ${mode} (${tenants.length} tenant(s))`);
   return { supported: true, tenants, mode };
+};
+
+/**
+ * Translates a failure raised by `fetchAdminApiTenancy` into the
+ * `ValidationHttpException` shape both environment-creation validation call
+ * sites (`sb-environments-edfi.services.ts` and
+ * `sb-environments-global.controller.ts`) surface to the client.
+ *
+ * `MISCONFIGURED` surfaces Admin API's own message verbatim; `UNAVAILABLE`
+ * uses neutral wording that never repeats the underlying failure text.
+ * Anything that is not an `AdminApiTenancyError` is re-thrown unchanged —
+ * this function only translates the tenancy-specific failure shape.
+ */
+export const translateTenancyError = (error: unknown): ValidationHttpException => {
+  if (error instanceof AdminApiTenancyError) {
+    return new ValidationHttpException({
+      field: 'adminApiUrl',
+      message:
+        error.kind === 'MISCONFIGURED'
+          ? error.detail!
+          : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
+    });
+  }
+  throw error;
 };

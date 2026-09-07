@@ -54,7 +54,7 @@ import {
   validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
-import { fetchAdminApiTenancy, AdminApiTenancyError } from '../utils/admin-api-tenancy';
+import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
 import { StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { Operation, SbVersion } from '../auth/authorization/sbVersion.decorator';
@@ -222,21 +222,12 @@ export class SbEnvironmentsGlobalController {
     // info fetch above, a tenancy misconfiguration is a hard validation error
     // rather than a soft fallback — it means the Admin API is reachable but
     // misconfigured, not merely unreachable.
-    let tenancy;
+    let tenancy: TenancyResult | undefined;
     if (adminApiInfo) {
       try {
         tenancy = await fetchAdminApiTenancy(adminApiInfo);
       } catch (error) {
-        if (error instanceof AdminApiTenancyError) {
-          throw new ValidationHttpException({
-            field: 'adminApiUrl',
-            message:
-              error.kind === 'MISCONFIGURED'
-                ? error.detail!
-                : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
-          });
-        }
-        throw error;
+        throw translateTenancyError(error);
       }
     }
 
