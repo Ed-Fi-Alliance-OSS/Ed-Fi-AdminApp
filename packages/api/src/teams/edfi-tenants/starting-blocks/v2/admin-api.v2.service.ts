@@ -1504,24 +1504,11 @@ export class AdminApiServiceV2 {
 
       return tenantsWithDetails;
     } catch (error) {
-      // Only fall back to default tenant if the endpoint doesn't exist (404)
-      // This allows older Admin API versions that don't support multi-tenancy to work
-      if (isAxiosError(error) && error.response?.status === 404) {
-        this.logger.warn(
-          `Tenancy endpoint not found for environment ${environment.name} (404). Returning a default tenant for single-tenant API.`
-        );
-        // V2 API without multi-tenant support, so we create a default tenant from environment data
-        const defaultTenant: TenantDto = {
-          id: 'default',
-          name: environment.name || 'Default Tenant',
-          odsInstances: [],
-        };
-
-        return [defaultTenant];
-      }
-
-      // For all other errors (auth failures, network issues, server errors), re-throw
-      // so administrators can identify and fix configuration problems
+      // Re-throw so administrators can identify and fix configuration problems.
+      // Tenant discovery failures (including "no tenancy endpoint"/404) are
+      // resolved by fetchAdminApiTenancy above, which returns { supported: false }
+      // rather than throwing — so any error reaching this point is a genuine
+      // failure and must never be papered over with a fabricated default tenant.
       const errorMessage = error instanceof Error ? error.message : String(error);
       const errorStack = error instanceof Error ? error.stack : undefined;
       this.logger.error(
