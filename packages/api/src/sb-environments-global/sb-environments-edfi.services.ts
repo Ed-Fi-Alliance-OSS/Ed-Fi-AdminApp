@@ -1,11 +1,14 @@
 import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
+  AdminApiInfo,
   determineTenantModeFromMetadata,
   fetchOdsApiMetadata,
+  getAdminApiTenantMode,
   validateAdminApiUrl,
   validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
+import { fetchAdminApiTenancy, AdminApiTenancyError } from '../utils/admin-api-tenancy';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { addUserCreating, EdfiTenant, SbEnvironment, Edorg, Ods, SbSyncQueue } from '@edanalytics/models-server';
 import { EntityManager, Repository } from 'typeorm';
@@ -149,7 +152,7 @@ export class SbEnvironmentsEdFiService {
   async create(createSbEnvironmentDto: PostSbEnvironmentDto, user: GetUserDto | undefined) {
     // First validate the Admin API URL before proceeding with any operations
     // validateAdminApiUrl returns the fetched Admin API metadata to avoid duplicate network calls
-    let adminApiInfo;
+    let adminApiInfo: AdminApiInfo | undefined;
     if (createSbEnvironmentDto.adminApiUrl) {
       adminApiInfo = await validateAdminApiUrl(createSbEnvironmentDto.adminApiUrl, createSbEnvironmentDto.odsApiDiscoveryUrl);
     }
@@ -179,19 +182,39 @@ export class SbEnvironmentsEdFiService {
           // Override the version with detected version
           createSbEnvironmentDto.version = detectedVersion;
 
-          // Determine tenant mode - pass both ODS and Admin API info, function prioritizes Admin API field
-          tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, adminApiInfo);
+          // Fetch the tenancy result once so both tenant-mode detection and the
+          // compatibility check below use the same Admin API signal.
+          let tenancy;
+          try {
+            tenancy = adminApiInfo ? await fetchAdminApiTenancy(adminApiInfo) : undefined;
+          } catch (error) {
+            if (error instanceof AdminApiTenancyError) {
+              throw new ValidationHttpException({
+                field: 'adminApiUrl',
+                message:
+                  error.kind === 'MISCONFIGURED'
+                    ? error.detail!
+                    : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
+              });
+            }
+            throw error;
+          }
+
+          // Determine tenant mode - pass both ODS and Admin API tenancy signal, function prioritizes Admin API field
+          tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, tenancy);
           createSbEnvironmentDto.isMultitenant = tenantMode === 'MultiTenant';
 
-          // Validate tenant mode compatibility if both APIs are available
+          // Validate tenant mode compatibility if Admin API exposes a tenancy endpoint
           if (adminApiInfo) {
-            // Only validate if Admin API explicitly defines multitenantMode
-            if (adminApiInfo?.tenancy?.multitenantMode !== undefined) {
+            const adminTenantMode = getAdminApiTenantMode(tenancy);
+
+            if (adminTenantMode !== undefined) {
               const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
-              const adminTenantMode = adminApiInfo.tenancy.multitenantMode ? 'MultiTenant' : 'SingleTenant';
               validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
             } else {
-              this.logger.log('Admin API does not provide multitenantMode field, skipping tenant mode compatibility check');
+              this.logger.log(
+                'Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check'
+              );
             }
           }
 

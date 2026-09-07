@@ -7,6 +7,9 @@ import { EdfiTenant, SbEnvironment, SbSyncQueue } from '@edanalytics/models-serv
 import { PostSbEnvironmentDto, PutSbEnvironmentDto } from '@edanalytics/models';
 import { StartingBlocksServiceV1, StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import * as utils from '../utils';
+import { ValidationHttpException } from '../utils';
+import * as adminApiTenancy from '../utils/admin-api-tenancy';
+import { AdminApiTenancyError } from '../utils/admin-api-tenancy';
 
 jest.mock('../utils', () => ({
   ...jest.requireActual('../utils'),
@@ -43,11 +46,15 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
       save: jest.fn(async (v) => ({ id: 99, ...v })),
     };
 
-    (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({ specificationVersion: 'v3' });
+    (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({
+      specificationVersion: 'v3',
+      urls: { tenancy: 'https://api.test.com/tenants' },
+    });
     (utils.fetchOdsApiMetadata as jest.Mock).mockResolvedValue({
       version: '5.3',
       urls: { dataManagementApi: 'https://ods.test.com/data/v3' },
     });
+    jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({ supported: false });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -66,6 +73,10 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     service = module.get(SbEnvironmentsEdFiService);
   });
 
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
   it('creates a v3 environment, builds a v3-shaped configPublic via the strategy, and returns a syncQueue', async () => {
     const result = await service.create(
       {
@@ -82,6 +93,69 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     expect(v3Strategy.buildConfigPublic).toHaveBeenCalled();
     expect(v3Strategy.dispatchSync).toHaveBeenCalled();
     expect((result as { syncQueue?: unknown } | undefined)?.syncQueue).toBeDefined();
+  });
+
+  it('fails environment creation with the Admin API message when tenancy is misconfigured', async () => {
+    const detail =
+      'MultiTenancy is enabled but no tenants are configured. Check the Tenants section of appsettings.';
+    jest
+      .spyOn(adminApiTenancy, 'fetchAdminApiTenancy')
+      .mockRejectedValue(new AdminApiTenancyError('MISCONFIGURED', detail, detail));
+
+    const error = await service
+      .create(
+        {
+          name: 'my-v3-env',
+          environmentLabel: 'my-v3-env',
+          adminApiUrl: 'https://api.test.com',
+          odsApiDiscoveryUrl: 'https://ods.test.com',
+          startingBlocks: false,
+        } as unknown as PostSbEnvironmentDto,
+        undefined
+      )
+      .catch((e) => e);
+
+    expect(error).toBeInstanceOf(ValidationHttpException);
+    expect(JSON.stringify(error.getResponse())).toContain(detail);
+  });
+
+  it('uses the Admin API tenancy signal over ODS URL inference (regression guard)', async () => {
+    // The ODS metadata URL has no `tenantIdentifier` segment, so URL-pattern
+    // inference alone would call this SingleTenant. The Admin API tenancy
+    // endpoint reports two tenants (MultiTenant). If the production code
+    // ignored the Admin API signal (e.g. by regressing to passing the raw
+    // `adminApiInfo` object — which has no `.supported`/`.mode` fields —
+    // instead of a fetched TenancyResult), `determineTenantModeFromMetadata`
+    // would silently fall back to ODS inference and set isMultitenant to
+    // false: the wrong answer. Only honoring the Admin API signal sets it to
+    // true here.
+    //
+    // Note: because the ODS URL pattern (SingleTenant) and the Admin signal
+    // (MultiTenant) deliberately disagree, the tenant-mode *compatibility*
+    // check (a separate, correctly-firing validator) rejects the request —
+    // that rejection is expected and orthogonal to what this test proves. We
+    // assert on `dto.isMultitenant`, which is set from the Admin signal
+    // before the compatibility check ever runs.
+    jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({
+      supported: true,
+      tenants: ['tenant-a', 'tenant-b'],
+      mode: 'MultiTenant',
+    });
+
+    const dto = {
+      name: 'my-v3-env',
+      environmentLabel: 'my-v3-env',
+      adminApiUrl: 'https://api.test.com',
+      odsApiDiscoveryUrl: 'https://ods.test.com',
+      startingBlocks: false,
+    } as unknown as PostSbEnvironmentDto;
+
+    await service.create(dto, undefined).catch(() => undefined);
+
+    expect(dto.isMultitenant).toBe(true);
+    // The tenancy endpoint must be fetched once per call site, not once for
+    // tenant-mode detection and again for the compatibility check.
+    expect(adminApiTenancy.fetchAdminApiTenancy).toHaveBeenCalledTimes(1);
   });
 });
 
