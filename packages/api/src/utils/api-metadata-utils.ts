@@ -6,18 +6,20 @@ import config from 'config';
 import {
   fetchAdminApiTenancy,
   translateTenancyError,
-  AdminApiUrls,
+  AdminApiInfoWithUrls,
   TenancyResult,
 } from './admin-api-tenancy';
 
+const logger = new Logger('api-metadata-utils');
+
 /**
  * Shape of the Admin API root/info endpoint response.
- * Only the fields consumed by this module are modeled here.
+ * Only the fields consumed by this module are modeled here. Extends
+ * `AdminApiInfoWithUrls` (the subset `fetchAdminApiTenancy()` needs) rather
+ * than redeclaring the same `specificationVersion`/`urls` fields.
  */
-export interface AdminApiInfo {
+export interface AdminApiInfo extends AdminApiInfoWithUrls {
   version?: string;
-  specificationVersion?: string;
-  urls?: AdminApiUrls;
 }
 
 /**
@@ -34,7 +36,7 @@ export const determineVersionFromAdminApiMetadata = (adminApiVersion: string): '
       return 'v1';
     }
   } catch (error) {
-    Logger.warn('Failed to parse Admin API version, defaulting to v1:', error);
+    logger.warn('Failed to parse Admin API version, defaulting to v1:', error);
     return 'v1';
   }
 };
@@ -53,7 +55,7 @@ export const determineTenantModeFromOdsMetadata = (
     const urls = odsApiMeta.urls;
 
     if (!urls) {
-      Logger.warn('No URLs found in ODS API metadata');
+      logger.warn('No URLs found in ODS API metadata');
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `ODS API metadata does not contain valid URLs.`,
@@ -62,14 +64,14 @@ export const determineTenantModeFromOdsMetadata = (
 
     // Determine tenant mode based on the presence of specific URL segment
     if (urls.dataManagementApi.includes('tenantIdentifier')) {
-      Logger.log('Determined MultiTenant mode from ODS API URL pattern');
+      logger.log('Determined MultiTenant mode from ODS API URL pattern');
       return 'MultiTenant';
     } else {
-      Logger.log('Determined SingleTenant mode from ODS API URL pattern');
+      logger.log('Determined SingleTenant mode from ODS API URL pattern');
       return 'SingleTenant';
     }
   } catch (error) {
-    Logger.warn('Error determining tenant mode from ODS metadata:', error);
+    logger.warn('Error determining tenant mode from ODS metadata:', error);
     throw new ValidationHttpException({
       field: 'odsApiDiscoveryUrl',
       message: `Unable to determine tenant mode from ODS API metadata.`,
@@ -87,7 +89,7 @@ export const getAdminApiTenantMode = (
   tenancy?: TenancyResult
 ): 'MultiTenant' | 'SingleTenant' | undefined => {
   if (tenancy?.supported) {
-    Logger.log(`Using tenant mode from Admin API tenancy endpoint: ${tenancy.mode}`);
+    logger.log(`Using tenant mode from Admin API tenancy endpoint: ${tenancy.mode}`);
     return tenancy.mode;
   }
   return undefined;
@@ -140,7 +142,7 @@ export const checkTenantModeCompatibility = (
     const odsTenantMode = determineTenantModeFromMetadata(odsApiMeta);
     validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
   } else {
-    Logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
+    logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
   }
 };
 
@@ -164,14 +166,14 @@ export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironm
     return odsApiMetaResponse;
   } catch (error) {
     if (isTimeoutError(error)) {
-      Logger.warn(`Timeout error fetching ODS API metadata from ${odsApiDiscoveryUrl}:`, error);
+      logger.warn(`Timeout error fetching ODS API metadata from ${odsApiDiscoveryUrl}:`, error);
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `Connection to Ed-Fi API Discovery URL timed out. Please ensure the URL is correct and the server is reachable.`,
       });
     }
     else {
-      Logger.warn(`Error fetching ODS API metadata from ${odsApiDiscoveryUrl}:`, error);
+      logger.warn(`Error fetching ODS API metadata from ${odsApiDiscoveryUrl}:`, error);
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `Failed to connect to Ed-Fi API Discovery URL. Please check the URL and ensure it is valid.`,
@@ -207,13 +209,13 @@ export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<AdminApiIn
     return response.data;
   } catch (error) {
     if (isTimeoutError(error)) {
-      Logger.warn(`Timeout error fetching Admin API info from ${adminApiUrl}:`, error);
+      logger.warn(`Timeout error fetching Admin API info from ${adminApiUrl}:`, error);
       throw new ValidationHttpException({
         field: 'adminApiUrl',
         message: `Connection to Management API Discovery URL timed out. Please ensure the URL is correct and the server is reachable.`,
       });
     } else {
-      Logger.warn(`Error fetching Admin API info from ${adminApiUrl}:`, error);
+      logger.warn(`Error fetching Admin API info from ${adminApiUrl}:`, error);
       throw new ValidationHttpException({
         field: 'adminApiUrl',
         message: `Failed to connect to Management API Discovery URL. Please check the URL and ensure it is valid.`,
@@ -238,13 +240,22 @@ export const resolveTenantNames = async (adminApiUrl: string): Promise<string[]>
   const tenancy = await fetchAdminApiTenancy(adminApiInfo, adminApiUrl);
 
   if (tenancy.supported && tenancy.tenants.length > 0) {
-    Logger.log(
+    logger.log(
       `Multi-tenant mode detected with ${tenancy.tenants.length} tenants: ${tenancy.tenants.join(', ')}`
     );
     return tenancy.tenants;
   }
 
-  Logger.log('Single-tenant mode detected, using default tenant');
+  // Logged distinctly rather than collapsed into one message: "not supported" (no
+  // tenancy endpoint — genuinely single-tenant, expected) and "supported but empty"
+  // (the endpoint answered with zero tenants — could be a stale/misrouted proxy or a
+  // real mode drift) are different enough signals that an operator scanning logs
+  // should be able to tell them apart.
+  if (tenancy.supported) {
+    logger.log('Tenancy endpoint reported zero tenants; using default tenant');
+  } else {
+    logger.log('Admin API does not support tenancy; using default tenant');
+  }
   return ['default'];
 };
 
@@ -292,7 +303,7 @@ export const validateAdminApiUrl = async (
     const odsDetectedVersion = odsMetadata.version;
 
     if (!odsDetectedVersion) {
-      Logger.warn('No version found in ODS API metadata');
+      logger.warn('No version found in ODS API metadata');
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `ODS API metadata does not contain a valid version.`,
@@ -303,7 +314,7 @@ export const validateAdminApiUrl = async (
     const majorOdsDetectedVersion = parseInt(odsDetectedVersion.split('.')[0], 10);
 
      if (Number.isNaN(majorOdsDetectedVersion)) {
-       Logger.warn(`Failed to parse ODS API version from metadata: ${odsDetectedVersion}`);
+       logger.warn(`Failed to parse ODS API version from metadata: ${odsDetectedVersion}`);
       throw new ValidationHttpException({
         field: 'odsApiDiscoveryUrl',
         message: `ODS API metadata does not contain a valid version.`,
@@ -333,13 +344,13 @@ export const validateAdminApiUrl = async (
     if (adminTenantMode !== undefined) {
       validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
     } else {
-      Logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
+      logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
     }
 
     // Return the fetched metadata and tenancy result so callers can reuse them and avoid a duplicate network call
     return { ...metadata, tenancy };
   } catch (error) {
-    Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
+    logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
     // Re-throw ValidationHttpException errors to preserve specific error messages
     if (error instanceof ValidationHttpException) {
       throw error;
