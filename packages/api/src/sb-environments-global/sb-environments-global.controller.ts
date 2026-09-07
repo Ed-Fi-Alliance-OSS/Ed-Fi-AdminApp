@@ -225,7 +225,7 @@ export class SbEnvironmentsGlobalController {
     let tenancy: TenancyResult | undefined;
     if (adminApiInfo) {
       try {
-        tenancy = await fetchAdminApiTenancy(adminApiInfo);
+        tenancy = await fetchAdminApiTenancy(adminApiInfo, adminApiUrl);
       } catch (error) {
         throw translateTenancyError(error);
       }

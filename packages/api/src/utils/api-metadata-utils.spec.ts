@@ -413,7 +413,7 @@ describe('api-metadata-utils', () => {
     const makeAdminMeta = (specVersion: 'v1' | 'v2' | 'v3', tenancyUrl?: string) => ({
       version: specVersion === 'v1' ? '1.4' : specVersion === 'v2' ? '2.0' : '3.0',
       specificationVersion: specVersion,
-      urls: { tenancy: tenancyUrl ?? (specVersion === 'v1' ? '' : `https://host/${specVersion}/tenancy`) },
+      urls: { tenancy: tenancyUrl ?? (specVersion === 'v1' ? '' : `${adminApiUrl}/${specVersion}/tenancy`) },
     });
 
     it('should throw ValidationHttpException when admin metadata has no version', async () => {
@@ -574,7 +574,7 @@ describe('api-metadata-utils', () => {
         if (url === adminApiUrl) {
           return Promise.resolve({ status: 200, data: makeAdminMeta('v2') });
         }
-        if (url === 'https://host/v2/tenancy') {
+        if (url === `${adminApiUrl}/v2/tenancy`) {
           return Promise.resolve({ status: 200, data: { tenants: [] } });
         }
         return Promise.resolve({ status: 200, data: makeOdsMeta('7.2', true) });
@@ -592,7 +592,7 @@ describe('api-metadata-utils', () => {
         if (url === adminApiUrl) {
           return Promise.resolve({ status: 200, data: makeAdminMeta('v3') });
         }
-        if (url === 'https://host/v3/tenancy') {
+        if (url === `${adminApiUrl}/v3/tenancy`) {
           return Promise.reject({ response: { status: 503, data: { detail } } });
         }
         return Promise.resolve({ status: 200, data: makeOdsMeta('7.2', true) });

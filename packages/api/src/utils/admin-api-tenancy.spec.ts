@@ -39,6 +39,7 @@ describe('fetchAdminApiTenancy', () => {
     expect(mockedAxios.get).toHaveBeenCalledWith('https://host/v2/tenancy', {
       headers: { Accept: 'application/json' },
       timeout: 5000,
+      maxRedirects: 0,
     });
   });
 
@@ -142,5 +143,42 @@ describe('fetchAdminApiTenancy', () => {
 
     expect(error).toBeInstanceOf(AdminApiTenancyError);
     expect(error.kind).toBe('UNAVAILABLE');
+  });
+
+  describe('SSRF guard — tenancy URL origin must match the configured Admin API URL', () => {
+    it('refuses to call the tenancy endpoint when its origin differs from adminApiUrl, without making an HTTP call', async () => {
+      const error = await fetchAdminApiTenancy(infoWithTenancy, 'https://attacker.example').catch(
+        (e) => e
+      );
+
+      expect(error).toBeInstanceOf(AdminApiTenancyError);
+      expect(error.kind).toBe('UNAVAILABLE');
+      expect(mockedAxios.get).not.toHaveBeenCalled();
+    });
+
+    it('allows the call when the tenancy URL origin matches adminApiUrl exactly', async () => {
+      mockedAxios.get.mockResolvedValue({ status: 200, data: { tenants: [] } });
+
+      const result = await fetchAdminApiTenancy(infoWithTenancy, 'https://host');
+
+      expect(result).toEqual({ supported: true, tenants: [], mode: 'SingleTenant' });
+      expect(mockedAxios.get).toHaveBeenCalled();
+    });
+
+    it('allows the call when the tenancy URL differs only by path (same origin)', async () => {
+      mockedAxios.get.mockResolvedValue({ status: 200, data: { tenants: [] } });
+
+      const result = await fetchAdminApiTenancy(infoWithTenancy, 'https://host/some/other/path');
+
+      expect(result).toEqual({ supported: true, tenants: [], mode: 'SingleTenant' });
+    });
+
+    it('skips the origin check when no adminApiUrl is supplied (backward-compatible callers)', async () => {
+      mockedAxios.get.mockResolvedValue({ status: 200, data: { tenants: [] } });
+
+      const result = await fetchAdminApiTenancy(infoWithTenancy);
+
+      expect(result).toEqual({ supported: true, tenants: [], mode: 'SingleTenant' });
+    });
   });
 });

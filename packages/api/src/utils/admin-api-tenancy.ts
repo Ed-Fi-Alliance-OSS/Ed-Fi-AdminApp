@@ -69,12 +69,26 @@ const parseErrorDetail = (data: unknown): string | undefined => {
   return undefined;
 };
 
+/** True when both URLs share scheme and host (and port, if given). Unparsable URLs never match. */
+const sameOrigin = (a: string, b: string): boolean => {
+  try {
+    return new URL(a).origin === new URL(b).origin;
+  } catch {
+    return false;
+  }
+};
+
 /**
  * Fetches the tenant list from Admin API's tenancy endpoint.
  *
  * The endpoint address comes from `urls.tenancy` on the Information response
  * rather than being constructed from the specification version, so host and
  * prefix differences the client cannot infer are handled by Admin API itself.
+ * `urls.tenancy` is server-supplied and this call is anonymous, so — to avoid
+ * a compromised or MITM'd Admin API redirecting an outbound request wherever
+ * it likes (SSRF) — the tenancy URL's origin is required to match the
+ * originally-configured `adminApiUrl`, and the request never follows
+ * redirects.
  *
  * Tenant mode is derived from the array: non-empty means MultiTenant, empty
  * means SingleTenant. That derivation is only safe because Admin API answers
@@ -84,7 +98,8 @@ const parseErrorDetail = (data: unknown): string | undefined => {
  * No error is ever reported as single-tenant — a failure throws.
  */
 export const fetchAdminApiTenancy = async (
-  adminApiInfo: AdminApiInfoWithUrls
+  adminApiInfo: AdminApiInfoWithUrls,
+  adminApiUrl?: string
 ): Promise<TenancyResult> => {
   const tenancyUrl = adminApiInfo?.urls?.tenancy;
 
@@ -93,11 +108,22 @@ export const fetchAdminApiTenancy = async (
     return { supported: false };
   }
 
+  if (adminApiUrl && !sameOrigin(tenancyUrl, adminApiUrl)) {
+    Logger.warn(
+      `Refusing to call tenancy endpoint ${tenancyUrl}: its origin does not match the configured Admin API URL ${adminApiUrl}`
+    );
+    throw new AdminApiTenancyError(
+      'UNAVAILABLE',
+      'Could not determine tenancy for this Management API.'
+    );
+  }
+
   let data: TenancyEndpointResponse;
   try {
     const response = await axios.get<TenancyEndpointResponse>(tenancyUrl, {
       headers: { Accept: 'application/json' },
       timeout: config.EDFI_URLS_TIMEOUT_MS,
+      maxRedirects: 0,
     });
     data = response.data;
   } catch (error) {
