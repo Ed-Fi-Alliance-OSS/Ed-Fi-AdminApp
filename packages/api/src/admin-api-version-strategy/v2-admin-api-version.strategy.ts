@@ -14,6 +14,8 @@ import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
+import { fetchAdminApiTenancy } from '../utils/admin-api-tenancy';
+import { fetchAdminApiInfo } from '../utils/api-metadata-utils';
 import {
   AdminApiVersionStrategy,
   AnyAdminApiService,
@@ -148,26 +150,19 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     let tenantNames: string[];
 
     if (isMultiTenant) {
-      try {
-        const rootClient = axios.create({ baseURL: sbEnvironment.adminApiUrl!.replace(/\/$/, '') });
-        const rootResponse = await rootClient
-          .get<{ tenancy?: { multitenantMode?: boolean; tenants?: string[] } }>('/')
-          .then((r) => r.data);
+      // The tenancy endpoint is anonymous. A failed lookup throws — bootstrap
+      // must not fall back to 'default' here, because writing credentials for
+      // a 'default' tenant on a multi-tenant target provisions a tenant that
+      // does not exist and leaves the real tenants with none.
+      const adminApiInfo = await fetchAdminApiInfo(sbEnvironment.adminApiUrl!);
+      const tenancy = await fetchAdminApiTenancy(adminApiInfo);
 
-        if (
-          rootResponse?.tenancy?.multitenantMode === true &&
-          Array.isArray(rootResponse.tenancy.tenants) &&
-          rootResponse.tenancy.tenants.length > 0
-        ) {
-          tenantNames = rootResponse.tenancy.tenants;
-          this.logger.log(`Bootstrap: discovered tenants from root: [${tenantNames.join(', ')}]`);
-        } else {
-          tenantNames = ['default'];
-          this.logger.log('Bootstrap: root endpoint did not return tenant list, falling back to default');
-        }
-      } catch (error) {
-        this.logger.error(`Bootstrap: failed to reach Admin API root: ${error.message}`);
-        return;
+      if (tenancy.supported && tenancy.tenants.length > 0) {
+        tenantNames = tenancy.tenants;
+        this.logger.log(`Bootstrap: discovered tenants from tenancy endpoint: [${tenantNames.join(', ')}]`);
+      } else {
+        tenantNames = ['default'];
+        this.logger.log('Bootstrap: Admin API reports single tenancy, using default tenant');
       }
     } else {
       tenantNames = ['default'];
