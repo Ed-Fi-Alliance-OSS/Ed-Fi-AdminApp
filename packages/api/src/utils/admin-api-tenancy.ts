@@ -3,6 +3,8 @@ import axios from 'axios';
 import config from 'config';
 import { ValidationHttpException } from './customExceptions';
 
+const logger = new Logger('admin-api-tenancy');
+
 /**
  * The `urls` block on Admin API's Information response (`GET /`).
  * `tenancy` is an empty string for V1, which has no tenancy endpoint.
@@ -104,12 +106,12 @@ export const fetchAdminApiTenancy = async (
   const tenancyUrl = adminApiInfo?.urls?.tenancy;
 
   if (!tenancyUrl) {
-    Logger.log('Admin API does not advertise a tenancy endpoint; tenancy lookup skipped');
+    logger.log('Admin API does not advertise a tenancy endpoint; tenancy lookup skipped');
     return { supported: false };
   }
 
   if (adminApiUrl && !sameOrigin(tenancyUrl, adminApiUrl)) {
-    Logger.warn(
+    logger.warn(
       `Refusing to call tenancy endpoint ${tenancyUrl}: its origin does not match the configured Admin API URL ${adminApiUrl}`
     );
     throw new AdminApiTenancyError(
@@ -131,17 +133,17 @@ export const fetchAdminApiTenancy = async (
     const body = (error as { response?: { data?: unknown } })?.response?.data;
 
     if (status === 404) {
-      Logger.log(`Tenancy endpoint ${tenancyUrl} returned 404; tenancy lookup skipped`);
+      logger.log(`Tenancy endpoint ${tenancyUrl} returned 404; tenancy lookup skipped`);
       return { supported: false };
     }
 
     const detail = status === 503 ? parseErrorDetail(body) : undefined;
     if (detail) {
-      Logger.warn(`Admin API reported a tenancy misconfiguration: ${detail}`);
+      logger.warn(`Admin API reported a tenancy misconfiguration: ${detail}`);
       throw new AdminApiTenancyError('MISCONFIGURED', detail, detail);
     }
 
-    Logger.warn(
+    logger.warn(
       `Failed to read tenancy from ${tenancyUrl} (status ${status ?? 'none'}): ${JSON.stringify(body ?? (error as Error)?.message)}`
     );
     throw new AdminApiTenancyError(
@@ -152,7 +154,7 @@ export const fetchAdminApiTenancy = async (
 
   const tenants = Array.isArray(data?.tenants) ? data.tenants : [];
   const mode = tenants.length > 0 ? 'MultiTenant' : 'SingleTenant';
-  Logger.log(`Admin API tenancy: ${mode} (${tenants.length} tenant(s))`);
+  logger.log(`Admin API tenancy: ${mode} (${tenants.length} tenant(s))`);
   return { supported: true, tenants, mode };
 };
 
