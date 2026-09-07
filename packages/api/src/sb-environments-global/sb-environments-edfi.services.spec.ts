@@ -123,27 +123,13 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
   });
 
   it('uses the Admin API tenancy signal over ODS URL inference (regression guard)', async () => {
-    // The ODS metadata URL has no `tenantIdentifier` segment, so URL-pattern
-    // inference alone would call this SingleTenant. The Admin API tenancy
-    // endpoint (fetched once, by validateAdminApiUrl()) reports two tenants
-    // (MultiTenant). If the production code ignored the Admin API signal
-    // (e.g. by regressing to passing the raw `adminApiInfo` object — which
-    // has no `.supported`/`.mode` fields — instead of the `tenancy` result
-    // validateAdminApiUrl() returns), `determineTenantModeFromMetadata`
-    // would silently fall back to ODS inference and set isMultitenant to
-    // false: the wrong answer. Only honoring the Admin API signal sets it to
-    // true here.
-    //
-    // Note: because the ODS URL pattern (SingleTenant) and the Admin signal
-    // (MultiTenant) deliberately disagree, the tenant-mode *compatibility*
-    // check (a separate, correctly-firing validator) rejects the request —
-    // that rejection is expected and orthogonal to what this test proves. We
-    // assert on `dto.isMultitenant`, which is set from the Admin signal
-    // before the compatibility check ever runs, and we pin down exactly why
-    // the rejection happens (a tenant-mode-mismatch ValidationHttpException,
-    // not some unrelated failure) so this test cannot be satisfied by a
-    // TypeError, a mock misconfiguration, or an unrelated bug elsewhere in
-    // the function.
+    // ODS URL pattern alone would infer SingleTenant; the Admin tenancy signal
+    // (MultiTenant, two tenants) must win — a regression to the raw adminApiInfo
+    // object (no .supported/.mode) would silently fall back to ODS inference and
+    // set isMultitenant to false. Because the two signals deliberately disagree,
+    // the separate tenant-mode compatibility check also rejects the request; we
+    // pin the rejection down to that specific mismatch so a TypeError or mock
+    // misconfiguration elsewhere can't satisfy this test by accident.
     (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({
       specificationVersion: 'v3',
       urls: { tenancy: 'https://api.test.com/tenants' },
