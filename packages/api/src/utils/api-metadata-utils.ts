@@ -152,8 +152,10 @@ export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironm
 };
 
 /**
- * Fetches Admin API info from the root endpoint
- * Returns the raw response which includes version and tenancy.multitenantMode
+ * Fetches Admin API Info from the root endpoint.
+ * Returns the raw response which includes version, specificationVersion, and urls.
+ * The urls.tenancy field contains the URL of the tenancy endpoint (empty string for v1).
+ * To retrieve the actual tenant list, pass this result to fetchAdminApiTenancy().
  */
 export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<AdminApiInfo> => {
   if (!adminApiUrl) {
