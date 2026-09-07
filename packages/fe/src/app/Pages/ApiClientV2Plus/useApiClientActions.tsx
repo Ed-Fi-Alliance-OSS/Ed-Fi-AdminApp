@@ -1,6 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 
-import { useQueryClient } from '@tanstack/react-query';
+import { UseQueryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import {
   useAuthorize,
@@ -37,6 +37,44 @@ export const useSingleApiClientActions = ({
     edfiTenant,
     teamId: asId,
   });
+
+  // An Application with no credentials disappears from the UI entirely (AC-616),
+  // so the last one may not be deleted. NameCell already runs this exact query
+  // with the same key, so TanStack Query serves it from cache there rather than
+  // issuing a second request.
+  // TypeScript cannot resolve union-typed overloaded functions; cast to the
+  // actual return type. Same workaround as ApiClientsPage.tsx/NameCell.tsx.
+  // The query builder defaults `throwOnError` to true, which is fine for
+  // NameCell (the table row itself), but this hook also backs
+  // ApiClientPageActions, which — unlike the rest of the detail page — is not
+  // wrapped in an ErrorBoundary. Left at the default, a failed credential
+  // count would throw during render and take down the whole page. Override it
+  // to false here and fail closed instead (see blockDelete below): the BFF's
+  // 409 still enforces the rule server-side, so a blocked button on a failed
+  // count costs the user nothing, while an enabled one could orphan the
+  // Application.
+  const applicationApiClients = useQuery({
+    ...(queries.getAll(
+      {
+        teamId: asId,
+        edfiTenant,
+      },
+      {
+        applicationId,
+      }
+    ) as UseQueryOptions<Record<string | number, ApiClientEntity>>),
+    throwOnError: false,
+  });
+  // Also true when the count is 0, not just exactly 1 — an Application can't
+  // reach this UI with zero credentials today, but if the count query errors
+  // (data resets to undefined) this still lands here and blocks, which is the
+  // safe default: the "only credential" tooltip wording reads oddly for the
+  // zero case, but blocking is still the correct behaviour.
+  const isOnlyApiClient =
+    !applicationApiClients.isPending &&
+    Object.keys(applicationApiClients.data ?? {}).length <= 1;
+  const blockDelete =
+    applicationApiClients.isPending || applicationApiClients.isError || isOnlyApiClient;
 
   const search = useSearchParamsObject();
   const onApiClientPage = !!apiClientId;
@@ -126,9 +164,12 @@ export const useSingleApiClientActions = ({
           ? {
               Delete: {
                 isPending: deleteApiClient.isPending,
+                isDisabled: blockDelete,
                 icon: Icons.Delete,
                 text: 'Delete',
-                title: 'Delete API client credentials',
+                title: isOnlyApiClient
+                  ? "This is the Application's only credential and can't be deleted. Create another credential first."
+                  : 'Delete API client credentials',
                 confirmBody:
                   'All systems using these credentials to access Ed-Fi will no longer be able to do so. This action cannot be undone, but you will be able to create new credentials for this application if you want.',
                 onClick: () =>

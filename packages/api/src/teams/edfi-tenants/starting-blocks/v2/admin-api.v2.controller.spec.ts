@@ -554,3 +554,62 @@ describe('AdminApiControllerV2 - deleteInstance', () => {
     expect(mockJobQueue.send).not.toHaveBeenCalled();
   });
 });
+
+describe('AdminApiControllerV2 - deleteApiClient last-credential guard', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: {
+    getApiClient: jest.Mock;
+    getApplication: jest.Mock;
+    getApiClients: jest.Mock;
+    deleteApiClient: jest.Mock;
+  };
+
+  const mockEdfiTenant = { id: 1, sbEnvironmentId: 2 } as unknown as EdfiTenant;
+  const validIds: Ids = true;
+
+  beforeEach(() => {
+    mockSbService = {
+      getApiClient: jest.fn().mockResolvedValue({ id: 4, applicationId: 7 }),
+      getApplication: jest.fn().mockResolvedValue({
+        id: 7,
+        educationOrganizationIds: [255901107],
+        odsInstanceIds: [1],
+      }),
+      getApiClients: jest.fn(),
+      deleteApiClient: jest.fn().mockResolvedValue(undefined),
+    };
+    controller = new AdminApiControllerV2(
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService
+    );
+  });
+
+  it('deletes the credential when the Application has more than one', async () => {
+    mockSbService.getApiClients.mockResolvedValue([{ id: 4 }, { id: 5 }]);
+
+    await controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds);
+
+    expect(mockSbService.getApiClients).toHaveBeenCalledWith(mockEdfiTenant, 7);
+    expect(mockSbService.deleteApiClient).toHaveBeenCalledWith(mockEdfiTenant, 4);
+  });
+
+  it('rejects with 409 when it is the Application\'s only credential', async () => {
+    mockSbService.getApiClients.mockResolvedValue([{ id: 4 }]);
+
+    await expect(
+      controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
+    ).rejects.toMatchObject({ status: 409 });
+  });
+
+  it('does not forward the delete to AdminApi when it rejects', async () => {
+    mockSbService.getApiClients.mockResolvedValue([{ id: 4 }]);
+
+    await expect(
+      controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
+    ).rejects.toBeInstanceOf(CustomHttpException);
+    expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+});

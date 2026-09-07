@@ -827,6 +827,26 @@ export class AdminApiControllerV3 {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
+    // An Application with no credentials disappears from the UI entirely
+    // (AC-616), so the last one may not be deleted. The frontend disables the
+    // action, but that is only a hint — this covers direct API calls and the
+    // stale-tab race where the client's count is out of date.
+    const applicationApiClients = await this.sbService.getApiClients(
+      edfiTenant,
+      apiClient.applicationId
+    );
+    if (applicationApiClients.length <= 1) {
+      throw new CustomHttpException(
+        {
+          type: 'Error',
+          title: 'Cannot delete the only credential',
+          message:
+            'An Application needs at least one credential to work. Create another credential before deleting this one.',
+        },
+        409
+      );
+    }
+
     return await this.sbService.deleteApiClient(edfiTenant, apiClientId);
   }
 
