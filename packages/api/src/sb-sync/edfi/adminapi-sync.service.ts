@@ -7,9 +7,17 @@ import { transformTenantData } from '../../utils/admin-api-data-adapter-utils';
 import { persistSyncTenant } from '../sync-ods';
 import { CacheService } from '../../app/cache.module';
 import { AdminApiVersionStrategyFactory } from '../../admin-api-version-strategy';
+import { AdminApiTenancyError } from '../../utils/admin-api-tenancy';
+import { ValidationHttpException } from '../../utils/customExceptions';
 
 export interface SyncResult {
-  status: 'SUCCESS' | 'ERROR' | 'NO_ADMIN_API_CONFIG' | 'INVALID_VERSION';
+  status:
+    | 'SUCCESS'
+    | 'ERROR'
+    | 'NO_ADMIN_API_CONFIG'
+    | 'INVALID_VERSION'
+    | 'ADMIN_API_MISCONFIGURED'
+    | 'TENANCY_UNAVAILABLE';
   message?: string;
   tenantsProcessed?: number;
   error?: Error;
@@ -202,14 +210,39 @@ export class AdminApiSyncService {
 
       // For brand-new environments (no stored credentials yet), register credentials
       // first so getTenants() can authenticate successfully.
-      await strategy.bootstrapCredentials(sbEnvironment);
-      const reloaded = await this.sbEnvironmentsRepository.findOne({ where: { id: sbEnvironment.id } });
-      if (reloaded) sbEnvironment = reloaded;
-
-      // Discover tenants from the Admin API
-      this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);
+      let tenants: TenantDto[];
       const adminApiService = strategy.getAdminApiService();
-      const tenants: TenantDto[] = await adminApiService.getTenants(sbEnvironment);
+      try {
+        await strategy.bootstrapCredentials(sbEnvironment);
+        const reloaded = await this.sbEnvironmentsRepository.findOne({ where: { id: sbEnvironment.id } });
+        if (reloaded) sbEnvironment = reloaded;
+
+        // Discover tenants from the Admin API
+        this.logger.log(`Discovering tenants for environment: ${sbEnvironment.name}`);
+        tenants = await adminApiService.getTenants(sbEnvironment);
+      } catch (error) {
+        if (error instanceof AdminApiTenancyError) {
+          this.logger.error(
+            `Environment ${sbEnvironment.name}: tenancy could not be determined (${error.kind}): ${error.message}`
+          );
+          return {
+            status: error.kind === 'MISCONFIGURED' ? 'ADMIN_API_MISCONFIGURED' : 'TENANCY_UNAVAILABLE',
+            message: error.kind === 'MISCONFIGURED' ? error.detail : error.message,
+          };
+        }
+        if (error instanceof ValidationHttpException) {
+          this.logger.error(
+            `Environment ${sbEnvironment.name}: could not reach Admin API to determine tenancy: ${JSON.stringify(
+              (error as unknown as { response?: unknown }).response
+            )}`
+          );
+          return {
+            status: 'TENANCY_UNAVAILABLE',
+            message: 'Could not reach the Management API to determine tenancy for this environment.',
+          };
+        }
+        throw error;
+      }
 
       if (!tenants || tenants.length === 0) {
         this.logger.warn(`No tenants found for environment: ${sbEnvironment.name}`);
