@@ -205,6 +205,9 @@ export class AdminApiServiceV3 {
         // Store token with tenant-specific composite key
         const tokenKey = this.getTenantTokenKey(id, tenantName);
         this.adminApiTokens.set(tokenKey, v.data.access_token, Number(v.data.expires_in) - 60);
+        // Also store an environment-level alias: getAdminApiClientUsingEnv falls back to the
+        // bare environment.id key when called without a tenantName (e.g. via getAdminApiClientForEnvironment).
+        this.adminApiTokens.set(id, v.data.access_token, Number(v.data.expires_in) - 60);
         this.logger.log(
           `Stored token for environment ${id} tenant ${tenantName} at key: ${tokenKey}`,
         );
