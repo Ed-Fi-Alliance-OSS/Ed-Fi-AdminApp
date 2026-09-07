@@ -46,8 +46,7 @@ import {
   pollJobStatus,
   triggerEdOrgRefresh,
 } from '../admin-api-refresh-poll.util';
-import { fetchAdminApiTenancy } from '../../../../utils/admin-api-tenancy';
-import { fetchAdminApiInfo } from '../../../../utils/api-metadata-utils';
+import { resolveTenantNames } from '../../../../utils/api-metadata-utils';
 
 /**
  * A single education organization as returned by the Admin API's
@@ -841,24 +840,10 @@ export class AdminApiServiceV3 {
     this.logger.log(`Getting tenants for environment: ${environment.name}`);
 
     try {
-      // Step 1: Get the tenant list from Admin API's tenancy endpoint.
-      // The endpoint is anonymous, so no login or bearer token is needed here.
-      const adminApiInfo = await fetchAdminApiInfo(environment.adminApiUrl);
-      const tenancy = await fetchAdminApiTenancy(adminApiInfo);
-
-      // Step 2: Determine tenant names. A failed lookup throws above rather
-      // than reaching this point, so 'default' is only ever chosen because
-      // Admin API is genuinely single-tenant or exposes no tenancy endpoint.
-      let tenantNames: string[];
-      if (tenancy.supported && tenancy.tenants.length > 0) {
-        tenantNames = tenancy.tenants;
-        this.logger.log(
-          `Multi-tenant mode detected with ${tenantNames.length} tenants: ${tenantNames.join(', ')}`,
-        );
-      } else {
-        tenantNames = ['default'];
-        this.logger.log('Single-tenant mode detected, using default tenant');
-      }
+      // Step 1 & 2: Get the tenant list from Admin API's tenancy endpoint (anonymous,
+      // no login or bearer token needed) and determine tenant names. A failed lookup
+      // throws rather than falling back to 'default'.
+      const tenantNames = await resolveTenantNames(environment.adminApiUrl);
 
       // Log credential availability for discovered tenants
       const configPublic = environment.configPublic;
