@@ -202,6 +202,20 @@ result rather than the same answer by another route, and it does so
 silently — the log line says only "root endpoint did not return tenant
 list, falling back to default".
 
+The identical pattern exists in `getTenants()` on both Admin API services —
+`admin-api.v2.service.ts:1385` and `admin-api.v3.service.ts:889` — and
+that is the more consequential one, because `getTenants()` is the primary
+tenant-discovery path, called on every sync from
+`packages/api/src/sb-sync/edfi/adminapi-sync.service.ts:212`. Bootstrap
+only runs for brand-new environments; `getTenants()` runs every time.
+Both now resolve every multi-tenant environment to `['default']` and log
+"Single-tenant mode detected, using default tenant".
+
+One simplification applies to these two: they currently make the root call
+*authenticated*, logging in first to obtain an environment-level bearer
+token (`admin-api.v3.service.ts:858-884`). The tenancy endpoint is
+anonymous, so tenant discovery no longer needs a token at all.
+
 ## Call sites to update
 
 | Location | What it reads | Effect today |
@@ -212,6 +226,9 @@ list, falling back to default".
 | `packages/api/src/sb-environments-global/sb-environments-global.controller.ts:224` | inline `adminApiInfo?.tenancy?.multitenantMode` | Compatibility check permanently skipped |
 | `packages/api/src/sb-environments-global/sb-environments-edfi.services.ts:189` | inline `adminApiInfo?.tenancy?.multitenantMode` | Compatibility check permanently skipped |
 | `packages/api/src/admin-api-version-strategy/v2-admin-api-version.strategy.ts:157` | `tenancy.tenants` for multi-tenant bootstrap | **Guard never satisfied; multi-tenant environments provisioned as `['default']`** (the outer single-tenant `['default']` at line 172 is correct and stays) |
+| `packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.service.ts:1385` | `tenancy.tenants` in `getTenants()` | **Every sync discovers `['default']` for multi-tenant environments** |
+| `packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.service.ts:889` | `tenancy.tenants` in `getTenants()` | **Every sync discovers `['default']` for multi-tenant environments** |
+| `packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.service.ts:85` | `TenancyResponse` interface | Stale type describing the removed shape |
 | `packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.service.ts:54` | `TenancyResponse` interface | Stale type describing the removed shape |
 
 ## Proposed plan
@@ -242,10 +259,17 @@ list, falling back to default".
    written to have, and update the two inline `multitenantMode` checks in
    `sb-environments-global.controller.ts` and `sb-environments-edfi.services.ts`
    to go through it rather than reading the removed field directly.
-5. **Fix multi-tenant bootstrap discovery** in
+5. **Fix `getTenants()` on both Admin API services** — the primary
+   tenant-discovery path, and the highest-impact fix. Source tenant names
+   from the tenancy endpoint instead of `tenancyResponse.tenancy`, and drop
+   the now-unused `TenancyResponse` interface from both files. The tenancy
+   endpoint is anonymous, so the bearer-token login that currently precedes
+   the root call is no longer needed for discovery. As in bootstrap, the
+   `['default']` single-tenant branch stays valid — it must be reached
+   because tenancy returned `[]`, never because a call failed.
+6. **Fix multi-tenant bootstrap discovery** in
    `v2-admin-api-version.strategy.ts`: source tenant names from the tenancy
-   endpoint instead of `rootResponse.tenancy`, and drop the stale
-   `TenancyResponse` interface in `admin-api.v3.service.ts`. The
+   endpoint instead of `rootResponse.tenancy`. The
    single-tenant workflow — outer `else`, `tenantNames = ['default']`,
    `registerCredentials(..., false)` — stays exactly as it is. Only the
    multi-tenant branch changes. Inside it, `['default']` must stop being
@@ -253,7 +277,7 @@ list, falling back to default".
    retrieved should fail bootstrap the way an unreachable root already does
    (log and return), because provisioning `default` on a multi-tenant
    target writes credentials for a tenant that does not exist.
-6. **Update tests** that mock the removed shape. Both
+7. **Update tests** that mock the removed shape. Both
    `packages/api/src/utils/api-metadata-utils.spec.ts` (the
    `getAdminApiTenantMode` / `determineTenantModeFromMetadata` suites and
    `makeAdminMeta`) and
@@ -346,11 +370,13 @@ actionable failure instead of an environment that quietly never syncs.
 
 ## Open questions
 
-- Should AdminApp call the tenancy endpoint on every environment-metadata
-  fetch (parallel to `GET /`), or only when tenant-mode or tenant-name
-  information is actually needed? Calling it unconditionally is simpler
-  but adds a network round trip to paths that don't currently need tenant
-  info.
+- **Resolved**: the tenancy endpoint is called **on demand only** — from
+  the paths that actually need tenant mode or tenant names
+  (`validateAdminApiUrl()`, the two environment-creation paths,
+  `getTenants()`, and `bootstrapCredentials()`). `fetchAdminApiInfo()` is
+  not changed to fetch tenancy alongside `GET /`, so metadata fetches that
+  never look at tenancy pay no extra round trip and cannot fail on a 503
+  they don't care about.
 - **Resolved**: whether the 503 should block or warn. It blocks, in both
   contexts, via each context's existing failure mechanism — see "Handling
   the 503 in each context" above.
