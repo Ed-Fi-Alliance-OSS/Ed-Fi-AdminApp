@@ -284,6 +284,7 @@ export class MssqlJobQueueService
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Job ${job.id} failed: ${err.message}`, err.stack);
+      const output = JSON.stringify(MssqlJobQueueService.serializeError(err));
 
       if (job.retrycount < job.retrylimit) {
         const nextRetryMs = job.retrybackoff
@@ -295,17 +296,30 @@ export class MssqlJobQueueService
           `UPDATE job_queue SET state='retry', retrycount=@1, output=@2,
              availableAt=DATEADD(MILLISECOND, @3, GETUTCDATE())
            WHERE id=@0`,
-          [job.id, job.retrycount + 1, JSON.stringify({ error: err.message, stack: err.stack }), nextRetryMs]
+          [job.id, job.retrycount + 1, output, nextRetryMs]
         );
 
         this.logger.log(`Job ${job.id} will retry in ${nextRetryMs}ms`);
       } else {
         await this.jobRepository.query(
           `UPDATE job_queue SET state='failed', completedon=GETUTCDATE(), output=@1 WHERE id=@0`,
-          [job.id, JSON.stringify({ error: err.message, stack: err.stack })]
+          [job.id, output]
         );
       }
     }
+  }
+
+  /**
+   * Preserves own-enumerable properties set on the error (e.g. NestJS HttpException's
+   * `response` body) alongside `message`/`stack`, which are non-enumerable and would
+   * otherwise be dropped by a plain spread. Mirrors pg-boss's own failure serialization
+   * (`serialize-error`) so both job-queue backends surface the same failure detail.
+   */
+  private static serializeError(error: unknown): object {
+    if (error instanceof Error) {
+      return { message: error.message, stack: error.stack, ...error };
+    }
+    return { error: String(error) };
   }
 
   // In-process cron scheduler; reads registry populated by schedule() (D-10)
