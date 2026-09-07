@@ -555,7 +555,9 @@ describe('api-metadata-utils', () => {
 
       const result = await validateAdminApiUrl(adminApiUrl, odsApiDiscoveryUrl);
 
-      expect(result).toEqual(adminMeta);
+      // validateAdminApiUrl() now also returns the tenancy result it fetched for its
+      // own compatibility check, so callers can reuse it instead of re-fetching.
+      expect(result).toEqual({ ...adminMeta, tenancy: { supported: false } });
     });
 
     it('should re-throw ValidationHttpException preserving the original error details', async () => {

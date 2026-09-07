@@ -9,7 +9,6 @@ import { StartingBlocksServiceV1, StartingBlocksServiceV2 } from '../teams/edfi-
 import * as utils from '../utils';
 import { ValidationHttpException } from '../utils';
 import * as adminApiTenancy from '../utils/admin-api-tenancy';
-import { AdminApiTenancyError } from '../utils/admin-api-tenancy';
 
 jest.mock('../utils', () => ({
   ...jest.requireActual('../utils'),
@@ -49,12 +48,14 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({
       specificationVersion: 'v3',
       urls: { tenancy: 'https://api.test.com/tenants' },
+      // validateAdminApiUrl() already fetched tenancy for its own compatibility check;
+      // create() must reuse this rather than calling fetchAdminApiTenancy() again.
+      tenancy: { supported: false },
     });
     (utils.fetchOdsApiMetadata as jest.Mock).mockResolvedValue({
       version: '5.3',
       urls: { dataManagementApi: 'https://ods.test.com/data/v3' },
     });
-    jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({ supported: false });
 
     const module: TestingModule = await Test.createTestingModule({
       providers: [
@@ -96,11 +97,13 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
   });
 
   it('fails environment creation with the Admin API message when tenancy is misconfigured', async () => {
+    // validateAdminApiUrl() is the single call site that fetches tenancy; it already
+    // translates an AdminApiTenancyError into this ValidationHttpException shape.
     const detail =
       'MultiTenancy is enabled but no tenants are configured. Check the Tenants section of appsettings.';
-    jest
-      .spyOn(adminApiTenancy, 'fetchAdminApiTenancy')
-      .mockRejectedValue(new AdminApiTenancyError('MISCONFIGURED', detail, detail));
+    (utils.validateAdminApiUrl as jest.Mock).mockRejectedValue(
+      new ValidationHttpException({ field: 'adminApiUrl', message: detail })
+    );
 
     const error = await service
       .create(
@@ -122,10 +125,11 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
   it('uses the Admin API tenancy signal over ODS URL inference (regression guard)', async () => {
     // The ODS metadata URL has no `tenantIdentifier` segment, so URL-pattern
     // inference alone would call this SingleTenant. The Admin API tenancy
-    // endpoint reports two tenants (MultiTenant). If the production code
-    // ignored the Admin API signal (e.g. by regressing to passing the raw
-    // `adminApiInfo` object — which has no `.supported`/`.mode` fields —
-    // instead of a fetched TenancyResult), `determineTenantModeFromMetadata`
+    // endpoint (fetched once, by validateAdminApiUrl()) reports two tenants
+    // (MultiTenant). If the production code ignored the Admin API signal
+    // (e.g. by regressing to passing the raw `adminApiInfo` object — which
+    // has no `.supported`/`.mode` fields — instead of the `tenancy` result
+    // validateAdminApiUrl() returns), `determineTenantModeFromMetadata`
     // would silently fall back to ODS inference and set isMultitenant to
     // false: the wrong answer. Only honoring the Admin API signal sets it to
     // true here.
@@ -140,11 +144,12 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     // not some unrelated failure) so this test cannot be satisfied by a
     // TypeError, a mock misconfiguration, or an unrelated bug elsewhere in
     // the function.
-    jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({
-      supported: true,
-      tenants: ['tenant-a', 'tenant-b'],
-      mode: 'MultiTenant',
+    (utils.validateAdminApiUrl as jest.Mock).mockResolvedValue({
+      specificationVersion: 'v3',
+      urls: { tenancy: 'https://api.test.com/tenants' },
+      tenancy: { supported: true, tenants: ['tenant-a', 'tenant-b'], mode: 'MultiTenant' },
     });
+    jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy');
 
     const dto = {
       name: 'my-v3-env',
@@ -157,9 +162,9 @@ describe('SbEnvironmentsEdFiService.create (v3)', () => {
     const error = await service.create(dto, undefined).catch((e) => e);
 
     expect(dto.isMultitenant).toBe(true);
-    // The tenancy endpoint must be fetched once per call site, not once for
-    // tenant-mode detection and again for the compatibility check.
-    expect(adminApiTenancy.fetchAdminApiTenancy).toHaveBeenCalledTimes(1);
+    // create() must not fetch tenancy itself — validateAdminApiUrl() is the
+    // single call site, and create() reuses its returned `tenancy` result.
+    expect(adminApiTenancy.fetchAdminApiTenancy).not.toHaveBeenCalled();
 
     // Confirm the rejection is specifically the expected tenant-mode
     // mismatch, not an unrelated failure the .catch would otherwise mask.

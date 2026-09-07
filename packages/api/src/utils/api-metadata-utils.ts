@@ -194,16 +194,44 @@ export const fetchAdminApiInfo = async (adminApiUrl: string): Promise<AdminApiIn
 };
 
 /**
+ * Resolves the tenant names an Admin API-backed environment should sync: fetches
+ * Admin API's info and tenancy endpoints and returns the discovered tenant list,
+ * or `['default']` when Admin API is genuinely single-tenant or exposes no
+ * tenancy endpoint. Shared by the v2 and v3 `getTenants()` implementations,
+ * which otherwise duplicated this exact fetch-and-branch sequence.
+ *
+ * A failed tenancy lookup throws rather than reaching the `['default']`
+ * fallback — see `fetchAdminApiTenancy()`'s contract: no error is ever
+ * interpreted as single-tenant.
+ */
+export const resolveTenantNames = async (adminApiUrl: string): Promise<string[]> => {
+  const adminApiInfo = await fetchAdminApiInfo(adminApiUrl);
+  const tenancy = await fetchAdminApiTenancy(adminApiInfo, adminApiUrl);
+
+  if (tenancy.supported && tenancy.tenants.length > 0) {
+    Logger.log(
+      `Multi-tenant mode detected with ${tenancy.tenants.length} tenants: ${tenancy.tenants.join(', ')}`
+    );
+    return tenancy.tenants;
+  }
+
+  Logger.log('Single-tenant mode detected, using default tenant');
+  return ['default'];
+};
+
+/**
  * Validates the Management API Discovery URL.
  * @param adminApiUrl The URL to validate.
  * @param odsApiDiscoveryUrl The ODS API URL for version comparison (optional if odsApiMeta provided).
- * @returns The fetched Admin API metadata if validation succeeds, so it can be reused to avoid duplicate network calls.
+ * @returns The fetched Admin API metadata, plus the `TenancyResult` this function already fetched
+ * for its own tenant-mode compatibility check — callers deriving tenant mode should reuse `tenancy`
+ * rather than calling `fetchAdminApiTenancy()` again for the same environment.
  */
 
 export const validateAdminApiUrl = async (
   adminApiUrl: string,
   odsApiDiscoveryUrl: string
-): Promise<AdminApiInfo> => {
+): Promise<AdminApiInfo & { tenancy?: TenancyResult }> => {
   try {
     // Fetch Admin API info (reuses shared fetch function)
     const metadata = await fetchAdminApiInfo(adminApiUrl);
@@ -265,12 +293,13 @@ export const validateAdminApiUrl = async (
 
     // Validate tenant mode compatibility - only if Admin API exposes a tenancy endpoint
     const odsTenantMode = determineTenantModeFromOdsMetadata(odsMetadata);
-    let adminTenantMode: 'MultiTenant' | 'SingleTenant' | undefined;
+    let tenancy: TenancyResult;
     try {
-      adminTenantMode = getAdminApiTenantMode(await fetchAdminApiTenancy(metadata));
+      tenancy = await fetchAdminApiTenancy(metadata, adminApiUrl);
     } catch (error) {
       throw translateTenancyError(error);
     }
+    const adminTenantMode = getAdminApiTenantMode(tenancy);
 
     if (adminTenantMode !== undefined) {
       validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
@@ -278,8 +307,8 @@ export const validateAdminApiUrl = async (
       Logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
     }
 
-    // Return the fetched metadata so callers can reuse it and avoid a duplicate network call
-    return metadata;
+    // Return the fetched metadata and tenancy result so callers can reuse them and avoid a duplicate network call
+    return { ...metadata, tenancy };
   } catch (error) {
     Logger.warn(`Error validating Management API Discovery URL ${adminApiUrl}:`, error.message);
     // Re-throw ValidationHttpException errors to preserve specific error messages

@@ -8,7 +8,7 @@ import {
   validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
-import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
+import { TenancyResult } from '../utils/admin-api-tenancy';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { addUserCreating, EdfiTenant, SbEnvironment, Edorg, Ods, SbSyncQueue } from '@edanalytics/models-server';
 import { EntityManager, Repository } from 'typeorm';
@@ -152,7 +152,7 @@ export class SbEnvironmentsEdFiService {
   async create(createSbEnvironmentDto: PostSbEnvironmentDto, user: GetUserDto | undefined) {
     // First validate the Admin API URL before proceeding with any operations
     // validateAdminApiUrl returns the fetched Admin API metadata to avoid duplicate network calls
-    let adminApiInfo: AdminApiInfo | undefined;
+    let adminApiInfo: (AdminApiInfo & { tenancy?: TenancyResult }) | undefined;
     if (createSbEnvironmentDto.adminApiUrl) {
       adminApiInfo = await validateAdminApiUrl(createSbEnvironmentDto.adminApiUrl, createSbEnvironmentDto.odsApiDiscoveryUrl);
     }
@@ -182,14 +182,10 @@ export class SbEnvironmentsEdFiService {
           // Override the version with detected version
           createSbEnvironmentDto.version = detectedVersion;
 
-          // Fetch the tenancy result once so both tenant-mode detection and the
-          // compatibility check below use the same Admin API signal.
-          let tenancy: TenancyResult | undefined;
-          try {
-            tenancy = adminApiInfo ? await fetchAdminApiTenancy(adminApiInfo) : undefined;
-          } catch (error) {
-            throw translateTenancyError(error);
-          }
+          // Reuse the tenancy result validateAdminApiUrl() already fetched for its own
+          // compatibility check above, rather than calling fetchAdminApiTenancy() again
+          // for the same environment.
+          const tenancy: TenancyResult | undefined = adminApiInfo?.tenancy;
 
           // Determine tenant mode - pass both ODS and Admin API tenancy signal, function prioritizes Admin API field
           tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, tenancy);
