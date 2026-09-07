@@ -14,7 +14,7 @@ import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
-import { fetchAdminApiTenancy } from '../utils/admin-api-tenancy';
+import { AdminApiTenancyError, fetchAdminApiTenancy } from '../utils/admin-api-tenancy';
 import { fetchAdminApiInfo } from '../utils/api-metadata-utils';
 import {
   AdminApiVersionStrategy,
@@ -155,15 +155,25 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
       // a 'default' tenant on a multi-tenant target provisions a tenant that
       // does not exist and leaves the real tenants with none.
       const adminApiInfo = await fetchAdminApiInfo(sbEnvironment.adminApiUrl!);
-      const tenancy = await fetchAdminApiTenancy(adminApiInfo);
+      const tenancy = await fetchAdminApiTenancy(adminApiInfo, sbEnvironment.adminApiUrl!);
 
-      if (tenancy.supported && tenancy.tenants.length > 0) {
-        tenantNames = tenancy.tenants;
-        this.logger.log(`Bootstrap: discovered tenants from tenancy endpoint: [${tenantNames.join(', ')}]`);
-      } else {
-        tenantNames = ['default'];
-        this.logger.log('Bootstrap: no multi-tenant tenant list available, using default tenant');
+      // The stored config says multi-tenant, so an unsupported/empty tenancy
+      // result here is a config/live mismatch, not evidence of single-tenant —
+      // falling back to 'default' would provision a tenant that does not
+      // exist and leave the real tenants without credentials (the same class
+      // of mis-provisioning bug this function's error-handling above exists
+      // to prevent).
+      if (!tenancy.supported || tenancy.tenants.length === 0) {
+        throw new AdminApiTenancyError(
+          'UNAVAILABLE',
+          `Environment ${sbEnvironment.name} is configured multi-tenant, but Admin API's tenancy endpoint reported ${
+            !tenancy.supported ? 'no tenancy support' : 'no tenants'
+          }. Refusing to bootstrap a 'default' tenant.`
+        );
       }
+
+      tenantNames = tenancy.tenants;
+      this.logger.log(`Bootstrap: discovered tenants from tenancy endpoint: [${tenantNames.join(', ')}]`);
     } else {
       tenantNames = ['default'];
     }
