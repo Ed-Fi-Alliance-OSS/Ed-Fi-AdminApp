@@ -1,11 +1,10 @@
 import { Inject, Injectable, InternalServerErrorException, Logger } from '@nestjs/common';
 import {
   AdminApiInfo,
+  checkTenantModeCompatibility,
   determineTenantModeFromMetadata,
   fetchOdsApiMetadata,
-  getAdminApiTenantMode,
   validateAdminApiUrl,
-  validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
 import { TenancyResult } from '../utils/admin-api-tenancy';
@@ -192,18 +191,7 @@ export class SbEnvironmentsEdFiService {
           createSbEnvironmentDto.isMultitenant = tenantMode === 'MultiTenant';
 
           // Validate tenant mode compatibility if Admin API exposes a tenancy endpoint
-          if (adminApiInfo) {
-            const adminTenantMode = getAdminApiTenantMode(tenancy);
-
-            if (adminTenantMode !== undefined) {
-              const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
-              validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
-            } else {
-              this.logger.log(
-                'Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check'
-              );
-            }
-          }
+          checkTenantModeCompatibility(odsApiMetaResponse, !!adminApiInfo, tenancy);
 
         } catch (metadataError) {
           // Re-throw validation exceptions without wrapping (e.g., tenant mode compatibility errors)

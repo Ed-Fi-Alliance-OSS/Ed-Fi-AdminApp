@@ -116,6 +116,35 @@ export const determineTenantModeFromMetadata = (
 };
 
 /**
+ * When Admin API info was fetched, validates that it agrees with the ODS API
+ * on tenant mode (throws `ValidationHttpException` on mismatch); a no-op
+ * otherwise. Shared by the two environment-create call sites
+ * (`SbEnvironmentsEdFiService.create()` and
+ * `SbEnvironmentsGlobalController.checkEdFiVersionAndTenantMode()`) that
+ * otherwise duplicated this exact compatibility-check-and-log sequence.
+ *
+ * Deliberately does not also determine/return tenant mode: callers must
+ * assign tenant mode (`determineTenantModeFromMetadata()`) before calling
+ * this, since a mismatch throw must not prevent that assignment — the
+ * Admin API signal is authoritative even when the two APIs disagree.
+ */
+export const checkTenantModeCompatibility = (
+  odsApiMeta: OdsApiMeta,
+  hasAdminApiInfo: boolean,
+  tenancy: TenancyResult | undefined
+): void => {
+  if (!hasAdminApiInfo) return;
+
+  const adminTenantMode = getAdminApiTenantMode(tenancy);
+  if (adminTenantMode !== undefined) {
+    const odsTenantMode = determineTenantModeFromMetadata(odsApiMeta);
+    validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
+  } else {
+    Logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
+  }
+};
+
+/**
  * Fetches ODS API metadata from the discovery URL
  */
 export const fetchOdsApiMetadata = async (createSbEnvironmentDto: PostSbEnvironmentDto) => {

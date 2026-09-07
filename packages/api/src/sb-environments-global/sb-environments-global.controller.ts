@@ -44,14 +44,13 @@ import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import {
   AdminApiInfo,
+  checkTenantModeCompatibility,
   CustomHttpException,
   determineTenantModeFromMetadata,
   fetchAdminApiInfo,
   fetchOdsApiMetadata,
-  getAdminApiTenantMode,
   throwNotFound,
   validateAdminApiUrl,
-  validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
 import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
@@ -236,16 +235,7 @@ export class SbEnvironmentsGlobalController {
     const isMultiTenant = tenantMode === 'MultiTenant';
 
     // Validate tenant mode compatibility if Admin API exposes a tenancy endpoint
-    if (adminApiInfo) {
-      const adminTenantMode = getAdminApiTenantMode(tenancy);
-
-      if (adminTenantMode !== undefined) {
-        const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
-        validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
-      } else {
-        Logger.log('Admin API does not expose a tenancy endpoint, skipping tenant mode compatibility check');
-      }
-    }
+    checkTenantModeCompatibility(odsApiMetaResponse, !!adminApiInfo, tenancy);
 
     return {
       odsVersion: odsApiMetaResponse ? odsApiMetaResponse.version : '',
