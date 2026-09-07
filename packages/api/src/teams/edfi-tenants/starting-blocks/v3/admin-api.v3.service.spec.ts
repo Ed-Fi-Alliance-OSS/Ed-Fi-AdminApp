@@ -1,6 +1,9 @@
 import 'reflect-metadata';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import { AdminApiServiceV3 } from './admin-api.v3.service';
+import * as adminApiTenancy from '../../../../utils/admin-api-tenancy';
+import { AdminApiTenancyError } from '../../../../utils/admin-api-tenancy';
+import * as apiMetadataUtils from '../../../../utils/api-metadata-utils';
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 describe('AdminApiServiceV3', () => {
@@ -57,6 +60,157 @@ describe('AdminApiServiceV3', () => {
       const result = await service.login(environment, 1, 'unknown-tenant');
 
       expect(result).toEqual({ status: 'NO_TENANT_CONFIG' });
+    });
+  });
+
+  describe('getTenants', () => {
+    const mockSbEnvironment: Partial<SbEnvironment> = {
+      id: 1,
+      name: 'Test Environment',
+      adminApiUrl: 'https://api.test.com',
+      configPublic: {
+        version: 'v3',
+        values: { tenants: { 'test-tenant': { adminApiKey: 'test-key' } } },
+      } as any,
+      configPrivate: {
+        tenants: { 'test-tenant': { adminApiSecret: 'test-secret' } },
+      } as any,
+    };
+
+    beforeEach(() => {
+      // getTenants() discovers tenants via fetchAdminApiInfo + fetchAdminApiTenancy
+      // rather than an authenticated GET /. Mock fetchAdminApiInfo here so tests
+      // never issue a real axios call; individual tests mock fetchAdminApiTenancy's
+      // resolution/rejection directly.
+      jest.spyOn(apiMetadataUtils, 'fetchAdminApiInfo').mockResolvedValue({
+        specificationVersion: 'v3',
+        urls: { tenancy: 'https://api.test.com/v3/tenancy' },
+      });
+    });
+
+    it('discovers the tenant names from the tenancy endpoint in multi-tenant mode', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      const tenancySpy = jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({
+        supported: true,
+        tenants: ['tenant-a', 'tenant-b'],
+        mode: 'MultiTenant',
+      });
+
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
+      const mockApiGet = jest
+        .fn()
+        .mockResolvedValueOnce({
+          data: { id: 'tenant-a', name: 'Tenant A', dataStores: [] },
+        })
+        .mockResolvedValueOnce({
+          data: { id: 'tenant-b', name: 'Tenant B', dataStores: [] },
+        });
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({ get: mockApiGet });
+
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-tenant-a') return 'token-tenant-a';
+        if (key === '1-tenant-b') return 'token-tenant-b';
+        return 'mock-token';
+      });
+
+      const result = await service.getTenants(environment);
+      const names = result.map((t) => t.name);
+
+      expect(apiMetadataUtils.fetchAdminApiInfo).toHaveBeenCalledWith(environment.adminApiUrl);
+      expect(tenancySpy).toHaveBeenCalled();
+      expect(names).toEqual(['tenant-a', 'tenant-b']);
+      expect(mockApiGet).toHaveBeenCalledWith(
+        'tenants/tenant-a/dataStores/edOrgs',
+        expect.objectContaining({
+          headers: expect.objectContaining({
+            Authorization: 'Bearer token-tenant-a',
+            tenant: 'tenant-a',
+          }),
+        }),
+      );
+    });
+
+    it('uses the default tenant when the tenancy endpoint reports single-tenant', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({
+        supported: true,
+        tenants: [],
+        mode: 'SingleTenant',
+      });
+
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
+      const mockApiGet = jest.fn().mockResolvedValueOnce({
+        data: { id: 'default', name: 'Default', dataStores: [] },
+      });
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({ get: mockApiGet });
+
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-default') return 'token-default';
+        return 'mock-token';
+      });
+
+      const result = await service.getTenants(environment);
+      const names = result.map((t) => t.name);
+
+      expect(names).toEqual(['default']);
+    });
+
+    it('uses the default tenant when Admin API exposes no tenancy endpoint', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockResolvedValue({ supported: false });
+
+      jest.spyOn(service as any, 'login').mockResolvedValue({ status: 'SUCCESS' });
+
+      const mockApiGet = jest.fn().mockResolvedValueOnce({
+        data: { id: 'default', name: 'Default', dataStores: [] },
+      });
+      jest.spyOn(service as any, 'initializeApiClient').mockReturnValue({ get: mockApiGet });
+
+      (service as any).adminApiTokens.get = jest.fn((key: string) => {
+        if (key === '1-default') return 'token-default';
+        return 'mock-token';
+      });
+
+      const result = await service.getTenants(environment);
+      const names = result.map((t) => t.name);
+
+      expect(names).toEqual(['default']);
+    });
+
+    it('propagates the error instead of falling back to default when tenancy is misconfigured', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      const detail =
+        'MultiTenancy is enabled but no tenants are configured. Check the Tenants section of appsettings.';
+      const tenancyError = new AdminApiTenancyError('MISCONFIGURED', detail, detail);
+      jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockRejectedValue(tenancyError);
+
+      const error = await service.getTenants(environment).catch((e) => e);
+
+      expect(error).toBe(tenancyError);
+      expect(error).toBeInstanceOf(AdminApiTenancyError);
+      expect(error.detail).toBe(detail);
+    });
+
+    it('propagates the error instead of falling back to default when tenancy is unavailable', async () => {
+      const environment = mockSbEnvironment as SbEnvironment;
+
+      const tenancyError = new AdminApiTenancyError(
+        'UNAVAILABLE',
+        'Could not determine tenancy for this Management API.',
+      );
+      jest.spyOn(adminApiTenancy, 'fetchAdminApiTenancy').mockRejectedValue(tenancyError);
+
+      const error = await service.getTenants(environment).catch((e) => e);
+
+      expect(error).toBe(tenancyError);
+      expect(error).toBeInstanceOf(AdminApiTenancyError);
+      expect(error.kind).toBe('UNAVAILABLE');
     });
   });
 

@@ -69,6 +69,8 @@ import {
 } from '../admin-api-refresh-poll.util';
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
+import { fetchAdminApiTenancy } from '../../../../utils/admin-api-tenancy';
+import { fetchAdminApiInfo } from '../../../../utils/api-metadata-utils';
 
 /**
  * Error body shape returned by the Admin API on failed requests (e.g. registration/login).
@@ -76,17 +78,6 @@ import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
 interface AdminApiErrorResponseBody {
   message?: string;
   errors?: Record<string, string[]> | string[];
-}
-
-/**
- * Response shape of the Admin API root endpoint (`GET /`), used to determine
- * whether the environment is running in multi-tenant mode.
- */
-interface TenancyResponse {
-  tenancy?: {
-    multitenantMode?: boolean;
-    tenants?: string[];
-  };
 }
 
 /**
@@ -1333,8 +1324,8 @@ export class AdminApiServiceV2 {
    * Retrieve all tenants with their ODS instances and education organizations
    * 
    * This method:
-   * 1. Calls the root endpoint (GET /) to get tenancy information
-   * 2. Determines tenant names based on multitenantMode setting
+   * 1. Calls Admin API's anonymous tenancy endpoint (advertised at `urls.tenancy`) to discover tenant names
+   * 2. Determines tenant names based on the discovered tenant list
    * 3. For each tenant, calls /v2/tenants/{tenantName}/OdsInstances/edOrgs to get detailed information
    * 4. Maps the response to TenantDto format
    *
@@ -1345,55 +1336,21 @@ export class AdminApiServiceV2 {
     this.logger.log(`Getting tenants for environment: ${environment.name}`);
 
     try {
-      // Step 1: Get tenancy information from root endpoint
-      const rootClient = axios.create({
-        baseURL: environment.adminApiUrl.replace(/\/$/, ''),
-      });
-      
-      // Add auth token to root client (environment-level, no tenant)
-      let authToken = this.adminApiTokens.get(environment.id);
-      if (!authToken) {
-        // Login without tenant parameter to get environment-level token
-        const adminLogin = await this.login(environment, environment.id);
-        if (adminLogin.status !== 'SUCCESS') {
-          throw new CustomHttpException(
-            {
-              title: adminApiLoginStatusMsgs[adminLogin.status],
-              type: 'Error',
-            },
-            500
-          );
-        }
-        authToken = this.adminApiTokens.get(environment.id);
-      }
+      // Step 1: Get the tenant list from Admin API's tenancy endpoint.
+      // The endpoint is anonymous, so no login or bearer token is needed here.
+      const adminApiInfo = await fetchAdminApiInfo(environment.adminApiUrl);
+      const tenancy = await fetchAdminApiTenancy(adminApiInfo);
 
-      const tenancyResponse = await rootClient
-        .get<TenancyResponse>('/', {
-          headers: {
-            Authorization: `Bearer ${authToken}`,
-          },
-        })
-        .then((res) => res.data)
-        .catch((err) => {
-          this.logger.error(`Error getting tenancy information: ${err}`);
-          throw err;
-        });
-
-      // Step 2: Determine tenant names from tenancy response
+      // Step 2: Determine tenant names. A failed lookup throws above rather
+      // than reaching this point, so 'default' is only ever chosen because
+      // Admin API is genuinely single-tenant or exposes no tenancy endpoint.
       let tenantNames: string[];
-      
-      if (
-        tenancyResponse?.tenancy?.multitenantMode === true &&
-        Array.isArray(tenancyResponse.tenancy.tenants) &&
-        tenancyResponse.tenancy.tenants.length > 0
-      ) {
-        // Multi-tenant mode
-        tenantNames = tenancyResponse.tenancy.tenants;
+      if (tenancy.supported && tenancy.tenants.length > 0) {
+        tenantNames = tenancy.tenants;
         this.logger.log(
           `Multi-tenant mode detected with ${tenantNames.length} tenants: ${tenantNames.join(', ')}`
         );
       } else {
-        // Single-tenant mode
         tenantNames = ['default'];
         this.logger.log('Single-tenant mode detected, using default tenant');
       }
