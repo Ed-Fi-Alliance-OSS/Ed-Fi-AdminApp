@@ -162,7 +162,7 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
         this.logger.log(`Bootstrap: discovered tenants from tenancy endpoint: [${tenantNames.join(', ')}]`);
       } else {
         tenantNames = ['default'];
-        this.logger.log('Bootstrap: Admin API reports single tenancy, using default tenant');
+        this.logger.log('Bootstrap: no multi-tenant tenant list available, using default tenant');
       }
     } else {
       tenantNames = ['default'];

@@ -5,7 +5,7 @@ import { ValidationHttpException } from './customExceptions';
 import config from 'config';
 import {
   fetchAdminApiTenancy,
-  AdminApiTenancyError,
+  translateTenancyError,
   AdminApiUrls,
   TenancyResult,
 } from './admin-api-tenancy';
@@ -269,16 +269,7 @@ export const validateAdminApiUrl = async (
     try {
       adminTenantMode = getAdminApiTenantMode(await fetchAdminApiTenancy(metadata));
     } catch (error) {
-      if (error instanceof AdminApiTenancyError) {
-        throw new ValidationHttpException({
-          field: 'adminApiUrl',
-          message:
-            error.kind === 'MISCONFIGURED'
-              ? error.detail!
-              : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
-        });
-      }
-      throw error;
+      throw translateTenancyError(error);
     }
 
     if (adminTenantMode !== undefined) {

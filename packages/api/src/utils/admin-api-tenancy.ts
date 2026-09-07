@@ -147,7 +147,7 @@ export const translateTenancyError = (error: unknown): ValidationHttpException =
       field: 'adminApiUrl',
       message:
         error.kind === 'MISCONFIGURED'
-          ? error.detail!
+          ? (error.detail ?? error.message)
           : `Could not determine tenancy for this Management API. Please ensure it is running and reachable.`,
     });
   }
