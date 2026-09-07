@@ -475,6 +475,22 @@ describe('AdminApiControllerV3 - deleteApiClient last-credential guard', () => {
     ).rejects.toMatchObject({ status: 409 });
   });
 
+  // The credential-count lookup must stay AFTER the edorg authorization check,
+  // so an unauthorized caller cannot use the guard as an oracle for how many
+  // credentials an Application has. `validIds = true` short-circuits `checkId`,
+  // so the tests above never enter the 403 branch — this one pins the ordering.
+  it('rejects with 403 before looking up the credential count when unauthorized', async () => {
+    mockSbService.getApiClients.mockResolvedValue([{ id: 4 }]);
+    const unauthorized: Ids = new Set<number | string>();
+
+    await expect(
+      controller.deleteApiClient(3, 1, mockEdfiTenant, 4, unauthorized)
+    ).rejects.toMatchObject({ status: 403 });
+
+    expect(mockSbService.getApiClients).not.toHaveBeenCalled();
+    expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+
   it('does not forward the delete to AdminApi when it rejects', async () => {
     mockSbService.getApiClients.mockResolvedValue([{ id: 4 }]);
 

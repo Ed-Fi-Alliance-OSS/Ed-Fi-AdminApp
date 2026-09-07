@@ -65,14 +65,18 @@ export const useSingleApiClientActions = ({
     ) as UseQueryOptions<Record<string | number, ApiClientEntity>>),
     throwOnError: false,
   });
-  // Also true when the count is 0, not just exactly 1 — an Application can't
-  // reach this UI with zero credentials today, but if the count query errors
-  // (data resets to undefined) this still lands here and blocks, which is the
-  // safe default: the "only credential" tooltip wording reads oddly for the
-  // zero case, but blocking is still the correct behaviour.
+  // Gated on `isSuccess` because this drives the tooltip wording: on a failed
+  // query `isPending` is false and `data` is undefined, which would otherwise
+  // make this true and put "this is the only credential" on a button whose
+  // real count we do not know. Also covers 0 rather than exactly 1 — an
+  // Application cannot reach this UI with zero credentials today, and blocking
+  // is the safe default either way.
   const isOnlyApiClient =
-    !applicationApiClients.isPending &&
+    applicationApiClients.isSuccess &&
     Object.keys(applicationApiClients.data ?? {}).length <= 1;
+  // Fails closed: a pending or errored count blocks the delete too. The
+  // tooltip stays generic in those states because we cannot honestly claim
+  // this is the only credential; the BFF's 409 enforces the rule server-side.
   const blockDelete =
     applicationApiClients.isPending || applicationApiClients.isError || isOnlyApiClient;
 

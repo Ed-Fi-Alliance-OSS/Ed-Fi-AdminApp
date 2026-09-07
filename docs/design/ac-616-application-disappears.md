@@ -295,7 +295,14 @@ point-of-action explanation and the legend is the standing one.
 
 ## Prerequisite: the Application edit 500
 
-**This must ship with the guard, not after it.**
+**Decision taken: AC-616 shipped first; this is tracked separately as
+[ADMINAPI-1514](https://edfi.atlassian.net/browse/ADMINAPI-1514).**
+
+The original recommendation here was that the two ship together. The team
+overrode it, reasoning that AC-569 had already made the two-credential state
+reachable — so AC-616 increases traffic through a pre-existing defect rather
+than creating one, while removing an unrecoverable data state in exchange. The
+risk is recorded on PR #351 and in ADMINAPI-1514.
 
 **All three Admin API projects carry this line**, so no version is exempt:
 `EdFi.Ods.AdminApi/…/EditApplicationCommand.cs:50` (v2),
