@@ -234,7 +234,7 @@ export class AdminApiSyncService {
         if (error instanceof ValidationHttpException) {
           this.logger.error(
             `Environment ${sbEnvironment.name}: could not reach Admin API to determine tenancy: ${JSON.stringify(
-              (error as unknown as { response?: unknown }).response
+              error.getResponse()
             )}`
           );
           return {
