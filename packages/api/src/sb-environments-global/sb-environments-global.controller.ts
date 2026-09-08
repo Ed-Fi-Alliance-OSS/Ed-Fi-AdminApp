@@ -43,15 +43,17 @@ import { ReqUser } from '../auth/helpers/user.decorator';
 import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
 import {
+  AdminApiInfo,
+  checkTenantModeCompatibility,
   CustomHttpException,
   determineTenantModeFromMetadata,
   fetchAdminApiInfo,
   fetchOdsApiMetadata,
   throwNotFound,
   validateAdminApiUrl,
-  validateTenantModeCompatibility,
   ValidationHttpException,
 } from '../utils';
+import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
 import { StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { Operation, SbVersion } from '../auth/authorization/sbVersion.decorator';
@@ -203,8 +205,8 @@ export class SbEnvironmentsGlobalController {
     // Fetch ODS API metadata
     const odsApiMetaResponse = await fetchOdsApiMetadata({ odsApiDiscoveryUrl } as PostSbEnvironmentDto);
 
-    // Fetch Admin API info if URL provided (to get multitenantMode field)
-    let adminApiInfo;
+    // Fetch Admin API info if URL provided (to get the tenancy endpoint address)
+    let adminApiInfo: AdminApiInfo | undefined;
     if (adminApiUrl) {
       try {
         adminApiInfo = await fetchAdminApiInfo(adminApiUrl);
@@ -214,21 +216,26 @@ export class SbEnvironmentsGlobalController {
       }
     }
 
-    // Auto-detect tenant mode from metadata - prioritizes Admin API field
-    const tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, adminApiInfo);
-    const isMultiTenant = tenantMode === 'MultiTenant';
-
-    // Validate tenant mode compatibility if both APIs are available
-    if (adminApiUrl && adminApiInfo) {
-      // Only validate if Admin API explicitly defines multitenantMode
-      if (adminApiInfo?.tenancy?.multitenantMode !== undefined) {
-        const odsTenantMode = determineTenantModeFromMetadata(odsApiMetaResponse);
-        const adminTenantMode = adminApiInfo.tenancy.multitenantMode ? 'MultiTenant' : 'SingleTenant';
-        validateTenantModeCompatibility(odsTenantMode, adminTenantMode);
-      } else {
-        Logger.log('Admin API does not provide multitenantMode field, skipping tenant mode compatibility check');
+    // Fetch the tenancy result once so both tenant-mode detection and the
+    // compatibility check below use the same Admin API signal. Unlike the
+    // info fetch above, a tenancy misconfiguration is a hard validation error
+    // rather than a soft fallback — it means the Admin API is reachable but
+    // misconfigured, not merely unreachable.
+    let tenancy: TenancyResult | undefined;
+    if (adminApiInfo) {
+      try {
+        tenancy = await fetchAdminApiTenancy(adminApiInfo, adminApiUrl);
+      } catch (error) {
+        throw translateTenancyError(error);
       }
     }
+
+    // Auto-detect tenant mode from metadata - prioritizes Admin API field
+    const tenantMode = determineTenantModeFromMetadata(odsApiMetaResponse, tenancy);
+    const isMultiTenant = tenantMode === 'MultiTenant';
+
+    // Validate tenant mode compatibility if Admin API exposes a tenancy endpoint
+    checkTenantModeCompatibility(odsApiMetaResponse, !!adminApiInfo, tenancy);
 
     return {
       odsVersion: odsApiMetaResponse ? odsApiMetaResponse.version : '',
