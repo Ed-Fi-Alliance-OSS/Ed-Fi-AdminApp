@@ -70,6 +70,7 @@ import {
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
 import { resolveTenantNames } from '../../../../utils/api-metadata-utils';
+import { mergeResourceClaimsV2 } from './resource-claims-merge.v2';
 
 /**
  * Error body shape returned by the Admin API on failed requests (e.g. registration/login).
@@ -674,8 +675,8 @@ export class AdminApiServiceV2 {
       throw new CustomHttpException({ title: 'Invalid claimsetId', type: 'Error' }, 400);
     }
 
-    return toGetClaimsetSingleDtoV2(
-      await this.getAdminApiClient(edfiTenant)
+    const [claimset, allResourceClaims] = await Promise.all([
+      this.getAdminApiClient(edfiTenant)
         .get<GetClaimsetSingleDtoV2, GetClaimsetSingleDtoV2>(
           `claimSets/${validatedClaimSetId}`
         )
@@ -684,8 +685,17 @@ export class AdminApiServiceV2 {
             `Error getting claimset ${validatedClaimSetId} for tenant ${edfiTenant.id}: ${err}`
           );
           throw err;
-        })
-    );
+        }),
+      // AC-439: Admin Api excludes any resourceClaims item (at any depth)
+      // that has no actions associated. Fetch the complete hierarchy
+      // separately so those items can be merged back in as denied.
+      this.getResourceClaims(edfiTenant),
+    ]);
+
+    return toGetClaimsetSingleDtoV2({
+      ...claimset,
+      resourceClaims: mergeResourceClaimsV2(claimset.resourceClaims, allResourceClaims),
+    } as GetClaimsetSingleDtoV2);
   }
 
   async putClaimset(edfiTenant: EdfiTenant, claimSetId: number, claimSet: PutClaimsetDtoV2) {

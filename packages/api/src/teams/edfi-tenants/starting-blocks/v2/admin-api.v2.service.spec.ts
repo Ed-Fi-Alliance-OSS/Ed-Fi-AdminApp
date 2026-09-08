@@ -859,5 +859,47 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(error).toBeInstanceOf(CustomHttpException);
       expect(error.getStatus()).toBe(400);
     });
+
+    it('merges in resource claims missing from the claimset (no actions) as denied placeholders', async () => {
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.resolve({
+            id: 1,
+            name: 'Ed-Fi Sandbox',
+            _isSystemReserved: true,
+            _applications: [],
+            resourceClaims: [
+              {
+                id: '1',
+                name: 'types',
+                actions: [{ name: 'Read', enabled: true }],
+                authorizationStrategyOverridesForCRUD: [],
+                _defaultAuthorizationStrategiesForCRUD: [],
+                children: [],
+              },
+            ],
+          });
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.resolve([
+            {
+              id: 1,
+              name: 'types',
+              parentId: 0,
+              parentName: null,
+              children: [{ id: 12, name: 'schoolYearType', parentId: 1, parentName: 'types', children: [] }],
+            },
+          ]);
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset({ id: 1 } as any, 1);
+
+      expect(result.resourceClaims[0].children).toHaveLength(1);
+      expect(result.resourceClaims[0].children[0]).toMatchObject({ name: 'schoolYearType' });
+      expect(result.resourceClaims[0].children[0].actions).toEqual([]);
+    });
   });
 });

@@ -7,6 +7,7 @@ import {
   GetApplicationDtoV3,
   GetDataStoreSummaryDtoV3,
   GetProfileDtoV3,
+  GetResourceClaimDetailDtoV3,
   GetVendorDtoV3,
   ISbEnvironmentConfigPrivateV2,
   Id,
@@ -32,6 +33,7 @@ import {
   toGetClaimsetSingleDtoV3,
   toGetDataStoreSummaryDtoV3,
   toGetProfileDtoV3,
+  toGetResourceClaimDetailDtoV3,
   toGetVendorDtoV3,
   toPostApiClientResponseDtoV3,
   toPostApplicationResponseDtoV3,
@@ -47,6 +49,7 @@ import {
   triggerEdOrgRefresh,
 } from '../admin-api-refresh-poll.util';
 import { resolveTenantNames } from '../../../../utils/api-metadata-utils';
+import { mergeResourceClaimsV3 } from './resource-claims-merge.v3';
 
 /**
  * A single education organization as returned by the Admin API's
@@ -544,8 +547,8 @@ export class AdminApiServiceV3 {
 
   async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
     const safeClaimSetId = this.sanitizeClaimSetId(claimSetId);
-    return toGetClaimsetSingleDtoV3(
-      await this.getAdminApiClient(edfiTenant)
+    const [claimset, allResourceClaims] = await Promise.all([
+      this.getAdminApiClient(edfiTenant)
         // sanitizeClaimSetId already guarantees a positive integer (throws
         // otherwise), so path-traversal/host-redirect via this segment is not
         // actually reachable; encodeURIComponent is added on top so static
@@ -558,6 +561,28 @@ export class AdminApiServiceV3 {
           this.logger.error(
             `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,
           );
+          throw err;
+        }),
+      // AC-439: Admin Api excludes any resourceClaims item (at any depth)
+      // that has no actions associated. Fetch the complete hierarchy
+      // separately so those items can be merged back in as denied.
+      this.getResourceClaims(edfiTenant),
+    ]);
+
+    return toGetClaimsetSingleDtoV3({
+      ...claimset,
+      resourceClaims: mergeResourceClaimsV3(claimset.resourceClaims, allResourceClaims),
+    });
+  }
+
+  async getResourceClaims(edfiTenant: EdfiTenant) {
+    return toGetResourceClaimDetailDtoV3(
+      await this.getAdminApiClient(edfiTenant)
+        .get<GetResourceClaimDetailDtoV3[], GetResourceClaimDetailDtoV3[]>(
+          `resourceClaims?offset=0&limit=10000`,
+        )
+        .catch((err) => {
+          this.logger.error(`Error getting resource claims for tenant ${edfiTenant.id}: ${err}`);
           throw err;
         }),
     );
