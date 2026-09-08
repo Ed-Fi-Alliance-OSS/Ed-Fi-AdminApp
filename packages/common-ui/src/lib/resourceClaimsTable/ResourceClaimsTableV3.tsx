@@ -1,4 +1,4 @@
-import { Badge, BadgeProps, Box, Flex, IconButton, StyleProps, Text } from '@chakra-ui/react';
+import { Badge, BadgeProps, Flex, IconButton, StyleProps, Text } from '@chakra-ui/react';
 import { GetClaimsetSingleDtoV3 } from '@edanalytics/models';
 import { CellContext, ColumnDef } from '@tanstack/react-table';
 import uniq from 'lodash/uniq';
@@ -48,12 +48,18 @@ const NameCell = (props: CellContext<ResourceClaimRow, unknown>) => {
   const canThisRowExpand = props.row.getCanExpand();
 
   return (
-    <Box
+    // A plain Box let the expand arrow and the name wrap onto separate
+    // lines whenever the row's depth indentation left too little room on
+    // the line for the full name — a flex row keeps them on one line
+    // together, letting the name itself wrap instead if it's still too long.
+    <Flex
       ml={`${props.row.depth * 1.5}rem`}
       pl={canThisRowExpand || !canAnyExpand ? undefined : '20px'}
+      align="center"
     >
       {canThisRowExpand && (
         <IconButton
+          flexShrink={0}
           display="inline-block"
           onClick={() => props.row.toggleExpanded()}
           aria-label="open or close"
@@ -77,8 +83,8 @@ const NameCell = (props: CellContext<ResourceClaimRow, unknown>) => {
           icon={<Icons.CaretRightFill />}
         />
       )}
-      {props.row.original.name}
-    </Box>
+      <Text as="span">{props.row.original.name}</Text>
+    </Flex>
   );
 };
 
