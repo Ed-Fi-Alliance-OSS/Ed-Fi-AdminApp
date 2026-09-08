@@ -51,12 +51,20 @@ describe('fetchAdminApiTenancy', () => {
     expect(result).toEqual({ supported: true, tenants: [], mode: 'SingleTenant' });
   });
 
-  it('treats a missing tenants array in a 200 response as single-tenant', async () => {
+  it('throws UNAVAILABLE when a 200 response is missing the tenants array', async () => {
     mockedAxios.get.mockResolvedValue({ status: 200, data: {} });
 
-    const result = await fetchAdminApiTenancy(infoWithTenancy);
+    await expect(fetchAdminApiTenancy(infoWithTenancy)).rejects.toMatchObject({
+      kind: 'UNAVAILABLE',
+    });
+  });
 
-    expect(result).toEqual({ supported: true, tenants: [], mode: 'SingleTenant' });
+  it('throws UNAVAILABLE when tenants is not an array of strings', async () => {
+    mockedAxios.get.mockResolvedValue({ status: 200, data: { tenants: [{ name: 'tenant1' }] } });
+
+    await expect(fetchAdminApiTenancy(infoWithTenancy)).rejects.toMatchObject({
+      kind: 'UNAVAILABLE',
+    });
   });
 
   it('throws MISCONFIGURED with the V3 problem-details detail text on a 503', async () => {

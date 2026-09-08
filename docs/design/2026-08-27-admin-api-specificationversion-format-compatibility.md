@@ -13,9 +13,11 @@
    `specificationVersion` mitigation is not needed" below.
 2. **`version` is now a single shared value across V1/V2/V3** (e.g.
    `"2.4.0"`), sourced from one place (`ApiInformationHelper.Version`)
-   instead of a different literal per mode. This has no bearing on
-   AdminApp, since nothing in AdminApp reads Admin API's `version` field
-   (only `specificationVersion` and `tenancy` are consumed).
+   instead of a different literal per mode. The shared value has no
+   bearing on version *selection* logic, but AdminApp still depends on
+   `version` being present: `validateAdminApiUrl()`
+   (`packages/api/src/utils/api-metadata-utils.ts:280-285`) rejects the
+   Admin API URL when the field is absent.
 3. **The `tenancy` object was replaced by a `urls.tenancy` link.** The
    `{"tenancy": {"multitenantMode": ..., "tenants": [...]}}` block no
    longer appears in the Information response. In its place, `GET /` now

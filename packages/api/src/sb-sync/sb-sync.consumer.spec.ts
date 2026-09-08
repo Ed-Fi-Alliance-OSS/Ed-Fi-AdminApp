@@ -147,3 +147,56 @@ describe('SbSyncConsumer — refreshSbEnvironment', () => {
     });
   });
 });
+
+describe('SbSyncConsumer — refreshEdfiTenant', () => {
+  let consumer: SbSyncConsumer;
+  let edfiTenantsRepository: any;
+  let adminapiSyncService: any;
+  let metadataService: any;
+
+  const adminApiEnv = { id: 2, name: 'Test Env', startingBlocks: false } as SbEnvironment;
+  const edfiTenant = { id: 5, name: 'Test Tenant', sbEnvironment: adminApiEnv } as EdfiTenant;
+
+  beforeEach(async () => {
+    edfiTenantsRepository = {
+      findOne: jest.fn().mockResolvedValue(edfiTenant),
+    };
+
+    adminapiSyncService = {
+      syncTenantData: jest.fn(),
+    };
+
+    metadataService = {
+      getMetadata: jest.fn().mockResolvedValue({ status: 'SUCCESS', data: {} }),
+    };
+
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SbSyncConsumer,
+        { provide: getRepositoryToken(SbEnvironment), useValue: {} },
+        { provide: getRepositoryToken(EdfiTenant), useValue: edfiTenantsRepository },
+        { provide: 'IJobQueueService', useValue: { createQueue: jest.fn(), schedule: jest.fn(), work: jest.fn(), start: jest.fn() } },
+        { provide: StartingBlocksServiceV1, useValue: {} },
+        { provide: StartingBlocksServiceV2, useValue: {} },
+        { provide: MetadataService, useValue: metadataService },
+        { provide: AdminApiSyncService, useValue: adminapiSyncService },
+      ],
+    }).compile();
+
+    consumer = module.get<SbSyncConsumer>(SbSyncConsumer);
+  });
+
+  it('should carry the sync status through the thrown exception when the Admin API tenant sync fails', async () => {
+    adminapiSyncService.syncTenantData.mockResolvedValue({
+      status: 'ADMIN_API_MISCONFIGURED',
+      message: 'appsettings tenancy config is invalid',
+    });
+
+    await expect(consumer.refreshEdfiTenant(edfiTenant.id)).rejects.toMatchObject({
+      response: expect.objectContaining({
+        message: 'appsettings tenancy config is invalid',
+        data: { status: 'ADMIN_API_MISCONFIGURED' },
+      }),
+    });
+  });
+});

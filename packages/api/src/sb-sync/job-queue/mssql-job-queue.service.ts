@@ -284,7 +284,14 @@ export class MssqlJobQueueService
     } catch (error) {
       const err = error as Error;
       this.logger.error(`Job ${job.id} failed: ${err.message}`, err.stack);
-      const output = JSON.stringify(MssqlJobQueueService.serializeError(err));
+      let output: string;
+      try {
+        output = JSON.stringify(MssqlJobQueueService.serializeError(err));
+      } catch {
+        // Some enumerable error properties (e.g. axios' request/socket) are circular
+        // and unsafe to spread into JSON; fall back to the fields we know are safe.
+        output = JSON.stringify({ message: err.message, stack: err.stack });
+      }
 
       if (job.retrycount < job.retrylimit) {
         const nextRetryMs = job.retrybackoff

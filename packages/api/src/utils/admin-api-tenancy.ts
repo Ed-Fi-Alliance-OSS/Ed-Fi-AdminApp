@@ -152,7 +152,16 @@ export const fetchAdminApiTenancy = async (
     );
   }
 
-  const tenants = Array.isArray(data?.tenants) ? data.tenants : [];
+  const rawTenants = data?.tenants;
+  if (!Array.isArray(rawTenants) || !rawTenants.every((t) => typeof t === 'string')) {
+    logger.warn(`Tenancy endpoint ${tenancyUrl} returned a malformed tenants field: ${JSON.stringify(rawTenants)}`);
+    throw new AdminApiTenancyError(
+      'UNAVAILABLE',
+      'Could not determine tenancy for this Management API.'
+    );
+  }
+
+  const tenants = rawTenants;
   const mode = tenants.length > 0 ? 'MultiTenant' : 'SingleTenant';
   logger.log(`Admin API tenancy: ${mode} (${tenants.length} tenant(s))`);
   return { supported: true, tenants, mode };
