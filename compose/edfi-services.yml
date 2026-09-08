@@ -113,6 +113,8 @@ services:
       ConnectionStrings__EdFi_Security: 'host=odsV7-adminV2-single-db-admin;port=5432;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Security;'
       ConnectionStrings__EdFi_Ods: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Ods;pooling=true'
       ConnectionStrings__EdFi_Master: 'host=odsV7-adminV2-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=postgres;pooling=true'
+      ReverseProxy__UseForwardedHeaders: "true"
+      ReverseProxy__KnownNetworks: "172.16.0.0/12,192.168.0.0/16"
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V2_SINGLE_API_DISCOVERY_URL}
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
@@ -294,6 +296,8 @@ services:
       # Increase rate limiting for Connect/Register endpoint
       IpRateLimiting__GeneralRules__0__Limit: 25
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V2_MULTI_API_DISCOVERY_URL}
+      ReverseProxy__UseForwardedHeaders: "true"
+      ReverseProxy__KnownNetworks: "172.16.0.0/12,192.168.0.0/16"
     volumes:
       - ./settings/appsettings.v2.dockertemplate.json:/app/appsettings.v2.dockertemplate.json
       - ./settings/log4net.config:/app/log4net/log4net.config
@@ -430,6 +434,8 @@ services:
       ConnectionStrings__EdFi_Ods: 'host=odsV7-adminV3-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=EdFi_Ods;pooling=true'
       ConnectionStrings__EdFi_Master: 'host=odsV7-adminV3-single-db-ods;port=${POSTGRES_PORT:-5432};username=${POSTGRES_USER};password=${POSTGRES_PASSWORD};database=postgres;pooling=true'
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V3_SINGLE_API_DISCOVERY_URL}
+      ReverseProxy__UseForwardedHeaders: "true"
+      ReverseProxy__KnownNetworks: "172.16.0.0/12,192.168.0.0/16"
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
@@ -610,6 +616,8 @@ services:
       # Increase rate limiting for Connect/Register endpoint
       IpRateLimiting__GeneralRules__0__Limit: 25
       EdFiApiDiscoveryUrl: ${ODS_V7_ADMIN_V3_MULTI_API_DISCOVERY_URL}
+      ReverseProxy__UseForwardedHeaders: "true"
+      ReverseProxy__KnownNetworks: "172.16.0.0/12,192.168.0.0/16"
     volumes:
       - ./settings/appsettings.v3.dockertemplate.json:/app/appsettings.v3.dockertemplate.json
       - ./settings/log4net.config:/app/log4net/log4net.config
@@ -756,6 +764,8 @@ services:
       Tenants: null
       ConnectionStrings__EdFi_Admin: 'host=v6-db-admin;database=EdFi_Admin;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD}'
       ConnectionStrings__EdFi_Security: 'host=v6-db-admin;database=EdFi_Security;username=${POSTGRES_USER};password=${POSTGRES_PASSWORD}'
+      ReverseProxy__UseForwardedHeaders: "true"
+      ReverseProxy__KnownNetworks: "172.16.0.0/12,192.168.0.0/16"
     volumes:
       - ./settings/log4net.config:/app/log4net/log4net.config
     depends_on:
