@@ -841,6 +841,25 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
     });
   });
 
+  describe('getClaimsetBasic', () => {
+    it('fetches only the claimSet detail route, without merging in the resourceClaims hierarchy', async () => {
+      const mockGet = jest.fn().mockResolvedValue({
+        id: 1,
+        name: 'Ed-Fi Sandbox',
+        _isSystemReserved: true,
+        _applications: [],
+        resourceClaims: [],
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimsetBasic({ id: 1 } as any, 1);
+
+      expect(mockGet).toHaveBeenCalledTimes(1);
+      expect(mockGet).toHaveBeenCalledWith('claimSets/1');
+      expect(result._isSystemReserved).toBe(true);
+    });
+  });
+
   describe('getClaimset', () => {
     it.each([
       ['NaN', NaN],
@@ -858,6 +877,98 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
 
       expect(error).toBeInstanceOf(CustomHttpException);
       expect(error.getStatus()).toBe(400);
+    });
+
+    it('merges in resource claims missing from the claimset (no actions) as denied placeholders', async () => {
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.resolve({
+            id: 1,
+            name: 'Ed-Fi Sandbox',
+            _isSystemReserved: true,
+            _applications: [],
+            resourceClaims: [
+              {
+                id: '1',
+                name: 'types',
+                actions: [{ name: 'Read', enabled: true }],
+                authorizationStrategyOverridesForCRUD: [],
+                _defaultAuthorizationStrategiesForCRUD: [],
+                children: [],
+              },
+            ],
+          });
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.resolve([
+            {
+              id: 1,
+              name: 'types',
+              parentId: 0,
+              parentName: null,
+              children: [{ id: 12, name: 'schoolYearType', parentId: 1, parentName: 'types', children: [] }],
+            },
+          ]);
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset({ id: 1 } as any, 1);
+
+      expect(result.resourceClaims[0].children).toHaveLength(1);
+      expect(result.resourceClaims[0].children[0]).toMatchObject({ name: 'schoolYearType' });
+      expect(result.resourceClaims[0].children[0].actions).toEqual([]);
+    });
+
+    it('falls back to the claimset unmerged when the resourceClaims-hierarchy fetch fails', async () => {
+      const originalResourceClaims = [
+        {
+          id: '1',
+          name: 'types',
+          actions: [{ name: 'Read', enabled: true }],
+          authorizationStrategyOverridesForCRUD: [],
+          _defaultAuthorizationStrategiesForCRUD: [],
+          children: [],
+        },
+      ];
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.resolve({
+            id: 1,
+            name: 'Ed-Fi Sandbox',
+            _isSystemReserved: true,
+            _applications: [],
+            resourceClaims: originalResourceClaims,
+          });
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.reject(new Error('resourceClaims endpoint unavailable'));
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset({ id: 1 } as any, 1);
+
+      expect(result.resourceClaims).toEqual(originalResourceClaims);
+    });
+
+    it('still rejects when the claimset fetch itself fails', async () => {
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.reject(new Error('claimset endpoint unavailable'));
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.resolve([]);
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      await expect(service.getClaimset({ id: 1 } as any, 1)).rejects.toThrow(
+        'claimset endpoint unavailable'
+      );
     });
   });
 });

@@ -7,6 +7,7 @@ import {
   GetApplicationDtoV3,
   GetDataStoreSummaryDtoV3,
   GetProfileDtoV3,
+  GetResourceClaimDetailDtoV3,
   GetVendorDtoV3,
   ISbEnvironmentConfigPrivateV2,
   Id,
@@ -32,6 +33,7 @@ import {
   toGetClaimsetSingleDtoV3,
   toGetDataStoreSummaryDtoV3,
   toGetProfileDtoV3,
+  toGetResourceClaimDetailDtoV3,
   toGetVendorDtoV3,
   toPostApiClientResponseDtoV3,
   toPostApplicationResponseDtoV3,
@@ -47,6 +49,7 @@ import {
   triggerEdOrgRefresh,
 } from '../admin-api-refresh-poll.util';
 import { resolveTenantNames } from '../../../../utils/api-metadata-utils';
+import { mergeResourceClaimsV3 } from './resource-claims-merge.v3';
 
 /**
  * A single education organization as returned by the Admin API's
@@ -542,22 +545,75 @@ export class AdminApiServiceV3 {
     );
   }
 
-  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+  // Raw single-endpoint fetch, shared by getClaimsetBasic and getClaimset.
+  // Kept separate (rather than having getClaimset call getClaimsetBasic)
+  // because the wire shape renames `claimSetName` to `name` on the way
+  // through toGetClaimsetSingleDtoV3 — merging onto the already-transformed
+  // DTO would drop `claimSetName` and break re-serialization.
+  private async fetchClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
     const safeClaimSetId = this.sanitizeClaimSetId(claimSetId);
-    return toGetClaimsetSingleDtoV3(
+    return this.getAdminApiClient(edfiTenant)
+      // sanitizeClaimSetId already guarantees a positive integer (throws
+      // otherwise), so path-traversal/host-redirect via this segment is not
+      // actually reachable; encodeURIComponent is added on top so static
+      // analysis (CodeQL js/request-forgery) recognizes the URL segment as
+      // sanitized, since it doesn't model the custom integer check above.
+      .get<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(
+        `claimSets/${encodeURIComponent(safeClaimSetId)}`,
+      )
+      .catch((err) => {
+        this.logger.error(
+          `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,
+        );
+        throw err;
+      });
+  }
+
+  // The plain single-endpoint fetch, without the AC-439 resourceClaims
+  // hierarchy merge below. Use this for callers that only need top-level
+  // claimset fields (e.g. validating `_isSystemReserved` before creating or
+  // updating an Application) — merging pulls up to 10,000 unrelated
+  // resourceClaims and would make those validation-only callers fail
+  // whenever that endpoint has trouble, for no benefit to them.
+  async getClaimsetBasic(edfiTenant: EdfiTenant, claimSetId: number) {
+    return toGetClaimsetSingleDtoV3(await this.fetchClaimset(edfiTenant, claimSetId));
+  }
+
+  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+    const [claimset, allResourceClaims] = await Promise.all([
+      this.fetchClaimset(edfiTenant, claimSetId),
+      // AC-439: Admin Api excludes any resourceClaims item (at any depth)
+      // that has no actions associated. Fetch the complete hierarchy
+      // separately so those items can be merged back in as denied. If this
+      // fetch has trouble, fall back to the claimset's own (possibly
+      // pruned) resourceClaims instead of failing the whole request —
+      // losing the "denied" enrichment beats a blank claimset page.
+      this.getResourceClaims(edfiTenant).catch((err) => {
+        this.logger.warn(
+          `Could not fetch the full resourceClaims hierarchy for tenant ${edfiTenant.id}; showing claimset ${claimSetId} without AC-439 enrichment: ${err}`,
+        );
+        return null;
+      }),
+    ]);
+
+    if (allResourceClaims === null) {
+      return toGetClaimsetSingleDtoV3(claimset);
+    }
+
+    return toGetClaimsetSingleDtoV3({
+      ...claimset,
+      resourceClaims: mergeResourceClaimsV3(claimset.resourceClaims, allResourceClaims),
+    });
+  }
+
+  async getResourceClaims(edfiTenant: EdfiTenant) {
+    return toGetResourceClaimDetailDtoV3(
       await this.getAdminApiClient(edfiTenant)
-        // sanitizeClaimSetId already guarantees a positive integer (throws
-        // otherwise), so path-traversal/host-redirect via this segment is not
-        // actually reachable; encodeURIComponent is added on top so static
-        // analysis (CodeQL js/request-forgery) recognizes the URL segment as
-        // sanitized, since it doesn't model the custom integer check above.
-        .get<ClaimsetSingleWireDtoV3, ClaimsetSingleWireDtoV3>(
-          `claimSets/${encodeURIComponent(safeClaimSetId)}`,
+        .get<GetResourceClaimDetailDtoV3[], GetResourceClaimDetailDtoV3[]>(
+          `resourceClaims?offset=0&limit=10000`,
         )
         .catch((err) => {
-          this.logger.error(
-            `Error getting claimset ${safeClaimSetId} for tenant ${edfiTenant.id}: ${err}`,
-          );
+          this.logger.error(`Error getting resource claims for tenant ${edfiTenant.id}: ${err}`);
           throw err;
         }),
     );

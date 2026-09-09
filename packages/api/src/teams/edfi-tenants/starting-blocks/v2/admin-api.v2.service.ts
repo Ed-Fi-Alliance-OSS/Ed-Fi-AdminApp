@@ -70,6 +70,7 @@ import {
 import { StartingBlocksServiceV2 } from './starting-blocks.v2.service';
 import { adminApiLoginStatusMsgs } from '../../adminApiLoginFailureMsgs';
 import { resolveTenantNames } from '../../../../utils/api-metadata-utils';
+import { mergeResourceClaimsV2 } from './resource-claims-merge.v2';
 
 /**
  * Error body shape returned by the Admin API on failed requests (e.g. registration/login).
@@ -668,7 +669,13 @@ export class AdminApiServiceV2 {
     );
   }
 
-  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+  // The plain single-endpoint fetch, without the AC-439 resourceClaims
+  // hierarchy merge below. Use this for callers that only need top-level
+  // claimset fields (e.g. validating `_isSystemReserved` before creating or
+  // updating an Application) — merging pulls up to 10,000 unrelated
+  // resourceClaims and would make those validation-only callers fail
+  // whenever that endpoint has trouble, for no benefit to them.
+  async getClaimsetBasic(edfiTenant: EdfiTenant, claimSetId: number) {
     const validatedClaimSetId = Number(claimSetId);
     if (!Number.isSafeInteger(validatedClaimSetId) || validatedClaimSetId <= 0) {
       throw new CustomHttpException({ title: 'Invalid claimsetId', type: 'Error' }, 400);
@@ -686,6 +693,33 @@ export class AdminApiServiceV2 {
           throw err;
         })
     );
+  }
+
+  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+    const [claimset, allResourceClaims] = await Promise.all([
+      this.getClaimsetBasic(edfiTenant, claimSetId),
+      // AC-439: Admin Api excludes any resourceClaims item (at any depth)
+      // that has no actions associated. Fetch the complete hierarchy
+      // separately so those items can be merged back in as denied. If this
+      // fetch has trouble, fall back to the claimset's own (possibly
+      // pruned) resourceClaims instead of failing the whole request —
+      // losing the "denied" enrichment beats a blank claimset page.
+      this.getResourceClaims(edfiTenant).catch((err) => {
+        this.logger.warn(
+          `Could not fetch the full resourceClaims hierarchy for tenant ${edfiTenant.id}; showing claimset ${claimSetId} without AC-439 enrichment: ${err}`
+        );
+        return null;
+      }),
+    ]);
+
+    if (allResourceClaims === null) {
+      return claimset;
+    }
+
+    return toGetClaimsetSingleDtoV2({
+      ...claimset,
+      resourceClaims: mergeResourceClaimsV2(claimset.resourceClaims, allResourceClaims),
+    } as GetClaimsetSingleDtoV2);
   }
 
   async putClaimset(edfiTenant: EdfiTenant, claimSetId: number, claimSet: PutClaimsetDtoV2) {
