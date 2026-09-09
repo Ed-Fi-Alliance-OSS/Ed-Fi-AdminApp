@@ -841,6 +841,25 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
     });
   });
 
+  describe('getClaimsetBasic', () => {
+    it('fetches only the claimSet detail route, without merging in the resourceClaims hierarchy', async () => {
+      const mockGet = jest.fn().mockResolvedValue({
+        id: 1,
+        name: 'Ed-Fi Sandbox',
+        _isSystemReserved: true,
+        _applications: [],
+        resourceClaims: [],
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimsetBasic({ id: 1 } as any, 1);
+
+      expect(mockGet).toHaveBeenCalledTimes(1);
+      expect(mockGet).toHaveBeenCalledWith('claimSets/1');
+      expect(result._isSystemReserved).toBe(true);
+    });
+  });
+
   describe('getClaimset', () => {
     it.each([
       ['NaN', NaN],

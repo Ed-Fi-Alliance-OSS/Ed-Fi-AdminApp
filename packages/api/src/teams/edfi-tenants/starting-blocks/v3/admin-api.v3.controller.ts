@@ -344,7 +344,7 @@ export class AdminApiControllerV3 {
   ) {
     let claimset: GetClaimsetSingleDtoV3;
     try {
-      claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
+      claimset = await this.sbService.getClaimsetBasic(edfiTenant, application.claimsetId);
     } catch (_claimsetNotFound) {
       throw new ValidationHttpException({
         field: 'claimsetId',
@@ -490,7 +490,7 @@ export class AdminApiControllerV3 {
   ) {
     let claimset: GetClaimsetSingleDtoV3;
     try {
-      claimset = await this.sbService.getClaimset(edfiTenant, application.claimsetId);
+      claimset = await this.sbService.getClaimsetBasic(edfiTenant, application.claimsetId);
     } catch (claimsetNotFound) {
       Logger.error(claimsetNotFound);
       throw new BadRequestException('Error trying to use claimset');

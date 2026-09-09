@@ -16,13 +16,30 @@ import { GetResourceClaimDetailDtoV3, GetResourceClaimDtoV3 } from '@edanalytics
 // with a real claim URI or with a same-named node in another branch.
 const SYNTHETIC_CLAIM_NAME_PREFIX = 'synthetic-resource-claim:';
 
-const buildDeniedEntry = (
-  detail: GetResourceClaimDetailDtoV3,
-  parentClaimName: string | null
-): GetResourceClaimDtoV3 =>
+const groupByParentClaimName = (resourceClaims: GetResourceClaimDtoV3[]) => {
+  const byParent = new Map<string | null, GetResourceClaimDtoV3[]>();
+  resourceClaims.forEach((rc) => {
+    const bucket = byParent.get(rc.parentClaimName) ?? [];
+    bucket.push(rc);
+    byParent.set(rc.parentClaimName, bucket);
+  });
+  return byParent;
+};
+
+// An existing item whose own recorded parentClaimName doesn't match any
+// other existing item's claimName — i.e. its real parent was itself
+// excluded from this claimset response (the same actions-based exclusion
+// this whole merge works around), not merely absent because we haven't
+// looked at it yet.
+const findOrphans = (existing: GetResourceClaimDtoV3[]) => {
+  const claimNames = new Set(existing.map((rc) => rc.claimName));
+  return existing.filter((rc) => rc.parentClaimName !== null && !claimNames.has(rc.parentClaimName));
+};
+
+const buildDeniedEntry = (name: string, claimName: string, parentClaimName: string | null) =>
   ({
-    name: detail.name,
-    claimName: `${SYNTHETIC_CLAIM_NAME_PREFIX}${parentClaimName ?? 'root'}/${detail.name}`,
+    name,
+    claimName,
     parentClaimName,
     actions: [],
     _defaultAuthorizationStrategies: [],
@@ -33,22 +50,42 @@ export const mergeResourceClaimsV3 = (
   existing: GetResourceClaimDtoV3[],
   detail: GetResourceClaimDetailDtoV3[]
 ): GetResourceClaimDtoV3[] => {
-  const existingByName = new Map(existing.map((rc) => [rc.name, rc]));
+  // Scoping candidate matches to the exact resolved parent (rather than a
+  // flat by-name map covering the whole list) keeps two same-named nodes in
+  // different branches from resolving to each other.
+  const existingByParentClaimName = groupByParentClaimName(existing);
+  // Existing items whose real parent is missing from `existing` — used to
+  // recover a missing node's real claimName from one of its own real
+  // children, scoped to only genuinely orphaned candidates so an unrelated
+  // same-named node elsewhere in the tree can't be mistaken for it.
+  const orphans = findOrphans(existing);
   const added: GetResourceClaimDtoV3[] = [];
 
   const walk = (nodes: GetResourceClaimDetailDtoV3[], parentClaimName: string | null) => {
-    nodes.forEach((node) => {
-      const existingEntry = existingByName.get(node.name);
-      const resolvedClaimName = existingEntry?.claimName;
-      let claimNameForChildren = resolvedClaimName;
+    const candidates = existingByParentClaimName.get(parentClaimName) ?? [];
 
-      if (!existingEntry) {
-        const denied = buildDeniedEntry(node, parentClaimName);
-        added.push(denied);
-        claimNameForChildren = denied.claimName;
+    nodes.forEach((node) => {
+      const existingEntry = candidates.find((rc) => rc.name === node.name);
+      let resolvedClaimName: string;
+
+      if (existingEntry) {
+        resolvedClaimName = existingEntry.claimName;
+      } else {
+        // node has no actions, so it's missing here. Before fabricating a
+        // claimName for it, check whether one of its own children is a
+        // real orphan — that child's recorded parentClaimName IS this
+        // node's real claim URI, known even though the node itself was
+        // excluded. Reusing it (instead of a synthetic value) keeps that
+        // real child correctly attached under the placeholder we add.
+        const childNames = new Set(node.children.map((child) => child.name));
+        const realChild = orphans.find((rc) => childNames.has(rc.name));
+        resolvedClaimName =
+          realChild?.parentClaimName ??
+          `${SYNTHETIC_CLAIM_NAME_PREFIX}${parentClaimName ?? 'root'}/${node.name}`;
+        added.push(buildDeniedEntry(node.name, resolvedClaimName, parentClaimName));
       }
 
-      walk(node.children, claimNameForChildren ?? null);
+      walk(node.children, resolvedClaimName);
     });
   };
 

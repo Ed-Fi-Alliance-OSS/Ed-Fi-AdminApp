@@ -354,6 +354,25 @@ describe('AdminApiServiceV3', () => {
     });
   });
 
+  describe('getClaimsetBasic', () => {
+    it('fetches only the claimSet detail route, without merging in the resourceClaims hierarchy', async () => {
+      const mockGet = jest.fn().mockResolvedValue({
+        id: 1,
+        claimSetName: 'SIS Vendor',
+        _isSystemReserved: true,
+        _applications: [],
+        resourceClaims: [],
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimsetBasic(mockEdfiTenant as EdfiTenant, 1);
+
+      expect(mockGet).toHaveBeenCalledTimes(1);
+      expect(mockGet).toHaveBeenCalledWith('claimSets/1');
+      expect(result._isSystemReserved).toBe(true);
+    });
+  });
+
   describe('getClaimset', () => {
     it('requests the single claimSet detail route and returns the mapped DTO', async () => {
       const mockGet = jest.fn().mockImplementation((path: string) => {

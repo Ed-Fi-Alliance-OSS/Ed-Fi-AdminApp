@@ -669,14 +669,20 @@ export class AdminApiServiceV2 {
     );
   }
 
-  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+  // The plain single-endpoint fetch, without the AC-439 resourceClaims
+  // hierarchy merge below. Use this for callers that only need top-level
+  // claimset fields (e.g. validating `_isSystemReserved` before creating or
+  // updating an Application) — merging pulls up to 10,000 unrelated
+  // resourceClaims and would make those validation-only callers fail
+  // whenever that endpoint has trouble, for no benefit to them.
+  async getClaimsetBasic(edfiTenant: EdfiTenant, claimSetId: number) {
     const validatedClaimSetId = Number(claimSetId);
     if (!Number.isSafeInteger(validatedClaimSetId) || validatedClaimSetId <= 0) {
       throw new CustomHttpException({ title: 'Invalid claimsetId', type: 'Error' }, 400);
     }
 
-    const [claimset, allResourceClaims] = await Promise.all([
-      this.getAdminApiClient(edfiTenant)
+    return toGetClaimsetSingleDtoV2(
+      await this.getAdminApiClient(edfiTenant)
         .get<GetClaimsetSingleDtoV2, GetClaimsetSingleDtoV2>(
           `claimSets/${validatedClaimSetId}`
         )
@@ -685,7 +691,13 @@ export class AdminApiServiceV2 {
             `Error getting claimset ${validatedClaimSetId} for tenant ${edfiTenant.id}: ${err}`
           );
           throw err;
-        }),
+        })
+    );
+  }
+
+  async getClaimset(edfiTenant: EdfiTenant, claimSetId: number) {
+    const [claimset, allResourceClaims] = await Promise.all([
+      this.getClaimsetBasic(edfiTenant, claimSetId),
       // AC-439: Admin Api excludes any resourceClaims item (at any depth)
       // that has no actions associated. Fetch the complete hierarchy
       // separately so those items can be merged back in as denied.

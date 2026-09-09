@@ -49,7 +49,7 @@ describe('mergeResourceClaimsV2', () => {
     expect(result).toHaveLength(1);
     expect(result[0].children).toEqual([
       {
-        id: 12,
+        id: '12',
         name: 'schoolYearType',
         actions: [],
         authorizationStrategyOverridesForCRUD: [],
@@ -75,14 +75,14 @@ describe('mergeResourceClaimsV2', () => {
 
     expect(result).toEqual([
       {
-        id: 1,
+        id: '1',
         name: 'types',
         actions: [],
         authorizationStrategyOverridesForCRUD: [],
         _defaultAuthorizationStrategiesForCRUD: [],
         children: [
           {
-            id: 12,
+            id: '12',
             name: 'schoolYearType',
             actions: [],
             authorizationStrategyOverridesForCRUD: [],

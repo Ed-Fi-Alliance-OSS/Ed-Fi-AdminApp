@@ -12,7 +12,11 @@ import { GetResourceClaimDetailDtoV2, GetResourceClaimDtoV2 } from '@edanalytics
 // every action column.
 const buildDeniedNode = (detail: GetResourceClaimDetailDtoV2): GetResourceClaimDtoV2 =>
   ({
-    id: detail.id,
+    // GetResourceClaimDtoV2.id is declared `string` (existing claimset
+    // entries carry it as a string), but the resourceClaims-detail endpoint
+    // returns a numeric id — coerce so every entry in a merged response has
+    // a consistently-typed id.
+    id: String(detail.id),
     name: detail.name,
     actions: [],
     authorizationStrategyOverridesForCRUD: [],
