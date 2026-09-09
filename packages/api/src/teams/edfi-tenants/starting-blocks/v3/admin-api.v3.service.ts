@@ -584,9 +584,21 @@ export class AdminApiServiceV3 {
       this.fetchClaimset(edfiTenant, claimSetId),
       // AC-439: Admin Api excludes any resourceClaims item (at any depth)
       // that has no actions associated. Fetch the complete hierarchy
-      // separately so those items can be merged back in as denied.
-      this.getResourceClaims(edfiTenant),
+      // separately so those items can be merged back in as denied. If this
+      // fetch has trouble, fall back to the claimset's own (possibly
+      // pruned) resourceClaims instead of failing the whole request —
+      // losing the "denied" enrichment beats a blank claimset page.
+      this.getResourceClaims(edfiTenant).catch((err) => {
+        this.logger.warn(
+          `Could not fetch the full resourceClaims hierarchy for tenant ${edfiTenant.id}; showing claimset ${claimSetId} without AC-439 enrichment: ${err}`,
+        );
+        return null;
+      }),
     ]);
+
+    if (allResourceClaims === null) {
+      return toGetClaimsetSingleDtoV3(claimset);
+    }
 
     return toGetClaimsetSingleDtoV3({
       ...claimset,

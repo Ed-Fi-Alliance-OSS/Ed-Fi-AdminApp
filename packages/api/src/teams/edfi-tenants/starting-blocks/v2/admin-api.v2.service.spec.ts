@@ -920,5 +920,55 @@ describe('AdminApiServiceV2 - Extension Methods', () => {
       expect(result.resourceClaims[0].children[0]).toMatchObject({ name: 'schoolYearType' });
       expect(result.resourceClaims[0].children[0].actions).toEqual([]);
     });
+
+    it('falls back to the claimset unmerged when the resourceClaims-hierarchy fetch fails', async () => {
+      const originalResourceClaims = [
+        {
+          id: '1',
+          name: 'types',
+          actions: [{ name: 'Read', enabled: true }],
+          authorizationStrategyOverridesForCRUD: [],
+          _defaultAuthorizationStrategiesForCRUD: [],
+          children: [],
+        },
+      ];
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.resolve({
+            id: 1,
+            name: 'Ed-Fi Sandbox',
+            _isSystemReserved: true,
+            _applications: [],
+            resourceClaims: originalResourceClaims,
+          });
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.reject(new Error('resourceClaims endpoint unavailable'));
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset({ id: 1 } as any, 1);
+
+      expect(result.resourceClaims).toEqual(originalResourceClaims);
+    });
+
+    it('still rejects when the claimset fetch itself fails', async () => {
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.reject(new Error('claimset endpoint unavailable'));
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.resolve([]);
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      await expect(service.getClaimset({ id: 1 } as any, 1)).rejects.toThrow(
+        'claimset endpoint unavailable'
+      );
+    });
   });
 });

@@ -443,6 +443,56 @@ describe('AdminApiServiceV3', () => {
         'http://ed-fi.org/ods/identity/claims/domains/edFiTypes'
       );
     });
+
+    it('falls back to the claimset unmerged when the resourceClaims-hierarchy fetch fails', async () => {
+      const originalResourceClaims = [
+        {
+          name: 'types',
+          claimName: 'http://ed-fi.org/ods/identity/claims/domains/edFiTypes',
+          parentClaimName: null,
+          actions: [{ name: 'Read', enabled: true }],
+          _defaultAuthorizationStrategies: [],
+          authorizationStrategyOverrides: [],
+        },
+      ];
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.resolve({
+            id: 1,
+            claimSetName: 'Ed-Fi Sandbox',
+            _isSystemReserved: true,
+            _applications: [],
+            resourceClaims: originalResourceClaims,
+          });
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.reject(new Error('resourceClaims endpoint unavailable'));
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      const result = await service.getClaimset(mockEdfiTenant as EdfiTenant, 1);
+
+      expect(result.resourceClaims).toEqual(originalResourceClaims);
+    });
+
+    it('still rejects when the claimset fetch itself fails', async () => {
+      const mockGet = jest.fn().mockImplementation((path: string) => {
+        if (path === 'claimSets/1') {
+          return Promise.reject(new Error('claimset endpoint unavailable'));
+        }
+        if (path === 'resourceClaims?offset=0&limit=10000') {
+          return Promise.resolve([]);
+        }
+        throw new Error(`Unexpected path: ${path}`);
+      });
+      jest.spyOn(service as any, 'getAdminApiClient').mockReturnValue({ get: mockGet });
+
+      await expect(service.getClaimset(mockEdfiTenant as EdfiTenant, 1)).rejects.toThrow(
+        'claimset endpoint unavailable'
+      );
+    });
   });
 
   describe('getResourceClaims', () => {

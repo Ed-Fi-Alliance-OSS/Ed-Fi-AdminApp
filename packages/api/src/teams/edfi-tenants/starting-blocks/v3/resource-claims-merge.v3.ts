@@ -57,8 +57,9 @@ export const mergeResourceClaimsV3 = (
   // Existing items whose real parent is missing from `existing` — used to
   // recover a missing node's real claimName from one of its own real
   // children, scoped to only genuinely orphaned candidates so an unrelated
-  // same-named node elsewhere in the tree can't be mistaken for it.
-  const orphans = findOrphans(existing);
+  // same-named node elsewhere in the tree can't be mistaken for it. A copy
+  // because matched orphans are removed as they're consumed below.
+  const unclaimedOrphans = [...findOrphans(existing)];
   const added: GetResourceClaimDtoV3[] = [];
 
   const walk = (nodes: GetResourceClaimDetailDtoV3[], parentClaimName: string | null) => {
@@ -77,8 +78,21 @@ export const mergeResourceClaimsV3 = (
         // node's real claim URI, known even though the node itself was
         // excluded. Reusing it (instead of a synthetic value) keeps that
         // real child correctly attached under the placeholder we add.
+        //
+        // Removing a matched orphan once it's consumed prevents two
+        // different missing parents that happen to share a same-named
+        // orphan candidate from both resolving to that same real claimName
+        // (which would otherwise collide as the same claimName/row id).
+        // Without ids on the wire there's no way to tell which of two such
+        // candidates a given missing parent *actually* owns — this only
+        // guarantees the two placeholders never collide, not which one
+        // recovers correctly.
         const childNames = new Set(node.children.map((child) => child.name));
-        const realChild = orphans.find((rc) => childNames.has(rc.name));
+        const realChildIndex = unclaimedOrphans.findIndex((rc) => childNames.has(rc.name));
+        const realChild = realChildIndex === -1 ? undefined : unclaimedOrphans[realChildIndex];
+        if (realChild) {
+          unclaimedOrphans.splice(realChildIndex, 1);
+        }
         resolvedClaimName =
           realChild?.parentClaimName ??
           `${SYNTHETIC_CLAIM_NAME_PREFIX}${parentClaimName ?? 'root'}/${node.name}`;

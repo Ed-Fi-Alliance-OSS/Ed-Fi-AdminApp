@@ -29,15 +29,26 @@ export const mergeResourceClaimsV2 = (
   detail: GetResourceClaimDetailDtoV2[]
 ): GetResourceClaimDtoV2[] => {
   const existingById = new Map(existing.map((rc) => [String(rc.id), rc]));
+  const matchedIds = new Set<string>();
 
-  return detail.map((detailNode) => {
-    const existingNode = existingById.get(String(detailNode.id));
+  const merged = detail.map((detailNode) => {
+    const id = String(detailNode.id);
+    const existingNode = existingById.get(id);
     if (!existingNode) {
       return buildDeniedNode(detailNode);
     }
+    matchedIds.add(id);
     return {
       ...existingNode,
       children: mergeResourceClaimsV2(existingNode.children, detailNode.children),
     };
   });
+
+  // The resourceClaims-detail endpoint is meant to be the complete
+  // hierarchy, but if it's ever incomplete relative to what the claimset
+  // itself already reports, keep whatever the claimset already had rather
+  // than silently dropping it.
+  const unmatchedExisting = existing.filter((rc) => !matchedIds.has(String(rc.id)));
+
+  return [...merged, ...unmatchedExisting];
 };

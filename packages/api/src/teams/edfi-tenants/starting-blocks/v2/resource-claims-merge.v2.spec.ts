@@ -93,4 +93,25 @@ describe('mergeResourceClaimsV2', () => {
       },
     ]);
   });
+
+  it('preserves an existing entry the detail tree omits, rather than silently dropping it', () => {
+    // The resourceClaims-detail endpoint is meant to be the complete
+    // hierarchy, but if it's ever incomplete relative to what the
+    // claimset itself already reports (a version skew, a transient
+    // truncation), the claimset's own data should win rather than vanish.
+    const existing: GetResourceClaimDtoV2[] = [
+      {
+        id: '1',
+        name: 'types',
+        actions: [{ name: 'Read', enabled: true }],
+        authorizationStrategyOverridesForCRUD: [],
+        _defaultAuthorizationStrategiesForCRUD: [],
+        children: [],
+      } as unknown as GetResourceClaimDtoV2,
+    ];
+
+    const result = mergeResourceClaimsV2(existing, []);
+
+    expect(result).toEqual(existing);
+  });
 });

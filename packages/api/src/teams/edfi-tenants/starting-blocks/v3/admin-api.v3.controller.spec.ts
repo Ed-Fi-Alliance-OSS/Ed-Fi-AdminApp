@@ -106,6 +106,77 @@ describe('AdminApiControllerV3 - getDataStores', () => {
   });
 });
 
+describe('AdminApiControllerV3 - claimset validation call site', () => {
+  let controller: AdminApiControllerV3;
+  let mockSbService: { getClaimsetBasic: jest.Mock; getClaimset: jest.Mock };
+
+  const mockEdfiTenant = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  } as unknown as EdfiTenant;
+
+  beforeEach(() => {
+    // Resolving as system-reserved makes both methods throw immediately
+    // after the claimset validation step, before touching any of the
+    // other collaborators (edorg repository, integration apps, etc.) —
+    // enough to prove which claimset lookup was used, without needing to
+    // mock the rest of either method's flow.
+    mockSbService = {
+      getClaimsetBasic: jest.fn().mockResolvedValue({ _isSystemReserved: true, name: 'Test' }),
+      getClaimset: jest.fn(),
+    };
+    controller = new AdminApiControllerV3(
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService,
+    );
+  });
+
+  it('putApplication validates the claimset via getClaimsetBasic, not the enriched getClaimset', async () => {
+    const application = { claimsetId: 5 } as unknown as Parameters<
+      AdminApiControllerV3['putApplication']
+    >[4];
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 1, application, true),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'claimsetId',
+        message: 'Cannot use system-reserved claimset',
+      }),
+    );
+    expect(mockSbService.getClaimsetBasic).toHaveBeenCalledWith(mockEdfiTenant, 5);
+    expect(mockSbService.getClaimset).not.toHaveBeenCalled();
+  });
+
+  it('postApplication validates the claimset via getClaimsetBasic, not the enriched getClaimset', async () => {
+    const application = { claimsetId: 5 } as unknown as Parameters<
+      AdminApiControllerV3['postApplication']
+    >[5];
+
+    await expect(
+      controller.postApplication(
+        1,
+        1,
+        mockEdfiTenant,
+        {} as unknown as Parameters<AdminApiControllerV3['postApplication']>[3],
+        undefined,
+        application,
+        true,
+      ),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'claimsetId',
+        message: 'Cannot use system-reserved claimset',
+      }),
+    );
+    expect(mockSbService.getClaimsetBasic).toHaveBeenCalledWith(mockEdfiTenant, 5);
+    expect(mockSbService.getClaimset).not.toHaveBeenCalled();
+  });
+});
+
 describe('AdminApiControllerV3 - postProfile', () => {
   let controller: AdminApiControllerV3;
   let mockSbService: { postProfile: jest.Mock };
