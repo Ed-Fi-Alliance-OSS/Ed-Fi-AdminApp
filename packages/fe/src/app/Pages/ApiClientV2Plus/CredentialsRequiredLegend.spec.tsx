@@ -55,7 +55,12 @@ describe('CredentialsRequiredLegend', () => {
   });
 
   it('renders the warning, with the exact mandated string, at exactly one credential', () => {
-    mockUseQuery.mockReturnValue({ data: { 1: {} }, isPending: false, isError: false });
+    mockUseQuery.mockReturnValue({
+      data: { 1: {} },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    });
 
     render(<CredentialsRequiredLegend applicationId={7} />);
 
@@ -65,7 +70,12 @@ describe('CredentialsRequiredLegend', () => {
   });
 
   it('renders nothing at two or more credentials', () => {
-    mockUseQuery.mockReturnValue({ data: { 1: {}, 2: {} }, isPending: false, isError: false });
+    mockUseQuery.mockReturnValue({
+      data: { 1: {}, 2: {} },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    });
 
     const { container } = render(<CredentialsRequiredLegend applicationId={7} />);
 
@@ -73,7 +83,7 @@ describe('CredentialsRequiredLegend', () => {
   });
 
   it('renders nothing at zero credentials', () => {
-    mockUseQuery.mockReturnValue({ data: {}, isPending: false, isError: false });
+    mockUseQuery.mockReturnValue({ data: {}, isPending: false, isError: false, isSuccess: true });
 
     const { container } = render(<CredentialsRequiredLegend applicationId={7} />);
 
@@ -99,16 +109,21 @@ describe('CredentialsRequiredLegend', () => {
   it('resolves the count via useApiClientConfig().queries.getAll with the same key NameCell/useApiClientActions use, and overrides throwOnError to false', () => {
     const getAllSpy = jest.fn(() => ({ queryKey: ['v3-api-clients'], queryFn: jest.fn() }));
     mockUseApiClientConfig.mockReturnValue({ queries: { getAll: getAllSpy } });
-    mockUseQuery.mockReturnValue({ data: { 1: {} }, isPending: false, isError: false });
+    mockUseQuery.mockReturnValue({
+      data: { 1: {} },
+      isPending: false,
+      isError: false,
+      isSuccess: true,
+    });
 
     render(<CredentialsRequiredLegend applicationId={7} />);
 
     expect(getAllSpy).toHaveBeenCalledWith(
       { teamId: 1, edfiTenant: { id: 3 } },
-      { applicationId: 7 }
+      { applicationId: 7 },
     );
     expect(mockUseQuery.mock.calls[0][0]).toEqual(
-      expect.objectContaining({ queryKey: ['v3-api-clients'], throwOnError: false })
+      expect.objectContaining({ queryKey: ['v3-api-clients'], throwOnError: false }),
     );
   });
 });

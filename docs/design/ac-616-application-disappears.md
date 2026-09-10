@@ -270,10 +270,24 @@ credential**, on both the credentials list page and the credential detail page:
 > **An Application needs at least one credential to work.** To replace a
 > credential, create the new one first, then delete the old one.
 
-Tooltip on the disabled delete action:
+Tooltip on the disabled delete action, when the count is known to be exactly
+one:
 
 > This is the Application's only credential and can't be deleted. Create another
 > credential first.
+
+The Delete action also blocks while the credential count is unknown (the query
+is pending, or it failed), and says so rather than falling back to the generic
+label — a disabled control with no stated reason reads as broken:
+
+> Checking credential count…
+
+> Couldn't check the credential count — try refreshing the page.
+
+Whatever reason is shown is also carried into the control's **accessible name**.
+`title` alone is not enough: the icon-button variant sets `aria-label` from the
+action's `text`, and `aria-label` outranks `title` in accessible-name
+computation, so a reason living only in `title` is announced to nobody.
 
 Both avoid the term "ApiClient" — the UI says *credentials* everywhere else — and
 the second sentence gives the user the way forward rather than only stating the

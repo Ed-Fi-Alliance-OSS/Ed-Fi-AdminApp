@@ -63,7 +63,7 @@ describe('AllApiClientsTable', () => {
   it('has no Status column', () => {
     const rendered = AllApiClientsTable() as React.ReactElement;
     const table = React.Children.toArray(
-      (rendered.props as { children: React.ReactNode }).children
+      (rendered.props as { children: React.ReactNode }).children,
     )[0] as React.ReactElement;
     const columns = (table.props as { columns: { accessorKey?: string; header?: string }[] })
       .columns;
@@ -79,12 +79,30 @@ describe('AllApiClientsTable', () => {
 
     expect(getAllSpy).toHaveBeenCalledWith(
       { teamId: 1, edfiTenant: { id: 3 } },
-      { applicationId: 7 }
+      { applicationId: 7 },
     );
   });
 });
 
 describe('AllApiClientsTable — last-credential legend', () => {
+  // Its own priming rather than whatever the previous describe happened to
+  // leave behind: that block overrides useApiClientConfig mid-run, so relying
+  // on leftover state made this depend on file order and would break under
+  // test randomisation.
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseParams.mockReturnValue({ applicationId: '7' });
+    mockUseTeamEdfiTenantNavContextLoaded.mockReturnValue({
+      edfiTenant: { sbEnvironmentId: 2 },
+      teamId: 1,
+      asId: 1,
+    });
+    mockUseApiClientConfig.mockReturnValue({
+      queries: { getAll: jest.fn(() => ({ queryKey: ['apiClients'] })) },
+    });
+    mockUseQuery.mockReturnValue({ data: {} });
+  });
+
   it('renders CredentialsRequiredLegend with the Application id from the route', () => {
     // CredentialsRequiredLegend now owns both the "exactly one credential"
     // condition and the mandated copy itself (see
@@ -93,7 +111,7 @@ describe('AllApiClientsTable — last-credential legend', () => {
     // responsibility is wiring the Application id through.
     const rendered = AllApiClientsTable() as React.ReactElement;
     const children = React.Children.toArray(
-      (rendered.props as { children: React.ReactNode }).children
+      (rendered.props as { children: React.ReactNode }).children,
     ) as React.ReactElement[];
     const legendElement = children.find((child) => child.type === CredentialsRequiredLegend);
     expect(legendElement).toBeDefined();

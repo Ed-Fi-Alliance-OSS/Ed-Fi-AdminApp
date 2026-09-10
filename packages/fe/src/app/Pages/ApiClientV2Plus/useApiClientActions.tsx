@@ -1,6 +1,6 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 
-import { UseQueryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate, useParams } from 'react-router';
 import {
   useAuthorize,
@@ -11,6 +11,7 @@ import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { ApiClientEntity, useApiClientConfig } from './apiClientConfig';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
+import { useApplicationApiClients } from './useApplicationApiClients';
 
 export const useSingleApiClientActions = ({
   apiClient,
@@ -42,43 +43,41 @@ export const useSingleApiClientActions = ({
   // so the last one may not be deleted. NameCell already runs this exact query
   // with the same key, so TanStack Query serves it from cache there rather than
   // issuing a second request.
-  // TypeScript cannot resolve union-typed overloaded functions; cast to the
-  // actual return type. Same workaround as ApiClientsPage.tsx/NameCell.tsx.
-  // The query builder defaults `throwOnError` to true, which is fine for
-  // NameCell (the table row itself), but this hook also backs
-  // ApiClientPageActions, which — unlike the rest of the detail page — is not
-  // wrapped in an ErrorBoundary. Left at the default, a failed credential
-  // count would throw during render and take down the whole page. Override it
-  // to false here and fail closed instead (see blockDelete below): the BFF's
-  // 409 still enforces the rule server-side, so a blocked button on a failed
-  // count costs the user nothing, while an enabled one could orphan the
-  // Application.
-  const applicationApiClients = useQuery({
-    ...(queries.getAll(
-      {
-        teamId: asId,
-        edfiTenant,
-      },
-      {
-        applicationId,
-      }
-    ) as UseQueryOptions<Record<string | number, ApiClientEntity>>),
-    throwOnError: false,
-  });
-  // Gated on `isSuccess` because this drives the tooltip wording: on a failed
-  // query `isPending` is false and `data` is undefined, which would otherwise
-  // make this true and put "this is the only credential" on a button whose
-  // real count we do not know. Also covers 0 rather than exactly 1 — an
-  // Application cannot reach this UI with zero credentials today, and blocking
-  // is the safe default either way.
-  const isOnlyApiClient =
-    applicationApiClients.isSuccess &&
-    Object.keys(applicationApiClients.data ?? {}).length <= 1;
-  // Fails closed: a pending or errored count blocks the delete too. The
-  // tooltip stays generic in those states because we cannot honestly claim
-  // this is the only credential; the BFF's 409 enforces the rule server-side.
-  const blockDelete =
-    applicationApiClients.isPending || applicationApiClients.isError || isOnlyApiClient;
+  const {
+    query: apiClientsQuery,
+    count: apiClientCount,
+    isCountKnown,
+  } = useApplicationApiClients(applicationId);
+
+  // Enforcement threshold: <= 1, matching the BFF's own guard. Deliberately
+  // includes 0 so an Application that somehow reaches zero credentials cannot
+  // lose more. An unknown count (pending or errored) also blocks — failing
+  // closed costs the user a disabled button, whereas failing open could orphan
+  // the Application.
+  const blockDelete = !isCountKnown || apiClientCount <= 1;
+  // Display threshold: exactly one. Everything below that says "the only
+  // credential", which is false at 0, so this must never be widened to <= 1.
+  const isOnlyApiClient = isCountKnown && apiClientCount === 1;
+
+  // Four states, because a disabled button with a generic tooltip reads as
+  // broken. Pending and errored are transient and the user should be told so;
+  // "only credential" persists until they act.
+  const deleteTooltip = !isCountKnown
+    ? apiClientsQuery.isError
+      ? "Couldn't check the credential count — try refreshing the page."
+      : 'Checking credential count…'
+    : isOnlyApiClient
+      ? "This is the Application's only credential and can't be deleted. Create another credential first."
+      : 'Delete API client credentials';
+
+  // A disabled control has to say why, and say it to everyone. `title` alone
+  // reaches only sighted pointer users: the icon-button variant sets
+  // `aria-label` from `text`, and `aria-label` outranks `title` in
+  // accessible-name computation, so assistive technology would announce just
+  // "Delete, dimmed". Carrying the reason into the accessible name fixes that.
+  // Left undefined while Delete is enabled, so the default "Delete" name and
+  // the terse enabled-state tooltip are untouched.
+  const deleteAriaLabel = blockDelete ? deleteTooltip : undefined;
 
   const search = useSearchParamsObject();
   const onApiClientPage = !!apiClientId;
@@ -96,7 +95,7 @@ export const useSingleApiClientActions = ({
         teamId: Number(asId),
         id: '__filtered__',
       },
-    }
+    },
   );
   const toView = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients/${apiClient?.id}`;
   const toCreate = `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients/create`;
@@ -143,7 +142,7 @@ export const useSingleApiClientActions = ({
                       onSuccess: (result) => {
                         navigate(toView, { state: result });
                       },
-                    }
+                    },
                   );
                 },
                 confirm: true,
@@ -171,9 +170,8 @@ export const useSingleApiClientActions = ({
                 isDisabled: blockDelete,
                 icon: Icons.Delete,
                 text: 'Delete',
-                title: isOnlyApiClient
-                  ? "This is the Application's only credential and can't be deleted. Create another credential first."
-                  : 'Delete API client credentials',
+                title: deleteTooltip,
+                ariaLabel: deleteAriaLabel,
                 confirmBody:
                   'All systems using these credentials to access Ed-Fi will no longer be able to do so. This action cannot be undone, but you will be able to create new credentials for this application if you want.',
                 onClick: () =>
@@ -190,16 +188,16 @@ export const useSingleApiClientActions = ({
                             },
                             {
                               applicationId,
-                            }
+                            },
                           ).queryKey,
                         });
                         if (onApiClientPage) {
                           navigate(
-                            `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients`
+                            `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/applications/${applicationId}/apiClients`,
                           );
                         }
                       },
-                    }
+                    },
                   ),
                 confirm: true,
               },

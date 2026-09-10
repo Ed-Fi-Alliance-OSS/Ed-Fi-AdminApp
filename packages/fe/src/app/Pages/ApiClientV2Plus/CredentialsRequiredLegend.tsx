@@ -1,7 +1,5 @@
 import { Alert, AlertIcon, Text } from '@chakra-ui/react';
-import { UseQueryOptions, useQuery } from '@tanstack/react-query';
-import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
-import { ApiClientEntity, useApiClientConfig } from './apiClientConfig';
+import { useApplicationApiClients } from './useApplicationApiClients';
 
 // The standing explanation shown when an Application is down to its last
 // credential (mandated verbatim copy — see
@@ -13,32 +11,14 @@ import { ApiClientEntity, useApiClientConfig } from './apiClientConfig';
 // disabled button), while this legend is visible whenever the restriction
 // applies, whether or not the user has reached for Delete yet.
 export const CredentialsRequiredLegend = ({ applicationId }: { applicationId: number }) => {
-  const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const { queries } = useApiClientConfig();
+  const { count, isCountKnown } = useApplicationApiClients(applicationId);
 
-  // Same query key NameCell.tsx and useApiClientActions.tsx already use for
-  // this Application's credentials, so TanStack Query serves this from cache
-  // rather than issuing another request.
-  // TypeScript cannot resolve union-typed overloaded functions; cast to the
-  // actual return type. Same workaround as ApiClientsPage.tsx/NameCell.tsx.
-  // `throwOnError` is overridden to false, as in useApiClientActions.tsx, so a
-  // failed count cannot throw during render — rendering nothing is the safe
-  // failure mode for a hint whose enforcement actually lives in the BFF's 409.
-  const applicationApiClients = useQuery({
-    ...(queries.getAll(
-      {
-        teamId,
-        edfiTenant,
-      },
-      {
-        applicationId,
-      }
-    ) as UseQueryOptions<Record<string | number, ApiClientEntity>>),
-    throwOnError: false,
-  });
-
-  if (applicationApiClients.isPending || applicationApiClients.isError) return null;
-  if (Object.keys(applicationApiClients.data ?? {}).length !== 1) return null;
+  // Display threshold: exactly one. The copy below asserts "the only
+  // credential", which would be false at zero, so this must not be widened to
+  // the enforcement threshold (<= 1). Rendering nothing while the count is
+  // unknown is the safe failure mode for a hint — enforcement lives in the
+  // BFF's 409.
+  if (!isCountKnown || count !== 1) return null;
 
   return (
     <Alert status="warning" mt={4}>

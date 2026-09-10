@@ -620,6 +620,20 @@ describe('AdminApiControllerV2 - deleteApiClient last-credential guard', () => {
     expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
   });
 
+  // The production guard is `<= 1`, not `=== 1`. An Application with zero
+  // credentials should be unreachable through Admin App (AC-616 blocks
+  // deleting the last one), but the design doc records it as a real state for
+  // Applications orphaned before that guard existed.
+  it('rejects with 409 when the Application has no credentials at all', async () => {
+    mockSbService.getApiClients.mockResolvedValue([]);
+
+    await expect(
+      controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
+    ).rejects.toMatchObject({ status: 409 });
+
+    expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+
   it('does not forward the delete to AdminApi when it rejects', async () => {
     mockSbService.getApiClients.mockResolvedValue([{ id: 4 }]);
 

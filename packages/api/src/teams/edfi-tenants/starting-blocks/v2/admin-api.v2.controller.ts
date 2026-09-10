@@ -830,6 +830,9 @@ export class AdminApiControllerV2 {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
+    // NOTE: this guard is duplicated verbatim in admin-api.v3.controller.ts.
+    // Keep the two in sync until the broader v2/v3 controller duplication is
+    // tackled as a whole (see the edorg 403 check above for the same pattern).
     // An Application with no credentials disappears from the UI entirely
     // (AC-616), so the last one may not be deleted. The frontend disables the
     // action, but that is only a hint — this covers direct API calls and the
@@ -839,6 +842,13 @@ export class AdminApiControllerV2 {
       apiClient.applicationId
     );
     if (applicationApiClients.length <= 1) {
+      // Logged so a stale-tab retry can be told apart from the documented
+      // concurrent-delete race (two simultaneous deletes both reading a count
+      // of 2). The race leaves no 409 behind; a stale tab does.
+      Logger.warn(
+        `Refused to delete the last credential of Application ${apiClient.applicationId} ` +
+          `(apiClientId ${apiClientId}, credential count ${applicationApiClients.length})`
+      );
       throw new CustomHttpException(
         {
           type: 'Error',
