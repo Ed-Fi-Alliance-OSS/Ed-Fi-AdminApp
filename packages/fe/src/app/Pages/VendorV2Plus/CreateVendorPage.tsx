@@ -35,7 +35,15 @@ export const CreateVendorV2 = () =>
   });
 
 function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
-  config: { queries: { post: typeof vendorQueriesV2.post }; PostDto: new () => D };
+  config: {
+    queries: {
+      post: typeof vendorQueriesV2.post;
+      getAll: (
+        params: Parameters<typeof vendorQueriesV2.getAll>[0]
+      ) => { queryKey: readonly unknown[] };
+    };
+    PostDto: new () => D;
+  };
 }) {
   const { teamId, edfiTenant, edfiTenantId } = useTeamEdfiTenantNavContextLoaded();
   const popBanner = usePopBanner();
@@ -89,8 +97,9 @@ function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                   onSuccess: (data: typeof Id) => {
-                    // The npm run build:fe failed for some reason in github action, so I included this change
-                    queryClient.invalidateQueries({ queryKey: ['me', 'vendors'] });
+                    queryClient.invalidateQueries({
+                      queryKey: queries.getAll({ teamId, edfiTenant }).queryKey,
+                    });
                     // If data is a class, instantiate it; otherwise, access id directly
                     const id = (data instanceof Id) ? data.id : 0;
                     goToView(id);

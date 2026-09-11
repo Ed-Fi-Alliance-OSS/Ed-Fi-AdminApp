@@ -49,7 +49,7 @@ export const CreateTeam = () => {
                 { entity: data },
                 {
                   onSuccess: (result) => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'teams'] });
+                    queryClient.invalidateQueries({ queryKey: teamQueries.getAll({}).queryKey });
                     goToView(result.id);
                   },
                   ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),

@@ -93,7 +93,7 @@ export const useTeamActions = (team: GetTeamDto | undefined): ActionsType => {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => {
                         queryClient.invalidateQueries({
-                          queryKey: [],
+                          queryKey: teamQueries.getAll({}).queryKey,
                         });
                         navigate(`/teams`);
                       },

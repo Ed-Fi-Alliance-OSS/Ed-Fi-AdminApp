@@ -54,7 +54,7 @@ export const EditTeam = () => {
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
               onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ['me', 'teams'] });
+                queryClient.invalidateQueries({ queryKey: teamQueries.getAll({}).queryKey });
                 goToView();
               },
             }

@@ -1,4 +1,5 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { useAuthorize, useTeamEdfiTenantNavContextLoaded, vendorAuthConfig } from '../../helpers';
@@ -8,6 +9,7 @@ import { VendorEntity, useVendorConfig } from './vendorConfig';
 export const useVendorActions = (vendor: VendorEntity | undefined): ActionsType => {
   const { edfiTenant, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
   const { queries } = useVendorConfig();
+  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const to = (id: number | string) =>
@@ -64,10 +66,14 @@ export const useVendorActions = (vendor: VendorEntity | undefined): ActionsType 
                     { id: vendor.id },
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: () =>
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({
+                          queryKey: queries.getAll({ teamId: asId, edfiTenant }).queryKey,
+                        });
                         navigate(
                           `/as/${asId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenantId}/vendors`
-                        ),
+                        );
+                      },
                     }
                   ),
                 confirm: true,

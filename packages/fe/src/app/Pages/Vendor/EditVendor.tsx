@@ -11,6 +11,7 @@ import {
 } from '@chakra-ui/react';
 import { GetVendorDto, PutVendorDto } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
@@ -24,6 +25,7 @@ const resolver = classValidatorResolver(PutVendorDto);
 
 export const EditVendor = (props: { vendor: GetVendorDto }) => {
   const popBanner = usePopBanner();
+  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -58,7 +60,12 @@ export const EditVendor = (props: { vendor: GetVendorDto }) => {
             { entity: data },
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              onSuccess: goToView,
+              onSuccess: () => {
+                queryClient.invalidateQueries({
+                  queryKey: vendorQueriesV1.getAll({ edfiTenant, teamId }).queryKey,
+                });
+                goToView();
+              },
             }
           )
           .catch(noop)

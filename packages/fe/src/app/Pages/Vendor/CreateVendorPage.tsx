@@ -58,7 +58,9 @@ export const CreateVendor = () => {
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                   onSuccess: (result) => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'vendors'] });
+                    queryClient.invalidateQueries({
+                      queryKey: vendorQueriesV1.getAll({ edfiTenant, teamId }).queryKey,
+                    });
                     goToView(result.id);
                   },
                 }

@@ -10,6 +10,7 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
+import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
@@ -33,10 +34,19 @@ export const EditVendor = (props: { vendor: VendorEntity }) =>
   });
 
 function EditVendorForm<D extends PutVendorDtoV2 | PutVendorDtoV3>(props: {
-  config: { queries: { put: typeof vendorQueriesV2.put }; PutDto: new () => D };
+  config: {
+    queries: {
+      put: typeof vendorQueriesV2.put;
+      getAll: (
+        params: Parameters<typeof vendorQueriesV2.getAll>[0]
+      ) => { queryKey: readonly unknown[] };
+    };
+    PutDto: new () => D;
+  };
   vendor: VendorEntity;
 }) {
   const popBanner = usePopBanner();
+  const queryClient = useQueryClient();
   const { queries, PutDto } = props.config;
   const resolver = useMemo(() => classValidatorResolver(PutDto), [PutDto]);
 
@@ -90,7 +100,12 @@ function EditVendorForm<D extends PutVendorDtoV2 | PutVendorDtoV3>(props: {
             { entity: data },
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              onSuccess: goToView,
+              onSuccess: () => {
+                queryClient.invalidateQueries({
+                  queryKey: queries.getAll({ teamId, edfiTenant }).queryKey,
+                });
+                goToView();
+              },
             }
           )
           .catch(noop)
