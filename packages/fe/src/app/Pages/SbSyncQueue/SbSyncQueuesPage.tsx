@@ -34,6 +34,7 @@ import {
 } from '@edanalytics/models';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
 import { CellContext, ColumnFiltersState, SortingState } from '@tanstack/react-table';
+import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { methods, queryKey } from '../../api';
 import { useIsStartingBlocksDeployment } from '../../helpers';
@@ -49,6 +50,23 @@ export const jobStateColorSchemes: Record<PgBossJobState, string> = {
   failed: 'red',
   retry: 'yellow',
 };
+
+/** Job states that indicate a sync queue row is still in-flight. */
+export const pendingSyncQueueStates: PgBossJobState[] = ['created', 'active', 'retry'];
+
+/** Interval (ms) to poll the sync queue at while any row is still pending. */
+export const syncQueuePollingIntervalMs = 3000;
+
+/** Whether any row in a paginated sync-queue result is still pending (not yet terminal). */
+export const hasPendingSyncQueueRows = (
+  data: SyncQueuePaginatedResults | undefined,
+  sbEnvironmentId?: number
+) =>
+  (data?.data ?? []).some(
+    (row) =>
+      pendingSyncQueueStates.includes(row.state) &&
+      (sbEnvironmentId === undefined || row.sbEnvironmentId === sbEnvironmentId)
+  );
 
 const urlStatePrefix = 'snc';
 
@@ -89,7 +107,18 @@ const fetchSyncQueues = (
 const fetchSyncQueueFacetedValuess = (filter: ColumnFiltersState) =>
   methods.getOne(makeFacetedValuesUrl(filter), SbSyncQueueFacetedValuesDto);
 
-export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFiltersState }) => {
+export const SbSyncQueuesTable = ({
+  defaultFilters,
+  onSyncSettled,
+}: {
+  defaultFilters: ColumnFiltersState;
+  /**
+   * Called once each time this table's rows transition from having a pending
+   * row to having none (e.g. so a caller can refresh unrelated data, like a
+   * Tenants list, that the now-completed sync job may have changed).
+   */
+  onSyncSettled?: () => void;
+}) => {
   const [searchParams] = useSearchParams(
     new URLSearchParams(
       `?${getPrefixedName('colFilter', urlStatePrefix)}=${stringifyColumnFilters(defaultFilters)}`
@@ -130,7 +159,17 @@ export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFi
         paginationState.pageSize
       ),
     placeholderData: keepPreviousData,
+    refetchInterval: (query) =>
+      hasPendingSyncQueueRows(query.state.data) ? syncQueuePollingIntervalMs : false,
   });
+  const wasPendingRef = useRef(false);
+  useEffect(() => {
+    const isPending = hasPendingSyncQueueRows(queueData.data);
+    if (wasPendingRef.current && !isPending) {
+      onSyncSettled?.();
+    }
+    wasPendingRef.current = isPending;
+  }, [queueData.data, onSyncSettled]);
   const facetedValues = useQuery({
     queryKey: [
       ...queryKey({
@@ -141,6 +180,10 @@ export const SbSyncQueuesTable = ({ defaultFilters }: { defaultFilters: ColumnFi
     ],
     queryFn: () => fetchSyncQueueFacetedValuess(columnFilters),
     placeholderData: keepPreviousData,
+    // Same environment/tenant scope as `queueData` above, so poll in lockstep to avoid
+    // stale filter option counts while rows are still in-flight.
+    refetchInterval: () =>
+      hasPendingSyncQueueRows(queueData.data) ? syncQueuePollingIntervalMs : false,
   });
 
   return (
