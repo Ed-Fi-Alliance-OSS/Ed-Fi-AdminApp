@@ -69,5 +69,8 @@ if (Test-Path $EnvFile) {
     }
 }
 
-docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp up -d $(if ($Rebuild) { "--build" })
+if ($Rebuild) {
+    docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp build --no-cache
+}
+docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp up -d
 Write-Host "Services started successfully!" -ForegroundColor Green
