@@ -170,7 +170,7 @@ function Set-AdminAppEnvFile {
     }
   }
 
-  $expectedSubstitutions = 6
+  $expectedSubstitutions = 7
   if ($substitutionsFired -lt $expectedSubstitutions) {
     throw "compose/.env.example did not match the expected MSSQL patch patterns: only $substitutionsFired of $expectedSubstitutions substitutions fired. compose/.env.example may have been reformatted; update the regex patterns in Set-AdminAppEnvFile."
   }
