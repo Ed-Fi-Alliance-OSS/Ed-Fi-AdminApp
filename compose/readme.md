@@ -88,7 +88,8 @@ graph TD
 - The multi-tenant configuration includes two tenancies, each with own combination of "ODS" and "Admin" databases.
 - **NGiNX** serves as a reverse proxy.
 
-For v3 route and healthcheck configuration, see the `ODS_V7_ADMIN_V3_*` entries in `.env.example`.
+For v3 route configuration, see the `ODS_V7_ADMIN_V3_*` entries in `.env.example`.
+Healthcheck commands are defined inline in `edfi-services.yml`.
 
 ### Containers for ODS/API 6.2
 

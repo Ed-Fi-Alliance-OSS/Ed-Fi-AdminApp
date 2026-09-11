@@ -77,7 +77,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V2_SINGLE_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V2_SINGLE_API_HEALTHCHECK}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -124,7 +124,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V2_SINGLE_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V2_SINGLE_ADMIN_API_HEALTHCHECK}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -261,7 +261,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V2_MULTI_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V2_MULTI_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -315,7 +315,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V2_MULTI_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V2_MULTI_ADMIN_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate  --header="tenant: tenant1" --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -397,7 +397,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V3_SINGLE_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V3_SINGLE_API_HEALTHCHECK}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -444,7 +444,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V3_SINGLE_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V3_SINGLE_ADMIN_API_HEALTHCHECK}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -581,7 +581,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V3_MULTI_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V3_MULTI_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -635,7 +635,7 @@ services:
     restart: always
     hostname: ${ODS_V7_ADMIN_V3_MULTI_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${ODS_V7_ADMIN_V3_MULTI_ADMIN_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate  --header="tenant: tenant1" --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -710,7 +710,7 @@ services:
       ApiSettings__PathBase: '${V6_ODS_VIRTUAL_NAME}'
       TPDM_ENABLED: '${TPDM_ENABLED:-true}'
       ODS_WAIT_POSTGRES_HOSTS: 'v6-edfi-ods_255901 v6-edfi-ods_255902 '
-      API_HEALTHCHECK_TEST: ${V6_API_HEALTHCHECK_TEST}
+      API_HEALTHCHECK_TEST: 'wget --no-check-certificate --spider http://localhost/health'
       NPG_POOLING_ENABLED: '${NPG_POOLING_ENABLED:-true}'
       NPG_API_MAX_POOL_SIZE_ODS: '${NPG_API_MAX_POOL_SIZE_ODS:-20}'
       NPG_API_MAX_POOL_SIZE_ADMIN: '${NPG_API_MAX_POOL_SIZE_ADMIN:-20}'
@@ -725,7 +725,7 @@ services:
     restart: always
     hostname: ${V6_ODS_VIRTUAL_NAME}
     healthcheck:
-      test: ${V6_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
@@ -773,7 +773,7 @@ services:
     restart: always
     hostname: ${V6_ADMIN_API_VIRTUAL_NAME}
     healthcheck:
-      test: ${V6_ADMIN_API_HEALTHCHECK_TEST}
+      test: 'wget --no-check-certificate --spider http://localhost/health'
       start_period: 30s
       retries: 30
       interval: 30s
