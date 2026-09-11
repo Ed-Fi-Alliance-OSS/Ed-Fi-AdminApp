@@ -4,10 +4,11 @@ import {
   SbV1MetaEnv,
 } from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { DeltaCounts, SyncableOds, persistSyncTenant } from '../../../../sb-sync/sync-ods';
+import { CacheService } from '../../../../app/cache.module';
 
 /* eslint @typescript-eslint/no-explicit-any: 0 */ // --> OFF
 @Injectable()
@@ -19,8 +20,20 @@ export class StartingBlocksServiceV1 {
     @InjectRepository(SbEnvironment)
     private sbEnvironmentsRepository: Repository<SbEnvironment>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    private readonly entityManager: EntityManager,
+    @Inject(CacheService) private readonly cacheService: CacheService
   ) {}
+
+  /**
+   * Flushes the in-process team ownership cache so that UI requests
+   * immediately reflect a tenant created by a sync operation, mirroring
+   * AdminApiSyncService.flushOwnershipCache. The cache is keyed by teamId
+   * and rebuilt on the next request.
+   */
+  private flushOwnershipCache(): void {
+    this.cacheService.flushAll();
+    this.logger.log('Team ownership cache flushed after sync');
+  }
   async saveAdminApiCredentials(
     sbEnvironment: SbEnvironment,
     credentials: {
@@ -96,6 +109,7 @@ export class StartingBlocksServiceV1 {
         sbEnvironmentId: sbEnvironment.id,
       });
       result.tenant = 'created';
+      this.flushOwnershipCache();
     } else {
       edfiTenant = edfiTenants[0];
     }
