@@ -13,7 +13,6 @@ import {
 import { GetClaimsetDto, PutClaimsetDto } from '@edanalytics/models';
 import { flattenFieldErrors } from '@edanalytics/utils';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useForm } from 'react-hook-form';
 import { useNavigate, useParams } from 'react-router';
@@ -27,7 +26,6 @@ const resolver = classValidatorResolver(PutClaimsetDto);
 
 export const EditClaimset = (props: { claimset: GetClaimsetDto }) => {
   const popBanner = usePopBanner();
-  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -61,12 +59,7 @@ export const EditClaimset = (props: { claimset: GetClaimsetDto }) => {
             { entity: data },
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              onSuccess: () => {
-                queryClient.invalidateQueries({
-                  queryKey: claimsetQueriesV1.getAll({ teamId, edfiTenant }).queryKey,
-                });
-                goToView();
-              },
+              onSuccess: goToView,
             }
           )
           .catch(noop)

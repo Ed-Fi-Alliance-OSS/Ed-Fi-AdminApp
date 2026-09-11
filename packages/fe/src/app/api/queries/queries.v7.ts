@@ -45,8 +45,17 @@ import {
   PutVendorDtoV3,
 } from '@edanalytics/models';
 import { GetEdfiTenantDto } from '@edanalytics/models';
-import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
+import { EntityQueryBuilder, StandardQueryKeyParams, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
+
+// Reproduces the corresponding entity's own `getAll` key (id: undefined -> 'list'),
+// so a put/post/delete's default invalidation actually matches the list query
+// it's meant to refresh, instead of a mismatched literal key. See applicationQueriesV2's
+// `put` below for the original instance of this pattern.
+const listKeyToInvalidate = (base: {
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
 
 // See the comment above apiClientQueriesV2's `.delete(...)` call for why this
 // shape (rather than the builder's declared `path` overload type) is needed.
@@ -78,9 +87,7 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
       // custom `path` override). Spelling it out avoids a repeat of the
       // ApiClient bug this fixes elsewhere (a future `path` override on this
       // `put` would silently break invalidation again if left implicit).
-      keysToInvalidate: (base) => [
-        queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined }),
-      ],
+      keysToInvalidate: listKeyToInvalidate,
     }
   )
   .put(
@@ -116,14 +123,29 @@ export const applicationQueriesV3 = new EntityQueryBuilder({
       ResDto: GetApplicationDtoV3,
       ReqDto: PutApplicationFormDtoV3,
       // See applicationQueriesV2's `put` for why this is spelled out explicitly.
-      keysToInvalidate: (base) => [
-        queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined }),
-      ],
+      keysToInvalidate: listKeyToInvalidate,
     }
   )
   .post('post', { ResDto: PostApplicationResponseDtoV3, ReqDto: PostApplicationFormDtoV3 })
   .delete('delete')
   .build();
+
+// Shared by `getAll`'s `path` and `put`'s `keysToInvalidate` below, so the
+// mutation's invalidation always targets the exact same key the Credentials
+// list page queries against - regardless of `applicationId` filtering.
+const apiClientListPathOverride = (
+  base: { edfiTenant?: GetEdfiTenantDto; teamId?: string | number },
+  applicationId?: number
+) => {
+  const query = applicationId === undefined ? '' : `?applicationId=${applicationId}`;
+  return standardPath({
+    edfiTenant: base.edfiTenant,
+    teamId: base.teamId,
+    kebabCaseName: 'apiClient',
+    adminApi: true,
+    id: query,
+  });
+};
 
 export const apiClientQueriesV2 = new EntityQueryBuilder({
   adminApi: true,
@@ -134,19 +156,8 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
   .getAll(
     'getAll',
     { ResDto: GetApiClientDtoV2 },
-    (base, extras: { applicationId?: number }) => {
-      const query =
-        extras?.applicationId === undefined
-          ? ''
-          : `?applicationId=${extras.applicationId}`;
-      return standardPath({
-        edfiTenant: base.edfiTenant,
-        teamId: base.teamId,
-        kebabCaseName: 'apiClient',
-        adminApi: true,
-        id: query,
-      });
-    }
+    (base, extras: { applicationId?: number }) =>
+      apiClientListPathOverride(base, extras?.applicationId)
   )
   .getOne('getOne', { ResDto: GetApiClientDtoV2 },
     (base) => {
@@ -160,7 +171,24 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
     })
   .put(
     'put',
-    { ResDto: GetApiClientDtoV2, ReqDto: PutApiClientDtoV2 },
+    {
+      ResDto: GetApiClientDtoV2,
+      ReqDto: PutApiClientDtoV2,
+      // The default invalidation key can't be used here: this `put`'s own
+      // `path` (below) builds the mutation's URL from `entity.id`, and that
+      // same path doubles as the builder's default invalidation key
+      // (builder.ts's `put`), so it never matches the Credentials list's key,
+      // which embeds `?applicationId=...` (`getAll`'s own `path`, above).
+      // Recompute the exact list key instead, via the same helper `getAll` uses.
+      keysToInvalidate: (base) => [
+        queryKeyNew({
+          kebabCaseName: 'apiClient',
+          teamId: base.teamId,
+          edfiTenant: base.edfiTenant,
+          pathOverride: apiClientListPathOverride(base, base.entity.applicationId),
+        }),
+      ],
+    },
     (base) =>
       standardPath({
         edfiTenant: base.edfiTenant,
@@ -234,19 +262,8 @@ export const apiClientQueriesV3 = new EntityQueryBuilder({
   .getAll(
     'getAll',
     { ResDto: GetApiClientDtoV3 },
-    (base, extras: { applicationId?: number }) => {
-      const query =
-        extras?.applicationId === undefined
-          ? ''
-          : `?applicationId=${extras.applicationId}`;
-      return standardPath({
-        edfiTenant: base.edfiTenant,
-        teamId: base.teamId,
-        kebabCaseName: 'apiClient',
-        adminApi: true,
-        id: query,
-      });
-    }
+    (base, extras: { applicationId?: number }) =>
+      apiClientListPathOverride(base, extras?.applicationId)
   )
   .getOne('getOne', { ResDto: GetApiClientDtoV3 },
     (base) => {
@@ -260,7 +277,19 @@ export const apiClientQueriesV3 = new EntityQueryBuilder({
     })
   .put(
     'put',
-    { ResDto: GetApiClientDtoV3, ReqDto: PutApiClientDtoV3 },
+    {
+      ResDto: GetApiClientDtoV3,
+      ReqDto: PutApiClientDtoV3,
+      // See apiClientQueriesV2's `put` for why this is spelled out explicitly.
+      keysToInvalidate: (base) => [
+        queryKeyNew({
+          kebabCaseName: 'apiClient',
+          teamId: base.teamId,
+          edfiTenant: base.edfiTenant,
+          pathOverride: apiClientListPathOverride(base, base.entity.applicationId),
+        }),
+      ],
+    },
     (base) =>
       standardPath({
         edfiTenant: base.edfiTenant,
@@ -471,9 +500,13 @@ export const vendorQueriesV2 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetVendorDtoV2 })
   .getAll('getAll', { ResDto: GetVendorDtoV2 })
-  .put('put', { ResDto: GetVendorDtoV2, ReqDto: PutVendorDtoV2 })
-  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV2 })
-  .delete('delete')
+  .put('put', {
+    ResDto: GetVendorDtoV2,
+    ReqDto: PutVendorDtoV2,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV2, keysToInvalidate: listKeyToInvalidate })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const vendorQueriesV3 = new EntityQueryBuilder({
@@ -484,9 +517,13 @@ export const vendorQueriesV3 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetVendorDtoV3 })
   .getAll('getAll', { ResDto: GetVendorDtoV3 })
-  .put('put', { ResDto: GetVendorDtoV3, ReqDto: PutVendorDtoV3 })
-  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV3 })
-  .delete('delete')
+  .put('put', {
+    ResDto: GetVendorDtoV3,
+    ReqDto: PutVendorDtoV3,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', { ResDto: Id, ReqDto: PostVendorDtoV3, keysToInvalidate: listKeyToInvalidate })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const profileQueriesV2 = new EntityQueryBuilder({
@@ -497,9 +534,17 @@ export const profileQueriesV2 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetProfileDtoV2 })
   .getAll('getAll', { ResDto: GetProfileDtoV2 })
-  .put('put', { ResDto: GetProfileDtoV2, ReqDto: PutProfileDtoV2 })
-  .post('post', { ResDto: GetProfileDtoV2, ReqDto: PostProfileDtoV2 })
-  .delete('delete')
+  .put('put', {
+    ResDto: GetProfileDtoV2,
+    ReqDto: PutProfileDtoV2,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', {
+    ResDto: GetProfileDtoV2,
+    ReqDto: PostProfileDtoV2,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const profileQueriesV3 = new EntityQueryBuilder({
@@ -510,9 +555,17 @@ export const profileQueriesV3 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetProfileDtoV3 })
   .getAll('getAll', { ResDto: GetProfileDtoV3 })
-  .put('put', { ResDto: GetProfileDtoV3, ReqDto: PutProfileDtoV3 })
-  .post('post', { ResDto: GetProfileDtoV3, ReqDto: PostProfileDtoV3 })
-  .delete('delete')
+  .put('put', {
+    ResDto: GetProfileDtoV3,
+    ReqDto: PutProfileDtoV3,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', {
+    ResDto: GetProfileDtoV3,
+    ReqDto: PostProfileDtoV3,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const odsInstancesV2 = new EntityQueryBuilder({

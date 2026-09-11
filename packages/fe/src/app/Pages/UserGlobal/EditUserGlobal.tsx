@@ -1,4 +1,4 @@
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import {
   Button,
   ButtonGroup,
@@ -31,7 +31,6 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
 
   const { user } = props;
   const roles = useQuery(roleQueries.getAll({}));
-  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -116,10 +115,7 @@ export const EditUserGlobal = (props: { user: GetUserDto }) => {
             },
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: userQueries.getAll({}).queryKey });
-                goToView();
-              },
+              onSuccess: goToView,
             }
           )
           .catch(noop);

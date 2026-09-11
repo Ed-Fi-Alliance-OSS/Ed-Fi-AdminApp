@@ -1,6 +1,5 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetClaimsetDto } from '@edanalytics/models';
-import { useQueryClient } from '@tanstack/react-query';
 import { RowSelectionState } from '@tanstack/react-table';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
@@ -14,7 +13,6 @@ export const useClaimsetActions = ({
   claimset: GetClaimsetDto | undefined;
 }): ActionsType => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
-  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
   const to = (id: number | string) =>
@@ -88,14 +86,10 @@ export const useClaimsetActions = ({
                     { id: claimset.id },
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: () => {
-                        queryClient.invalidateQueries({
-                          queryKey: claimsetQueriesV1.getAll({ edfiTenant, teamId }).queryKey,
-                        });
+                      onSuccess: () =>
                         navigate(
                           `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/claimsets`
-                        );
-                      },
+                        ),
                     }
                   ),
                 confirm: true,

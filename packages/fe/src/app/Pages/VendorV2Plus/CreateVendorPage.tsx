@@ -13,7 +13,6 @@ import {
 import { Icons, PageTemplate } from '@edanalytics/common-ui';
 import { Id, PostVendorDtoV2, PostVendorDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { useMemo } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
@@ -36,12 +35,7 @@ export const CreateVendorV2 = () =>
 
 function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
   config: {
-    queries: {
-      post: typeof vendorQueriesV2.post;
-      getAll: (
-        params: Parameters<typeof vendorQueriesV2.getAll>[0]
-      ) => { queryKey: readonly unknown[] };
-    };
+    queries: { post: typeof vendorQueriesV2.post };
     PostDto: new () => D;
   };
 }) {
@@ -50,7 +44,6 @@ function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
   const { queries, PostDto } = props.config;
   const resolver = useMemo(() => classValidatorResolver(PostDto), [PostDto]);
 
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const goToView = (id: string | number) =>
     navigate(
@@ -97,9 +90,6 @@ function CreateVendorForm<D extends PostVendorDtoV2 | PostVendorDtoV3>(props: {
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                   onSuccess: (data: typeof Id) => {
-                    queryClient.invalidateQueries({
-                      queryKey: queries.getAll({ teamId, edfiTenant }).queryKey,
-                    });
                     // If data is a class, instantiate it; otherwise, access id directly
                     const id = (data instanceof Id) ? data.id : 0;
                     goToView(id);

@@ -77,9 +77,6 @@ export const useUserGlobalActions = (user: GetUserDto | undefined): ActionsType 
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => {
                         queryClient.invalidateQueries({
-                          queryKey: userQueries.getAll({}).queryKey,
-                        });
-                        queryClient.invalidateQueries({
                           queryKey: queryKey({
                             resourceName: 'UserTeamMembership',
                             id: false,

@@ -9,7 +9,6 @@ import {
 } from '@chakra-ui/react';
 import { PutProfileDtoV2, PutProfileDtoV3 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { useQueryClient } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { ChangeEvent, useMemo, useState } from 'react';
 import { DefaultValues, Path, PathValue, useForm } from 'react-hook-form';
@@ -38,11 +37,6 @@ function EditProfileForm<D extends PutProfileDtoV2 | PutProfileDtoV3>(props: {
   const [nameAttribute, setNameAttribute] = useState<string>('No profile selected');
   const { queries, PutDto } = props.config;
   const resolver = useMemo(() => classValidatorResolver(PutDto), [PutDto]);
-  const queryClient = useQueryClient();
-  // Resolved separately (rather than widening props.config's narrow `{ put }`
-  // type) so the list invalidation key always comes from the same builder
-  // instance ProfilesPage.tsx queries against, regardless of D's branch.
-  const { queries: allQueries } = useProfileConfig();
 
   const navigate = useNavigate();
   const params = useParams() as {
@@ -112,12 +106,7 @@ function EditProfileForm<D extends PutProfileDtoV2 | PutProfileDtoV3>(props: {
             { entity: data },
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-              onSuccess: () => {
-                queryClient.invalidateQueries({
-                  queryKey: allQueries.getAll({ teamId, edfiTenant }).queryKey,
-                });
-                goToView();
-              },
+              onSuccess: goToView,
             }
           )
           .catch(noop)

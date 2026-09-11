@@ -15,7 +15,7 @@ import {
   PutApiClientFormDtoV3,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { MutateOptions, useQueryClient } from '@tanstack/react-query';
+import { MutateOptions } from '@tanstack/react-query';
 import { noop } from '@tanstack/react-table';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -77,14 +77,6 @@ function EditApiClientForm<
           options?: MutateOptions<unknown, unknown, { entity: W; pathParams: unknown }, unknown>
         ) => Promise<unknown>;
       };
-      // Needed only to recompute the exact query key the credentials-list page
-      // (ApiClientsPage.tsx) uses, so the put mutation's onSuccess below can
-      // invalidate it directly — see the comment at that call site for why the
-      // builder's own default invalidation can't do this.
-      getAll: (
-        params: Parameters<typeof apiClientQueriesV2.getAll>[0],
-        extras: { applicationId?: number }
-      ) => { queryKey: readonly unknown[] };
     };
     PutDto: new () => W;
     PutFormDto: new () => D;
@@ -98,7 +90,6 @@ function EditApiClientForm<
   const odsTerminology = useOdsTerminology();
   const popBanner = usePopBanner();
   const navigate = useNavigate();
-  const queryClient = useQueryClient();
   const resolver = classValidatorResolver(PutFormDto);
   const putApiClient = queries.put({
     edfiTenant,
@@ -176,24 +167,7 @@ function EditApiClientForm<
         { entity: payload, pathParams: {} },
         {
           ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
-          onSuccess: () => {
-            // The builder's default invalidation can't be used here: put's
-            // custom `path` (queries.v7.ts) builds the mutation's own URL from
-            // `apiClient.id`, and that same path doubles as the invalidation
-            // key's `pathOverride` (see EntityQueryBuilder.put in builder.ts).
-            // That single-entity key never matches the Credentials list's key,
-            // which embeds `?applicationId=...` (ApiClientsPage.tsx via
-            // `queries.getAll`), so invalidateQueries would silently no-op.
-            // Recompute the exact list key instead, matching the working
-            // Delete pattern (useApiClientActions.tsx).
-            queryClient.invalidateQueries({
-              queryKey: queries.getAll(
-                { teamId, edfiTenant },
-                { applicationId: apiClient.applicationId }
-              ).queryKey,
-            });
-            goToView();
-          },
+          onSuccess: goToView,
         }
       )
       .catch(noop);
