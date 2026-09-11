@@ -53,7 +53,9 @@ export const EditUtmGlobal = () => {
             {
               ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
               onSuccess: () => {
-                queryClient.invalidateQueries({ queryKey: ['me', 'userTeamMemberships'] });
+                queryClient.invalidateQueries({
+                  queryKey: userTeamMembershipQueries.getAll({}).queryKey,
+                });
                 goToView();
               },
             }

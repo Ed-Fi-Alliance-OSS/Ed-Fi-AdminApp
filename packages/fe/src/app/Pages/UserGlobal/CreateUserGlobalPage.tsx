@@ -73,7 +73,7 @@ export const CreateUser = () => {
         {
           ...mutationErrCallback({ popGlobalBanner, setFormError }),
           onSuccess: async (result) => {
-            queryClient.invalidateQueries({ queryKey: ['me', 'users'] });
+            queryClient.invalidateQueries({ queryKey: userQueries.getAll({}).queryKey });
             if (!isAddingToTeam) {
               navigate(`/users/${result.id}`);
               return;
@@ -86,7 +86,9 @@ export const CreateUser = () => {
                 { entity: userTeamEntity },
                 {
                   onSuccess: () => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'user-team-memberships'] });
+                    queryClient.invalidateQueries({
+                      queryKey: userTeamMembershipQueries.getAll({}).queryKey,
+                    });
                     navigate(`/users/${result.id}`);
                   },
                   ...mutationErrCallback({ popGlobalBanner, setFormError }),

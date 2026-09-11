@@ -1,6 +1,7 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
 import { GetUserTeamMembershipDto } from '@edanalytics/models';
 import { useNavigate } from 'react-router';
+import { useQueryClient } from '@tanstack/react-query';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { userTeamMembershipQueries } from '../../api';
 import { globalUtmAuthConfig, useAuthorize } from '../../helpers';
@@ -11,6 +12,7 @@ export const useUtmActionsGlobal = (
 ): ActionsType => {
   const navigate = useNavigate();
   const popBanner = usePopBanner();
+  const queryClient = useQueryClient();
   const to = (id: number | string) => `/user-team-memberships/${id}`;
   const deleteUtm = userTeamMembershipQueries.delete({});
 
@@ -55,7 +57,12 @@ export const useUtmActionsGlobal = (
                     { id: userTeamMembership.id },
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
-                      onSuccess: () => navigate(`/user-team-memberships`),
+                      onSuccess: () => {
+                        queryClient.invalidateQueries({
+                          queryKey: userTeamMembershipQueries.getAll({}).queryKey,
+                        });
+                        navigate(`/user-team-memberships`);
+                      },
                     }
                   ),
                 confirm: true,

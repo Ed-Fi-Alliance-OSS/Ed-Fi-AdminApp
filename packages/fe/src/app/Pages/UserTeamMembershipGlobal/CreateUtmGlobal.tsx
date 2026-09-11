@@ -60,7 +60,9 @@ export const CreateUtmGlobal = () => {
                 { entity: data },
                 {
                   onSuccess: (result) => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'user-team-memberships'] });
+                    queryClient.invalidateQueries({
+                      queryKey: userTeamMembershipQueries.getAll({}).queryKey,
+                    });
                     goToView(result.id);
                   },
                   ...mutationErrCallback({ setFormError: setError, popGlobalBanner: popBanner }),
