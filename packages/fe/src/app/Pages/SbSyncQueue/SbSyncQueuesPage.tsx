@@ -185,6 +185,8 @@ export const SbSyncQueuesTable = ({
     refetchInterval: () =>
       hasPendingSyncQueueRows(queueData.data) ? syncQueuePollingIntervalMs : false,
   });
+  const isAutoRefreshing = hasPendingSyncQueueRows(queueData.data);
+  const hasRefreshError = queueData.isError || facetedValues.isError;
 
   return (
     <SbaaTableProviderServerSide
@@ -326,6 +328,18 @@ export const SbSyncQueuesTable = ({
       ]}
     >
       <Box mb={4}>
+        {isAutoRefreshing || hasRefreshError ? (
+          <HStack mb={2}>
+            {isAutoRefreshing ? (
+              <Badge colorScheme="blue">Auto-refreshing while a sync is in progress…</Badge>
+            ) : null}
+            {hasRefreshError ? (
+              <Text color="red.500" fontSize="sm">
+                Couldn't refresh — retrying…
+              </Text>
+            ) : null}
+          </HStack>
+        ) : null}
         <HStack align="end">
           {/* <SbaaTableSearch /> */}
           <SbaaTableAdvancedButton />
