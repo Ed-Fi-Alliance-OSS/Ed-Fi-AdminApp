@@ -54,7 +54,7 @@ import kebabCase from 'kebab-case';
 import path from 'path-browserify';
 import { authCacheKey } from '../../helpers';
 import { apiClient } from '../methods';
-import { EntityQueryBuilder, queryKeyNew, standardPath } from './builder';
+import { EntityQueryBuilder, StandardQueryKeyParams, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
 
 const baseUrl = '';
@@ -388,6 +388,15 @@ export const edfiTenantQueries = new EntityQueryBuilder({
   .delete('delete')
   .build();
 
+// Reproduces the corresponding entity's own `getAll` key (id: undefined -> 'list'),
+// so a put/post/delete's default invalidation actually matches the list query
+// it's meant to refresh, instead of a mismatched literal key. See applicationQueriesV1's
+// `put` above for the original instance of this pattern.
+const listKeyToInvalidate = (base: {
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
+
 export const teamQueries = new EntityQueryBuilder({
   name: 'Team',
   includeEdfiTenant: false,
@@ -395,14 +404,14 @@ export const teamQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetTeamDto })
   .getAll('getAll', { ResDto: GetTeamDto })
-  .put('put', { ReqDto: PutTeamDto, ResDto: GetTeamDto })
-  .post('post', { ReqDto: PostTeamDto, ResDto: GetTeamDto })
+  .put('put', { ReqDto: PutTeamDto, ResDto: GetTeamDto, keysToInvalidate: listKeyToInvalidate })
+  .post('post', { ReqDto: PostTeamDto, ResDto: GetTeamDto, keysToInvalidate: listKeyToInvalidate })
   .getAll(
     'navSearchList',
     { ResDto: EnvNavDto },
     (base, extras: { teamId: number }) => `${baseUrl}/teams/${extras.teamId}/env-nav`
   )
-  .delete('delete')
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const userQueries = new EntityQueryBuilder({
@@ -412,9 +421,9 @@ export const userQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetUserDto })
   .getAll('getAll', { ResDto: GetUserDto })
-  .put('put', { ReqDto: PutUserDto, ResDto: GetUserDto })
-  .post('post', { ReqDto: PostUserDto, ResDto: GetUserDto })
-  .delete('delete')
+  .put('put', { ReqDto: PutUserDto, ResDto: GetUserDto, keysToInvalidate: listKeyToInvalidate })
+  .post('post', { ReqDto: PostUserDto, ResDto: GetUserDto, keysToInvalidate: listKeyToInvalidate })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const userTeamMembershipQueries = new EntityQueryBuilder({
@@ -424,9 +433,17 @@ export const userTeamMembershipQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetUserTeamMembershipDto })
   .getAll('getAll', { ResDto: GetUserTeamMembershipDto })
-  .put('put', { ReqDto: PutUserTeamMembershipDto, ResDto: GetUserTeamMembershipDto })
-  .post('post', { ReqDto: PostUserTeamMembershipDto, ResDto: GetUserTeamMembershipDto })
-  .delete('delete')
+  .put('put', {
+    ReqDto: PutUserTeamMembershipDto,
+    ResDto: GetUserTeamMembershipDto,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', {
+    ReqDto: PostUserTeamMembershipDto,
+    ResDto: GetUserTeamMembershipDto,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const vendorQueriesV1 = new EntityQueryBuilder({
@@ -437,9 +454,13 @@ export const vendorQueriesV1 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetVendorDto })
   .getAll('getAll', { ResDto: GetVendorDto })
-  .put('put', { ResDto: GetVendorDto, ReqDto: PutVendorDto })
-  .post('post', { ResDto: GetVendorDto, ReqDto: PostVendorDto })
-  .delete('delete')
+  .put('put', { ResDto: GetVendorDto, ReqDto: PutVendorDto, keysToInvalidate: listKeyToInvalidate })
+  .post('post', {
+    ResDto: GetVendorDto,
+    ReqDto: PostVendorDto,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const applicationQueriesV1 = new EntityQueryBuilder({
@@ -483,9 +504,17 @@ export const claimsetQueriesV1 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetClaimsetDto })
   .getAll('getAll', { ResDto: GetClaimsetDto })
-  .put('put', { ResDto: GetClaimsetDto, ReqDto: PutClaimsetDto })
-  .post('post', { ResDto: GetClaimsetDto, ReqDto: PostClaimsetDto })
-  .delete('delete')
+  .put('put', {
+    ResDto: GetClaimsetDto,
+    ReqDto: PutClaimsetDto,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .post('post', {
+    ResDto: GetClaimsetDto,
+    ReqDto: PostClaimsetDto,
+    keysToInvalidate: listKeyToInvalidate,
+  })
+  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
 
 export const sbSyncQueueQueries = new EntityQueryBuilder({

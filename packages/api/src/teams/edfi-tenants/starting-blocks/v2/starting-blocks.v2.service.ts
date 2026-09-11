@@ -9,7 +9,7 @@ import {
 } from '@edanalytics/models';
 import { EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
 import { createConcurrencyLimiter, wait } from '@edanalytics/utils';
-import { Injectable, Logger } from '@nestjs/common';
+import { Inject, Injectable, Logger } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { EntityManager, In, Repository } from 'typeorm';
@@ -20,6 +20,7 @@ import {
   persistSyncOds,
   persistSyncTenant,
 } from '../../../../sb-sync/sync-ods';
+import { CacheService } from '../../../../app/cache.module';
 import { EdorgMgmtServiceV2 } from './edorg-mgmt.v2.service';
 import { OdsMgmtServiceV2 } from './ods-mgmt.v2.service';
 import { TenantMgmtServiceV2 } from './tenant-mgmt.v2.service';
@@ -43,8 +44,20 @@ export class StartingBlocksServiceV2 {
     @InjectRepository(SbEnvironment)
     private sbEnvironmentsRepository: Repository<SbEnvironment>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    private readonly entityManager: EntityManager,
+    @Inject(CacheService) private readonly cacheService: CacheService
   ) {}
+
+  /**
+   * Flushes the in-process team ownership cache so that UI requests
+   * immediately reflect a tenant created by a sync operation, mirroring
+   * AdminApiSyncService.flushOwnershipCache. The cache is keyed by teamId
+   * and rebuilt on the next request.
+   */
+  private flushOwnershipCache(): void {
+    this.cacheService.flushAll();
+    this.logger.log('Team ownership cache flushed after sync');
+  }
 
   async getTenantResourceTree(edfiTenant: EdfiTenant) {
     const sbEnvironment = await this.sbEnvironmentsRepository.findOneBy({
@@ -157,6 +170,9 @@ export class StartingBlocksServiceV2 {
       ),
       this.edfiTenantsRepository.delete({ id: In(removedTenants.map((t) => t.id)) }),
     ]);
+    if (newTenants.length > 0 || removedTenants.length > 0) {
+      this.flushOwnershipCache();
+    }
 
     const newConfigPublic = _.cloneDeep(sbEnvironment.configPublic.values);
 
