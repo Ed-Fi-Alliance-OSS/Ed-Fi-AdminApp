@@ -36,22 +36,20 @@ jobs:
       #     MSSQL_SA_PASSWORD: ${{ env.DATABASE_PASSWORD }}
 
     steps:
+      # DATABASE_USER/DATABASE_NAME/DATABASE_PASSWORD are inlined directly in the
+      # commands below rather than passed through an `env:` block. Copilot code
+      # review's dynamic setup-step runner voids `env:` values on this step
+      # regardless of whether they come from a job-level block, a step-level
+      # block, or repo secrets - they all resolved empty in that context, even
+      # as plain literals - while the run script's own text is preserved as-is.
+      # The Postgres role/database only exist on this ephemeral runner and are
+      # never reachable outside it, so this credential is not a real secret.
+      # See AC-606.
       - run: |
           sudo systemctl start postgresql.service
           pg_isready
-          sudo -u postgres psql -c "CREATE ROLE ${DATABASE_USER} WITH LOGIN PASSWORD '${DATABASE_PASSWORD}';"
-          sudo -u postgres psql -c "CREATE DATABASE ${DATABASE_NAME}"
-        env:
-          DATABASE_USER: sa
-          DATABASE_NAME: sbaa
-          # Throwaway credential for the local Postgres instance created above, which
-          # lives only for the duration of this job and is never reachable outside the
-          # runner. Not a real secret, so it's hardcoded here directly rather than
-          # sourced from a job-level `env:` block or repo secrets: Copilot code
-          # review's dynamic setup-step runner doesn't carry job-level `env:` values
-          # into `${{ env.X }}` step references, so they resolved empty in that
-          # context even after AC-606 made this a plain literal. See AC-606.
-          DATABASE_PASSWORD: postgres_ci_only
+          sudo -u postgres psql -c "CREATE ROLE sa WITH LOGIN PASSWORD 'postgres_ci_only';"
+          sudo -u postgres psql -c "CREATE DATABASE sbaa"
 
       # - name: Install sqlcmd
       #   run: |
