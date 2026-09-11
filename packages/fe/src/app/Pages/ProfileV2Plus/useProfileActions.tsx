@@ -1,4 +1,5 @@
 import { ActionsType, Icons } from '@edanalytics/common-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import {
@@ -16,6 +17,7 @@ import { ProfileEntity, useProfileConfig } from './profileConfig';
 export const useProfileActions = (profile: ProfileEntity | undefined): ActionsType => {
   const { edfiTenant, edfiTenantId, asId } = useTeamEdfiTenantNavContextLoaded();
   const { queries } = useProfileConfig();
+  const queryClient = useQueryClient();
 
   const navigate = useNavigate();
 
@@ -67,6 +69,9 @@ export const useProfileActions = (profile: ProfileEntity | undefined): ActionsTy
           {
             ...mutationErrCallback({ popGlobalBanner: popBanner }),
             onSuccess: () => {
+              queryClient.invalidateQueries({
+                queryKey: queries.getAll({ edfiTenant, teamId: asId }).queryKey,
+              });
               if (onProfilePage) {
                 navigate(parentPath);
               }

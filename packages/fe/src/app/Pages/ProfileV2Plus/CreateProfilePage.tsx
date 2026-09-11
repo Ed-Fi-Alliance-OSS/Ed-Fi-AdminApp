@@ -40,6 +40,10 @@ function CreateProfileForm<D extends PostProfileDtoV2 | PostProfileDtoV3>(props:
   const [nameAttribute, setNameAttribute] = useState<string>('No profile selected');
   const popBanner = usePopBanner();
   const { queries, PostDto } = props.config;
+  // Resolved separately (rather than widening props.config's narrow `{ post }`
+  // type) so the list invalidation key always comes from the same builder
+  // instance ProfilesPage.tsx queries against, regardless of D's branch.
+  const { queries: allQueries } = useProfileConfig();
   const resolver = useMemo(() => classValidatorResolver(PostDto), [PostDto]);
 
   const queryClient = useQueryClient();
@@ -114,7 +118,9 @@ function CreateProfileForm<D extends PostProfileDtoV2 | PostProfileDtoV3>(props:
                 {
                   ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                   onSuccess: (result) => {
-                    queryClient.invalidateQueries({ queryKey: ['me', 'profiles'] });
+                    queryClient.invalidateQueries({
+                      queryKey: allQueries.getAll({ teamId, edfiTenant }).queryKey,
+                    });
                     goToView(result.id);
                   },
                 }

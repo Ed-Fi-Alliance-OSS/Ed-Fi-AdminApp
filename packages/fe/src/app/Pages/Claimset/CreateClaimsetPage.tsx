@@ -60,7 +60,12 @@ export const CreateClaimset = () => {
               {
                 ...mutationErrCallback({ popGlobalBanner: popBanner, setFormError: setError }),
                 onSuccess: (result) => {
-                  queryClient.invalidateQueries({ queryKey: ['me', 'claimsets'] });
+                  queryClient.invalidateQueries({
+                    queryKey: claimsetQueriesV1.getAll({
+                      teamId: params.asId,
+                      edfiTenant: params.edfiTenant,
+                    }).queryKey,
+                  });
                   goToView(result.id);
                 },
               }
