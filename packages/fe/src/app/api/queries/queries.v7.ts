@@ -68,7 +68,21 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
 })
   .getAll('getAll', { ResDto: GetApplicationDtoV2 })
   .getOne('getOne', { ResDto: GetApplicationDtoV2 })
-  .put('put', { ResDto: GetApplicationDtoV2, ReqDto: PutApplicationFormDtoV2 })
+  .put(
+    'put',
+    {
+      ResDto: GetApplicationDtoV2,
+      ReqDto: PutApplicationFormDtoV2,
+      // Explicit rather than relying on the builder's default (which happens
+      // to prefix-match `getAll`'s key here only because this `put` has no
+      // custom `path` override). Spelling it out avoids a repeat of the
+      // ApiClient bug this fixes elsewhere (a future `path` override on this
+      // `put` would silently break invalidation again if left implicit).
+      keysToInvalidate: (base) => [
+        queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined }),
+      ],
+    }
+  )
   .put(
     'resetCreds',
     {
@@ -96,7 +110,17 @@ export const applicationQueriesV3 = new EntityQueryBuilder({
 })
   .getAll('getAll', { ResDto: GetApplicationDtoV3 })
   .getOne('getOne', { ResDto: GetApplicationDtoV3 })
-  .put('put', { ResDto: GetApplicationDtoV3, ReqDto: PutApplicationFormDtoV3 })
+  .put(
+    'put',
+    {
+      ResDto: GetApplicationDtoV3,
+      ReqDto: PutApplicationFormDtoV3,
+      // See applicationQueriesV2's `put` for why this is spelled out explicitly.
+      keysToInvalidate: (base) => [
+        queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined }),
+      ],
+    }
+  )
   .post('post', { ResDto: PostApplicationResponseDtoV3, ReqDto: PostApplicationFormDtoV3 })
   .delete('delete')
   .build();
