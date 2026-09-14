@@ -397,6 +397,18 @@ const listKeyToInvalidate = (base: {
   teamId?: number | string;
 }) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
 
+// Like `listKeyToInvalidate`, but for `put` specifically: also keeps the
+// builder's own default key (`base.standard`, built with `id: false`), which
+// matches this entity's `getOne` cache too. `put`'s mutation doesn't create a
+// new id, so unlike post/delete there's an existing detail cache an edit page
+// navigates back to -- dropping `base.standard` here left it stale after a
+// successful edit until the default 5-minute staleTime elapsed.
+const putKeysToInvalidate = (base: {
+  standard: QueryKey;
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [base.standard, ...listKeyToInvalidate(base)];
+
 export const teamQueries = new EntityQueryBuilder({
   name: 'Team',
   includeEdfiTenant: false,
@@ -404,7 +416,7 @@ export const teamQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetTeamDto })
   .getAll('getAll', { ResDto: GetTeamDto })
-  .put('put', { ReqDto: PutTeamDto, ResDto: GetTeamDto, keysToInvalidate: listKeyToInvalidate })
+  .put('put', { ReqDto: PutTeamDto, ResDto: GetTeamDto, keysToInvalidate: putKeysToInvalidate })
   .post('post', { ReqDto: PostTeamDto, ResDto: GetTeamDto, keysToInvalidate: listKeyToInvalidate })
   .getAll(
     'navSearchList',
@@ -421,7 +433,7 @@ export const userQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetUserDto })
   .getAll('getAll', { ResDto: GetUserDto })
-  .put('put', { ReqDto: PutUserDto, ResDto: GetUserDto, keysToInvalidate: listKeyToInvalidate })
+  .put('put', { ReqDto: PutUserDto, ResDto: GetUserDto, keysToInvalidate: putKeysToInvalidate })
   .post('post', { ReqDto: PostUserDto, ResDto: GetUserDto, keysToInvalidate: listKeyToInvalidate })
   .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
@@ -436,7 +448,7 @@ export const userTeamMembershipQueries = new EntityQueryBuilder({
   .put('put', {
     ReqDto: PutUserTeamMembershipDto,
     ResDto: GetUserTeamMembershipDto,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', {
     ReqDto: PostUserTeamMembershipDto,
@@ -454,7 +466,7 @@ export const vendorQueriesV1 = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetVendorDto })
   .getAll('getAll', { ResDto: GetVendorDto })
-  .put('put', { ResDto: GetVendorDto, ReqDto: PutVendorDto, keysToInvalidate: listKeyToInvalidate })
+  .put('put', { ResDto: GetVendorDto, ReqDto: PutVendorDto, keysToInvalidate: putKeysToInvalidate })
   .post('post', {
     ResDto: GetVendorDto,
     ReqDto: PostVendorDto,
@@ -507,7 +519,7 @@ export const claimsetQueriesV1 = new EntityQueryBuilder({
   .put('put', {
     ResDto: GetClaimsetDto,
     ReqDto: PutClaimsetDto,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', {
     ResDto: GetClaimsetDto,

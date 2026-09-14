@@ -45,6 +45,7 @@ import {
   PutVendorDtoV3,
 } from '@edanalytics/models';
 import { GetEdfiTenantDto } from '@edanalytics/models';
+import { QueryKey } from '@tanstack/react-query';
 import { EntityQueryBuilder, StandardQueryKeyParams, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
 
@@ -56,6 +57,18 @@ const listKeyToInvalidate = (base: {
   standardQueryKeyParams: StandardQueryKeyParams;
   teamId?: number | string;
 }) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
+
+// Like `listKeyToInvalidate`, but for `put` specifically: also keeps the
+// builder's own default key (`base.standard`, built with `id: false`), which
+// matches this entity's `getOne` cache too. `put`'s mutation doesn't create a
+// new id, so unlike post/delete there's an existing detail cache an edit page
+// navigates back to -- dropping `base.standard` here left it stale after a
+// successful edit until the default 5-minute staleTime elapsed.
+const putKeysToInvalidate = (base: {
+  standard: QueryKey;
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [base.standard, ...listKeyToInvalidate(base)];
 
 // See the comment above apiClientQueriesV2's `.delete(...)` call for why this
 // shape (rather than the builder's declared `path` overload type) is needed.
@@ -87,7 +100,9 @@ export const applicationQueriesV2 = new EntityQueryBuilder({
       // custom `path` override). Spelling it out avoids a repeat of the
       // ApiClient bug this fixes elsewhere (a future `path` override on this
       // `put` would silently break invalidation again if left implicit).
-      keysToInvalidate: listKeyToInvalidate,
+      // Uses `putKeysToInvalidate` (not `listKeyToInvalidate`) so the entity's
+      // own `getOne` cache stays invalidated too, alongside the list.
+      keysToInvalidate: putKeysToInvalidate,
     }
   )
   .put(
@@ -123,7 +138,7 @@ export const applicationQueriesV3 = new EntityQueryBuilder({
       ResDto: GetApplicationDtoV3,
       ReqDto: PutApplicationFormDtoV3,
       // See applicationQueriesV2's `put` for why this is spelled out explicitly.
-      keysToInvalidate: listKeyToInvalidate,
+      keysToInvalidate: putKeysToInvalidate,
     }
   )
   .post('post', { ResDto: PostApplicationResponseDtoV3, ReqDto: PostApplicationFormDtoV3 })
@@ -174,13 +189,18 @@ export const apiClientQueriesV2 = new EntityQueryBuilder({
     {
       ResDto: GetApiClientDtoV2,
       ReqDto: PutApiClientDtoV2,
-      // The default invalidation key can't be used here: this `put`'s own
+      // The default invalidation key alone can't be used here: this `put`'s own
       // `path` (below) builds the mutation's URL from `entity.id`, and that
       // same path doubles as the builder's default invalidation key
       // (builder.ts's `put`), so it never matches the Credentials list's key,
       // which embeds `?applicationId=...` (`getAll`'s own `path`, above).
-      // Recompute the exact list key instead, via the same helper `getAll` uses.
+      // Recompute the exact list key via the same helper `getAll` uses, and
+      // keep `base.standard` (the default key) too -- it happens to equal
+      // this entity's `getOne` key, since `getOne` computes the identical
+      // standardPath. Dropping it would leave a cached `getOne` result stale
+      // after a successful edit.
       keysToInvalidate: (base) => [
+        base.standard,
         queryKeyNew({
           kebabCaseName: 'apiClient',
           teamId: base.teamId,
@@ -280,8 +300,10 @@ export const apiClientQueriesV3 = new EntityQueryBuilder({
     {
       ResDto: GetApiClientDtoV3,
       ReqDto: PutApiClientDtoV3,
-      // See apiClientQueriesV2's `put` for why this is spelled out explicitly.
+      // See apiClientQueriesV2's `put` for why this is spelled out explicitly
+      // (including keeping `base.standard` alongside the recomputed list key).
       keysToInvalidate: (base) => [
+        base.standard,
         queryKeyNew({
           kebabCaseName: 'apiClient',
           teamId: base.teamId,
@@ -503,7 +525,7 @@ export const vendorQueriesV2 = new EntityQueryBuilder({
   .put('put', {
     ResDto: GetVendorDtoV2,
     ReqDto: PutVendorDtoV2,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', { ResDto: Id, ReqDto: PostVendorDtoV2, keysToInvalidate: listKeyToInvalidate })
   .delete('delete', { keysToInvalidate: listKeyToInvalidate })
@@ -520,7 +542,7 @@ export const vendorQueriesV3 = new EntityQueryBuilder({
   .put('put', {
     ResDto: GetVendorDtoV3,
     ReqDto: PutVendorDtoV3,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', { ResDto: Id, ReqDto: PostVendorDtoV3, keysToInvalidate: listKeyToInvalidate })
   .delete('delete', { keysToInvalidate: listKeyToInvalidate })
@@ -537,7 +559,7 @@ export const profileQueriesV2 = new EntityQueryBuilder({
   .put('put', {
     ResDto: GetProfileDtoV2,
     ReqDto: PutProfileDtoV2,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', {
     ResDto: GetProfileDtoV2,
@@ -558,7 +580,7 @@ export const profileQueriesV3 = new EntityQueryBuilder({
   .put('put', {
     ResDto: GetProfileDtoV3,
     ReqDto: PutProfileDtoV3,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: putKeysToInvalidate,
   })
   .post('post', {
     ResDto: GetProfileDtoV3,
