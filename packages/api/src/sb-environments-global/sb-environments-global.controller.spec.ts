@@ -21,7 +21,7 @@ describe('SbEnvironmentsGlobalController.checkEdFiVersionAndTenantMode', () => {
       undefined as never,
       undefined as never,
       undefined as never,
-      undefined as never
+      undefined as never,
     );
 
     (utils.fetchOdsApiMetadata as jest.Mock).mockResolvedValue({
@@ -98,7 +98,7 @@ describe('SbEnvironmentsGlobalController.checkEdFiVersionAndTenantMode', () => {
     expect(error).toBeInstanceOf(ValidationHttpException);
     const response = error.getResponse();
     expect(response.data.errors.adminApiUrl.message).toMatch(
-      /must both be configured with the same tenant mode/
+      /must both be configured with the same tenant mode/,
     );
     expect(response.data.errors.adminApiUrl.message).toContain('Ed-Fi API = SingleTenant');
     expect(response.data.errors.adminApiUrl.message).toContain('Management API = MultiTenant');
@@ -113,5 +113,32 @@ describe('SbEnvironmentsGlobalController.checkEdFiVersionAndTenantMode', () => {
 
     expect(adminApiTenancy.fetchAdminApiTenancy).not.toHaveBeenCalled();
     expect(result.version).toBe('');
+  });
+});
+
+describe('SbEnvironmentsGlobalController.findOne', () => {
+  it('loads the environment with the { edfiTenants: { odss: { edorgs: true } } } relations shape TypeORM 1.1.0 requires', async () => {
+    const sbEnvironmentsRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        id: 5,
+        configPublic: {},
+        edfiTenants: [],
+      }),
+    };
+    const controller = new SbEnvironmentsGlobalController(
+      undefined as never,
+      undefined as never,
+      sbEnvironmentsRepository as never,
+      undefined as never,
+      undefined as never,
+      undefined as never,
+    );
+
+    await controller.findOne(5);
+
+    expect(sbEnvironmentsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: 5 },
+      relations: { edfiTenants: { odss: { edorgs: true } } },
+    });
   });
 });
