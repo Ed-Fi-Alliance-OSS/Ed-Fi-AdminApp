@@ -71,6 +71,14 @@ if (Test-Path $EnvFile) {
 
 if ($Rebuild) {
     docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp build --no-cache
+    if ($LASTEXITCODE -ne 0) {
+        Write-Error "Rebuild failed (exit code $LASTEXITCODE). Aborting before starting services with a possibly stale image."
+        exit $LASTEXITCODE
+    }
 }
 docker compose $files --env-file $EnvFile --profile $composeProfile --profile adminapp up -d
+if ($LASTEXITCODE -ne 0) {
+    Write-Error "Failed to start services (exit code $LASTEXITCODE)."
+    exit $LASTEXITCODE
+}
 Write-Host "Services started successfully!" -ForegroundColor Green
