@@ -53,11 +53,16 @@ import {
   validateAdminApiUrl,
   ValidationHttpException,
 } from '../utils';
-import { fetchAdminApiTenancy, translateTenancyError, TenancyResult } from '../utils/admin-api-tenancy';
+import {
+  fetchAdminApiTenancy,
+  translateTenancyError,
+  TenancyResult,
+} from '../utils/admin-api-tenancy';
 import { SbEnvironmentsGlobalService } from './sb-environments-global.service';
 import { StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { Operation, SbVersion } from '../auth/authorization/sbVersion.decorator';
 import { SbEnvironmentsEdFiService } from './sb-environments-edfi.services';
+import { SB_ENVIRONMENT_EDFI_TENANTS_RELATIONS } from './sb-environment-relations.constants';
 
 @ApiTags('SbEnvironment - Global')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
@@ -71,7 +76,7 @@ export class SbEnvironmentsGlobalController {
     private startingBlocksServiceV2: StartingBlocksServiceV2,
     @Inject('IJobQueueService')
     private readonly jobQueue: IJobQueueService,
-    @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
+    @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>,
   ) {}
 
   /**
@@ -91,21 +96,25 @@ export class SbEnvironmentsGlobalController {
       configPublic: environment.configPublic,
       name: environment.name,
       // Include edfiTenants with ODS data for edit form
-      edfiTenants: environment.edfiTenants?.map(tenant => ({
-        id: tenant.id,
-        name: tenant.name,
-        displayName: tenant.name,
-        sbEnvironmentId: tenant.sbEnvironmentId,
-        odss: tenant.odss?.map(ods => ({
-          id: ods.id,
-          name: ods.odsInstanceName || ods.dbName,
-          dbName: ods.dbName,
-          // Handle both cases: educationOrganizationId for findOne, id for update
-          allowedEdOrgs: ods.edorgs?.map(edorg => edorg.educationOrganizationId || edorg.id).join(', ') || '',
-          edfiTenantId: ods.edfiTenantId,
-          sbEnvironmentId: ods.sbEnvironmentId,
-        })) || []
-      })) || [],
+      edfiTenants:
+        environment.edfiTenants?.map((tenant) => ({
+          id: tenant.id,
+          name: tenant.name,
+          displayName: tenant.name,
+          sbEnvironmentId: tenant.sbEnvironmentId,
+          odss:
+            tenant.odss?.map((ods) => ({
+              id: ods.id,
+              name: ods.odsInstanceName || ods.dbName,
+              dbName: ods.dbName,
+              // Handle both cases: educationOrganizationId for findOne, id for update
+              allowedEdOrgs:
+                ods.edorgs?.map((edorg) => edorg.educationOrganizationId || edorg.id).join(', ') ||
+                '',
+              edfiTenantId: ods.edfiTenantId,
+              sbEnvironmentId: ods.sbEnvironmentId,
+            })) || [],
+        })) || [],
       // Add computed properties from the DTO directly in the object literal
       displayName: dto.displayName,
       version: dto.version,
@@ -128,7 +137,7 @@ export class SbEnvironmentsGlobalController {
   })
   async create(
     @Body() createSbEnvironmentDto: PostSbEnvironmentDto,
-    @ReqUser() user: GetSessionDataDto
+    @ReqUser() user: GetSessionDataDto,
   ) {
     if (createSbEnvironmentDto.metaArn) {
       if (!validate(createSbEnvironmentDto.metaArn)) {
@@ -146,13 +155,13 @@ export class SbEnvironmentsGlobalController {
               sbEnvironmentMetaArn: createSbEnvironmentDto.metaArn,
             },
           }),
-          user
-        )
+          user,
+        ),
       );
       const id = await this.jobQueue.send(
         ENV_SYNC_CHNL,
         { sbEnvironmentId: sbEnvironment.id },
-        { expireInHours: 2 }
+        { expireInHours: 2 },
       );
       const repo = this.queueRepository;
       return new Promise((r) => {
@@ -168,7 +177,7 @@ export class SbEnvironmentsGlobalController {
               toPostSbEnvironmentResponseDto({
                 id: sbEnvironment.id,
                 syncQueue: toSbSyncQueueDto(queueItem),
-              })
+              }),
             );
           }
           i++;
@@ -199,11 +208,13 @@ export class SbEnvironmentsGlobalController {
     },
   })
   async checkEdFiVersionAndTenantMode(
-    @Body() body: { odsApiDiscoveryUrl: string; adminApiUrl?: string }
+    @Body() body: { odsApiDiscoveryUrl: string; adminApiUrl?: string },
   ) {
     const { odsApiDiscoveryUrl, adminApiUrl } = body;
     // Fetch ODS API metadata
-    const odsApiMetaResponse = await fetchOdsApiMetadata({ odsApiDiscoveryUrl } as PostSbEnvironmentDto);
+    const odsApiMetaResponse = await fetchOdsApiMetadata({
+      odsApiDiscoveryUrl,
+    } as PostSbEnvironmentDto);
 
     // Fetch Admin API info if URL provided (to get the tenancy endpoint address)
     let adminApiInfo: AdminApiInfo | undefined;
@@ -212,7 +223,10 @@ export class SbEnvironmentsGlobalController {
         adminApiInfo = await fetchAdminApiInfo(adminApiUrl);
       } catch (adminApiError) {
         // Log warning but don't fail - we can still determine mode from ODS API
-        Logger.warn('Failed to fetch Admin API info for tenant mode detection, falling back to ODS API:', adminApiError.message);
+        Logger.warn(
+          'Failed to fetch Admin API info for tenant mode detection, falling back to ODS API:',
+          adminApiError.message,
+        );
       }
     }
 
@@ -240,7 +254,7 @@ export class SbEnvironmentsGlobalController {
     return {
       odsVersion: odsApiMetaResponse ? odsApiMetaResponse.version : '',
       version: adminApiInfo ? adminApiInfo.specificationVersion : '',
-      isMultiTenant: isMultiTenant
+      isMultiTenant: isMultiTenant,
     };
   }
 
@@ -251,7 +265,7 @@ export class SbEnvironmentsGlobalController {
       id: '__filtered__',
     },
   })
-  async validateAdminApiUrl(@Body() body: { adminApiUrl: string, odsApiDiscoveryUrl:string }) {
+  async validateAdminApiUrl(@Body() body: { adminApiUrl: string; odsApiDiscoveryUrl: string }) {
     const { adminApiUrl, odsApiDiscoveryUrl } = body;
     await validateAdminApiUrl(adminApiUrl, odsApiDiscoveryUrl);
     return { valid: true, message: 'Management API URL is valid' };
@@ -266,12 +280,12 @@ export class SbEnvironmentsGlobalController {
   })
   async findOne(
     @Param('sbEnvironmentId', new ParseIntPipe())
-    sbEnvironmentId: number
+    sbEnvironmentId: number,
   ) {
     // Load environment with tenant and ODS relations for the edit page
     const environment = await this.sbEnvironmentsRepository.findOne({
       where: { id: sbEnvironmentId },
-      relations: { edfiTenants: { odss: { edorgs: true } } },
+      relations: SB_ENVIRONMENT_EDFI_TENANTS_RELATIONS,
     });
 
     if (!environment) {
@@ -292,12 +306,12 @@ export class SbEnvironmentsGlobalController {
     @Param('sbEnvironmentId', new ParseIntPipe())
     sbEnvironmentId: number,
     @Body() updateSbEnvironmentDto: PutSbEnvironmentDto,
-    @ReqUser() user: GetSessionDataDto
+    @ReqUser() user: GetSessionDataDto,
   ) {
     const { environment, syncQueue } = await this.sbEnvironmentEdFiService.updateEnvironment(
       sbEnvironmentId,
       updateSbEnvironmentDto,
-      user
+      user,
     );
     const detailed = this.createDetailedEnvironmentResponse(environment);
     return syncQueue ? { ...detailed, syncQueue } : detailed;
@@ -313,7 +327,7 @@ export class SbEnvironmentsGlobalController {
   remove(
     @Param('sbEnvironmentId', new ParseIntPipe())
     sbEnvironmentId: number,
-    @ReqUser() user: GetSessionDataDto
+    @ReqUser() user: GetSessionDataDto,
   ) {
     return this.sbEnvironmentService.remove(sbEnvironmentId, user);
   }
@@ -327,13 +341,13 @@ export class SbEnvironmentsGlobalController {
   async updateSbMeta(
     @Param('sbEnvironmentId', new ParseIntPipe()) sbEnvironmentId: number,
     @Body() updateDto: PutSbEnvironmentMeta,
-    @ReqUser() user: GetSessionDataDto
+    @ReqUser() user: GetSessionDataDto,
   ) {
     return toGetSbEnvironmentDto(
       await this.sbEnvironmentService.updateMetadataArn(
         sbEnvironmentId,
-        addUserModifying(updateDto, user)
-      )
+        addUserModifying(updateDto, user),
+      ),
     );
   }
 
@@ -350,7 +364,7 @@ export class SbEnvironmentsGlobalController {
     @Param('sbEnvironmentId', new ParseIntPipe()) sbEnvironmentId: number,
     @Body() updateDto: Id,
     @ReqUser() user: GetSessionDataDto,
-    @ReqSbEnvironment() sbEnvironment: SbEnvironment
+    @ReqSbEnvironment() sbEnvironment: SbEnvironment,
   ) {
     const result = await this.startingBlocksServiceV2.tenantMgmtService.reload(sbEnvironment);
     if (result.status !== 'SUCCESS') {
@@ -360,7 +374,7 @@ export class SbEnvironmentsGlobalController {
           type: 'Error',
           message: result.status,
         },
-        500
+        500,
       );
     }
     return toOperationResultDto({
@@ -380,7 +394,7 @@ export class SbEnvironmentsGlobalController {
     const id = await this.jobQueue.send(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: sbEnvironmentId },
-      { expireInHours: 2 }
+      { expireInHours: 2 },
     );
     const repo = this.queueRepository;
     return new Promise((r) => {
