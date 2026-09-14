@@ -168,6 +168,25 @@ jobs:
       - name: Docker Build
         run: docker build -t adminapp-${{ matrix.package }}-ci -f packages/${{ matrix.package }}/Dockerfile .
 
+  compose_config:
+    name: Compose Config Validation
+    runs-on: ubuntu-latest
+    # Reads files and runs a parser; needs no API access and no git credential.
+    permissions: {}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Renders the stack from compose/.env.example without starting anything;
+      # `docker compose config` only parses and interpolates, so no daemon is needed.
+      # The script is the single source of truth and is runnable locally as
+      # `npm run compose:check` - see eng/testing/README.md for what it does and does
+      # not catch.
+      - name: Validate compose configuration
+        run: pwsh ./eng/testing/check-compose-config.ps1
+
   event_file:
     name: "Event File"
     runs-on: ubuntu-latest

@@ -24,6 +24,8 @@
     "test:models-server": "nx run models-server:test",
     "test:utils": "nx run utils:test",
     "test:models": "nx run models:test",
+    "compose:check": "pwsh ./eng/testing/check-compose-config.ps1",
+    "compose:check:update": "pwsh ./eng/testing/check-compose-config.ps1 -UpdateGolden",
     "lint:check": "eslint .",
     "lint:fix": "eslint --fix .",
     "prettier:check": "prettier --check .",

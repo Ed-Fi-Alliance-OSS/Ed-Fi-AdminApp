@@ -123,7 +123,7 @@ DB_SECRET_VALUE={"DB_HOST"…
 | Finding | What was done |
 |---|---|
 | §1 Unused | `ODS_API_VERSION_6X`, `ODS_DB_IMAGE_6X` (active + commented sandbox variant), `#ODS_DB_IMAGE_7X`, `#ODS_DB_TAG_7X` removed, along with the NOTE containing the false "still used by the v6.2 topology" claim. The populated-template instruction now carries the sandbox image's own digest, which the old commented entry supplied. |
-| §2 Duplicated healthchecks | All 10 variables removed; the two distinct commands are inlined at the 11 consumption sites in `edfi-services.yml` (10 `healthcheck.test` + the `API_HEALTHCHECK_TEST` passthrough at the v6 ODS API). `compose/readme.md` updated to point at the new location. |
+| §2 Duplicated healthchecks | All 10 variables removed. The commands moved into `edfi-services.yml`, and are now declared once each as YAML anchors — see [Follow-on](#follow-on-healthcheck-definitions-consolidated) below. `compose/readme.md` gained a Healthchecks section describing them. |
 | §3.1 PostgreSQL header | `POSTGRES_USER` / `POSTGRES_PASSWORD` moved to the Shared section with an explicit note that every ODS and Admin database container needs them regardless of `DB_ENGINE`. |
 | §3.3 Misplaced tag comments | Each tag now carries a comment describing the image it actually selects. |
 | §3.4 Section header drift | Sections renamed by topology (`Admin API v2` / `Admin API v3` / `v6.2`) rather than by a version string that drifts. |
@@ -154,17 +154,79 @@ DB_SECRET_VALUE={"DB_HOST"…
   identical to the values the patcher writes, so a broken regex on any of those three would have
   produced no observable difference.
 
+### Follow-on: healthcheck definitions consolidated
+
+Inlining the healthcheck commands (§2) removed 10 variables but left 11 literal copies of two
+commands in `edfi-services.yml`. Looking at the whole file rather than only the lines §2 touched,
+there were **25 healthcheck blocks, all sharing an identical five-line shape**, across four distinct
+probes:
+
+| Probe | Sites |
+|---|---|
+| `pg_isready  -U ${POSTGRES_USER}` | 9 |
+| `wget --no-check-certificate --spider http://localhost/health` | 8, plus the `API_HEALTHCHECK_TEST` passthrough |
+| `pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}` | 6 |
+| the same `wget` with `--header="tenant: tenant1"` | 2 |
+
+All 25 now reference one of four YAML anchors declared at the top of the file as `x-healthcheck-*`
+keys, which Compose ignores. The file drops from 849 to 792 lines, and changing a probe is one edit
+rather than up to 25.
+
+The four anchors are self-contained: each carries its own `test` and its own timing. An earlier
+revision factored the shared `start_period`/`retries`/`interval` into a fifth anchor merged in with
+`<<:`, and hoisted the `wget` string into a sixth scalar anchor shared with the v6 ODS API's
+`API_HEALTHCHECK_TEST` environment variable. Both were reverted during review: the merge key saved
+three lines while introducing a second, less familiar YAML feature to a repo that had no anchors at
+all, and the scalar anchor bound a Compose healthcheck probe to an unrelated container environment
+variable, so tightening the probe would silently have rewritten what the container's own entrypoint
+runs. `API_HEALTHCHECK_TEST` carries its own literal again.
+
+The database anchors are named for the mechanism that distinguishes them — `*healthcheck-db-socket`
+and `*healthcheck-db-tcp` — rather than the earlier `*healthcheck-db` / `*healthcheck-db-localhost`,
+which did not say which to pick. That matters because the membership is not what you would guess:
+the v6 ODS databases use the socket probe while the v7 ODS databases use TCP, so "this is an ODS
+database" does not determine the answer.
+
+This was scoped into AC-520 rather than split out. A separate ticket would have cost another person
+or agent a full re-derivation of this context for a mechanical, provably neutral change; keeping it
+here as its own commit preserves the ability to revert it independently, which was the only thing
+the split would have bought. The scope change is recorded on the AC-520 Jira issue.
+
+Two things deliberately not done:
+
+- **The two `pg_isready` probes were not unified** — see Deferred below. Collapsing them would change
+  behaviour, not structure.
+- **`x-*` anchors are a new idiom for this repo** (no tracked YAML used anchors before this change),
+  so the anchor block carries a comment explaining what `x-*` keys and aliases are, which anchor to
+  use for a new service, and that anchors are scoped to a single file. `compose/readme.md` has a
+  Healthchecks section with the same guidance.
+
 ### Deferred
 
 - **§3.2 `VITE_SHOW_REQUEST_CERTIFICATION` is inert** — annotated in the file, fix tracked under
   [AC-603](https://edfi.atlassian.net/browse/AC-603).
 - **`POSTGRES_PORT` is pseudo-configuration too.** `edfi-services.yml` honours `${POSTGRES_PORT:-5432}`
-  at 12 sites but hardcodes `POSTGRES_PORT: 5432` at 10 others, so changing it half-works. Same class
+  at 11 sites but hardcodes `POSTGRES_PORT: 5432` at 10 others, so changing it half-works. Same class
   as §2; missed by this audit. Needs its own ticket.
-- **The 11 inlined healthcheck blocks are candidates for a YAML anchor** (`x-api-healthcheck: &…`),
-  which would collapse ~50 lines to ~14. Deferred deliberately: no compose file in this repo uses
-  anchors today, so adopting them is a convention decision that deserves its own review rather than
-  riding along with an `.env.example` audit.
+- **The two `pg_isready` probes differ and probably should not.** Nine database containers probe with
+  `pg_isready  -U ${POSTGRES_USER}` (default local socket, `*healthcheck-db-socket`) while six use
+  `pg_isready -U ${POSTGRES_USER} -h localhost -p ${POSTGRES_PORT:-5432}` (explicit TCP,
+  `*healthcheck-db-tcp`). Nothing appears to have decided this; it reads as copy-paste drift, and it
+  cuts across topology — the v6 ODS databases use the socket probe while the v7 ODS databases use TCP.
+  They are preserved as two distinct anchors rather than unified, because collapsing them would change
+  behaviour, not just structure.
+- **`compose:check` cannot see a variable whose compose reference has a `:-` default.** Compose falls
+  back silently and emits no warning, so roughly two thirds of the variables referenced across
+  `compose/*.yml` are outside the check's reach. This is not theoretical: several compose defaults
+  differ from the value declared in `.env.example`, so deleting the declaration would change the
+  stack while CI stayed green — `DB_SSL` flips `false` to `true`, `KEYCLOAK_TAG` loses its pinned
+  digest, and the Keycloak client secrets change. Closing this means first reconciling those
+  divergences, which is a behaviour decision rather than a cleanup, so it needs its own ticket.
+- **Container health is never asserted at runtime.** None of the `depends_on` entries in
+  `edfi-services.yml` uses `condition: service_healthy`, and `run-e2e-ui.ps1` waits on HTTPS
+  endpoints rather than container health, so a probe that parses correctly but never succeeds leaves
+  its container `unhealthy` indefinitely while the E2E suite passes. A `docker ps --filter
+  health=unhealthy` gate after startup would close this.
 
 ## Verification
 
@@ -188,3 +250,22 @@ docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.ym
 - **Zero dangling references**: none of the 14 removed variables appears anywhere in `compose/`,
   `eng/`, `packages/` or `.github/`. The only surviving mentions repo-wide are prose in
   `docs/design/custom-ods-db-container-summary.md` and this document.
+
+The healthcheck anchor consolidation was verified the same way, separately:
+
+- **Every service definition renders identically.** `diff` between the before and after renders is
+  empty once the six top-level `x-healthcheck-*` keys are excluded, for both the `postgresql` and
+  `mssql` profile sets. Those keys are the sole difference: Compose echoes them back in `config`
+  output and ignores them at runtime.
+
+  Deliberately no hash is quoted here. `docker compose config` embeds absolute host paths in
+  bind-mount sources, so any digest of its output is specific to one machine and one checkout
+  location and cannot be reproduced by the next reader. The `diff` is the reproducible evidence.
+- **Warning output is unchanged** — the same three `MSSQL_SA_PASSWORD is not set` lines, nothing new.
+- **All 25 blocks were replaced**, verified by count per alias: 9 `*healthcheck-db-socket`,
+  8 `*healthcheck-api`, 6 `*healthcheck-db-tcp`, 2 `*healthcheck-api-tenant1`.
+- **The replacement is now guarded**, not merely verified once. `eng/testing/check-compose-config.ps1`
+  compares every service's rendered healthcheck command against a golden file, which is what catches
+  a service pointed at the wrong anchor — that renders as valid YAML and emits no warning, so the
+  undeclared-variable assertion is structurally blind to it. Confirmed by pointing an ODS/API service
+  at `*healthcheck-db-socket` and watching the check fail with the exact offending service named.
