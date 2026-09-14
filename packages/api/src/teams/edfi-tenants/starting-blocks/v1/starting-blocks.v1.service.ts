@@ -117,6 +117,9 @@ export class StartingBlocksServiceV1 {
     if (treeSyncResult.status !== 'SUCCESS') {
       return treeSyncResult;
     }
+    // syncTenantResourceTree already flushes internally when it has changes,
+    // covering ODS/EdOrg changes on an already-existing tenant -- not just
+    // first-time tenant creation (handled above).
     result.edorg = treeSyncResult.data.edorg;
     result.ods = treeSyncResult.data.ods;
     return {
@@ -147,9 +150,16 @@ export class StartingBlocksServiceV1 {
           edorgs: ods.edorgs,
         })
       );
-      return await this.entityManager.transaction((em) =>
+      const result = await this.entityManager.transaction((em) =>
         persistSyncTenant({ em, odss, edfiTenant })
       );
+      // Flush here (rather than only at the syncEnvironmentEverything call
+      // site) so this covers every caller uniformly, including the direct
+      // per-tenant sync job (SbSyncConsumer).
+      if (result.status === 'SUCCESS' && result.data.hasChanges) {
+        this.flushOwnershipCache();
+      }
+      return result;
     } catch (operationError) {
       this.logger.log(operationError);
       return {

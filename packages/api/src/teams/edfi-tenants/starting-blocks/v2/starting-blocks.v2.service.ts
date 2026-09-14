@@ -229,9 +229,16 @@ export class StartingBlocksServiceV2 {
           dbName: o.dbname,
         })
       );
-      return await this.entityManager.transaction((em) =>
+      const result = await this.entityManager.transaction((em) =>
         persistSyncTenant({ em, odss, edfiTenant })
       );
+      // Flush here (rather than only at call sites) so this covers every
+      // caller uniformly, including the direct per-tenant sync job
+      // (SbSyncConsumer) as well as the full-environment sync loop.
+      if (result.status === 'SUCCESS' && result.data.hasChanges) {
+        this.flushOwnershipCache();
+      }
+      return result;
     } catch (operationError) {
       this.logger.error(operationError);
       return {
@@ -251,9 +258,15 @@ export class StartingBlocksServiceV2 {
     const metaOds = metaTenant.odss?.find((o) => o.name === odsName);
 
     try {
-      return await this.entityManager.transaction((em) =>
+      const result = await this.entityManager.transaction((em) =>
         persistSyncOds({ em, ods: { ...metaOds, dbName: metaOds.dbname }, edfiTenant })
       );
+      // See syncTenantResourceTree above for why this flushes here rather
+      // than at each call site.
+      if (result.status === 'SUCCESS' && result.data.hasChanges) {
+        this.flushOwnershipCache();
+      }
+      return result;
     } catch (operationError) {
       this.logger.error(operationError);
       return {
@@ -310,6 +323,8 @@ export class StartingBlocksServiceV2 {
             success = false;
             return;
           }
+          // syncTenantResourceTree already flushes internally when it has
+          // changes, covering this loop too.
           if (!(tenant.name in resultsByTenant)) {
             resultsByTenant[tenant.name] = { action: null, hasChanges: false };
           }
@@ -473,6 +488,7 @@ export class StartingBlocksServiceV2 {
     if (syncResult.status !== 'SUCCESS') {
       return syncResult;
     }
+    // syncOdsResourceTree already flushes internally when it has changes.
     return {
       status: 'SUCCESS' as const,
       data: undefined,
@@ -495,6 +511,9 @@ export class StartingBlocksServiceV2 {
     const result = await this.entityManager.transaction((em) =>
       persistSyncDeleteOds({ ods, edfiTenant, em })
     );
+    if (result.status === 'SUCCESS' && result.data.hasChanges) {
+      this.flushOwnershipCache();
+    }
     return result;
   }
   async createEdorg(sbEnvironment: SbEnvironment, edfiTenant: EdfiTenant, dto: AddEdorgDtoV2) {
@@ -506,6 +525,7 @@ export class StartingBlocksServiceV2 {
     if (syncResult.status !== 'SUCCESS') {
       return syncResult;
     }
+    // syncTenantResourceTree already flushes internally when it has changes.
     return {
       status: 'SUCCESS' as const,
       data: undefined,
@@ -530,6 +550,7 @@ export class StartingBlocksServiceV2 {
     if (syncResult.status !== 'SUCCESS') {
       return syncResult;
     }
+    // syncTenantResourceTree already flushes internally when it has changes.
     return {
       status: 'SUCCESS' as const,
       data: undefined,
