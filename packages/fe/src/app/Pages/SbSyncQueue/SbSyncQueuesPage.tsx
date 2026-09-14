@@ -141,6 +141,40 @@ export const SbSyncQueuesTable = ({
     pageSize: paginationParams.pageSize ?? 10,
   };
 
+  // Pending state is checked against this separately, NOT against `queueData`
+  // below: `queueData` is scoped to whatever page/sort/column-filter the user
+  // currently has selected, so a pending row sitting on another page (or
+  // excluded by the user's own filter/sort) would make `queueData` alone look
+  // like nothing is pending, stopping all polling and permanently skipping
+  // `onSyncSettled` for that job. This query only applies `defaultFilters`
+  // (the caller's base scope, e.g. sbEnvironmentId) and fetches a page large
+  // enough to cover realistic queue depths, independent of the user's own
+  // table state.
+  const pendingCheckPageSize = 1000;
+  const pendingCheckData = useQuery({
+    queryKey: [
+      ...queryKey({
+        resourceName: 'SbSyncQueue',
+        id: makeDataUrl(0, [], defaultFilters, pendingCheckPageSize),
+      }),
+      'pending-check',
+    ],
+    queryFn: () => fetchSyncQueues(0, [], defaultFilters, pendingCheckPageSize),
+    // Also keep polling on its own error (see `queueData` below for why),
+    // rather than going silent forever after a single failed check.
+    refetchInterval: (query) =>
+      hasPendingSyncQueueRows(query.state.data) || query.state.error
+        ? syncQueuePollingIntervalMs
+        : false,
+  });
+  const isAutoRefreshing = hasPendingSyncQueueRows(pendingCheckData.data);
+  const wasPendingRef = useRef(false);
+  useEffect(() => {
+    if (wasPendingRef.current && !isAutoRefreshing) {
+      onSyncSettled?.();
+    }
+    wasPendingRef.current = isAutoRefreshing;
+  }, [isAutoRefreshing, onSyncSettled]);
   const queueData = useQuery({
     queryKey: queryKey({
       resourceName: 'SbSyncQueue',
@@ -159,17 +193,15 @@ export const SbSyncQueuesTable = ({
         paginationState.pageSize
       ),
     placeholderData: keepPreviousData,
+    // Poll while anything matching the base scope is pending, not just while
+    // this specific page/sort/filter view happens to show a pending row --
+    // see `pendingCheckData` above.
+    // Also keep polling while this specific query is erroring, so "retrying"
+    // in the error message below is actually true rather than a one-shot
+    // failure that never gets attempted again.
     refetchInterval: (query) =>
-      hasPendingSyncQueueRows(query.state.data) ? syncQueuePollingIntervalMs : false,
+      isAutoRefreshing || query.state.error ? syncQueuePollingIntervalMs : false,
   });
-  const wasPendingRef = useRef(false);
-  useEffect(() => {
-    const isPending = hasPendingSyncQueueRows(queueData.data);
-    if (wasPendingRef.current && !isPending) {
-      onSyncSettled?.();
-    }
-    wasPendingRef.current = isPending;
-  }, [queueData.data, onSyncSettled]);
   const facetedValues = useQuery({
     queryKey: [
       ...queryKey({
@@ -180,13 +212,13 @@ export const SbSyncQueuesTable = ({
     ],
     queryFn: () => fetchSyncQueueFacetedValuess(columnFilters),
     placeholderData: keepPreviousData,
-    // Same environment/tenant scope as `queueData` above, so poll in lockstep to avoid
-    // stale filter option counts while rows are still in-flight.
-    refetchInterval: () =>
-      hasPendingSyncQueueRows(queueData.data) ? syncQueuePollingIntervalMs : false,
+    // Same scope as `pendingCheckData` above, so poll in lockstep to avoid
+    // stale filter option counts while rows are still in-flight. Also keeps
+    // retrying on its own error, same reasoning as `queueData` above.
+    refetchInterval: (query) =>
+      isAutoRefreshing || query.state.error ? syncQueuePollingIntervalMs : false,
   });
-  const isAutoRefreshing = hasPendingSyncQueueRows(queueData.data);
-  const hasRefreshError = queueData.isError || facetedValues.isError;
+  const hasRefreshError = queueData.isError || facetedValues.isError || pendingCheckData.isError;
 
   return (
     <SbaaTableProviderServerSide
