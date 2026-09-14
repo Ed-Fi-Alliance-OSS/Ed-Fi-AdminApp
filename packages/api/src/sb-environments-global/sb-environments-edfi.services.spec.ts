@@ -266,7 +266,14 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v3)', () => {
     // Both the initial load and the post-update reload must use the 3-level-deep
     // relations shape TypeORM 1.1.0 requires — a flattened or misnested object here
     // would compile but silently return environments with missing tenants/ODS/edorgs.
-    expect(sbEnvironmentsRepository.findOne).toHaveBeenCalledWith({
+    // Asserted per-call (not toHaveBeenCalledWith) so a regression in either the
+    // initial load or the reload specifically is caught, not masked by the other.
+    expect(sbEnvironmentsRepository.findOne).toHaveBeenCalledTimes(2);
+    expect(sbEnvironmentsRepository.findOne).toHaveBeenNthCalledWith(1, {
+      where: { id: 5 },
+      relations: { edfiTenants: { odss: { edorgs: true } } },
+    });
+    expect(sbEnvironmentsRepository.findOne).toHaveBeenNthCalledWith(2, {
       where: { id: 5 },
       relations: { edfiTenants: { odss: { edorgs: true } } },
     });
