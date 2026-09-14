@@ -3,8 +3,7 @@
 Date: 2026-09-14
 
 Branch base: **AC-618** (TypeORM 0.3.31 → 1.1.0 bump, not yet merged to
-`main`). This work should branch from AC-618 and ship against TypeORM 1.1.0,
-not current `main`.
+`main`).
 
 ## Background
 
@@ -26,7 +25,7 @@ ResourceClaims. Admin App's `admin-api.v1/v2/v3.controller.ts` proxy these to
 the real upstream Admin API, then filter the result in app code with
 `checkId(id, validIds)`.
 
-Constraints (verified against `C:\dev\ed-fi\ODS-Admin-API`, the reference
+Constraints (verified against `ODS-Admin-API`, the reference
 Admin API 2.3 source):
 
 - **v1**: upstream only supports `offset`/`limit` (`CommonQueryParams`),
