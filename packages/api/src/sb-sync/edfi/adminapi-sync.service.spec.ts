@@ -408,7 +408,7 @@ describe('AdminApiSyncService', () => {
             name: 'tenant-one',
             sbEnvironmentId: 1,
           },
-          relations: ['odss', 'odss.edorgs'],
+          relations: { odss: { edorgs: true } },
         });
         expect(edfiTenantsRepository.save).not.toHaveBeenCalled();
       });
@@ -919,6 +919,13 @@ describe('AdminApiSyncService', () => {
 
         expect(result.status).toBe('ERROR');
         expect(result.message).toContain('Tenant not found or missing environment');
+        // Regression guard for the TypeORM 1.1.0 relations conversion: a misnested or
+        // omitted `relations` option here would still resolve (mocked), silently
+        // returning a tenant without sbEnvironment loaded in a real DB.
+        expect(edfiTenantsRepository.findOne).toHaveBeenCalledWith({
+          where: { id: mockEdfiTenant.id },
+          relations: { sbEnvironment: true },
+        });
       });
 
       it('should return ERROR when tenant has no environment', async () => {
