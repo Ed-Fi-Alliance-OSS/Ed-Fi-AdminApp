@@ -5,7 +5,10 @@ import { getRepositoryToken } from '@nestjs/typeorm';
 import { SbEnvironment, EdfiTenant } from '@edanalytics/models-server';
 import { SbSyncConsumer } from './sb-sync.consumer';
 import { AdminApiSyncService } from './edfi/adminapi-sync.service';
-import { StartingBlocksServiceV1, StartingBlocksServiceV2 } from '../teams/edfi-tenants/starting-blocks';
+import {
+  StartingBlocksServiceV1,
+  StartingBlocksServiceV2,
+} from '../teams/edfi-tenants/starting-blocks';
 import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.service';
 import { ENV_SYNC_CHNL } from './sb-sync.module';
 
@@ -41,9 +44,7 @@ describe('SbSyncConsumer — SYNC_SCHEDULER_CHNL', () => {
     };
 
     sbEnvironmentsRepository = {
-      createQueryBuilder: jest.fn()
-        .mockReturnValueOnce(qbSb)
-        .mockReturnValueOnce(qbAdminApi),
+      createQueryBuilder: jest.fn().mockReturnValueOnce(qbSb).mockReturnValueOnce(qbAdminApi),
     };
 
     jobQueue = {
@@ -58,7 +59,10 @@ describe('SbSyncConsumer — SYNC_SCHEDULER_CHNL', () => {
       providers: [
         SbSyncConsumer,
         { provide: getRepositoryToken(SbEnvironment), useValue: sbEnvironmentsRepository },
-        { provide: getRepositoryToken(EdfiTenant), useValue: { findOne: jest.fn(), find: jest.fn() } },
+        {
+          provide: getRepositoryToken(EdfiTenant),
+          useValue: { findOne: jest.fn(), find: jest.fn() },
+        },
         { provide: 'IJobQueueService', useValue: jobQueue },
         { provide: StartingBlocksServiceV1, useValue: {} },
         { provide: StartingBlocksServiceV2, useValue: {} },
@@ -75,7 +79,7 @@ describe('SbSyncConsumer — SYNC_SCHEDULER_CHNL', () => {
     expect(jobQueue.send).toHaveBeenCalledWith(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: adminApiEnv.id },
-      { singletonKey: String(adminApiEnv.id), expireInHours: 1 }
+      { singletonKey: String(adminApiEnv.id), expireInHours: 1 },
     );
   });
 
@@ -83,7 +87,7 @@ describe('SbSyncConsumer — SYNC_SCHEDULER_CHNL', () => {
     expect(jobQueue.send).toHaveBeenCalledWith(
       ENV_SYNC_CHNL,
       { sbEnvironmentId: sbEnv.id },
-      { singletonKey: String(sbEnv.id), expireInHours: 1 }
+      { singletonKey: String(sbEnv.id), expireInHours: 1 },
     );
   });
 });
@@ -108,9 +112,7 @@ describe('SbSyncConsumer — refreshSbEnvironment', () => {
     };
 
     sbEnvironmentsRepository = {
-      createQueryBuilder: jest.fn()
-        .mockReturnValueOnce(qbSbNull)
-        .mockReturnValueOnce(qbAdminApi),
+      createQueryBuilder: jest.fn().mockReturnValueOnce(qbSbNull).mockReturnValueOnce(qbAdminApi),
     };
 
     adminapiSyncService = {
@@ -121,8 +123,19 @@ describe('SbSyncConsumer — refreshSbEnvironment', () => {
       providers: [
         SbSyncConsumer,
         { provide: getRepositoryToken(SbEnvironment), useValue: sbEnvironmentsRepository },
-        { provide: getRepositoryToken(EdfiTenant), useValue: { findOne: jest.fn(), find: jest.fn() } },
-        { provide: 'IJobQueueService', useValue: { createQueue: jest.fn(), schedule: jest.fn(), work: jest.fn(), start: jest.fn() } },
+        {
+          provide: getRepositoryToken(EdfiTenant),
+          useValue: { findOne: jest.fn(), find: jest.fn() },
+        },
+        {
+          provide: 'IJobQueueService',
+          useValue: {
+            createQueue: jest.fn(),
+            schedule: jest.fn(),
+            work: jest.fn(),
+            start: jest.fn(),
+          },
+        },
         { provide: StartingBlocksServiceV1, useValue: {} },
         { provide: StartingBlocksServiceV2, useValue: {} },
         { provide: MetadataService, useValue: {} },
@@ -175,7 +188,15 @@ describe('SbSyncConsumer — refreshEdfiTenant', () => {
         SbSyncConsumer,
         { provide: getRepositoryToken(SbEnvironment), useValue: {} },
         { provide: getRepositoryToken(EdfiTenant), useValue: edfiTenantsRepository },
-        { provide: 'IJobQueueService', useValue: { createQueue: jest.fn(), schedule: jest.fn(), work: jest.fn(), start: jest.fn() } },
+        {
+          provide: 'IJobQueueService',
+          useValue: {
+            createQueue: jest.fn(),
+            schedule: jest.fn(),
+            work: jest.fn(),
+            start: jest.fn(),
+          },
+        },
         { provide: StartingBlocksServiceV1, useValue: {} },
         { provide: StartingBlocksServiceV2, useValue: {} },
         { provide: MetadataService, useValue: metadataService },
@@ -197,6 +218,11 @@ describe('SbSyncConsumer — refreshEdfiTenant', () => {
         message: 'appsettings tenancy config is invalid',
         data: { status: 'ADMIN_API_MISCONFIGURED' },
       }),
+    });
+
+    expect(edfiTenantsRepository.findOne).toHaveBeenCalledWith({
+      where: { id: edfiTenant.id },
+      relations: { sbEnvironment: true },
     });
   });
 });
