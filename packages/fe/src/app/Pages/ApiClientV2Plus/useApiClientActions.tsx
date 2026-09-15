@@ -140,6 +140,23 @@ export const useSingleApiClientActions = ({
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: (result) => {
+                        // Same fix as the put mutation in EditApiClient.tsx: resetCreds'
+                        // custom `path` (queries.v7.ts) doubles as the builder's default
+                        // invalidation key, which never matches the Credentials list's
+                        // `?applicationId=...` key (ApiClientsPage.tsx via
+                        // `queries.getAll`). Recompute the exact list key instead,
+                        // matching the working Delete pattern below.
+                        queryClient.invalidateQueries({
+                          queryKey: queries.getAll(
+                            {
+                              teamId: asId,
+                              edfiTenant,
+                            },
+                            {
+                              applicationId,
+                            },
+                          ).queryKey,
+                        });
                         navigate(toView, { state: result });
                       },
                     },
