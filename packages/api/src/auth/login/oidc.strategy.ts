@@ -2,7 +2,9 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-import { BaseClient, Issuer, Strategy, TokenSet, UserinfoResponse } from 'openid-client';
+import type * as express from 'express';
+import * as client from 'openid-client';
+import { Strategy } from 'openid-client/build/passport.js';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
@@ -13,6 +15,27 @@ export interface OidcLoginInfo {
 }
 
 const DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS = 10000;
+
+type StrategyAuthenticateOptions = Parameters<Strategy['authenticate']>[1] & {
+  state?: string;
+};
+
+class AdminAppOidcStrategy extends Strategy {
+  override authorizationRequestParams(req: express.Request, options: StrategyAuthenticateOptions) {
+    const params = super.authorizationRequestParams(req, options);
+    if (typeof options?.state !== 'string' || options.state === '') {
+      return params;
+    }
+    if (params instanceof URLSearchParams) {
+      params.set('state', options.state);
+      return params;
+    }
+    return {
+      ...(params ?? {}),
+      state: options.state,
+    };
+  }
+}
 
 /**
  * Discovers and registers the configured OIDC providers at startup: it loads
@@ -61,7 +84,7 @@ export class OidcIdpBootstrapper implements OnModuleInit {
    * provider cannot stall application bootstrap. Rejects when the provider does
    * not answer within the configured budget.
    */
-  private async discoverWithTimeout(discoveryUrl: string, timeoutMs: number): Promise<Issuer> {
+  private async discoverWithTimeout(oidcConfig: Oidc, timeoutMs: number): Promise<client.Configuration> {
     let timer: NodeJS.Timeout | undefined;
     const timeout = new Promise<never>((_resolve, reject) => {
       timer = setTimeout(
@@ -70,7 +93,14 @@ export class OidcIdpBootstrapper implements OnModuleInit {
       );
     });
     try {
-      return await Promise.race([Issuer.discover(discoveryUrl), timeout]);
+      return await Promise.race([
+        client.discovery(
+          new URL(oidcConfig.issuer),
+          oidcConfig.clientId,
+          oidcConfig.clientSecret ? { client_secret: oidcConfig.clientSecret } : undefined
+        ),
+        timeout,
+      ]);
     } finally {
       if (timer) {
         clearTimeout(timer);
@@ -79,37 +109,35 @@ export class OidcIdpBootstrapper implements OnModuleInit {
   }
 
   private async registerIdp(oidcConfig: Oidc): Promise<void> {
-    let client: BaseClient;
+    let oidcClient: client.Configuration;
     try {
       const timeoutMs = config.OIDC_DISCOVERY_TIMEOUT_MS ?? DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS;
-      const trustIssuer = await this.discoverWithTimeout(
-        `${oidcConfig.issuer}/.well-known/openid-configuration`,
-        timeoutMs
-      );
-      client = new trustIssuer.Client({
-        client_id: oidcConfig.clientId,
-        client_secret: oidcConfig.clientSecret,
-      });
+      oidcClient = await this.discoverWithTimeout(oidcConfig, timeoutMs);
     } catch (err) {
       this.registry.markFailed(oidcConfig.id);
       Logger.error(`Error registering OIDC provider ${oidcConfig.issuer}: ${err}`);
       return;
     }
 
-    const strategy = new Strategy(
+    const strategy = new AdminAppOidcStrategy(
       {
-        client,
-        params: {
-          redirect_uri: `${config.MY_URL_API_PATH}/auth/callback/${oidcConfig.id}`,
-          scope: oidcConfig.scope,
-        },
-        usePKCE: config.USE_PKCE,
+        config: oidcClient,
+        callbackURL: `${config.MY_URL_API_PATH}/auth/callback/${oidcConfig.id}`,
+        scope: oidcConfig.scope,
       },
       async (
-        tokenset: TokenSet,
-        userinfo: UserinfoResponse,
+        tokenset: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
         done: (err: Error | null, user?: User | false, info?: OidcLoginInfo) => void
       ) => {
+        if (typeof tokenset.access_token !== 'string' || tokenset.access_token === '') {
+          throw new Error('Missing access token from IdP');
+        }
+        const userinfo = await client.fetchUserInfo(
+          oidcClient,
+          tokenset.access_token,
+          tokenset.claims()?.sub ?? client.skipSubjectCheck
+        );
+
         let username: string;
         if (typeof userinfo.email !== 'string' || userinfo.email === '') {
           throw new Error('Invalid email from IdP');
@@ -139,7 +167,9 @@ export class OidcIdpBootstrapper implements OnModuleInit {
             }
             // Pass the id_token along so the login callback can store it on the
             // session for use as id_token_hint during RP-Initiated Logout
-            return done(null, user, { idToken: tokenset.id_token });
+            return done(null, user, {
+              idToken: typeof tokenset.id_token === 'string' ? tokenset.id_token : undefined,
+            });
           }
         } catch (err) {
           Logger.error(`Database error during authentication for user [${username}]:`, err);
@@ -149,7 +179,7 @@ export class OidcIdpBootstrapper implements OnModuleInit {
       }
     );
     Logger.log(`Registering OIDC provider ${oidcConfig.issuer} with id ${oidcConfig.id}`);
-    this.registry.register(oidcConfig.id, client);
+    this.registry.register(oidcConfig.id, oidcClient);
     passport.use(`oidc-${oidcConfig.id}`, strategy);
   }
 }

@@ -1,4 +1,24 @@
 import 'reflect-metadata';
+jest.mock('openid-client', () => ({
+  discovery: jest.fn(),
+  fetchUserInfo: jest.fn(),
+  buildEndSessionUrl: jest.fn(),
+  skipSubjectCheck: Symbol('skipSubjectCheck'),
+}));
+jest.mock('openid-client/build/passport.js', () => ({
+  Strategy: class MockStrategy {
+    _verify: unknown;
+
+    constructor(_options: unknown, verify: unknown) {
+      this._verify = verify;
+    }
+
+    authorizationRequestParams() {
+      return new URLSearchParams();
+    }
+  },
+}));
+
 import { BadRequestException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import passport from 'passport';

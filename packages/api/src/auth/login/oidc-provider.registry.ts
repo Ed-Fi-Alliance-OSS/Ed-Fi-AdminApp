@@ -1,6 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import config from 'config';
-import { BaseClient } from 'openid-client';
+import * as client from 'openid-client';
 
 /**
  * Holds the OIDC clients discovered at startup and answers the logout-related
@@ -10,7 +10,7 @@ import { BaseClient } from 'openid-client';
  */
 @Injectable()
 export class OidcProviderRegistry {
-  private readonly clients = new Map<number, BaseClient>();
+  private readonly clients = new Map<number, client.Configuration>();
 
   // Number of providers found in configuration, regardless of whether their
   // discovery/registration ultimately succeeded. Lets us tell "one provider
@@ -29,8 +29,8 @@ export class OidcProviderRegistry {
     return this.configuredProviderCount;
   }
 
-  register(oidcId: number, client: BaseClient): void {
-    this.clients.set(oidcId, client);
+  register(oidcId: number, oidcConfig: client.Configuration): void {
+    this.clients.set(oidcId, oidcConfig);
   }
 
   markFailed(oidcId: number): void {
@@ -67,8 +67,8 @@ export class OidcProviderRegistry {
    * (e.g. Google), in which case only a local logout is possible.
    */
   getEndSessionUrl(oidcId: number, idToken?: string): string | null {
-    const client = this.clients.get(oidcId);
-    if (!client) {
+    const oidcConfig = this.clients.get(oidcId);
+    if (!oidcConfig) {
       // The provider the session logged in with is not registered (never
       // configured, or failed discovery at startup). This is distinct from a
       // healthy provider that simply exposes no end_session_endpoint, so it is
@@ -76,13 +76,14 @@ export class OidcProviderRegistry {
       Logger.warn(`Cannot build end-session URL: OIDC provider ${oidcId} is not registered`);
       return null;
     }
-    if (!client.issuer.metadata.end_session_endpoint) {
+    if (!oidcConfig.serverMetadata().end_session_endpoint) {
       return null;
     }
-    return client.endSessionUrl({
-      id_token_hint: idToken,
-      post_logout_redirect_uri: `${config.MY_URL_API_PATH}/auth/post-logout`,
-      client_id: client.metadata.client_id,
-    });
+    return client
+      .buildEndSessionUrl(oidcConfig, {
+        ...(idToken ? { id_token_hint: idToken } : {}),
+        post_logout_redirect_uri: `${config.MY_URL_API_PATH}/auth/post-logout`,
+      })
+      .toString();
   }
 }

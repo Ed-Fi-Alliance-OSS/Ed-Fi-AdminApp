@@ -14,7 +14,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, In, IsNull, Not, Repository, TreeRepository } from 'typeorm';
 import * as jose from 'jose';
 import { type ProtectedHeaderParameters, type JWTPayload } from 'jose';
-import { Issuer } from 'openid-client';
+import * as oidcClient from 'openid-client';
 import { CacheService } from '../app/cache.module';
 import {
   cacheAccordingToPrivileges,
@@ -744,9 +744,20 @@ export class AuthService {
       }
 
       this._jwks = new Promise((resolve) => {
-        Issuer.discover(AUTH0_CONFIG_SECRET.ISSUER)
-          .then((issuer) =>
-            fetch(issuer.metadata.jwks_uri).then((response) =>
+        oidcClient
+          .discovery(
+            new URL(AUTH0_CONFIG_SECRET.ISSUER),
+            AUTH0_CONFIG_SECRET.CLIENT_ID || 'adminapp',
+            AUTH0_CONFIG_SECRET.CLIENT_SECRET
+              ? { client_secret: AUTH0_CONFIG_SECRET.CLIENT_SECRET }
+              : undefined
+          )
+          .then((issuer) => {
+            const jwksUri = issuer.serverMetadata().jwks_uri;
+            if (!jwksUri) {
+              throw new Error('OIDC issuer metadata does not define jwks_uri');
+            }
+            return fetch(jwksUri).then((response) =>
               response.json().then(async (jwks) => {
                 const out: Record<string, CryptoKey | Uint8Array> = {};
                 for (let i = 0; i < jwks.keys.length; i++) {
@@ -755,8 +766,8 @@ export class AuthService {
                 }
                 resolve(out);
               })
-            )
-          )
+            );
+          })
           .catch((error) => {
             Logger.error(
               `Error fetching JWKS from ${AUTH0_CONFIG_SECRET.ISSUER}. Check the ISSUER configuration.`,
