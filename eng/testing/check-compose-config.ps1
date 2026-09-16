@@ -58,6 +58,38 @@ if ($composeFiles.Count -eq 0) {
   throw "No compose files found in $composeDir."
 }
 
+# Isolate Compose interpolation from the caller's environment.
+#
+# `--env-file` does NOT make Compose ignore exported variables - the shell environment
+# takes PRECEDENCE over the env file. So an exported POSTGRES_USER silently changes the
+# rendered healthcheck commands (a spurious golden failure), an exported MSSQL_SA_PASSWORD
+# suppresses the warning the self-test below depends on (a spurious self-test failure that
+# blames Compose for rewording), and any other exported name can mask a variable that
+# compose/.env.example fails to declare.
+#
+# Only names the compose files actually interpolate are cleared, so PATH, DOCKER_HOST and
+# everything else the Docker CLI needs are left untouched. Restored in the finally block.
+$referencedVars = $composeFiles |
+  ForEach-Object { [regex]::Matches((Get-Content $_.FullName -Raw), '\$\{([A-Za-z_][A-Za-z0-9_]*)') } |
+  ForEach-Object { $_.Groups[1].Value } |
+  Sort-Object -Unique
+
+$savedEnv = @{}
+foreach ($name in $referencedVars) {
+  $existing = [Environment]::GetEnvironmentVariable($name)
+  if ($null -ne $existing) {
+    $savedEnv[$name] = $existing
+    Remove-Item "Env:$name" -ErrorAction SilentlyContinue
+  }
+}
+if ($savedEnv.Count -gt 0) {
+  # Say so rather than silently ignoring them, or the developer wonders why their export
+  # had no effect.
+  Write-Host (
+    "Ignoring $($savedEnv.Count) exported variable(s) so the check reads compose/.env.example " +
+    "only: $(($savedEnv.Keys | Sort-Object) -join ', ')") -ForegroundColor DarkGray
+}
+
 # MSSQL_SA_PASSWORD is intentionally undeclared: it has no default and must be supplied
 # by the operator, or by eng/testing/run-e2e-ui.ps1 for the E2E run. Matched on the full
 # quoted name so a longer variable (MSSQL_SA_PASSWORD_FILE) is not swallowed too.
@@ -230,6 +262,9 @@ try {
 }
 finally {
   Pop-Location
+  foreach ($entry in $savedEnv.GetEnumerator()) {
+    [Environment]::SetEnvironmentVariable($entry.Key, $entry.Value)
+  }
 }
 
 if ($failed) {

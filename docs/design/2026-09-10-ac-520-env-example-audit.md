@@ -89,9 +89,10 @@ the *host* environment. Declaring it in `.env` would desync the created database
 ## CI coupling — constrains any reformat
 
 `eng/testing/run-e2e-ui.ps1:132–175` (`Set-AdminAppEnvFile`) regenerates `compose/.env` from this
-file on every E2E run and, for `-DbEngine mssql`, line-regex patches it. It **throws** if fewer than
-6 substitutions fire (raised to 7 by this change — see [Resolution](#resolution)). These 7 lines must
-survive byte-for-byte:
+file on every E2E run and, for `-DbEngine mssql`, line-regex patches it. Each of its seven rewrites
+is counted separately and must match **exactly once**; anything else throws, naming the pattern and
+its count (see [Resolution](#resolution) — it previously required only an aggregate of 6). These 7
+lines must survive byte-for-byte, and none may be duplicated:
 
 ```
 DB_ENGINE=pgsql
@@ -112,7 +113,7 @@ DB_SECRET_VALUE={"DB_HOST"…
 - `packages/api/typings/config.d.ts:99` types `CERT_BRUNO_ON_DOWNLOAD_ERROR` as
   `'error' | 'warn' | 'skip'`, but code and config use `'error' | 'warning'`.
 - ~~`eng/testing/run-e2e-ui.ps1:173` sets `$expectedSubstitutions = 6` against 7 patterns~~ — pulled
-  into scope and fixed, see [Resolution](#resolution).
+  into scope and fixed. The aggregate counter is gone entirely; see [Resolution](#resolution).
 - Values duplicated between `ADMIN_APP_DB_NAME` / `POSTGRES_USER` / `POSTGRES_PASSWORD` and the JSON
   inside `DB_SECRET_VALUE`, which must be kept in sync by hand.
 
@@ -149,10 +150,13 @@ DB_SECRET_VALUE={"DB_HOST"…
 - **The tag-pinning instruction contradicted itself** ("comment the active line out *and* uncomment
   the digest below — the alternative must come last"). Reworded to one action, with the last-key-wins
   mechanism stated inline rather than 60 lines away in the header.
-- **`$expectedSubstitutions` raised from 6 to 7** (`eng/testing/run-e2e-ui.ps1`). The slack mattered
-  because `MSSQL_IMAGE_TAG`, `MSSQL_PORT_EXPOSED` and `MSSQL_ACCEPT_EULA` have compose defaults
-  identical to the values the patcher writes, so a broken regex on any of those three would have
-  produced no observable difference.
+- **The aggregate substitution counter was replaced by per-pattern counters**
+  (`eng/testing/run-e2e-ui.ps1`). It first went from 6 to 7, but a total cannot distinguish "all
+  seven fired once" from "one line duplicated and another removed" — both sum to 7. Each rewrite now
+  has its own counter and must match exactly once, which also rejects a duplicated key. The original
+  slack mattered because `MSSQL_IMAGE_TAG`, `MSSQL_PORT_EXPOSED` and `MSSQL_ACCEPT_EULA` have compose
+  defaults identical to the values the patcher writes, so a broken regex on any of those three would
+  have produced no observable difference.
 
 ### Follow-on: healthcheck definitions consolidated
 
@@ -245,8 +249,9 @@ docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.ym
 - **All 11 healthcheck sites render the same strings**, including the `--header="tenant: tenant1"`
   variant — compose-go's dotenv unescapes `\"` to `"`, so the old quoted `.env` value and the new
   single-quoted YAML scalar resolve identically, double space and all.
-- **All 7 `Set-AdminAppEnvFile` regexes still match, and 7/7 substitutions fire** against the new
-  file — verified by replaying the actual `switch -Regex` block.
+- **All 7 `Set-AdminAppEnvFile` regexes match exactly once each** against the new file — verified by
+  replaying the actual `switch -Regex` block, including negative cases: a duplicated key and a
+  removed key each fail, naming the pattern and its count.
 - **Zero dangling references**: none of the 14 removed variables appears anywhere in `compose/`,
   `eng/`, `packages/` or `.github/`. The only surviving mentions repo-wide are prose in
   `docs/design/custom-ods-db-container-summary.md` and this document.

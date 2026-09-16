@@ -182,15 +182,15 @@ commit in four that touched these files would have needed it.
 The short version: add it, run `npm run compose:check`, and let the failure tell you what is missing.
 The full picture, since a variable can reach further than Compose:
 
-| What you are doing                                | What to update                                                                                                                                 |
-| ------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
-| New variable referenced as `${VAR}` (no default)  | `compose/.env.example` — **required**, the check fails otherwise                                                                               |
-| New variable referenced as `${VAR:-default}`      | `compose/.env.example` as a commented entry, per that file's own convention. The check will **not** catch omitting it                          |
-| The variable appears inside a healthcheck command | Regenerate the golden                                                                                                                          |
-| New service that has a healthcheck                | Regenerate the golden                                                                                                                          |
-| New API runtime setting read through `config`     | `packages/api/config/custom-environment-variables.js`, or the environment variable is silently ignored, plus `packages/api/config/default.js`  |
-| New `VITE_*` frontend setting                     | The `edfiadminapp-fe` `environment:` block in `compose/adminapp-services.yml`, `packages/fe/typings/env.d.ts`, and `packages/fe/entrypoint.sh` |
-| A variable the SQL Server E2E leg must patch      | `Set-AdminAppEnvFile` in `eng/testing/run-e2e-ui.ps1`, **and** bump `$expectedSubstitutions` to match                                          |
+| What you are doing                                | What to update                                                                                                                                                     |
+| ------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| New variable referenced as `${VAR}` (no default)  | `compose/.env.example` — **required**, the check fails otherwise                                                                                                   |
+| New variable referenced as `${VAR:-default}`      | `compose/.env.example` as a commented entry, per that file's own convention. The check will **not** catch omitting it                                              |
+| The variable appears inside a healthcheck command | Regenerate the golden                                                                                                                                              |
+| New service that has a healthcheck                | Regenerate the golden                                                                                                                                              |
+| New API runtime setting read through `config`     | `packages/api/config/custom-environment-variables.js`, or the environment variable is silently ignored, plus `packages/api/config/default.js`                      |
+| New `VITE_*` frontend setting                     | The `edfiadminapp-fe` `environment:` block in `compose/adminapp-services.yml`, `packages/fe/typings/env.d.ts`, and `packages/fe/entrypoint.sh`                     |
+| A variable the SQL Server E2E leg must patch      | `Set-AdminAppEnvFile` in `eng/testing/run-e2e-ui.ps1` — add a `$fired` entry **and** the matching `switch -Regex` case, so the new rewrite is checked exactly once |
 
 ## Troubleshooting
 
