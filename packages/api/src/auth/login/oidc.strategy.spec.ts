@@ -29,7 +29,7 @@ jest.mock('openid-client', () => {
     skipSubjectCheck: Symbol('skipSubjectCheck'),
   };
 });
-jest.mock('openid-client/build/passport.js', () => ({
+jest.mock('openid-client/passport', () => ({
   Strategy: class MockStrategy {
     _verify: unknown;
 

@@ -4,7 +4,7 @@ import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import type * as express from 'express';
 import * as client from 'openid-client';
-import { Strategy } from 'openid-client/build/passport.js';
+import { Strategy } from 'openid-client/passport';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
