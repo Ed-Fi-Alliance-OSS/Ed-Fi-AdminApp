@@ -254,7 +254,7 @@ docker compose -f edfi-services.yml -f nginx-compose.yml -f adminapp-services.ym
 The healthcheck anchor consolidation was verified the same way, separately:
 
 - **Every service definition renders identically.** `diff` between the before and after renders is
-  empty once the six top-level `x-healthcheck-*` keys are excluded, for both the `postgresql` and
+  empty once the four top-level `x-healthcheck-*` keys are excluded, for both the `postgresql` and
   `mssql` profile sets. Those keys are the sole difference: Compose echoes them back in `config`
   output and ignores them at runtime.
 

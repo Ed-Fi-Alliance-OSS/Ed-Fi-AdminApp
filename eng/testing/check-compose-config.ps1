@@ -58,17 +58,6 @@ if ($composeFiles.Count -eq 0) {
   throw "No compose files found in $composeDir."
 }
 
-# Profiles declared anywhere in those files, plus the implicit no-profile services.
-$profiles = $composeFiles |
-  ForEach-Object { Select-String -Path $_.FullName -Pattern '^\s*-\s+([a-z0-9_-]+)\s*$' -Context 1, 0 } |
-  Where-Object { $_.Context.PreContext -match 'profiles:' } |
-  ForEach-Object { $_.Matches[0].Groups[1].Value } |
-  Sort-Object -Unique
-
-if ($profiles.Count -eq 0) {
-  throw 'No compose profiles discovered; expected at least one.'
-}
-
 # MSSQL_SA_PASSWORD is intentionally undeclared: it has no default and must be supplied
 # by the operator, or by eng/testing/run-e2e-ui.ps1 for the E2E run. Matched on the full
 # quoted name so a longer variable (MSSQL_SA_PASSWORD_FILE) is not swallowed too.
@@ -111,6 +100,21 @@ try {
   if ($failed) { exit 1 }
 
   $fileArgs = $composeFiles | ForEach-Object { '-f'; $_.Name }
+
+  # Ask Compose for the profile list instead of scanning the YAML. A text scan only
+  # recognises one shape - the first item of a block list directly under `profiles:` -
+  # and silently misses `profiles: [alpha, beta]` or a second block-list item. A profile
+  # missed here means its services never render, so they would be absent from the
+  # all-profiles golden comparison below without anything failing.
+  $profiles = & docker compose @fileArgs --env-file '.env.example' config --profiles 2>$null |
+    Where-Object { $_ -match '\S' } |
+    Sort-Object -Unique
+  if ($LASTEXITCODE -ne 0 -or -not $profiles) {
+    Write-Failure -Message (
+      'Could not list compose profiles via `docker compose config --profiles`. ' +
+      'Every later assertion depends on that list, so stopping here.')
+    exit 1
+  }
 
   # --- 2. Undeclared variables, per profile -----------------------------------------
   foreach ($profile in $profiles) {
