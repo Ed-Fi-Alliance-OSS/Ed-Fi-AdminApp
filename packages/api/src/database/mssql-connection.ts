@@ -36,9 +36,13 @@ export async function createMssqlConfig(
   return {
     server: urlParts.hostname,
     port: parseInt(urlParts.port) || 1433,
-    database: urlParts.pathname.slice(1),
-    user: urlParts.username,
-    password: urlParts.password,
+    // WHATWG URL hands back userinfo and the path still percent-encoded, so decode before
+    // giving them to the driver. config/default.js encodes them when building the string;
+    // the two must stay in step, or a password containing '@' or '#' silently becomes the
+    // wrong credential and fails as an indistinguishable "Login failed".
+    database: decodeURIComponent(urlParts.pathname.slice(1)),
+    user: decodeURIComponent(urlParts.username),
+    password: decodeURIComponent(urlParts.password),
     options: {
       encrypt: asBool(config.DB_SSL),
       trustServerCertificate: asBool(config.DB_TRUST_CERTIFICATE),

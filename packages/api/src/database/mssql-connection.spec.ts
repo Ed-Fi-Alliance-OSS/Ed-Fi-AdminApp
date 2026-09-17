@@ -101,6 +101,26 @@ describe('createMssqlConfig', () => {
     const result = await createMssqlConfig();
     expect(result.options?.encrypt).toBe(false);
   });
+
+  // SQL Server's complexity rules push operators towards exactly these characters. Encoded
+  // the same way config/default.js encodes them, so this fails if either side stops.
+  // '@' would otherwise split the authority in the wrong place, '#' would truncate at the
+  // fragment, and a bare '%' makes decodeURIComponent throw.
+  it('recovers credentials containing URL-reserved characters', async () => {
+    const user = 'sa@corp';
+    const password = 'Str0ng!P@ss#word/100%';
+    const database = 'sbaa#1';
+
+    mutableConfig.DB_CONNECTION_STRING = `mssql://${encodeURIComponent(
+      user
+    )}:${encodeURIComponent(password)}@edfiadminapp-mssql:1433/${encodeURIComponent(database)}`;
+
+    const result = await createMssqlConfig();
+    expect(result.user).toBe(user);
+    expect(result.password).toBe(password);
+    expect(result.database).toBe(database);
+    expect(result.server).toBe('edfiadminapp-mssql');
+  });
 });
 
 describe('findMissingDatabase', () => {
