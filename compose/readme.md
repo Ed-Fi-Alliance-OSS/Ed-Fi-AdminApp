@@ -188,15 +188,13 @@ To use SQL Server instead of PostgreSQL:
 
 4. **Switching an existing environment**: the SQL Server container creates the Admin App
    database only on its **first** start, while its data directory is still empty. If
-   `vol-edfiadminapp-mssql` already exists from an earlier run, no database is created and the
-   API aborts at startup with instructions in its log. Remove the volume first if you do not
-   need its data:
+   `vol-edfiadminapp-mssql` already exists from an earlier run, the container logs
+   `Creation of db sbaa was requested, but the data directory is not empty, ignoring.`,
+   creates nothing, and the API aborts at startup — see
+   [Admin App database does not exist on SQL Server](#admin-app-database-does-not-exist-on-sql-server).
 
-   ```powershell
-   ./stop.ps1
-   docker volume rm vol-edfiadminapp-mssql
-   ./start-services.ps1 -MSSQL
-   ```
+   Also note `MSSQL_IMAGE_TAG` must be recent enough for the image to honour `MSSQL_DB`;
+   this was verified against `2022-latest` (SQL Server 2022 CU26).
 
 ### Database Management
 
@@ -614,6 +612,48 @@ docker volume rm vol-edfiadminapp-db
 
 After startup, `select version from pgboss.version;` in the `sbaa` database should
 report `31` (or the current pg-boss schema version).
+
+### Admin App database does not exist on SQL Server
+
+If `edfiadminapp-mssql` reports `Up (healthy)` and `sa` logins work, but `edfiadminapp-api`
+aborts at startup with:
+
+```shell
+[Nest] ERROR SQL Server at "edfiadminapp-mssql" is reachable and the credentials are valid,
+             but the database "sbaa" is not available to login "sa".
+[Nest] ERROR Database is not available - API startup aborted
+```
+
+the SQL Server container did not create the database. It only does so on **first** boot,
+while `/var/opt/mssql/data` is still empty — on a volume left over from an earlier run it
+logs `Creation of db sbaa was requested, but the data directory is not empty, ignoring.`
+and creates nothing. Check with:
+
+```powershell
+docker logs edfiadminapp-mssql | Select-String 'Creating database|not empty, ignoring'
+```
+
+Pick one of two fixes. The first keeps your data:
+
+```powershell
+docker exec edfiadminapp-mssql /bin/bash -c '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "CREATE DATABASE [sbaa]"'
+docker restart edfiadminapp-api
+```
+
+The `/bin/bash -c '...'` wrapper matters: `docker exec` runs the binary directly with no
+shell in the container, so without it `$MSSQL_SA_PASSWORD` would be expanded by *your* shell
+(where it is not set) and you would get a misleading `Login failed for user 'sa'.`
+
+The second re-initializes SQL Server from scratch. **This destroys the local `sbaa`
+database**, so only do this in local/dev environments:
+
+```powershell
+./stop.ps1
+docker volume rm vol-edfiadminapp-mssql
+./start-services.ps1 -MSSQL
+```
+
+The API runs its migrations automatically on the next successful start, either way.
 
 ### Error registering OIDC provider
 

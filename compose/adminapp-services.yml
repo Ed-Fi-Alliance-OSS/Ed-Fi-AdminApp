@@ -94,7 +94,10 @@ services:
     # by hand -- that duplicates the image entrypoint and hides this failure.
     # Note: creation only happens while /var/opt/mssql/data is empty. On a pre-existing
     # volume the image logs "data directory is not empty, ignoring" and creates nothing;
-    # the API detects that and explains both remedies (see packages/api/src/main.ts).
+    # the API detects that at startup and prints remediation rather than acting on its own
+    # (packages/api/src/database/mssql-connection.ts).
+    # The behaviour above was verified against mcr.microsoft.com/mssql/server:2022-latest
+    # (2022 CU26). MSSQL_IMAGE_TAG must be new enough for the image to honour MSSQL_DB.
     environment:
       ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
@@ -104,9 +107,12 @@ services:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
       - edfiadminapp-network
-    # $$ escapes to a literal $, so the password is read from the container's own
-    # environment at runtime rather than interpolated by Compose into the container spec
-    # (where it would sit in plaintext in `docker inspect` and break on shell metacharacters).
+    # $$ escapes to a literal $, so the container's own shell expands the password at runtime
+    # instead of Compose interpolating it into this command. That keeps it out of
+    # Healthcheck.Test in the container spec, and -- the reason that matters most -- avoids an
+    # unquoted interpolation that breaks on passwords containing shell metacharacters.
+    # It does NOT make the password secret: `environment:` above still places it in the spec,
+    # visible via `docker inspect`, which the image requires.
     healthcheck:
       test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b -l 10']
       interval: 15s

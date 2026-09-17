@@ -61,8 +61,10 @@ describe('HealthService', () => {
   });
 });
 
-type HealthServiceWithDirectCheck = {
+type HealthServiceInternals = {
   performDirectDatabaseCheck: () => Promise<boolean>;
+  performMssqlCheck: () => Promise<boolean>;
+  performPostgresCheck: () => Promise<boolean>;
 };
 
 // jest.config.ts maps 'config' to src/test/config.mock.ts, which uses `export = config`.
@@ -71,50 +73,65 @@ type HealthServiceWithDirectCheck = {
 const mutableConfig = jest.requireActual('config') as unknown as Record<string, unknown>;
 
 describe('HealthService.performDirectDatabaseCheck', () => {
-  let directService: HealthService;
+  let internals: HealthServiceInternals;
+  let mssqlCheck: jest.SpyInstance;
+  let postgresCheck: jest.SpyInstance;
   const originalEngine = mutableConfig.DB_ENGINE;
-  const originalConnectionString = mutableConfig.DB_CONNECTION_STRING;
 
   beforeEach(async () => {
     const module: TestingModule = await Test.createTestingModule({
       providers: [HealthService],
     }).compile();
-    directService = module.get(HealthService);
+    internals = module.get(HealthService) as unknown as HealthServiceInternals;
+
+    // Stubbing both branches keeps these tests off the network: what is under test is the
+    // engine routing and the guarantee that a boolean always comes back, not the drivers.
+    mssqlCheck = jest.spyOn(internals, 'performMssqlCheck').mockResolvedValue(true);
+    postgresCheck = jest.spyOn(internals, 'performPostgresCheck').mockResolvedValue(true);
   });
 
   afterEach(() => {
     mutableConfig.DB_ENGINE = originalEngine;
-    mutableConfig.DB_CONNECTION_STRING = originalConnectionString;
     jest.restoreAllMocks();
   });
 
-  // Port 1 on loopback: refused immediately, with no DNS lookup. A hostname here (even an
-  // unresolvable one) makes these tests depend on resolver latency, which is fine in isolation
-  // but can exceed Jest's 5s default timeout when the whole suite runs in parallel.
-  const REFUSED = '127.0.0.1:1';
+  it('routes to the MSSQL check when the engine is mssql', async () => {
+    mutableConfig.DB_ENGINE = 'mssql';
+
+    await expect(internals.performDirectDatabaseCheck()).resolves.toBe(true);
+    expect(mssqlCheck).toHaveBeenCalled();
+    expect(postgresCheck).not.toHaveBeenCalled();
+  });
+
+  it('routes to the Postgres check when the engine is pgsql', async () => {
+    mutableConfig.DB_ENGINE = 'pgsql';
+
+    await expect(internals.performDirectDatabaseCheck()).resolves.toBe(true);
+    expect(postgresCheck).toHaveBeenCalled();
+    expect(mssqlCheck).not.toHaveBeenCalled();
+  });
+
+  // The fallthrough is load-bearing: anything that is not mssql must behave as Postgres.
+  it('falls back to the Postgres check for an unrecognised engine', async () => {
+    mutableConfig.DB_ENGINE = undefined;
+
+    await expect(internals.performDirectDatabaseCheck()).resolves.toBe(true);
+    expect(postgresCheck).toHaveBeenCalled();
+    expect(mssqlCheck).not.toHaveBeenCalled();
+  });
 
   // The whole point of this method is to yield a boolean for the healthcheck endpoint.
   // If it throws, the endpoint reports an error instead of an unhealthy database.
-  it('returns false instead of throwing when the MSSQL connection fails', async () => {
-    mutableConfig.DB_ENGINE = 'mssql';
-    mutableConfig.DB_CONNECTION_STRING = `mssql://sa:pw@${REFUSED}/sbaa`;
+  it.each([
+    ['mssql', 'performMssqlCheck'],
+    ['pgsql', 'performPostgresCheck'],
+  ])('returns false instead of throwing when the %s check rejects', async (engine, method) => {
+    mutableConfig.DB_ENGINE = engine;
+    jest
+      .spyOn(internals, method as 'performMssqlCheck' | 'performPostgresCheck')
+      .mockRejectedValue(new Error('connection refused'));
 
-    const result = await (
-      directService as unknown as HealthServiceWithDirectCheck
-    ).performDirectDatabaseCheck();
-
-    expect(result).toBe(false);
-  });
-
-  it('returns false instead of throwing when the Postgres connection fails', async () => {
-    mutableConfig.DB_ENGINE = 'pgsql';
-    mutableConfig.DB_CONNECTION_STRING = `postgres://u:p@${REFUSED}/db`;
-
-    const result = await (
-      directService as unknown as HealthServiceWithDirectCheck
-    ).performDirectDatabaseCheck();
-
-    expect(result).toBe(false);
+    await expect(internals.performDirectDatabaseCheck()).resolves.toBe(false);
   });
 });
 

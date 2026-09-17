@@ -20,7 +20,11 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
-import { createMssqlConfig, isConfiguredDatabaseMissing } from './database/mssql-connection';
+import {
+  createMssqlConfig,
+  describeMissingDatabase,
+  findMissingDatabase,
+} from './database/mssql-connection';
 import { ArtifactService } from './certification/artifact/artifact.service';
 import { CatalogService } from './certification/catalog/catalog.service';
 import { CustomHttpException } from './utils/customExceptions';
@@ -75,23 +79,15 @@ async function checkDatabaseAvailability(): Promise<void> {
 
     Logger.error(errorAnalysis.safeMessage);
 
-    // SQL Server reachable + credentials valid, but the database is absent. The container
-    // creates MSSQL_DB only on first boot; a volume from an earlier run is left untouched.
-    // Report it precisely and stop -- creating or dropping anything here is the user's call.
-    if (config.DB_ENGINE === 'mssql' && (await isConfiguredDatabaseMissing())) {
-      const databaseName = new URL(await config.DB_CONNECTION_STRING).pathname.slice(1);
-      Logger.error(
-        [
-          `SQL Server is reachable and the credentials are valid, but the database "${databaseName}" does not exist.`,
-          'The SQL Server container only creates MSSQL_DB on first boot, while /var/opt/mssql/data is still empty.',
-          'On a volume left over from an earlier run it logs "data directory is not empty, ignoring" and creates nothing.',
-          'Resolve this yourself with one of:',
-          '  1. Create the database, keeping existing data:',
-          `     docker exec edfiadminapp-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "CREATE DATABASE [${databaseName}]"`,
-          '  2. Re-initialize SQL Server from scratch. THIS DESTROYS ALL ADMIN APP DATA in that volume:',
-          '     cd compose; ./stop.ps1; docker volume rm vol-edfiadminapp-mssql; ./start-services.ps1 -MSSQL',
-        ].join('\n')
-      );
+    // SQL Server reachable + credentials valid, but the database is not available. The
+    // container creates MSSQL_DB only on first boot; a volume from an earlier run is left
+    // untouched. Report it precisely and stop -- creating or dropping anything here is the
+    // operator's call. The probe returns null unless it can actually prove the claim.
+    if (config.DB_ENGINE === 'mssql') {
+      const missingDatabase = await findMissingDatabase();
+      if (missingDatabase) {
+        Logger.error(describeMissingDatabase(missingDatabase).join('\n'));
+      }
     }
 
     Logger.debug(`Detailed error: ${error}`);
@@ -192,6 +188,13 @@ function getLogLevel(): LogLevel[] {
 }
 
 async function bootstrap() {
+  // Apply the configured log levels before anything logs. NestFactory.create() normally does
+  // this via its `logger` option, but the database check below runs before that -- and until
+  // overrideLogger is called the static Logger uses Nest's own defaults, which include debug
+  // and verbose. Without this, startup debug output (including connection parameters) would
+  // print even for an operator who set LOG_LEVEL=log or error.
+  Logger.overrideLogger(getLogLevel());
+
   // Check database availability first - exit if not available.
   // This must run BEFORE NestFactory.create: creating the app initializes TypeOrmModule,
   // which opens its own connection and throws from deep inside Nest's bootstrap when the
