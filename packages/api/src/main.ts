@@ -20,9 +20,9 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
+import { createMssqlConfig, isConfiguredDatabaseMissing } from './database/mssql-connection';
 import { ArtifactService } from './certification/artifact/artifact.service';
 import { CatalogService } from './certification/catalog/catalog.service';
-import { asBool } from './utils';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
@@ -31,23 +31,6 @@ import https from 'https';
 
 const FIVE_SECONDS_IN_MILLISECONDS = 5000;
 const DB_TTL_IN_SECONDS = 60 * config.DB_TTL_IN_MINUTES;
-
-async function createMssqlConfig(): Promise<sql.config> {
-  const mssqlConnectionStr = await config.DB_CONNECTION_STRING;
-  const urlParts = new URL(mssqlConnectionStr);
-  return {
-    server: urlParts.hostname,
-    port: parseInt(urlParts.port) || 1433,
-    database: urlParts.pathname.slice(1),
-    user: urlParts.username,
-    password: urlParts.password,
-    options: {
-      encrypt: asBool(config.DB_SSL),
-      trustServerCertificate: asBool(config.DB_TRUST_CERTIFICATE),
-    },
-    connectionTimeout: FIVE_SECONDS_IN_MILLISECONDS, // this might be to aggressive
-  };
-}
 
 async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.ConnectionPool> {
   mssqlConfig = mssqlConfig || (await createMssqlConfig());
@@ -91,6 +74,26 @@ async function checkDatabaseAvailability(): Promise<void> {
     const errorAnalysis = AggregateErrorHandler.handle(error);
 
     Logger.error(errorAnalysis.safeMessage);
+
+    // SQL Server reachable + credentials valid, but the database is absent. The container
+    // creates MSSQL_DB only on first boot; a volume from an earlier run is left untouched.
+    // Report it precisely and stop -- creating or dropping anything here is the user's call.
+    if (config.DB_ENGINE === 'mssql' && (await isConfiguredDatabaseMissing())) {
+      const databaseName = new URL(await config.DB_CONNECTION_STRING).pathname.slice(1);
+      Logger.error(
+        [
+          `SQL Server is reachable and the credentials are valid, but the database "${databaseName}" does not exist.`,
+          'The SQL Server container only creates MSSQL_DB on first boot, while /var/opt/mssql/data is still empty.',
+          'On a volume left over from an earlier run it logs "data directory is not empty, ignoring" and creates nothing.',
+          'Resolve this yourself with one of:',
+          '  1. Create the database, keeping existing data:',
+          `     docker exec edfiadminapp-mssql /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$MSSQL_SA_PASSWORD" -Q "CREATE DATABASE [${databaseName}]"`,
+          '  2. Re-initialize SQL Server from scratch. THIS DESTROYS ALL ADMIN APP DATA in that volume:',
+          '     cd compose; ./stop.ps1; docker volume rm vol-edfiadminapp-mssql; ./start-services.ps1 -MSSQL',
+        ].join('\n')
+      );
+    }
+
     Logger.debug(`Detailed error: ${error}`);
 
     if (AggregateErrorHandler.isAggregateError(error)) {
@@ -189,12 +192,17 @@ function getLogLevel(): LogLevel[] {
 }
 
 async function bootstrap() {
+  // Check database availability first - exit if not available.
+  // This must run BEFORE NestFactory.create: creating the app initializes TypeOrmModule,
+  // which opens its own connection and throws from deep inside Nest's bootstrap when the
+  // database is unreachable. Running the check afterwards meant it could never report a
+  // connection problem -- the process had already died with a raw driver stack trace, and
+  // the diagnostics below (including the missing-database explanation) were unreachable.
+  await checkDatabaseAvailability();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: getLogLevel(),
   });
-
-  // Check database availability first - exit if not available
-  await checkDatabaseAvailability();
 
   // Optimize response headers for security
   app.disable('x-powered-by');

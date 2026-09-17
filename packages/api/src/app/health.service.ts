@@ -91,38 +91,48 @@ export class HealthService {
   }
 
   private async performDirectDatabaseCheck(): Promise<boolean> {
-    const config = await import('config');
-    const connectionString = await config.default.DB_CONNECTION_STRING;
+    try {
+      const config = await import('config');
 
-    if (config.default.DB_ENGINE === 'mssql') {
-      const sql = await import('mssql');
-      const url = new URL(connectionString);
-      const pool = new sql.ConnectionPool({
-        server: url.hostname,
-        port: parseInt(url.port, 10) || 1433,
-        database: url.pathname.slice(1),
-        user: url.username,
-        password: url.password,
-        options: {
-          encrypt: config.default.DB_SSL === true || config.default.DB_SSL === 'true',
-          trustServerCertificate:
-            config.default.DB_TRUST_CERTIFICATE === true || config.default.DB_TRUST_CERTIFICATE === 'true',
-        },
-        connectionTimeout: 2000,
-      });
+      return config.default.DB_ENGINE === 'mssql'
+        ? await this.performMssqlCheck()
+        : await this.performPostgresCheck();
+    } catch (error) {
+      // Resolving the config itself can throw; the caller needs a boolean either way.
+      Logger.debug(`Database health check failed: ${error.message}`);
+      return false;
+    }
+  }
 
+  private async performMssqlCheck(): Promise<boolean> {
+    const sql = await import('mssql');
+    const { createMssqlConfig } = await import('../database/mssql-connection');
+
+    // Shorter than the shared default: checkDatabaseIndependently races this against a 3s timeout.
+    const pool = new sql.ConnectionPool(await createMssqlConfig({ connectionTimeout: 2000 }));
+
+    try {
+      await pool.connect();
+      await pool.request().query('SELECT 1');
+      return true;
+    } catch (error) {
+      Logger.debug(`MSSQL health check failed: ${error.message}`);
+      return false;
+    } finally {
       try {
-        await pool.connect();
-        await pool.request().query('SELECT 1');
-        return true;
-      } finally {
         await pool.close();
+      } catch (_cleanupError) {
+        Logger.debug('Health check MSSQL pool cleanup error (ignored)');
       }
     }
+  }
 
+  private async performPostgresCheck(): Promise<boolean> {
     let client: import('pg').Client | null = null;
     try {
       const { Client } = await import('pg');
+      const config = await import('config');
+      const connectionString = await config.default.DB_CONNECTION_STRING;
 
       client = new Client({
         connectionString,

@@ -186,6 +186,18 @@ To use SQL Server instead of PostgreSQL:
    ./start-services.ps1 -Rebuild -MSSQL
    ```
 
+4. **Switching an existing environment**: the SQL Server container creates the Admin App
+   database only on its **first** start, while its data directory is still empty. If
+   `vol-edfiadminapp-mssql` already exists from an earlier run, no database is created and the
+   API aborts at startup with instructions in its log. Remove the volume first if you do not
+   need its data:
+
+   ```powershell
+   ./stop.ps1
+   docker volume rm vol-edfiadminapp-mssql
+   ./start-services.ps1 -MSSQL
+   ```
+
 ### Database Management
 
 - **PostgreSQL**: Access via PGAdmin4 at [https://localhost/pgadmin](https://localhost/pgadmin)

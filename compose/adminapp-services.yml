@@ -85,6 +85,16 @@ services:
     container_name: edfiadminapp-mssql
     ports:
       - '127.0.0.1:${MSSQL_PORT_EXPOSED:-1433}:1433'
+    # The image's own entrypoint (launch_sqlservr.sh -> run_custom_setup.sh) creates the
+    # database named by MSSQL_DB on first boot. That script authenticates with
+    # MSSQL_SA_PASSWORD *only*: the legacy SA_PASSWORD name still sets the sa password, so
+    # the server starts and sa logins work, but custom setup cannot log in and loops on
+    # "Waiting for Sql Server to be ready" forever, leaving the database uncreated (AC-612).
+    # Do not rename this back, and do not add a `command:` override to create the database
+    # by hand -- that duplicates the image entrypoint and hides this failure.
+    # Note: creation only happens while /var/opt/mssql/data is empty. On a pre-existing
+    # volume the image logs "data directory is not empty, ignoring" and creates nothing;
+    # the API detects that and explains both remedies (see packages/api/src/main.ts).
     environment:
       ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
       MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
@@ -94,6 +104,9 @@ services:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
       - edfiadminapp-network
+    # $$ escapes to a literal $, so the password is read from the container's own
+    # environment at runtime rather than interpolated by Compose into the container spec
+    # (where it would sit in plaintext in `docker inspect` and break on shell metacharacters).
     healthcheck:
       test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b -l 10']
       interval: 15s

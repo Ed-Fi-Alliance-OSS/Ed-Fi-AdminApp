@@ -132,8 +132,13 @@ $adminAppDbService = 'edfiadminapp-postgres'
 if ($MSSQL) {
     $composeProfile = 'mssql'
     $adminAppDbService = 'edfiadminapp-mssql'
-    $env:DB_ENGINE = 'mssql'
 }
+
+# bootstrap-keycloak-for-tests.ps1 reads $env:DB_ENGINE (defaulting to pgsql) to pick the
+# engine, and run-e2e-ui.ps1 never sets it itself -- it relies on this script. Assign it for
+# both engines: setting it only in the MSSQL branch leaks 'mssql' into a later PostgreSQL run
+# in the same shell, because $env: persists for the whole session.
+$env:DB_ENGINE = if ($MSSQL) { 'mssql' } else { 'pgsql' }
 
 $commonServices = @(
     'nginx',

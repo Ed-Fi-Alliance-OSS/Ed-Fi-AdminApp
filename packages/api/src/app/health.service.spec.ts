@@ -61,3 +61,60 @@ describe('HealthService', () => {
   });
 });
 
+type HealthServiceWithDirectCheck = {
+  performDirectDatabaseCheck: () => Promise<boolean>;
+};
+
+// jest.config.ts maps 'config' to src/test/config.mock.ts, which uses `export = config`.
+// `import * as config` would give an __importStar namespace whose properties are getter-only
+// and therefore unassignable; requireActual returns the underlying mutable object instead.
+const mutableConfig = jest.requireActual('config') as unknown as Record<string, unknown>;
+
+describe('HealthService.performDirectDatabaseCheck', () => {
+  let directService: HealthService;
+  const originalEngine = mutableConfig.DB_ENGINE;
+  const originalConnectionString = mutableConfig.DB_CONNECTION_STRING;
+
+  beforeEach(async () => {
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [HealthService],
+    }).compile();
+    directService = module.get(HealthService);
+  });
+
+  afterEach(() => {
+    mutableConfig.DB_ENGINE = originalEngine;
+    mutableConfig.DB_CONNECTION_STRING = originalConnectionString;
+    jest.restoreAllMocks();
+  });
+
+  // Port 1 on loopback: refused immediately, with no DNS lookup. A hostname here (even an
+  // unresolvable one) makes these tests depend on resolver latency, which is fine in isolation
+  // but can exceed Jest's 5s default timeout when the whole suite runs in parallel.
+  const REFUSED = '127.0.0.1:1';
+
+  // The whole point of this method is to yield a boolean for the healthcheck endpoint.
+  // If it throws, the endpoint reports an error instead of an unhealthy database.
+  it('returns false instead of throwing when the MSSQL connection fails', async () => {
+    mutableConfig.DB_ENGINE = 'mssql';
+    mutableConfig.DB_CONNECTION_STRING = `mssql://sa:pw@${REFUSED}/sbaa`;
+
+    const result = await (
+      directService as unknown as HealthServiceWithDirectCheck
+    ).performDirectDatabaseCheck();
+
+    expect(result).toBe(false);
+  });
+
+  it('returns false instead of throwing when the Postgres connection fails', async () => {
+    mutableConfig.DB_ENGINE = 'pgsql';
+    mutableConfig.DB_CONNECTION_STRING = `postgres://u:p@${REFUSED}/db`;
+
+    const result = await (
+      directService as unknown as HealthServiceWithDirectCheck
+    ).performDirectDatabaseCheck();
+
+    expect(result).toBe(false);
+  });
+});
+
