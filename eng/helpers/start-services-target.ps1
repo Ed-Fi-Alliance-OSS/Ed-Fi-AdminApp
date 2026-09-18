@@ -134,6 +134,26 @@ if ($MSSQL) {
     $adminAppDbService = 'edfiadminapp-mssql'
 }
 
+# bootstrap-keycloak-for-tests.ps1 reads $env:DB_ENGINE (defaulting to pgsql) to pick the
+# engine, and run-e2e-ui.ps1 never sets it itself -- it relies on this script. Assign it for
+# both engines: setting it only in the MSSQL branch leaks 'mssql' into a later PostgreSQL run
+# in the same shell, because $env: persists for the whole session.
+#
+# Note this genuinely overrides .env: a process environment variable outranks --env-file in
+# Compose interpolation, so `DB_ENGINE=${DB_ENGINE:-pgsql}` in adminapp-services.yml resolves
+# from here. DB_SECRET_VALUE still comes from .env, so a mismatch pairs one engine with the
+# other's credentials. Warn loudly rather than overriding silently -- and note the variable
+# also outranks packages/api/config/local.js for anything run later in this shell.
+$expectedEngine = if ($MSSQL) { 'mssql' } else { 'pgsql' }
+if (Test-Path $envFile) {
+    $engineLine = Select-String -Path $envFile -Pattern '^\s*DB_ENGINE\s*=\s*(\S+)' | Select-Object -Last 1
+    $configuredEngine = if ($engineLine) { $engineLine.Matches.Groups[1].Value } else { 'pgsql' }
+    if ($configuredEngine -ne $expectedEngine) {
+        Write-Warning "DB_ENGINE in .env is '$configuredEngine' but this run uses '$expectedEngine' (from the -MSSQL switch). DB_SECRET_VALUE still comes from .env, so update it to match '$expectedEngine' or the API will start against the wrong credentials. This also overrides DB_ENGINE for anything else run in this shell."
+    }
+}
+$env:DB_ENGINE = $expectedEngine
+
 $commonServices = @(
     'nginx',
     'edfiadminapp-keycloak',

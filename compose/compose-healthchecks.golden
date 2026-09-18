@@ -1,7 +1,7 @@
 edfiadminapp-api | ["CMD-SHELL","curl -f http://localhost:3333/api/healthcheck || exit 1"]
 edfiadminapp-fe | ["CMD-SHELL","curl -f http://localhost:4200/health || exit 1"]
 edfiadminapp-keycloak | ["CMD-SHELL","/tmp/healthcheck.sh"]
-edfiadminapp-mssql | ["CMD-SHELL","/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  -Q \"SELECT 1\" -b -l 10"]
+edfiadminapp-mssql | ["CMD-SHELL","/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P \"$$MSSQL_SA_PASSWORD\" -Q \"SELECT 1\" -b -l 10"]
 edfiadminapp-postgres | ["CMD-SHELL","pg_isready -U postgres"]
 memcached | ["CMD-SHELL","timeout 2 bash -ec \"exec 3<>/dev/tcp/127.0.0.1/11211; echo version >&3; head -n 1 <&3 | grep -q ^VERSION\""]
 nginx | <none>
