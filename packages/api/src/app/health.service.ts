@@ -91,43 +91,6 @@ export class HealthService {
   }
 
   private async performDirectDatabaseCheck(): Promise<boolean> {
-    try {
-      const config = await import('config');
-
-      return config.default.DB_ENGINE === 'mssql'
-        ? await this.performMssqlCheck()
-        : await this.performPostgresCheck();
-    } catch (error) {
-      // Resolving the config itself can throw; the caller needs a boolean either way.
-      Logger.debug(`Database health check failed: ${error.message}`);
-      return false;
-    }
-  }
-
-  private async performMssqlCheck(): Promise<boolean> {
-    const sql = await import('mssql');
-    const { createMssqlConfig } = await import('../database/mssql-connection');
-
-    // Shorter than the shared default: checkDatabaseIndependently races this against a 3s timeout.
-    const pool = new sql.ConnectionPool(await createMssqlConfig({ connectionTimeout: 2000 }));
-
-    try {
-      await pool.connect();
-      await pool.request().query('SELECT 1');
-      return true;
-    } catch (error) {
-      Logger.debug(`MSSQL health check failed: ${error.message}`);
-      return false;
-    } finally {
-      try {
-        await pool.close();
-      } catch (_cleanupError) {
-        Logger.debug('Health check MSSQL pool cleanup error (ignored)');
-      }
-    }
-  }
-
-  private async performPostgresCheck(): Promise<boolean> {
     let client: import('pg').Client | null = null;
     try {
       const { Client } = await import('pg');
