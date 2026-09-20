@@ -338,7 +338,12 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
                 ) as never
               );
             }}
-            isDisabled={hasIntegrationProvider}
+            // AC-630 follow-up: for V3, selecting a different ODS here no
+            // longer does anything on save (data-store assignment is now an
+            // apiClient concern) — disabled so it doesn't look like a live
+            // control with no effect. Still shows the current value and
+            // still narrows the ed-org picker below.
+            isDisabled={hasIntegrationProvider || !props.submitOds}
           />
           <FormErrorMessage>{odsErrorMessage()}</FormErrorMessage>
         </FormControl>
