@@ -284,6 +284,14 @@ export class PostApplicationDtoV3 extends PostApplicationDtoBase {
 // Application-level write schema (data-store assignment is now an apiClient
 // concern, via PUT /v3/apiClients/{id}).
 export class PutApplicationDtoV3 extends PostApplicationDtoBase {
+  // Admin API's EditApplicationRequest guards that this matches the route id.
+  // Must be @Expose()'d explicitly: the controller builds this DTO with
+  // plainToInstance(..., { excludeExtraneousValues: true }), which drops any
+  // source field not declared+exposed here.
+  @Expose()
+  @IsNumber()
+  id: number;
+
   @Expose()
   @IsOptional()
   @IsNumber(undefined, { each: true })

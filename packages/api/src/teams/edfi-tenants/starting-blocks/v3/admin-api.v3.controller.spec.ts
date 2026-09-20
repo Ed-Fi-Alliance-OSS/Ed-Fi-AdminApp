@@ -548,6 +548,7 @@ describe('AdminApiControllerV3 - putApplication ODS handling', () => {
   } as unknown as GetApplicationDtoV3;
 
   const requestBody = {
+    id: 9,
     applicationName: 'Existing App',
     vendorId: 1,
     claimsetId: 5,
@@ -589,5 +590,26 @@ describe('AdminApiControllerV3 - putApplication ODS handling', () => {
 
     const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
     expect(sentDto).not.toHaveProperty('dataStoreIds');
+  });
+
+  // Admin API's EditApplicationRequest declares [JsonUnmappedMemberHandling.Disallow]
+  // (ADMINAPI-1484) and has no ClaimSetId property (only ClaimSetName, a
+  // different field) — claimsetId is used internally here to look up the
+  // claimset by ID, but was leaking straight through into the outgoing PUT,
+  // which Admin API now rejects with a 400 ("malformed JSON").
+  it('does not forward extraneous request fields (e.g. claimsetId) to Admin API', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).not.toHaveProperty('claimsetId');
+  });
+
+  // EditApplicationRequest.Id is required (Admin API guards that it matches
+  // the route id) — must survive whatever fixes the claimsetId leak above.
+  it('still forwards the application id Admin API requires on the PUT body', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).toHaveProperty('id', 9);
   });
 });

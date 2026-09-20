@@ -374,11 +374,21 @@ export class AdminApiControllerV3 {
       odsInstanceId,
     });
 
-    const dto = plainToInstance(PutApplicationDtoV3, {
-      ...instanceToPlain(application),
-      claimSetName: claimset.name,
-      educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
-    });
+    // excludeExtraneousValues (matching postApplication below) strips fields
+    // that aren't part of Admin API's write schema — e.g. claimsetId, which
+    // this handler needs internally to look up the claimset by ID but which
+    // Admin API's EditApplicationRequest doesn't declare. Its
+    // JsonUnmappedMemberHandling.Disallow (ADMINAPI-1484) turns any such
+    // leaked field into a 400, not a silently-ignored extra property.
+    const dto = plainToInstance(
+      PutApplicationDtoV3,
+      {
+        ...instanceToPlain(application),
+        claimSetName: claimset.name,
+        educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
+      },
+      { excludeExtraneousValues: true },
+    );
 
     if (dto.educationOrganizationIds.length !== availableEdorgs.length) {
       throw new ValidationHttpException({
