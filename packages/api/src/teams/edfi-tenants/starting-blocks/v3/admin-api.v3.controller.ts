@@ -357,23 +357,26 @@ export class AdminApiControllerV3 {
         message: 'Cannot use system-reserved claimset',
       });
     }
-    const availableEdorgs = await this.edorgRepository.findBy({
-      edfiTenantId: edfiTenant.id,
-      educationOrganizationId: In(application.educationOrganizationIds),
-      odsInstanceId: application.dataStoreId,
-    });
-    const odsInstanceId = availableEdorgs[0].odsInstanceId;
-
     // This checks the existing unchanged version of the application against the valid IDs
     const existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
     if (!this.checkApplicationEdorgsForUnsafeOperations(existingApplication, validIds)) {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
+    // AC-630: data-store assignment is an apiClient concern as of ADMINAPI-1484
+    // (Admin API rejects dataStoreIds on Application PUT), so the client no
+    // longer submits it here — the ODS is the application's current one.
+    const odsInstanceId = existingApplication.dataStoreIds[0];
+
+    const availableEdorgs = await this.edorgRepository.findBy({
+      edfiTenantId: edfiTenant.id,
+      educationOrganizationId: In(application.educationOrganizationIds),
+      odsInstanceId,
+    });
+
     const dto = plainToInstance(PutApplicationDtoV3, {
       ...instanceToPlain(application),
       claimSetName: claimset.name,
-      dataStoreIds: [odsInstanceId],
       educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
     });
 
@@ -392,8 +395,16 @@ export class AdminApiControllerV3 {
       });
     }
 
-    // This checks the new version of the application against the valid IDs
-    if (this.checkApplicationEdorgsForUnsafeOperations(dto, validIds)) {
+    // This checks the new version of the application against the valid IDs.
+    // `dto` no longer carries dataStoreIds (see above), so it's supplied here
+    // directly — the ODS itself can't change via this endpoint, only the
+    // edorgs might have.
+    if (
+      this.checkApplicationEdorgsForUnsafeOperations(
+        { educationOrganizationIds: dto.educationOrganizationIds, dataStoreIds: [odsInstanceId] },
+        validIds,
+      )
+    ) {
       const realOds = await this.odsRepository.findOneBy({
         edfiTenantId: edfiTenant.id,
         odsInstanceId,

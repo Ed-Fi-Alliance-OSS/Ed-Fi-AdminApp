@@ -1,7 +1,15 @@
 import 'reflect-metadata';
 import { EditApplication } from './EditApplication';
 
-jest.mock('react', () => ({ ...jest.requireActual('react'), useMemo: (factory: () => unknown) => factory() }));
+jest.mock('react', () => ({
+  ...jest.requireActual('react'),
+  useMemo: (factory: () => unknown) => factory(),
+  // EditApplicationForm is invoked as a plain function (not via a real React
+  // render), so useState has no dispatcher to attach to. Stub it the same way
+  // useMemo is stubbed above: return the initial value, discard updates
+  // (nothing in this suite exercises the ODS selector's onChange interaction).
+  useState: (initial: unknown) => [typeof initial === 'function' ? (initial as () => unknown)() : initial, jest.fn()],
+}));
 
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
@@ -143,13 +151,13 @@ describe('EditApplication', () => {
     expect(entity).not.toHaveProperty('dataStoreId');
   });
 
-  it('writes the resolved ODS id to dataStoreId (not odsInstanceId) for a v3 tenant', async () => {
+  it('does not submit dataStoreId (or odsInstanceId) for a v3 tenant — data-store assignment is an apiClient concern per AC-630', async () => {
     const { putMutateAsync } = setup('v3');
     // defaultApplication is already V3-shaped: `dataStoreIds`, no `odsInstanceIds`.
     const form = getFormElement(defaultApplication);
     await form.props.onSubmit();
     const [[{ entity }]] = putMutateAsync.mock.calls;
-    expect(entity.dataStoreId).toBe(3);
+    expect(entity).not.toHaveProperty('dataStoreId');
     expect(entity).not.toHaveProperty('odsInstanceId');
   });
 });

@@ -1,7 +1,13 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Edorg, EdfiTenant, Ods } from '@edanalytics/models-server';
-import { Ids, PostInstanceDtoV3, PostProfileDtoV3 } from '@edanalytics/models';
+import {
+  GetApplicationDtoV3,
+  Ids,
+  PostInstanceDtoV3,
+  PostProfileDtoV3,
+  PutApplicationFormDtoV3,
+} from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { AdminApiControllerV3 } from './admin-api.v3.controller';
 import { AdminApiServiceV3 } from './admin-api.v3.service';
@@ -512,5 +518,76 @@ describe('AdminApiControllerV3 - deleteApiClient last-credential guard', () => {
       controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
     ).rejects.toBeInstanceOf(CustomHttpException);
     expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+});
+
+// AC-630: ADMINAPI-1484 removes dataStoreIds from the Application-level write
+// schema on Admin API — data-store assignment is now an apiClient concern.
+// putApplication must stop forwarding dataStoreIds to Admin API, and since the
+// client no longer submits it, the ODS used for edorg lookup/validation must
+// come from the application's existing (unchanged) record instead.
+describe('AdminApiControllerV3 - putApplication ODS handling', () => {
+  let controller: AdminApiControllerV3;
+  let mockSbService: {
+    getClaimsetBasic: jest.Mock;
+    getApplication: jest.Mock;
+    putApplication: jest.Mock;
+  };
+  let mockEdorgRepository: { findBy: jest.Mock };
+  let mockOdsRepository: { findOneBy: jest.Mock };
+  let mockIntegrationAppsTeamService: { findOne: jest.Mock };
+
+  const mockEdfiTenant = { id: 1, sbEnvironmentId: 2 } as unknown as EdfiTenant;
+  const validIds: Ids = true;
+
+  const existingApplication = {
+    id: 9,
+    applicationName: 'Existing App',
+    educationOrganizationIds: [255901107],
+    dataStoreIds: [42],
+  } as unknown as GetApplicationDtoV3;
+
+  const requestBody = {
+    applicationName: 'Existing App',
+    vendorId: 1,
+    claimsetId: 5,
+    educationOrganizationIds: [255901107],
+    profileIds: [],
+  } as unknown as PutApplicationFormDtoV3;
+
+  beforeEach(() => {
+    mockSbService = {
+      getClaimsetBasic: jest.fn().mockResolvedValue({ _isSystemReserved: false, name: 'Claimset' }),
+      getApplication: jest.fn().mockResolvedValue(existingApplication),
+      putApplication: jest.fn().mockResolvedValue(undefined),
+    };
+    mockEdorgRepository = {
+      findBy: jest.fn().mockResolvedValue([{ educationOrganizationId: 255901107, odsInstanceId: 42 }]),
+    };
+    mockOdsRepository = { findOneBy: jest.fn().mockResolvedValue({ id: 7 }) };
+    mockIntegrationAppsTeamService = { findOne: jest.fn().mockResolvedValue(null) };
+
+    controller = new AdminApiControllerV3(
+      mockIntegrationAppsTeamService as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      mockEdorgRepository as unknown as Repository<Edorg>,
+      mockOdsRepository as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService,
+    );
+  });
+
+  it('derives the ODS instance from the existing application record, not from the request body', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    expect(mockEdorgRepository.findBy).toHaveBeenCalledWith(
+      expect.objectContaining({ odsInstanceId: 42 }),
+    );
+  });
+
+  it('does not forward dataStoreIds to Admin API on the outgoing PUT payload', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).not.toHaveProperty('dataStoreIds');
   });
 });
