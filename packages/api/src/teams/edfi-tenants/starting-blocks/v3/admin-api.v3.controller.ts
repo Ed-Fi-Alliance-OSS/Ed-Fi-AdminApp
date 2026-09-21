@@ -357,27 +357,55 @@ export class AdminApiControllerV3 {
         message: 'Cannot use system-reserved claimset',
       });
     }
-    const availableEdorgs = await this.edorgRepository.findBy({
-      edfiTenantId: edfiTenant.id,
-      educationOrganizationId: In(application.educationOrganizationIds),
-      odsInstanceId: application.dataStoreId,
-    });
-    const odsInstanceId = availableEdorgs[0].odsInstanceId;
-
     // This checks the existing unchanged version of the application against the valid IDs
     const existingApplication = await this.sbService.getApplication(edfiTenant, applicationId);
     if (!this.checkApplicationEdorgsForUnsafeOperations(existingApplication, validIds)) {
       throw new HttpException('You do not have control of all implicated Ed-Orgs', 403);
     }
 
-    const dto = plainToInstance(PutApplicationDtoV3, {
-      ...instanceToPlain(application),
-      claimSetName: claimset.name,
-      dataStoreIds: [odsInstanceId],
-      educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
+    // AC-630: data-store assignment is an apiClient concern as of ADMINAPI-1484
+    // (Admin API rejects dataStoreIds on Application PUT), so the client no
+    // longer submits it here. An Application's dataStoreIds is the union
+    // across every one of its credentials (GetDataStoreIdsByApplicationIdQuery
+    // on Admin API), so it isn't always one value — and can be empty for a
+    // zero-credential Application. Edorg lookup/validation and authorization
+    // below must cover the whole set, not collapse to dataStoreIds[0].
+    if (existingApplication.dataStoreIds.length === 0) {
+      throw new ValidationHttpException({
+        field: 'educationOrganizationIds',
+        message: 'Application has no associated data store; cannot validate education organizations',
+      });
+    }
+
+    const availableEdorgs = await this.edorgRepository.findBy({
+      edfiTenantId: edfiTenant.id,
+      educationOrganizationId: In(application.educationOrganizationIds),
+      odsInstanceId: In(existingApplication.dataStoreIds),
     });
 
-    if (dto.educationOrganizationIds.length !== availableEdorgs.length) {
+    // excludeExtraneousValues (matching postApplication below) strips fields
+    // that aren't part of Admin API's write schema — e.g. claimsetId, which
+    // this handler needs internally to look up the claimset by ID but which
+    // Admin API's EditApplicationRequest doesn't declare. Its
+    // JsonUnmappedMemberHandling.Disallow (ADMINAPI-1484) turns any such
+    // leaked field into a 400, not a silently-ignored extra property.
+    const dto = plainToInstance(
+      PutApplicationDtoV3,
+      {
+        ...instanceToPlain(application),
+        claimSetName: claimset.name,
+        educationOrganizationIds: availableEdorgs.map((edorg) => edorg.educationOrganizationId),
+      },
+      { excludeExtraneousValues: true },
+    );
+
+    // Pre-existing bug, unrelated to AC-630: this compared
+    // dto.educationOrganizationIds (built from availableEdorgs.map(...) just
+    // above) against availableEdorgs itself — always equal length, so this
+    // could never catch a submitted edorg id that doesn't exist under any of
+    // the application's data stores. Compare against the raw submitted list
+    // instead.
+    if (application.educationOrganizationIds.length !== availableEdorgs.length) {
       throw new ValidationHttpException({
         field: 'edorgIds',
         message: 'One or more invalid education organization IDs',
@@ -391,9 +419,22 @@ export class AdminApiControllerV3 {
         message: 'Education organizations not all from the same ODS',
       });
     }
+    // The ODS the submitted (validated, single-ODS) edorgs actually belong
+    // to — used below for the Integration App's single-ODS-specific checks.
+    // Not necessarily the only store the application has (see above); the
+    // ODS itself can't change via this endpoint, only the edorgs might have.
+    const odsInstanceId = availableEdorgs[0].odsInstanceId;
 
-    // This checks the new version of the application against the valid IDs
-    if (this.checkApplicationEdorgsForUnsafeOperations(dto, validIds)) {
+    // This checks the new version of the application against the valid IDs.
+    // Uses every one of the application's existing data stores (not just the
+    // one the submitted edorgs belong to) — an edit changes attributes shared
+    // across every credential, regardless of which store each one points at.
+    if (
+      this.checkApplicationEdorgsForUnsafeOperations(
+        { educationOrganizationIds: dto.educationOrganizationIds, dataStoreIds: existingApplication.dataStoreIds },
+        validIds,
+      )
+    ) {
       const realOds = await this.odsRepository.findOneBy({
         edfiTenantId: edfiTenant.id,
         odsInstanceId,

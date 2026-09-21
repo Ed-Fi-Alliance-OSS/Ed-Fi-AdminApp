@@ -279,7 +279,32 @@ export class PostApplicationDtoV3 extends PostApplicationDtoBase {
   @IsNumber()
   integrationProviderId: number;
 }
-export class PutApplicationDtoV3 extends PostApplicationDtoV3 {}
+// Explicit shape (not `extends PostApplicationDtoV3`) so it does NOT inherit
+// `dataStoreIds` — AC-630: ADMINAPI-1484 removes dataStoreIds from the
+// Application-level write schema (data-store assignment is now an apiClient
+// concern, via PUT /v3/apiClients/{id}).
+export class PutApplicationDtoV3 extends PostApplicationDtoBase {
+  // Admin API's EditApplicationRequest guards that this matches the route id.
+  // Must be @Expose()'d explicitly: the controller builds this DTO with
+  // plainToInstance(..., { excludeExtraneousValues: true }), which drops any
+  // source field not declared+exposed here.
+  @Expose()
+  @IsNumber()
+  id: number;
+
+  @Expose()
+  @IsOptional()
+  @IsNumber(undefined, { each: true })
+  profileIds: number[];
+
+  @Expose()
+  @IsNumber(undefined, { each: true })
+  educationOrganizationIds: number[];
+
+  @Expose()
+  @IsNumber()
+  integrationProviderId: number;
+}
 
 export class PostApplicationFormDtoV3 extends PostApplicationFormBase {
   @Expose()
@@ -302,8 +327,25 @@ export class PostApplicationFormDtoV3 extends PostApplicationFormBase {
   integrationProviderId?: number;
 }
 
-export class PutApplicationFormDtoV3 extends PostApplicationFormDtoV3 {
+// Explicit shape (not `extends PostApplicationFormDtoV3`) so it does NOT
+// inherit `dataStoreId` — see PutApplicationDtoV3 above.
+export class PutApplicationFormDtoV3 extends PostApplicationFormBase {
   id: number;
+
+  @Expose()
+  @IsOptional()
+  @IsNumber(undefined, { each: true })
+  profileIds?: number[];
+
+  @Expose()
+  @IsNumber(undefined, { each: true })
+  @ArrayNotEmpty()
+  educationOrganizationIds: number[];
+
+  @Expose()
+  @IsNumber()
+  @IsOptional()
+  integrationProviderId?: number;
 }
 
 export class PostApplicationResponseDtoV3 extends PostApplicationResponseDtoBase {

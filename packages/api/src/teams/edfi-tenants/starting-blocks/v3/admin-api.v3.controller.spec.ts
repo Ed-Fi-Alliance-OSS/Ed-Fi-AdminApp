@@ -1,7 +1,13 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Edorg, EdfiTenant, Ods } from '@edanalytics/models-server';
-import { Ids, PostInstanceDtoV3, PostProfileDtoV3 } from '@edanalytics/models';
+import {
+  GetApplicationDtoV3,
+  Ids,
+  PostInstanceDtoV3,
+  PostProfileDtoV3,
+  PutApplicationFormDtoV3,
+} from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { AdminApiControllerV3 } from './admin-api.v3.controller';
 import { AdminApiServiceV3 } from './admin-api.v3.service';
@@ -512,5 +518,199 @@ describe('AdminApiControllerV3 - deleteApiClient last-credential guard', () => {
       controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
     ).rejects.toBeInstanceOf(CustomHttpException);
     expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+});
+
+// AC-630: ADMINAPI-1484 removes dataStoreIds from the Application-level write
+// schema on Admin API — data-store assignment is now an apiClient concern.
+// putApplication must stop forwarding dataStoreIds to Admin API, and since the
+// client no longer submits it, the ODS used for edorg lookup/validation must
+// come from the application's existing (unchanged) record instead.
+describe('AdminApiControllerV3 - putApplication ODS handling', () => {
+  let controller: AdminApiControllerV3;
+  let mockSbService: {
+    getClaimsetBasic: jest.Mock;
+    getApplication: jest.Mock;
+    putApplication: jest.Mock;
+  };
+  let mockEdorgRepository: { findBy: jest.Mock };
+  let mockOdsRepository: { findOneBy: jest.Mock };
+  let mockIntegrationAppsTeamService: { findOne: jest.Mock };
+
+  const mockEdfiTenant = { id: 1, sbEnvironmentId: 2 } as unknown as EdfiTenant;
+  const validIds: Ids = true;
+
+  const existingApplication = {
+    id: 9,
+    applicationName: 'Existing App',
+    educationOrganizationIds: [255901107],
+    dataStoreIds: [42],
+  } as unknown as GetApplicationDtoV3;
+
+  const requestBody = {
+    id: 9,
+    applicationName: 'Existing App',
+    vendorId: 1,
+    claimsetId: 5,
+    educationOrganizationIds: [255901107],
+    profileIds: [],
+  } as unknown as PutApplicationFormDtoV3;
+
+  beforeEach(() => {
+    mockSbService = {
+      getClaimsetBasic: jest.fn().mockResolvedValue({ _isSystemReserved: false, name: 'Claimset' }),
+      getApplication: jest.fn().mockResolvedValue(existingApplication),
+      putApplication: jest.fn().mockResolvedValue(undefined),
+    };
+    mockEdorgRepository = {
+      findBy: jest.fn().mockResolvedValue([{ educationOrganizationId: 255901107, odsInstanceId: 42 }]),
+    };
+    mockOdsRepository = { findOneBy: jest.fn().mockResolvedValue({ id: 7 }) };
+    mockIntegrationAppsTeamService = { findOne: jest.fn().mockResolvedValue(null) };
+
+    controller = new AdminApiControllerV3(
+      mockIntegrationAppsTeamService as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      mockEdorgRepository as unknown as Repository<Edorg>,
+      mockOdsRepository as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService,
+    );
+  });
+
+  it('derives the ODS instance(s) from the existing application record, not from the request body', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [callArg] = mockEdorgRepository.findBy.mock.calls[0];
+    expect(callArg.odsInstanceId.value).toEqual([42]);
+  });
+
+  // Pre-existing (predates AC-630, confirmed on main at 946c2703): the guard
+  // compared dto.educationOrganizationIds.length against availableEdorgs.length,
+  // but dto.educationOrganizationIds is itself built from
+  // availableEdorgs.map(...) — always equal length, so the guard could never
+  // fire. A submitted edorg id that doesn't exist under any of the
+  // application's data stores fell through to availableEdorgs[0].odsInstanceId
+  // with an empty array, throwing an unhandled TypeError (500) instead of a
+  // clean 400.
+  it('throws a clean validation error (not an unhandled exception) when a submitted edorg does not exist under any of the application\'s data stores', async () => {
+    mockEdorgRepository.findBy.mockResolvedValue([]);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'edorgIds',
+        message: 'One or more invalid education organization IDs',
+      }),
+    );
+  });
+
+  // An Application's dataStoreIds is the union across every one of its
+  // credentials (GetDataStoreIdsByApplicationIdQuery on Admin API) — AC-569
+  // made multi-credential, multi-store Applications real, so collapsing to
+  // dataStoreIds[0] silently drops the other store(s) from edorg validation.
+  it('looks up edorgs scoped to every one of the application\'s existing data stores, not just the first', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [callArg] = mockEdorgRepository.findBy.mock.calls[0];
+    expect(callArg.odsInstanceId.value).toEqual([42, 99]);
+  });
+
+  it('rejects the edit when the application has no associated data store (e.g. zero credentials)', async () => {
+    const noStoreExisting = {
+      ...existingApplication,
+      dataStoreIds: [],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(noStoreExisting);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds),
+    ).rejects.toThrow(ValidationHttpException);
+    expect(mockEdorgRepository.findBy).not.toHaveBeenCalled();
+    expect(mockSbService.putApplication).not.toHaveBeenCalled();
+  });
+
+  // Editing an Application changes attributes shared across every one of its
+  // credentials, regardless of which data store each credential points at —
+  // so authorization must cover every existing store, not just the one the
+  // submitted edorgs happen to belong to.
+  it('rejects the edit when the editor is not authorized on every one of the application\'s existing data stores (not just dataStoreIds[0])', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      // Empty so the pre-check above (line ~362, unmodified) trivially
+      // passes regardless of validIds, isolating this test to the
+      // post-lookup authorization check this fix touches.
+      educationOrganizationIds: [],
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+    mockEdorgRepository.findBy.mockResolvedValue([
+      { educationOrganizationId: 255901107, odsInstanceId: 99 },
+    ]);
+    // Authorized for the submitted edorg under store 42 (dataStoreIds[0]) —
+    // but not under store 99, which the application also has via another
+    // credential. A check that only looked at dataStoreIds[0] would wrongly
+    // accept this.
+    const partialValidIds: Ids = new Set(['42-255901107']);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, partialValidIds),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'edorgIds',
+        message: 'Not authorized on all education organizations',
+      }),
+    );
+  });
+
+  it('accepts the edit when the editor is authorized on every one of the application\'s existing data stores', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      educationOrganizationIds: [],
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+    mockEdorgRepository.findBy.mockResolvedValue([
+      { educationOrganizationId: 255901107, odsInstanceId: 99 },
+    ]);
+    const fullValidIds: Ids = new Set(['99-255901107', '42-255901107']);
+
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, fullValidIds);
+
+    expect(mockSbService.putApplication).toHaveBeenCalled();
+  });
+
+  it('does not forward dataStoreIds to Admin API on the outgoing PUT payload', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).not.toHaveProperty('dataStoreIds');
+  });
+
+  // Admin API's EditApplicationRequest declares [JsonUnmappedMemberHandling.Disallow]
+  // (ADMINAPI-1484) and has no ClaimSetId property (only ClaimSetName, a
+  // different field) — claimsetId is used internally here to look up the
+  // claimset by ID, but was leaking straight through into the outgoing PUT,
+  // which Admin API now rejects with a 400 ("malformed JSON").
+  it('does not forward extraneous request fields (e.g. claimsetId) to Admin API', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).not.toHaveProperty('claimsetId');
+  });
+
+  // EditApplicationRequest.Id is required (Admin API guards that it matches
+  // the route id) — must survive whatever fixes the claimsetId leak above.
+  it('still forwards the application id Admin API requires on the PUT body', async () => {
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
+    expect(sentDto).toHaveProperty('id', 9);
   });
 });
