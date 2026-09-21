@@ -584,6 +584,27 @@ describe('AdminApiControllerV3 - putApplication ODS handling', () => {
     expect(callArg.odsInstanceId.value).toEqual([42]);
   });
 
+  // Pre-existing (predates AC-630, confirmed on main at 946c2703): the guard
+  // compared dto.educationOrganizationIds.length against availableEdorgs.length,
+  // but dto.educationOrganizationIds is itself built from
+  // availableEdorgs.map(...) — always equal length, so the guard could never
+  // fire. A submitted edorg id that doesn't exist under any of the
+  // application's data stores fell through to availableEdorgs[0].odsInstanceId
+  // with an empty array, throwing an unhandled TypeError (500) instead of a
+  // clean 400.
+  it('throws a clean validation error (not an unhandled exception) when a submitted edorg does not exist under any of the application\'s data stores', async () => {
+    mockEdorgRepository.findBy.mockResolvedValue([]);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'edorgIds',
+        message: 'One or more invalid education organization IDs',
+      }),
+    );
+  });
+
   // An Application's dataStoreIds is the union across every one of its
   // credentials (GetDataStoreIdsByApplicationIdQuery on Admin API) — AC-569
   // made multi-credential, multi-store Applications real, so collapsing to

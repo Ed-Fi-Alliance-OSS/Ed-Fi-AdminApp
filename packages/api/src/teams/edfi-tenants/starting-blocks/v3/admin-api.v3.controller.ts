@@ -399,7 +399,13 @@ export class AdminApiControllerV3 {
       { excludeExtraneousValues: true },
     );
 
-    if (dto.educationOrganizationIds.length !== availableEdorgs.length) {
+    // Pre-existing bug, unrelated to AC-630: this compared
+    // dto.educationOrganizationIds (built from availableEdorgs.map(...) just
+    // above) against availableEdorgs itself — always equal length, so this
+    // could never catch a submitted edorg id that doesn't exist under any of
+    // the application's data stores. Compare against the raw submitted list
+    // instead.
+    if (application.educationOrganizationIds.length !== availableEdorgs.length) {
       throw new ValidationHttpException({
         field: 'edorgIds',
         message: 'One or more invalid education organization IDs',
