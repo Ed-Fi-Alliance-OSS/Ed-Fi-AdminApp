@@ -85,25 +85,36 @@ services:
     container_name: edfiadminapp-mssql
     ports:
       - '127.0.0.1:${MSSQL_PORT_EXPOSED:-1433}:1433'
+    # The image's own entrypoint (launch_sqlservr.sh -> run_custom_setup.sh) creates the
+    # database named by MSSQL_DB on first boot. That script authenticates with
+    # MSSQL_SA_PASSWORD *only*: the legacy SA_PASSWORD name still sets the sa password, so
+    # the server starts and sa logins work, but custom setup cannot log in and loops on
+    # "Waiting for Sql Server to be ready" forever, leaving the database uncreated (AC-612).
+    # Do not rename this back, and do not add a `command:` override to create the database
+    # by hand -- that duplicates the image entrypoint and hides this failure.
+    # Note: creation only happens while /var/opt/mssql/data is empty. On a pre-existing
+    # volume the image logs "data directory is not empty, ignoring" and creates nothing;
+    # the API detects that at startup and prints remediation rather than acting on its own
+    # (packages/api/src/database/mssql-connection.ts).
+    # The behaviour above was verified against mcr.microsoft.com/mssql/server:2022-latest
+    # (2022 CU26). MSSQL_IMAGE_TAG must be new enough for the image to honour MSSQL_DB.
     environment:
       ACCEPT_EULA: ${MSSQL_ACCEPT_EULA:-Y}
-      SA_PASSWORD: ${MSSQL_SA_PASSWORD}
+      MSSQL_SA_PASSWORD: ${MSSQL_SA_PASSWORD}
       MSSQL_DB: ${ADMIN_APP_DB_NAME:-sbaa}
       MSSQL_PID: ${MSSQL_PID:-Express}
-    command:
-      - /bin/bash
-      - -c
-      - |
-        /opt/mssql/bin/sqlservr &
-        sleep 30s
-        /opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P  ${MSSQL_SA_PASSWORD} -Q "IF DB_ID(N'${MSSQL_DB:-sbaa}') IS NULL CREATE DATABASE [${MSSQL_DB:-sbaa}];"
-        wait
     volumes:
       - vol-edfiadminapp-mssql:/var/opt/mssql
     networks:
       - edfiadminapp-network
+    # $$ escapes to a literal $, so the container's own shell expands the password at runtime
+    # instead of Compose interpolating it into this command. That keeps it out of
+    # Healthcheck.Test in the container spec, and -- the reason that matters most -- avoids an
+    # unquoted interpolation that breaks on passwords containing shell metacharacters.
+    # It does NOT make the password secret: `environment:` above still places it in the spec,
+    # visible via `docker inspect`, which the image requires.
     healthcheck:
-      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P ${MSSQL_SA_PASSWORD} -Q "SELECT 1" -b -l 10']
+      test: ['CMD-SHELL', '/opt/mssql-tools18/bin/sqlcmd -C -S localhost -U sa -P "$$MSSQL_SA_PASSWORD" -Q "SELECT 1" -b -l 10']
       interval: 15s
       timeout: 5s
       retries: 10

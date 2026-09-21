@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { useOdsTerminology } from './useOdsTerminology';
+import { getOdsTerminology, useOdsTerminology } from './useOdsTerminology';
 import { useTeamEdfiTenantNavContextLoaded } from './navContext';
 
 jest.mock('./navContext', () => ({
@@ -32,5 +32,29 @@ describe('useOdsTerminology', () => {
   it('returns ODS labels when version is undefined (v1/legacy)', () => {
     mockNav.mockReturnValue({ sbEnvironment: {} });
     expect(useOdsTerminology().singular).toBe('ODS');
+  });
+});
+
+describe('getOdsTerminology', () => {
+  it('returns Data Store labels for v3', () => {
+    expect(getOdsTerminology('v3')).toEqual({
+      singular: 'Data Store',
+      plural: 'Data Stores',
+      listTitle: 'Data Stores',
+      createTitle: 'Create new Data Store',
+    });
+  });
+
+  it('returns ODS labels for v2', () => {
+    expect(getOdsTerminology('v2')).toEqual({
+      singular: 'ODS',
+      plural: "ODS's",
+      listTitle: 'Operational Data Stores',
+      createTitle: 'Create new ODS',
+    });
+  });
+
+  it('returns ODS labels when version is undefined', () => {
+    expect(getOdsTerminology(undefined).singular).toBe('ODS');
   });
 });

@@ -7,9 +7,8 @@ export interface OdsTerminology {
   createTitle: string;
 }
 
-export const useOdsTerminology = (): OdsTerminology => {
-  const { sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
-  return sbEnvironment.version === 'v3'
+export const getOdsTerminology = (version: string | undefined): OdsTerminology =>
+  version === 'v3'
     ? {
         singular: 'Data Store',
         plural: 'Data Stores',
@@ -22,4 +21,8 @@ export const useOdsTerminology = (): OdsTerminology => {
         listTitle: 'Operational Data Stores',
         createTitle: 'Create new ODS',
       };
+
+export const useOdsTerminology = (): OdsTerminology => {
+  const { sbEnvironment } = useTeamEdfiTenantNavContextLoaded();
+  return getOdsTerminology(sbEnvironment.version);
 };

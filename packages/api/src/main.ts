@@ -20,9 +20,13 @@ import passport from 'passport';
 import { Client } from 'pg';
 import * as sql from 'mssql';
 import { AppModule } from './app/app.module';
+import {
+  createMssqlConfig,
+  describeMissingDatabase,
+  findMissingDatabase,
+} from './database/mssql-connection';
 import { ArtifactService } from './certification/artifact/artifact.service';
 import { CatalogService } from './certification/catalog/catalog.service';
-import { asBool } from './utils';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
@@ -31,23 +35,6 @@ import https from 'https';
 
 const FIVE_SECONDS_IN_MILLISECONDS = 5000;
 const DB_TTL_IN_SECONDS = 60 * config.DB_TTL_IN_MINUTES;
-
-async function createMssqlConfig(): Promise<sql.config> {
-  const mssqlConnectionStr = await config.DB_CONNECTION_STRING;
-  const urlParts = new URL(mssqlConnectionStr);
-  return {
-    server: urlParts.hostname,
-    port: parseInt(urlParts.port) || 1433,
-    database: urlParts.pathname.slice(1),
-    user: urlParts.username,
-    password: urlParts.password,
-    options: {
-      encrypt: asBool(config.DB_SSL),
-      trustServerCertificate: asBool(config.DB_TRUST_CERTIFICATE),
-    },
-    connectionTimeout: FIVE_SECONDS_IN_MILLISECONDS, // this might be to aggressive
-  };
-}
 
 async function createMssqlConnection(mssqlConfig?: sql.config): Promise<sql.ConnectionPool> {
   mssqlConfig = mssqlConfig || (await createMssqlConfig());
@@ -91,6 +78,18 @@ async function checkDatabaseAvailability(): Promise<void> {
     const errorAnalysis = AggregateErrorHandler.handle(error);
 
     Logger.error(errorAnalysis.safeMessage);
+
+    // SQL Server reachable + credentials valid, but the database is not available. The
+    // container creates MSSQL_DB only on first boot; a volume from an earlier run is left
+    // untouched. Report it precisely and stop -- creating or dropping anything here is the
+    // operator's call. The probe returns null unless it can actually prove the claim.
+    if (config.DB_ENGINE === 'mssql') {
+      const missingDatabase = await findMissingDatabase();
+      if (missingDatabase) {
+        Logger.error(describeMissingDatabase(missingDatabase).join('\n'));
+      }
+    }
+
     Logger.debug(`Detailed error: ${error}`);
 
     if (AggregateErrorHandler.isAggregateError(error)) {
@@ -189,12 +188,24 @@ function getLogLevel(): LogLevel[] {
 }
 
 async function bootstrap() {
+  // Apply the configured log levels before anything logs. NestFactory.create() normally does
+  // this via its `logger` option, but the database check below runs before that -- and until
+  // overrideLogger is called the static Logger uses Nest's own defaults, which include debug
+  // and verbose. Without this, startup debug output (including connection parameters) would
+  // print even for an operator who set LOG_LEVEL=log or error.
+  Logger.overrideLogger(getLogLevel());
+
+  // Check database availability first - exit if not available.
+  // This must run BEFORE NestFactory.create: creating the app initializes TypeOrmModule,
+  // which opens its own connection and throws from deep inside Nest's bootstrap when the
+  // database is unreachable. Running the check afterwards meant it could never report a
+  // connection problem -- the process had already died with a raw driver stack trace, and
+  // the diagnostics below (including the missing-database explanation) were unreachable.
+  await checkDatabaseAvailability();
+
   const app = await NestFactory.create<NestExpressApplication>(AppModule, {
     logger: getLogLevel(),
   });
-
-  // Check database availability first - exit if not available
-  await checkDatabaseAvailability();
 
   // Optimize response headers for security
   app.disable('x-powered-by');

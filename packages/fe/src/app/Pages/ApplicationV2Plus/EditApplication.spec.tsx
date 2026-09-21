@@ -1,12 +1,21 @@
 import 'reflect-metadata';
 import { EditApplication } from './EditApplication';
 
-jest.mock('react', () => ({ ...jest.requireActual('react'), useMemo: (factory: () => unknown) => factory() }));
+jest.mock('react', () => ({
+  ...jest.requireActual('react'),
+  useMemo: (factory: () => unknown) => factory(),
+  // EditApplicationForm is invoked as a plain function (not via a real React
+  // render), so useState has no dispatcher to attach to. Stub it the same way
+  // useMemo is stubbed above: return the initial value, discard updates
+  // (nothing in this suite exercises the ODS selector's onChange interaction).
+  useState: (initial: unknown) => [typeof initial === 'function' ? (initial as () => unknown)() : initial, jest.fn()],
+}));
 
 import { useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { useQueryClient } from '@tanstack/react-query';
 import { useTeamEdfiTenantNavContextLoaded } from '../../helpers';
+import { SelectOds } from '../../helpers/EntitySelectors';
 import { useApplicationConfig } from './applicationConfig';
 
 jest.mock('react-router', () => ({ useNavigate: jest.fn() }));
@@ -60,6 +69,24 @@ const getFormElement = (application: Record<string, unknown> = defaultApplicatio
     claimset: { id: 5, name: 'CS' } as never,
   }) as React.ReactElement;
   return (outer.type as (props: unknown) => React.ReactElement)(outer.props);
+};
+
+// SelectOds is never actually invoked in this suite (getFormElement only
+// renders EditApplicationForm itself, one level deep) — this walks the
+// returned element tree to find its props without needing a real render.
+const findElement = (node: unknown, type: unknown): React.ReactElement | undefined => {
+  if (!node || typeof node !== 'object') return undefined;
+  const el = node as React.ReactElement<{ children?: unknown }>;
+  if (el.type === type) return el;
+  const children = el.props?.children;
+  if (Array.isArray(children)) {
+    for (const child of children) {
+      const found = findElement(child, type);
+      if (found) return found;
+    }
+    return undefined;
+  }
+  return findElement(children, type);
 };
 
 const setup = (version: 'v2' | 'v3', claimsetGetAll = jest.fn()) => {
@@ -143,13 +170,30 @@ describe('EditApplication', () => {
     expect(entity).not.toHaveProperty('dataStoreId');
   });
 
-  it('writes the resolved ODS id to dataStoreId (not odsInstanceId) for a v3 tenant', async () => {
+  it('does not submit dataStoreId (or odsInstanceId) for a v3 tenant — data-store assignment is an apiClient concern per AC-630', async () => {
     const { putMutateAsync } = setup('v3');
     // defaultApplication is already V3-shaped: `dataStoreIds`, no `odsInstanceIds`.
     const form = getFormElement(defaultApplication);
     await form.props.onSubmit();
     const [[{ entity }]] = putMutateAsync.mock.calls;
-    expect(entity.dataStoreId).toBe(3);
+    expect(entity).not.toHaveProperty('dataStoreId');
     expect(entity).not.toHaveProperty('odsInstanceId');
+  });
+
+  // AC-630 follow-up: selecting a different ODS on Edit no longer does
+  // anything for a v3 tenant (see the test above), so the control is
+  // disabled rather than left looking editable with no effect.
+  it('disables the ODS selector for a v3 tenant', () => {
+    setup('v3');
+    const form = getFormElement();
+    const odsSelect = findElement(form, SelectOds);
+    expect(odsSelect?.props.isDisabled).toBe(true);
+  });
+
+  it('keeps the ODS selector enabled for a v2 tenant — odsInstanceId is a genuine, submitted write field', () => {
+    setup('v2');
+    const form = getFormElement();
+    const odsSelect = findElement(form, SelectOds);
+    expect(odsSelect?.props.isDisabled).toBe(false);
   });
 });

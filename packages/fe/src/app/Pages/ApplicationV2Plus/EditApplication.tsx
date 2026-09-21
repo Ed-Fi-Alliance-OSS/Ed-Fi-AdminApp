@@ -22,7 +22,7 @@ import {
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
 import { MutateOptions, UseQueryOptions, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 import { DefaultValues, Path, useForm } from 'react-hook-form';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
@@ -55,10 +55,22 @@ export const EditApplication = (props: {
 }) =>
   useApplicationConfig.match({
     v2: (cfg) => (
-      <EditApplicationForm<PutApplicationFormDtoV2> config={cfg} odsFieldName="odsInstanceId" {...props} />
+      <EditApplicationForm<PutApplicationFormDtoV2>
+        config={cfg}
+        odsFieldName="odsInstanceId"
+        submitOds
+        {...props}
+      />
     ),
     v3: (cfg) => (
-      <EditApplicationForm<PutApplicationFormDtoV3> config={cfg} odsFieldName="dataStoreId" {...props} />
+      // AC-630: data-store assignment is an apiClient concern as of
+      // ADMINAPI-1484 — Admin API rejects dataStoreId(s) on Application PUT.
+      <EditApplicationForm<PutApplicationFormDtoV3>
+        config={cfg}
+        odsFieldName="dataStoreId"
+        submitOds={false}
+        {...props}
+      />
     ),
   });
 
@@ -89,6 +101,11 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
     PutFormDto: new () => D;
   };
   odsFieldName: 'odsInstanceId' | 'dataStoreId';
+  // AC-630: V2's odsInstanceId is a genuine write field, submitted via RHF as
+  // before. V3's dataStoreId is no longer accepted by Admin API on this PUT,
+  // so it's tracked as local UI state (still narrows the ed-org picker) but
+  // never fed into the submitted form data.
+  submitOds: boolean;
   application: ApplicationEntity;
   claimset: ClaimsetEntity | undefined;
 }) {
@@ -139,6 +156,9 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   const resolver = classValidatorResolver(PutFormDto);
 
   const dataStoreIds = getDataStoreIds(application);
+  // V3's ODS isn't submitted (see submitOds above), so it's tracked here
+  // purely for the SelectOds control and ed-org filtering below.
+  const [localSelectedOds, setLocalSelectedOds] = useState<number | undefined>(dataStoreIds[0]);
   const defaultValues = new PutFormDto();
   defaultValues.id = application.id;
   defaultValues.applicationName = application.applicationName;
@@ -146,7 +166,9 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   defaultValues.profileIds = application.profileIds;
   defaultValues.vendorId = application.vendorId;
   defaultValues.educationOrganizationIds = application.educationOrganizationIds;
-  (defaultValues as unknown as Record<string, unknown>)[props.odsFieldName] = dataStoreIds[0];
+  if (props.submitOds) {
+    (defaultValues as unknown as Record<string, unknown>)[props.odsFieldName] = dataStoreIds[0];
+  }
   // Not registered via FormControl (Integration Provider stays unimplemented
   // for both V2 and V3 editing per this task's scope), but must still flow
   // through as an unregistered defaultValues field so react-hook-form
@@ -183,7 +205,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   // Scoped accessor for the one field whose *name* diverges (odsInstanceId
   // vs dataStoreId) — parameterized by props.odsFieldName instead of
   // hardcoded to one branch.
-  const odsField = () => props.odsFieldName as Path<D>;
+  const odsField = () => props.odsFieldName as unknown as Path<D>;
   const odsErrorMessage = (): string | undefined =>
     (errors as Record<string, { message?: unknown } | undefined>)[props.odsFieldName]?.message as
       | string
@@ -194,7 +216,7 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
   // Stabilize the array reference so it doesn't change identity on every
   // render (which would otherwise defeat the filteredProfileOptions memo below).
   const selectedProfileIds = useMemo(() => watchedProfileIds || [], [watchedProfileIds]);
-  const selectedOds = watch(odsField()) as number;
+  const selectedOds = (props.submitOds ? watch(odsField()) : localSelectedOds) as number;
   const setSelectedEdorgs = (edorgs: number[]) => {
     setValue(field('educationOrganizationIds'), edorgs as never);
   };
@@ -304,7 +326,11 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
             useInstanceId
             value={selectedOds}
             onChange={(value) => {
-              setValue(odsField(), value as never);
+              if (props.submitOds) {
+                setValue(odsField(), value as never);
+              } else {
+                setLocalSelectedOds(value as number);
+              }
               setValue(
                 field('educationOrganizationIds'),
                 selectedEdorgs.filter(
@@ -312,7 +338,12 @@ function EditApplicationForm<D extends PutApplicationFormDtoV2 | PutApplicationF
                 ) as never
               );
             }}
-            isDisabled={hasIntegrationProvider}
+            // AC-630 follow-up: for V3, selecting a different ODS here no
+            // longer does anything on save (data-store assignment is now an
+            // apiClient concern) — disabled so it doesn't look like a live
+            // control with no effect. Still shows the current value and
+            // still narrows the ed-org picker below.
+            isDisabled={hasIntegrationProvider || !props.submitOds}
           />
           <FormErrorMessage>{odsErrorMessage()}</FormErrorMessage>
         </FormControl>

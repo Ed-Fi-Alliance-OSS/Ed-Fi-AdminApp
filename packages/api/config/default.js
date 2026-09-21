@@ -96,7 +96,17 @@ module.exports = {
           MSSQL_DB_PORT,
           MSSQL_DB_DATABASE,
         } = this.DB_SECRET_VALUE;
-        const connString = `mssql://${MSSQL_DB_USERNAME}:${MSSQL_DB_PASSWORD}@${MSSQL_DB_HOST}:${MSSQL_DB_PORT}/${MSSQL_DB_DATABASE}?encrypt=${this.DB_SSL}&trustServerCertificate=${this.DB_TRUST_CERTIFICATE}`;
+        // Percent-encode anything that carries user-chosen characters. SQL Server's password
+        // complexity rules push operators towards '@', '#', '!' and friends, and interpolating
+        // those raw produces a URL that parses wrongly: '@' splits the authority in the wrong
+        // place and '#' truncates at the fragment. Consumers decode -- TypeORM's
+        // DriverUtils already calls decodeURIComponent on the credentials, so without encoding
+        // here it decodes a value that was never encoded and throws outright on a '%'.
+        const connString = `mssql://${encodeURIComponent(MSSQL_DB_USERNAME)}:${encodeURIComponent(
+          MSSQL_DB_PASSWORD
+        )}@${MSSQL_DB_HOST}:${MSSQL_DB_PORT}/${encodeURIComponent(
+          MSSQL_DB_DATABASE
+        )}?encrypt=${this.DB_SSL}&trustServerCertificate=${this.DB_TRUST_CERTIFICATE}`;
 
         return connString;
       }
