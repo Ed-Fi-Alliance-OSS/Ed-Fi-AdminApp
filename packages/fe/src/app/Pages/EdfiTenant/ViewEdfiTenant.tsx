@@ -5,7 +5,7 @@ import {
   ContentSection,
 } from '@edanalytics/common-ui';
 import { GetEdfiTenantDto } from '@edanalytics/models';
-import { AuthorizeComponent, useTeamSbEnvironmentNavContext } from '../../helpers';
+import { AuthorizeComponent, getOdsTerminology, useTeamSbEnvironmentNavContext } from '../../helpers';
 import { Link } from '@chakra-ui/react';
 import { Link as RouterLink } from 'react-router';
 import { SbEnvironmentLink } from '../../routes';
@@ -40,7 +40,7 @@ export const ViewEdfiTenant = ({ edfiTenant }: { edfiTenant: GetEdfiTenantDto })
               as={RouterLink}
               to={`/as/${teamId}/sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss`}
             >
-              ODS's &rarr;
+              {getOdsTerminology(sbEnvironment?.version).plural} &rarr;
             </Link>
           </AuthorizeComponent>
           <AuthorizeComponent
