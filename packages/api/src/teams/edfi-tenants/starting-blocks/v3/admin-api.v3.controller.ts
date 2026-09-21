@@ -365,13 +365,22 @@ export class AdminApiControllerV3 {
 
     // AC-630: data-store assignment is an apiClient concern as of ADMINAPI-1484
     // (Admin API rejects dataStoreIds on Application PUT), so the client no
-    // longer submits it here — the ODS is the application's current one.
-    const odsInstanceId = existingApplication.dataStoreIds[0];
+    // longer submits it here. An Application's dataStoreIds is the union
+    // across every one of its credentials (GetDataStoreIdsByApplicationIdQuery
+    // on Admin API), so it isn't always one value — and can be empty for a
+    // zero-credential Application. Edorg lookup/validation and authorization
+    // below must cover the whole set, not collapse to dataStoreIds[0].
+    if (existingApplication.dataStoreIds.length === 0) {
+      throw new ValidationHttpException({
+        field: 'educationOrganizationIds',
+        message: 'Application has no associated data store; cannot validate education organizations',
+      });
+    }
 
     const availableEdorgs = await this.edorgRepository.findBy({
       edfiTenantId: edfiTenant.id,
       educationOrganizationId: In(application.educationOrganizationIds),
-      odsInstanceId,
+      odsInstanceId: In(existingApplication.dataStoreIds),
     });
 
     // excludeExtraneousValues (matching postApplication below) strips fields
@@ -404,14 +413,19 @@ export class AdminApiControllerV3 {
         message: 'Education organizations not all from the same ODS',
       });
     }
+    // The ODS the submitted (validated, single-ODS) edorgs actually belong
+    // to — used below for the Integration App's single-ODS-specific checks.
+    // Not necessarily the only store the application has (see above); the
+    // ODS itself can't change via this endpoint, only the edorgs might have.
+    const odsInstanceId = availableEdorgs[0].odsInstanceId;
 
     // This checks the new version of the application against the valid IDs.
-    // `dto` no longer carries dataStoreIds (see above), so it's supplied here
-    // directly — the ODS itself can't change via this endpoint, only the
-    // edorgs might have.
+    // Uses every one of the application's existing data stores (not just the
+    // one the submitted edorgs belong to) — an edit changes attributes shared
+    // across every credential, regardless of which store each one points at.
     if (
       this.checkApplicationEdorgsForUnsafeOperations(
-        { educationOrganizationIds: dto.educationOrganizationIds, dataStoreIds: [odsInstanceId] },
+        { educationOrganizationIds: dto.educationOrganizationIds, dataStoreIds: existingApplication.dataStoreIds },
         validIds,
       )
     ) {

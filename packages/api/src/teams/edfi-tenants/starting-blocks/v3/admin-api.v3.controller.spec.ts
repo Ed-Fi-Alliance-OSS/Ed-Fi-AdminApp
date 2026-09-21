@@ -577,12 +577,92 @@ describe('AdminApiControllerV3 - putApplication ODS handling', () => {
     );
   });
 
-  it('derives the ODS instance from the existing application record, not from the request body', async () => {
+  it('derives the ODS instance(s) from the existing application record, not from the request body', async () => {
     await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
 
-    expect(mockEdorgRepository.findBy).toHaveBeenCalledWith(
-      expect.objectContaining({ odsInstanceId: 42 }),
+    const [callArg] = mockEdorgRepository.findBy.mock.calls[0];
+    expect(callArg.odsInstanceId.value).toEqual([42]);
+  });
+
+  // An Application's dataStoreIds is the union across every one of its
+  // credentials (GetDataStoreIdsByApplicationIdQuery on Admin API) — AC-569
+  // made multi-credential, multi-store Applications real, so collapsing to
+  // dataStoreIds[0] silently drops the other store(s) from edorg validation.
+  it('looks up edorgs scoped to every one of the application\'s existing data stores, not just the first', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds);
+
+    const [callArg] = mockEdorgRepository.findBy.mock.calls[0];
+    expect(callArg.odsInstanceId.value).toEqual([42, 99]);
+  });
+
+  it('rejects the edit when the application has no associated data store (e.g. zero credentials)', async () => {
+    const noStoreExisting = {
+      ...existingApplication,
+      dataStoreIds: [],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(noStoreExisting);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, validIds),
+    ).rejects.toThrow(ValidationHttpException);
+    expect(mockEdorgRepository.findBy).not.toHaveBeenCalled();
+    expect(mockSbService.putApplication).not.toHaveBeenCalled();
+  });
+
+  // Editing an Application changes attributes shared across every one of its
+  // credentials, regardless of which data store each credential points at —
+  // so authorization must cover every existing store, not just the one the
+  // submitted edorgs happen to belong to.
+  it('rejects the edit when the editor is not authorized on every one of the application\'s existing data stores (not just dataStoreIds[0])', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      // Empty so the pre-check above (line ~362, unmodified) trivially
+      // passes regardless of validIds, isolating this test to the
+      // post-lookup authorization check this fix touches.
+      educationOrganizationIds: [],
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+    mockEdorgRepository.findBy.mockResolvedValue([
+      { educationOrganizationId: 255901107, odsInstanceId: 99 },
+    ]);
+    // Authorized for the submitted edorg under store 42 (dataStoreIds[0]) —
+    // but not under store 99, which the application also has via another
+    // credential. A check that only looked at dataStoreIds[0] would wrongly
+    // accept this.
+    const partialValidIds: Ids = new Set(['42-255901107']);
+
+    await expect(
+      controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, partialValidIds),
+    ).rejects.toThrow(
+      new ValidationHttpException({
+        field: 'edorgIds',
+        message: 'Not authorized on all education organizations',
+      }),
     );
+  });
+
+  it('accepts the edit when the editor is authorized on every one of the application\'s existing data stores', async () => {
+    const multiStoreExisting = {
+      ...existingApplication,
+      educationOrganizationIds: [],
+      dataStoreIds: [42, 99],
+    } as unknown as GetApplicationDtoV3;
+    mockSbService.getApplication.mockResolvedValue(multiStoreExisting);
+    mockEdorgRepository.findBy.mockResolvedValue([
+      { educationOrganizationId: 255901107, odsInstanceId: 99 },
+    ]);
+    const fullValidIds: Ids = new Set(['99-255901107', '42-255901107']);
+
+    await controller.putApplication(1, 1, mockEdfiTenant, 9, requestBody, fullValidIds);
+
+    expect(mockSbService.putApplication).toHaveBeenCalled();
   });
 
   it('does not forward dataStoreIds to Admin API on the outgoing PUT payload', async () => {
