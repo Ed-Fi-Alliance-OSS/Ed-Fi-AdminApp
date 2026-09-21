@@ -12,6 +12,7 @@ import {
   AuthorizeConfig,
   arrayElemIf,
   authorize,
+  getOdsTerminology,
   useAuthorize,
   usePrivilegeCacheForConfig,
 } from '../helpers';
@@ -281,7 +282,13 @@ export const TeamNav = (props: { teamId: string }) => {
                           {
                             route: `${tenantRootUrl}/odss`,
                             icon: Icons.ODS,
-                            text: 'ODSs',
+                            // Reuses the shared v3 term from getOdsTerminology; the v1/v2 label
+                            // stays the pre-existing 'ODSs' literal (not useOdsTerminology's
+                            // 'ODS's', which is a different string used for list/page titles).
+                            text:
+                              sbEnvironment.version === 'v3'
+                                ? getOdsTerminology(sbEnvironment.version).plural
+                                : 'ODSs',
                           }
                         ),
                         ...arrayElemIf(
