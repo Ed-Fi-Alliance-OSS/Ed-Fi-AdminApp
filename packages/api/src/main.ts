@@ -30,6 +30,7 @@ import { CatalogService } from './certification/catalog/catalog.service';
 import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
+import { createCsrfOriginGuard } from './app/csrf-origin-guard';
 import axios from 'axios';
 import https from 'https';
 
@@ -224,6 +225,7 @@ async function bootstrap() {
   const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
   app.use(json({ limit: '512kb' }));
+  app.use(createCsrfOriginGuard(config.FE_URL));
   app.use(
     expressSession.default({
       store: sessionStore,
@@ -231,7 +233,7 @@ async function bootstrap() {
       secret: 'my-secret',
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: 'auto' },
+      cookie: { secure: 'auto', httpOnly: true, sameSite: 'lax' },
     })
   );
   app.use(passport.initialize());
