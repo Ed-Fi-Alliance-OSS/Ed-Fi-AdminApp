@@ -21,6 +21,7 @@ import {
   Logger,
   NotFoundException,
   Param,
+  Post,
   Query,
   Request as Req, // TODO: can Req just be used here?
   Res,
@@ -279,7 +280,7 @@ export class AuthController {
     return response.redirect(config.FE_URL);
   }
 
-  @Get('/logout')
+  @Post('/logout')
   @Public()
   async logout(@Req() request: Request, @Res() response: Response) {
     this.throwOnBearerToken({ request, route: 'logout' });

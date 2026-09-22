@@ -23,6 +23,15 @@ export const AppBar = () => {
   const asId = useAsId();
   const teams = useMyTeams();
   const team = asId === undefined ? undefined : teams.data?.[asId];
+  const logoutUrl = `${apiClient.defaults.baseURL}/auth/logout`;
+
+  const logout = () => {
+    const form = document.createElement('form');
+    form.method = 'POST';
+    form.action = logoutUrl;
+    document.body.appendChild(form);
+    form.submit();
+  };
 
   return (
     <HStack
@@ -75,10 +84,7 @@ export const AppBar = () => {
           </MenuButton>
           <MenuList>
             <MenuItem
-              onClick={() => {
-                // This ensures proper logout from both AdminApp and the identity provider, then redirects to login page
-                window.location.href = `${apiClient.defaults.baseURL}/auth/logout`;
-              }}
+              onClick={logout}
             >
               Sign out
             </MenuItem>
