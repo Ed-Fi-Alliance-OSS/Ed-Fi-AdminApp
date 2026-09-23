@@ -31,6 +31,7 @@ import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
+import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
 import axios from 'axios';
 import https from 'https';
 
@@ -208,6 +209,8 @@ async function bootstrap() {
     logger: getLogLevel(),
   });
 
+  app.set('trust proxy', SESSION_TRUST_PROXY_HOPS);
+
   // Optimize response headers for security
   app.disable('x-powered-by');
   app.use(function (_, res, next) {
@@ -233,7 +236,7 @@ async function bootstrap() {
       secret: 'my-secret',
       resave: false,
       saveUninitialized: false,
-      cookie: { secure: 'auto', httpOnly: true, sameSite: 'lax' },
+      cookie: getSessionCookieOptions(),
     })
   );
   app.use(passport.initialize());
