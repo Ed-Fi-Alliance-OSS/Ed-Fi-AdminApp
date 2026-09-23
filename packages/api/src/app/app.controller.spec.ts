@@ -72,6 +72,65 @@ describe('AppController healthcheck', () => {
   });
 
   it.each([
+    ['name', 'Health check failed: unexpected failure', '{"kind":"UninspectableError"}'],
+    ['errors', 'Health check failed: unexpected failure', '{"kind":"UninspectableError"}'],
+    ['message', 'Health check failed: Unknown error', '{"kind":"AggregateError","errorCount":0}'],
+  ])('preserves the fallback when the %s getter throws', async (property, message, diagnostic) => {
+    const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const error = Object.defineProperty(new AggregateError([], 'unexpected failure'), property, {
+      get() {
+        throw new Error('private accessor failure');
+      },
+    });
+    getHealth.mockRejectedValueOnce(error);
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual({
+      status: 'unhealthy',
+      timestamp: expect.any(String),
+      checks: {
+        api: { status: 'healthy', message: 'API is responding' },
+        database: { status: 'unhealthy', message },
+      },
+    });
+    expect(logError).toHaveBeenCalledWith(`Healthcheck error: ${diagnostic}`);
+    expect(JSON.stringify(logError.mock.calls)).not.toContain('private accessor failure');
+  });
+
+  it.each([
+    ['getOwnPropertyDescriptor', 'Health check failed: unexpected failure'],
+    ['getPrototypeOf', 'Health check failed: Unknown error'],
+  ])('preserves the fallback when the %s Proxy trap throws', async (trap, message) => {
+    const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const error = new Proxy(new Error('unexpected failure'), {
+      [trap]() {
+        throw new Error('private Proxy failure');
+      },
+    });
+    getHealth.mockRejectedValueOnce(error);
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('unhealthy');
+    expect(response.body.checks.database).toEqual({ status: 'unhealthy', message });
+    expect(logError).toHaveBeenCalledWith('Healthcheck error: {"kind":"UninspectableError"}');
+  });
+
+  it('preserves the fallback for a revoked Proxy', async () => {
+    const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const { proxy, revoke } = Proxy.revocable({}, {});
+    revoke();
+    getHealth.mockRejectedValueOnce(proxy);
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(200);
+    expect(response.body.status).toBe('unhealthy');
+    expect(response.body.checks.database).toEqual({
+      status: 'unhealthy',
+      message: 'Health check failed: Unknown error',
+    });
+    expect(logError).toHaveBeenCalledWith('Healthcheck error: {"kind":"UninspectableError"}');
+  });
+
+  it.each([
     [
       new Error('unexpected failure'),
       'Health check failed: unexpected failure',

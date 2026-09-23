@@ -22,22 +22,37 @@ const DIAGNOSTIC_CODES: ReadonlyMap<string, string> = new Map([
 ]);
 
 export function describeHealthError(error: unknown): string {
-  const aggregate = AggregateErrorHandler.isAggregateError(error);
-  const kind = aggregate
-    ? 'AggregateError'
-    : error instanceof Error
-      ? 'Error'
-      : error === null
-        ? 'null'
-        : typeof error;
-  // Inspect only an own data property; reading error.code could invoke a driver-supplied getter.
-  const candidate: unknown =
-    typeof error === 'object' && error !== null
-      ? Object.getOwnPropertyDescriptor(error, 'code')?.value
-      : undefined;
-  const code =
-    typeof candidate === 'string' && DIAGNOSTIC_CODES.has(candidate) ? candidate : undefined;
-  const description = code === undefined ? undefined : DIAGNOSTIC_CODES.get(code);
-  const errorCount = aggregate ? error.errors.length : undefined;
-  return JSON.stringify({ kind, code, description, errorCount });
+  try {
+    const aggregate = AggregateErrorHandler.isAggregateError(error);
+    const kind = aggregate
+      ? 'AggregateError'
+      : error instanceof Error
+        ? 'Error'
+        : error === null
+          ? 'null'
+          : typeof error;
+    // Inspect only an own data property; reading error.code could invoke a driver-supplied getter.
+    const candidate: unknown =
+      typeof error === 'object' && error !== null
+        ? Object.getOwnPropertyDescriptor(error, 'code')?.value
+        : undefined;
+    const code =
+      typeof candidate === 'string' && DIAGNOSTIC_CODES.has(candidate) ? candidate : undefined;
+    const description = code === undefined ? undefined : DIAGNOSTIC_CODES.get(code);
+    const errorCount = aggregate ? error.errors.length : undefined;
+    return JSON.stringify({ kind, code, description, errorCount });
+  } catch {
+    // Getters and Proxy traps can throw even during classification or descriptor lookup.
+    return '{"kind":"UninspectableError"}';
+  }
+}
+
+export function getHealthFailureMessage(error: unknown): string {
+  try {
+    return error instanceof Error
+      ? `Health check failed: ${error.message}`
+      : 'Health check failed: Unknown error';
+  } catch {
+    return 'Health check failed: Unknown error';
+  }
 }

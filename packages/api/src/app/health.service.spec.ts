@@ -207,6 +207,23 @@ describe('HealthService', () => {
     expect(runner.release).toHaveBeenCalledTimes(1);
   });
 
+  it('logs a fixed diagnostic and releases the runner when error inspection throws', async () => {
+    runner.query.mockRejectedValueOnce(
+      Object.defineProperty(new Error('private detail'), 'name', {
+        get() {
+          throw new Error('private accessor failure');
+        },
+      }),
+    );
+    expect(await service.getHealth()).toEqual(bodyFor('unhealthy'));
+    expect(warn).toHaveBeenCalledWith(
+      'Database health check query failed: {"kind":"UninspectableError"}',
+    );
+    expect(warn).toHaveBeenCalledTimes(1);
+    expect(runner.release).toHaveBeenCalledTimes(1);
+    expect(jest.getTimerCount()).toBe(0);
+  });
+
   it('does not emit credential-like or multiline exception content', async () => {
     const sensitiveDetail = 'Password=health-test-sentinel\r\nFORGED LOG';
     runner.query.mockRejectedValueOnce(

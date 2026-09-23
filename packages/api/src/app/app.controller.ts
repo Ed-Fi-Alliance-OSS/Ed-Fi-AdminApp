@@ -11,7 +11,7 @@ class SecretIdDto {
   secretId: string;
 }
 import { HealthStatus, HealthService } from './health.service';
-import { describeHealthError } from './health-error';
+import { describeHealthError, getHealthFailureMessage } from './health-error';
 
 @ApiTags('App')
 @Controller()
@@ -40,7 +40,7 @@ export class AppController {
           },
           database: {
             status: 'unhealthy',
-            message: error instanceof Error ? `Health check failed: ${error.message}` : 'Health check failed: Unknown error'
+            message: getHealthFailureMessage(error)
           }
         }
       };

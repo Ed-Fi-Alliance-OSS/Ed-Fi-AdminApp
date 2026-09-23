@@ -145,6 +145,9 @@ are omitted; the formatter does not fall back to raw exception text.
 Aggregate errors include a sub-error count, but not inner messages or nested codes.
 The service and controller share a safe diagnostic formatter; neither logs raw
 healthcheck exceptions. The controller's legacy fallback response message is unchanged.
+If inspecting an exception throws, logs use a fixed `UninspectableError` diagnostic.
+If the fallback cannot read the exception's message, it uses `Health check failed:
+Unknown error` and still returns HTTP 200 with an unhealthy body.
 Each timed-out response logs its own `response timeout` warning with the deadline;
 concurrent warnings can refer to the same pending database operation, not separate
 database incidents.
