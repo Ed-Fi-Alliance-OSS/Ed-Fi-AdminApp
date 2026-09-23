@@ -88,6 +88,8 @@ export class AggregateErrorHandler {
 
   /**
    * Check if an individual error is database-related
+   * Unlike health-error.ts's log-disclosure allowlist, this also classifies message text.
+   * Review that allowlist when changing driver-code classification here.
    */
   private static isDatabaseConnectionError(error: unknown): boolean {
     if (!(error instanceof Error)) return false;

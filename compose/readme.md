@@ -109,6 +109,57 @@ Because this is district-specific mode, and not a multi-tenant application, both
 
 ### Healthchecks
 
+#### Admin App healthcheck
+
+**`GET /api/healthcheck` returns HTTP 200 for both healthy and unhealthy results.**
+Inspect `status` and `checks.database.status` in the JSON body; HTTP-only container
+probes do not detect database failures. API status remains
+`healthy` when the API can respond. The database messages remain `Database connection
+successful` and `Database connection failed`. HTTP failure-status and container-probe
+changes are outside AC-601 and remain for AC-604.
+
+The endpoint checks the application's configured database through its TypeORM
+connection pool using `SELECT 1`. PostgreSQL and SQL Server use the same probe.
+This measures application database readiness, including pool availability,
+rather than connectivity through a separate client.
+
+Each response waits at most three seconds for the database operation, subject to
+normal event-loop scheduling. A timeout does not cancel a query or close the shared
+pool: the query runner is released after its work finishes. Concurrent checks reuse
+one pending operation, including after a response timeout, to avoid accumulating
+connections. A stalled driver operation can therefore keep subsequent checks
+unhealthy until it settles; there is no driver-independent cancellation guarantee.
+
+Routine requests log at debug. Connection, query, and cleanup failures log at warn
+with a fixed phase, error category, and recognized driver code where available.
+Each recognized code includes a brief, fixed description from the same allowlist,
+not the exception's message. For example:
+
+```text
+Database health check connection failed: {"kind":"Error","code":"ELOGIN","description":"Database login failed"}
+```
+
+Descriptions explain the error category without assuming its root cause and appear
+only in logs, not in the healthcheck response. Unknown codes and their descriptions
+are omitted; the formatter does not fall back to raw exception text.
+Aggregate errors include a sub-error count, but not inner messages or nested codes.
+The service and controller share a safe diagnostic formatter; neither logs raw
+healthcheck exceptions. The controller's legacy fallback response message is unchanged.
+Each timed-out response logs its own `response timeout` warning with the deadline;
+concurrent warnings can refer to the same pending database operation, not separate
+database incidents.
+Cleanup failures are logged separately and do not overwrite a completed query result;
+cleanup that remains pending is still subject to the response deadline.
+
+AC-601 removes the catch in `HealthService.getHealth()` in
+`packages/api/src/app/health.service.ts`: connection/query failures already resolve
+to `false`, and the response deadline logs and resolves to `false` without throwing.
+No second service-level catch is needed. The fallback catch in
+`AppController.healthcheck()` is intentionally retained for unexpected service
+rejections and preserves the existing HTTP 200 response contract.
+
+#### ODS/API healthchecks
+
 The services in `edfi-services.yml` share four healthcheck definitions, declared once at
 the top of that file as YAML anchors (the `x-healthcheck-*` keys, which Compose ignores)
 and referenced per service as `healthcheck: *healthcheck-api`. Editing an anchor changes
