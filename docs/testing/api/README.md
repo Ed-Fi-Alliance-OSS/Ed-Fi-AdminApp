@@ -143,7 +143,7 @@ the modified code.
 | GET  | `\api\auth\me` | 200  | Yes |
 | GET  | `\api\auth\my-teams` | 200  | Yes |
 | GET  | `\api\auth\cache\{teamId}` | 200  | Yes |
-| GET  | `\api\auth\logout` | 201  | Yes |
+| POST  | `\api\auth\logout` | 201  | Yes |
 
 | | EdfiTenant Global  | Status | Validation Schema |
 |---|---|---|---|
