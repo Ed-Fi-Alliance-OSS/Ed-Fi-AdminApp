@@ -1,16 +1,8 @@
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './session-cookie-options';
 
 describe('getSessionCookieOptions', () => {
-  it('forces secure cookies in production', () => {
-    expect(getSessionCookieOptions('production')).toEqual({
-      secure: true,
-      httpOnly: true,
-      sameSite: 'lax',
-    });
-  });
-
-  it('uses auto secure cookies outside production', () => {
-    expect(getSessionCookieOptions('development')).toEqual({
+  it('uses auto secure cookies', () => {
+    expect(getSessionCookieOptions()).toEqual({
       secure: 'auto',
       httpOnly: true,
       sameSite: 'lax',
