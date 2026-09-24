@@ -1,8 +1,10 @@
-# Docker Compose Usage
+# Docker Compose Operator Manual
 
 ## About
 
-This directory includes a Docker Compose file for starting a collection of services needed for running and testing Ed-Fi Admin App. It includes deployments of ODS/API 7.3 with Admin API v2 and Admin API v3 topologies, and a deployment of ODS/API 6.2 and Admin API 1.4 in district-specific mode.
+Use this manual to configure, start, monitor, and troubleshoot the local Ed-Fi Admin App
+Compose stack. It includes deployments of ODS/API 7.3 with Admin API v2 and Admin API v3
+topologies, and a deployment of ODS/API 6.2 and Admin API 1.4 in district-specific mode.
 
 ### Containers for Supporting Ed-Fi Admin App
 
@@ -111,55 +113,133 @@ Because this is district-specific mode, and not a multi-tenant application, both
 
 #### Admin App healthcheck
 
-**`GET /api/healthcheck` returns HTTP 200 for both healthy and unhealthy results.**
-Inspect `status` and `checks.database.status` in the JSON body; HTTP-only container
-probes do not detect database failures. API status remains
-`healthy` when the API can respond. The database messages remain `Database connection
-successful` and `Database connection failed`. HTTP failure-status and container-probe
-changes are outside AC-601 and remain for AC-604.
+**`GET /api/healthcheck` returns HTTP 200 when healthy and HTTP 503 when unhealthy.**
+The endpoint is public and requires no authentication:
 
-The endpoint checks the application's configured database through its TypeORM
-connection pool using `SELECT 1`. PostgreSQL and SQL Server use the same probe.
-This measures application database readiness, including pool availability,
-rather than connectivity through a separate client.
+- From inside the API container or a locally running API: `http://localhost:3333/api/healthcheck`.
+- Through the Compose reverse proxy: `https://localhost/adminapp-api/api/healthcheck`.
+
+The reverse proxy also accepts `/api/healthcheck`. Both routes preserve the API's
+health JSON for HTTP 200 and 503. If the proxy cannot reach the API at all, it can
+return a generic service-unavailable response instead of health JSON.
+
+The API uses `DB_ENGINE` and `DB_SECRET_VALUE` from its application configuration
+to select PostgreSQL or SQL Server. See [Database Configuration](#database-configuration).
+There are no separate healthcheck credentials or database-engine settings.
+
+The probe executes `SELECT 1` through the application's configured TypeORM connection
+pool, then releases its query runner. It checks access to the application database,
+including pool availability. It does **not** check every application table, business
+operation, ODS/API instance, Admin API instance, or identity provider.
+
+##### Reading the response
+
+A healthy response has HTTP 200:
+
+```json
+{
+  "status": "healthy",
+  "timestamp": "2026-09-24T12:00:00.000Z",
+  "checks": {
+    "api": { "status": "healthy", "message": "API is responding" },
+    "database": { "status": "healthy", "message": "Database connection successful" }
+  }
+}
+```
+
+A database connection failure, query failure, or response timeout produces HTTP 503:
+
+```json
+{
+  "status": "unhealthy",
+  "timestamp": "2026-09-24T12:00:03.000Z",
+  "checks": {
+    "api": { "status": "healthy", "message": "API is responding" },
+    "database": { "status": "unhealthy", "message": "Database connection failed" }
+  }
+}
+```
+
+`checks.api.status` remains `healthy` when the API can respond, even when the overall
+response is HTTP 503 because the database is unavailable. Use the HTTP status and
+overall `status` for readiness, not the API sub-check alone. An unexpected healthcheck
+error also returns HTTP 503 with the same JSON structure; its database message starts
+with `Health check failed:` and includes only an allowlisted error description
+(for example, `Database login failed`) or `Unknown error`, never the raw driver message.
+
+To inspect status and body in PowerShell 7 through the local reverse proxy:
+
+```powershell
+$response = Invoke-WebRequest -Uri 'https://localhost/adminapp-api/api/healthcheck' -SkipCertificateCheck -SkipHttpErrorCheck -TimeoutSec 10
+$response.StatusCode
+$response.Content | ConvertFrom-Json | ConvertTo-Json -Depth 4
+```
+
+`-SkipHttpErrorCheck` lets you inspect a 503 response instead of raising an HTTP error.
+Use `-SkipCertificateCheck` only with the local development certificate; use normal
+certificate validation for deployed environments.
+
+##### Deadlines and recovery
 
 Each response waits at most three seconds for the database operation, subject to
-normal event-loop scheduling. A timeout does not cancel a query or close the shared
-pool: the query runner is released after its work finishes. Concurrent checks reuse
-one pending operation, including after a response timeout, to avoid accumulating
-connections. A stalled driver operation can therefore keep subsequent checks
-unhealthy until it settles; there is no driver-independent cancellation guarantee.
+normal event-loop scheduling. Set a monitoring client's timeout above this deadline
+to allow for HTTP overhead; the container healthcheck uses a ten-second timeout.
 
-Routine requests log at debug. Connection, query, and cleanup failures log at warn
-with a fixed phase, error category, and recognized driver code where available.
-Each recognized code includes a brief, fixed description from the same allowlist,
-not the exception's message. For example:
+A response timeout does not cancel a query or close the shared pool. The query runner
+is released after its work finishes. Concurrent checks reuse one pending operation,
+including after a response timeout, to avoid accumulating connections. A stalled
+operation can therefore keep subsequent checks unhealthy until it settles; there is
+no driver-independent cancellation or guaranteed recovery time.
+
+After the pending work and cleanup settle, a subsequent request starts a new probe.
+Recovery does not require an API restart when the database/pool becomes usable again
+and the pending work settles. A cleanup rejection is logged separately and does not
+replace a completed query result; cleanup that remains pending is still subject to
+the response deadline.
+
+##### Monitoring and startup behavior
+
+The API image and Compose healthcheck use `curl -f`, so HTTP 503 now makes the probe
+fail for either database engine. They poll every 30 seconds and require three consecutive
+failed checks before marking the container unhealthy, subject to the configured startup grace
+period. The Docker label can therefore lag behind the endpoint's current status.
+
+The frontend's `depends_on: service_healthy` waits for the API's healthy label during
+Compose startup. It does not stop an already-running frontend during a later database
+outage. Docker's unhealthy label alone does not restart the API; `restart:
+unless-stopped` reacts to process exits, not failed healthchecks. Do not use a
+database-readiness failure as an automatic restart trigger without considering the
+effect of restarting every API instance during a database outage.
+
+The UI E2E readiness runner requires consecutive HTTP 200 responses. The API E2E
+workflow also waits for HTTP 200 and fails if its bounded retry loop is exhausted.
+The Bruno healthcheck asserts both HTTP 200 and healthy API/database body fields.
+
+**Compatibility:** older API images returned HTTP 200 even for an unhealthy body.
+When upgrading, update monitors that assume every response is 200 to accept 503 as
+an expected not-ready result. During mixed-version operation, also inspect the body;
+HTTP-only checks against older images can still report false readiness. The JSON
+field structure and normal success/failure messages are unchanged.
+
+##### Logs
+
+Routine requests log at debug. Database connection, query, and cleanup failures log
+at warn with a phase and a sanitized diagnostic. Recognized driver codes include a
+fixed description; the description is a category, not proof of the root cause:
 
 ```text
 Database health check connection failed: {"kind":"Error","code":"ELOGIN","description":"Database login failed"}
+Database health check response timeout after 3000 ms
 ```
 
-Descriptions explain the error category without assuming its root cause and appear
-only in logs, not in the healthcheck response. Unknown codes and their descriptions
-are omitted; the formatter does not fall back to raw exception text.
-Aggregate errors include a sub-error count, but not inner messages or nested codes.
-The service and controller share a safe diagnostic formatter; neither logs raw
-healthcheck exceptions. The controller's legacy fallback response message is unchanged.
-If inspecting an exception throws, logs use a fixed `UninspectableError` diagnostic.
-If the fallback cannot read the exception's message, it uses `Health check failed:
-Unknown error` and still returns HTTP 200 with an unhealthy body.
-Each timed-out response logs its own `response timeout` warning with the deadline;
-concurrent warnings can refer to the same pending database operation, not separate
-database incidents.
-Cleanup failures are logged separately and do not overwrite a completed query result;
-cleanup that remains pending is still subject to the response deadline.
+Unknown codes and descriptions are omitted. Aggregate diagnostics include an
+`errorCount`, but not inner messages or nested codes. Unexpected controller errors log
+at error level using the same sanitized format. If inspecting an exception fails,
+the diagnostic is `{"kind":"UninspectableError"}`.
 
-AC-601 removes the catch in `HealthService.getHealth()` in
-`packages/api/src/app/health.service.ts`: connection/query failures already resolve
-to `false`, and the response deadline logs and resolves to `false` without throwing.
-No second service-level catch is needed. The fallback catch in
-`AppController.healthcheck()` is intentionally retained for unexpected service
-rejections and preserves the existing HTTP 200 response contract.
+Each timed-out HTTP request logs its own warning. Several warnings can refer to the
+same pending database operation, not separate incidents. For next steps, see
+[Admin App healthcheck failures](#admin-app-healthcheck-failures).
 
 #### ODS/API healthchecks
 
@@ -183,10 +263,10 @@ happens to use:
 | `*healthcheck-db-socket`   | **Default for PostgreSQL containers.** Every Admin database, and the v6 ODS databases | `pg_isready` over the local socket            |
 | `*healthcheck-db-tcp`      | The six v7 ODS databases (`odsV7-*-db-ods`) only                                      | `pg_isready -h localhost -p ${POSTGRES_PORT}` |
 
-The socket/TCP split among the database containers is historical drift rather than a design
-decision — the v6 and v7 ODS databases are probed differently for no recorded reason. Prefer
-`*healthcheck-db-socket` for anything new; see
-[the AC-520 audit](../docs/design/2026-09-10-ac-520-env-example-audit.md) for the details.
+Socket probes check PostgreSQL locally without a TCP host/port; TCP probes check the
+configured listener. Prefer `*healthcheck-db-socket` for new PostgreSQL containers
+unless the deployment specifically requires a TCP listener check. These probes and
+the ODS/Admin API `/health` endpoints are separate from the Admin App `/api/healthcheck`.
 
 Changes to these anchors are covered by `npm run compose:check`, which fails if a service's
 rendered healthcheck command stops matching `compose-healthchecks.golden` in this directory. After
@@ -409,10 +489,10 @@ Or alternatively use Admin API: [adminapi-odsinstance.http](./http/adminapi-odsi
 > [!IMPORTANT]
 > The session timeout settings in Keycloak (configured in step 3.1) determine how long a user can remain authenticated without needing to re-login. Configuring these settings to align with your application's express session timeout (set in `main.ts`) ensures consistent authentication behavior.
 
-## Developer Guide
+## Application Access and Setup
 
-See [Ed-Fi Developer's Guide](../docs/ed-fi-development.md) for troubleshooting
-tips, and running the application for local development.
+For running the application outside containers, see the
+[Ed-Fi Developer's Guide](../docs/ed-fi-development.md).
 
 ### Global Setup
 
@@ -421,39 +501,33 @@ If all went well, you can open
 initial user. This will start you in "Global scope" mode for initial
 configuration.
 
-In Global Scope, complete the following setup:
-
-- **Environments** - support AWS and on-premises
-- **Teams** - create a Team, name it whatever you like. More detail to come.
-- **Users** - ignore for now
-- **Team Memberships** - try adding yourself to the new Team, with "Tenant Admin" access.
-- **Roles** - assign all `team.sb-environment.edfi-tenant.profile` privileges to the "Tenant admin" and "Full ownership" roles
-- **Ownerships** - won't be able to do anything until we figure out how to create an Environment outside of AWS.
-- **Sync Queue** - ignore
+Use Global Scope to configure environments, teams, users, memberships, and role
+assignments. Follow the [Admin App system administrator guide](https://docs.ed-fi.org/reference/admin-app-v4/system-administrators/global-administration-tasks)
+for the setup appropriate to your deployment.
 
 ### URLs
 
 These are the default URLs. The last path segment must match your environment variable settings.
 
-| App                                    | URL                                                                          |
-| -------------------------------------- | ---------------------------------------------------------------------------- |
-| Multi-Tenant ODS/API 7.x (v2)          | [https://localhost/odsv7-adminv2-multi-api](https://localhost/odsv7-adminv2-multi-api)             |
-| Multi-tenant Admin API 2.x (v2 mode)   | [https://localhost/odsv7-adminv2-multi-adminapi](https://localhost/odsv7-adminv2-multi-adminapi)   |
-| Single-Tenant ODS/API 7.x (v2)         | [https://localhost/odsv7-adminv2-single-api](https://localhost/odsv7-adminv2-single-api)           |
-| Single-Tenant Admin API 2.x (v2 mode)  | [https://localhost/odsv7-adminv2-single-adminapi](https://localhost/odsv7-adminv2-single-adminapi) |
-| Multi-Tenant ODS/API 7.x (v3)          | [https://localhost/odsv7-adminv3-multi-api](https://localhost/odsv7-adminv3-multi-api)             |
-| Multi-tenant Admin API 2.x (v3 mode)   | [https://localhost/odsv7-adminv3-multi-adminapi](https://localhost/odsv7-adminv3-multi-adminapi)   |
-| Single-Tenant ODS/API 7.x (v3)         | [https://localhost/odsv7-adminv3-single-api](https://localhost/odsv7-adminv3-single-api)           |
-| Single-Tenant Admin API 2.x (v3 mode)  | [https://localhost/odsv7-adminv3-single-adminapi](https://localhost/odsv7-adminv3-single-adminapi) |
-| ODS/API 6.x                            | [https://localhost/v6-api](https://localhost/v6-api)                         |
-| Admin API 2.x in v1 mode               | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)               |
-| Keycloak                               | [https://localhost/auth](https://localhost/auth)                             |
-| Yopass                                 | [http://localhost:8082](http://localhost:8082)                               |
-| PGAdmin4                               | [https://localhost/pgadmin](https://localhost/pgadmin)                       |
-| Admin App API Swagger (container)      | [https://localhost/adminapp-api/api/](https://localhost/adminapp-api/api/)   |
-| Admin App UI (container)               | [https://localhost/adminapp](https://localhost/adminapp)                     |
-| Admin App API Swagger (local)          | [http://localhost:3333/api/](http://localhost:3333/api)                      |
-| Admin App UI (local)                   | [http://localhost:4200](https://localhost:4200)                              |
+| App                                   | URL                                                                                                |
+| ------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| Multi-Tenant ODS/API 7.x (v2)         | [https://localhost/odsv7-adminv2-multi-api](https://localhost/odsv7-adminv2-multi-api)             |
+| Multi-tenant Admin API 2.x (v2 mode)  | [https://localhost/odsv7-adminv2-multi-adminapi](https://localhost/odsv7-adminv2-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x (v2)        | [https://localhost/odsv7-adminv2-single-api](https://localhost/odsv7-adminv2-single-api)           |
+| Single-Tenant Admin API 2.x (v2 mode) | [https://localhost/odsv7-adminv2-single-adminapi](https://localhost/odsv7-adminv2-single-adminapi) |
+| Multi-Tenant ODS/API 7.x (v3)         | [https://localhost/odsv7-adminv3-multi-api](https://localhost/odsv7-adminv3-multi-api)             |
+| Multi-tenant Admin API 2.x (v3 mode)  | [https://localhost/odsv7-adminv3-multi-adminapi](https://localhost/odsv7-adminv3-multi-adminapi)   |
+| Single-Tenant ODS/API 7.x (v3)        | [https://localhost/odsv7-adminv3-single-api](https://localhost/odsv7-adminv3-single-api)           |
+| Single-Tenant Admin API 2.x (v3 mode) | [https://localhost/odsv7-adminv3-single-adminapi](https://localhost/odsv7-adminv3-single-adminapi) |
+| ODS/API 6.x                           | [https://localhost/v6-api](https://localhost/v6-api)                                               |
+| Admin API 2.x in v1 mode              | [https://localhost/v6-adminapi](https://localhost/v6-adminapi)                                     |
+| Keycloak                              | [https://localhost/auth](https://localhost/auth)                                                   |
+| Yopass                                | [http://localhost:8082](http://localhost:8082)                                                     |
+| PGAdmin4                              | [https://localhost/pgadmin](https://localhost/pgadmin)                                             |
+| Admin App API Swagger (container)     | [https://localhost/adminapp-api/api/](https://localhost/adminapp-api/api/)                         |
+| Admin App UI (container)              | [https://localhost/adminapp](https://localhost/adminapp)                                           |
+| Admin App API Swagger (local)         | [http://localhost:3333/api/](http://localhost:3333/api)                                            |
+| Admin App UI (local)                  | [http://localhost:4200](https://localhost:4200)                                                    |
 
 ## Authentication Flows
 
@@ -559,8 +633,8 @@ tenant.
 > Bruno E2E tooling) because doing so would require a dedicated Entra test
 > tenant with stored credentials rather than an ephemeral local container. The
 > [`idp-entra-setup.ps1`](https://github.com/Ed-Fi-Exchange-OSS/Admin-App-Installation-Scripts/blob/main/windows-install/idp-entra-setup.ps1)
-> script in the Admin-App-Installation-Scripts repo automates the *human
-> login* (delegated OIDC) app registration, but not this app-only/M2M flow —
+> script in the Admin-App-Installation-Scripts repo automates the _human
+> login_ (delegated OIDC) app registration, but not this app-only/M2M flow —
 > it's referenced below only for the general shape of scripting an app
 > registration via Microsoft Graph, not as a drop-in.
 
@@ -638,6 +712,33 @@ use it the same way as the Keycloak machine token in
 
 ## Troubleshooting
 
+### Admin App healthcheck failures
+
+Start by inspecting the response body and the recent API logs:
+
+```powershell
+docker logs --since 10m edfiadminapp-api
+docker inspect --format '{{.State.Health.Status}}' edfiadminapp-api
+```
+
+The inspection command displays only the health label, not container configuration
+or credentials. Review logs locally and redact sensitive information before sharing.
+If the API is running outside Docker, use its process logs instead.
+
+| Symptom                                                                        | Checks and action                                                                                                                                                                                                                                                                     |
+| ------------------------------------------------------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| HTTP 503 with `ECONNREFUSED` or `ESOCKET`                                      | Check that the selected database is running and reachable from the API network. Verify the configured host, port, and engine; a database container being healthy does not prove the API can connect to it.                                                                            |
+| HTTP 503 with `ELOGIN` or `28P01`                                              | Verify the application's database login and access to the configured database. Check secret configuration locally; do not paste passwords or connection strings into incident reports.                                                                                                |
+| HTTP 503 with a response-timeout warning                                       | Check database load, locks, network latency, and application pool availability. Repeated polls can share one stalled operation. Allow pending work to settle after restoring the database; escalate persistent stalls rather than repeatedly restarting the API.                      |
+| HTTP 503 while Docker still says healthy                                       | Allow for the probe interval and failure threshold. If it persists, verify the deployed image and active healthcheck command.                                                                                                                                                         |
+| HTTP 200 with an unhealthy body                                                | Verify the deployed API version. Older images retained HTTP 200 on failure; inspect the body until all instances are upgraded.                                                                                                                                                        |
+| SQL Server logs structurally invalid login packets at the healthcheck interval | Verify the API image and `DB_ENGINE`/database host configuration. A PostgreSQL client contacting SQL Server can cause this; the current probe uses the configured TypeORM driver. Other clients can also send invalid packets, so correlate timestamps before attributing the source. |
+| No HTTP response or proxy error                                                | Inspect API startup and proxy routing first. A failure before the API starts listening cannot produce a healthcheck JSON response.                                                                                                                                                    |
+
+If SQL Server is reachable but the application database does not exist, follow
+[Admin App database does not exist on SQL Server](#admin-app-database-does-not-exist-on-sql-server).
+Do not delete database volumes merely to clear an unhealthy healthcheck.
+
 ### `relation "pgboss.job_common" does not exist`
 
 If the `edfiadminapp-api` container fails to start and restart-loops with:
@@ -695,7 +796,7 @@ docker restart edfiadminapp-api
 ```
 
 The `/bin/bash -c '...'` wrapper matters: `docker exec` runs the binary directly with no
-shell in the container, so without it `$MSSQL_SA_PASSWORD` would be expanded by *your* shell
+shell in the container, so without it `$MSSQL_SA_PASSWORD` would be expanded by _your_ shell
 (where it is not set) and you would get a misleading `Login failed for user 'sa'.`
 
 The second re-initializes SQL Server from scratch. **This destroys the local `sbaa`

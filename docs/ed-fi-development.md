@@ -65,10 +65,15 @@ To verify the API service is running, call the [Healthcheck endpoint](http://loc
 GET http://localhost:3333/api/healthcheck
 ```
 
-The public endpoint returns HTTP 200 even when its body reports `unhealthy`; check
-the response body rather than the status code alone. If the health service throws,
-the fallback database message includes only an allowlisted error description (for
-example, `Database login failed`) or `Unknown error`, never the raw driver message.
+The endpoint returns HTTP 200 when the API and configured database are healthy,
+or HTTP 503 with an unhealthy JSON body when the database probe fails, times out,
+or the healthcheck encounters an unexpected error. This applies to both PostgreSQL
+and SQL Server. See the [healthcheck operator guidance](../compose/readme.md#admin-app-healthcheck)
+for response examples, timeout/recovery limits, and troubleshooting.
+
+If the health service throws, the fallback database message includes only an
+allowlisted error description (for example, `Database login failed`) or
+`Unknown error`, never the raw driver message.
 
 If all went well, you can open [http://localhost:4200](http://localhost:4200) with your bootstrapped initial user. This will start you in "Global scope" mode for initial configuration.
 
