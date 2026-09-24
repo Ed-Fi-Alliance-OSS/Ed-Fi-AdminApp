@@ -22,6 +22,7 @@ import {
   vendorQueriesV2,
 } from '../api';
 import { ClaimsetEntity, useClaimsetConfig } from '../Pages/ClaimsetV2Plus/claimsetConfig';
+import { buildOdsSelectOptions } from './odsSelectableOptions';
 import { SelectWrapper, StandardSelector } from './StandardSelector';
 import {
   useEdfiTenantNavContextLoaded,
@@ -351,10 +352,12 @@ export const SelectOds: StandardSelector<{
   const { useDbName, useInstanceId, useInstanceName, options: externalOptions, ...others } = props;
   const { teamId, edfiTenant } = useEdfiTenantNavContextLoaded();
   const odss = useQuery(odsQueries.getAll({ teamId, edfiTenant }));
+  const selectedValue = 'value' in others ? others.value : undefined;
   const options =
     externalOptions ??
-    Object.fromEntries(
-      Object.values(odss.data ?? {}).map((ods) => [
+    buildOdsSelectOptions(
+      Object.values(odss.data ?? {}),
+      (ods) =>
         useDbName
           ? ods.dbName
           : useInstanceId
@@ -362,17 +365,7 @@ export const SelectOds: StandardSelector<{
           : useInstanceName
           ? ods.odsInstanceName
           : ods.id,
-        {
-          value: useDbName
-            ? ods.dbName
-            : useInstanceId
-            ? ods.odsInstanceId
-            : useInstanceName
-            ? ods.odsInstanceName
-            : ods.id,
-          label: ods.displayName,
-        },
-      ])
+      selectedValue
     );
   return <SelectWrapper {...others} options={options} isLoading={odss.isPending || odss.isStale} />;
 };
