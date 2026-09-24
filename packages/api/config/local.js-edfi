@@ -79,6 +79,7 @@ module.exports = {
   ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
   ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
   // Certification artifact configuration
+  CERT_ENABLED: false,
   CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
   CERT_BRUNO_SRC_CHECKSUM: '72eaf14f4f95dc8088b04db79f46d693fb3a34356056c792100d014a374835d5',
   CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.

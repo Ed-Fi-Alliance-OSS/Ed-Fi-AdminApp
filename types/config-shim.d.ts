@@ -94,6 +94,7 @@ declare module 'config' {
 
     LOG_LEVEL: LogLevel;
 
+    CERT_ENABLED?: boolean | 'true' | 'false';
     CERT_BRUNO_SRC_REF?: string;
     CERT_BRUNO_SRC_CHECKSUM?: string;
     CERT_BRUNO_ON_DOWNLOAD_ERROR?: 'error' | 'warn' | 'skip';

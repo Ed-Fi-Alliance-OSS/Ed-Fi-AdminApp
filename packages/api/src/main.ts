@@ -308,21 +308,25 @@ async function bootstrap() {
   Logger.log(`🚀 Application is running on: http://localhost:${port}/${globalPrefix}`);
 
   // Initialize certification runtime workspace
-  try {
-    const artifactService = app.get(ArtifactService, { strict: false });
-    await artifactService.ensureRuntimeReady();
-    if (artifactService.isRunTimeReady) {
-      Logger.log('Certification runtime ensured');
+  if (config.CERT_ENABLED === false || config.CERT_ENABLED === 'false') {
+    Logger.log('Certification runtime disabled (CERT_ENABLED=false)');
+  } else {
+    try {
+      const artifactService = app.get(ArtifactService, { strict: false });
+      await artifactService.ensureRuntimeReady();
+      if (artifactService.isRunTimeReady) {
+        Logger.log('Certification runtime ensured');
 
-      const catalogService = app.get(CatalogService, { strict: false });
-      await catalogService.sync(artifactService.currentRef, artifactService.sisRoot);
-      Logger.log('Certification catalog sync complete');
-    } else {
-      Logger.warn('Certification runtime is not ready; skipping catalog sync');
+        const catalogService = app.get(CatalogService, { strict: false });
+        await catalogService.sync(artifactService.currentRef, artifactService.sisRoot);
+        Logger.log('Certification catalog sync complete');
+      } else {
+        Logger.warn('Certification runtime is not ready; skipping catalog sync');
+      }
+    } catch (err) {
+      const details = err instanceof Error ? err.stack ?? err.message : String(err);
+      Logger.error(`Certification runtime failed: ${details}`);
     }
-  } catch (err) {
-    const details = err instanceof Error ? err.stack ?? err.message : String(err);
-    Logger.error(`Certification runtime failed: ${details}`);
   }
 
   // Set up global error handlers for AggregateError and other unhandled errors
