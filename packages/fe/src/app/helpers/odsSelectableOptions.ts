@@ -9,9 +9,14 @@ export const isOdsAvailable = (ods: Pick<SelectableOds, 'status'>) =>
   ods.status === null || ods.status === 'Created';
 
 /**
- * Builds dropdown options containing only available ODS rows. The currently
- * selected row is always kept so edit forms don't show an empty value; when it
- * is unavailable its label is suffixed with its status.
+ * Builds dropdown options containing only available ODS rows. The row matching
+ * `selectedValue` is kept even when unavailable (its label suffixed with its
+ * status) so edit forms don't lose a record's saved ODS.
+ *
+ * `SelectOds` only passes `selectedValue` for the explicit `value`/`onChange`
+ * overload (edit pages). The React Hook Form `control`/`name` overload (create
+ * pages) gets filtering alone, so an unavailable prefilled ODS is intentionally
+ * dropped and cleared — nothing should be created against it.
  */
 export const buildOdsSelectOptions = <T extends SelectableOds>(
   odss: T[],
