@@ -11,12 +11,19 @@ export const isOdsAvailable = (ods: Pick<SelectableOds, 'status'>) =>
 /**
  * Builds dropdown options containing only available ODS rows. The row matching
  * `selectedValue` is kept even when unavailable (its label suffixed with its
- * status) so edit forms don't lose a record's saved ODS.
+ * status) so a form that already has a value selected doesn't lose it.
  *
- * `SelectOds` only passes `selectedValue` for the explicit `value`/`onChange`
- * overload (edit pages). The React Hook Form `control`/`name` overload (create
- * pages) gets filtering alone, so an unavailable prefilled ODS is intentionally
- * dropped and cleared — nothing should be created against it.
+ * Retention depends on whether the caller passes `selectedValue` at all, not on
+ * whether the page is "create" or "edit". `SelectOds` only forwards a
+ * `selectedValue` for its explicit `value`/`onChange` overload, which is used
+ * by Edit Application/API Client *and* Create Application/API Client
+ * (`value={selectedOds}`). The create pages currently show no visible effect
+ * from this only because they start with `selectedOds === undefined` — if a
+ * future feature prefills that value (e.g. duplicating an application), an
+ * unavailable prefilled ODS would be retained here too. Callers using the
+ * React Hook Form `control`/`name` overload instead (e.g. Create Ed-Org,
+ * Create Ownership) never pass a `selectedValue` into this helper, so an
+ * unavailable ODS is always filtered out for them.
  */
 export const buildOdsSelectOptions = <T extends SelectableOds>(
   odss: T[],
