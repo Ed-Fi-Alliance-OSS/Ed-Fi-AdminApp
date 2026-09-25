@@ -171,9 +171,10 @@ services:
       - USE_YOPASS=${USE_YOPASS:-true}
       - SSL_VERIFICATION=${SSL_VERIFICATION:-true}
       - YOPASS_URL=${YOPASS_URL:-http://edfiadminapp-yopass:80}
-      - CERT_BRUNO_SRC_REF=${CERT_BRUNO_SRC_REF:-'v2.1.0'}
-      - CERT_BRUNO_SRC_CHECKSUM=${CERT_BRUNO_SRC_CHECKSUM:-'71840f51f464c60d7b90c7bbf08d9be039df291d51dd69085ffc4703b98f11e6'}
-      - CERT_BRUNO_ON_DOWNLOAD_ERROR=${CERT_BRUNO_ON_DOWNLOAD_ERROR:-'warning'}
+      - CERT_ENABLED=${CERT_ENABLED:-false}
+      - CERT_BRUNO_SRC_REF=${CERT_BRUNO_SRC_REF:-v2.1.0}
+      - CERT_BRUNO_SRC_CHECKSUM=${CERT_BRUNO_SRC_CHECKSUM:-72eaf14f4f95dc8088b04db79f46d693fb3a34356056c792100d014a374835d5}
+      - CERT_BRUNO_ON_DOWNLOAD_ERROR=${CERT_BRUNO_ON_DOWNLOAD_ERROR:-warning}
     extra_hosts:
       - 'localhost:host-gateway' # Allow container to access host's localhost
     restart: unless-stopped
