@@ -53,6 +53,24 @@ class EnvironmentsPage {
   private readonly deleteMenuItem
   private readonly ownershipResourceTypesText
   private readonly ownershipFormSummaryText
+  private readonly odsOption
+  private readonly edOrgsOption
+  private readonly vendorsOption
+  private readonly applicationsOption
+  private readonly createButton
+  private readonly newButton
+  private readonly odsNameInput
+  private readonly templateSelect
+  private readonly vendorCompanyInput
+  private readonly vendorPrefixesInput
+  private readonly vendorContactNameInput
+  private readonly vendorContactEmailInput
+  private readonly resourceTable
+  private readonly teamsOption
+  private readonly createTeamButton
+  private readonly teamNameInput
+  private readonly teamMembershipsOption
+  private readonly createTeamMembershipButton
   private readonly runSuffix = Date.now().toString(36)
   private rowCountBeforeDelete = 0
 
@@ -99,6 +117,24 @@ class EnvironmentsPage {
     this.deleteMenuItem = this.page.getByRole('menuitem', { name: 'Delete' })
     this.ownershipResourceTypesText = this.page.getByText('Ed-OrgOdsTenantWhole')
     this.ownershipFormSummaryText = this.page.getByText('EnvironmentUpdateNameTeamSelect an optionRoleSelect an optionSaveCancel')
+    this.odsOption = this.page.getByRole('link', { name: /^ODS/ }).first()
+    this.edOrgsOption = this.page.getByRole('link', { name: 'Ed-Orgs', exact: true })
+    this.vendorsOption = this.page.getByRole('link', { name: 'Vendors', exact: true })
+    this.applicationsOption = this.page.getByRole('link', { name: 'Applications', exact: true })
+    this.createButton = this.page.getByRole('link', { name: 'Create', exact: true })
+    this.newButton = this.page.getByRole('link', { name: 'New', exact: true })
+    this.odsNameInput = this.page.getByRole('textbox', { name: 'Name', exact: true })
+    this.templateSelect = this.page.getByRole('combobox', { name: 'Template', exact: true })
+    this.vendorCompanyInput = this.page.getByRole('textbox', { name: 'Company', exact: true })
+    this.vendorPrefixesInput = this.page.getByRole('textbox', { name: /Namespace prefixes/ })
+    this.vendorContactNameInput = this.page.getByRole('textbox', { name: 'Contact name', exact: true })
+    this.vendorContactEmailInput = this.page.getByRole('textbox', { name: 'Contact email address', exact: true })
+    this.resourceTable = this.page.locator('.page-content-card')
+    this.teamsOption = this.page.locator('a[title="Teams"]')
+    this.createTeamButton = this.page.locator('a[title="Create new team."]')
+    this.teamNameInput = this.page.locator('input[name="name"]')
+    this.teamMembershipsOption = this.page.locator('a[title="Team memberships"]')
+    this.createTeamMembershipButton = this.page.locator('a[title="Create new team membership."]')
   }
 
   async clickEnvironmentOption() {
@@ -222,6 +258,158 @@ class EnvironmentsPage {
     await this.cancelButton.click()
   }
 
+  async createTeam(name: string) {
+    await this.teamsOption.click()
+    await this.createTeamButton.click()
+    await this.teamNameInput.fill(name)
+    await this.saveButton.click()
+    await this.page.waitForLoadState('networkidle')
+  }
+
+  async createTeamMembership(team: string, user: string, role: string) {
+    await this.teamMembershipsOption.click()
+    await this.createTeamMembershipButton.click()
+    await selectComboboxOptionIn(
+      this.page,
+      this.page.getByRole('combobox', { name: 'Team', exact: true }),
+      team,
+    )
+    await selectComboboxOptionIn(
+      this.page,
+      this.page.getByRole('combobox', { name: 'User', exact: true }),
+      user,
+    )
+    await selectComboboxOptionIn(
+      this.page,
+      this.page.getByRole('combobox', { name: 'Role', exact: true }),
+      role,
+    )
+    await this.saveButton.click()
+    await this.page.waitForLoadState('networkidle')
+  }
+
+  async clickResourceOption(resource: 'ods' | 'edorgs' | 'vendors' | 'applications') {
+    const option = {
+      ods: this.odsOption,
+      edorgs: this.edOrgsOption,
+      vendors: this.vendorsOption,
+      applications: this.applicationsOption,
+    }[resource]
+    await option.click()
+  }
+
+  async clickCreateButton() {
+    await this.createButton.click()
+  }
+
+  async clickNewButton() {
+    await this.newButton.click()
+  }
+
+  async fillOdsFields(name: string, template: string) {
+    await this.odsNameInput.fill(name)
+    await this.templateSelect.selectOption({ label: template })
+  }
+
+  async fillVendorFields(company: string, prefixes: string, contactName: string, contactEmail: string) {
+    if (!(await this.vendorCompanyInput.isVisible())) {
+      await this.page.getByRole('link', { name: 'Edit', exact: true }).click()
+    }
+    await this.vendorCompanyInput.fill(company)
+    await this.vendorPrefixesInput.fill(prefixes)
+    await this.vendorContactNameInput.fill(contactName)
+    await this.vendorContactEmailInput.fill(contactEmail)
+  }
+
+  async resourceTableShouldBeDisplayed() {
+    await expect(this.resourceTable.first()).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+  }
+
+  async odsShouldBeDisplayedWithPendingStatus(name: string) {
+    const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
+    await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await expect(row).toContainText(/Create: Pending|Create: In Progress|Available/)
+  }
+
+  async resourceDetailsShouldBeDisplayed() {
+    await expect(this.page.locator('.page-content-card').first()).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+  }
+
+  async resourceShouldNotBeDisplayed(name: string) {
+    await expect(this.resourceTable.locator('tbody tr').filter({ hasText: name })).toHaveCount(0, {
+      timeout: UI_RENDER_TIMEOUT_MS,
+    })
+  }
+
+  async invalidResourceFormShouldShowWarnings(expectedMessage?: string) {
+    if (expectedMessage) {
+      await expect(this.page.getByText(expectedMessage, { exact: true })).toBeVisible({
+        timeout: UI_RENDER_TIMEOUT_MS,
+      })
+    }
+  }
+
+  async clickResourceRow(name: string) {
+    const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
+    await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await row.getByRole('link').first().click()
+  }
+
+  async hoverResourceRow(name: string) {
+    const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
+    await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await row.hover()
+  }
+
+  async clickFirstResourceRow() {
+    await expect(this.resourceTable.locator('tbody tr').first()).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await this.resourceTable.locator('tbody tr').first().getByRole('link').first().click()
+  }
+
+  async clickResourceAction(
+    action: 'Edit' | 'Delete',
+    resource: 'ods' | 'vendor',
+    resourceName?: string,
+  ) {
+
+    const hoveredRow = this.resourceTable.locator('tbody tr:hover').first()
+    const row = resourceName
+      ? this.resourceTable.locator('tbody tr').filter({ hasText: resourceName }).first()
+      : (await hoveredRow.count()) > 0
+        ? hoveredRow
+        : this.resourceTable.locator('tbody tr').first()
+    await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await row.hover()
+    const actionControl =
+      action === 'Edit' && resource === 'vendor'
+        ? row.getByRole('link', { name: action, exact: true })
+        : row.getByRole('button', { name: action, exact: true })
+    await actionControl.click()
+  }
+
+  async clickDeleteControl() {
+    await this.page.getByRole('button', { name: 'Delete', exact: true }).last().click()
+  }
+
+  async confirmResourceDeletion() {
+    await this.page.getByRole('button', { name: 'Yes', exact: true }).click()
+    await this.page.waitForLoadState('networkidle')
+  }
+
+  async resourceShouldBeRemoved(name: string) {
+    await expect(this.resourceTable.locator('tbody tr td:nth-child(2)').filter({ hasText: name })).toHaveCount(0, {
+      timeout: API_WRITE_TIMEOUT_MS,
+    })
+  }
+
+  async odsShouldHaveDeletePendingStatus(name: string) {
+    const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
+    await expect(row).toBeVisible({ timeout: API_WRITE_TIMEOUT_MS })
+    await expect(row.getByText('Delete: Pending', { exact: true })).toBeVisible({
+      timeout: API_WRITE_TIMEOUT_MS,
+    })
+  }
+
   async setEducationOrganization(identifiers: string) {
     await this.eduOrgIdentifier.fill(identifiers)
   }
@@ -282,6 +470,9 @@ class EnvironmentsPage {
   async selectFirstLoadedTenantOnEnvironment() {
     await expect(this.firstTenantSectionOnEnvironment).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
     await this.selectFirstLoadedTenant()
+  }
+
+  async selectFirsOdsEnvironment() {
     await this.odssTabLink.click()
     await this.selectFirstLoadedTenant()
   }
