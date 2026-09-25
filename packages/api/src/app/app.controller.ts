@@ -11,6 +11,7 @@ class SecretIdDto {
   secretId: string;
 }
 import { HealthStatus, HealthService } from './health.service';
+import { describeHealthError, getHealthFailureMessage } from './health-error';
 
 @ApiTags('App')
 @Controller()
@@ -23,10 +24,10 @@ export class AppController {
   @Get('healthcheck')
   async healthcheck(): Promise<HealthStatus> {
     try {
-      this.logger.log('Healthcheck endpoint called');
+      this.logger.debug('Healthcheck endpoint called');
       return await this.healthService.getHealth();
     } catch (error) {
-      this.logger.error('Healthcheck error:', error);
+      this.logger.error(`Healthcheck error: ${describeHealthError(error)}`);
 
       // Return a safe fallback response instead of throwing
       return {
@@ -39,7 +40,7 @@ export class AppController {
           },
           database: {
             status: 'unhealthy',
-            message: error instanceof Error ? `Health check failed: ${error.message}` : 'Health check failed: Unknown error'
+            message: getHealthFailureMessage(error)
           }
         }
       };

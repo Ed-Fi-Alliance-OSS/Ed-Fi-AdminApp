@@ -1,5 +1,9 @@
 import { Injectable, Logger } from '@nestjs/common';
-import { AggregateErrorHandler } from './aggregate-error-handler';
+import { InjectDataSource } from '@nestjs/typeorm';
+import { DataSource, QueryRunner } from 'typeorm';
+import { describeHealthError } from './health-error';
+
+const HEALTH_CHECK_TIMEOUT_MS = 3000;
 
 export interface HealthStatus {
   status: 'healthy' | 'unhealthy';
@@ -18,113 +22,69 @@ export interface HealthStatus {
 
 @Injectable()
 export class HealthService {
+  private readonly logger = new Logger(HealthService.name);
+  private pendingCheck: Promise<boolean> | undefined;
+
+  constructor(@InjectDataSource() private readonly dataSource: DataSource) {}
 
   async getHealth(): Promise<HealthStatus> {
     const timestamp = new Date().toISOString();
-
-    // Check API health (always healthy if we can respond)
-    const apiHealth = {
-      status: 'healthy' as const,
-      message: 'API is responding'
-    };
-
-    // Check database health with timeout - completely independent approach
-    let databaseHealth: { status: 'healthy' | 'unhealthy'; message?: string };
-
-    try {
-      // Use a completely independent database check
-      const isAvailable = await this.checkDatabaseIndependently();
-
-      databaseHealth = {
-        status: isAvailable ? 'healthy' : 'unhealthy',
-        message: isAvailable
-          ? 'Database connection successful'
-          : 'Database connection failed'
-      };
-
-    } catch (error) {
-      // Handle all types of database errors including AggregateError using our handler
-      const errorAnalysis = AggregateErrorHandler.handle(error);
-
-      Logger.warn(`Health check database error: ${errorAnalysis.safeMessage}`);
-
-      // Log detailed AggregateError information for debugging
-      if (AggregateErrorHandler.isAggregateError(error)) {
-        const allMessages = AggregateErrorHandler.extractAllMessages(error);
-        Logger.debug(`AggregateError individual messages: ${allMessages.join(', ')}`);
-      }
-
-      databaseHealth = {
-        status: 'unhealthy',
-        message: `Database unavailable: ${errorAnalysis.safeMessage}`
-      };
-    }
-
-    const overallStatus = apiHealth.status === 'healthy' && databaseHealth.status === 'healthy'
-      ? 'healthy'
-      : 'unhealthy';
-
+    const isAvailable = await this.checkDatabase();
+    const status = isAvailable ? 'healthy' : 'unhealthy';
     return {
-      status: overallStatus,
+      status,
       timestamp,
       checks: {
-        api: apiHealth,
-        database: databaseHealth
-      }
+        api: { status: 'healthy', message: 'API is responding' },
+        database: {
+          status,
+          message: isAvailable ? 'Database connection successful' : 'Database connection failed',
+        },
+      },
     };
   }
 
-  private async checkDatabaseIndependently(): Promise<boolean> {
+  private async checkDatabase(): Promise<boolean> {
+    let timer: ReturnType<typeof setTimeout> | undefined;
     try {
-      // Add timeout to prevent hanging
-      const healthCheckTimeout = new Promise<never>((_, reject) => {
-        setTimeout(() => reject(new Error('Database health check timeout')), 3000);
+      const timeout = new Promise<boolean>((resolve) => {
+        timer = setTimeout(() => {
+          this.logger.warn(
+            `Database health check response timeout after ${HEALTH_CHECK_TIMEOUT_MS} ms`,
+          );
+          resolve(false);
+        }, HEALTH_CHECK_TIMEOUT_MS);
       });
-
-      const healthCheckPromise = this.performDirectDatabaseCheck();
-
-      return await Promise.race([healthCheckPromise, healthCheckTimeout]);
-
-    } catch (_error) {
-      return false;
+      // A response timeout does not cancel pooled work; share it until cleanup settles.
+      this.pendingCheck ??= this.performDatabaseCheck().finally(() => {
+        this.pendingCheck = undefined;
+      });
+      return await Promise.race([this.pendingCheck, timeout]);
+    } finally {
+      clearTimeout(timer);
     }
   }
 
-  private async performDirectDatabaseCheck(): Promise<boolean> {
-    let client: import('pg').Client | null = null;
+  private async performDatabaseCheck(): Promise<boolean> {
+    let runner: QueryRunner | undefined;
+    let phase = 'connection';
     try {
-      const { Client } = await import('pg');
-      const config = await import('config');
-      const connectionString = await config.default.DB_CONNECTION_STRING;
-
-      client = new Client({
-        connectionString,
-        connectionTimeoutMillis: 2000,
-        // Add additional isolation
-        statement_timeout: 2000,
-        query_timeout: 2000,
-        application_name: 'health-check-isolated'
-      });
-
-      // Add error handlers to prevent unhandled errors
-      client.on('error', () => {
-        // Silently handle client errors during health check
-      });
-
-      await client.connect();
-      await client.query('SELECT 1');
+      runner = this.dataSource.createQueryRunner();
+      await runner.connect();
+      phase = 'query';
+      await runner.query('SELECT 1');
       return true;
-    } catch (error) {
-      Logger.debug(`Database health check failed: ${error.message}`);
+    } catch (error: unknown) {
+      this.logger.warn(`Database health check ${phase} failed: ${describeHealthError(error)}`);
       return false;
     } finally {
-      // Ensure cleanup in finally block
-      if (client) {
+      if (runner) {
         try {
-          await client.end();
-        } catch (_cleanupError) {
-          // Ignore cleanup errors
-          Logger.debug('Health check client cleanup error (ignored)');
+          await runner.release();
+        } catch (cleanupError: unknown) {
+          this.logger.warn(
+            `Database health check cleanup failed: ${describeHealthError(cleanupError)}`,
+          );
         }
       }
     }
