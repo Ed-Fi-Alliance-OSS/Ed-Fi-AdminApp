@@ -79,6 +79,10 @@ When('the user clicks on save button', async () => {
   await environmentsPage.clickSaveButton()
 })
 
+When('the user clicks on Save button', async () => {
+  await environmentsPage.clickSaveButton()
+})
+
 When('the sync queue has a queued job', async () => {
   await environmentsPage.syncQueueHasStarted()
 })
@@ -111,6 +115,10 @@ When('the user clicks on Application option', async () => {
   await environmentsPage.clickResourceOption('applications')
 })
 
+When('the user clicks on Profile option', async () => {
+  await environmentsPage.clickResourceOption('profiles')
+})
+
 When('the user clicks on Create button', async () => {
   await environmentsPage.clickCreateButton()
 })
@@ -134,6 +142,10 @@ When(
     )
   },
 )
+
+When(/^the user import (?:a|an) (.+) profile$/, async ({}, name: string) => {
+  await environmentsPage.importValidProfile(name)
+})
 
 When(/^the user (clicks|hover) on the (?:ods|vendor) (.+)$/, async ({}, action: string, name: string) => {
   if (action === 'hover') {
@@ -310,4 +322,17 @@ Then('warnings message should be displayed on each field', async () => {
   await environmentsPage.invalidResourceFormShouldShowWarnings('educationOrganizationIds should not be empty')
   await environmentsPage.invalidResourceFormShouldShowWarnings('vendorId must be a number conforming to the specified constraints')
   await environmentsPage.invalidResourceFormShouldShowWarnings('claimsetId must be a number conforming to the specified constraints')
+})
+
+Then('the profile should be created', async () => {
+  await environmentsPage.profileShouldBeCreated()
+})
+
+Then('a warning message should be displayed on profiles fields', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings('name should not be empty')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('definition should not be empty')
+})
+
+Then('an error message should be displayed that is not possible create the profile', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings("Invalid XML format for definition: The element 'Profile' has invalid child element 'Invalid'. List of possible elements expected: 'Resource'.")
 })

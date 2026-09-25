@@ -57,6 +57,7 @@ class EnvironmentsPage {
   private readonly edOrgsOption
   private readonly vendorsOption
   private readonly applicationsOption
+  private readonly profilesOption
   private readonly createButton
   private readonly newButton
   private readonly odsNameInput
@@ -65,6 +66,8 @@ class EnvironmentsPage {
   private readonly vendorPrefixesInput
   private readonly vendorContactNameInput
   private readonly vendorContactEmailInput
+  private readonly profileFileInput
+  private readonly profileDetails
   private readonly resourceTable
   private readonly teamsOption
   private readonly createTeamButton
@@ -121,6 +124,7 @@ class EnvironmentsPage {
     this.edOrgsOption = this.page.getByRole('link', { name: 'Ed-Orgs', exact: true })
     this.vendorsOption = this.page.getByRole('link', { name: 'Vendors', exact: true })
     this.applicationsOption = this.page.getByRole('link', { name: 'Applications', exact: true })
+    this.profilesOption = this.page.locator('a[title="Profiles"]')
     this.createButton = this.page.getByRole('link', { name: 'Create', exact: true })
     this.newButton = this.page.getByRole('link', { name: 'New', exact: true })
     this.odsNameInput = this.page.getByRole('textbox', { name: 'Name', exact: true })
@@ -129,6 +133,8 @@ class EnvironmentsPage {
     this.vendorPrefixesInput = this.page.getByRole('textbox', { name: /Namespace prefixes/ })
     this.vendorContactNameInput = this.page.getByRole('textbox', { name: 'Contact name', exact: true })
     this.vendorContactEmailInput = this.page.getByRole('textbox', { name: 'Contact email address', exact: true })
+    this.profileFileInput = this.page.getByRole('button', { name: 'Choose File' })
+    this.profileDetails = this.page.getByText('NameTest-Profile42Definition<')
     this.resourceTable = this.page.locator('.page-content-card')
     this.teamsOption = this.page.locator('a[title="Teams"]')
     this.createTeamButton = this.page.locator('a[title="Create new team."]')
@@ -288,12 +294,13 @@ class EnvironmentsPage {
     await this.page.waitForLoadState('networkidle')
   }
 
-  async clickResourceOption(resource: 'ods' | 'edorgs' | 'vendors' | 'applications') {
+  async clickResourceOption(resource: 'ods' | 'edorgs' | 'vendors' | 'applications' | 'profiles') {
     const option = {
       ods: this.odsOption,
       edorgs: this.edOrgsOption,
       vendors: this.vendorsOption,
       applications: this.applicationsOption,
+      profiles: this.profilesOption,
     }[resource]
     await option.click()
   }
@@ -319,6 +326,24 @@ class EnvironmentsPage {
     await this.vendorPrefixesInput.fill(prefixes)
     await this.vendorContactNameInput.fill(contactName)
     await this.vendorContactEmailInput.fill(contactEmail)
+  }
+
+  async importValidProfile(type: string) {
+    if (type === 'valid'){
+      await this.profileFileInput.setInputFiles('tests/e2e/environments-page/fixtures/valid-profile.xml')
+    }
+    if (type === 'invalid'){
+      await this.profileFileInput.setInputFiles('tests/e2e/environments-page/fixtures/invalid-profile.xml')
+    }
+
+  }
+
+  async profileShouldBeCreated() {
+    await expect(this.profileDetails).toBeVisible({ timeout: API_WRITE_TIMEOUT_MS })
+  }
+
+  async profileValidationWarningShouldBeDisplayed() {
+    await expect(this.profileValidationWarning).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async resourceTableShouldBeDisplayed() {
