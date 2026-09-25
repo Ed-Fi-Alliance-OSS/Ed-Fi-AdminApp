@@ -1,6 +1,6 @@
 import { AggregateErrorHandler } from './aggregate-error-handler';
 
-// Log-disclosure allowlist, not the broader message/code classification in
+// Disclosure allowlist for logs and public responses, not the broader message/code classification in
 // AggregateErrorHandler.isDatabaseConnectionError/isConnectionError. Review both when adding codes.
 const DIAGNOSTIC_CODES: ReadonlyMap<string, string> = new Map([
   ['ECONNREFUSED', 'Connection refused'],
@@ -21,7 +21,14 @@ const DIAGNOSTIC_CODES: ReadonlyMap<string, string> = new Map([
   ['08006', 'Database connection failure'],
 ]);
 
-export function describeHealthError(error: unknown): string {
+interface HealthErrorDiagnostic {
+  kind: string;
+  code?: string;
+  description?: string;
+  errorCount?: number;
+}
+
+function classifyHealthError(error: unknown): HealthErrorDiagnostic {
   try {
     const aggregate = AggregateErrorHandler.isAggregateError(error);
     const kind = aggregate
@@ -40,19 +47,17 @@ export function describeHealthError(error: unknown): string {
       typeof candidate === 'string' && DIAGNOSTIC_CODES.has(candidate) ? candidate : undefined;
     const description = code === undefined ? undefined : DIAGNOSTIC_CODES.get(code);
     const errorCount = aggregate ? error.errors.length : undefined;
-    return JSON.stringify({ kind, code, description, errorCount });
+    return { kind, code, description, errorCount };
   } catch {
     // Getters and Proxy traps can throw even during classification or descriptor lookup.
-    return '{"kind":"UninspectableError"}';
+    return { kind: 'UninspectableError' };
   }
 }
 
+export function describeHealthError(error: unknown): string {
+  return JSON.stringify(classifyHealthError(error));
+}
+
 export function getHealthFailureMessage(error: unknown): string {
-  try {
-    return error instanceof Error
-      ? `Health check failed: ${error.message}`
-      : 'Health check failed: Unknown error';
-  } catch {
-    return 'Health check failed: Unknown error';
-  }
+  return `Health check failed: ${classifyHealthError(error).description ?? 'Unknown error'}`;
 }

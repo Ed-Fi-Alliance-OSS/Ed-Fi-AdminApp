@@ -72,8 +72,8 @@ describe('AppController healthcheck', () => {
   });
 
   it.each([
-    ['name', 'Health check failed: unexpected failure', '{"kind":"UninspectableError"}'],
-    ['errors', 'Health check failed: unexpected failure', '{"kind":"UninspectableError"}'],
+    ['name', 'Health check failed: Unknown error', '{"kind":"UninspectableError"}'],
+    ['errors', 'Health check failed: Unknown error', '{"kind":"UninspectableError"}'],
     ['message', 'Health check failed: Unknown error', '{"kind":"AggregateError","errorCount":0}'],
   ])('preserves the fallback when the %s getter throws', async (property, message, diagnostic) => {
     const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
@@ -98,7 +98,7 @@ describe('AppController healthcheck', () => {
   });
 
   it.each([
-    ['getOwnPropertyDescriptor', 'Health check failed: unexpected failure'],
+    ['getOwnPropertyDescriptor', 'Health check failed: Unknown error'],
     ['getPrototypeOf', 'Health check failed: Unknown error'],
   ])('preserves the fallback when the %s Proxy trap throws', async (trap, message) => {
     const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
@@ -133,7 +133,7 @@ describe('AppController healthcheck', () => {
   it.each([
     [
       new Error('unexpected failure'),
-      'Health check failed: unexpected failure',
+      'Health check failed: Unknown error',
       '{"kind":"Error"}',
     ],
     [null, 'Health check failed: Unknown error', '{"kind":"null"}'],
@@ -142,10 +142,10 @@ describe('AppController healthcheck', () => {
         code: 'ELOGIN',
         detail: 'private-controller-diagnostic',
       }),
-      'Health check failed: unexpected failure',
+      'Health check failed: Database login failed',
       '{"kind":"Error","code":"ELOGIN","description":"Database login failed"}',
     ],
-  ])('preserves the existing controller fallback for %p', async (error, message, diagnostic) => {
+  ])('returns a sanitized controller fallback for %p', async (error, message, diagnostic) => {
     const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
     getHealth.mockRejectedValueOnce(error);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
@@ -162,5 +162,36 @@ describe('AppController healthcheck', () => {
     expect(logError).toHaveBeenCalledTimes(1);
     expect(logError).toHaveBeenCalledWith(`Healthcheck error: ${diagnostic}`);
     expect(JSON.stringify(logError.mock.calls)).not.toContain('private-controller-diagnostic');
+  });
+
+  it.each([
+    ['ELOGIN', 'Database login failed'],
+    ['ECONNREFUSED', 'Connection refused'],
+    ['28P01', 'Password authentication failed'],
+    ['private-driver-code', 'Unknown error'],
+    [undefined, 'Unknown error'],
+  ])('does not disclose driver details for code %s', async (code, description) => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const privateDetails = 'host=private-db port=1433 database=private-db user=private-user';
+    getHealth.mockRejectedValueOnce(Object.assign(new Error(privateDetails), { code }));
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(200);
+    expect(response.body.checks.database).toEqual({
+      status: 'unhealthy',
+      message: `Health check failed: ${description}`,
+    });
+    expect(JSON.stringify(response.body)).not.toContain(privateDetails);
+    expect(JSON.stringify(response.body)).not.toContain('private-driver-code');
+  });
+
+  it.each(['message', 'code'])('does not invoke a driver-supplied %s getter', async (property) => {
+    jest.spyOn(Logger.prototype, 'error').mockImplementation();
+    const getter = jest.fn(() => 'private-driver-detail');
+    const error = Object.defineProperty(new Error('private-driver-detail'), property, { get: getter });
+    getHealth.mockRejectedValueOnce(error);
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(200);
+    expect(response.body.checks.database.message).toBe('Health check failed: Unknown error');
+    expect(getter).not.toHaveBeenCalled();
   });
 });

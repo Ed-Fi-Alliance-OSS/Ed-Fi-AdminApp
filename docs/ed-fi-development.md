@@ -65,6 +65,11 @@ To verify the API service is running, call the [Healthcheck endpoint](http://loc
 GET http://localhost:3333/api/healthcheck
 ```
 
+The public endpoint returns HTTP 200 even when its body reports `unhealthy`; check
+the response body rather than the status code alone. If the health service throws,
+the fallback database message includes only an allowlisted error description (for
+example, `Database login failed`) or `Unknown error`, never the raw driver message.
+
 If all went well, you can open [http://localhost:4200](http://localhost:4200) with your bootstrapped initial user. This will start you in "Global scope" mode for initial configuration.
 
 If you have any issue, See [section](../docs/ed-fi-development.md#troubleshooting) for troublshooting tips.
