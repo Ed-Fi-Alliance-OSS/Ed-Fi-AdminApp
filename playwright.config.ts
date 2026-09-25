@@ -43,7 +43,10 @@ export default defineConfig({
     {
       name: 'chromium',
       dependencies: ['setup'],
-      testIgnore: [/login-page\/login\.feature\.spec\.js/, /environmentv2andApi\.feature\.spec\.js/],
+      testIgnore: [
+        /login-page\/login\.feature\.spec\.js/,
+        /(environmentv2andApi|roles|ownerships|sync-queue)\.feature\.spec\.js/
+      ],
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',
@@ -65,7 +68,7 @@ export default defineConfig({
       // rest of the suite.
       name: 'chromium-environmentv2andApi',
       dependencies: ['setup'],
-      testMatch: /environmentv2andApi\.feature\.spec\.js/,
+      testMatch: /(environmentv2andApi|roles|ownerships|sync-queue)\.feature\.spec\.js/,
       timeout: 180000,
       use: {
         ...devices['Desktop Chrome'],
