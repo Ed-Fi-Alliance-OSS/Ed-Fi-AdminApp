@@ -19,6 +19,19 @@ When('the user click on Connect button', async () => {
   await environmentsPage.clickConnectButton()
 })
 
+When(/^the user create a new team called '(.+)'$/, async ({ page }, team: string) => {
+  environmentsPage = new EnvironmentsPage(page)
+  await environmentsPage.createTeam(team)
+})
+
+When(
+  /^the user create a membership to the team '(.+)' with user '(.+)' and role '(.+)'$/,
+  async ({ page }, team: string, user: string, role: string) => {
+    environmentsPage = new EnvironmentsPage(page)
+    await environmentsPage.createTeamMembership(team, user, role)
+  },
+)
+
 When(
   /^the user fill all the required fields on v1 ([^,]+), ([^,]+), ([^,]+), ([^,]+), ([^,]+), ([^,]+), (.+)$/,
   async ({}, name: string, edfiApi: string, edfiManagement: string, label: string, odsName: string, dbName: string, eduOrgIdentifier: string) => {
@@ -62,16 +75,108 @@ When('the user click on save button', async () => {
   await environmentsPage.clickSaveButton()
 })
 
+When('the user clicks on save button', async () => {
+  await environmentsPage.clickSaveButton()
+})
+
+When('the user clicks on Save button', async () => {
+  await environmentsPage.clickSaveButton()
+})
+
 When('the sync queue has a queued job', async () => {
   await environmentsPage.syncQueueHasStarted()
 })
 
-When(/^the user assign a grant ownership to the environment (.+)$/, async ({}, name: string) => {
-  await environmentsPage.grantOwnershipToAdminUser('Whole environment', name, 'Sample Team', 'Full ownership')
+When(/^the user assign a grant ownership to the environment (.+) with team (.+)$/, async ({}, name: string, team: string) => {
+  await environmentsPage.grantOwnershipToAdminUser('Whole environment', name, team, 'Full ownership')
 })
 
 When('the user click on cancel button', async () => {
   await environmentsPage.clickCancelButton()
+})
+
+When('the user clicks on cancel button', async () => {
+  await environmentsPage.clickCancelButton()
+})
+
+When('the user clicks on ODS option', async () => {
+  await environmentsPage.clickResourceOption('ods')
+})
+
+When('the user clicks on Ed-Orgs option', async () => {
+  await environmentsPage.clickResourceOption('edorgs')
+})
+
+When('the user clicks on Vendor option', async () => {
+  await environmentsPage.clickResourceOption('vendors')
+})
+
+When('the user clicks on Application option', async () => {
+  await environmentsPage.clickResourceOption('applications')
+})
+
+When('the user clicks on Profile option', async () => {
+  await environmentsPage.clickResourceOption('profiles')
+})
+
+When('the user clicks on Create button', async () => {
+  await environmentsPage.clickCreateButton()
+})
+
+When('the user clicks on New button', async () => {
+  await environmentsPage.clickNewButton()
+})
+
+When(/^the user fills the ODS fields (.+), (.+)$/, async ({}, name: string, template: string) => {
+  await environmentsPage.fillOdsFields(name.trim(), template.trim())
+})
+
+When(
+  /^the user fills the vendor fields (.+), (.+), (.+), (.+)$/,
+  async ({}, company: string, prefixes: string, contactName: string, contactEmail: string) => {
+    await environmentsPage.fillVendorFields(
+      company.trim(),
+      prefixes.trim(),
+      contactName.trim(),
+      contactEmail.trim(),
+    )
+  },
+)
+
+When(/^the user import (?:a|an) (.+) profile$/, async ({}, name: string) => {
+  await environmentsPage.importValidProfile(name)
+})
+
+When(/^the user (clicks|hover) on the (?:ods|vendor) (.+)$/, async ({}, action: string, name: string) => {
+  if (action === 'hover') {
+    await environmentsPage.hoverResourceRow(name.trim())
+    return
+  }
+
+  await environmentsPage.clickResourceRow(name.trim())
+})
+
+When(/^the user clicks the (Delete|Edit) (ods|vendor) action$/, async ({}, action: string, resource: string) => {
+  await environmentsPage.clickResourceAction(
+    action as 'Delete' | 'Edit',
+    resource as 'ods' | 'vendor',
+  )
+})
+
+When('the user clicks the first vendor in the table', async () => {
+  await environmentsPage.clickFirstResourceRow()
+})
+
+When('the user clicks the Delete tab option', async () => {
+  await environmentsPage.clickDeleteControl()
+})
+
+When('the user confirms ods deletion', async () => {
+  await environmentsPage.confirmResourceDeletion()
+})
+
+When('the user confirms vendor deletion', async () => {
+  await environmentsPage.confirmResourceDeletion()
 })
 
 When(/^the user click on (edit|delete) option from three dots option$/, async ({}, option: string) => {
@@ -111,13 +216,14 @@ Then('the sync queue is already completed', async () => {
   await environmentsPage.syncQueueIsCompleted()
 })
 
-Then(/^the user enter to environment using the team (.+)$/, async ({}, name: string) => {
-  await environmentsPage.selectGlobalTeam('Sample Team')
+Then(/^the user enter to environment using the team (.+) with team (.+)$/, async ({}, name: string, team: string) => {
+  await environmentsPage.selectGlobalTeam(team)
   await environmentsPage.searchAndSelectEnvironment(name, true)
   await environmentsPage.selectFirstLoadedTenantOnEnvironment()
 })
 
 Then('the default ods loaded', async () => {
+  await environmentsPage.selectFirsOdsEnvironment()
   await environmentsPage.defaultOdsIsLoaded()
 })
 
@@ -160,4 +266,73 @@ Then(/^the environment (updated|created) should removed from the table of enviro
 
 Then('the ownership form should be loaded', async () => {
   await environmentsPage.ownershipsFormIsDisplayed()
+})
+
+Then(/^a new ODS (.+) should be displayed on the table with status create pending$/, async ({}, name: string) => {
+  await environmentsPage.odsShouldBeDisplayedWithPendingStatus(name.trim())
+})
+
+Then('the ODS contains the details', async () => {
+  await environmentsPage.resourceDetailsShouldBeDisplayed()
+})
+
+Then(/^the ODS (.+) not should be displayed on the table$/, async ({}, name: string) => {
+  await environmentsPage.resourceShouldNotBeDisplayed(name.trim())
+})
+
+Then('not should be possible create the ods', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings()
+})
+
+Then('a warning message should be displayed on ods fields', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings(
+    'Name must only contain letters, numbers, spaces, and underscores.',
+  )
+})
+
+Then(/^the ods (.+) should have the label Delete: Pending$/, async ({}, name: string) => {
+  await environmentsPage.odsShouldHaveDeletePendingStatus(name.trim())
+})
+
+Then('the Ed-Orgs table should be displayed', async () => {
+  await environmentsPage.resourceTableShouldBeDisplayed()
+})
+
+Then('the details of vendors should be displayed', async () => {
+  await environmentsPage.resourceDetailsShouldBeDisplayed()
+})
+
+Then(/^the vendor (.+) not should be displayed on the table$/, async ({}, name: string) => {
+  await environmentsPage.resourceShouldNotBeDisplayed(name.trim())
+})
+
+Then('warnings message should be displayed', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings('company should not be empty')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('contactName should not be empty')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('contactEmailAddress must be an email')
+})
+
+Then(/^the vendor (.+) should be removed from the current table$/, async ({}, name: string) => {
+  await environmentsPage.resourceShouldBeRemoved(name.trim())
+})
+
+Then('warnings message should be displayed on each field', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings('applicationName must be longer than or equal to 3 characters')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('odsInstanceId must be a number conforming to the specified constraints')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('educationOrganizationIds should not be empty')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('vendorId must be a number conforming to the specified constraints')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('claimsetId must be a number conforming to the specified constraints')
+})
+
+Then('the profile should be created', async () => {
+  await environmentsPage.profileShouldBeCreated()
+})
+
+Then('a warning message should be displayed on profiles fields', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings('name should not be empty')
+  await environmentsPage.invalidResourceFormShouldShowWarnings('definition should not be empty')
+})
+
+Then('an error message should be displayed that is not possible create the profile', async () => {
+  await environmentsPage.invalidResourceFormShouldShowWarnings("Invalid XML format for definition: The element 'Profile' has invalid child element 'Invalid'. List of possible elements expected: 'Resource'.")
 })
