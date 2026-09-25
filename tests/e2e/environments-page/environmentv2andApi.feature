@@ -217,3 +217,45 @@ Feature: Environments V2 with Api validation
     Examples:
       | environment             | name            |
       | FullSingleEnvironmentv2 | MinimalTemplate |
+
+
+  Scenario Outline: Import profiles
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Profile option
+    And the user clicks on New button
+    When the user import a valid profile
+    And the user clicks on Save button
+    Then the profile should be created
+
+    Examples:
+      | environment             |
+      | FullSingleEnvironmentv2 |
+
+  Scenario Outline: Profiles validation fields
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Profile option
+    And the user clicks on New button
+    When the user clicks on Save button
+    Then a warning message should be displayed on profiles fields
+
+    Examples:
+      | environment             |
+      | FullSingleEnvironmentv2 |
+
+  Scenario Outline: Import invalid profile
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Profile option
+    And the user clicks on New button
+    When the user import an invalid profile
+    And the user clicks on Save button
+    Then an error message should be displayed that is not possible create the profile
+
+    Examples:
+      | environment             |
+      | FullSingleEnvironmentv2 |
