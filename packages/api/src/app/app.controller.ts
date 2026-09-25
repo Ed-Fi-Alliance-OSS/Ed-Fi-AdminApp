@@ -1,8 +1,18 @@
-import { Controller, Get, Header, Logger, NotFoundException, Param } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import {
+  Controller,
+  Get,
+  Header,
+  HttpStatus,
+  Logger,
+  NotFoundException,
+  Param,
+  Res,
+} from '@nestjs/common';
+import { ApiOkResponse, ApiServiceUnavailableResponse, ApiTags } from '@nestjs/swagger';
 import { IsUUID } from 'class-validator';
 import axios from 'axios';
 import config from 'config';
+import type { Response } from 'express';
 import { Public } from '../auth/authorization/public.decorator';
 import { Throttle } from '@nestjs/throttler';
 
@@ -22,29 +32,35 @@ export class AppController {
 
   @Public()
   @Get('healthcheck')
-  async healthcheck(): Promise<HealthStatus> {
+  @ApiOkResponse({ description: 'The API and its configured database are healthy.' })
+  @ApiServiceUnavailableResponse({
+    description: 'The database probe failed or timed out, or the healthcheck encountered an error.',
+  })
+  async healthcheck(@Res({ passthrough: true }) response: Response): Promise<HealthStatus> {
+    let health: HealthStatus;
     try {
       this.logger.debug('Healthcheck endpoint called');
-      return await this.healthService.getHealth();
+      health = await this.healthService.getHealth();
     } catch (error) {
       this.logger.error(`Healthcheck error: ${describeHealthError(error)}`);
 
-      // Return a safe fallback response instead of throwing
-      return {
+      health = {
         status: 'unhealthy',
         timestamp: new Date().toISOString(),
         checks: {
           api: {
             status: 'healthy',
-            message: 'API is responding'
+            message: 'API is responding',
           },
           database: {
             status: 'unhealthy',
-            message: getHealthFailureMessage(error)
-          }
-        }
+            message: getHealthFailureMessage(error),
+          },
+        },
       };
     }
+    response.status(health.status === 'healthy' ? HttpStatus.OK : HttpStatus.SERVICE_UNAVAILABLE);
+    return health;
   }
 
   // Override default configuration for Rate limiting and duration.

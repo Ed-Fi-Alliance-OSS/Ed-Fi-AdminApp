@@ -122,6 +122,39 @@ describe('HealthService', () => {
     },
   );
 
+  it.each(['connect', 'query'] as const)(
+    'recovers after a settled %s failure without restarting the pool',
+    async (method) => {
+      const recoveredRunner = {
+        connect: jest.fn().mockResolvedValue(undefined),
+        query: jest.fn().mockResolvedValue([{ value: 1 }]),
+        release: jest.fn().mockResolvedValue(undefined),
+      };
+      dataSource.createQueryRunner.mockReturnValueOnce(runner).mockReturnValueOnce(recoveredRunner);
+      runner[method].mockRejectedValueOnce(
+        Object.assign(new Error('database unavailable'), { code: 'ECONNREFUSED' }),
+      );
+
+      expect(await service.getHealth()).toEqual(bodyFor('unhealthy'));
+      expect(runner.release).toHaveBeenCalledTimes(1);
+      expect(recoveredRunner.connect).not.toHaveBeenCalled();
+
+      expect(await service.getHealth()).toEqual(bodyFor('healthy'));
+      expect(dataSource.createQueryRunner).toHaveBeenCalledTimes(2);
+      expect(runner.connect).toHaveBeenCalledTimes(1);
+      expect(runner.query).toHaveBeenCalledTimes(method === 'query' ? 1 : 0);
+      expect(runner.release).toHaveBeenCalledTimes(1);
+      expect(recoveredRunner.connect).toHaveBeenCalledTimes(1);
+      expect(recoveredRunner.query).toHaveBeenCalledWith('SELECT 1');
+      expect(recoveredRunner.release).toHaveBeenCalledTimes(1);
+      expect(dataSource.initialize).not.toHaveBeenCalled();
+      expect(dataSource.destroy).not.toHaveBeenCalled();
+      expect(Client).not.toHaveBeenCalled();
+      expect(warn).toHaveBeenCalledTimes(1);
+      expect(jest.getTimerCount()).toBe(0);
+    },
+  );
+
   it('handles cyclic objects without invoking custom stringification', async () => {
     const error: Record<string, unknown> = {};
     error.self = error;

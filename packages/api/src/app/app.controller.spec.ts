@@ -26,30 +26,28 @@ describe('AppController healthcheck', () => {
     jest.restoreAllMocks();
   });
 
-  it.each(['healthy', 'unhealthy'] as const)(
-    'preserves HTTP 200 and the exact %s response',
-    async (status) => {
-      const body: HealthStatus = {
-        status,
-        timestamp: '2026-09-22T00:00:00.000Z',
-        checks: {
-          api: { status: 'healthy', message: 'API is responding' },
-          database: {
-            status,
-            message:
-              status === 'healthy'
-                ? 'Database connection successful'
-                : 'Database connection failed',
-          },
+  it.each([
+    ['healthy', 200],
+    ['unhealthy', 503],
+  ] as const)('returns the exact %s response with HTTP %i', async (status, httpStatus) => {
+    const body: HealthStatus = {
+      status,
+      timestamp: '2026-09-22T00:00:00.000Z',
+      checks: {
+        api: { status: 'healthy', message: 'API is responding' },
+        database: {
+          status,
+          message:
+            status === 'healthy' ? 'Database connection successful' : 'Database connection failed',
         },
-      };
-      getHealth.mockResolvedValueOnce(body);
-      const response = await request(app.getHttpServer()).get('/api/healthcheck');
-      expect(response.status).toBe(200);
-      expect(response.body).toEqual(body);
-      expect(getHealth).toHaveBeenCalledTimes(1);
-    },
-  );
+      },
+    };
+    getHealth.mockResolvedValueOnce(body);
+    const response = await request(app.getHttpServer()).get('/api/healthcheck');
+    expect(response.status).toBe(httpStatus);
+    expect(response.body).toEqual(body);
+    expect(getHealth).toHaveBeenCalledTimes(1);
+  });
 
   it('uses debug rather than info for each request', async () => {
     const debug = jest.spyOn(Logger.prototype, 'debug').mockImplementation();
@@ -84,7 +82,7 @@ describe('AppController healthcheck', () => {
     });
     getHealth.mockRejectedValueOnce(error);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body).toEqual({
       status: 'unhealthy',
       timestamp: expect.any(String),
@@ -109,7 +107,7 @@ describe('AppController healthcheck', () => {
     });
     getHealth.mockRejectedValueOnce(error);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body.status).toBe('unhealthy');
     expect(response.body.checks.database).toEqual({ status: 'unhealthy', message });
     expect(logError).toHaveBeenCalledWith('Healthcheck error: {"kind":"UninspectableError"}');
@@ -121,7 +119,7 @@ describe('AppController healthcheck', () => {
     revoke();
     getHealth.mockRejectedValueOnce(proxy);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body.status).toBe('unhealthy');
     expect(response.body.checks.database).toEqual({
       status: 'unhealthy',
@@ -131,11 +129,7 @@ describe('AppController healthcheck', () => {
   });
 
   it.each([
-    [
-      new Error('unexpected failure'),
-      'Health check failed: Unknown error',
-      '{"kind":"Error"}',
-    ],
+    [new Error('unexpected failure'), 'Health check failed: Unknown error', '{"kind":"Error"}'],
     [null, 'Health check failed: Unknown error', '{"kind":"null"}'],
     [
       Object.assign(new Error('unexpected failure'), {
@@ -149,7 +143,7 @@ describe('AppController healthcheck', () => {
     const logError = jest.spyOn(Logger.prototype, 'error').mockImplementation();
     getHealth.mockRejectedValueOnce(error);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body).toEqual({
       status: 'unhealthy',
       timestamp: expect.any(String),
@@ -175,7 +169,7 @@ describe('AppController healthcheck', () => {
     const privateDetails = 'host=private-db port=1433 database=private-db user=private-user';
     getHealth.mockRejectedValueOnce(Object.assign(new Error(privateDetails), { code }));
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body.checks.database).toEqual({
       status: 'unhealthy',
       message: `Health check failed: ${description}`,
@@ -187,10 +181,12 @@ describe('AppController healthcheck', () => {
   it.each(['message', 'code'])('does not invoke a driver-supplied %s getter', async (property) => {
     jest.spyOn(Logger.prototype, 'error').mockImplementation();
     const getter = jest.fn(() => 'private-driver-detail');
-    const error = Object.defineProperty(new Error('private-driver-detail'), property, { get: getter });
+    const error = Object.defineProperty(new Error('private-driver-detail'), property, {
+      get: getter,
+    });
     getHealth.mockRejectedValueOnce(error);
     const response = await request(app.getHttpServer()).get('/api/healthcheck');
-    expect(response.status).toBe(200);
+    expect(response.status).toBe(503);
     expect(response.body.checks.database.message).toBe('Health check failed: Unknown error');
     expect(getter).not.toHaveBeenCalled();
   });
