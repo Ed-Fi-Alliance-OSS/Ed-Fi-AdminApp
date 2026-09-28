@@ -55,7 +55,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the information from the current user should be displayed
 - And contains the username and user role
 
-## Feature: Environments (Inprogress)
+## Feature: Environments (Automated)
 
 #### Scenario Outline: Create Environment Management v1 (Automated)
 
@@ -680,7 +680,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - When the user click on no button
 - Then the user created not should be removed from the user table loaded
 
-## Feature: Team Memberships (Pending)
+## Feature: Team Memberships (Automated)
 
 ### Rule: Team and User already created
 
@@ -817,7 +817,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 - Then the team memberships should not be removed from the team table
 
 
-## Feature: Roles (Pending)
+## Feature: Roles (Automated)
 
 #### Scenario Outline: Create role
 
@@ -990,7 +990,7 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | created     |
 | filter         | created by  |
 
-## Feature: Ownerships (Pending)
+## Feature: Ownerships (Automated)
 
 ### Rule: User already has a Environment, Team, Role created
 
@@ -1135,14 +1135,20 @@ Below are the test cases for Admin App and using Gherkin to define the test case
 | filter         | type       |
 | filter         | resource   |
 
-## Feature: Sync Queue (Pending)
+## Feature: Sync Queue (Automated)
 
 ### Rule: User already has a Team Ownership, Environment, Team, Role created
+
+#### Scenario Outline: Sync queue
+
+- Given the user is logged with a valid user
+- When the user click on Sync queue option
+- Then the sync table should be displayed with all task completed
 
 #### Scenario Outline: Sorting/Filter Sync queue
 
 - Given the user is logged with a valid user
-- And the user click on Roles option
+- And the user click on Sync queue option
 - And the user click on More Options button
 - When the user add a <filterCriteria> criteria <columnName>
 - Then the environment table should be sort according the <columnName> criteria
