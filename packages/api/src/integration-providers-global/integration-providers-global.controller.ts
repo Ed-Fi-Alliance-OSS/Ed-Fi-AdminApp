@@ -21,7 +21,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Not, Repository } from 'typeorm';
-import { ValidationHttpException, throwNotFound } from '../utils';
+import { ValidationHttpException, throwNotFound, withoutId } from '../utils';
 import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 
@@ -68,7 +68,7 @@ export class IntegrationProvidersGlobalController {
     try {
       return toGetIntegrationProviderDto(
         await this.integrationProvidersRepository.save(
-          this.integrationProvidersRepository.create(addUserCreating(createIntegrationProviderDto, user))
+          this.integrationProvidersRepository.create(addUserCreating(withoutId(createIntegrationProviderDto), user))
         )
       );
     } catch (error) {
