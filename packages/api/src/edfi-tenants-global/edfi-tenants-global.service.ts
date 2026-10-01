@@ -3,6 +3,7 @@ import { EdfiTenant } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
+import { withoutId } from '../utils';
 import { AdminApiServiceV1 } from '../teams/edfi-tenants/starting-blocks/v1/admin-api.v1.service';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks/v2/admin-api.v2.service';
 
@@ -15,6 +16,6 @@ export class EdfiTenantsGlobalService {
     private readonly adminApiServiceV2: AdminApiServiceV2
   ) {}
   create(createEdfiTenantDto: PostEdfiTenantDto) {
-    return this.edfiTenantsRepository.save(this.edfiTenantsRepository.create(createEdfiTenantDto));
+    return this.edfiTenantsRepository.save(this.edfiTenantsRepository.create(withoutId(createEdfiTenantDto)));
   }
 }

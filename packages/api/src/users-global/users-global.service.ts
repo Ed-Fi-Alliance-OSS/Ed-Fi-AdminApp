@@ -3,7 +3,7 @@ import { User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound } from '../utils';
+import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
 
 @Injectable()
 export class UsersGlobalService {
@@ -14,7 +14,7 @@ export class UsersGlobalService {
     private readonly entityManager: EntityManager
   ) {}
   create(createUserDto: PostUserDto) {
-    return this.usersRepository.save(this.usersRepository.create(createUserDto));
+    return this.usersRepository.save(this.usersRepository.create(withoutId(createUserDto)));
   }
 
   async findOne(id: number) {

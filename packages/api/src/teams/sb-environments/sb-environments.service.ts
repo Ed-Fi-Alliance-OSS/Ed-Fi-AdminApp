@@ -8,7 +8,7 @@ import { SbEnvironment, regarding } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { CustomHttpException, throwNotFound } from '../../utils';
+import { CustomHttpException, throwNotFound, withoutId } from '../../utils';
 import { StartingBlocksServiceV2 } from '../edfi-tenants/starting-blocks';
 
 @Injectable()
@@ -22,7 +22,7 @@ export class SbEnvironmentsService {
   ) {}
   create(createSbEnvironmentDto: PostSbEnvironmentDto) {
     return this.sbEnvironmentsRepository.save(
-      this.sbEnvironmentsRepository.create(createSbEnvironmentDto)
+      this.sbEnvironmentsRepository.create(withoutId(createSbEnvironmentDto))
     );
   }
 
