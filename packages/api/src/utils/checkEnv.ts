@@ -12,8 +12,13 @@ if (
 if (config.DB_SECRET_VALUE === undefined && config.AWS_DB_SECRET === undefined) {
   errs.push('DB_SECRET not defined either locally or as AWS secret.');
 }
+if (config.SESSION_SECRET_VALUE === undefined && config.AWS_SESSION_SECRET === undefined) {
+  errs.push('SESSION_SECRET not defined either locally or as AWS secret.');
+}
 if (
-  (config.AWS_DB_SECRET !== undefined || config.AWS_DB_ENCRYPTION_SECRET !== undefined) &&
+  (config.AWS_DB_SECRET !== undefined ||
+    config.AWS_DB_ENCRYPTION_SECRET !== undefined ||
+    config.AWS_SESSION_SECRET !== undefined) &&
   config.AWS_REGION === undefined
 ) {
   errs.push('Configured to use AWS secrets, but AWS_REGION not defined.');
