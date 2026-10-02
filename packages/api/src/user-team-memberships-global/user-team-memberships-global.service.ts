@@ -7,7 +7,7 @@ import { UserTeamMembership } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound } from '../utils';
+import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
 
 @Injectable()
 export class UserTeamMembershipsGlobalService {
@@ -19,7 +19,7 @@ export class UserTeamMembershipsGlobalService {
   ) {}
   create(createUserTeamMembershipDto: PostUserTeamMembershipDto) {
     return this.userTeamMembershipsRepository.save(
-      this.userTeamMembershipsRepository.create(createUserTeamMembershipDto)
+      this.userTeamMembershipsRepository.create(withoutId(createUserTeamMembershipDto))
     );
   }
 

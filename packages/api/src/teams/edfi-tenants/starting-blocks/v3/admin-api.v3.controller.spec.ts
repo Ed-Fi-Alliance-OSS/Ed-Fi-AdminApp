@@ -7,6 +7,7 @@ import {
   PostInstanceDtoV3,
   PostProfileDtoV3,
   PutApplicationFormDtoV3,
+  PutProfileDtoV3,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { AdminApiControllerV3 } from './admin-api.v3.controller';
@@ -712,5 +713,50 @@ describe('AdminApiControllerV3 - putApplication ODS handling', () => {
 
     const [, , sentDto] = mockSbService.putApplication.mock.calls[0];
     expect(sentDto).toHaveProperty('id', 9);
+  });
+});
+
+describe('AdminApiControllerV3 - putProfile', () => {
+  let controller: AdminApiControllerV3;
+  let mockSbService: { putProfile: jest.Mock };
+
+  const mockEdfiTenant = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  } as unknown as EdfiTenant;
+
+  beforeEach(() => {
+    mockSbService = {
+      putProfile: jest.fn().mockResolvedValue({ id: 42, name: 'Test Profile' }),
+    };
+    controller = new AdminApiControllerV3(
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV3,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService,
+    );
+  });
+
+  it('forwards the route profileId as the payload id when the transformed body has none', async () => {
+    // The global ValidationPipe strips the unexposed `id` from the body (AC-642).
+    const profile = { name: 'Test Profile', definition: '<Profile />' } as PutProfileDtoV3;
+
+    await controller.putProfile(1, 1, mockEdfiTenant, 42, profile);
+
+    expect(mockSbService.putProfile).toHaveBeenCalledWith(mockEdfiTenant, 42, {
+      name: 'Test Profile',
+      definition: '<Profile />',
+      id: 42,
+    });
+  });
+
+  it('uses the route profileId even if the body carries a different id', async () => {
+    const profile = { id: 7, name: 'Test Profile', definition: '<Profile />' } as PutProfileDtoV3;
+
+    await controller.putProfile(1, 1, mockEdfiTenant, 42, profile);
+
+    const [, , sentProfile] = mockSbService.putProfile.mock.calls[0];
+    expect(sentProfile).toHaveProperty('id', 42);
   });
 });

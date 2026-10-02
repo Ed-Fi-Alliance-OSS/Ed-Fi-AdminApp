@@ -3,7 +3,7 @@ import { Team } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound } from '../utils';
+import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
 
 @Injectable()
 export class TeamsGlobalService {
@@ -14,7 +14,7 @@ export class TeamsGlobalService {
     private readonly entityManager: EntityManager
   ) {}
   create(createTeamDto: PostTeamDto) {
-    return this.teamsRepository.save(this.teamsRepository.create(createTeamDto));
+    return this.teamsRepository.save(this.teamsRepository.create(withoutId(createTeamDto)));
   }
 
   async findOne(id: number) {
