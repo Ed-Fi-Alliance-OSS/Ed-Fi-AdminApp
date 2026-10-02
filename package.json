@@ -77,7 +77,7 @@
     "config": "^5.0.1",
     "connect-mssql-v2": "^6.0.0",
     "connect-pg-simple": "^10.0.0",
-    "cron-parser": "^3.1.0",
+    "cron-parser": "^5.10.1",
     "cross-spawn": "^7.0.6",
     "dayjs": "^1.11.23",
     "express": "^5.2.1",

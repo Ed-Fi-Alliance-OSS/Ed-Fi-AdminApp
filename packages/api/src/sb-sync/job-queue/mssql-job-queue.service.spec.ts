@@ -333,4 +333,40 @@ describe('MssqlJobQueueService', () => {
       expect(mockJobRepository.query).not.toHaveBeenCalled();
     });
   });
+
+  // --------------------------------------------------------------------------
+  // Next fire time (calculateNextRun) — guards cron-parser behavior across upgrades
+  // --------------------------------------------------------------------------
+
+  describe('calculateNextRun', () => {
+    const nextRun = (cron: string, from: string, timezone?: string): string =>
+      ((service as any).calculateNextRun(cron, timezone, new Date(from)) as Date).toISOString();
+
+    it('should return the next occurrence after fromDate, defaulting to UTC', () => {
+      expect(nextRun('0 * * * *', '2026-01-01T10:15:00Z')).toBe('2026-01-01T11:00:00.000Z');
+    });
+
+    it('should return a strictly later occurrence when fromDate matches the schedule exactly', () => {
+      expect(nextRun('0 * * * *', '2026-01-01T11:00:00Z')).toBe('2026-01-01T12:00:00.000Z');
+    });
+
+    it('should honor day-of-week restrictions', () => {
+      // 2026-01-02 is a Friday; the next weekday slot is Monday 2026-01-05
+      expect(nextRun('*/15 * * * 1-5', '2026-01-02T23:50:00Z')).toBe('2026-01-05T00:00:00.000Z');
+    });
+
+    it('should apply the configured timezone offset', () => {
+      // 09:00 CST (UTC-6)
+      expect(nextRun('0 9 * * *', '2026-03-07T12:00:00Z', 'America/Chicago')).toBe(
+        '2026-03-07T15:00:00.000Z',
+      );
+    });
+
+    it('should follow the timezone offset across a DST transition', () => {
+      // DST starts 2026-03-08 in America/Chicago; 09:00 CDT is UTC-5
+      expect(nextRun('0 9 * * *', '2026-03-08T12:00:00Z', 'America/Chicago')).toBe(
+        '2026-03-08T14:00:00.000Z',
+      );
+    });
+  });
 });
