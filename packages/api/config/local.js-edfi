@@ -39,6 +39,8 @@ module.exports = {
     KEY: 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565',
     IV: '<ignore - this should be refactored out. See comments elsewhere>',
   },
+  // Array of session-signing secrets, newest first. Can replace with `node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"`
+  SESSION_SECRET_VALUE: ['dev-only-session-secret-local'],
 
   // Optional (can delete): seed IdP configs for your local Keycloak. You'll need to use these values for the appropriate things in keycloak itself.
   SAMPLE_OIDC_CONFIG: {

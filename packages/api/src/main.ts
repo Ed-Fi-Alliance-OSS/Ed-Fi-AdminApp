@@ -227,13 +227,18 @@ async function bootstrap() {
 
   const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
+  const sessionSecret = await config.SESSION_SECRET;
+  if (!sessionSecret || sessionSecret.length === 0 || sessionSecret.includes('my-secret')) {
+    throw new Error('SESSION_SECRET must be configured');
+  }
+
   app.use(json({ limit: '512kb' }));
   app.use(createCsrfOriginGuard(config.FE_URL));
   app.use(
     expressSession.default({
       store: sessionStore,
-      // cryptographic signing is not necessary here. expressSession is very generic and there are other ways of using it for which signing is important.
-      secret: 'my-secret',
+      // array supports rotation: the first entry signs new cookies, the rest remain valid for verification.
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: getSessionCookieOptions(),
