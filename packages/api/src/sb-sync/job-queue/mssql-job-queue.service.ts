@@ -1,4 +1,4 @@
-import { parseExpression } from 'cron-parser'; // pinned to ^3.1.0 (D-13)
+import { CronExpressionParser } from 'cron-parser';
 import { Injectable, Logger, NotFoundException, OnApplicationBootstrap, OnApplicationShutdown } from '@nestjs/common';
 import { InjectDataSource, InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -352,7 +352,7 @@ export class MssqlJobQueueService
   }
 
   private calculateNextRun(cron: string, timezone?: string, fromDate?: Date): Date {
-    const interval = parseExpression(cron, {
+    const interval = CronExpressionParser.parse(cron, {
       currentDate: fromDate ?? new Date(),
       tz: timezone ?? 'UTC',
     });
