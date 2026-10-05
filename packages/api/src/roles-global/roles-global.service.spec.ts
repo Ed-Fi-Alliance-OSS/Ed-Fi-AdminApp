@@ -5,6 +5,7 @@ import { getEntityManagerToken, getRepositoryToken } from '@nestjs/typeorm';
 import { Ownership, Role, User, UserTeamMembership } from '@edanalytics/models-server';
 import { GetUserDto, PostRoleDto, PutRoleDto } from '@edanalytics/models';
 import { CheckAbilityType } from '../auth/authorization';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 import { RolesGlobalService } from './roles-global.service';
 
 const mockRole = { id: 1, name: 'Admin', privilegeIds: ['me:read', 'role:read'], displayName: 'Admin' };
@@ -20,6 +21,7 @@ const mockRoleRepo = {
 const mockUtmRepo = { findBy: jest.fn(async () => []) };
 const mockUserRepo = { findBy: jest.fn(async () => []) };
 const mockOwnershipRepo = { findBy: jest.fn(async () => []) };
+const mockGuard = { assertCanGrant: jest.fn(async () => undefined) };
 
 describe('RolesGlobalService', () => {
   let service: RolesGlobalService;
@@ -34,6 +36,7 @@ describe('RolesGlobalService', () => {
         { provide: getRepositoryToken(User), useValue: mockUserRepo },
         { provide: getRepositoryToken(Ownership), useValue: mockOwnershipRepo },
         { provide: getEntityManagerToken(), useValue: {} },
+        { provide: PrivilegeGrantGuardService, useValue: mockGuard },
       ],
     }).compile();
     service = module.get(RolesGlobalService);
@@ -41,7 +44,7 @@ describe('RolesGlobalService', () => {
 
   it('create() saves a new role with unique privilege ids', async () => {
     const dto = { name: 'Editor', privilegeIds: ['me:read', 'role:read', 'me:read'], type: 'UserGlobal', teamId: null } as unknown as PostRoleDto;
-    await service.create(dto);
+    await service.create(dto, 42);
     expect(mockRoleRepo.save).toHaveBeenCalledWith(
       expect.objectContaining({ privilegeIds: ['me:read', 'role:read'] })
     );
@@ -49,7 +52,7 @@ describe('RolesGlobalService', () => {
 
   it('create() throws BadRequestException for invalid privileges', async () => {
     const dto = { name: 'Bad', privilegeIds: ['nonexistent:priv'], type: 'UserGlobal', teamId: null } as unknown as PostRoleDto;
-    await expect(service.create(dto)).rejects.toThrow(BadRequestException);
+    await expect(service.create(dto, 42)).rejects.toThrow(BadRequestException);
   });
 
   it('findOne() returns a role by id', async () => {
@@ -59,7 +62,7 @@ describe('RolesGlobalService', () => {
 
   it('update() saves with updated fields', async () => {
     const dto = { name: 'Super Admin', privilegeIds: ['me:read'] } as unknown as PutRoleDto;
-    await service.update(1, dto);
+    await service.update(1, dto, 42);
     expect(mockRoleRepo.save).toHaveBeenCalled();
   });
 
@@ -87,5 +90,44 @@ describe('RolesGlobalService', () => {
     const checkAbility = jest.fn(() => false);
     await expect(service.remove(1, { id: 99 } as unknown as GetUserDto, true, checkAbility as unknown as CheckAbilityType)).rejects.toThrow();
   });
-});
 
+  it('create() checks all requested codes without team context', async () => {
+    const dto = { name: 'Editor', privilegeIds: ['me:read', 'role:read', 'me:read'], type: 'UserGlobal', teamId: null } as unknown as PostRoleDto;
+    await service.create(dto, 42);
+    expect(mockGuard.assertCanGrant).toHaveBeenCalledWith(42, ['me:read', 'role:read']);
+  });
+
+  it('create() does not save when the guard rejects', async () => {
+    mockGuard.assertCanGrant.mockRejectedValueOnce(new Error('403'));
+    const dto = { name: 'Editor', privilegeIds: ['me:read', 'user:update'], type: 'UserGlobal', teamId: null } as unknown as PostRoleDto;
+    await expect(service.create(dto, 42)).rejects.toThrow('403');
+    expect(mockRoleRepo.save).not.toHaveBeenCalled();
+  });
+
+  it('create() rejects invalid codes before calling the guard', async () => {
+    const dto = { name: 'Bad', privilegeIds: ['nonexistent:priv'], type: 'UserGlobal', teamId: null } as unknown as PostRoleDto;
+    await expect(service.create(dto, 42)).rejects.toThrow(BadRequestException);
+    expect(mockGuard.assertCanGrant).not.toHaveBeenCalled();
+  });
+
+  it('update() checks only newly added codes', async () => {
+    // existing mockRole holds ['me:read', 'role:read']
+    const dto = { name: 'Admin', privilegeIds: ['me:read', 'role:read', 'user:update'] } as unknown as PutRoleDto;
+    await service.update(1, dto, 42);
+    expect(mockGuard.assertCanGrant).toHaveBeenCalledWith(42, ['user:update'], undefined, 'role 1');
+  });
+
+  it('update() with no additions (rename/trim) passes an empty list', async () => {
+    const dto = { name: 'Renamed', privilegeIds: ['me:read'] } as unknown as PutRoleDto;
+    await service.update(1, dto, 42);
+    expect(mockGuard.assertCanGrant).toHaveBeenCalledWith(42, [], undefined, 'role 1');
+    expect(mockRoleRepo.save).toHaveBeenCalled();
+  });
+
+  it('update() does not save when the guard rejects', async () => {
+    mockGuard.assertCanGrant.mockRejectedValueOnce(new Error('403'));
+    const dto = { name: 'Admin', privilegeIds: ['me:read', 'user:update'] } as unknown as PutRoleDto;
+    await expect(service.update(1, dto, 42)).rejects.toThrow('403');
+    expect(mockRoleRepo.save).not.toHaveBeenCalled();
+  });
+});
