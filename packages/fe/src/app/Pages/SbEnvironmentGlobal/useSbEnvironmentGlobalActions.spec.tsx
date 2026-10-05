@@ -1,5 +1,7 @@
 import 'reflect-metadata';
+import { splitActions } from '@edanalytics/common-ui';
 import { GetSbEnvironmentDto } from '@edanalytics/models';
+import omit from 'lodash/omit';
 import { useSbEnvironmentGlobalActions } from './useSbEnvironmentGlobalActions';
 
 jest.mock('react-router', () => ({
@@ -334,15 +336,31 @@ describe('useSbEnvironmentGlobalActions', () => {
       }
     );
 
-    it('comes after the other actions so it lands in the overflow menu', () => {
-      enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', false), {
+    it('goes in the "More" menu without pushing other actions out of the inline buttons', () => {
+      // Mirrors SbEnvironmentGlobalPage, which renders omit(actions, 'View').
+      // These four regular actions exactly fill the inline target, which is
+      // where an extra counted action would push Sync into "More".
+      const auth = {
+        canGrantOwnership: true,
         canView: true,
         canUpdate: true,
         canDelete: true,
         canRefreshResources: true,
-      });
-      expect(Object.keys(actions).at(-1)).toBe('RequestCert');
+      };
+      const pageSplit = () => {
+        const { visible, hidden } = splitActions(
+          omit(setup(buildSbEnvironment('v2', false), auth), 'View')
+        );
+        return { visible: visible.map(([key]) => key), hidden: hidden.map(([key]) => key) };
+      };
+
+      const inlineBefore = pageSplit().visible;
+      enableCertificationFlag();
+      const after = pageSplit();
+
+      expect(inlineBefore).toEqual(['GrantOwnership', 'Edit', 'Delete', 'RefreshResources']);
+      expect(after.visible).toEqual(inlineBefore);
+      expect(after.hidden).toEqual(['RequestCert']);
     });
 
     it('navigates to the request-certification page on click', () => {

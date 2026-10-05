@@ -10,11 +10,14 @@ import { Icons } from './Icons';
  * - Actions marked as "pending" are guaranteed to be visible, but with the least possible disturbance to the sorting that would otherwise be used.
  *   - If they're already among the visible bunch, then no change.
  *   - If they're among the hidden bunch, then they're moved to the end of the visible bunch, resulting in more than the target being temporarily shown.
+ * - Actions marked "overflowOnly" are left out of the split and appended to the end of the menu, unless every action is requested (`show === true`).
  */
 export const splitActions = (actions: ActionsType, show?: number | undefined | true) => {
-  const hidden = Object.entries(actions).sort(([_ak, a], [_bk, b]) =>
-    a.isIrrelevant ? 1 : b.isIrrelevant ? -1 : 0
-  );
+  const entries = Object.entries(actions);
+  const overflowOnly = show === true ? [] : entries.filter(([_, a]) => a.overflowOnly);
+  const hidden = entries
+    .filter((entry) => !overflowOnly.includes(entry))
+    .sort(([_ak, a], [_bk, b]) => (a.isIrrelevant ? 1 : b.isIrrelevant ? -1 : 0));
   const visible = hidden.splice(
     0,
     // show all
@@ -30,6 +33,7 @@ export const splitActions = (actions: ActionsType, show?: number | undefined | t
       : // show custom number
         show
   );
+  hidden.push(...overflowOnly);
   hidden.forEach(([_, a], i) => {
     if (a.isPending) {
       visible.push(...hidden.splice(i, 1));

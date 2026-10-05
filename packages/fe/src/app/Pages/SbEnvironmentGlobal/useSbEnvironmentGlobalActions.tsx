@@ -175,13 +175,14 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
               },
             }
           : {}),
-        // Spread last so it lands in the overflow menu rather than displacing
-        // Edit/Delete/Sync from the inline action slots.
+        // overflowOnly keeps it in the "More" menu without counting toward the
+        // inline slots, so it never pushes Edit/Delete/Sync out of view.
         ...(config.showRequestCertification &&
         canView &&
         CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '')
           ? {
               RequestCert: {
+                overflowOnly: true,
                 icon: Icons.Data,
                 text: 'Request certification',
                 title: 'Request certification for ' + sbEnvironment.displayName,

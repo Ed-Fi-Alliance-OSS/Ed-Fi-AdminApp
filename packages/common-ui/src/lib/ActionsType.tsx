@@ -17,6 +17,8 @@ export type ActionProps = {
   isPending?: boolean;
   /** Flag that an action should be available but at the bottom of the list. For example connect SB meta when there's already a connection. */
   isIrrelevant?: boolean;
+  /** Always place the action in the overflow menu, without counting it toward the inline target. Adding one never pushes an existing action out of the inline buttons. */
+  overflowOnly?: boolean;
 };
 export type ActionPropsConfirm = ActionProps & {
   confirmBody: string;
