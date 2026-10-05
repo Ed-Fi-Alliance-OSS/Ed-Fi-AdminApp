@@ -40,8 +40,12 @@ module.exports = {
     KEY: 'bbeadc2d4d15f5c9cfc2239b682cca392b233ee6979b6b9578d256aa01a7c565',
     IV: '<ignore - this should be refactored out. See comments elsewhere>',
   },
-  // Array of session-signing secrets, newest first. Override via AWS_SESSION_SECRET / SESSION_SECRET_VALUE for real deployments.
-  SESSION_SECRET_VALUE: ['dev-only-session-secret-local'],
+  // No SESSION_SECRET_VALUE default here on purpose: this template ships as the
+  // real production.js inside the Docker image (packages/api/Dockerfile), so a
+  // usable default here would mean every deployment that forgets to override it
+  // shares the same hardcoded session-signing key. Supply SESSION_SECRET_VALUE
+  // or AWS_SESSION_SECRET at deploy time; checkEnv.ts and assertValidSessionSecret
+  // both fail startup if neither is set.
 
   // Updated to use nginx proxy URL
   SAMPLE_OIDC_CONFIG: {
