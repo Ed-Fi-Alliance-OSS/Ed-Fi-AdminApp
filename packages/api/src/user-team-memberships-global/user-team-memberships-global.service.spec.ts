@@ -89,6 +89,33 @@ describe('UserTeamMembershipsGlobalService', () => {
     expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 2, { kind: 'team-membership', teamId: 1 });
   });
 
+  it('create() persists only explicit scalar fields, ignoring relation keys in the body', async () => {
+    const dto = {
+      userId: 5,
+      teamId: 1,
+      roleId: 3,
+      createdById: 42,
+      role: { id: 2 },
+      team: { id: 99 },
+      user: { id: 99 },
+    } as unknown as PostUserTeamMembershipDto;
+    await service.create(dto, 42);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, {
+      kind: 'team-membership',
+      teamId: 1,
+    });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      teamId: 1,
+      userId: 5,
+      roleId: 3,
+      createdById: 42,
+    });
+    const saved = mockRepo.save.mock.calls[0][0];
+    expect(saved).not.toHaveProperty('role');
+    expect(saved).not.toHaveProperty('team');
+    expect(saved).not.toHaveProperty('user');
+  });
+
   it('create() does not save when the guard rejects', async () => {
     mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
     await expect(service.create({ userId: 5, teamId: 1, roleId: 2 }, 42)).rejects.toThrow('403');

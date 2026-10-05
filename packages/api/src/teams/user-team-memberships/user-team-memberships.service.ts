@@ -6,7 +6,7 @@ import {
   PutUserTeamMembershipDto,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound, withoutId } from '../../utils';
+import { applyDtoUpdates, throwNotFound } from '../../utils';
 import { UserTeamMembership } from '@edanalytics/models-server';
 import { PrivilegeGrantGuardService } from '../../auth/authorization/privilege-grant-guard.service';
 
@@ -27,8 +27,15 @@ export class UserTeamMembershipsService {
         teamId: createUserTeamMembershipDto.teamId,
       }
     );
+    // Build from explicit scalars only: relation keys left in the body (e.g. `role`, `team`)
+    // would otherwise override the checked FK columns on save.
     return this.userTeamMembershipsRepository.save(
-      this.userTeamMembershipsRepository.create(withoutId(createUserTeamMembershipDto))
+      this.userTeamMembershipsRepository.create({
+        teamId: createUserTeamMembershipDto.teamId,
+        userId: createUserTeamMembershipDto.userId,
+        roleId: createUserTeamMembershipDto.roleId,
+        createdById: createUserTeamMembershipDto.createdById,
+      })
     );
   }
 

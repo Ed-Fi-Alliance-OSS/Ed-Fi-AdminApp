@@ -91,6 +91,36 @@ describe('UsersGlobalService', () => {
     expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 1, { kind: 'global-user' });
   });
 
+  it('create() persists only explicit scalar fields, ignoring relation keys in the body', async () => {
+    const dto = {
+      username: 'bob',
+      userType: 'human',
+      isActive: true,
+      roleId: 3,
+      givenName: 'Bob',
+      familyName: 'Smith',
+      createdById: 42,
+      role: { id: 2 },
+      userTeamMemberships: [{ teamId: 1, roleId: 2 }],
+      id: 1,
+    } as unknown as PostUserDto;
+    await service.create(dto, 42);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, { kind: 'global-user' });
+    expect(mockRepo.create).toHaveBeenCalledWith({
+      username: 'bob',
+      userType: 'human',
+      isActive: true,
+      roleId: 3,
+      givenName: 'Bob',
+      familyName: 'Smith',
+      createdById: 42,
+    });
+    const saved = mockRepo.save.mock.calls[0][0];
+    expect(saved).not.toHaveProperty('role');
+    expect(saved).not.toHaveProperty('userTeamMemberships');
+    expect(saved).not.toHaveProperty('id');
+  });
+
   it('create() does not save when the guard rejects', async () => {
     mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
     const dto = { username: 'bob', roleId: 2 } as unknown as PostUserDto;

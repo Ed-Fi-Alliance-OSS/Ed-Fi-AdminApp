@@ -7,7 +7,7 @@ import { UserTeamMembership } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
+import { applyDtoUpdates, throwNotFound } from '../utils';
 import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
@@ -24,8 +24,15 @@ export class UserTeamMembershipsGlobalService {
       kind: 'team-membership',
       teamId: createUserTeamMembershipDto.teamId,
     });
+    // Build from explicit scalars only: relation keys left in the body (e.g. `role`, `team`)
+    // would otherwise override the checked FK columns on save.
     return this.userTeamMembershipsRepository.save(
-      this.userTeamMembershipsRepository.create(withoutId(createUserTeamMembershipDto))
+      this.userTeamMembershipsRepository.create({
+        teamId: createUserTeamMembershipDto.teamId,
+        userId: createUserTeamMembershipDto.userId,
+        roleId: createUserTeamMembershipDto.roleId,
+        createdById: createUserTeamMembershipDto.createdById,
+      })
     );
   }
 

@@ -41,6 +41,33 @@ describe('UserTeamMembershipsService (team)', () => {
       expect(mockRepo.save).toHaveBeenCalled();
     });
 
+    it('persists only explicit scalar fields, ignoring relation keys in the body', async () => {
+      const dto = {
+        teamId: 7,
+        userId: 11,
+        roleId: 3,
+        createdById: 42,
+        role: { id: 2 },
+        team: { id: 99 },
+        user: { id: 99 },
+      } as unknown as PostUserTeamMembershipDto;
+      await service.create(dto, 42);
+      expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, {
+        kind: 'team-membership',
+        teamId: 7,
+      });
+      expect(mockRepo.create).toHaveBeenCalledWith({
+        teamId: 7,
+        userId: 11,
+        roleId: 3,
+        createdById: 42,
+      });
+      const saved = mockRepo.save.mock.calls[0][0];
+      expect(saved).not.toHaveProperty('role');
+      expect(saved).not.toHaveProperty('team');
+      expect(saved).not.toHaveProperty('user');
+    });
+
     it('does not save when the guard rejects', async () => {
       mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
       const dto = { teamId: 7, userId: 11, roleId: 4 } as PostUserTeamMembershipDto;

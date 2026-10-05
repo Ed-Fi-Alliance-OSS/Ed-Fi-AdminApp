@@ -3,7 +3,7 @@ import { User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
+import { applyDtoUpdates, throwNotFound } from '../utils';
 import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
@@ -20,7 +20,21 @@ export class UsersGlobalService {
     await this.privilegeGrantGuard.assertCanAssignRole(actorId, createUserDto.roleId, {
       kind: 'global-user',
     });
-    return this.usersRepository.save(this.usersRepository.create(withoutId(createUserDto)));
+    // Build from explicit scalars only: relation keys left in the body (e.g. `role`) would
+    // otherwise override the checked roleId on save.
+    return this.usersRepository.save(
+      this.usersRepository.create({
+        username: createUserDto.username,
+        userType: createUserDto.userType,
+        roleId: createUserDto.roleId,
+        isActive: createUserDto.isActive,
+        givenName: createUserDto.givenName,
+        familyName: createUserDto.familyName,
+        clientId: createUserDto.clientId,
+        description: createUserDto.description,
+        createdById: createUserDto.createdById,
+      })
+    );
   }
 
   async findOne(id: number) {
