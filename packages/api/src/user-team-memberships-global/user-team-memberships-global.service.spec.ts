@@ -8,6 +8,7 @@ import {
   PutUserTeamMembershipDto,
 } from '@edanalytics/models';
 import { UserTeamMembershipsGlobalService } from './user-team-memberships-global.service';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 const mockMembership = { id: 1, userId: 10, teamId: 2, roleId: 3 };
 
@@ -21,6 +22,8 @@ const mockRepo = {
   remove: jest.fn(async () => undefined),
 };
 
+const mockGuard = { assertCanAssignRole: jest.fn(async () => undefined) };
+
 describe('UserTeamMembershipsGlobalService', () => {
   let service: UserTeamMembershipsGlobalService;
 
@@ -31,6 +34,7 @@ describe('UserTeamMembershipsGlobalService', () => {
         UserTeamMembershipsGlobalService,
         { provide: getRepositoryToken(UserTeamMembership), useValue: mockRepo },
         { provide: getEntityManagerToken(), useValue: {} },
+        { provide: PrivilegeGrantGuardService, useValue: mockGuard },
       ],
     }).compile();
     service = module.get(UserTeamMembershipsGlobalService);
@@ -38,7 +42,7 @@ describe('UserTeamMembershipsGlobalService', () => {
 
   it('create() saves a new membership', async () => {
     const dto: PostUserTeamMembershipDto = { userId: 5, teamId: 1, roleId: 2 };
-    await service.create(dto);
+    await service.create(dto, 42);
     expect(mockRepo.create).toHaveBeenCalledWith(dto);
     expect(mockRepo.save).toHaveBeenCalled();
   });
@@ -62,7 +66,7 @@ describe('UserTeamMembershipsGlobalService', () => {
 
   it('update() applies allowed fields and saves', async () => {
     const dto: PutUserTeamMembershipDto = { id: 1, roleId: 5 };
-    await service.update(1, dto);
+    await service.update(1, dto, 42);
     expect(mockRepo.save).toHaveBeenCalled();
     const savedArg = mockRepo.save.mock.calls[0][0];
     expect(savedArg.roleId).toBe(5);
@@ -77,5 +81,34 @@ describe('UserTeamMembershipsGlobalService', () => {
   it('remove() throws NotFoundException when not found', async () => {
     const { NotFoundException } = await import('@nestjs/common');
     await expect(service.remove(999, { id: 1 } as unknown as GetUserDto)).rejects.toThrow(NotFoundException);
+  });
+
+  it('create() checks the role in the membership team context', async () => {
+    const dto: PostUserTeamMembershipDto = { userId: 5, teamId: 1, roleId: 2 };
+    await service.create(dto, 42);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 2, { kind: 'team-membership', teamId: 1 });
+  });
+
+  it('create() does not save when the guard rejects', async () => {
+    mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
+    await expect(service.create({ userId: 5, teamId: 1, roleId: 2 }, 42)).rejects.toThrow('403');
+    expect(mockRepo.save).not.toHaveBeenCalled();
+  });
+
+  it("update() checks the new role in the existing membership's team, against the previous role", async () => {
+    // mockMembership: { id: 1, userId: 10, teamId: 2, roleId: 3 }
+    await service.update(1, { roleId: 4 } as PutUserTeamMembershipDto, 42);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 4, { kind: 'team-membership', teamId: 2 }, 3);
+  });
+
+  it('update() treats a body without roleId as unchanged', async () => {
+    await service.update(1, {} as PutUserTeamMembershipDto, 42);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, { kind: 'team-membership', teamId: 2 }, 3);
+  });
+
+  it('update() does not save when the guard rejects', async () => {
+    mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
+    await expect(service.update(1, { roleId: 4 } as PutUserTeamMembershipDto, 42)).rejects.toThrow('403');
+    expect(mockRepo.save).not.toHaveBeenCalled();
   });
 });

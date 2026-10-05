@@ -50,7 +50,8 @@ export class UserTeamMembershipsGlobalController {
     }
     return toGetUserTeamMembershipDto(
       await this.userTeamMembershipService.create(
-        addUserCreating(createUserTeamMembershipDto, user)
+        addUserCreating(createUserTeamMembershipDto, user),
+        user.id
       )
     );
   }
@@ -98,7 +99,8 @@ export class UserTeamMembershipsGlobalController {
     return toGetUserTeamMembershipDto(
       await this.userTeamMembershipService.update(
         userTeamMembershipId,
-        addUserModifying(updateUserTeamMembershipDto, user)
+        addUserModifying(updateUserTeamMembershipDto, user),
+        user.id
       )
     );
   }
