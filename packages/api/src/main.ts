@@ -32,6 +32,7 @@ import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
+import { assertValidSessionSecret } from './app/session-secret';
 import axios from 'axios';
 import https from 'https';
 
@@ -228,9 +229,7 @@ async function bootstrap() {
   const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
   const sessionSecret = await config.SESSION_SECRET;
-  if (!sessionSecret || sessionSecret.length === 0 || sessionSecret.includes('my-secret')) {
-    throw new Error('SESSION_SECRET must be configured');
-  }
+  assertValidSessionSecret(sessionSecret);
 
   app.use(json({ limit: '512kb' }));
   app.use(createCsrfOriginGuard(config.FE_URL));

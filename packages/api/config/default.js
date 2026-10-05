@@ -159,24 +159,23 @@ module.exports = {
   SESSION_SECRET: defer(function () {
     let out;
     if (this.AWS_SESSION_SECRET) {
-      // eslint-disable-next-line no-async-promise-executor
-      out = new Promise(async (r) => {
-        const secretsClient = new SecretsManagerClient({
-          region: this.AWS_REGION,
-        });
-        const secretValueRaw = await secretsClient.send(
+      const secretsClient = new SecretsManagerClient({
+        region: this.AWS_REGION,
+      });
+      out = secretsClient
+        .send(
           new GetSecretValueCommand({
             SecretId: this.AWS_SESSION_SECRET,
           })
-        );
+        )
+        .then((secretValueRaw) => {
+          if (secretValueRaw.SecretString === undefined) {
+            throw new Error('No client config values defined for the session secret when requesting secrets');
+          }
 
-        if (secretValueRaw.SecretString === undefined) {
-          throw new Error('No client config values defined for the session secret when requesting secrets');
-        }
-
-        const secret = JSON.parse(secretValueRaw.SecretString);
-        r(Array.isArray(secret) ? secret : [secret]);
-      });
+          const secret = JSON.parse(secretValueRaw.SecretString);
+          return Array.isArray(secret) ? secret : [secret];
+        });
     } else {
       // locally we expect plain (non-promise) values.
       const value = this.SESSION_SECRET_VALUE;
