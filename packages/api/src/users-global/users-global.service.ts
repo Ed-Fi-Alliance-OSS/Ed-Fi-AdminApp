@@ -4,6 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
 import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
 export class UsersGlobalService {
@@ -11,9 +12,14 @@ export class UsersGlobalService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    private readonly entityManager: EntityManager,
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
   ) {}
-  create(createUserDto: PostUserDto) {
+
+  async create(createUserDto: PostUserDto, actorId: number) {
+    await this.privilegeGrantGuard.assertCanAssignRole(actorId, createUserDto.roleId, {
+      kind: 'global-user',
+    });
     return this.usersRepository.save(this.usersRepository.create(withoutId(createUserDto)));
   }
 
@@ -25,8 +31,17 @@ export class UsersGlobalService {
     return this.usersRepository.findOneByOrFail({ username });
   }
 
-  async update(id: number, updateUserDto: PutUserDto) {
+  async update(id: number, updateUserDto: PutUserDto, actorId: number) {
     const old = await this.findOne(id);
+    const nextRoleId = Object.prototype.hasOwnProperty.call(updateUserDto, 'roleId')
+      ? updateUserDto.roleId
+      : old.roleId;
+    await this.privilegeGrantGuard.assertCanAssignRole(
+      actorId,
+      nextRoleId,
+      { kind: 'global-user' },
+      old.roleId ?? null
+    );
     const updated = applyDtoUpdates(old, updateUserDto, [
       'username',
       'roleId',
