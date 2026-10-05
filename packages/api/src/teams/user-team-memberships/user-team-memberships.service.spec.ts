@@ -93,7 +93,8 @@ describe('UserTeamMembershipsService (team)', () => {
         42,
         4,
         { kind: 'team-membership', teamId: 7 },
-        3
+        3,
+        'membership 1'
       );
     });
 
@@ -103,7 +104,8 @@ describe('UserTeamMembershipsService (team)', () => {
         42,
         3,
         { kind: 'team-membership', teamId: 7 },
-        3
+        3,
+        'membership 1'
       );
     });
 
@@ -113,7 +115,8 @@ describe('UserTeamMembershipsService (team)', () => {
         42,
         null,
         { kind: 'team-membership', teamId: 7 },
-        3
+        3,
+        'membership 1'
       );
     });
 

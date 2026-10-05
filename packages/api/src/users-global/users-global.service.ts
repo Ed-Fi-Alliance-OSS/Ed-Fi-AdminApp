@@ -54,7 +54,8 @@ export class UsersGlobalService {
       actorId,
       nextRoleId,
       { kind: 'global-user' },
-      old.roleId ?? null
+      old.roleId ?? null,
+      `user ${id}`
     );
     const updated = applyDtoUpdates(old, updateUserDto, [
       'username',

@@ -63,7 +63,8 @@ export class UserTeamMembershipsService {
       actorId,
       nextRoleId,
       { kind: 'team-membership', teamId },
-      old.roleId ?? null
+      old.roleId ?? null,
+      `membership ${id}`
     );
     // Only roleId/modifiedById are updatable; the body must not move the membership.
     const updated = applyDtoUpdates(old, updateUserTeamMembershipDto, ['roleId', 'modifiedById']);

@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { HttpException } from '@nestjs/common';
+import { HttpException, Logger } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken } from '@nestjs/typeorm';
 import { EntityNotFoundError } from 'typeorm';
@@ -212,6 +212,32 @@ describe('PrivilegeGrantGuardService', () => {
       await expect(
         expectStatus(guard.assertCanAssignRole(1, 5, teamCtx), 403),
       ).resolves.toBeInstanceOf(HttpException);
+    });
+
+    it('logs the assignment target alongside the role on rejection', async () => {
+      const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+      mockRolesRepo.findOneBy.mockResolvedValue({
+        id: 5,
+        type: RoleType.UserTeam,
+        teamId: 7,
+        privilegeIds: ['team.role:create'],
+      });
+      mockAuthService.getUserPrivileges.mockResolvedValue(held());
+      await expect(guard.assertCanAssignRole(1, 5, teamCtx, 3, 'membership 9')).rejects.toThrow(
+        HttpException,
+      );
+      expect(warn).toHaveBeenCalledWith(
+        'Actor 1 denied granting [team.role:create] in team 7 (membership 9, role 5)',
+      );
+      warn.mockRestore();
+    });
+
+    it.each([
+      ['team', teamCtx, RoleType.UserTeam],
+      ['global-user', globalCtx, RoleType.UserGlobal],
+    ])('%s: treats a role with null privilegeIds as granting nothing', async (_, ctx, type) => {
+      mockRolesRepo.findOneBy.mockResolvedValue({ id: 5, type, teamId: 7, privilegeIds: null });
+      await expect(guard.assertCanAssignRole(1, 5, ctx)).resolves.toBeUndefined();
     });
   });
 });

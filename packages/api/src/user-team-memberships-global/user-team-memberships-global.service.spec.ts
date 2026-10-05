@@ -125,12 +125,12 @@ describe('UserTeamMembershipsGlobalService', () => {
   it("update() checks the new role in the existing membership's team, against the previous role", async () => {
     // mockMembership: { id: 1, userId: 10, teamId: 2, roleId: 3 }
     await service.update(1, { roleId: 4 } as PutUserTeamMembershipDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 4, { kind: 'team-membership', teamId: 2 }, 3);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 4, { kind: 'team-membership', teamId: 2 }, 3, 'membership 1');
   });
 
   it('update() treats a body without roleId as unchanged', async () => {
     await service.update(1, {} as PutUserTeamMembershipDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, { kind: 'team-membership', teamId: 2 }, 3);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 3, { kind: 'team-membership', teamId: 2 }, 3, 'membership 1');
   });
 
   it('update() does not save when the guard rejects', async () => {

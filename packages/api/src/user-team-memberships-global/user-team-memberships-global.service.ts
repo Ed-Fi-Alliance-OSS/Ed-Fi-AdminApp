@@ -49,7 +49,8 @@ export class UserTeamMembershipsGlobalService {
       actorId,
       nextRoleId,
       { kind: 'team-membership', teamId: old.teamId },
-      old.roleId ?? null
+      old.roleId ?? null,
+      `membership ${id}`
     );
     const updated = applyDtoUpdates(old, updateUserTeamMembershipDto, ['roleId', 'modifiedById']);
     return this.userTeamMembershipsRepository.save(updated);

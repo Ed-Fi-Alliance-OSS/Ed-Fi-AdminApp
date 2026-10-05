@@ -77,15 +77,19 @@ export class PrivilegeGrantGuardService {
   /**
    * Validates the role's shape for the context, then checks the actor holds its privileges.
    * No-op when unassigning (null/undefined) or when the role is unchanged.
+   * `target` (e.g. `membership 5`) identifies what is being assigned to, for the rejection log.
    */
   async assertCanAssignRole(
     actorId: number,
     roleId: number | null | undefined,
     context: AssignContext,
     previousRoleId?: number | null,
+    target?: string,
   ): Promise<void> {
     if (roleId === null || roleId === undefined) return;
     if (roleId === previousRoleId) return;
+
+    const logTarget = target ? `${target}, role ${roleId}` : `role ${roleId}`;
 
     const role = await this.rolesRepository.findOneBy({ id: roleId });
 
@@ -100,7 +104,7 @@ export class PrivilegeGrantGuardService {
           message: 'Role is not a valid team role for this team.',
         });
       }
-      await this.assertCanGrant(actorId, role.privilegeIds, context.teamId, `role ${roleId}`);
+      await this.assertCanGrant(actorId, role.privilegeIds ?? [], context.teamId, logTarget);
     } else {
       if (role === null || role.type !== RoleType.UserGlobal) {
         throw new ValidationHttpException({
@@ -108,7 +112,7 @@ export class PrivilegeGrantGuardService {
           message: 'Role is not a valid global user role.',
         });
       }
-      await this.assertCanGrant(actorId, role.privilegeIds, undefined, `role ${roleId}`);
+      await this.assertCanGrant(actorId, role.privilegeIds ?? [], undefined, logTarget);
     }
   }
 }

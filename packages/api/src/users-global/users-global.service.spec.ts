@@ -131,12 +131,12 @@ describe('UsersGlobalService', () => {
   it('update() checks the new role against the previous role', async () => {
     // mockUser.roleId === 2
     await service.update(1, { roleId: 5 } as unknown as PutUserDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 5, { kind: 'global-user' }, 2);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 5, { kind: 'global-user' }, 2, 'user 1');
   });
 
   it('update() without roleId (e.g. name change) is treated as unchanged and saves', async () => {
     await service.update(1, { givenName: 'Al' } as unknown as PutUserDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 2, { kind: 'global-user' }, 2);
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 2, { kind: 'global-user' }, 2, 'user 1');
     expect(mockRepo.save).toHaveBeenCalled();
   });
 
