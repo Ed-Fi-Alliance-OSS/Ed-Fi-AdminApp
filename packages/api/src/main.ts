@@ -33,6 +33,7 @@ import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
 import { assertValidSessionSecret } from './app/session-secret';
+import { assertValidDbEncryptionSecret } from './app/db-encryption-secret';
 import axios from 'axios';
 import https from 'https';
 
@@ -221,7 +222,8 @@ async function bootstrap() {
   });
 
   const globalPrefix = 'api';
-  await config.DB_ENCRYPTION_SECRET;
+  const dbEncryptionSecret = await config.DB_ENCRYPTION_SECRET;
+  assertValidDbEncryptionSecret(dbEncryptionSecret);
 
   const connectionStr = await config.DB_CONNECTION_STRING;
   const engine = config.DB_ENGINE || 'pgsql';

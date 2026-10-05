@@ -15,6 +15,10 @@ function resolveSessionSecret(context: Record<string, unknown>): unknown {
   return (defaultConfig.SESSION_SECRET as (this: unknown) => unknown).call(context);
 }
 
+function resolveDbEncryptionSecret(context: Record<string, unknown>): unknown {
+  return (defaultConfig.DB_ENCRYPTION_SECRET as (this: unknown) => unknown).call(context);
+}
+
 describe('default.js SESSION_SECRET', () => {
   beforeEach(() => {
     jest.clearAllMocks();
@@ -64,5 +68,30 @@ describe('default.js SESSION_SECRET', () => {
         AWS_REGION: 'us-east-2',
       })
     ).rejects.toThrow('No client config values defined for the session secret when requesting secrets');
+  });
+});
+
+describe('default.js DB_ENCRYPTION_SECRET', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+  });
+
+  it('builds KEY/IV from the locally-configured object value', () => {
+    const result = resolveDbEncryptionSecret({
+      DB_ENCRYPTION_SECRET_VALUE: { KEY: 'a'.repeat(64), IV: 'unused' },
+    });
+    expect(result).toEqual({ KEY: 'a'.repeat(64), IV: 'unused' });
+  });
+
+  // Regression test for the DB_ENCRYPTION_SECRET_VALUE override bug flagged in
+  // AC-637's PR review: before custom-environment-variables.js mapped this key
+  // with __format: 'json', `this.DB_ENCRYPTION_SECRET_VALUE` here would be the
+  // raw env var STRING, and spreading a string yields indexed characters
+  // instead of {KEY, IV} - silently breaking an operator's override attempt.
+  it('would not have produced a usable KEY/IV if DB_ENCRYPTION_SECRET_VALUE stayed an unparsed string', () => {
+    const result = resolveDbEncryptionSecret({
+      DB_ENCRYPTION_SECRET_VALUE: '{"KEY":"' + 'a'.repeat(64) + '","IV":"unused"}',
+    }) as Record<string, unknown>;
+    expect(result.KEY).toBeUndefined();
   });
 });
