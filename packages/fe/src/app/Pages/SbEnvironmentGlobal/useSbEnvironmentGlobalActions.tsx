@@ -13,6 +13,12 @@ import { useSearchParamsObject } from '../../helpers/useSearch';
 import { Icons } from '@edanalytics/common-ui';
 import { config } from '../../../config/config';
 
+// Admin API versions that offer "Request certification". Listed explicitly
+// (rather than allowing any version) so a future version never inherits the
+// action without someone deciding it should, and an environment whose
+// version can't be determined never shows it.
+const CERTIFICATION_VERSIONS: readonly string[] = ['v1', 'v2', 'v3'];
+
 export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto | undefined) => {
   const refreshResources = sbEnvironmentQueriesGlobal.refreshResources({});
   const deleteSbEnvironment = sbEnvironmentQueriesGlobal.delete({});
@@ -64,18 +70,6 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                 title: 'View ' + sbEnvironment.displayName,
                 to: `/sb-environments/${sbEnvironment.id}`,
                 onClick: () => navigate(`/sb-environments/${sbEnvironment.id}`),
-              },
-            }
-          : {}),
-        ...(config.showRequestCertification && sbEnvironment.version === 'v1'
-          ? {
-              RequestCert: {
-                icon: Icons.Data,
-                text: 'Request certification',
-                title: 'Request certification for ' + sbEnvironment.displayName,
-                to: `/sb-environments/${sbEnvironment.id}/request-certification`,
-                onClick: () =>
-                  navigate(`/sb-environments/${sbEnvironment.id}/request-certification`),
               },
             }
           : {}),
@@ -178,6 +172,22 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                     }
                   );
                 },
+              },
+            }
+          : {}),
+        // Spread last so it lands in the overflow menu rather than displacing
+        // Edit/Delete/Sync from the inline action slots.
+        ...(config.showRequestCertification &&
+        canView &&
+        CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '')
+          ? {
+              RequestCert: {
+                icon: Icons.Data,
+                text: 'Request certification',
+                title: 'Request certification for ' + sbEnvironment.displayName,
+                to: `/sb-environments/${sbEnvironment.id}/request-certification`,
+                onClick: () =>
+                  navigate(`/sb-environments/${sbEnvironment.id}/request-certification`),
               },
             }
           : {}),

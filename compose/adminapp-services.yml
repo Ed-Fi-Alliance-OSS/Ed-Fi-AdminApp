@@ -212,6 +212,7 @@ services:
         VITE_STARTING_GUIDE: '${VITE_STARTING_GUIDE:-${VITE_HELP_GUIDE}/system-administrators/global-administration-tasks}'
         VITE_CONTACT: '${VITE_CONTACT:-https://community.ed-fi.org/}'
         VITE_APPLICATION_NAME: '${VITE_APPLICATION_NAME:-Ed-Fi Admin App}'
+        VITE_SHOW_REQUEST_CERTIFICATION: '${VITE_SHOW_REQUEST_CERTIFICATION:-false}'
     profiles:
       - adminapp
     container_name: edfiadminapp-fe
