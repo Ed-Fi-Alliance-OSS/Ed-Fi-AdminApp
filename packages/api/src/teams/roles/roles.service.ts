@@ -4,16 +4,18 @@ import { BadRequestException, Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { IsNull, Not, Repository } from 'typeorm';
+import { PrivilegeGrantGuardService } from '../../auth/authorization/privilege-grant-guard.service';
 import { throwNotFound } from '../../utils';
 
 @Injectable()
 export class RolesService {
   constructor(
     @InjectRepository(Role)
-    private rolesRepository: Repository<Role>
+    private rolesRepository: Repository<Role>,
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
   ) {}
 
-  async create(createRoleDto: PostRoleDto) {
+  async create(createRoleDto: PostRoleDto, actorId: number) {
     const uniqueReqPrivileges = _.uniq(createRoleDto.privilegeIds);
 
     if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
@@ -24,6 +26,11 @@ export class RolesService {
         `Attempting to update invalid role type (${createRoleDto.type})`
       );
     }
+    await this.privilegeGrantGuard.assertCanGrant(
+      actorId,
+      uniqueReqPrivileges,
+      createRoleDto.teamId
+    );
     return this.rolesRepository.save({
       teamId: createRoleDto.teamId,
       type: createRoleDto.type,
@@ -63,7 +70,7 @@ export class RolesService {
       .catch(throwNotFound);
   }
 
-  async update(teamId: number, id: number, updateRoleDto: PutRoleDto) {
+  async update(teamId: number, id: number, updateRoleDto: PutRoleDto, actorId: number) {
     const old = await this.rolesRepository.findOneBy({
       id,
     });
@@ -84,6 +91,21 @@ export class RolesService {
       if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
         return {
           status: 'INVALID_PRIVILEGES' as const,
+        };
+      }
+      const addedPrivileges = uniqueReqPrivileges.filter(
+        (code) => !old.privilegeIds.includes(code)
+      );
+      const missing = await this.privilegeGrantGuard.findMissing(
+        actorId,
+        addedPrivileges,
+        teamId,
+        `role ${id}`
+      );
+      if (missing.length) {
+        return {
+          status: 'INSUFFICIENT_PRIVILEGES' as const,
+          missing,
         };
       }
       return {

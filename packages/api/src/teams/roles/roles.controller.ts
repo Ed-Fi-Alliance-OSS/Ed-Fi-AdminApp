@@ -15,6 +15,7 @@ import { RolesService } from './roles.service';
 import { ApiTags } from '@nestjs/swagger';
 import { Role, addUserCreating, addUserModifying } from '@edanalytics/models-server';
 import { Authorize } from '../../auth/authorization';
+import { insufficientPrivilegesException } from '../../auth/authorization/privilege-grant-guard.service';
 import { CustomHttpException } from '../../utils';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
@@ -42,7 +43,10 @@ export class RolesController {
     @Param('teamId', new ParseIntPipe()) teamId: number
   ) {
     return toGetRoleDto(
-      await this.roleService.create(addUserCreating({ ...createRoleDto, teamId }, session))
+      await this.roleService.create(
+        addUserCreating({ ...createRoleDto, teamId }, session),
+        session.id
+      )
     );
   }
 
@@ -90,7 +94,8 @@ export class RolesController {
     const result = await this.roleService.update(
       teamId,
       roleId,
-      addUserModifying({ ...updateRoleDto, teamId }, session)
+      addUserModifying({ ...updateRoleDto, teamId }, session),
+      session.id
     );
     if (result.status === 'SUCCESS') {
       return toGetRoleDto(result.result);
@@ -103,6 +108,8 @@ export class RolesController {
           },
           400
         );
+      } else if (result.status === 'INSUFFICIENT_PRIVILEGES') {
+        throw insufficientPrivilegesException(result.missing);
       } else if (result.status === 'NOT_FOUND') {
         throw new CustomHttpException(
           {
