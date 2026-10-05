@@ -88,3 +88,7 @@ export const AC644_ALL_PRIVILEGE_CODES: readonly string[] = [
 ];
 
 export const GLOBAL_ADMIN_ROLE_ID = 2;
+
+/** Stored value of `role.type` for a global user role. The column is simple-json, so the
+ * stored string includes the JSON quotes (see the Seeding migration). */
+export const GLOBAL_ADMIN_ROLE_TYPE = '"UserGlobal"';
