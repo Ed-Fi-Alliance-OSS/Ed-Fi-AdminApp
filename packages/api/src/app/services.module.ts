@@ -25,6 +25,7 @@ import {
 } from '@edanalytics/models-server';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { AuthService } from '../auth/auth.service';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 import { SessionSerializer } from '../auth/helpers/session.serializer';
 import { OidcIdpBootstrapper } from '../auth/login/oidc.strategy';
 import { OidcProviderRegistry } from '../auth/login/oidc-provider.registry';
@@ -105,6 +106,7 @@ const providers = [
   OwnershipsService,
   OidcIdpBootstrapper,
   OidcProviderRegistry,
+  PrivilegeGrantGuardService,
   RolesGlobalService,
   RolesService,
   SbEnvironmentsGlobalService,
