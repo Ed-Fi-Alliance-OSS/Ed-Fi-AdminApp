@@ -32,8 +32,10 @@ jest.mock('openid-client', () => {
 jest.mock('openid-client/passport', () => ({
   Strategy: class MockStrategy {
     _verify: unknown;
+    options: unknown;
 
-    constructor(_options: unknown, verify: unknown) {
+    constructor(options: unknown, verify: unknown) {
+      this.options = options;
       this._verify = verify;
     }
 
@@ -139,6 +141,25 @@ describe('OidcIdpBootstrapper', () => {
 
     expect(registry.getEndSessionUrl(keycloakOidcRow.id, 'token')).not.toBeNull();
     expect(registry.getEndSessionUrl(googleOidcRow.id, 'token')).toBeNull();
+  });
+
+  describe('scope', () => {
+    const registeredScope = async (scope: string | null | undefined) => {
+      await bootstrap([{ ...keycloakOidcRow, scope }]);
+      return (passportUseSpy.mock.calls[0][1] as unknown as { options: { scope: string } }).options
+        .scope;
+    };
+
+    it.each([
+      ['empty', '', 'openid'],
+      ['null', null, 'openid'],
+      ['undefined', undefined, 'openid'],
+      ['missing openid', 'profile email', 'openid profile email'],
+      ['already containing openid', 'openid profile email', 'openid profile email'],
+      ['irregular whitespace', ' profile   email ', 'openid profile email'],
+    ])('sends openid for a %s configured scope', async (_label, configured, expected) => {
+      expect(await registeredScope(configured)).toBe(expected);
+    });
   });
 
   describe('when discovery fails for one of several configured providers', () => {

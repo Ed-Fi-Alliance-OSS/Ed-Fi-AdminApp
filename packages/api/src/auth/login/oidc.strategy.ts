@@ -16,6 +16,16 @@ export interface OidcLoginInfo {
 
 const DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS = 10000;
 
+/**
+ * openid-client v5 requested the `openid` scope by default; v6 sends exactly
+ * what it is given. Without `openid` the IdP's userinfo endpoint rejects the
+ * access token (e.g. Keycloak: "Missing openid scope"), so always include it.
+ */
+const withOpenIdScope = (scope: string | null | undefined): string => {
+  const scopes = (scope ?? '').split(/\s+/).filter(Boolean);
+  return scopes.includes('openid') ? scopes.join(' ') : ['openid', ...scopes].join(' ');
+};
+
 type StrategyAuthenticateOptions = Parameters<Strategy['authenticate']>[1] & {
   state?: string;
 };
@@ -123,7 +133,7 @@ export class OidcIdpBootstrapper implements OnModuleInit {
       {
         config: oidcClient,
         callbackURL: `${config.MY_URL_API_PATH}/auth/callback/${oidcConfig.id}`,
-        scope: oidcConfig.scope,
+        scope: withOpenIdScope(oidcConfig.scope),
       },
       async (
         tokenset: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
