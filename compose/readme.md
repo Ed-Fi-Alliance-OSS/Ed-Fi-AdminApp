@@ -294,7 +294,7 @@ To use SQL Server instead of PostgreSQL:
    ```bash
    MSSQL_PORT_EXPOSED=1433
    MSSQL_ACCEPT_EULA=Y
-   MSSQL_SA_PASSWORD=YourStrong!Passw0rd
+   MSSQL_SA_PASSWORD=<your-strong-password>
    MSSQL_IMAGE_TAG=2022-latest
    DB_ENGINE=mssql
    ```
@@ -302,8 +302,10 @@ To use SQL Server instead of PostgreSQL:
    Also switch `DB_SECRET_VALUE` from the PostgreSQL default to the SQL Server variant so the API connects to the SQL Server container:
 
    ```bash
-   DB_SECRET_VALUE={"MSSQL_DB_HOST":"edfiadminapp-mssql","MSSQL_DB_PORT":1433,"MSSQL_DB_USERNAME":"sa","MSSQL_DB_PASSWORD":"YourStrong!Passw0rd","MSSQL_DB_DATABASE":"sbaa"}
+   DB_SECRET_VALUE={"MSSQL_DB_HOST":"edfiadminapp-mssql","MSSQL_DB_PORT":1433,"MSSQL_DB_USERNAME":"sa","MSSQL_DB_PASSWORD":"<your-strong-password>","MSSQL_DB_DATABASE":"sbaa"}
    ```
+
+   Use the same generated password for `MSSQL_SA_PASSWORD` and `MSSQL_DB_PASSWORD`.
 
 2. **Password Requirements**: The `MSSQL_SA_PASSWORD` must meet SQL Server requirements:
 
@@ -339,6 +341,19 @@ To use SQL Server instead of PostgreSQL:
 
 > [!WARNING]
 > For local usage, best to rely on Docker Desktop. Podman might work, but there are sufficient differences between the two that it is difficult to test and verify.
+
+### Secrets
+
+`compose/.env.example` ships `change-me-...` placeholders for `POSTGRES_PASSWORD`,
+`KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET`, `KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET`,
+`DB_ENCRYPTION_SECRET_VALUE` and the password inside `DB_SECRET_VALUE`, and an empty
+`SESSION_SECRET_VALUE`. The API refuses to start with any of them unchanged.
+Replace them before running `docker compose up` (`openssl rand -hex 32` works for the
+encryption key; use any strong password elsewhere), or run `eng/testing/run-e2e-ui.ps1`,
+which generates them. If you change `POSTGRES_PASSWORD` after the database volume was first
+created, reset the volume (`docker compose down -v`): PostgreSQL only reads the password on first
+initialization. Deployments that ever ran an image built before AC-639 should follow
+[secret rotation](../docs/secret-rotation.md).
 
 ### Start Containers
 

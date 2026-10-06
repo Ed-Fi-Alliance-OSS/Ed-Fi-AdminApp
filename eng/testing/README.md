@@ -347,7 +347,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 1. Checks prerequisites (Node dependencies, Playwright Chromium, TLS certificate).
 2. Downloads the ODS Minimal Template backup into `compose/db-backup/` (skipped if already cached).
-3. Regenerates `compose/.env` from `compose/.env.example` and, for `-DbEngine mssql`, patches `DB_ENGINE`, the `MSSQL_*` settings, and the active `DB_SECRET_VALUE` line.
+3. Regenerates `compose/.env` from `compose/.env.example` and, for `-DbEngine mssql`, patches `DB_ENGINE`, the `MSSQL_*` settings, and the active `DB_SECRET_VALUE` line, and generates real values for the `change-me` placeholders (session secret, database password, encryption key, Keycloak client secrets) so `compose/.env` is never run with publicly known secrets.
 4. Starts Docker Compose services (the `v6` and `odsV7-adminV2` topologies plus the Admin App) via `eng/helpers/start-services-target.ps1`.
 5. Waits for the Admin App API, frontend, and Keycloak to be stable — and, for `-DbEngine mssql`, also waits for the Admin App's `sbaa` database to actually exist inside the SQL Server container.
 6. Creates/updates the local Keycloak test user via `eng/helpers/create-local-user-keycloak.ps1`.
@@ -382,6 +382,10 @@ By default the stack is left running after the suite finishes (pass or fail), so
 **Timed out waiting for stable Admin App services** — the error message names which check(s) were still failing (`API`, `FE`, `KEYCLOAK_META`, `KEYCLOAK_LOGIN`, and for MSSQL, `MSSQL_SBAA_DB`). Check `docker ps` and `docker compose logs` for the corresponding container.
 
 **SQL Server test flakiness** — some Playwright BDD test failures against `-DbEngine mssql` are a known, pre-existing app-level UI/timing issue under SQL Server, not caused by this runner script. A PostgreSQL run failing the same way is not expected and should be investigated as a real regression.
+
+**Re-running against an existing PostgreSQL volume** — the old password is still in the volume, so freshly generated secrets will not match it. Use `-StopServices` and `docker compose down -v` first.
+
+**Smoke-testing the secret generator** — `eng/testing/test-env-secrets.ps1` is a no-Docker smoke test for the generator in `eng/helpers/env-secrets.ps1`. Run it with `pwsh ./eng/testing/test-env-secrets.ps1`.
 
 ### References
 
