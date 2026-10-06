@@ -14,6 +14,9 @@ const held = (...codes: string[]) => new Set(codes as PrivilegeCode[]);
 const mockAuthService = { getUserPrivileges: jest.fn() };
 const mockRolesRepo = { findOneBy: jest.fn() };
 
+const rolesById = (roles: Record<number, object>) =>
+  mockRolesRepo.findOneBy.mockImplementation(async ({ id }: { id: number }) => roles[id] ?? null);
+
 const expectStatus = async (promise: Promise<unknown>, status: number) => {
   const err = await promise.then(
     () => undefined,
@@ -216,11 +219,9 @@ describe('PrivilegeGrantGuardService', () => {
 
     it('logs the assignment target alongside the role on rejection', async () => {
       const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-      mockRolesRepo.findOneBy.mockResolvedValue({
-        id: 5,
-        type: RoleType.UserTeam,
-        teamId: 7,
-        privilegeIds: ['team.role:create'],
+      rolesById({
+        5: { id: 5, type: RoleType.UserTeam, teamId: 7, privilegeIds: ['team.role:create'] },
+        3: { id: 3, type: RoleType.UserTeam, teamId: 7, privilegeIds: [] },
       });
       mockAuthService.getUserPrivileges.mockResolvedValue(held());
       await expect(guard.assertCanAssignRole(1, 5, teamCtx, 3, 'membership 9')).rejects.toThrow(
@@ -238,6 +239,70 @@ describe('PrivilegeGrantGuardService', () => {
     ])('%s: treats a role with null privilegeIds as granting nothing', async (_, ctx, type) => {
       mockRolesRepo.findOneBy.mockResolvedValue({ id: 5, type, teamId: 7, privilegeIds: null });
       await expect(guard.assertCanAssignRole(1, 5, ctx)).resolves.toBeUndefined();
+    });
+
+    describe('role change (only privileges added relative to the previous role are checked)', () => {
+      const ops = {
+        id: 3,
+        type: RoleType.UserTeam,
+        teamId: 7,
+        privilegeIds: ['team.role:read', 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials'],
+      };
+
+      it('team: allows a demotion to a strict subset even if the actor lacks a retained privilege', async () => {
+        rolesById({
+          3: ops,
+          5: { id: 5, type: RoleType.UserTeam, teamId: 7, privilegeIds: [ops.privilegeIds[1]] },
+        });
+        await expect(guard.assertCanAssignRole(1, 5, teamCtx, 3)).resolves.toBeUndefined();
+        expect(mockAuthService.getUserPrivileges).not.toHaveBeenCalled();
+      });
+
+      it('team: checks only the privileges the new role adds', async () => {
+        rolesById({
+          3: ops,
+          5: {
+            id: 5,
+            type: RoleType.UserTeam,
+            teamId: 7,
+            privilegeIds: [ops.privilegeIds[1], 'team.user:read'],
+          },
+        });
+        mockAuthService.getUserPrivileges.mockResolvedValue(held());
+        const err = await expectStatus(guard.assertCanAssignRole(1, 5, teamCtx, 3), 403);
+        expect((err.getResponse() as { message: string }).message).toBe(
+          'You cannot grant privileges you do not hold: team.user:read'
+        );
+      });
+
+      it('global-user: allows a demotion to a less-privileged global role', async () => {
+        rolesById({
+          2: { id: 2, type: RoleType.UserGlobal, teamId: null, privilegeIds: ['me:read', 'user:delete'] },
+          4: { id: 4, type: RoleType.UserGlobal, teamId: null, privilegeIds: ['me:read'] },
+        });
+        await expect(guard.assertCanAssignRole(1, 4, globalCtx, 2)).resolves.toBeUndefined();
+        expect(mockAuthService.getUserPrivileges).not.toHaveBeenCalled();
+      });
+
+      it('checks the full new role when the previous role no longer exists', async () => {
+        rolesById({ 5: { id: 5, type: RoleType.UserTeam, teamId: 7, privilegeIds: ['team.user:read'] } });
+        mockAuthService.getUserPrivileges.mockResolvedValue(held());
+        await expect(expectStatus(guard.assertCanAssignRole(1, 5, teamCtx, 3), 403)).resolves.toBeInstanceOf(
+          HttpException
+        );
+      });
+
+      it('ignores a previous role that was not valid for the context', async () => {
+        // e.g. another team's role assigned before AC-644: it must not legitimise its privileges.
+        rolesById({
+          3: { ...ops, teamId: 99 },
+          5: { id: 5, type: RoleType.UserTeam, teamId: 7, privilegeIds: [ops.privilegeIds[1]] },
+        });
+        mockAuthService.getUserPrivileges.mockResolvedValue(held());
+        await expect(expectStatus(guard.assertCanAssignRole(1, 5, teamCtx, 3), 403)).resolves.toBeInstanceOf(
+          HttpException
+        );
+      });
     });
   });
 });

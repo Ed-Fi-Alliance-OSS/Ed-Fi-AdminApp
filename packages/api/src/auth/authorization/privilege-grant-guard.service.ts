@@ -75,8 +75,9 @@ export class PrivilegeGrantGuardService {
   }
 
   /**
-   * Validates the role's shape for the context, then checks the actor holds its privileges.
-   * No-op when unassigning (null/undefined) or when the role is unchanged.
+   * Validates the role's shape for the context, then checks the actor holds the privileges it
+   * newly grants: those not already on the previous role (when that role was valid for the
+   * context). No-op when unassigning (null/undefined) or when the role is unchanged.
    * `target` (e.g. `membership 5`) identifies what is being assigned to, for the rejection log.
    */
   async assertCanAssignRole(
@@ -93,26 +94,43 @@ export class PrivilegeGrantGuardService {
 
     const role = await this.rolesRepository.findOneBy({ id: roleId });
 
-    if (context.kind === 'team-membership') {
-      const isValidTeamRole =
-        role !== null &&
-        role.type === RoleType.UserTeam &&
-        (role.teamId === null || role.teamId === undefined || role.teamId === context.teamId);
-      if (!isValidTeamRole) {
-        throw new ValidationHttpException({
-          field: 'roleId',
-          message: 'Role is not a valid team role for this team.',
-        });
-      }
-      await this.assertCanGrant(actorId, role.privilegeIds ?? [], context.teamId, logTarget);
-    } else {
-      if (role === null || role.type !== RoleType.UserGlobal) {
-        throw new ValidationHttpException({
-          field: 'roleId',
-          message: 'Role is not a valid global user role.',
-        });
-      }
-      await this.assertCanGrant(actorId, role.privilegeIds ?? [], undefined, logTarget);
+    if (!this.isValidForContext(role, context)) {
+      throw new ValidationHttpException({
+        field: 'roleId',
+        message:
+          context.kind === 'team-membership'
+            ? 'Role is not a valid team role for this team.'
+            : 'Role is not a valid global user role.',
+      });
     }
+
+    // Only privileges the new role adds relative to the previous role are being granted.
+    // A previous role only counts if it was itself valid for this context.
+    const previousRole =
+      previousRoleId === null || previousRoleId === undefined
+        ? null
+        : await this.rolesRepository.findOneBy({ id: previousRoleId });
+    const retained = new Set(
+      this.isValidForContext(previousRole, context) ? previousRole.privilegeIds ?? [] : []
+    );
+    const added = (role.privilegeIds ?? []).filter((code) => !retained.has(code));
+
+    await this.assertCanGrant(
+      actorId,
+      added,
+      context.kind === 'team-membership' ? context.teamId : undefined,
+      logTarget,
+    );
+  }
+
+  private isValidForContext(role: Role | null, context: AssignContext): role is Role {
+    if (role === null) return false;
+    if (context.kind === 'team-membership') {
+      return (
+        role.type === RoleType.UserTeam &&
+        (role.teamId === null || role.teamId === undefined || role.teamId === context.teamId)
+      );
+    }
+    return role.type === RoleType.UserGlobal;
   }
 }
