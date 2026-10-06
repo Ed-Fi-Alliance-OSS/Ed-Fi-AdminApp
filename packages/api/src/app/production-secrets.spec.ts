@@ -96,6 +96,53 @@ describe('assertProductionSecrets', () => {
     }
     expect(message).toContain('DB_SECRET_VALUE.DB_PASSWORD');
     expect(message).toContain('SAMPLE_OIDC_CONFIG.clientSecret');
-    expect(message).toContain('environment variable or AWS Secrets Manager');
+    expect(message).toContain(
+      'Set a real value via the DB_SECRET_VALUE environment variable or the DATABASE_SECRET AWS secret (see docs/secret-rotation.md).'
+    );
+    expect(message).toContain(
+      'Set a real value via the SAMPLE_OIDC_CONFIG environment variable (see docs/secret-rotation.md).'
+    );
+  });
+
+  it('does not suggest AWS Secrets Manager for the sample OIDC client secret', () => {
+    let message = '';
+    try {
+      assertProductionSecrets({ ...valid, sampleOidcClientSecret: 'big-secret-123' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('SAMPLE_OIDC_CONFIG.clientSecret');
+    expect(message).not.toContain('AWS');
+  });
+
+  it.each([' postgres', 'Postgres', 'POSTGRES ', ' change-me', 'Big-Secret-123', ' yourstrong!passw0rd'])(
+    'rejects %p after trimming and ignoring case',
+    (value) => {
+      expect(() => assertProductionSecrets({ ...valid, dbSecret: { DB_PASSWORD: value } })).toThrow(
+        /placeholder or known sample value/
+      );
+    }
+  );
+
+  it.each(['adminapp-secret', 'adminapp-dev-secret'])('rejects the public compose fallback %s', (value) => {
+    expect(KNOWN_SAMPLE_SECRETS).toContain(value);
+    expect(() => assertProductionSecrets({ ...valid, sampleOidcClientSecret: value })).toThrow(
+      /SAMPLE_OIDC_CONFIG\.clientSecret/
+    );
+  });
+
+  it.each(['<set-me>', '<your-strong-password>', '<anything>'])(
+    'rejects the angle-bracket placeholder %s',
+    (value) => {
+      expect(() => assertProductionSecrets({ ...valid, dbSecret: { DB_PASSWORD: value } })).toThrow(
+        /placeholder or known sample value/
+      );
+    }
+  );
+
+  it('never echoes the secret value in the error', () => {
+    expect(() => assertProductionSecrets({ ...valid, dbSecret: { DB_PASSWORD: ' Postgres' } })).toThrow(
+      expect.objectContaining({ message: expect.not.stringContaining('Postgres') })
+    );
   });
 });

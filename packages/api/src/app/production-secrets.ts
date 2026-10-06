@@ -1,8 +1,17 @@
 // Values committed or documented in this repo as samples. They are publicly known and are never
 // valid in a real production deployment.
-export const KNOWN_SAMPLE_SECRETS: readonly string[] = ['postgres', 'YourStrong!Passw0rd', 'big-secret-123'];
+export const KNOWN_SAMPLE_SECRETS: readonly string[] = [
+  'postgres',
+  'YourStrong!Passw0rd',
+  'big-secret-123',
+  // Public fallbacks in compose/adminapp-services.yml
+  'adminapp-secret',
+  'adminapp-dev-secret',
+];
 
-const PLACEHOLDER_PATTERN = /^(<set-me>|change-me)/i;
+const KNOWN_SAMPLE_SECRETS_LOWER = KNOWN_SAMPLE_SECRETS.map((secret) => secret.toLowerCase());
+
+const PLACEHOLDER_PATTERN = /^(<.*>|change-me)/i;
 
 export interface ProductionSecretsInput {
   nodeEnv: string | undefined;
@@ -19,11 +28,17 @@ export interface ProductionSecretsInput {
   sampleOidcClientSecret?: unknown;
 }
 
+const DB_REMEDIATION =
+  'Set a real value via the DB_SECRET_VALUE environment variable or the DATABASE_SECRET AWS secret (see docs/secret-rotation.md).';
+const OIDC_REMEDIATION =
+  'Set a real value via the SAMPLE_OIDC_CONFIG environment variable (see docs/secret-rotation.md).';
+
 function describeProblem(name: string, value: unknown): string | undefined {
   if (typeof value !== 'string' || value.trim().length === 0) {
     return `${name} is missing or blank`;
   }
-  if (PLACEHOLDER_PATTERN.test(value) || KNOWN_SAMPLE_SECRETS.includes(value)) {
+  const normalized = value.trim().toLowerCase();
+  if (PLACEHOLDER_PATTERN.test(normalized) || KNOWN_SAMPLE_SECRETS_LOWER.includes(normalized)) {
     return `${name} is still a placeholder or known sample value`;
   }
   return undefined;
@@ -40,27 +55,27 @@ export function assertProductionSecrets(input: ProductionSecretsInput): void {
     return;
   }
 
-  const problems: string[] = [];
+  const problems: { text: string; remediation: string }[] = [];
 
   if (input.dbSecret) {
     const field = input.dbEngine === 'mssql' ? 'MSSQL_DB_PASSWORD' : 'DB_PASSWORD';
     const problem = describeProblem(`DB_SECRET_VALUE.${field}`, input.dbSecret[field]);
     if (problem) {
-      problems.push(problem);
+      problems.push({ text: problem, remediation: DB_REMEDIATION });
     }
   }
 
   if (input.sampleOidcClientSecret !== undefined) {
     const problem = describeProblem('SAMPLE_OIDC_CONFIG.clientSecret', input.sampleOidcClientSecret);
     if (problem) {
-      problems.push(problem);
+      problems.push({ text: problem, remediation: OIDC_REMEDIATION });
     }
   }
 
   if (problems.length > 0) {
     throw new Error(
       `Refusing to start: insecure production configuration.\n${problems
-        .map((p) => `  - ${p}. Set a real value via environment variable or AWS Secrets Manager.`)
+        .map((p) => `  - ${p.text}. ${p.remediation}`)
         .join('\n')}`
     );
   }
