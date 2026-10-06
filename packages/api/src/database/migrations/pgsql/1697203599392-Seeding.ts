@@ -75,7 +75,7 @@ export class Seeding1697203599392 implements MigrationInterface {
         );
       } else {
         Logger.warn(
-          'No OIDC config found, skipping seeding of OIDC. You will need to add one to the database in order to log in.'
+          'SAMPLE_OIDC_CONFIG.clientSecret is not set, skipping seeding of the sample OIDC connection. You will need to add one to the database in order to log in.'
         );
       }
     }
