@@ -1,4 +1,5 @@
 import './modes/dev';
+import './utils/json-env-preflight-run';
 
 process.env['NODE_CONFIG_DIR'] = process.env['NODE_CONFIG_DIR'] || './packages/api/config';
 
