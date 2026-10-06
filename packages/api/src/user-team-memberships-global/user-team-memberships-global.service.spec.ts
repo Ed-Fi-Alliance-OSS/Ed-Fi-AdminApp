@@ -49,7 +49,7 @@ describe('UserTeamMembershipsGlobalService', () => {
 
   it('create() never passes an id through, so save() cannot overwrite an existing row', async () => {
     const dto = { id: 7, userId: 5, teamId: 1, roleId: 2 } as PostUserTeamMembershipDto;
-    await service.create(dto);
+    await service.create(dto, 42);
     expect(mockRepo.create).toHaveBeenCalledWith({ userId: 5, teamId: 1, roleId: 2 });
     expect(mockRepo.save.mock.calls[0][0]).not.toHaveProperty('id');
   });
