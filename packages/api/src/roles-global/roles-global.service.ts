@@ -50,7 +50,7 @@ export class RolesGlobalService {
     if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
       throw new BadRequestException('Invalid privileges');
     }
-    const addedPrivileges = uniqueReqPrivileges.filter((code) => !old.privilegeIds.includes(code));
+    const addedPrivileges = uniqueReqPrivileges.filter((code) => !(old.privilegeIds ?? []).includes(code));
     await this.privilegeGrantGuard.assertCanGrant(actorId, addedPrivileges, undefined, `role ${id}`);
     return this.rolesRepository.save({
       ...old,

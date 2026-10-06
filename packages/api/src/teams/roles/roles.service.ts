@@ -94,7 +94,7 @@ export class RolesService {
         };
       }
       const addedPrivileges = uniqueReqPrivileges.filter(
-        (code) => !old.privilegeIds.includes(code)
+        (code) => !(old.privilegeIds ?? []).includes(code)
       );
       const missing = await this.privilegeGrantGuard.findMissing(
         actorId,

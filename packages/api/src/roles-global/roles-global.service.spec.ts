@@ -110,6 +110,13 @@ describe('RolesGlobalService', () => {
     expect(mockGuard.assertCanGrant).not.toHaveBeenCalled();
   });
 
+  it('update() treats a stored role with null privilegeIds as having none', async () => {
+    mockRoleRepo.findOneByOrFail.mockResolvedValueOnce({ ...mockRole, privilegeIds: null });
+    const dto = { name: 'Admin', privilegeIds: ['me:read'] } as unknown as PutRoleDto;
+    await service.update(1, dto, 42);
+    expect(mockGuard.assertCanGrant).toHaveBeenCalledWith(42, ['me:read'], undefined, 'role 1');
+  });
+
   it('update() checks only newly added codes', async () => {
     // existing mockRole holds ['me:read', 'role:read']
     const dto = { name: 'Admin', privilegeIds: ['me:read', 'role:read', 'user:update'] } as unknown as PutRoleDto;

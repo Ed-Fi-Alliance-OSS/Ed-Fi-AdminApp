@@ -67,6 +67,14 @@ describe('RolesService (team)', () => {
   });
 
   describe('update', () => {
+    it('treats a stored role with null privilegeIds as having none', async () => {
+      mockRolesRepo.findOneBy.mockResolvedValueOnce({ ...existingRole, privilegeIds: null });
+      const dto = { name: 'Ops', privilegeIds: ['team.role:read'] } as unknown as PutRoleDto;
+      const result = await service.update(7, 3, dto, 42);
+      expect(mockGuard.findMissing).toHaveBeenCalledWith(42, ['team.role:read'], 7, 'role 3');
+      expect(result.status).toBe('SUCCESS');
+    });
+
     it('checks only newly added codes', async () => {
       const dto = {
         name: 'Ops',
