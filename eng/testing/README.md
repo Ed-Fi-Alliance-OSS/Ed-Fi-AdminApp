@@ -383,7 +383,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 **SQL Server test flakiness** — some Playwright BDD test failures against `-DbEngine mssql` are a known, pre-existing app-level UI/timing issue under SQL Server, not caused by this runner script. A PostgreSQL run failing the same way is not expected and should be investigated as a real regression.
 
-**Re-running against an existing PostgreSQL volume** — the old password is still in the volume, so freshly generated secrets will not match it. Use `-StopServices` and `docker compose down -v` first.
+**Re-running against an existing PostgreSQL volume** — the old password is still in the volume, so freshly generated secrets will not match it. First stop and remove the stack with `docker compose ... down -v` (this permanently deletes the stack's volumes, which is acceptable for the disposable e2e stack), then re-run the runner.
 
 **Smoke-testing the secret generator** — `eng/testing/test-env-secrets.ps1` is a no-Docker smoke test for the generator in `eng/helpers/env-secrets.ps1`. Run it with `pwsh ./eng/testing/test-env-secrets.ps1`.
 

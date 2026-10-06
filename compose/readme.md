@@ -347,12 +347,26 @@ To use SQL Server instead of PostgreSQL:
 `compose/.env.example` ships `change-me-...` placeholders for `POSTGRES_PASSWORD`,
 `KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET`, `KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET`,
 `DB_ENCRYPTION_SECRET_VALUE` and the password inside `DB_SECRET_VALUE`, and an empty
-`SESSION_SECRET_VALUE`. The API refuses to start with any of them unchanged.
+`SESSION_SECRET_VALUE`. In production the API validates the database password inside
+`DB_SECRET_VALUE`, the encryption key (`DB_ENCRYPTION_SECRET_VALUE`), the session secret and the
+seeded OIDC client secret, and refuses to start if any of them is missing or still a placeholder.
+It does not check `POSTGRES_PASSWORD` or the `KEYCLOAK_EDFIADMINAPP_*_CLIENT_SECRET` values
+directly, but they must be changed too because they have to match the validated ones:
+`POSTGRES_PASSWORD` must equal the database password in `DB_SECRET_VALUE`, and the Keycloak client
+secret feeds the seeded OIDC client secret.
 Replace them before running `docker compose up` (`openssl rand -hex 32` works for the
 encryption key; use any strong password elsewhere), or run `eng/testing/run-e2e-ui.ps1`,
-which generates them. If you change `POSTGRES_PASSWORD` after the database volume was first
-created, reset the volume (`docker compose down -v`): PostgreSQL only reads the password on first
-initialization. Deployments that ever ran an image built before AC-639 should follow
+which generates them. PostgreSQL only reads the password on first initialization, so changing
+`POSTGRES_PASSWORD` after the database volume was first created has no effect on the existing
+database.
+
+> [!WARNING]
+> `docker compose down -v` permanently deletes the PostgreSQL data and every other named volume in
+> the compose project. Use it only for a fresh or disposable database. To keep an existing
+> database, instead change the password inside PostgreSQL
+> (`ALTER USER postgres WITH PASSWORD '...'`) and set the same value in `.env`.
+
+Deployments that ever ran an image built before AC-639 should follow
 [secret rotation](../docs/secret-rotation.md).
 
 ### Start Containers
