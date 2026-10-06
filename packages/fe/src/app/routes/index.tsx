@@ -244,6 +244,8 @@ export const adminRoutes: RouteObject = {
     sbEnvironmentGlobalEditRoute,
     sbEnvironmentGlobalRoute,
     sbEnvironmentGlobalIndexRoute,
+    sbEnvironmentGlobalCertRoute,
+    sbEnvironmentGlobalCertExecutionRoute,
 
     teamsRoute,
     teamsIndexRoute,
@@ -350,9 +352,7 @@ export const authenticatedRoutes: RouteObject = {
     apiClientCreateRoute,
     apiClientsIndexRoute,
     apiClientsRoute,
-    sbEnvironmentGlobalCertRoute,
-    sbEnvironmentGlobalCertExecutionRoute,
-    
+
     vendorsRoute,
     vendorsIndexRoute,
     vendorRoute,
