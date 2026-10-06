@@ -121,4 +121,5 @@ privilege they are expected to delegate.
   caller is demoted in the milliseconds between them, that one grant can still complete. This
   is accepted: the caller held the privileges when the request was authorized.
 - **Ownerships.** Assigning a `ResourceOwnership` role to a team (`ownership:create` /
-  `ownership:update`) is not covered by this rule. It is tracked as a separate ticket.
+  `ownership:update`) is not covered by this rule. It is tracked in
+  [AC-674](https://edfi.atlassian.net/browse/AC-674).
