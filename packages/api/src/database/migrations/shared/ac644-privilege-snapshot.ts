@@ -87,6 +87,11 @@ export const AC644_ALL_PRIVILEGE_CODES: readonly string[] = [
   'user:update',
 ];
 
+/**
+ * Id of the seeded "Global admin" role. The Seeding migration (1697203599392) inserts it with
+ * an explicit id of 2 and gives it to the initial ADMIN_USERNAME user. Ids are not otherwise
+ * stable across deployments, so the backfill also requires the row to be a UserGlobal role.
+ */
 export const GLOBAL_ADMIN_ROLE_ID = 2;
 
 /** Stored value of `role.type` for a global user role. The column is simple-json, so the

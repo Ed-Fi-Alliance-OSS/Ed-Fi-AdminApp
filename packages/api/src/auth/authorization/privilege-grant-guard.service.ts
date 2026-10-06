@@ -1,4 +1,4 @@
-import { PrivilegeCode, RoleType } from '@edanalytics/models';
+import { PRIVILEGES, PrivilegeCode, RoleType } from '@edanalytics/models';
 import { Role } from '@edanalytics/models-server';
 import { Injectable, Logger } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,19 +8,40 @@ import { AuthService } from '../auth.service';
 
 export type AssignContext = { kind: 'team-membership'; teamId: number } | { kind: 'global-user' };
 
-export const insufficientPrivilegesException = (missing: PrivilegeCode[]) =>
-  new CustomHttpException(
+/** How many missing privileges the 403 message names before summarising the rest. */
+const MAX_LISTED_PRIVILEGES = 3;
+
+/** A privilege's human-readable description without its trailing period, or the raw code. */
+const describePrivilege = (code: PrivilegeCode) =>
+  PRIVILEGES[code]?.description?.replace(/\.$/, '') ?? code;
+
+/**
+ * 403 shown to the user (the UI displays `message` in a banner), so it names privileges by
+ * description and caps the list. The full list of codes is logged by `findMissing`.
+ */
+export const insufficientPrivilegesException = (missing: PrivilegeCode[]) => {
+  const listed = missing.slice(0, MAX_LISTED_PRIVILEGES).map(describePrivilege);
+  const rest = missing.length - listed.length;
+  return new CustomHttpException(
     {
       type: 'Error',
       title: 'Insufficient privileges',
-      message: `You cannot grant privileges you do not hold: ${missing.join(', ')}`,
+      message: `You cannot grant privileges you do not hold: ${listed.join('; ')}${
+        rest > 0 ? `; and ${rest} more` : ''
+      }.`,
     },
     403,
   );
+};
 
 /**
  * Enforces the no-escalation rule (AC-644): an actor may only grant privileges they hold,
- * whether by defining a role or by assigning one.
+ * whether by defining a role or by assigning one. See
+ * docs/design/2026-10-06-ac-644-privilege-delegation.md for the trust model.
+ *
+ * The check and the caller's subsequent write are not in one transaction: if the actor is
+ * demoted in the milliseconds between them, that one in-flight grant can still complete.
+ * Accepted, because the actor held the privileges when the request was authorized.
  */
 @Injectable()
 export class PrivilegeGrantGuardService {
@@ -99,8 +120,8 @@ export class PrivilegeGrantGuardService {
         field: 'roleId',
         message:
           context.kind === 'team-membership'
-            ? 'Role is not a valid team role for this team.'
-            : 'Role is not a valid global user role.',
+            ? 'Role is not a valid team role for this team. Refresh the page and choose another role.'
+            : 'Role is not a valid global user role. Refresh the page and choose another role.',
       });
     }
 

@@ -7,7 +7,10 @@ import { PrivilegeCode, RoleType } from '@edanalytics/models';
 import { Role } from '@edanalytics/models-server';
 import { AuthService } from '../auth.service';
 import { ValidationHttpException } from '../../utils/customExceptions';
-import { PrivilegeGrantGuardService } from './privilege-grant-guard.service';
+import {
+  PrivilegeGrantGuardService,
+  insufficientPrivilegesException,
+} from './privilege-grant-guard.service';
 
 const held = (...codes: string[]) => new Set(codes as PrivilegeCode[]);
 
@@ -74,7 +77,7 @@ describe('PrivilegeGrantGuardService', () => {
       expect(err.getResponse()).toEqual({
         type: 'Error',
         title: 'Insufficient privileges',
-        message: 'You cannot grant privileges you do not hold: team.role:create, team.user:read',
+        message: "You cannot grant privileges you do not hold: Create your team's roles; Read your team's users.",
       });
     });
 
@@ -89,6 +92,29 @@ describe('PrivilegeGrantGuardService', () => {
       mockAuthService.getUserPrivileges.mockRejectedValue(new Error('db down'));
       await expect(guard.assertCanGrant(1, ['me:read'] as PrivilegeCode[])).rejects.toThrow(
         'db down',
+      );
+    });
+  });
+
+  describe('insufficientPrivilegesException', () => {
+    it('lists at most three privileges by description, then a count of the rest', () => {
+      const err = insufficientPrivilegesException([
+        'me:read',
+        'team.role:create',
+        'team.role:read',
+        'team.user:read',
+        'user:delete',
+      ] as PrivilegeCode[]);
+      expect(err.getStatus()).toBe(403);
+      expect((err.getResponse() as { message: string }).message).toBe(
+        "You cannot grant privileges you do not hold: Read my own user information; Create your team's roles; Read your team's roles; and 2 more."
+      );
+    });
+
+    it('falls back to the raw code when a privilege has no description', () => {
+      const err = insufficientPrivilegesException(['nope:nope' as PrivilegeCode]);
+      expect((err.getResponse() as { message: string }).message).toBe(
+        'You cannot grant privileges you do not hold: nope:nope.'
       );
     });
   });
@@ -271,7 +297,7 @@ describe('PrivilegeGrantGuardService', () => {
         mockAuthService.getUserPrivileges.mockResolvedValue(held());
         const err = await expectStatus(guard.assertCanAssignRole(1, 5, teamCtx, 3), 403);
         expect((err.getResponse() as { message: string }).message).toBe(
-          'You cannot grant privileges you do not hold: team.user:read'
+          "You cannot grant privileges you do not hold: Read your team's users."
         );
       });
 
