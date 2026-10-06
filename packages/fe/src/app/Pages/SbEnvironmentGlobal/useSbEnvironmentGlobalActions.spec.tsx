@@ -298,10 +298,10 @@ describe('useSbEnvironmentGlobalActions', () => {
 
   describe('RequestCert ("Request certification")', () => {
     it.each(['v1', 'v2', 'v3'] as const)(
-      'is present for a %s environment when the flag is on and the user can view it',
+      'is present for a %s environment when the flag is on and the user can update the environment',
       (version) => {
         enableCertificationFlag();
-        const actions = setup(buildSbEnvironment(version, false), { canView: true });
+        const actions = setup(buildSbEnvironment(version, false), { canUpdate: true });
         expect(actions.RequestCert).toMatchObject({
           text: 'Request certification',
           title: 'Request certification for Test Env',
@@ -312,26 +312,28 @@ describe('useSbEnvironmentGlobalActions', () => {
 
     it('is present for a startingBlocks environment too (not SB-gated)', () => {
       enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', true), { canView: true });
+      const actions = setup(buildSbEnvironment('v2', true), { canUpdate: true });
       expect(actions.RequestCert).toBeDefined();
     });
 
     it('is absent for an environment whose version is unknown, even when the flag is on', () => {
       enableCertificationFlag();
       const env = { ...buildSbEnvironment('v2', false), version: undefined } as GetSbEnvironmentDto;
-      const actions = setup(env, { canView: true });
+      const actions = setup(env, { canUpdate: true });
       expect(actions.RequestCert).toBeUndefined();
     });
 
-    it('is absent without sb-environment:read, even when the flag is on', () => {
+    it('is absent with only sb-environment:read, even when the flag is on', () => {
+      // Certification starts a workflow, so read access alone isn't enough.
       enableCertificationFlag();
-      expect(setup(buildSbEnvironment('v2', false)).RequestCert).toBeUndefined();
+      const actions = setup(buildSbEnvironment('v2', false), { canView: true });
+      expect(actions.RequestCert).toBeUndefined();
     });
 
     it.each(['v1', 'v2', 'v3'] as const)(
       'is absent for a %s environment when the flag is off',
       (version) => {
-        const actions = setup(buildSbEnvironment(version, false), { canView: true });
+        const actions = setup(buildSbEnvironment(version, false), { canUpdate: true });
         expect(actions.RequestCert).toBeUndefined();
       }
     );
@@ -365,7 +367,7 @@ describe('useSbEnvironmentGlobalActions', () => {
 
     it('navigates to the request-certification page on click', () => {
       enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', false), { canView: true });
+      const actions = setup(buildSbEnvironment('v2', false), { canUpdate: true });
       actions.RequestCert?.onClick();
       expect(navigate).toHaveBeenCalledWith('/sb-environments/1/request-certification');
     });

@@ -11,6 +11,7 @@ import { Icons } from './Icons';
  *   - If they're already among the visible bunch, then no change.
  *   - If they're among the hidden bunch, then they're moved to the end of the visible bunch, resulting in more than the target being temporarily shown.
  * - Actions marked "overflowOnly" are left out of the split and appended to the end of the menu, unless every action is requested (`show === true`).
+ *   - "pending" takes precedence: a pending overflowOnly action is promoted like any other pending action (appended, never displacing).
  */
 export const splitActions = (actions: ActionsType, show?: number | undefined | true) => {
   const entries = Object.entries(actions);
@@ -34,12 +35,11 @@ export const splitActions = (actions: ActionsType, show?: number | undefined | t
         show
   );
   hidden.push(...overflowOnly);
-  hidden.forEach(([_, a], i) => {
-    if (a.isPending) {
-      visible.push(...hidden.splice(i, 1));
-    }
-  });
-  return { hidden, visible };
+  // Promote pending actions in one pass (splicing inside forEach would skip
+  // the entry after each promoted one). This includes overflowOnly ones, so a
+  // running action's spinner is never hidden in a closed menu.
+  visible.push(...hidden.filter(([_, a]) => a.isPending));
+  return { hidden: hidden.filter(([_, a]) => !a.isPending), visible };
 };
 
 export const TableRowActions = (props: {

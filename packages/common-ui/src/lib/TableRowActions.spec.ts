@@ -79,4 +79,30 @@ describe('splitActions', () => {
       expect(hidden).toEqual([]);
     });
   });
+
+  describe('pending actions', () => {
+    it('are appended to the inline buttons without displacing any', () => {
+      const { visible, hidden } = splitActions(
+        build(['a', 'b', 'c', 'd'], { busy: { isPending: true } })
+      );
+      expect(keys(visible)).toEqual(['a', 'b', 'c', 'busy']);
+      expect(keys(hidden)).toEqual(['d']);
+    });
+
+    it('promote every adjacent pending action, not just the first', () => {
+      const { visible, hidden } = splitActions(
+        build(['a', 'b', 'c', 'd'], { e: { isPending: true }, f: { isPending: true } })
+      );
+      expect(keys(visible)).toEqual(['a', 'b', 'c', 'e', 'f']);
+      expect(keys(hidden)).toEqual(['d']);
+    });
+
+    it('take precedence over overflowOnly, so a running action stays visible', () => {
+      const { visible, hidden } = splitActions(
+        build(['a', 'b', 'c', 'd'], { pinned: { overflowOnly: true, isPending: true } })
+      );
+      expect(keys(visible)).toEqual(['a', 'b', 'c', 'd', 'pinned']);
+      expect(hidden).toEqual([]);
+    });
+  });
 });

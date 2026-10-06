@@ -177,8 +177,10 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
           : {}),
         // overflowOnly keeps it in the "More" menu without counting toward the
         // inline slots, so it never pushes Edit/Delete/Sync out of view.
+        // Gated on update, not read: certification starts a workflow. A
+        // dedicated privilege, enforced server-side, is tracked in AC-466.
         ...(config.showRequestCertification &&
-        canView &&
+        canUpdate &&
         CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '')
           ? {
               RequestCert: {
