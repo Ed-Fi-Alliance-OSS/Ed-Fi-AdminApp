@@ -129,6 +129,8 @@ function Get-OdsMinimalTemplateBackup {
 Test-Prerequisites
 Get-OdsMinimalTemplateBackup
 
+. (Join-Path $repoRoot 'eng/helpers/env-secrets.ps1')
+
 function Set-AdminAppEnvFile {
   param(
     [ValidateSet('pgsql', 'mssql')]
@@ -165,11 +167,19 @@ function Set-AdminAppEnvFile {
   Set-Content -Path $envPath -Value $envContent
   Write-Host "compose/.env patched with a generated SESSION_SECRET_VALUE." -ForegroundColor Cyan
 
+  # compose/.env.example ships change-me placeholders for every other secret too, for the same
+  # reason: copying it unchanged must never yield a working stack on publicly known values.
+  Set-GeneratedEnvSecrets -EnvPath $envPath
+  Write-Host "compose/.env patched with generated database, encryption-key and Keycloak client secrets." -ForegroundColor Cyan
+
   if ($Engine -ne 'mssql') {
     return
   }
 
-  $mssqlPassword = 'YourStrong!Passw0rd'
+  $mssqlPassword = New-RandomSecret
+  # Child scripts (eng/helpers/bootstrap-keycloak-for-tests.ps1) read the SA password from the
+  # process environment.
+  $env:MSSQL_SA_PASSWORD = $mssqlPassword
   $script:mssqlSaPassword = $mssqlPassword
   $content = Get-Content -Path $envPath
 
