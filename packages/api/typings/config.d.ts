@@ -24,7 +24,12 @@ declare module 'config' {
   interface IConfig {
     ENABLE_OPEN_API: boolean;
     AWS_DB_SECRET?: string | undefined;
-    DB_SECRET_VALUE: never;
+    /** Locally configured DB connection settings. Undefined when the DB secret comes from AWS Secrets Manager. */
+    DB_SECRET_VALUE?: {
+      DB_PASSWORD?: string;
+      MSSQL_DB_PASSWORD?: string;
+      [key: string]: unknown;
+    };
     /**
      * Format: `postgres://username@host:port/db?password=password&sslmode=ssl`
      */

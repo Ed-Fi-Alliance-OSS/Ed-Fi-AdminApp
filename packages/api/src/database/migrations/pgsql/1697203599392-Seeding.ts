@@ -65,7 +65,7 @@ export class Seeding1697203599392 implements MigrationInterface {
     }
     const idpsCount = await queryRunner.query('SELECT COUNT(*) as i_count FROM "oidc"');
     if (Number(idpsCount[0].i_count) === 0) {
-      if (config.SAMPLE_OIDC_CONFIG) {
+      if (config.SAMPLE_OIDC_CONFIG?.clientSecret) {
         Logger.verbose('Seeding OIDC connection');
         const oidc = config.SAMPLE_OIDC_CONFIG;
         await queryRunner.query(
