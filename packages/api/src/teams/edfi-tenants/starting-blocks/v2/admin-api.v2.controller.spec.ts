@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { BadRequestException, ForbiddenException, NotFoundException } from '@nestjs/common';
 import { Edorg, EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
-import { Ids, PostInstanceDtoV2, PostProfileDtoV2 } from '@edanalytics/models';
+import { Ids, PostInstanceDtoV2, PostProfileDtoV2, PutProfileDtoV2 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
 import { AdminApiControllerV2 } from './admin-api.v2.controller';
 import { AdminApiServiceV2 } from './admin-api.v2.service';
@@ -641,5 +641,50 @@ describe('AdminApiControllerV2 - deleteApiClient last-credential guard', () => {
       controller.deleteApiClient(3, 1, mockEdfiTenant, 4, validIds)
     ).rejects.toBeInstanceOf(CustomHttpException);
     expect(mockSbService.deleteApiClient).not.toHaveBeenCalled();
+  });
+});
+
+describe('AdminApiControllerV2 - putProfile', () => {
+  let controller: AdminApiControllerV2;
+  let mockSbService: { putProfile: jest.Mock };
+
+  const mockEdfiTenant = {
+    id: 1,
+    sbEnvironment: { envLabel: 'Test Env' },
+  } as unknown as EdfiTenant;
+
+  beforeEach(() => {
+    mockSbService = {
+      putProfile: jest.fn().mockResolvedValue({ id: 42, name: 'Test Profile' }),
+    };
+    controller = new AdminApiControllerV2(
+      null as unknown as IntegrationAppsTeamService,
+      mockSbService as unknown as AdminApiServiceV2,
+      null as unknown as Repository<Edorg>,
+      null as unknown as Repository<Ods>,
+      null as unknown as IJobQueueService
+    );
+  });
+
+  it('forwards the route profileId as the payload id when the transformed body has none', async () => {
+    // The global ValidationPipe strips the unexposed `id` from the body (AC-642).
+    const profile = { name: 'Test Profile', definition: '<Profile />' } as PutProfileDtoV2;
+
+    await controller.putProfile(1, 1, mockEdfiTenant, 42, profile);
+
+    expect(mockSbService.putProfile).toHaveBeenCalledWith(mockEdfiTenant, 42, {
+      name: 'Test Profile',
+      definition: '<Profile />',
+      id: 42,
+    });
+  });
+
+  it('uses the route profileId even if the body carries a different id', async () => {
+    const profile = { id: 7, name: 'Test Profile', definition: '<Profile />' } as PutProfileDtoV2;
+
+    await controller.putProfile(1, 1, mockEdfiTenant, 42, profile);
+
+    const [, , sentProfile] = mockSbService.putProfile.mock.calls[0];
+    expect(sentProfile).toHaveProperty('id', 42);
   });
 });
