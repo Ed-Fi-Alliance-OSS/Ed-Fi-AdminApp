@@ -354,6 +354,7 @@ It does not check `POSTGRES_PASSWORD` or the `KEYCLOAK_EDFIADMINAPP_*_CLIENT_SEC
 directly, but they must be changed too because they have to match the validated ones:
 `POSTGRES_PASSWORD` must equal the database password in `DB_SECRET_VALUE`, and the Keycloak client
 secret feeds the seeded OIDC client secret.
+Run `eng/helpers/initialize-env-file.ps1` to create compose/.env with generated secrets (PostgreSQL), instead of copying the example by hand.
 Replace them before running `docker compose up` (`openssl rand -hex 32` works for the
 encryption key and for database passwords), or run `eng/testing/run-e2e-ui.ps1`,
 which generates them. PostgreSQL only reads the password on first initialization, so changing

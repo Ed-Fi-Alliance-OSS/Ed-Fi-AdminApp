@@ -51,6 +51,8 @@ try {
   $devClientSecret = Get-EnvValue $lines 'KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET'
   Assert-True ($clientSecret -cmatch '^[A-Za-z0-9]{32}$' -and $devClientSecret -cmatch '^[A-Za-z0-9]{32}$') 'Keycloak client secrets were not generated'
   Assert-True ($clientSecret -ne $devClientSecret) 'Keycloak client secrets must differ'
+  $sessionSecret = (Get-EnvValue $lines 'SESSION_SECRET_VALUE').Trim("`r")
+  Assert-True ($sessionSecret -cmatch '^\["[A-Za-z0-9+/=]{44}"\]$') 'SESSION_SECRET_VALUE was not generated'
   Assert-True ($lines -contains '# MSSQL_SA_PASSWORD=') 'MSSQL_SA_PASSWORD line must be left for the mssql branch'
 
   # --- a reformatted example must fail loudly, not silently skip ---
@@ -60,6 +62,13 @@ try {
   try { Set-GeneratedEnvSecrets -EnvPath $broken } catch { $threw = $true; $message = $_.Exception.Message }
   Assert-True $threw 'Set-GeneratedEnvSecrets did not throw when POSTGRES_PASSWORD was missing'
   Assert-True ($message -match 'POSTGRES_PASSWORD') "Error does not name the missing rule: $message"
+
+  $brokenSession = Join-Path $tempDir '.env.broken-session'
+  Get-Content (Join-Path $repoRoot 'compose/.env.example') | Where-Object { $_ -notmatch '^SESSION_SECRET_VALUE=' } | Set-Content $brokenSession
+  $threw = $false
+  try { Set-GeneratedEnvSecrets -EnvPath $brokenSession } catch { $threw = $true; $message = $_.Exception.Message }
+  Assert-True $threw 'Set-GeneratedEnvSecrets did not throw when SESSION_SECRET_VALUE was missing'
+  Assert-True ($message -match 'SESSION_SECRET_VALUE') "Error does not name SESSION_SECRET_VALUE: $message"
 
   # --- the warning script flags placeholders ---
   $warnings = & (Join-Path $repoRoot 'eng/helpers/warn-env-placeholders.ps1') -EnvFile (Join-Path $repoRoot 'compose/.env.example') 3>&1

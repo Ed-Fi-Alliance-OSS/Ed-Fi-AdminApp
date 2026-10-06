@@ -164,31 +164,10 @@ function Set-AdminAppEnvFile {
 
   Copy-Item -Path $envExamplePath -Destination $envPath -Force
 
-  # compose/.env.example ships SESSION_SECRET_VALUE as an empty array on purpose
-  # (assertValidSessionSecret fails startup on an empty array) so that copying
-  # the example unchanged can never produce a working, publicly-known secret.
-  # Generate a real one here for automated e2e provisioning.
-  $sessionSecret = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-  $envContent = Get-Content -Path $envPath
-  $sessionSecretFired = 0
-  $envContent = $envContent | ForEach-Object {
-    if ($_ -match '^SESSION_SECRET_VALUE=\[\]$') {
-      $sessionSecretFired++
-      "SESSION_SECRET_VALUE=[`"$sessionSecret`"]"
-    } else {
-      $_
-    }
-  }
-  if ($sessionSecretFired -ne 1) {
-    throw "compose/.env.example's SESSION_SECRET_VALUE=[] line was not found exactly once (matched $sessionSecretFired time(s)). compose/.env.example may have been reformatted; update the regex in Set-AdminAppEnvFile."
-  }
-  Set-Content -Path $envPath -Value $envContent
-  Write-Host "compose/.env patched with a generated SESSION_SECRET_VALUE." -ForegroundColor Cyan
-
-  # compose/.env.example ships change-me placeholders for every other secret too, for the same
-  # reason: copying it unchanged must never yield a working stack on publicly known values.
+  # compose/.env.example ships change-me placeholders (and an empty SESSION_SECRET_VALUE) on purpose:
+  # copying it unchanged must never yield a working stack on publicly known values.
   Set-GeneratedEnvSecrets -EnvPath $envPath
-  Write-Host "compose/.env patched with generated database, encryption-key and Keycloak client secrets." -ForegroundColor Cyan
+  Write-Host "compose/.env patched with generated database, encryption-key, session and Keycloak client secrets." -ForegroundColor Cyan
 
   if ($Engine -ne 'mssql') {
     return
