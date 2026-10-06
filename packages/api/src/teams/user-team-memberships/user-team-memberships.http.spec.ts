@@ -7,14 +7,16 @@ import { UserTeamMembership } from '@edanalytics/models-server';
 import { NextFunction, Request, Response } from 'express';
 import request from 'supertest';
 import { createGlobalValidationPipe } from '../../app/global-validation-pipe';
+import { PrivilegeGrantGuardService } from '../../auth/authorization/privilege-grant-guard.service';
 import { UserTeamMembershipsController } from './user-team-memberships.controller';
 import { UserTeamMembershipsService } from './user-team-memberships.service';
 
 /**
  * Drives the AC-642 cross-team attack through the real request lifecycle:
  * global ValidationPipe -> controller (route teamId override, addUserCreating)
- * -> service (withoutId) -> repository. Authorization runs in global APP_GUARDs
- * registered in AppModule, so it is out of scope here.
+ * -> service (explicit-field create) -> repository. Authorization runs in global
+ * APP_GUARDs registered in AppModule, so it is out of scope here; the AC-644
+ * privilege-grant guard is mocked to allow.
  */
 const SESSION_USER_ID = 42;
 const SERVER_GENERATED_ID = 500;
@@ -27,12 +29,14 @@ const mockRepo = {
     created: new Date('2026-10-05T00:00:00Z'),
   })),
 };
+const mockGuard = { assertCanAssignRole: jest.fn(async () => undefined) };
 
 @Module({
   controllers: [UserTeamMembershipsController],
   providers: [
     UserTeamMembershipsService,
     { provide: getRepositoryToken(UserTeamMembership), useValue: mockRepo },
+    { provide: PrivilegeGrantGuardService, useValue: mockGuard },
   ],
 })
 class TeamMembershipsTestModule {}
@@ -79,6 +83,10 @@ describe('POST /teams/:teamId/user-team-memberships (AC-642 mass assignment)', (
       .send(maliciousBody)
       .expect(201);
 
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(SESSION_USER_ID, 3, {
+      kind: 'team-membership',
+      teamId: attackerTeamId,
+    });
     expect(mockRepo.create).toHaveBeenCalledTimes(1);
     expect(mockRepo.create).toHaveBeenCalledWith({
       teamId: attackerTeamId,

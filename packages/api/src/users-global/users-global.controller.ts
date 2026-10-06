@@ -50,7 +50,9 @@ export class UsersGlobalController {
     }
 
     try {
-      return toGetUserDto(await this.userService.create(addUserCreating(createUserDto, user)));
+      return toGetUserDto(
+        await this.userService.create(addUserCreating(createUserDto, user), user.id)
+      );
     } catch (error) {
       if (error?.code === '23505') {
         if (error.detail?.includes('clientId')) {
@@ -106,7 +108,7 @@ export class UsersGlobalController {
   ) {
     try {
       return toGetUserDto(
-        await this.userService.update(userId, addUserModifying(updateUserDto, user))
+        await this.userService.update(userId, addUserModifying(updateUserDto, user), user.id)
       );
     } catch (error) {
       if (error?.code === '23505') {

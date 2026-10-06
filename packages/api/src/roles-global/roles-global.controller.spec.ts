@@ -52,6 +52,7 @@ describe('RolesGlobalController', () => {
       const dto = { type: RoleType.UserGlobal, privilegeIds: ['me:read', 'role:read'], name: 'Custom' } as unknown as PostRoleDto;
       const result = await controller.create(dto, mockSessionUser);
       expect(mockService.create).toHaveBeenCalled();
+      expect(mockService.create).toHaveBeenCalledWith(expect.anything(), 99);
       expect(result).toBeTruthy();
     });
 
@@ -100,6 +101,14 @@ describe('RolesGlobalController', () => {
       const result = await controller.update(1, dto, mockSessionUser);
       expect(mockService.update).toHaveBeenCalled();
       expect(result).toBeTruthy();
+    });
+  });
+
+  describe('update() actor', () => {
+    it('passes the session user id as actorId', async () => {
+      const dto = { name: 'Admin', privilegeIds: ['me:read', 'role:read'] } as unknown as PutRoleDto;
+      await controller.update(1, dto, mockSessionUser);
+      expect(mockService.update).toHaveBeenCalledWith(1, expect.anything(), 99);
     });
   });
 

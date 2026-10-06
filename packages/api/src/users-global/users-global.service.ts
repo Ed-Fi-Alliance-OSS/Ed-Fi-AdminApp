@@ -3,7 +3,8 @@ import { User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound, withoutId } from '../utils';
+import { applyDtoUpdates, resolveNextRoleId, throwNotFound } from '../utils';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
 export class UsersGlobalService {
@@ -11,10 +12,29 @@ export class UsersGlobalService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectEntityManager()
-    private readonly entityManager: EntityManager
+    private readonly entityManager: EntityManager,
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
   ) {}
-  create(createUserDto: PostUserDto) {
-    return this.usersRepository.save(this.usersRepository.create(withoutId(createUserDto)));
+
+  async create(createUserDto: PostUserDto, actorId: number) {
+    await this.privilegeGrantGuard.assertCanAssignRole(actorId, createUserDto.roleId, {
+      kind: 'global-user',
+    });
+    // Build from explicit scalars only: relation keys left in the body (e.g. `role`) would
+    // otherwise override the checked roleId on save.
+    return this.usersRepository.save(
+      this.usersRepository.create({
+        username: createUserDto.username,
+        userType: createUserDto.userType,
+        roleId: createUserDto.roleId,
+        isActive: createUserDto.isActive,
+        givenName: createUserDto.givenName,
+        familyName: createUserDto.familyName,
+        clientId: createUserDto.clientId,
+        description: createUserDto.description,
+        createdById: createUserDto.createdById,
+      })
+    );
   }
 
   async findOne(id: number) {
@@ -25,8 +45,16 @@ export class UsersGlobalService {
     return this.usersRepository.findOneByOrFail({ username });
   }
 
-  async update(id: number, updateUserDto: PutUserDto) {
+  async update(id: number, updateUserDto: PutUserDto, actorId: number) {
     const old = await this.findOne(id);
+    const nextRoleId = resolveNextRoleId(updateUserDto, old.roleId);
+    await this.privilegeGrantGuard.assertCanAssignRole(
+      actorId,
+      nextRoleId,
+      { kind: 'global-user' },
+      old.roleId ?? null,
+      `user ${id}`
+    );
     const updated = applyDtoUpdates(old, updateUserDto, [
       'username',
       'roleId',
