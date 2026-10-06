@@ -83,8 +83,9 @@ two asserts run after app creation; moving them is out of scope for this change.
 - Gated on `process.env.NODE_ENV === 'production'`, so `nx serve` and local dev with sample
   values keep working. (PR 404's key assertion is unconditional and stays so.)
 - Collects every problem and throws one error naming each variable, for example
-  `DB_SECRET_VALUE.DB_PASSWORD is missing or a known sample value; set a real value via
-  environment variable or AWS Secrets Manager`.
+  `DB_SECRET_VALUE.DB_PASSWORD is still a placeholder or known sample value. Set a real value
+  via the DB_SECRET_VALUE environment variable or the DATABASE_SECRET AWS secret (see
+  docs/secret-rotation.md).`.
 - Checks the DB password for the active `DB_ENGINE` (`DB_PASSWORD` for pgsql,
   `MSSQL_DB_PASSWORD` for mssql) and `SAMPLE_OIDC_CONFIG.clientSecret`. The OIDC check applies
   only when `SAMPLE_OIDC_CONFIG.clientSecret` is configured, not merely when
@@ -165,5 +166,8 @@ the published key:
 
 ## Delivery
 
-Three commits: config and template; validator and tests; compose, `eng/` and docs. One PR,
+Delivered as commits for: config and template; validator and wiring; compose, `eng/` and docs; plus a
+final set of hardening commits from the final review (validator normalization and per-variable
+remediation text, a redacted JSON-env preflight, seeding warning wording, local-dev and e2e runner
+warnings, and doc corrections). One PR,
 based on AC-637 and targeting it, retargeted to `main` once PR 404 merges.

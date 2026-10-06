@@ -17,6 +17,7 @@ treat them as compromised and rotate everything below.
 ## Procedure
 
 1. Back up the Admin App database.
+   Stop the Admin App API before re-encrypting (step 4) so nothing reads or writes `sb_environment` while the rows change.
 2. Generate a new key: `openssl rand -hex 32`.
 3. Rotate the downstream Admin API client secrets that `configPrivate` held. They were readable by anyone with a dump and the old key, so changing the encryption key alone is not enough.
 4. Re-encrypt `sb_environment.configPrivate` from the old key to the new key (script below), then deploy with the new `DB_ENCRYPTION_SECRET_VALUE`. Rows still encrypted with the old key cannot be read by the app.
@@ -29,7 +30,8 @@ treat them as compromised and rotate everything below.
 The app encrypts this column with `JSONEncryptionTransformer` from `typeorm-encrypted`
 (`algorithm: 'aes-256-cbc'`, `ivLength: 16`; see `packages/models-server/src/entities/sb-environment.entity.ts`).
 A one-off script must use exactly the same settings. PostgreSQL example (adapt the query for
-SQL Server, where the column is stored as text JSON). Run it against a **copy** of the database first.
+SQL Server: its simple-json column stores the encrypted JSON as text, so write the
+`JSON.stringify(...)` text with a normal parameterized `UPDATE`, not `::jsonb`). Run it against a **copy** of the database first.
 
 This script is provided as a starting point. It has not been run by the maintainers, so review
 and test it before relying on it.
@@ -46,18 +48,36 @@ const newT = make(process.env.NEW_KEY);
 (async () => {
   const client = new Client({ connectionString: process.env.DATABASE_URL });
   await client.connect();
-  const { rows } = await client.query('SELECT id, "configPrivate" FROM sb_environment WHERE "configPrivate" IS NOT NULL');
-  for (const row of rows) {
-    const plain = oldT.from(row.configPrivate);
-    await client.query('UPDATE sb_environment SET "configPrivate" = $1::jsonb WHERE id = $2', [
-      JSON.stringify(newT.to(plain)),
-      row.id,
-    ]);
+  try {
+    // One transaction: a failed run leaves the table unchanged.
+    await client.query('BEGIN');
+    const { rows } = await client.query('SELECT id, "configPrivate" FROM sb_environment WHERE "configPrivate" IS NOT NULL');
+    for (const row of rows) {
+      const plain = oldT.from(row.configPrivate);
+      await client.query('UPDATE sb_environment SET "configPrivate" = $1::jsonb WHERE id = $2', [
+        JSON.stringify(newT.to(plain)),
+        row.id,
+      ]);
+    }
+    await client.query('COMMIT');
+    console.log(`re-encrypted ${rows.length} row(s)`);
+  } catch (err) {
+    await client.query('ROLLBACK');
+    throw err;
+  } finally {
+    await client.end();
   }
-  await client.end();
-  console.log(`re-encrypted ${rows.length} row(s)`);
 })();
 ```
 
 Confirm the table and column names with `\d sb_environment` before running, and verify one
 environment in the Admin App after the switch.
+
+## Upgrading from an image built before AC-639
+
+Images built from AC-639 onward no longer carry any database password, encryption key or OIDC
+client secret, and the API refuses to start in production until real values are supplied (see the
+[procedure](#procedure) above for rotating anything that previously ran on the old, public
+values). Also note that `DB_SECRET_VALUE` set through the environment is now honored; it was
+previously ignored silently because of a configuration mapping bug, so double-check the value you
+set is the one you want the application to use.

@@ -355,10 +355,14 @@ directly, but they must be changed too because they have to match the validated 
 `POSTGRES_PASSWORD` must equal the database password in `DB_SECRET_VALUE`, and the Keycloak client
 secret feeds the seeded OIDC client secret.
 Replace them before running `docker compose up` (`openssl rand -hex 32` works for the
-encryption key; use any strong password elsewhere), or run `eng/testing/run-e2e-ui.ps1`,
+encryption key and for database passwords), or run `eng/testing/run-e2e-ui.ps1`,
 which generates them. PostgreSQL only reads the password on first initialization, so changing
 `POSTGRES_PASSWORD` after the database volume was first created has no effect on the existing
 database.
+
+For database passwords use `openssl rand -hex 32` or any other alphanumeric string. Avoid characters
+that are special in URLs and connection strings (`; & # + / = % @ ' "`): the database password is
+placed in connection strings unescaped for PostgreSQL.
 
 > [!WARNING]
 > `docker compose down -v` permanently deletes the PostgreSQL data and every other named volume in
@@ -613,7 +617,7 @@ authentication flow:
    AUTH0_CONFIG_SECRET_VALUE: {
      ISSUER: 'https://localhost/auth/realms/edfi',
      CLIENT_ID: 'edfiadminapp',
-     CLIENT_SECRET: 'big-secret-123',
+     CLIENT_SECRET: '<KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET from compose/.env>',
      MACHINE_AUDIENCE: 'edfiadminapp-api',
    }
    ```
@@ -869,7 +873,7 @@ missing or incorrect, authentication will fail.
    ```shell
     id |               issuer               |     clientId     |  clientSecret  | scope
    ----+------------------------------------+------------------+----------------+-------
-     1 | https://localhost/auth/realms/edfi | edfiadminapp-dev | big-secret-123 |
+     1 | https://localhost/auth/realms/edfi | edfiadminapp-dev | <dev client secret> |
    ```
 
    - For main services (`edfiadminapp` client):
@@ -878,19 +882,21 @@ missing or incorrect, authentication will fail.
 
     id |               issuer               |     clientId     |  clientSecret  | scope
    ----+------------------------------------+------------------+----------------+-------
-     1 | https://localhost/auth/realms/edfi | edfiadminapp     | big-secret-123 |
+     1 | https://localhost/auth/realms/edfi | edfiadminapp     | <client secret>     |
    ```
+
+   The `clientSecret` column must equal the value of `KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET` (container client `edfiadminapp`) or `KEYCLOAK_EDFIADMINAPP_DEV_CLIENT_SECRET` (hot-reload client `edfiadminapp-dev`) from `compose/.env`.
 
 2. If the required OIDC record is missing, you can manually insert it, or run the helper script:
 
-   - Run `./settings/populate-oidc.ps1` with parameters to add a oidc:
+   - Run `./settings/populate-oidc.ps1` (`-ClientSecret` is required) with parameters to add a oidc:
 
      ```powershell
-     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp" -ClientSecret "big-secret-123" -Issuer "https://localhost/auth/realms/edfi"
+     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp" -ClientSecret "<value from compose/.env>" -Issuer "https://localhost/auth/realms/edfi"
 
      OR
 
-     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp-dev" -ClientSecret "big-secret-123" -Issuer "https://localhost/auth/realms/edfi"
+     ./settings/populate-oidc.ps1 -ClientId "edfiadminapp-dev" -ClientSecret "<value from compose/.env>" -Issuer "https://localhost/auth/realms/edfi"
 
      ```
 
