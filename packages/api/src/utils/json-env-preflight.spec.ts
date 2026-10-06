@@ -31,6 +31,23 @@ describe('assertJsonEnvVarsParse', () => {
     expect(message).not.toContain('S3cretPass');
   });
 
+
+  it('accepts JSON5-only values that node-config also accepts', () => {
+    expect(() => assertJsonEnvVarsParse({ DB_SECRET_VALUE: "{DB_PASSWORD:'S3cretPass',}" })).not.toThrow();
+  });
+
+  it('still rejects invalid JSON5 with the redacted message', () => {
+    let message = '';
+    try {
+      assertJsonEnvVarsParse({ DB_SECRET_VALUE: '{"DB_PASSWORD":S3cretPass}' });
+    } catch (e) {
+      message = (e as Error).message;
+    }
+    expect(message).toContain('DB_SECRET_VALUE is not valid JSON');
+    expect(message).not.toContain('S3cretPass');
+    expect(message).not.toContain('DB_PASSWORD');
+  });
+
   it('does not chain the original parse error', () => {
     const thrown = (() => {
       try {

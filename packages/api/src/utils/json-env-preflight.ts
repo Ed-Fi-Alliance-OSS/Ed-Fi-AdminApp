@@ -1,7 +1,10 @@
+import JSON5 from 'json5';
+
 // Environment variables that config/custom-environment-variables.js maps with `__format: 'json'`.
-// node-config rethrows JSON parse failures with the JSON.parse message, which on Node 24 includes
-// an excerpt of the input and would leak secret text into the logs. Checking them first lets us
-// fail with a redacted message instead.
+// node-config parses these with JSON5 and rethrows the JSON5 parse message (e.g.
+// "JSON5: invalid character 'S' at 1:16"), which reveals a character and position of the secret
+// value. Checking them first, with the same parser, lets us fail with a redacted message instead
+// while accepting exactly what node-config accepts.
 export const JSON_ENV_VARS: readonly string[] = [
   'DB_SECRET_VALUE',
   'DB_ENCRYPTION_SECRET_VALUE',
@@ -17,7 +20,7 @@ export function assertJsonEnvVarsParse(env: NodeJS.ProcessEnv = process.env): vo
       continue;
     }
     try {
-      JSON.parse(value);
+      JSON5.parse(value);
     } catch {
       // Deliberately do not include or chain the original error: it can contain the value.
       throw new Error(
