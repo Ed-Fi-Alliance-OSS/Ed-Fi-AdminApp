@@ -1329,7 +1329,7 @@ export class AdminApiControllerV3 {
   ) {
     {
       try {
-        return await this.sbService.putProfile(edfiTenant, profileId, profile);
+        return await this.sbService.putProfile(edfiTenant, profileId, { ...profile, id: profileId });
       } catch (error) {
         if (error.response.data.title === 'Validation failed') {
           const errorDefiniton = error.response.data.errors['Definition'][0];

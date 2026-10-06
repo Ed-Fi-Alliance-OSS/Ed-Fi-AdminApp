@@ -6,7 +6,7 @@ import {
   PutUserTeamMembershipDto,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
-import { throwNotFound } from '../../utils';
+import { throwNotFound, withoutId } from '../../utils';
 import { UserTeamMembership } from '@edanalytics/models-server';
 
 @Injectable()
@@ -18,7 +18,7 @@ export class UserTeamMembershipsService {
 
   create(createUserTeamMembershipDto: PostUserTeamMembershipDto) {
     return this.userTeamMembershipsRepository.save(
-      this.userTeamMembershipsRepository.create(createUserTeamMembershipDto)
+      this.userTeamMembershipsRepository.create(withoutId(createUserTeamMembershipDto))
     );
   }
 

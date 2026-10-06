@@ -4,8 +4,7 @@ process.env['NODE_CONFIG_DIR'] = process.env['NODE_CONFIG_DIR'] || './packages/a
 
 import './utils/checkEnv';
 
-import { formErrFromValidator } from '@edanalytics/utils';
-import { ClassSerializerInterceptor, Logger, LogLevel, ValidationPipe } from '@nestjs/common';
+import { ClassSerializerInterceptor, Logger, LogLevel } from '@nestjs/common';
 import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import colors from 'colors/safe';
@@ -27,10 +26,10 @@ import {
 } from './database/mssql-connection';
 import { ArtifactService } from './certification/artifact/artifact.service';
 import { CatalogService } from './certification/catalog/catalog.service';
-import { CustomHttpException } from './utils/customExceptions';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
+import { createGlobalValidationPipe } from './app/global-validation-pipe';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
 import { assertValidSessionSecret } from './app/session-secret';
 import { assertValidDbEncryptionSecret } from './app/db-encryption-secret';
@@ -253,19 +252,7 @@ async function bootstrap() {
   // Add global exception filter for AggregateError handling
   app.useGlobalFilters(new AggregateErrorFilter());
 
-  app.useGlobalPipes(
-    new ValidationPipe({
-      transform: true,
-      stopAtFirstError: false,
-      exceptionFactory: (validationErrors = []) => {
-        return new CustomHttpException({
-          type: 'ValidationError',
-          title: 'Invalid submission.',
-          data: { errors: formErrFromValidator(validationErrors) },
-        });
-      },
-    })
-  );
+  app.useGlobalPipes(createGlobalValidationPipe());
   app.enableCors({ origin: config.FE_URL, credentials: true });
   app.useGlobalInterceptors(
     new ClassSerializerInterceptor(app.get(Reflector), {
