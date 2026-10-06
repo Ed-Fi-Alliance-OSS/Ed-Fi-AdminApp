@@ -31,6 +31,8 @@ import { AggregateErrorFilter } from './app/aggregate-error.filter';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
 import { createGlobalValidationPipe } from './app/global-validation-pipe';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
+import { assertValidSessionSecret } from './app/session-secret';
+import { assertValidDbEncryptionSecret } from './app/db-encryption-secret';
 import axios from 'axios';
 import https from 'https';
 
@@ -219,20 +221,24 @@ async function bootstrap() {
   });
 
   const globalPrefix = 'api';
-  await config.DB_ENCRYPTION_SECRET;
+  const dbEncryptionSecret = await config.DB_ENCRYPTION_SECRET;
+  assertValidDbEncryptionSecret(dbEncryptionSecret);
 
   const connectionStr = await config.DB_CONNECTION_STRING;
   const engine = config.DB_ENGINE || 'pgsql';
 
   const sessionStore = await setupDatabaseSession(connectionStr, engine);
 
+  const sessionSecret = await config.SESSION_SECRET;
+  assertValidSessionSecret(sessionSecret);
+
   app.use(json({ limit: '512kb' }));
   app.use(createCsrfOriginGuard(config.FE_URL));
   app.use(
     expressSession.default({
       store: sessionStore,
-      // cryptographic signing is not necessary here. expressSession is very generic and there are other ways of using it for which signing is important.
-      secret: 'my-secret',
+      // array supports rotation: the first entry signs new cookies, the rest remain valid for verification.
+      secret: sessionSecret,
       resave: false,
       saveUninitialized: false,
       cookie: getSessionCookieOptions(),

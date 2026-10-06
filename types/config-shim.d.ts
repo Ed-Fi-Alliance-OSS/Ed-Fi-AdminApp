@@ -43,6 +43,12 @@ declare module 'config' {
     DB_ENCRYPTION_SECRET_VALUE: never;
     DB_ENCRYPTION_SECRET: IDbEncryptionSecret | Promise<IDbEncryptionSecret>;
 
+    /** AWS Secrets Manager secret id holding an array of session-signing secrets, newest first */
+    AWS_SESSION_SECRET?: string | undefined;
+    SESSION_SECRET_VALUE: never;
+    /** Array of session-signing secrets, newest first. Only the first signs new cookies; the rest remain valid to support rotation. */
+    SESSION_SECRET: string[] | Promise<string[]>;
+
     AWS_REGION?: string | undefined;
     DB_ENGINE: 'mssql' | 'pgsql';
     DB_SSL: boolean | 'true' | 'false';
