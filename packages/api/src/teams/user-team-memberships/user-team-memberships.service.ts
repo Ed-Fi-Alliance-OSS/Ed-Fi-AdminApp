@@ -6,7 +6,7 @@ import {
   PutUserTeamMembershipDto,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound } from '../../utils';
+import { applyDtoUpdates, resolveNextRoleId, throwNotFound } from '../../utils';
 import { UserTeamMembership } from '@edanalytics/models-server';
 import { PrivilegeGrantGuardService } from '../../auth/authorization/privilege-grant-guard.service';
 
@@ -56,9 +56,7 @@ export class UserTeamMembershipsService {
     actorId: number
   ) {
     const old = await this.findOne(teamId, id);
-    const nextRoleId = Object.prototype.hasOwnProperty.call(updateUserTeamMembershipDto, 'roleId')
-      ? updateUserTeamMembershipDto.roleId
-      : old.roleId;
+    const nextRoleId = resolveNextRoleId(updateUserTeamMembershipDto, old.roleId);
     await this.privilegeGrantGuard.assertCanAssignRole(
       actorId,
       nextRoleId,

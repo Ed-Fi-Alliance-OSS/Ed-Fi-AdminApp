@@ -7,7 +7,7 @@ import { UserTeamMembership } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
-import { applyDtoUpdates, throwNotFound } from '../utils';
+import { applyDtoUpdates, resolveNextRoleId, throwNotFound } from '../utils';
 import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
@@ -42,9 +42,7 @@ export class UserTeamMembershipsGlobalService {
 
   async update(id: number, updateUserTeamMembershipDto: PutUserTeamMembershipDto, actorId: number) {
     const old = await this.findOne(id);
-    const nextRoleId = Object.prototype.hasOwnProperty.call(updateUserTeamMembershipDto, 'roleId')
-      ? updateUserTeamMembershipDto.roleId
-      : old.roleId;
+    const nextRoleId = resolveNextRoleId(updateUserTeamMembershipDto, old.roleId);
     await this.privilegeGrantGuard.assertCanAssignRole(
       actorId,
       nextRoleId,
