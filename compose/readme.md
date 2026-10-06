@@ -356,12 +356,16 @@ directly, but they must be changed too because they have to match the validated 
 secret feeds the seeded OIDC client secret.
 Run `eng/helpers/initialize-env-file.ps1` to create compose/.env with generated secrets (PostgreSQL), instead of copying the example by hand.
 Replace them before running `docker compose up` (`openssl rand -hex 32` works for the
-encryption key and for database passwords), or run `eng/testing/run-e2e-ui.ps1`,
+encryption key and for PostgreSQL passwords; SQL Server passwords need mixed case, see
+[Password Requirements](#sql-server-mssql)), or run `eng/testing/run-e2e-ui.ps1`,
 which generates them. PostgreSQL only reads the password on first initialization, so changing
 `POSTGRES_PASSWORD` after the database volume was first created has no effect on the existing
 database.
 
-For database passwords use `openssl rand -hex 32` or any other alphanumeric string. Avoid characters
+For PostgreSQL passwords use `openssl rand -hex 32` or any other alphanumeric string. For SQL Server
+use a mixed-case alphanumeric password containing uppercase letters, lowercase letters and digits
+(`openssl rand -hex 32` is not enough: it has no uppercase letters; `eng/testing/run-e2e-ui.ps1`
+generates a valid one). Avoid characters
 that are special in URLs and connection strings (`; & # + / = % @ ' "`): the database password is
 placed in connection strings unescaped for PostgreSQL.
 
@@ -890,7 +894,7 @@ missing or incorrect, authentication will fail.
 
 2. If the required OIDC record is missing, you can manually insert it, or run the helper script:
 
-   - Run `./settings/populate-oidc.ps1` (`-ClientSecret` is required) with parameters to add a oidc:
+   - Run `./settings/populate-oidc.ps1` (`-ClientSecret` is required) with parameters to add an OIDC connection:
 
      ```powershell
      ./settings/populate-oidc.ps1 -ClientId "edfiadminapp" -ClientSecret "<value from compose/.env>" -Issuer "https://localhost/auth/realms/edfi"

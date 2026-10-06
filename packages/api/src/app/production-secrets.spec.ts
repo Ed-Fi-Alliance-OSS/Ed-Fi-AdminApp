@@ -65,6 +65,12 @@ describe('assertProductionSecrets', () => {
     ).not.toThrow();
   });
 
+  it.each([null, false, 0, '', 'text'])('rejects a non-object DB secret (%p)', (dbSecret) => {
+    expect(() => assertProductionSecrets({ ...valid, dbSecret })).toThrow(
+      /DB_SECRET_VALUE\.DB_PASSWORD is missing or blank/
+    );
+  });
+
   it('does not inspect the DB password when the DB secret comes from AWS Secrets Manager', () => {
     expect(() => assertProductionSecrets({ ...valid, dbSecret: undefined })).not.toThrow();
   });

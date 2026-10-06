@@ -20,7 +20,7 @@ export interface ProductionSecretsInput {
    * Locally configured DB secret. Pass `undefined` when the DB secret comes from AWS Secrets
    * Manager: those values are operator-managed and are not inspected here.
    */
-  dbSecret?: { DB_PASSWORD?: unknown; MSSQL_DB_PASSWORD?: unknown };
+  dbSecret?: unknown;
   /**
    * Only checked when provided. Without a client secret the first-run OIDC seeding is skipped,
    * so there is nothing to validate.
@@ -57,9 +57,14 @@ export function assertProductionSecrets(input: ProductionSecretsInput): void {
 
   const problems: { text: string; remediation: string }[] = [];
 
-  if (input.dbSecret) {
+  if (input.dbSecret !== undefined) {
     const field = input.dbEngine === 'mssql' ? 'MSSQL_DB_PASSWORD' : 'DB_PASSWORD';
-    const problem = describeProblem(`DB_SECRET_VALUE.${field}`, input.dbSecret[field]);
+    // DB_SECRET_VALUE is JSON-parsed, so it can be null or another primitive.
+    const password =
+      typeof input.dbSecret === 'object' && input.dbSecret !== null
+        ? (input.dbSecret as Record<string, unknown>)[field]
+        : undefined;
+    const problem = describeProblem(`DB_SECRET_VALUE.${field}`, password);
     if (problem) {
       problems.push({ text: problem, remediation: DB_REMEDIATION });
     }
