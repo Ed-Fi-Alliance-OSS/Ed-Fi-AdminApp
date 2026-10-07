@@ -500,6 +500,28 @@ class EnvironmentsPage {
     }
   }
 
+  async userCanViewKeyAndSecretGenerated() {
+    const credentialsLink = this.page.getByRole('link', {
+      name: /^https:\/\/localhost\/adminapp\/secret\/#\//,
+    })
+    await expect(credentialsLink).toBeVisible({ timeout: API_WRITE_TIMEOUT_MS })
+
+    const popupPromise = this.page.waitForEvent('popup')
+    await credentialsLink.click()
+    const credentialsPage = await popupPromise
+
+    await expect(credentialsPage.getByRole('heading', {
+      name: 'Retrieve credentials', exact: true,
+    })).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await credentialsPage.getByText('Click to retrieve credentials', { exact: true }).click()
+    await credentialsPage.getByRole('button', { name: 'Yes, retrieve them.', exact: true }).click()
+
+    for (const label of ['Key', 'Secret', 'URL']) {
+      await expect(credentialsPage.getByText(label, { exact: true }))
+        .toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    }
+  }
+
   async testResourceShouldBeAbsent(name: string) {
     if (/\/claimsets\/?$/.test(new URL(this.page.url()).pathname)) {
       await this.searchInputEnvironment.click()

@@ -121,7 +121,6 @@ function Get-OdsTemplateBackup {
   $packageVersion = '7.3.20068'
   $feedUrl = "https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/flat2/$packageName/$packageVersion/$packageName.$packageVersion.nupkg"
 
-  "https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/flat2/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0/7.3.20068/EdFi.Suite3.Ods.Populated.Template.PostgreSQL.Standard.4.0.0.7.3.20068.nupkg"
   New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
 
   Write-Host "Downloading $packageName v$packageVersion..." -ForegroundColor Cyan
@@ -329,7 +328,7 @@ function Wait-ForAdminAppReadiness {
   $keycloakLoginUrl = 'https://localhost/auth/realms/edfi/protocol/openid-connect/auth?client_id=edfiadminapp&redirect_uri=https%3A%2F%2Flocalhost%2Fadminapp-api%2Fapi%2Fauth%2Fcallback%2F1&response_type=code&scope=openid%20profile%20email'
 
   $requiredStableChecks = 3
-  $maxReadinessChecks = 150
+  $maxReadinessChecks = 167
   $readinessPollSeconds = 3
   $stableChecks = 0
   $checkMssqlDb = ($DbEngine -eq 'mssql')

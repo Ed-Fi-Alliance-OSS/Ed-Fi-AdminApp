@@ -341,6 +341,7 @@ Feature: Environments V2 with Api validation
     When the user fills the application fields <name>, <claimset>
     And the user clicks on save button
     Then test resource <name> details are displayed in applications
+    And the user can view the key and secret generated
 
     Examples:
       | environment             | name           | claimset    |

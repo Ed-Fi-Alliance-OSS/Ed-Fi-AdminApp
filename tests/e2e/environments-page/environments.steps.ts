@@ -179,6 +179,11 @@ Then(/^test resource (.+) details are displayed in (claimsets|applications|apiCl
   },
 )
 
+Then('the user can view the key and secret generated', async ({ page }) => {
+  environmentsPage = new EnvironmentsPage(page)
+  await environmentsPage.userCanViewKeyAndSecretGenerated()
+})
+
 Then(/^test resource (.+) is absent from the table$/, async ({}, name: string) => {
   await environmentsPage.testResourceShouldBeAbsent(name)
 })
