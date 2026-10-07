@@ -5,19 +5,6 @@ jest.mock('openid-client', () => ({
   buildEndSessionUrl: jest.fn(),
   skipSubjectCheck: Symbol('skipSubjectCheck'),
 }));
-jest.mock('openid-client/passport', () => ({
-  Strategy: class MockStrategy {
-    _verify: unknown;
-
-    constructor(_options: unknown, verify: unknown) {
-      this._verify = verify;
-    }
-
-    authorizationRequestParams() {
-      return new URLSearchParams();
-    }
-  },
-}));
 
 import { BadRequestException } from '@nestjs/common';
 import type { Request, Response } from 'express';

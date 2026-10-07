@@ -2,19 +2,24 @@ import { Oidc, User } from '@edanalytics/models-server';
 import { Inject, Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
-import type * as express from 'express';
 import * as client from 'openid-client';
-import { Strategy } from 'openid-client/passport';
 import passport from 'passport';
 import { Repository } from 'typeorm';
 import { AuthService } from '../auth.service';
 import { OidcProviderRegistry } from './oidc-provider.registry';
+import { AdminAppOidcStrategy, OidcTokenset } from './oidc-passport.strategy';
 
 export interface OidcLoginInfo {
   idToken?: string;
 }
 
 const DEFAULT_OIDC_DISCOVERY_TIMEOUT_MS = 10000;
+
+/**
+ * USE_PKCE arrives as the string "false" when set through an env var, which
+ * is truthy. PKCE stays on unless it is explicitly disabled.
+ */
+const usePkceEnabled = (value: unknown): boolean => value !== false && value !== 'false';
 
 /**
  * openid-client v5 requested the `openid` scope by default; v6 sends exactly
@@ -26,26 +31,27 @@ const withOpenIdScope = (scope: string | null | undefined): string => {
   return scopes.includes('openid') ? scopes.join(' ') : ['openid', ...scopes].join(' ');
 };
 
-type StrategyAuthenticateOptions = Parameters<Strategy['authenticate']>[1] & {
-  state?: string;
+/**
+ * openid-client v5 authenticated confidential clients with client_secret_basic,
+ * falling back to client_secret_post when the IdP did not advertise Basic. v6
+ * defaults to client_secret_post, so pick the method from the discovered
+ * metadata. An absent list means client_secret_basic per the OIDC spec.
+ */
+const withClientAuthentication = (
+  discovered: client.Configuration,
+  clientId: string,
+  clientSecret: string
+): client.Configuration => {
+  const server = discovered.serverMetadata();
+  const methods = server.token_endpoint_auth_methods_supported;
+  const useBasic = !methods || methods.includes('client_secret_basic');
+  return new client.Configuration(
+    server,
+    clientId,
+    { client_secret: clientSecret },
+    useBasic ? client.ClientSecretBasic(clientSecret) : client.ClientSecretPost(clientSecret)
+  );
 };
-
-class AdminAppOidcStrategy extends Strategy {
-  override authorizationRequestParams(req: express.Request, options: StrategyAuthenticateOptions) {
-    const params = super.authorizationRequestParams(req, options);
-    if (typeof options?.state !== 'string' || options.state === '') {
-      return params;
-    }
-    if (params instanceof URLSearchParams) {
-      params.set('state', options.state);
-      return params;
-    }
-    return {
-      ...(params ?? {}),
-      state: options.state,
-    };
-  }
-}
 
 /**
  * Discovers and registers the configured OIDC providers at startup: it loads
@@ -103,14 +109,13 @@ export class OidcIdpBootstrapper implements OnModuleInit {
       );
     });
     try {
-      return await Promise.race([
-        client.discovery(
-          new URL(oidcConfig.issuer),
-          oidcConfig.clientId,
-          oidcConfig.clientSecret ? { client_secret: oidcConfig.clientSecret } : undefined
-        ),
+      const discovered = await Promise.race([
+        client.discovery(new URL(oidcConfig.issuer), oidcConfig.clientId),
         timeout,
       ]);
+      return oidcConfig.clientSecret
+        ? withClientAuthentication(discovered, oidcConfig.clientId, oidcConfig.clientSecret)
+        : discovered;
     } finally {
       if (timer) {
         clearTimeout(timer);
@@ -134,9 +139,11 @@ export class OidcIdpBootstrapper implements OnModuleInit {
         config: oidcClient,
         callbackURL: `${config.MY_URL_API_PATH}/auth/callback/${oidcConfig.id}`,
         scope: withOpenIdScope(oidcConfig.scope),
+        usePKCE: usePkceEnabled(config.USE_PKCE),
+        sessionKey: `oidc:${oidcConfig.id}`,
       },
       async (
-        tokenset: client.TokenEndpointResponse & client.TokenEndpointResponseHelpers,
+        tokenset: OidcTokenset,
         done: (err: Error | null, user?: User | false, info?: OidcLoginInfo) => void
       ) => {
         if (typeof tokenset.access_token !== 'string' || tokenset.access_token === '') {
@@ -186,7 +193,8 @@ export class OidcIdpBootstrapper implements OnModuleInit {
           // Return a database error to trigger appropriate error handling
           return done(new Error('Database connection error during authentication'), false);
         }
-      }
+      },
+      `oidc-${oidcConfig.id}`
     );
     Logger.log(`Registering OIDC provider ${oidcConfig.issuer} with id ${oidcConfig.id}`);
     this.registry.register(oidcConfig.id, oidcClient);

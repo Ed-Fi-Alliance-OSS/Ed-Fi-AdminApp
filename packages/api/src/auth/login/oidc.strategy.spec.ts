@@ -1,7 +1,12 @@
 import 'reflect-metadata';
 jest.mock('openid-client', () => {
   class MockConfiguration {
-    constructor(private readonly server: Record<string, string>, private readonly clientId: string) {}
+    constructor(
+      private readonly server: Record<string, unknown>,
+      private readonly clientId: string,
+      readonly metadata?: unknown,
+      readonly clientAuthentication?: unknown
+    ) {}
 
     serverMetadata() {
       return this.server;
@@ -24,28 +29,16 @@ jest.mock('openid-client', () => {
       }
       return url;
     }),
+    ClientSecretBasic: jest.fn((secret: string) => ({ method: 'basic', secret })),
+    ClientSecretPost: jest.fn((secret: string) => ({ method: 'post', secret })),
     discovery: jest.fn(),
     fetchUserInfo: jest.fn(),
     skipSubjectCheck: Symbol('skipSubjectCheck'),
   };
 });
-jest.mock('openid-client/passport', () => ({
-  Strategy: class MockStrategy {
-    _verify: unknown;
-    options: unknown;
-
-    constructor(options: unknown, verify: unknown) {
-      this.options = options;
-      this._verify = verify;
-    }
-
-    authorizationRequestParams() {
-      return new URLSearchParams();
-    }
-  },
-}));
 
 import * as client from 'openid-client';
+import config from 'config';
 import passport from 'passport';
 import { OidcProviderRegistry } from './oidc-provider.registry';
 import { NO_ROLE, OidcIdpBootstrapper, USER_NOT_FOUND } from './oidc.strategy';
@@ -162,6 +155,58 @@ describe('OidcIdpBootstrapper', () => {
     });
   });
 
+  describe('client authentication', () => {
+    const registeredClientAuth = async (methods: string[] | undefined, clientSecret = 'secret') => {
+      const discovered = new client.Configuration(
+        {
+          ...(keycloakConfig.serverMetadata() as unknown as Record<string, unknown>),
+          token_endpoint_auth_methods_supported: methods,
+        } as never,
+        'adminapp-client'
+      );
+      jest.spyOn(client, 'discovery').mockResolvedValue(discovered);
+      await bootstrap([{ ...keycloakOidcRow, clientSecret }]);
+      const strategy = passportUseSpy.mock.calls[0][1] as unknown as {
+        options: { config: { clientAuthentication?: unknown } };
+      };
+      return strategy.options.config.clientAuthentication;
+    };
+
+    it.each([
+      ['not advertised', undefined],
+      ['advertised with others', ['client_secret_post', 'client_secret_basic']],
+    ])('uses client_secret_basic when it is %s', async (_label, methods) => {
+      expect(await registeredClientAuth(methods)).toEqual({ method: 'basic', secret: 'secret' });
+    });
+
+    it('falls back to client_secret_post when basic is not supported', async () => {
+      expect(await registeredClientAuth(['client_secret_post'])).toEqual({
+        method: 'post',
+        secret: 'secret',
+      });
+    });
+
+    it('leaves a public client unauthenticated', async () => {
+      expect(await registeredClientAuth(undefined, '')).toBeUndefined();
+    });
+  });
+
+  describe('USE_PKCE', () => {
+    it.each([
+      [true, true],
+      [false, false],
+      ['true', true],
+      ['false', false],
+    ])('passes USE_PKCE=%p to the strategy as %p', async (configured, usePKCE) => {
+      (config as unknown as { USE_PKCE: unknown }).USE_PKCE = configured;
+      await bootstrap([keycloakOidcRow]);
+      const strategy = passportUseSpy.mock.calls[0][1] as unknown as {
+        options: { usePKCE: boolean };
+      };
+      expect(strategy.options.usePKCE).toBe(usePKCE);
+    });
+  });
+
   describe('when discovery fails for one of several configured providers', () => {
     beforeEach(() => {
       jest.spyOn(client, 'discovery').mockImplementation((url: URL) => {
@@ -226,14 +271,22 @@ describe('OidcIdpBootstrapper', () => {
       const done = jest.fn();
 
       await verify(
-        { access_token: 'the-access-token', id_token: 'the-id-token', claims: () => ({ sub: 'user-1' }) },
+        {
+          access_token: 'the-access-token',
+          id_token: 'the-id-token',
+          claims: () => ({ sub: 'user-1' }),
+        },
         done
       );
 
       expect(done).toHaveBeenCalledWith(null, expect.objectContaining({ roleId: 5 }), {
         idToken: 'the-id-token',
       });
-      expect(client.fetchUserInfo).toHaveBeenCalledWith(keycloakConfig, 'the-access-token', 'user-1');
+      expect(client.fetchUserInfo).toHaveBeenCalledWith(
+        expect.objectContaining({ clientId: 'adminapp-client' }),
+        'the-access-token',
+        'user-1'
+      );
     });
 
     it('fails with USER_NOT_FOUND when the user does not exist', async () => {
@@ -242,7 +295,10 @@ describe('OidcIdpBootstrapper', () => {
 
       await verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done);
 
-      expect(done).toHaveBeenCalledWith(expect.objectContaining({ message: USER_NOT_FOUND }), false);
+      expect(done).toHaveBeenCalledWith(
+        expect.objectContaining({ message: USER_NOT_FOUND }),
+        false
+      );
     });
 
     it('fails with NO_ROLE when the user has no role assigned', async () => {
@@ -255,7 +311,9 @@ describe('OidcIdpBootstrapper', () => {
     });
 
     it('maps a validateUser failure to a database error', async () => {
-      const verify = await captureVerify(jest.fn().mockRejectedValue(new Error('connection refused')));
+      const verify = await captureVerify(
+        jest.fn().mockRejectedValue(new Error('connection refused'))
+      );
       const done = jest.fn();
 
       await verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done);
@@ -272,9 +330,9 @@ describe('OidcIdpBootstrapper', () => {
 
       jest.spyOn(client, 'fetchUserInfo').mockResolvedValueOnce({ sub: 'user-1', email: '' });
 
-      await expect(verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done)).rejects.toThrow(
-        'Invalid email from IdP'
-      );
+      await expect(
+        verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done)
+      ).rejects.toThrow('Invalid email from IdP');
       expect(done).not.toHaveBeenCalled();
     });
   });
