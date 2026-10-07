@@ -21,6 +21,7 @@ module.exports = {
     KEY: 'ef9c1dcd53175358daefcce54891e1779f9837d5ff25c74a674de3d1a749d81f',
     IV: '<not needed, should factor out but havent bothered yet>',
   },
+  SESSION_SECRET_VALUE: ['dev-only-session-secret-testing'],
   WHITELISTED_REDIRECTS: [FE_URL],
   ADMINAPI_REFRESH_POLL_ATTEMPTS: 3,
   ADMINAPI_REFRESH_POLL_INTERVAL_MS: 0,

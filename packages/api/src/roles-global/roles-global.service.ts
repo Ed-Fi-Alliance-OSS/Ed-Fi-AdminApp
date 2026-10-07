@@ -6,6 +6,7 @@ import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import _ from 'lodash';
 import { EntityManager, Repository } from 'typeorm';
 import { CheckAbilityType } from '../auth/authorization';
+import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
 import { throwNotFound } from '../utils';
 import { CustomHttpException } from '../utils/customExceptions';
 
@@ -21,13 +22,15 @@ export class RolesGlobalService {
     @InjectRepository(User)
     private usersRepository: Repository<User>,
     @InjectRepository(Ownership)
-    private ownershipsRepository: Repository<Ownership>
+    private ownershipsRepository: Repository<Ownership>,
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
   ) {}
-  async create(createRoleDto: PostRoleDto) {
+  async create(createRoleDto: PostRoleDto, actorId: number) {
     const uniqueReqPrivileges = _.uniq(createRoleDto.privilegeIds);
     if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
       throw new BadRequestException('Invalid privileges');
     }
+    await this.privilegeGrantGuard.assertCanGrant(actorId, uniqueReqPrivileges);
     return this.rolesRepository.save({
       teamId: createRoleDto.teamId,
       type: createRoleDto.type,
@@ -41,12 +44,14 @@ export class RolesGlobalService {
     return this.rolesRepository.findOneByOrFail({ id });
   }
 
-  async update(id: number, updateRoleDto: PutRoleDto) {
+  async update(id: number, updateRoleDto: PutRoleDto, actorId: number) {
     const old = await this.findOne(id);
     const uniqueReqPrivileges = _.uniq(updateRoleDto.privilegeIds);
     if (uniqueReqPrivileges.some((code) => !PRIVILEGES[code])) {
       throw new BadRequestException('Invalid privileges');
     }
+    const addedPrivileges = uniqueReqPrivileges.filter((code) => !(old.privilegeIds ?? []).includes(code));
+    await this.privilegeGrantGuard.assertCanGrant(actorId, addedPrivileges, undefined, `role ${id}`);
     return this.rolesRepository.save({
       ...old,
       name: updateRoleDto.name,

@@ -31,7 +31,8 @@ export class UserTeamMembershipsController {
   ) {
     return toGetUserTeamMembershipDto(
       await this.userTeamMembershipService.create(
-        addUserCreating({ ...createUserTeamMembershipDto, teamId }, session)
+        addUserCreating({ ...createUserTeamMembershipDto, teamId }, session),
+        session.id
       )
     );
   }
@@ -85,7 +86,8 @@ export class UserTeamMembershipsController {
       await this.userTeamMembershipService.update(
         teamId,
         userTeamMembershipId,
-        addUserModifying({ ...updateUserTeamMembershipDto, teamId }, session)
+        addUserModifying({ ...updateUserTeamMembershipDto, teamId }, session),
+        session.id
       )
     );
   }

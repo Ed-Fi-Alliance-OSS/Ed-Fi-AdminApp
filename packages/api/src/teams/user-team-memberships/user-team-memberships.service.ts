@@ -6,19 +6,36 @@ import {
   PutUserTeamMembershipDto,
 } from '@edanalytics/models';
 import { Repository } from 'typeorm';
-import { throwNotFound, withoutId } from '../../utils';
+import { applyDtoUpdates, resolveNextRoleId, throwNotFound } from '../../utils';
 import { UserTeamMembership } from '@edanalytics/models-server';
+import { PrivilegeGrantGuardService } from '../../auth/authorization/privilege-grant-guard.service';
 
 @Injectable()
 export class UserTeamMembershipsService {
   constructor(
     @InjectRepository(UserTeamMembership)
-    private userTeamMembershipsRepository: Repository<UserTeamMembership>
+    private userTeamMembershipsRepository: Repository<UserTeamMembership>,
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
   ) {}
 
-  create(createUserTeamMembershipDto: PostUserTeamMembershipDto) {
+  async create(createUserTeamMembershipDto: PostUserTeamMembershipDto, actorId: number) {
+    await this.privilegeGrantGuard.assertCanAssignRole(
+      actorId,
+      createUserTeamMembershipDto.roleId,
+      {
+        kind: 'team-membership',
+        teamId: createUserTeamMembershipDto.teamId,
+      }
+    );
+    // Build from explicit scalars only: relation keys left in the body (e.g. `role`, `team`)
+    // would otherwise override the checked FK columns on save.
     return this.userTeamMembershipsRepository.save(
-      this.userTeamMembershipsRepository.create(withoutId(createUserTeamMembershipDto))
+      this.userTeamMembershipsRepository.create({
+        teamId: createUserTeamMembershipDto.teamId,
+        userId: createUserTeamMembershipDto.userId,
+        roleId: createUserTeamMembershipDto.roleId,
+        createdById: createUserTeamMembershipDto.createdById,
+      })
     );
   }
 
@@ -32,12 +49,24 @@ export class UserTeamMembershipsService {
     return this.userTeamMembershipsRepository.findOneByOrFail({ teamId, id }).catch(throwNotFound);
   }
 
-  async update(teamId: number, id: number, updateUserTeamMembershipDto: PutUserTeamMembershipDto) {
+  async update(
+    teamId: number,
+    id: number,
+    updateUserTeamMembershipDto: PutUserTeamMembershipDto,
+    actorId: number
+  ) {
     const old = await this.findOne(teamId, id);
-    return this.userTeamMembershipsRepository.save({
-      ...old,
-      ...updateUserTeamMembershipDto,
-    });
+    const nextRoleId = resolveNextRoleId(updateUserTeamMembershipDto, old.roleId);
+    await this.privilegeGrantGuard.assertCanAssignRole(
+      actorId,
+      nextRoleId,
+      { kind: 'team-membership', teamId },
+      old.roleId ?? null,
+      `membership ${id}`
+    );
+    // Only roleId/modifiedById are updatable; the body must not move the membership.
+    const updated = applyDtoUpdates(old, updateUserTeamMembershipDto, ['roleId', 'modifiedById']);
+    return this.userTeamMembershipsRepository.save(updated);
   }
 
   async remove(teamId: number, id: number, _user: GetUserDto) {

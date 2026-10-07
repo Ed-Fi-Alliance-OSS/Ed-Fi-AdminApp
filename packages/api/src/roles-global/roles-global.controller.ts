@@ -53,7 +53,9 @@ export class RolesGlobalController {
         message: 'Minimum privileges not present (me:read).',
       });
     }
-    return toGetRoleDto(await this.roleService.create(addUserCreating(createRoleDto, user)));
+    return toGetRoleDto(
+      await this.roleService.create(addUserCreating(createRoleDto, user), user.id)
+    );
   }
 
   @Get()
@@ -101,7 +103,7 @@ export class RolesGlobalController {
     }
 
     return toGetRoleDto(
-      await this.roleService.update(roleId, addUserModifying(updateRoleDto, user))
+      await this.roleService.update(roleId, addUserModifying(updateRoleDto, user), user.id)
     );
   }
 

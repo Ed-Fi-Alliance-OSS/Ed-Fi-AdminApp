@@ -10,9 +10,9 @@ import { ValidationHttpException } from '../utils';
 const mockUser = { id: 1, username: 'alice', userType: 'human' };
 
 const mockService = {
-  create: jest.fn(async () => mockUser),
+  create: jest.fn(async (..._args: unknown[]) => mockUser),
   findOne: jest.fn(async () => mockUser),
-  update: jest.fn(async () => mockUser),
+  update: jest.fn(async (..._args: unknown[]) => mockUser),
   remove: jest.fn(async () => undefined),
 };
 
@@ -69,6 +69,7 @@ describe('UsersGlobalController', () => {
       const dto = { userType: 'human', username: 'alice' } as unknown as PostUserDto;
       const result = await controller.create(dto, mockSessionUser);
       expect(mockService.create).toHaveBeenCalled();
+      expect(mockService.create).toHaveBeenCalledWith(expect.anything(), mockSessionUser.id);
       expect(result).toBeTruthy();
     });
 
@@ -111,6 +112,13 @@ describe('UsersGlobalController', () => {
   });
 
   describe('update()', () => {
+    it('passes the acting user id to the service', async () => {
+      const dto = { username: 'alice' } as unknown as PutUserDto;
+      const result = await controller.update(1, dto, mockSessionUser);
+      expect(mockService.update).toHaveBeenCalledWith(1, expect.anything(), mockSessionUser.id);
+      expect(result).toBeTruthy();
+    });
+
     it('throws ValidationHttpException with "Username already exists" on 23505', async () => {
       const dbError = Object.assign(new Error('unique'), { code: '23505', detail: 'username' });
       mockService.update.mockRejectedValueOnce(dbError);

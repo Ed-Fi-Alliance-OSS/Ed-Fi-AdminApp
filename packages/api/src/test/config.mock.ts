@@ -34,6 +34,10 @@ const config = {
     IV: 'iv',
   },
 
+  AWS_SESSION_SECRET: undefined,
+  SESSION_SECRET_VALUE: ['test-session-secret'],
+  SESSION_SECRET: ['test-session-secret'],
+
   DB_CONNECTION_STRING: 'postgres://user@localhost:5432/db?password=pass&sslmode=disable',
 
   FE_URL: 'http://localhost:4200',
