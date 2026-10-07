@@ -75,6 +75,7 @@ Feature: Environments V2 with Api validation
     And the user enter to environment using the team <environment> with team ApiTest
     When the user clicks on Ed-Orgs option
     Then the Ed-Orgs table should be displayed
+    And is possible to enter to the first edorgs in order to see the details
 
     Examples:
       | environment             |
@@ -259,3 +260,342 @@ Feature: Environments V2 with Api validation
     Examples:
       | environment             |
       | FullSingleEnvironmentv2 |
+
+  Scenario Outline: Clone Claimsets
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Claimsets option
+    When the user copies claimset <source> as <name>
+    Then test resource <name> details are displayed in claimsets
+
+    Examples:
+      | environment             | source        | name          |
+      | FullSingleEnvironmentv2 | Ed-Fi Sandbox | E2EClonedClaimset |
+
+  Scenario Outline: Import Claimsets
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Claimsets option
+    When the user imports a claimset
+    Then test resource <name> details are displayed in claimsets
+
+    Examples:
+      | environment             | name                       |
+      | FullSingleEnvironmentv2 | Ed-Fi Automation Claimsets |
+
+  Scenario Outline: Export Claimsets
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Claimsets option
+    Then claimset <name> can be exported as a valid JSON file
+
+    Examples:
+      | environment             | name          |
+      | FullSingleEnvironmentv2 | Ed-Fi Sandbox |
+
+  Scenario Outline: Not possible edit the claimsets system reserved
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    When the user clicks on Claimsets option
+    Then the Edit action is unavailable for reserved claimset <name>
+
+    Examples:
+      | environment             | name          |
+      | FullSingleEnvironmentv2 | Ed-Fi Sandbox |
+
+  Scenario Outline: Not possible delete the claimsets system reserved
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    When the user clicks on Claimsets option
+    Then the Delete action is unavailable for reserved claimset <name>
+
+    Examples:
+      | environment             | name          |
+      | FullSingleEnvironmentv2 | Ed-Fi Sandbox |
+
+  Scenario Outline: Delete claimsets that is not system reserved
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Claimsets option
+    And the user copies claimset <source> as <name>
+    And the user clicks the Delete tab option
+    When the user confirms test resource deletion
+    Then test resource <name> is absent from the table
+
+    Examples:
+      | environment             | source        | name                |
+      | FullSingleEnvironmentv2 | Ed-Fi Sandbox | E2EDeletableClaimset |
+
+  Scenario Outline: Create an Application
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And application dependencies with claimset <claimset> exist
+    And the user clicks on New button
+    When the user fills the application fields <name>, <claimset>
+    And the user clicks on save button
+    Then test resource <name> details are displayed in applications
+
+    Examples:
+      | environment             | name           | claimset    |
+      | FullSingleEnvironmentv2 | E2EApplication | E2EClaimset |
+
+  Scenario Outline: Validation fields Application
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And the user clicks on Application option
+    And the user clicks on New button
+    When the user clicks on save button
+    Then warnings message should be displayed on each field
+
+    Examples:
+      | environment             |
+      | FullSingleEnvironmentv2 |
+
+  Scenario Outline: Cancel application creation
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And application dependencies with claimset <claimset> exist
+    And the user clicks on New button
+    And the user fills the application fields <name>, <claimset>
+    When the user clicks on cancel button
+    Then test resource <name> is absent from the table
+
+    Examples:
+      | environment             | name                   | claimset    |
+      | FullSingleEnvironmentv2 | E2ECanceledApplication | E2EClaimset |
+
+  Scenario Outline: Edit application from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    And the user opens test resource <name>
+    And the user clicks the Edit tab option
+    When the user renames the application to <updatedName>
+    And the user clicks on save button
+    Then test resource <updatedName> details are displayed in applications
+
+    Examples:
+      | environment             | name               | updatedName              |
+      | FullSingleEnvironmentv2 | E2EEditTabApplication | E2EUpdatedTabApplication |
+
+  Scenario Outline: Edit application from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    And the user clicks the Edit action for test resource <name>
+    When the user renames the application to <updatedName>
+    And the user clicks on save button
+    Then test resource <updatedName> details are displayed in applications
+
+    Examples:
+      | environment             | name               | updatedName              |
+      | FullSingleEnvironmentv2 | E2EEditActionApplication | E2EUpdatedRowApplication |
+
+  Scenario Outline: Manage credentials from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    And the user opens test resource <name>
+    When the user clicks the Manage creds tab option
+    Then the credentials table is displayed with one credential
+
+    Examples:
+      | environment             | name                 |
+      | FullSingleEnvironmentv2 | E2EManageApplication |
+
+  Scenario Outline: Manage credentials from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    When the user clicks the Manage creds action for test resource <name>
+    Then the credentials table is displayed with one credential
+
+    Examples:
+      | environment             | name                 |
+      | FullSingleEnvironmentv2 | E2EManageApplication |
+
+  Scenario Outline: New manage credentials from tab option test
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user opens test resource <application>
+    And the user clicks the Manage creds tab option
+    And the user clicks on New button
+    When the user fills the credential fields <name>
+    And the user clicks on save button
+    Then test resource <name> details are displayed in apiClients
+    And the user returns to the credentials table
+    And the credentials table is displayed with two credentials
+
+    Examples:
+      | environment             | application       | name             |
+      | FullSingleEnvironmentv2 | E2ENewCredentials | E2ENewCredential |
+
+  Scenario Outline: Edit manage credentials from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user opens the first credential
+    And the user clicks the Edit tab option
+    When the user renames the credential to <name>
+    And the user clicks on save button
+    Then test resource <name> details are displayed in apiClients
+
+    Examples:
+      | environment             | application        | name                    |
+      | FullSingleEnvironmentv2 | E2EEditCredentials | E2EUpdatedTabCredential |
+
+  Scenario Outline: Edit manage credentials from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user clicks the Edit action for the first credential
+    When the user renames the credential to <name>
+    And the user clicks on save button
+    Then test resource <name> details are displayed in apiClients
+
+    Examples:
+      | environment             | application        | name                    |
+      | FullSingleEnvironmentv2 | E2EEditCredentials | E2EUpdatedRowCredential |
+
+  Scenario Outline: Reset manage credentials from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user opens the first credential
+    And the user clicks the Reset creds tab option
+    When the user confirms credential reset
+    Then the newly reset credentials are displayed
+
+    Examples:
+      | environment             | application         |
+      | FullSingleEnvironmentv2 | E2EResetCredentials |
+
+  Scenario Outline: Reset manage credentials from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user clicks the Reset creds action for the first credential
+    When the user confirms credential reset
+    Then the newly reset credentials are displayed
+
+    Examples:
+      | environment             | application         |
+      | FullSingleEnvironmentv2 | E2EResetCredentials |
+
+  Scenario Outline: Not possible delete only one manage credentials from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    When the user clicks the Manage creds action for test resource <application>
+    Then deleting the only credential is blocked from the tab option
+
+    Examples:
+      | environment             | application         |
+      | FullSingleEnvironmentv2 | E2EOnlyCredential |
+
+  Scenario Outline: Not possible delete only one manage credentials from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    When the user clicks the Manage creds action for test resource <application>
+    Then deleting the only credential is blocked from the row option
+
+    Examples:
+      | environment             | application       |
+      | FullSingleEnvironmentv2 | E2EOnlyCredential |
+
+  Scenario Outline: Delete manage credentials from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user clicks on New button
+    And the user fills the credential fields <name>
+    And the user clicks on save button
+    And test resource <name> details are displayed in apiClients
+    And the user returns to the credentials table
+    And the credentials table is displayed with two credentials
+    And the user opens test resource <name>
+    And the user clicks the Delete tab option
+    When the user confirms test resource deletion
+    Then test resource <name> is absent from the table
+    And the credentials table is displayed with one credential
+
+    Examples:
+      | environment             | application          | name                     |
+      | FullSingleEnvironmentv2 | E2EDeleteCredentials | E2EDeletableTabCredential |
+
+  Scenario Outline: Delete manage credentials from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <application> with one credential exists
+    And the user clicks the Manage creds action for test resource <application>
+    And the user clicks on New button
+    And the user fills the credential fields <name>
+    And the user clicks on save button
+    And test resource <name> details are displayed in apiClients
+    And the user returns to the credentials table
+    And the credentials table is displayed with two credentials
+    And the user clicks the Delete action for test resource <name>
+    When the user confirms test resource deletion
+    Then test resource <name> is absent from the table
+    And the credentials table is displayed with one credential
+
+    Examples:
+      | environment             | application          | name                     |
+      | FullSingleEnvironmentv2 | E2EDeleteCredentials | E2EDeletableRowCredential |
+
+  Scenario Outline: Delete application from tab option
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    And the user opens test resource <name>
+    And the user clicks the Delete tab option
+    When the user confirms test resource deletion
+    Then test resource <name> is absent from the table
+
+    Examples:
+      | environment             | name                   |
+      | FullSingleEnvironmentv2 | E2EDeleteTabApplication |
+
+  Scenario Outline: Delete application from row action
+    Given the user is logged with a valid user
+    And the user click on Environment option
+    And the user enter to environment using the team <environment> with team ApiTest
+    And a test application <name> with one credential exists
+    And the user clicks the Delete action for test resource <name>
+    When the user confirms test resource deletion
+    Then test resource <name> is absent from the table
+
+    Examples:
+      | environment             | name                    |
+      | FullSingleEnvironmentv2 | E2EDeleteRowApplication |
+
