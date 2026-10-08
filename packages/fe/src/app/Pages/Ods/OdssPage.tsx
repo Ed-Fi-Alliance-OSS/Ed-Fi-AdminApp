@@ -1,4 +1,11 @@
-import { Icons, PageActions, PageTemplate, SbaaTableAllInOne, TableRowActions } from '@edanalytics/common-ui';
+import {
+  Icons,
+  PageActions,
+  PageTemplate,
+  SbaaTableAllInOne,
+  TableRowActions,
+  SbaaCellContext,
+} from '@edanalytics/common-ui';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { instancesV2, odsQueries } from '../../api';
 import {
@@ -7,7 +14,6 @@ import {
   useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
-import { CellContext } from '@tanstack/react-table';
 import { useOdssActions } from './useOdssActions';
 import { Badge, HStack, Link } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router';
@@ -85,7 +91,7 @@ const useOdsRowActions = (ods: GetOdsDto) => {
   };
 };
 
-const NameCell = (info: CellContext<GetOdsDto, unknown>) => {
+const NameCell = (info: SbaaCellContext<GetOdsDto>) => {
   const { teamId, edfiTenant } = useTeamEdfiTenantNavContextLoaded();
   const terminology = useOdsTerminology();
   const { id, displayName } = info.row.original;
