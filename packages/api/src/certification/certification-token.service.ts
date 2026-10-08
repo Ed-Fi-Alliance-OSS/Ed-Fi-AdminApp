@@ -19,6 +19,7 @@ export const CERT_TOKEN_MESSAGES = {
   invalidCredentials: 'Key or secret not valid for this tenant.',
   noTokenEndpoint: (oauthUrl: string) => `The Ed-Fi API has no token endpoint at ${oauthUrl}.`,
   unreachable: (oauthUrl: string) => `Couldn't reach the Ed-Fi API at ${oauthUrl}.`,
+  odsRequired: "Choose the ODS / Data Store you're certifying.",
   untrustedTokenUrl:
     "The Ed-Fi API's token address isn't on the same secure host as this environment, so the credentials weren't sent.",
 };
@@ -67,6 +68,9 @@ export class CertificationTokenService {
       await this.odsRepository
         .findOneByOrFail({ id: odsId, edfiTenantId: edfiTenant.id })
         .catch(throwNotFound);
+    } else if ((await this.odsRepository.countBy({ edfiTenantId: edfiTenant.id })) > 0) {
+      // Mirrors the form, which only hides the ODS field when the tenant has none.
+      throw new ValidationHttpException(CERT_TOKEN_MESSAGES.odsRequired);
     }
 
     const discoveryUrl = sbEnvironment.domain;
