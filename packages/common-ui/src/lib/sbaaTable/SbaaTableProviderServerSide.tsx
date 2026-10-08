@@ -6,7 +6,7 @@ import {
   RowSelectionState,
   useTable,
 } from '@tanstack/react-table';
-import React, { useEffect, useMemo } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router';
 import { SbaaTableContext, diffSearchParams } from '.';
 import {
@@ -79,18 +79,27 @@ export function SbaaTableProviderServerSide<
 
   const showSettings = useBoolean(sortParams.length > 1 || columnFilters.length > 0);
 
-  const { getFacetedUniqueValues, getFacetedMinMaxValues } = props;
   // Filtering, sorting, and pagination happen on the server (see the `manual*`
   // options below), so only the faceting slots are swapped for the caller's
-  // server-backed implementations.
-  const features: SbaaTableFeatures = useMemo(
-    () => ({
-      ...sbaaTableFeatures,
-      facetedUniqueValues: getFacetedUniqueValues,
-      facetedMinMaxValues: getFacetedMinMaxValues,
-    }),
-    [getFacetedUniqueValues, getFacetedMinMaxValues]
-  );
+  // server-backed implementations. TanStack Table v9 caches each column's facet
+  // function on the table for its whole lifetime, so the registered slots are
+  // stable delegates that call through to the latest props on every read —
+  // otherwise facets would freeze at whatever data existed on first access.
+  const facetFnsRef = useRef({
+    getFacetedUniqueValues: props.getFacetedUniqueValues,
+    getFacetedMinMaxValues: props.getFacetedMinMaxValues,
+  });
+  facetFnsRef.current = {
+    getFacetedUniqueValues: props.getFacetedUniqueValues,
+    getFacetedMinMaxValues: props.getFacetedMinMaxValues,
+  };
+  const [features] = useState<SbaaTableFeatures>(() => ({
+    ...sbaaTableFeatures,
+    facetedUniqueValues: (table, columnId) => () =>
+      facetFnsRef.current.getFacetedUniqueValues(table, columnId)(),
+    facetedMinMaxValues: (table, columnId) => () =>
+      facetFnsRef.current.getFacetedMinMaxValues(table, columnId)(),
+  }));
 
   const table = useTable({
     features,
@@ -143,7 +152,7 @@ export function SbaaTableProviderServerSide<
   });
 
   useEffect(() => {
-    if (table.store.state.pagination.pageIndex > table.getPageCount() - 1) {
+    if (table.state.pagination.pageIndex > table.getPageCount() - 1) {
       table.setPageIndex(table.getPageCount() - 1);
     }
   });

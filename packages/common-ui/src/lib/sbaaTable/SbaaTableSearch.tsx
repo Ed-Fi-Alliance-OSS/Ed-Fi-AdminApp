@@ -17,7 +17,6 @@ export const SbaaTableSearch: DivComponent = (props) => {
     return null as any;
   }
   const { globalFilter } = table.state;
-  const setGlobalFilter = (value: string | undefined) => table.setGlobalFilter(value);
 
   return (
     <InputGroup
@@ -40,12 +39,12 @@ export const SbaaTableSearch: DivComponent = (props) => {
         paddingEnd={10}
         placeholder="Search"
         value={globalFilter ?? ''}
-        onChange={(v) => setGlobalFilter(v)}
+        onChange={(v) => table.setGlobalFilter(v)}
       />
       {globalFilter ? (
         <InputRightElement>
           <IconButton
-            onClick={() => setGlobalFilter(undefined)}
+            onClick={() => table.setGlobalFilter(undefined)}
             className="clear-filter"
             fontSize="xl"
             color="gray.300"

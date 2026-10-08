@@ -186,7 +186,7 @@ export function SbaaTableProvider<
   });
 
   useEffect(() => {
-    if (table.store.state.pagination.pageIndex > table.getPageCount() - 1) {
+    if (table.state.pagination.pageIndex > table.getPageCount() - 1) {
       table.setPageIndex(table.getPageCount() - 1);
     }
   });
