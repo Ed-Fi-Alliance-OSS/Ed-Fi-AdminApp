@@ -69,6 +69,7 @@ import { AddOdsInstanceMetadataFields1751299288000 as PgsqlAddOdsInstanceMetadat
 import { AddCreateDeleteOdsPrivileges1785181605952 as PgsqlAddCreateDeleteOdsPrivileges1785181605952 } from './migrations/pgsql/1785181605952-AddCreateDeleteOdsPrivileges';
 import { RenameDbInstanceIdToInstanceManageId1785365966591 as PgsqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/pgsql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/pgsql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
+import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/pgsql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -108,6 +109,7 @@ import { AddOdsInstanceMetadataFields1751299288000 as MssqlAddOdsInstanceMetadat
 import { AddCreateDeleteOdsPrivileges1785181605952 as MssqlAddCreateDeleteOdsPrivileges1785181605952 } from './migrations/mssql/1785181605952-AddCreateDeleteOdsPrivileges';
 import { RenameDbInstanceIdToInstanceManageId1785365966591 as MssqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/mssql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as MssqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/mssql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
+import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/mssql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -147,6 +149,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlAddCreateDeleteOdsPrivileges1785181605952,
   PgsqlRenameDbInstanceIdToInstanceManageId1785365966591,
   PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000,
+  PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
 ];
 
 const getMSSQLMigrations = () => [
@@ -187,6 +190,7 @@ const getMSSQLMigrations = () => [
   MssqlAddCreateDeleteOdsPrivileges1785181605952,
   MssqlRenameDbInstanceIdToInstanceManageId1785365966591,
   MssqlAddMissingPrivilegesToGlobalAdmin1791158400000,
+  MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
