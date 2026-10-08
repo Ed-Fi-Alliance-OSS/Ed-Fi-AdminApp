@@ -1,11 +1,11 @@
-
 import {
+  Alert,
+  AlertIcon,
   Box,
   Button,
   ButtonGroup,
   FormControl,
   FormLabel,
-  Input,
   Select,
   Table,
   Tbody,
@@ -13,15 +13,22 @@ import {
   Text,
   Th,
   Thead,
+  Tooltip,
   Tr,
   chakra,
 } from '@chakra-ui/react';
-import { PageTemplate } from '@edanalytics/common-ui';
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { Icons, PageTemplate } from '@edanalytics/common-ui';
+import { resolveOdsApiUrls } from '@edanalytics/models';
+import { useQuery } from '@tanstack/react-query';
+import { useEffect, useMemo, useState } from 'react';
+import { useNavigate, useParams } from 'react-router';
 import certificationScenarios from './certification-scenarios.json';
-import { useNavToParent } from '../../helpers';
+import { edfiTenantQueriesGlobal, odsQueries, sbEnvironmentQueriesGlobal } from '../../api';
+import { getOdsTerminology, useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
+import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
+import { useCertificationSelection } from './useCertificationSelection';
 
 type CertificationScenario = {
   id: number;
@@ -36,17 +43,36 @@ type CertificationScenario = {
 };
 
 const getUniqueOptions = (values: Array<string | undefined>) =>
-  Array.from(new Set(values.filter((value): value is string => Boolean(value?.trim())))).sort((a, b) =>
-    a.localeCompare(b)
+  Array.from(new Set(values.filter((value): value is string => Boolean(value?.trim())))).sort(
+    (a, b) => a.localeCompare(b),
   );
 
 const scenarios = certificationScenarios as CertificationScenario[];
 const scenarioVersionOptions = getUniqueOptions(scenarios.map((item) => item.scenariosVersion));
 
+const TENANT_TOOLTIP =
+  'A tenant is a separate set of data inside this environment, usually one per organization (for example, a school district). Choose the tenant your API key and secret were created for.';
+const ODS_TOOLTIP: Record<'v2' | 'v3', string> = {
+  v2: "The Operational Data Store (ODS) is the database your application reads from and writes to through the Ed-Fi API. Choose the one you're certifying. Your key and secret must belong to it.",
+  v3: "The data store is the database your application reads from and writes to through the Ed-Fi API. Choose the one you're certifying. Your key and secret must belong to it.",
+};
+
+const LabelWithTooltip = ({ label, tooltip }: { label: string; tooltip: string }) => (
+  <FormLabel>
+    {label}{' '}
+    <Tooltip label={tooltip} hasArrow>
+      <chakra.span tabIndex={0} aria-label={`About ${label}`}>
+        <Icons.InfoCircle />
+      </chakra.span>
+    </Tooltip>
+  </FormLabel>
+);
+
 export const RequestCertificationPage = () => {
   const navigate = useNavigate();
-  const [keyValue, setKeyValue] = useState('');
-  const [secretValue, setSecretValue] = useState('');
+  const sbEnvironmentId = Number(useParams().sbEnvironmentId);
+  const { edfiTenantId, odsId, setSelection, toSearch } = useCertificationSelection();
+  const { auth, clearAuth } = useCertificationAuth();
   const selectedScenarioVersion = scenarioVersionOptions[0] ?? '';
   const [selectedAreaOrGroup, setSelectedAreaOrGroup] = useState('');
 
@@ -55,9 +81,9 @@ export const RequestCertificationPage = () => {
       getUniqueOptions(
         scenarios
           .filter((item) => item.scenariosVersion === selectedScenarioVersion)
-          .map((item) => item.scenariosGroup)
+          .map((item) => item.scenariosGroup),
       ),
-    [selectedScenarioVersion]
+    [selectedScenarioVersion],
   );
 
   const filteredScenarios = useMemo(
@@ -65,59 +91,179 @@ export const RequestCertificationPage = () => {
       scenarios.filter(
         (item) =>
           item.scenariosVersion === selectedScenarioVersion &&
-          (selectedAreaOrGroup === '' || item.scenariosGroup === selectedAreaOrGroup)
+          (selectedAreaOrGroup === '' || item.scenariosGroup === selectedAreaOrGroup),
       ),
-    [selectedScenarioVersion, selectedAreaOrGroup]
+    [selectedScenarioVersion, selectedAreaOrGroup],
   );
 
   const tableScenarios = useMemo(() => {
     const seen = new Set<string>();
 
-    return filteredScenarios.reduce<Array<Omit<CertificationScenario, 'scenarioStep'>>>((acc, item) => {
-      const key = `${item.scenariosGroup ?? ''}::${item.scenariosName ?? ''}`;
+    return filteredScenarios.reduce<Array<Omit<CertificationScenario, 'scenarioStep'>>>(
+      (acc, item) => {
+        const key = `${item.scenariosGroup ?? ''}::${item.scenariosName ?? ''}`;
 
-      if (seen.has(key)) {
+        if (seen.has(key)) {
+          return acc;
+        }
+
+        seen.add(key);
+        const { scenarioStep: _scenarioStep, ...scenarioWithoutStep } = item;
+        acc.push(scenarioWithoutStep);
         return acc;
-      }
-
-      seen.add(key);
-      const { scenarioStep: _scenarioStep, ...scenarioWithoutStep } = item;
-      acc.push(scenarioWithoutStep);
-      return acc;
-    }, []);
+      },
+      [],
+    );
   }, [filteredScenarios]);
 
   const navToParentOptions = useNavToParent();
-  const canValidateScenario = Boolean(keyValue.trim()) && Boolean(secretValue.trim());
+
+  const sbEnvironmentQuery = useQuery(sbEnvironmentQueriesGlobal.getOne({ id: sbEnvironmentId }));
+  const sbEnvironment = sbEnvironmentQuery.data;
+  const version = sbEnvironment?.version;
+  const tenantsQuery = useQuery(edfiTenantQueriesGlobal.getAll({ sbEnvironmentId }));
+  const tenants = Object.values(tenantsQuery.data ?? {});
+  const edfiTenant = tenants.find((t) => t.id === edfiTenantId);
+  const showOds = version !== 'v1';
+  const odsQuery = useQuery(
+    odsQueries.getAll({ edfiTenant: edfiTenant!, enabled: !!edfiTenant && showOds }),
+  );
+  const odss = Object.values(odsQuery.data ?? {});
+  const odsRequired = showOds && odss.length > 0;
+  // Fail closed: don't let the form run before we know whether an ODS must be chosen.
+  // Query errors go to the route error page (the query builder sets throwOnError: true), so only loading needs a guard here.
+  const isLoadingSelection =
+    sbEnvironmentQuery.isPending ||
+    tenantsQuery.isPending ||
+    (showOds && !!edfiTenant && odsQuery.isPending);
+
+  // A tenant ID from the URL that isn't in the list (stale link) counts as unset.
+  useEffect(() => {
+    if (tenantsQuery.isPending) return;
+    if (edfiTenantId !== undefined && edfiTenant) return;
+    if (tenants.length === 1) {
+      setSelection({ edfiTenantId: tenants[0].id, odsId: undefined });
+    } else if (edfiTenantId !== undefined) {
+      setSelection({ edfiTenantId: undefined, odsId: undefined });
+    }
+  }, [tenantsQuery.isPending, tenants, edfiTenantId, edfiTenant, setSelection]);
+
+  const resolved = useMemo(
+    () =>
+      edfiTenant
+        ? resolveOdsApiUrls(sbEnvironment?.configPublic?.odsApiMeta?.urls, edfiTenant.name)
+        : undefined,
+    [sbEnvironment, edfiTenant],
+  );
+  const contextRouting = resolved?.status === 'context-routing';
+  // A single ODS needs no choice: select it once the list has loaded (after any stale ID is cleared).
+  useEffect(() => {
+    if (!showOds || contextRouting || !edfiTenant || odsQuery.isPending) return;
+    if (odsId === undefined && odss.length === 1) {
+      setSelection({ odsId: odss[0].id });
+    }
+  }, [showOds, contextRouting, edfiTenant, odsQuery.isPending, odss, odsId, setSelection]);
+
+  useEffect(() => {
+    if (odsId === undefined || odsQuery.isPending) return;
+    if (!odss.some((ods) => ods.id === odsId)) {
+      setSelection({ odsId: undefined });
+    }
+  }, [odsQuery.isPending, odss, odsId, setSelection]);
+
+  const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
+  const odsLabel = getOdsTerminology(version).singular;
 
   if (!config.showRequestCertification) {
     return null;
+  }
+
+  const cancelButtons = (
+    <ButtonGroup mt={4} colorScheme="primary">
+      <Button
+        variant="ghost"
+        isLoading={false}
+        type="reset"
+        onClick={() => {
+          clearAuth();
+          navigate(navToParentOptions);
+        }}
+      >
+        Cancel
+      </Button>
+    </ButtonGroup>
+  );
+
+  if (contextRouting) {
+    return (
+      <PageTemplate title="Request Certification">
+        <Alert status="warning">
+          <AlertIcon />
+          This environment uses context-based routing, which certification doesn&apos;t support yet.
+        </Alert>
+        <chakra.form w="full">{cancelButtons}</chakra.form>
+      </PageTemplate>
+    );
   }
 
   return (
     <PageTemplate title="Request Certification">
       <chakra.form w="full">
         <Box w="30em" maxW="100%">
-          <FormControl>
-            <FormLabel>Key</FormLabel>
-            <Input
-              placeholder="Enter key"
-              value={keyValue}
-              onChange={(event) => setKeyValue(event.target.value)}
-            />
-          </FormControl>
+          {tenants.length >= 1 && (
+            <FormControl>
+              <LabelWithTooltip label="Tenant" tooltip={TENANT_TOOLTIP} />
+              <Select
+                placeholder="Select tenant"
+                isDisabled={tenants.length === 1}
+                value={edfiTenantId ?? ''}
+                onChange={(event) =>
+                  setSelection({
+                    edfiTenantId: Number(event.target.value) || undefined,
+                    odsId: undefined,
+                  })
+                }
+              >
+                {tenants.map((tenant) => (
+                  <option key={tenant.id} value={tenant.id}>
+                    {tenant.displayName}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
-          <FormControl>
-            <FormLabel>Secret</FormLabel>
-            <Input
-              placeholder="Enter secret"
-              type="password"
-              value={secretValue}
-              onChange={(event) => setSecretValue(event.target.value)}
-            />
-          </FormControl>
+          {odsRequired && (
+            <FormControl>
+              <LabelWithTooltip
+                label={odsLabel}
+                tooltip={ODS_TOOLTIP[version === 'v3' ? 'v3' : 'v2']}
+              />
+              <Select
+                placeholder={`Select ${odsLabel}`}
+                isDisabled={odss.length === 1}
+                value={odsId ?? ''}
+                onChange={(event) =>
+                  setSelection({ odsId: Number(event.target.value) || undefined })
+                }
+              >
+                {odss.map((ods) => (
+                  <option key={ods.id} value={ods.id}>
+                    {ods.displayName}
+                  </option>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
-          <FormControl>
+          <CertificationAuthenticateForm
+            sbEnvironmentId={sbEnvironmentId}
+            edfiTenantId={edfiTenantId}
+            odsId={odsId}
+            isDisabled={isLoadingSelection || (odsRequired && odsId === undefined)}
+          />
+
+          <FormControl mt={4}>
             <FormLabel>Scenarios Version</FormLabel>
             4.0.0
           </FormControl>
@@ -125,7 +271,9 @@ export const RequestCertificationPage = () => {
           <FormControl>
             <FormLabel>Area or Group Filter</FormLabel>
             <Select
-              placeholder={selectedScenarioVersion ? 'All area or group values' : 'Select version first'}
+              placeholder={
+                selectedScenarioVersion ? 'All area or group values' : 'Select version first'
+              }
               value={selectedAreaOrGroup}
               isDisabled={!selectedScenarioVersion}
               onChange={(event) => setSelectedAreaOrGroup(event.target.value)}
@@ -139,14 +287,7 @@ export const RequestCertificationPage = () => {
           </FormControl>
         </Box>
 
-        <Box
-          mt={6}
-          p={4}
-          border="1px solid"
-          borderColor="gray.200"
-          borderRadius="md"
-          bg="gray.50"
-        >
+        <Box mt={6} p={4} border="1px solid" borderColor="gray.200" borderRadius="md" bg="gray.50">
           <Text mb={3} fontWeight="semibold">
             Scenarios
           </Text>
@@ -169,14 +310,13 @@ export const RequestCertificationPage = () => {
                       size="sm"
                       colorScheme="primary"
                       type="button"
-                      isDisabled={!canValidateScenario}
-                      onClick={() => {
-                        navigate('execution', {
-                          state: {
-                            scenario,
-                          },
-                        });
-                      }}
+                      isDisabled={!isAuthenticated}
+                      onClick={() =>
+                        navigate({
+                          pathname: 'execution',
+                          search: toSearch({ scenarioId: scenario.id }),
+                        })
+                      }
                     >
                       Validate Scenario
                     </Button>
@@ -194,18 +334,7 @@ export const RequestCertificationPage = () => {
           </Table>
         </Box>
 
-        <ButtonGroup mt={4} colorScheme="primary">
-          <Button
-            variant="ghost"
-            isLoading={false}
-            type="reset"
-            onClick={() => {
-              navigate(navToParentOptions);
-            }}
-          >
-            Cancel
-          </Button>
-        </ButtonGroup>
+        {cancelButtons}
       </chakra.form>
     </PageTemplate>
   );

@@ -7,7 +7,7 @@ import { PublicAppLayout } from '../Layout/PublicAppLayout';
 import { StandardLayout } from '../Layout/StandardLayout';
 import { TeamHome } from '../Pages/Home/TeamHome';
 import { useSearchParamsObject } from '../helpers/useSearch';
-import { config } from '../../config/config'
+import { config } from '../../config/config';
 
 import { accountRouteGlobal } from './account.routes';
 import {
@@ -33,7 +33,7 @@ import {
   claimsetsIndexRoute,
   claimsetsRoute,
 } from './claimset.routes';
-import { sbEnvironmentGlobalCertExecutionRoute, sbEnvironmentGlobalCertRoute } from './certification.routes';
+import { sbEnvironmentGlobalCertRoute } from './certification.routes';
 import {
   edfiTenantCreateRoute,
   edfiTenantIndexRoute,
@@ -223,7 +223,7 @@ const AuthenticatedRoute = () => {
     return null;
   } else if (me.data === null) {
     window.location.href = `${window.location.origin}/login?redirect=${encodeURIComponent(
-      window.location.href.replace(window.location.origin, '')
+      window.location.href.replace(window.location.origin, ''),
     )}`;
     return null;
   }
@@ -245,7 +245,6 @@ export const adminRoutes: RouteObject = {
     sbEnvironmentGlobalRoute,
     sbEnvironmentGlobalIndexRoute,
     sbEnvironmentGlobalCertRoute,
-    sbEnvironmentGlobalCertExecutionRoute,
 
     teamsRoute,
     teamsIndexRoute,
@@ -393,7 +392,7 @@ routes.forEach(addPathToHandle);
 const flattenRoute = (r: RouteObject): RouteObject[] =>
   [r, ...(r.children ?? []).map((route) => flattenRoute(route))].flat();
 const router = createBrowserRouter(routes, {
-  basename: config.basePath
+  basename: config.basePath,
 });
 export const flatRoutes = routes.flatMap(flattenRoute);
 export const Routes = () => {

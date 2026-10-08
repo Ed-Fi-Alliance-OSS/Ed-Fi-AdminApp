@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { sbEnvironmentQueriesGlobal } from '../../api';
 import {
+  globalEdfiTenantAuthConfig,
   globalOwnershipAuthConfig,
   globalSbEnvironmentAuthConfig,
   popSyncBanner,
@@ -38,6 +39,12 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
   const canUpdate = useAuthorize(
     globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:update')
   );
+  // The certification page lists the environment's tenants and ODSs, so the
+  // action needs those reads too (sb-environment:update doesn't imply them).
+  const canReadTenants = useAuthorize(
+    globalEdfiTenantAuthConfig('__filtered__', 'sb-environment.edfi-tenant:read')
+  );
+  const canReadOdss = useAuthorize({ privilege: 'ods:read', subject: { id: '__filtered__' } });
   const canDelete = useAuthorize(
     globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:delete')
   );
@@ -177,10 +184,13 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
           : {}),
         // overflowOnly keeps it in the "More" menu without counting toward the
         // inline slots, so it never pushes Edit/Delete/Sync out of view.
-        // Gated on update, not read: certification starts a workflow. A
-        // dedicated privilege, enforced server-side, is tracked in AC-466.
+        // Gated on update, not read: certification starts a workflow. The page
+        // also lists tenants and ODSs, so it needs those read privileges too.
+        // A dedicated privilege, enforced server-side, is tracked in AC-466.
         ...(config.showRequestCertification &&
         canUpdate &&
+        canReadTenants &&
+        canReadOdss &&
         CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '')
           ? {
               RequestCert: {
