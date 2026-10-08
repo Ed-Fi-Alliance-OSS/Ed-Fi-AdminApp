@@ -1,13 +1,10 @@
 import { useBoolean } from '@chakra-ui/react';
 import {
-  ColumnDef,
   ColumnFiltersState,
   OnChangeFn,
+  ReactTable,
   RowSelectionState,
-  Table,
-  getCoreRowModel,
-  getExpandedRowModel,
-  useReactTable,
+  useTable,
 } from '@tanstack/react-table';
 import React, { useEffect, useMemo } from 'react';
 import { useSearchParams } from 'react-router';
@@ -23,6 +20,7 @@ import {
   setPaginationParams,
   setSortParams,
 } from '../dataTable';
+import { SbaaColumnDef, SbaaTableFeatures, sbaaTableFeatures } from './sbaaTableFeatures';
 
 export function SbaaTableProviderServerSide<
   UseSubRows extends boolean,
@@ -32,15 +30,14 @@ export function SbaaTableProviderServerSide<
   useSubRows?: UseSubRows;
   children?: React.ReactNode;
   data: T[] | IterableIterator<T>;
-  columns: ColumnDef<T>[];
+  columns: SbaaColumnDef<T>[];
   enableRowSelection?: boolean;
   rowSelectionState?: RowSelectionState;
   onRowSelectionChange?: OnChangeFn<RowSelectionState> | undefined;
   pageSizes?: number[];
   rowCount: number;
-  getFacetedMinMaxValues: (table: Table<T>, columnId: string) => () => undefined | [number, number];
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  getFacetedUniqueValues: (table: Table<T>, columnId: string) => () => Map<any, number>;
+  getFacetedMinMaxValues: NonNullable<SbaaTableFeatures['facetedMinMaxValues']>;
+  getFacetedUniqueValues: NonNullable<SbaaTableFeatures['facetedUniqueValues']>;
   queryKeyPrefix?: string | undefined;
 }) {
   const data = useMemo(() => [...props.data], [props.data]);
@@ -82,12 +79,23 @@ export function SbaaTableProviderServerSide<
 
   const showSettings = useBoolean(sortParams.length > 1 || columnFilters.length > 0);
 
-  const table = useReactTable({
+  const { getFacetedUniqueValues, getFacetedMinMaxValues } = props;
+  // Filtering, sorting, and pagination happen on the server (see the `manual*`
+  // options below), so only the faceting slots are swapped for the caller's
+  // server-backed implementations.
+  const features: SbaaTableFeatures = useMemo(
+    () => ({
+      ...sbaaTableFeatures,
+      facetedUniqueValues: getFacetedUniqueValues,
+      facetedMinMaxValues: getFacetedMinMaxValues,
+    }),
+    [getFacetedUniqueValues, getFacetedMinMaxValues]
+  );
+
+  const table = useTable({
+    features,
     data,
     columns,
-    filterFns: {
-      fuzzy: fuzzyFilter,
-    },
     state: {
       sorting: sortParams,
       globalFilter,
@@ -116,10 +124,7 @@ export function SbaaTableProviderServerSide<
     ...(props.onRowSelectionChange ? { onRowSelectionChange: props.onRowSelectionChange } : {}),
     onGlobalFilterChange: setGlobalFilter,
     onColumnFiltersChange: setColumnFilters,
-    getCoreRowModel: getCoreRowModel(),
-    getFacetedUniqueValues: props.getFacetedUniqueValues,
-    getFacetedMinMaxValues: props.getFacetedMinMaxValues,
-    getExpandedRowModel: props.useSubRows ? getExpandedRowModel() : undefined,
+    manualExpanding: !props.useSubRows,
     enableMultiRowSelection: props.enableRowSelection,
     getRowId: (row) => row.id,
     enableMultiSort: true,
@@ -131,13 +136,14 @@ export function SbaaTableProviderServerSide<
     pageCount: Math.ceil(props.rowCount / paginationParams.pageSize),
     initialState: {
       pagination: {
+        pageIndex: 0,
         pageSize: pageSizes[0],
       },
     },
   });
 
   useEffect(() => {
-    if (table.getState().pagination.pageIndex > table.getPageCount() - 1) {
+    if (table.store.state.pagination.pageIndex > table.getPageCount() - 1) {
       table.setPageIndex(table.getPageCount() - 1);
     }
   });
@@ -145,7 +151,10 @@ export function SbaaTableProviderServerSide<
   return (
     <SbaaTableContext.Provider
       value={{
-        table,
+        // The context is shared by tables of every row type; v9's invariant `TData`
+        // generic means the concrete table has to be widened explicitly here.
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        table: table as unknown as ReactTable<SbaaTableFeatures, any>,
         pageSizes,
         pendingFilterColumn,
         setPendingFilterColumn,

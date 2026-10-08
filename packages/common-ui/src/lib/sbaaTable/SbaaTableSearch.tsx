@@ -16,8 +16,8 @@ export const SbaaTableSearch: DivComponent = (props) => {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     return null as any;
   }
-  const { globalFilter } = table.getState();
-  const { setGlobalFilter } = table;
+  const { globalFilter } = table.state;
+  const setGlobalFilter = (value: string | undefined) => table.setGlobalFilter(value);
 
   return (
     <InputGroup
