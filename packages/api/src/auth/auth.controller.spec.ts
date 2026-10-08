@@ -1,4 +1,11 @@
 import 'reflect-metadata';
+jest.mock('openid-client', () => ({
+  discovery: jest.fn(),
+  fetchUserInfo: jest.fn(),
+  buildEndSessionUrl: jest.fn(),
+  skipSubjectCheck: Symbol('skipSubjectCheck'),
+}));
+
 import { BadRequestException } from '@nestjs/common';
 import type { Request, Response } from 'express';
 import passport from 'passport';
