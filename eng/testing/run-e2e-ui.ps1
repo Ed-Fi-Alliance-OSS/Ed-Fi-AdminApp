@@ -328,7 +328,7 @@ function Wait-ForAdminAppReadiness {
   $keycloakLoginUrl = 'https://localhost/auth/realms/edfi/protocol/openid-connect/auth?client_id=edfiadminapp&redirect_uri=https%3A%2F%2Flocalhost%2Fadminapp-api%2Fapi%2Fauth%2Fcallback%2F1&response_type=code&scope=openid%20profile%20email'
 
   $requiredStableChecks = 3
-  $maxReadinessChecks = 167
+  $maxReadinessChecks = 200
   $readinessPollSeconds = 3
   $stableChecks = 0
   $checkMssqlDb = ($DbEngine -eq 'mssql')
