@@ -22,4 +22,22 @@ describe('custom-environment-variables.js', () => {
       __format: 'json',
     });
   });
+
+  it('maps SAMPLE_OIDC_CONFIG and AUTH0_CONFIG_SECRET_VALUE as JSON objects so partial overrides merge', () => {
+    expect(customEnvironmentVariables.SAMPLE_OIDC_CONFIG).toEqual({
+      __name: 'SAMPLE_OIDC_CONFIG',
+      __format: 'json',
+    });
+    expect(customEnvironmentVariables.AUTH0_CONFIG_SECRET_VALUE).toEqual({
+      __name: 'AUTH0_CONFIG_SECRET_VALUE',
+      __format: 'json',
+    });
+  });
+
+  it('maps DB_SECRET_VALUE with __name/__format (the plain name/format form is ignored by config v5)', () => {
+    expect(customEnvironmentVariables.DB_SECRET_VALUE).toEqual({
+      __name: 'DB_SECRET_VALUE',
+      __format: 'json',
+    });
+  });
 });
