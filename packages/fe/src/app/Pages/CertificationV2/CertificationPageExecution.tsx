@@ -1,4 +1,6 @@
 import {
+  Alert,
+  AlertIcon,
   Box,
   Button,
   ButtonGroup,
@@ -17,10 +19,13 @@ import {
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { useEffect, useMemo, useState } from 'react';
-import { useLocation, useNavigate } from 'react-router';
+import { useNavigate, useParams } from 'react-router';
 import certificationScenarios from './certification-scenarios.json';
 import { useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
+import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
+import { useCertificationSelection } from './useCertificationSelection';
 
 type CertificationParameter = {
   name?: string;
@@ -34,10 +39,6 @@ type CertificationScenario = {
   scenariosName?: string;
   scenarioStep?: string;
   parameters?: CertificationParameter[];
-};
-
-type CertificationExecutionLocationState = {
-  scenario?: CertificationScenario;
 };
 
 type ValidationErrorResult = {
@@ -60,15 +61,27 @@ type RowExecutionStatus = 'Not executed' | 'Successful' | 'Failed';
 export const CertificationPageExecution = () => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
-  const location = useLocation();
-  const selectedScenario = (location.state as CertificationExecutionLocationState | null)?.scenario;
+  const sbEnvironmentId = Number(useParams().sbEnvironmentId);
+  const { edfiTenantId, odsId, scenarioId } = useCertificationSelection();
+  const { auth, clearReason } = useCertificationAuth();
   const scenarios = certificationScenarios as CertificationScenario[];
+  const selectedScenario = scenarios.find((item) => item.id === scenarioId);
+  const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
+
+  // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
+  const parentLocation = useMemo(() => {
+    const params = new URLSearchParams();
+    if (edfiTenantId !== undefined) params.set('edfiTenantId', String(edfiTenantId));
+    if (odsId !== undefined) params.set('odsId', String(odsId));
+    const query = params.toString();
+    return { pathname: navToParentOptions, search: query ? `?${query}` : '' };
+  }, [edfiTenantId, odsId, navToParentOptions]);
 
   useEffect(() => {
-    if (!selectedScenario) {
-      navigate(navToParentOptions, { replace: true });
+    if (!selectedScenario || edfiTenantId === undefined) {
+      navigate(parentLocation, { replace: true });
     }
-  }, [selectedScenario, navigate, navToParentOptions]);
+  }, [selectedScenario, edfiTenantId, navigate, parentLocation]);
 
   const scenarioRows = useMemo(
     () =>
@@ -76,9 +89,9 @@ export const CertificationPageExecution = () => {
         (item) =>
           item.scenariosVersion === selectedScenario?.scenariosVersion &&
           item.scenariosGroup === selectedScenario?.scenariosGroup &&
-          item.scenariosName === selectedScenario?.scenariosName
+          item.scenariosName === selectedScenario?.scenariosName,
       ),
-    [scenarios, selectedScenario]
+    [scenarios, selectedScenario],
   );
 
   const [validatedScenario, setValidatedScenario] = useState<CertificationScenario | null>(null);
@@ -87,9 +100,9 @@ export const CertificationPageExecution = () => {
     () =>
       (validatedScenario?.parameters ?? []).filter(
         (parameter): parameter is CertificationParameter & { name: string } =>
-          Boolean(parameter.name?.trim())
+          Boolean(parameter.name?.trim()),
       ),
-    [validatedScenario]
+    [validatedScenario],
   );
 
   const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
@@ -133,12 +146,12 @@ export const CertificationPageExecution = () => {
     return null;
   }
 
-  if (!selectedScenario) {
+  if (!selectedScenario || edfiTenantId === undefined) {
     return null;
   }
 
   const canExecuteScenario = parameterDefinitions.every((parameter) =>
-    Boolean(parameterValues[parameter.name]?.trim())
+    Boolean(parameterValues[parameter.name]?.trim()),
   );
 
   const formattedLastExecution = (() => {
@@ -159,6 +172,19 @@ export const CertificationPageExecution = () => {
 
   return (
     <PageTemplate title="Certification">
+      <Box mb={4} w="30em" maxW="100%">
+        {!isAuthenticated && clearReason !== 'user' && (
+          <Alert status="info" mb={3}>
+            <AlertIcon />
+            Your session has expired. Please validate your credentials again to continue.
+          </Alert>
+        )}
+        <CertificationAuthenticateForm
+          sbEnvironmentId={sbEnvironmentId}
+          edfiTenantId={edfiTenantId}
+          odsId={odsId}
+        />
+      </Box>
       <chakra.form w="full">
         <Box w="full">
           <Box
@@ -222,7 +248,10 @@ export const CertificationPageExecution = () => {
                       return (
                         <HStack spacing={2}>
                           <Box w="8px" h="8px" borderRadius="full" bg={dotColor} />
-                          <Text color={statusColor} fontWeight={status === 'Not executed' ? 'normal' : 'medium'}>
+                          <Text
+                            color={statusColor}
+                            fontWeight={status === 'Not executed' ? 'normal' : 'medium'}
+                          >
                             {status}
                           </Text>
                         </HStack>
@@ -234,6 +263,7 @@ export const CertificationPageExecution = () => {
                       size="sm"
                       colorScheme="primary"
                       type="button"
+                      isDisabled={!isAuthenticated}
                       onClick={() => {
                         setValidatedScenario(row);
                         setExecutionResult(null);
@@ -277,7 +307,8 @@ export const CertificationPageExecution = () => {
                   Enter Validation Parameters
                 </Text>
                 <Text fontSize="sm" color="orange.900">
-                  Complete the fields below, then click Execute Scenario to run validation for the selected step.
+                  Complete the fields below, then click Execute Scenario to run validation for the
+                  selected step.
                 </Text>
               </Box>
 
@@ -300,7 +331,7 @@ export const CertificationPageExecution = () => {
               <Button
                 colorScheme="primary"
                 type="button"
-                isDisabled={!canExecuteScenario}
+                isDisabled={!isAuthenticated || !canExecuteScenario}
                 onClick={() => {
                   const hasErrors = !nextExecutionIsSuccess;
 
@@ -350,7 +381,7 @@ export const CertificationPageExecution = () => {
               variant="ghost"
               type="button"
               onClick={() => {
-                navigate(navToParentOptions);
+                navigate(parentLocation);
               }}
             >
               Back
@@ -388,7 +419,7 @@ export const CertificationPageExecution = () => {
         {executionResult && (
           <>
             <Text mb={1}>Last execution: {formattedLastExecution}</Text>
-            
+
             {executionResult.errors > 0 && executionResult['validation-errors'].length > 0 && (
               <>
                 <Text mb={3}>Errors: {executionResult.errors}</Text>
