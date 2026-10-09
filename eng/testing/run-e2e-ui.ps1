@@ -22,15 +22,33 @@ Rebuild Admin App images before starting services.
 .PARAMETER StopServices
 Stop Docker Compose services after the test run (success or failure).
 
+.PARAMETER SkipV1
+Skip the Ed-Fi v6 ("v1" environment) topology: its containers are not started and
+scenarios tagged @v1 are excluded from the Playwright run. Reduces image pulls and run time.
+
+.PARAMETER KeepEnvFile
+Use the existing compose/.env as-is instead of regenerating it from compose/.env.example.
+Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
+
+.PARAMETER ServiceStartTimeoutMinutes
+Maximum minutes to wait for 'docker compose pull' and 'docker compose up' (each) before
+aborting. Defaults to 20.
+
 .EXAMPLE
 ./eng/testing/run-e2e-ui.ps1 -DbEngine mssql -Rebuild -StopServices
+
+.EXAMPLE
+./eng/testing/run-e2e-ui.ps1 -SkipV1 -KeepEnvFile
 #>
 
 param(
   [ValidateSet('pgsql', 'mssql')]
   [string]$DbEngine = 'pgsql',
   [switch]$Rebuild,
-  [switch]$StopServices
+  [switch]$StopServices,
+  [switch]$SkipV1,
+  [switch]$KeepEnvFile,
+  [int]$ServiceStartTimeoutMinutes = 20
 )
 
 $ErrorActionPreference = 'Stop'
@@ -137,6 +155,24 @@ function Set-AdminAppEnvFile {
 
   $envExamplePath = Join-Path $repoRoot 'compose/.env.example'
   $envPath = Join-Path $repoRoot 'compose/.env'
+
+  if ($KeepEnvFile) {
+    if (-not (Test-Path $envPath)) {
+      throw '-KeepEnvFile was specified but compose/.env does not exist. Create it from compose/.env.example or omit -KeepEnvFile.'
+    }
+    $engineLine = Select-String -Path $envPath -Pattern '^\s*DB_ENGINE\s*=\s*(\S+)' | Select-Object -Last 1
+    $configuredEngine = if ($engineLine) { $engineLine.Matches.Groups[1].Value } else { 'pgsql' }
+    if ($configuredEngine -ne $Engine) {
+      throw "-KeepEnvFile: DB_ENGINE in compose/.env is '$configuredEngine' but -DbEngine is '$Engine'. Align them or omit -KeepEnvFile."
+    }
+    if ($Engine -eq 'mssql') {
+      $saLine = Select-String -Path $envPath -Pattern '^\s*MSSQL_SA_PASSWORD\s*=\s*(.+?)\s*$' | Select-Object -Last 1
+      if (-not $saLine) { throw '-KeepEnvFile: MSSQL_SA_PASSWORD is not set in compose/.env.' }
+      $script:mssqlSaPassword = $saLine.Matches.Groups[1].Value
+    }
+    Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
+    return
+  }
 
   if (Test-Path $envPath) {
     Write-Host "WARNING: compose/.env already exists and is about to be overwritten/regenerated from compose/.env.example. Any local customizations (image tags, secrets, dataset choice) will be lost." -ForegroundColor Yellow
@@ -314,7 +350,7 @@ function Show-AdminAppServiceLogs {
 
 $testExitCode = 1
 try {
-  & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6 -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql')
+  & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6:(-not $SkipV1) -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql') -StartTimeoutMinutes $ServiceStartTimeoutMinutes
   if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
 
   Wait-ForAdminAppReadiness -DbEngine $DbEngine
@@ -324,7 +360,11 @@ try {
 
   Push-Location $repoRoot
   try {
-    npm run test:e2e:bdd
+    if ($SkipV1) {
+      npm run test:e2e:bdd -- --grep-invert '@v1'
+    } else {
+      npm run test:e2e:bdd
+    }
     $testExitCode = $LASTEXITCODE
   }
   finally {
