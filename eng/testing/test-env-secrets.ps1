@@ -76,6 +76,74 @@ try {
   $clean = & (Join-Path $repoRoot 'eng/helpers/warn-env-placeholders.ps1') -EnvFile $envPath 3>&1
   Assert-True (-not $clean) 'warn-env-placeholders warned on a fully generated .env'
 
+  $tokens = $null
+  $parseErrors = $null
+  $runnerAst = [System.Management.Automation.Language.Parser]::ParseFile(
+    (Join-Path $repoRoot 'eng/testing/run-e2e-ui.ps1'), [ref]$tokens, [ref]$parseErrors
+  )
+  Assert-True ($parseErrors.Count -eq 0) 'E2E runner contains PowerShell syntax errors'
+  $envFunction = $runnerAst.Find({
+    param($node)
+    $node -is [System.Management.Automation.Language.FunctionDefinitionAst] -and $node.Name -eq 'Set-AdminAppEnvFile'
+  }, $true)
+  Assert-True ($null -ne $envFunction) 'Set-AdminAppEnvFile was not found'
+  $examplePath = Join-Path $repoRoot 'compose/.env.example'
+  & {
+    $repoRoot = Join-Path $tempDir 'runner'
+    New-Item -ItemType Directory -Path (Join-Path $repoRoot 'compose') | Out-Null
+    Copy-Item $examplePath (Join-Path $repoRoot 'compose/.env.example')
+    $mockVolumes = @()
+    function docker { $mockVolumes }
+    Invoke-Expression $envFunction.Extent.Text
+    $runnerEnvPath = Join-Path $repoRoot 'compose/.env'
+    $previousSaPassword = $env:MSSQL_SA_PASSWORD
+    try {
+      foreach ($engine in @('pgsql', 'mssql')) {
+        Set-AdminAppEnvFile -Engine $engine
+        $runnerLines = Get-Content $runnerEnvPath
+        Assert-True (-not ($runnerLines | Where-Object { $_ -match '^[A-Z0-9_]+=.*change-me' })) "Runner left placeholders for $engine"
+        $dbSecret = Get-EnvValue $runnerLines 'DB_SECRET_VALUE' | ConvertFrom-Json
+        if ($engine -eq 'pgsql') {
+          Assert-True ($dbSecret.DB_PASSWORD -eq (Get-EnvValue $runnerLines 'POSTGRES_PASSWORD')) 'Runner PostgreSQL password mismatch'
+        } else {
+          Assert-True ($dbSecret.MSSQL_DB_PASSWORD -eq (Get-EnvValue $runnerLines 'MSSQL_SA_PASSWORD')) 'Runner MSSQL password mismatch'
+        }
+        Add-Content $runnerEnvPath 'CUSTOM_SETTING=preserve-me'
+        $beforeRetry = [System.IO.File]::ReadAllText($runnerEnvPath)
+        $env:MSSQL_SA_PASSWORD = $null
+        $script:mssqlSaPassword = $null
+        Set-AdminAppEnvFile -Engine $engine
+        Assert-True ([System.IO.File]::ReadAllText($runnerEnvPath) -ceq $beforeRetry) "Retry changed existing settings or secrets for $engine"
+        if ($engine -eq 'mssql') {
+          Assert-True ($env:MSSQL_SA_PASSWORD -eq $dbSecret.MSSQL_DB_PASSWORD) 'Retry did not restore MSSQL process password'
+          Assert-True ($script:mssqlSaPassword -eq $dbSecret.MSSQL_DB_PASSWORD) 'Retry did not restore MSSQL readiness password'
+        }
+        $otherEngine = if ($engine -eq 'pgsql') { 'mssql' } else { 'pgsql' }
+        $threw = $false
+        try { Set-AdminAppEnvFile -Engine $otherEngine } catch { $threw = $true }
+        Assert-True $threw 'Runner did not reject a different engine'
+        Assert-True ([System.IO.File]::ReadAllText($runnerEnvPath) -ceq $beforeRetry) 'Engine mismatch changed the environment'
+        Remove-Item $runnerEnvPath -Force
+      }
+      Copy-Item $examplePath $runnerEnvPath
+      $beforeRetry = [System.IO.File]::ReadAllText($runnerEnvPath)
+      $threw = $false
+      try { Set-AdminAppEnvFile -Engine pgsql } catch { $threw = $true; $message = $_.Exception.Message }
+      Assert-True $threw 'Runner did not reject existing placeholders'
+      Assert-True ($message -match 'DB_SECRET_VALUE' -and $message -match 'KEYCLOAK_EDFIADMINAPP_CLIENT_SECRET') 'Placeholder error does not name the affected variables'
+      Assert-True (-not $message.Contains('change-me-')) 'Placeholder error leaked a secret value'
+      Assert-True ([System.IO.File]::ReadAllText($runnerEnvPath) -ceq $beforeRetry) 'Placeholder rejection changed the environment'
+      Remove-Item $runnerEnvPath -Force
+      $mockVolumes = @('vol-edfiadminapp-db')
+      $threw = $false
+      try { Set-AdminAppEnvFile -Engine pgsql } catch { $threw = $true }
+      Assert-True $threw 'Runner generated new secrets for existing volumes without an environment file'
+      Assert-True (-not (Test-Path $runnerEnvPath)) 'Runner created an environment file despite existing volumes'
+    } finally {
+      $env:MSSQL_SA_PASSWORD = $previousSaPassword
+    }
+  }
+
   Write-Host 'env-secrets smoke test passed.' -ForegroundColor Green
 }
 finally {
