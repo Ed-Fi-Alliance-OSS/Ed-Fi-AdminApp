@@ -383,7 +383,8 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 ### Notes
 
-- **`compose/.env` is regenerated on every run unless `-KeepEnvFile` is passed.** The script overwrites it from `compose/.env.example` (patching it for MSSQL when needed), so any local customizations you've made to `compose/.env` (image tags, secrets, dataset choice) will be lost. A warning is printed when this happens.
+- **Retries preserve `compose/.env`.** Secrets, image tags and dataset choices remain unchanged after a timeout or failed test. For MSSQL, the existing SA password is restored into the runner's process environment and readiness checks.
+- **Unsafe configuration stops provisioning.** Existing `change-me` placeholders or a mismatched `DB_ENGINE` cause an error without overwriting the file. If the file is missing but previous stack volumes exist, restore the original configuration or deliberately provision a separate clean environment. The runner does not rotate stored credentials, replace encryption keys or delete volumes automatically.
 - **ODS/API databases are unaffected by `-DbEngine`.** The `v6`, `odsV7-adminV2`, and `odsV7-adminV3` topologies always run on PostgreSQL; only the Admin App's own database switches between PostgreSQL and SQL Server.
 - **CI runs this script against both engines.** `.github/workflows/run-e2e-ui.yml` uses a `db-engine: [pgsql, mssql]` matrix that calls `run-e2e-ui.ps1 -DbEngine <pgsql|mssql> -Rebuild -StopServices -SkipV1` once per engine, after a Docker Hub login (`vars.DOCKER_USERNAME` / `secrets.DOCKER_HUB_TOKEN`) to avoid pull rate limits. Image pulls are capped at 4 in parallel (`COMPOSE_PARALLEL_LIMIT`) and retried 3 times.
 
