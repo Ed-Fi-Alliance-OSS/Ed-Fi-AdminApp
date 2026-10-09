@@ -25,6 +25,7 @@ import {
   getPrefixedName,
   getSortParams,
   stringifyColumnFilters,
+  SbaaCellContext,
 } from '@edanalytics/common-ui';
 import {
   PgBossJobState,
@@ -33,7 +34,7 @@ import {
   SyncQueuePaginatedResults,
 } from '@edanalytics/models';
 import { keepPreviousData, useQuery } from '@tanstack/react-query';
-import { CellContext, ColumnFiltersState, SortingState } from '@tanstack/react-table';
+import { ColumnFiltersState, SortingState } from '@tanstack/react-table';
 import { useEffect, useRef } from 'react';
 import { useSearchParams } from 'react-router';
 import { methods, queryKey } from '../../api';
@@ -70,7 +71,7 @@ export const hasPendingSyncQueueRows = (
 
 const urlStatePrefix = 'snc';
 
-const SbSyncQueueNameCell = (info: CellContext<SbSyncQueueDto, unknown>) => {
+const SbSyncQueueNameCell = (info: SbaaCellContext<SbSyncQueueDto>) => {
   const actions = useSbSyncQueueActions(info.row.original);
   return (
     <HStack justify="space-between">
