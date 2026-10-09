@@ -1,4 +1,5 @@
 import './modes/dev';
+import './utils/json-env-preflight-run';
 
 process.env['NODE_CONFIG_DIR'] = process.env['NODE_CONFIG_DIR'] || './packages/api/config';
 
@@ -33,6 +34,7 @@ import { createGlobalValidationPipe } from './app/global-validation-pipe';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
 import { assertValidSessionSecret } from './app/session-secret';
 import { assertValidDbEncryptionSecret } from './app/db-encryption-secret';
+import { assertProductionSecrets } from './app/production-secrets';
 import axios from 'axios';
 import https from 'https';
 
@@ -197,6 +199,18 @@ async function bootstrap() {
   // and verbose. Without this, startup debug output (including connection parameters) would
   // print even for an operator who set LOG_LEVEL=log or error.
   Logger.overrideLogger(getLogLevel());
+
+  // Validate production secrets before ANY database work. Creating the app runs migrations, and
+  // the seeding migration would otherwise insert a placeholder OIDC client secret into the oidc
+  // table before we got a chance to refuse -- and since seeding only runs while that table is
+  // empty, the real secret would never be seeded after the operator fixed their configuration.
+  assertProductionSecrets({
+    nodeEnv: process.env.NODE_ENV,
+    dbEngine: config.DB_ENGINE || 'pgsql',
+    // AWS-managed DB secrets are operator-controlled and not inspected here.
+    dbSecret: config.AWS_DB_SECRET ? undefined : config.DB_SECRET_VALUE,
+    sampleOidcClientSecret: config.SAMPLE_OIDC_CONFIG?.clientSecret,
+  });
 
   // Check database availability first - exit if not available.
   // This must run BEFORE NestFactory.create: creating the app initializes TypeOrmModule,

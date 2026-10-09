@@ -147,6 +147,8 @@ function Get-OdsMinimalTemplateBackup {
 Test-Prerequisites
 Get-OdsMinimalTemplateBackup
 
+. (Join-Path $repoRoot 'eng/helpers/env-secrets.ps1')
+
 function Set-AdminAppEnvFile {
   param(
     [ValidateSet('pgsql', 'mssql')]
@@ -178,34 +180,39 @@ function Set-AdminAppEnvFile {
     Write-Host "WARNING: compose/.env already exists and is about to be overwritten/regenerated from compose/.env.example. Any local customizations (image tags, secrets, dataset choice) will be lost." -ForegroundColor Yellow
   }
 
+  # Secrets are regenerated on every run, but PostgreSQL, SQL Server and Keycloak only read them
+  # when their data volume is first initialized. Best-effort check (docker may be absent or the
+  # daemon down): warn only, never delete anything, never fail the run because of this check.
+  try {
+    # Every named volume in compose/edfi-services.yml and compose/adminapp-services.yml.
+    $stackVolumePattern = '^vol-(edfiadminapp-(db|mssql|keycloak)|odsV7-adminV[23]-.+|db-admin-6x|db-ods-6x-.+)$'
+    $existingVolumes = @(docker volume ls -q 2>$null | Where-Object { $_ -match $stackVolumePattern })
+    if ($existingVolumes.Count -gt 0) {
+      $resetCommand = 'docker compose -f compose/edfi-services.yml -f compose/nginx-compose.yml -f compose/adminapp-services.yml --env-file compose/.env --profile postgresql --profile mssql --profile adminapp down -v'
+      Write-Warning ("Existing Docker volumes from a previous run were found ($($existingVolumes -join ', ')). " +
+        "The secrets generated for this run will NOT match the credentials stored in those volumes, so database authentication, Keycloak client secrets and decryption of existing rows will fail. " +
+        "To start clean, run: $resetCommand " +
+        "NOTE: 'down -v' permanently deletes all data in those volumes. This script does not delete anything.")
+    }
+  } catch {
+    # Ignore: docker unavailable or daemon not running.
+  }
+
   Copy-Item -Path $envExamplePath -Destination $envPath -Force
 
-  # compose/.env.example ships SESSION_SECRET_VALUE as an empty array on purpose
-  # (assertValidSessionSecret fails startup on an empty array) so that copying
-  # the example unchanged can never produce a working, publicly-known secret.
-  # Generate a real one here for automated e2e provisioning.
-  $sessionSecret = [Convert]::ToBase64String([System.Security.Cryptography.RandomNumberGenerator]::GetBytes(32))
-  $envContent = Get-Content -Path $envPath
-  $sessionSecretFired = 0
-  $envContent = $envContent | ForEach-Object {
-    if ($_ -match '^SESSION_SECRET_VALUE=\[\]$') {
-      $sessionSecretFired++
-      "SESSION_SECRET_VALUE=[`"$sessionSecret`"]"
-    } else {
-      $_
-    }
-  }
-  if ($sessionSecretFired -ne 1) {
-    throw "compose/.env.example's SESSION_SECRET_VALUE=[] line was not found exactly once (matched $sessionSecretFired time(s)). compose/.env.example may have been reformatted; update the regex in Set-AdminAppEnvFile."
-  }
-  Set-Content -Path $envPath -Value $envContent
-  Write-Host "compose/.env patched with a generated SESSION_SECRET_VALUE." -ForegroundColor Cyan
+  # compose/.env.example ships change-me placeholders (and an empty SESSION_SECRET_VALUE) on purpose:
+  # copying it unchanged must never yield a working stack on publicly known values.
+  Set-GeneratedEnvSecrets -EnvPath $envPath
+  Write-Host "compose/.env patched with generated database, encryption-key, session and Keycloak client secrets." -ForegroundColor Cyan
 
   if ($Engine -ne 'mssql') {
     return
   }
 
-  $mssqlPassword = 'YourStrong!Passw0rd'
+  $mssqlPassword = New-RandomSecret
+  # Child scripts (eng/helpers/bootstrap-keycloak-for-tests.ps1) read the SA password from the
+  # process environment.
+  $env:MSSQL_SA_PASSWORD = $mssqlPassword
   $script:mssqlSaPassword = $mssqlPassword
   $content = Get-Content -Path $envPath
 

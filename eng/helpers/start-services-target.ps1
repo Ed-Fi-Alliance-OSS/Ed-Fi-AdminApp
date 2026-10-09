@@ -157,6 +157,7 @@ if (Test-Path $envFile) {
     }
 }
 $env:DB_ENGINE = $expectedEngine
+& (Join-Path $PSScriptRoot 'warn-env-placeholders.ps1') -EnvFile $envFile
 
 $commonServices = @(
     'nginx',
