@@ -34,11 +34,13 @@ const withOpenIdScope = (scope: string | null | undefined): string => {
 /**
  * Picks the confidential-client authentication method from the discovered
  * metadata. client_secret_post is preferred whenever the IdP advertises it:
- * client_secret_basic form-urlencodes the client id and secret, turning `-`, `_`
- * and `.` into %XX, and IdPs such as Google and Microsoft Entra ID do not decode
- * them, so they reject the client ("The OAuth client was not found"). Basic is
- * used only when Post is unavailable. An absent list means client_secret_basic
- * per the OIDC spec.
+ * oauth4webapi's client_secret_basic encoder percent-encodes the client id and
+ * secret more aggressively than standard form encoding (it also escapes `-`,
+ * `_` and `.`), and IdPs such as Google and Microsoft Entra ID do not decode
+ * the result, so they reject the client ("The OAuth client was not found").
+ * Basic is used only when Post is unavailable. An absent list means
+ * client_secret_basic per the OIDC spec. When the IdP lists methods but neither
+ * Post nor Basic, Post is used as the openid-client v6 default.
  */
 const withClientAuthentication = (
   discovered: client.Configuration,
