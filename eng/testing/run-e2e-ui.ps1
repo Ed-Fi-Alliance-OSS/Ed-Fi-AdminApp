@@ -171,6 +171,9 @@ function Set-AdminAppEnvFile {
       $saLine = Select-String -Path $envPath -Pattern '^\s*MSSQL_SA_PASSWORD\s*=\s*(.+?)\s*$' | Select-Object -Last 1
       if (-not $saLine) { throw '-KeepEnvFile: MSSQL_SA_PASSWORD is not set in compose/.env.' }
       $script:mssqlSaPassword = $saLine.Matches.Groups[1].Value
+      # A process env var outranks --env-file in Compose interpolation and is read by the
+      # Keycloak bootstrap, so mirror the retained value (as the generated-env branch does).
+      $env:MSSQL_SA_PASSWORD = $script:mssqlSaPassword
     }
     Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
     return

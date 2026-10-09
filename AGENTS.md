@@ -151,6 +151,10 @@ pwsh ./eng/testing/run-e2e-ui.ps1 -DbEngine mssql
 
 # Rebuild Admin App images first, then stop all services after the run
 pwsh ./eng/testing/run-e2e-ui.ps1 -Rebuild -StopServices
+
+# Skip the Ed-Fi v6 topology and @v1 scenarios, and keep an existing compose/.env
+# (by default the script regenerates compose/.env from compose/.env.example)
+pwsh ./eng/testing/run-e2e-ui.ps1 -SkipV1 -KeepEnvFile
 ```
 
 The script checks prerequisites (Node dependencies, Playwright Chromium, TLS certificate) up front and tells you exactly what's missing. See [UI Playwright E2E Tests](eng/testing/README.md#ui-playwright-e2e-tests) for full options, what each step does, and troubleshooting. CI runs this same script against both `pgsql` and `mssql` via a matrix in `.github/workflows/run-e2e-ui.yml`.
