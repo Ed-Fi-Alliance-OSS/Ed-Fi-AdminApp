@@ -1,3 +1,4 @@
+export * from './certification-catalog.dto';
 export * from './certification-token.dto';
 export * from './edfi-admin-api.dto';
 export * from './edfi-admin-api.v2.dto';
