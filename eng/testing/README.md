@@ -348,7 +348,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 1. Checks prerequisites (Node dependencies, Playwright Chromium, TLS certificate).
 2. Downloads the ODS Minimal Template backup into `compose/db-backup/` (skipped if already cached).
 3. Regenerates `compose/.env` from `compose/.env.example` and, for `-DbEngine mssql`, patches `DB_ENGINE`, the `MSSQL_*` settings, and the active `DB_SECRET_VALUE` line, and generates real values for the `change-me` placeholders (session secret, database password, encryption key, Keycloak client secrets) so `compose/.env` is never run with publicly known secrets.
-4. Starts Docker Compose services (the `v6` and `odsV7-adminV2` topologies plus the Admin App) via `eng/helpers/start-services-target.ps1`.
+4. Starts Docker Compose services (the `v6` — unless `-SkipV1` — and `odsV7-adminV2` topologies plus the Admin App) via `eng/helpers/start-services-target.ps1`.
 5. Waits for the Admin App API, frontend, and Keycloak to be stable — and, for `-DbEngine mssql`, also waits for the Admin App's `sbaa` database to actually exist inside the SQL Server container.
 6. Creates/updates the local Keycloak test user via `eng/helpers/create-local-user-keycloak.ps1`.
 7. Runs `npm run test:e2e:bdd` (the Playwright BDD suite).
@@ -367,13 +367,25 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 -StopServices
     Stop Docker Compose services after the test run (success or failure).
+
+-SkipV1
+    Skip the Ed-Fi v6 ("v1" environment) topology: its containers are not started
+    and scenarios tagged @v1 are excluded from the Playwright run. CI uses this.
+
+-KeepEnvFile
+    Use the existing compose/.env as-is instead of regenerating it. Fails if the
+    file is missing or its DB_ENGINE does not match -DbEngine.
+
+-ServiceStartTimeoutMinutes <int>
+    Abort 'docker compose pull' / 'up' if either exceeds this many minutes
+    (each). Default: 20.
 ```
 
 ### Notes
 
-- **`compose/.env` is regenerated on every run.** The script overwrites it from `compose/.env.example` (patching it for MSSQL when needed), so any local customizations you've made to `compose/.env` (image tags, secrets, dataset choice) will be lost. A warning is printed when this happens.
+- **`compose/.env` is regenerated on every run unless `-KeepEnvFile` is passed.** The script overwrites it from `compose/.env.example` (patching it for MSSQL when needed), so any local customizations you've made to `compose/.env` (image tags, secrets, dataset choice) will be lost. A warning is printed when this happens.
 - **ODS/API databases are unaffected by `-DbEngine`.** The `v6`, `odsV7-adminV2`, and `odsV7-adminV3` topologies always run on PostgreSQL; only the Admin App's own database switches between PostgreSQL and SQL Server.
-- **CI runs this script against both engines.** `.github/workflows/run-e2e-ui.yml` uses a `db-engine: [pgsql, mssql]` matrix that calls `run-e2e-ui.ps1 -DbEngine <pgsql|mssql> -Rebuild -StopServices` once per engine.
+- **CI runs this script against both engines.** `.github/workflows/run-e2e-ui.yml` uses a `db-engine: [pgsql, mssql]` matrix that calls `run-e2e-ui.ps1 -DbEngine <pgsql|mssql> -Rebuild -StopServices -SkipV1` once per engine, after a Docker Hub login (`vars.DOCKER_USERNAME` / `secrets.DOCKER_HUB_TOKEN`) to avoid pull rate limits. Image pulls are capped at 4 in parallel (`COMPOSE_PARALLEL_LIMIT`) and retried 3 times.
 
 ### Troubleshooting
 
