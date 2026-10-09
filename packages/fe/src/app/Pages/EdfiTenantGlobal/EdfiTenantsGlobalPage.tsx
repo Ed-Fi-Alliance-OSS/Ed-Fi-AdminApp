@@ -5,10 +5,10 @@ import {
   SbaaTableAllInOne,
   TableRowActions,
   ValueAsDate,
+  SbaaCellContext,
 } from '@edanalytics/common-ui';
 import { GetEdfiTenantDto } from '@edanalytics/models';
 import { UseQueryResult, useQuery } from '@tanstack/react-query';
-import { CellContext } from '@tanstack/react-table';
 import omit from 'lodash/omit';
 import { edfiTenantQueriesGlobal, userQueries } from '../../api';
 import { useSbEnvironmentNavContext, withLoader } from '../../helpers';
@@ -18,7 +18,7 @@ import { useEdfiTenantGlobalActions } from './useEdfiTenantGlobalActions';
 import { useEdfiTenantsGlobalActions } from './useEdfiTenantsGlobalActions';
 
 const EdfiTenantsNameCell = (
-  info: CellContext<GetEdfiTenantDto, unknown> & {
+  info: SbaaCellContext<GetEdfiTenantDto> & {
     edfiTenants: Pick<UseQueryResult<Record<string | number, GetEdfiTenantDto>>, 'data'>;
   }
 ) => {

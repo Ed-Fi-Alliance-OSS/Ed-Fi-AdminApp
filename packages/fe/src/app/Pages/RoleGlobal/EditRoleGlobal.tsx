@@ -18,7 +18,7 @@ import {
   RoleType,
 } from '@edanalytics/models';
 import { classValidatorResolver } from '@hookform/resolvers/class-validator';
-import { noop } from '@tanstack/react-table';
+import noop from 'lodash/noop';
 import uniq from 'lodash/uniq';
 import { useRef } from 'react';
 import { Controller, useForm } from 'react-hook-form';
