@@ -45,6 +45,7 @@ export default defineConfig({
       dependencies: ['setup'],
       testIgnore: [
         /login-page\/login\.feature\.spec\.js/,
+        /environmentV1\.feature\.spec\.js/,
         /(environmentv2andApi|roles|ownerships|sync-queue)\.feature\.spec\.js/
       ],
       use: {
