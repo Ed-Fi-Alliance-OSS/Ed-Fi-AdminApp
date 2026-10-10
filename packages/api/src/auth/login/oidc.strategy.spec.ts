@@ -172,18 +172,27 @@ describe('OidcIdpBootstrapper', () => {
       return strategy.options.config.clientAuthentication;
     };
 
-    it.each([
-      ['not advertised', undefined],
-      ['advertised with others', ['client_secret_post', 'client_secret_basic']],
-    ])('uses client_secret_basic when it is %s', async (_label, methods) => {
-      expect(await registeredClientAuth(methods)).toEqual({ method: 'basic', secret: 'secret' });
+    it('uses client_secret_basic when the methods are not advertised', async () => {
+      expect(await registeredClientAuth(undefined)).toEqual({ method: 'basic', secret: 'secret' });
     });
 
-    it('falls back to client_secret_post when basic is not supported', async () => {
-      expect(await registeredClientAuth(['client_secret_post'])).toEqual({
-        method: 'post',
+    it('uses client_secret_basic when it is the only supported method', async () => {
+      expect(await registeredClientAuth(['client_secret_basic'])).toEqual({
+        method: 'basic',
         secret: 'secret',
       });
+    });
+
+    it.each([
+      ['post only', ['client_secret_post']],
+      ['post and basic (Google)', ['client_secret_post', 'client_secret_basic']],
+      [
+        'several incl. basic (Entra ID)',
+        ['client_secret_post', 'private_key_jwt', 'client_secret_basic'],
+      ],
+      ['neither post nor basic', ['private_key_jwt']],
+    ])('uses client_secret_post for %s', async (_label, methods) => {
+      expect(await registeredClientAuth(methods)).toEqual({ method: 'post', secret: 'secret' });
     });
 
     it('leaves a public client unauthenticated', async () => {

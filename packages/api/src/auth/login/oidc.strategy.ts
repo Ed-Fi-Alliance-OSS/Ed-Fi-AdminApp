@@ -32,10 +32,15 @@ const withOpenIdScope = (scope: string | null | undefined): string => {
 };
 
 /**
- * openid-client v5 authenticated confidential clients with client_secret_basic,
- * falling back to client_secret_post when the IdP did not advertise Basic. v6
- * defaults to client_secret_post, so pick the method from the discovered
- * metadata. An absent list means client_secret_basic per the OIDC spec.
+ * Picks the confidential-client authentication method from the discovered
+ * metadata. client_secret_post is preferred whenever the IdP advertises it:
+ * oauth4webapi's client_secret_basic encoder percent-encodes the client id and
+ * secret more aggressively than standard form encoding (it also escapes `-`,
+ * `_` and `.`), and IdPs such as Google and Microsoft Entra ID do not decode
+ * the result, so they reject the client ("The OAuth client was not found").
+ * Basic is used only when Post is unavailable. An absent list means
+ * client_secret_basic per the OIDC spec. When the IdP lists methods but neither
+ * Post nor Basic, Post is used as the openid-client v6 default.
  */
 const withClientAuthentication = (
   discovered: client.Configuration,
@@ -44,12 +49,14 @@ const withClientAuthentication = (
 ): client.Configuration => {
   const server = discovered.serverMetadata();
   const methods = server.token_endpoint_auth_methods_supported;
-  const useBasic = !methods || methods.includes('client_secret_basic');
+  const usePost = methods
+    ? methods.includes('client_secret_post') || !methods.includes('client_secret_basic')
+    : false;
   return new client.Configuration(
     server,
     clientId,
     { client_secret: clientSecret },
-    useBasic ? client.ClientSecretBasic(clientSecret) : client.ClientSecretPost(clientSecret)
+    usePost ? client.ClientSecretPost(clientSecret) : client.ClientSecretBasic(clientSecret)
   );
 };
 
