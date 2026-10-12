@@ -8,7 +8,7 @@
 Runs the Playwright BDD E2E UI test suite against a freshly provisioned stack.
 
 .DESCRIPTION
-Downloads the ODS Minimal Template backup (if missing), starts Docker Compose
+Downloads the ODS Minimal and Populated Template backups (if missing), starts Docker Compose
 services (PostgreSQL or SQL Server for the Admin App database), waits for
 readiness, creates the local Keycloak test user, and runs the Playwright BDD
 suite.
@@ -101,17 +101,23 @@ function Test-Prerequisites {
   }
 }
 
-function Get-OdsMinimalTemplateBackup {
-  $backupDir = Join-Path $repoRoot 'compose/db-backup'
-  $minimalSqlPath = Join-Path $backupDir 'EdFi.Ods.Minimal.Template.sql'
-  $populatedSqlPath = Join-Path $backupDir 'EdFi.Ods.Populated.Template.sql'
+function Get-OdsTemplateBackup {
+  param(
+    [Parameter(Mandatory)]
+    [ValidateSet('Minimal', 'Populated')]
+    [string]$TemplateType
+  )
 
-  if ((Test-Path $minimalSqlPath) -and (Test-Path $populatedSqlPath)) {
-    Write-Host 'ODS Minimal Template backup already present, skipping download.' -ForegroundColor Cyan
+  $backupDir = Join-Path $repoRoot 'compose/db-backup'
+  $sqlFileName = "EdFi.Ods.$TemplateType.Template.sql"
+  $sqlPath = Join-Path $backupDir $sqlFileName
+
+  if (Test-Path $sqlPath) {
+    Write-Host "ODS $TemplateType Template backup already present, skipping download." -ForegroundColor Cyan
     return
   }
 
-  $packageName = 'EdFi.Suite3.Ods.Minimal.Template.PostgreSQL.Standard.4.0.0'
+  $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.4.0.0"
   $packageVersion = '7.3.20068'
   $feedUrl = "https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/flat2/$packageName/$packageVersion/$packageName.$packageVersion.nupkg"
 
@@ -133,8 +139,7 @@ function Get-OdsMinimalTemplateBackup {
     }
     Write-Host "Found: $($srcSql.FullName)" -ForegroundColor Cyan
 
-    Copy-Item -Path $srcSql.FullName -Destination $minimalSqlPath -Force
-    Copy-Item -Path $minimalSqlPath -Destination $populatedSqlPath -Force
+    Copy-Item -Path $srcSql.FullName -Destination $sqlPath -Force
   }
   finally {
     Remove-Item -Path $nupkgPath, $zipPath -Force -ErrorAction SilentlyContinue
@@ -144,8 +149,17 @@ function Get-OdsMinimalTemplateBackup {
   Write-Host "Backup files ready in $backupDir" -ForegroundColor Green
 }
 
+function Get-OdsMinimalTemplateBackup {
+  Get-OdsTemplateBackup -TemplateType 'Minimal'
+}
+
+function Get-OdsPopulatedTemplateBackup {
+  Get-OdsTemplateBackup -TemplateType 'Populated'
+}
+
 Test-Prerequisites
 Get-OdsMinimalTemplateBackup
+Get-OdsPopulatedTemplateBackup
 
 . (Join-Path $repoRoot 'eng/helpers/env-secrets.ps1')
 
@@ -180,33 +194,57 @@ function Set-AdminAppEnvFile {
   }
 
   if (Test-Path $envPath) {
-    Write-Host "WARNING: compose/.env already exists and is about to be overwritten/regenerated from compose/.env.example. Any local customizations (image tags, secrets, dataset choice) will be lost." -ForegroundColor Yellow
+    $content = Get-Content -Path $envPath
+    $engineLines = @($content | Where-Object { $_ -match '^DB_ENGINE=' })
+    if ($engineLines.Count -ne 1 -or ($engineLines[0] -replace '^DB_ENGINE=', '').Trim() -ne $Engine) {
+      throw "compose/.env must contain exactly one DB_ENGINE=$Engine entry; it was left unchanged. Use the configured engine or prepare a separate environment."
+    }
+    $placeholders = @(Select-String -Path $envPath -Pattern '^\s*([A-Z0-9_]+)\s*=.*change-me' |
+      ForEach-Object { $_.Matches[0].Groups[1].Value } | Sort-Object -Unique)
+    if ($placeholders.Count -gt 0) {
+      throw "compose/.env contains placeholder secrets in: $($placeholders -join ', '). Restore the real secrets matching the existing volumes before retrying. No secrets were regenerated and no volumes were changed."
+    }
+    if ($Engine -eq 'mssql') {
+      $passwordLines = @($content | Where-Object { $_ -match '^MSSQL_SA_PASSWORD=' })
+      if ($passwordLines.Count -ne 1) {
+        throw 'compose/.env must contain exactly one MSSQL_SA_PASSWORD entry; it was left unchanged.'
+      }
+      $mssqlPassword = ($passwordLines[0] -replace '^MSSQL_SA_PASSWORD=', '').Trim()
+      if ($mssqlPassword -match '^(["''])(.*)\1$') {
+        $mssqlPassword = $Matches[2]
+      }
+      if ([string]::IsNullOrWhiteSpace($mssqlPassword)) {
+        throw 'compose/.env contains an empty MSSQL_SA_PASSWORD; it was left unchanged.'
+      }
+      $env:MSSQL_SA_PASSWORD = $mssqlPassword
+      $script:mssqlSaPassword = $mssqlPassword
+    }
+    Write-Host 'Reusing compose/.env without changing secrets or local settings.' -ForegroundColor Cyan
+    return
   }
 
-  # Secrets are regenerated on every run, but PostgreSQL, SQL Server and Keycloak only read them
-  # when their data volume is first initialized. Best-effort check (docker may be absent or the
-  # daemon down): warn only, never delete anything, never fail the run because of this check.
+  $existingVolumes = @()
   try {
-    # Every named volume in compose/edfi-services.yml and compose/adminapp-services.yml.
     $stackVolumePattern = '^vol-(edfiadminapp-(db|mssql|keycloak)|odsV7-adminV[23]-.+|db-admin-6x|db-ods-6x-.+)$'
     $existingVolumes = @(docker volume ls -q 2>$null | Where-Object { $_ -match $stackVolumePattern })
-    if ($existingVolumes.Count -gt 0) {
-      $resetCommand = 'docker compose -f compose/edfi-services.yml -f compose/nginx-compose.yml -f compose/adminapp-services.yml --env-file compose/.env --profile postgresql --profile mssql --profile adminapp down -v'
-      Write-Warning ("Existing Docker volumes from a previous run were found ($($existingVolumes -join ', ')). " +
-        "The secrets generated for this run will NOT match the credentials stored in those volumes, so database authentication, Keycloak client secrets and decryption of existing rows will fail. " +
-        "To start clean, run: $resetCommand " +
-        "NOTE: 'down -v' permanently deletes all data in those volumes. This script does not delete anything.")
-    }
   } catch {
     # Ignore: docker unavailable or daemon not running.
+  }
+  if ($existingVolumes.Count -gt 0) {
+    throw 'compose/.env is missing but existing stack volumes were found. Restore the original environment file before retrying; generating new secrets would break authentication or decryption. No volumes were changed.'
   }
 
   Copy-Item -Path $envExamplePath -Destination $envPath -Force
 
-  # compose/.env.example ships change-me placeholders (and an empty SESSION_SECRET_VALUE) on purpose:
-  # copying it unchanged must never yield a working stack on publicly known values.
   Set-GeneratedEnvSecrets -EnvPath $envPath
-  Write-Host "compose/.env patched with generated database, encryption-key, session and Keycloak client secrets." -ForegroundColor Cyan
+  Write-Host "compose/.env patched with generated database, encryption, Keycloak and session secrets." -ForegroundColor Cyan
+  $content = Get-Content -Path $envPath
+  $datasetLines = @($content | Where-Object { $_ -match '^EDFI_ODS_DATASET=' })
+  if ($datasetLines.Count -ne 1) {
+    throw "compose/.env.example must contain exactly one EDFI_ODS_DATASET entry; found $($datasetLines.Count)."
+  }
+  $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
+  Set-Content -Path $envPath -Value $content
 
   if ($Engine -ne 'mssql') {
     return
@@ -291,6 +329,8 @@ function Wait-ForAdminAppReadiness {
   $keycloakLoginUrl = 'https://localhost/auth/realms/edfi/protocol/openid-connect/auth?client_id=edfiadminapp&redirect_uri=https%3A%2F%2Flocalhost%2Fadminapp-api%2Fapi%2Fauth%2Fcallback%2F1&response_type=code&scope=openid%20profile%20email'
 
   $requiredStableChecks = 3
+  $maxReadinessChecks = 200
+  $readinessPollSeconds = 3
   $stableChecks = 0
   $checkMssqlDb = ($DbEngine -eq 'mssql')
 
@@ -300,7 +340,7 @@ function Wait-ForAdminAppReadiness {
   $keycloakLoginOk = $false
   $mssqlDbOk = $false
 
-  for ($i = 1; $i -le 90; $i++) {
+  for ($i = 1; $i -le $maxReadinessChecks; $i++) {
     $apiOk = $false
     $feOk = $false
     $keycloakOk = $false
@@ -327,7 +367,7 @@ function Wait-ForAdminAppReadiness {
     } else {
       $stableChecks = 0
       $mssqlDbSuffix = if ($checkMssqlDb) { " MSSQL_SBAA_DB=$mssqlDbOk" } else { '' }
-      Write-Host "Waiting... API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix ($i/90)" -ForegroundColor Yellow
+      Write-Host "Waiting... API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix ($i/$maxReadinessChecks)" -ForegroundColor Yellow
     }
 
     if ($stableChecks -ge $requiredStableChecks) {
@@ -335,11 +375,12 @@ function Wait-ForAdminAppReadiness {
       return
     }
 
-    Start-Sleep -Seconds 3
+    Start-Sleep -Seconds $readinessPollSeconds
   }
 
   $mssqlDbSuffix = if ($checkMssqlDb) { " MSSQL_SBAA_DB=$mssqlDbOk" } else { '' }
-  throw "Timed out waiting for stable Admin App services (last state: API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix)"
+  $timeoutSeconds = $maxReadinessChecks * $readinessPollSeconds
+  throw "Timed out after approximately $timeoutSeconds seconds waiting for stable Admin App services (last state: API=$apiOk FE=$feOk KEYCLOAK_META=$keycloakOk KEYCLOAK_LOGIN=$keycloakLoginOk$mssqlDbSuffix)"
 }
 
 function Show-AdminAppServiceLogs {

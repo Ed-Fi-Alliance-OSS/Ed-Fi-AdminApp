@@ -3,8 +3,10 @@
 // The Ed-Fi Alliance licenses this file to you under the Apache License, Version 2.0.
 // See the LICENSE and NOTICES files in the project root for more information.
 
+import { randomUUID } from 'node:crypto';
 import { expect, Page } from '@playwright/test';
 import { selectComboboxOption } from './support';
+import TeamsPage from './teams-page';
 
 type OwnershipAction = 'view' | 'edit' | 'delete';
 type DeleteConfirmation = 'yes' | 'no';
@@ -29,6 +31,7 @@ class OwnershipsPage {
 
   private selectedOwnershipName: string | null = null;
   private selectedRoleBeforeEdit: string | null = null;
+  private createdTeam: { baseName: string; name: string } | null = null;
 
   constructor(private readonly page: Page) {
     this.ownershipsOption = this.page.locator('a[title="Ownerships"]');
@@ -52,6 +55,19 @@ class OwnershipsPage {
   async clickOwnershipsOption() {
     await this.ownershipsOption.click();
     await this.ownershipsTableShouldBeDisplayed();
+  }
+
+  async createUniqueTeam(baseName: string) {
+    const teamName = `${baseName}-${randomUUID()}`;
+    const teamsPage = new TeamsPage(this.page);
+    await teamsPage.clickTeamsOption();
+    await teamsPage.clickCreateNewButton();
+    await teamsPage.fillTeamName(teamName);
+    await teamsPage.clickSaveButton();
+    await expect(this.page).toHaveURL(/\/teams\/\d+\/?$/);
+    await expect(this.page.getByRole('heading', { name: teamName, exact: true })).toBeVisible();
+    this.createdTeam = { baseName, name: teamName };
+    await this.clickOwnershipsOption();
   }
 
   async clickGrantNewButton() {
@@ -80,7 +96,11 @@ class OwnershipsPage {
     if (resourceType == 'Ods') {
       await selectComboboxOption(this.page, 'ODS', tenant);
     }
-    await selectComboboxOption(this.page, 'Team', team);
+    await selectComboboxOption(
+      this.page,
+      'Team',
+      this.createdTeam?.baseName === team ? this.createdTeam.name : team,
+    );
     await selectComboboxOption(this.page, 'Role', role);
   }
 
