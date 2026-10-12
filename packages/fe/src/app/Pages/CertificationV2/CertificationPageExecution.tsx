@@ -62,7 +62,7 @@ export const CertificationPageExecution = () => {
     }
     return undefined;
   }, [catalog.areas, scenarioId]);
-  const { steps: scenarioRows } = useCertificationSteps(
+  const { steps: scenarioRows, isPending: isStepsPending } = useCertificationSteps(
     sbEnvironmentId,
     selected?.scenario.scenarioId,
   );
@@ -261,7 +261,9 @@ export const CertificationPageExecution = () => {
               {scenarioRows.length === 0 && (
                 <Tr>
                   <Td colSpan={3}>
-                    <Text color="gray.600">No steps found for this scenario.</Text>
+                    <Text color="gray.600">
+                      {isStepsPending ? 'Loading steps...' : 'No steps found for this scenario.'}
+                    </Text>
                   </Td>
                 </Tr>
               )}

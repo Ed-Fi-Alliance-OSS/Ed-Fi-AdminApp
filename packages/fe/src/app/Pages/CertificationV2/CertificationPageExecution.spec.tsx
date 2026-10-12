@@ -127,6 +127,20 @@ describe('CertificationPageExecution', () => {
     expect(screen.getByLabelText('schoolYear')).toBeTruthy();
   });
 
+  it.each([
+    [true, 'Loading steps...'],
+    [false, 'No steps found for this scenario.'],
+  ])('with no steps and isPending %s shows %s', (isPending, message) => {
+    (useCertificationSelection as jest.Mock).mockReturnValue({
+      edfiTenantId: 10,
+      odsId: undefined,
+      scenarioId: 52,
+    });
+    (useCertificationSteps as jest.Mock).mockReturnValue({ steps: [], isPending });
+    render(<CertificationPageExecution />);
+    expect(screen.getByText(message)).toBeTruthy();
+  });
+
   it('waits for the catalog before redirecting', () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
