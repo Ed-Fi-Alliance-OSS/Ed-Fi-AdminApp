@@ -22,33 +22,14 @@ import { resolveOdsApiUrls } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import certificationScenarios from './certification-scenarios.json';
 import { edfiTenantQueriesGlobal, odsQueries, sbEnvironmentQueriesGlobal } from '../../api';
 import { getOdsTerminology, useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
-
-type CertificationScenario = {
-  id: number;
-  scenariosVersion?: string;
-  scenariosGroup?: string;
-  scenariosName?: string;
-  scenarioStep?: string;
-  parameters?: Array<{
-    name?: string;
-    description?: string;
-  }>;
-};
-
-const getUniqueOptions = (values: Array<string | undefined>) =>
-  Array.from(new Set(values.filter((value): value is string => Boolean(value?.trim())))).sort(
-    (a, b) => a.localeCompare(b),
-  );
-
-const scenarios = certificationScenarios as CertificationScenario[];
-const scenarioVersionOptions = getUniqueOptions(scenarios.map((item) => item.scenariosVersion));
+import { displayNameOf } from './certificationCatalog';
+import { useCertificationCatalog } from './useCertificationCatalog';
 
 const TENANT_TOOLTIP =
   'A tenant is a separate set of data inside this environment, usually one per organization (for example, a school district). Choose the tenant your API key and secret were created for.';
@@ -73,48 +54,17 @@ export const RequestCertificationPage = () => {
   const sbEnvironmentId = Number(useParams().sbEnvironmentId);
   const { edfiTenantId, odsId, setSelection, toSearch } = useCertificationSelection();
   const { auth, clearAuth } = useCertificationAuth();
-  const selectedScenarioVersion = scenarioVersionOptions[0] ?? '';
-  const [selectedAreaOrGroup, setSelectedAreaOrGroup] = useState('');
+  const [selectedAreaId, setSelectedAreaId] = useState('');
+  const catalog = useCertificationCatalog(sbEnvironmentId);
+  const hasCatalog = catalog.catalogVersion !== undefined;
 
-  const areaOrGroupOptions = useMemo(
+  const tableScenarios = useMemo(
     () =>
-      getUniqueOptions(
-        scenarios
-          .filter((item) => item.scenariosVersion === selectedScenarioVersion)
-          .map((item) => item.scenariosGroup),
-      ),
-    [selectedScenarioVersion],
+      catalog.areas
+        .filter((area) => selectedAreaId === '' || String(area.areaId) === selectedAreaId)
+        .flatMap((area) => area.scenarios.map((scenario) => ({ area, scenario }))),
+    [catalog.areas, selectedAreaId],
   );
-
-  const filteredScenarios = useMemo(
-    () =>
-      scenarios.filter(
-        (item) =>
-          item.scenariosVersion === selectedScenarioVersion &&
-          (selectedAreaOrGroup === '' || item.scenariosGroup === selectedAreaOrGroup),
-      ),
-    [selectedScenarioVersion, selectedAreaOrGroup],
-  );
-
-  const tableScenarios = useMemo(() => {
-    const seen = new Set<string>();
-
-    return filteredScenarios.reduce<Array<Omit<CertificationScenario, 'scenarioStep'>>>(
-      (acc, item) => {
-        const key = `${item.scenariosGroup ?? ''}::${item.scenariosName ?? ''}`;
-
-        if (seen.has(key)) {
-          return acc;
-        }
-
-        seen.add(key);
-        const { scenarioStep: _scenarioStep, ...scenarioWithoutStep } = item;
-        acc.push(scenarioWithoutStep);
-        return acc;
-      },
-      [],
-    );
-  }, [filteredScenarios]);
 
   const navToParentOptions = useNavToParent();
 
@@ -265,22 +215,29 @@ export const RequestCertificationPage = () => {
 
           <FormControl mt={4}>
             <FormLabel>Scenarios Version</FormLabel>
-            4.0.0
+            {catalog.dataStandardVersion ?? 'N/A'}
           </FormControl>
+
+          {!catalog.isPending && !hasCatalog && (
+            <Alert status="warning" mt={4}>
+              <AlertIcon />
+              {catalog.dataStandardVersion
+                ? `No certification catalog is available for data standard ${catalog.dataStandardVersion}.`
+                : "This environment's data standard version is unknown, so no certification catalog is available."}
+            </Alert>
+          )}
 
           <FormControl>
             <FormLabel>Area or Group Filter</FormLabel>
             <Select
-              placeholder={
-                selectedScenarioVersion ? 'All area or group values' : 'Select version first'
-              }
-              value={selectedAreaOrGroup}
-              isDisabled={!selectedScenarioVersion}
-              onChange={(event) => setSelectedAreaOrGroup(event.target.value)}
+              placeholder={hasCatalog ? 'All area or group values' : 'No catalog available'}
+              value={selectedAreaId}
+              isDisabled={!hasCatalog}
+              onChange={(event) => setSelectedAreaId(event.target.value)}
             >
-              {areaOrGroupOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
+              {catalog.areas.map((area) => (
+                <option key={area.areaId} value={area.areaId}>
+                  {displayNameOf(area)}
                 </option>
               ))}
             </Select>
@@ -301,10 +258,10 @@ export const RequestCertificationPage = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {tableScenarios.map((scenario) => (
-                <Tr key={scenario.id}>
-                  <Td>{scenario.scenariosGroup ?? 'N/A'}</Td>
-                  <Td>{scenario.scenariosName ?? 'N/A'}</Td>
+              {tableScenarios.map(({ area, scenario }) => (
+                <Tr key={scenario.scenarioId}>
+                  <Td>{displayNameOf(area)}</Td>
+                  <Td>{displayNameOf(scenario)}</Td>
                   <Td textAlign="right">
                     <Button
                       size="sm"
@@ -314,7 +271,7 @@ export const RequestCertificationPage = () => {
                       onClick={() =>
                         navigate({
                           pathname: 'execution',
-                          search: toSearch({ scenarioId: scenario.id }),
+                          search: toSearch({ scenarioId: scenario.scenarioId }),
                         })
                       }
                     >
@@ -326,7 +283,11 @@ export const RequestCertificationPage = () => {
               {tableScenarios.length === 0 && (
                 <Tr>
                   <Td colSpan={3}>
-                    <Text color="gray.600">No scenarios found for the current filters.</Text>
+                    <Text color="gray.600">
+                      {catalog.isPending
+                        ? 'Loading scenarios...'
+                        : 'No scenarios found for the current filters.'}
+                    </Text>
                   </Td>
                 </Tr>
               )}
