@@ -513,7 +513,7 @@ class EnvironmentsPage {
     await expect(credentialsPage.getByRole('heading', {
       name: 'Retrieve credentials', exact: true,
     })).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
-    await credentialsPage.getByText('Click to retrieve credentials', { exact: true }).click()
+    await credentialsPage.getByText('KEY: 123abc123abc SECRET:').click()
     await credentialsPage.getByRole('button', { name: 'Yes, retrieve them.', exact: true }).click()
 
     for (const label of ['Key', 'Secret', 'URL']) {
