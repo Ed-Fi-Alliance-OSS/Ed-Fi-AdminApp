@@ -116,6 +116,16 @@ from role 2 again. The codes are listed in
 Under the no-escalation rule, Global admins therefore cannot grant these codes either. No
 seeded role holds them, so this restores the behaviour from before AC-644.
 
+### Role forms only offer grantable privileges
+
+The create and edit role pages (`CreateRoleGlobal`, `EditRoleGlobal`) only list privileges the
+current user may grant: their own global privileges (from `/auth/me`) plus, when editing, the
+privileges already on the role. The API only checks privileges being *added*, so a role's saved
+privileges stay visible and toggleable. Without this filter, ticking **All** or a group such as
+**team** would select privileges the user does not hold, and the save would fail with
+"Insufficient privileges". The filter is `filterGrantablePrivileges` in
+`packages/fe/src/app/Pages/RoleGlobal/grantable-privileges.ts`.
+
 ### Requirement when adding a privilege
 
 **Every new privilege needs a decision: is the Global admin role (id 2) meant to hold it?**
