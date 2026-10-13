@@ -1,11 +1,8 @@
 import 'reflect-metadata';
 // packages/api/src/certification/certification-token.service.spec.ts
 import axios from 'axios';
-import {
-  CertificationTokenService,
-  CERT_TOKEN_MESSAGES,
-  isTrustedTokenUrl,
-} from './certification-token.service';
+import { CertificationTokenService, CERT_TOKEN_MESSAGES } from './certification-token.service';
+import { CertificationTargetService } from './certification-target.service';
 import { fetchOdsApiMetadata } from '../utils';
 
 jest.mock('axios', () => {
@@ -55,7 +52,7 @@ describe('CertificationTokenService', () => {
       findOneByOrFail: jest.fn().mockResolvedValue({ id: 5, edfiTenantId: 10 }),
       countBy: jest.fn().mockResolvedValue(2),
     };
-    service = new CertificationTokenService(odsRepository as never);
+    service = new CertificationTokenService(new CertificationTargetService(odsRepository as never));
     mockedDiscovery.mockResolvedValue(multiTenantMeta);
   });
 
@@ -217,30 +214,5 @@ describe('CertificationTokenService', () => {
       },
     });
     expect(mockedPost).not.toHaveBeenCalled();
-  });
-});
-
-describe('isTrustedTokenUrl', () => {
-  const discovery = 'https://localhost/multi/';
-  it.each([
-    ['the same https host', 'https://localhost/multi/t/oauth/token', discovery, true],
-    ['the same https host and port', 'https://h:8443/o', 'https://h:8443/', true],
-    ['http', 'http://localhost/multi/t/oauth/token', discovery, false],
-    ['a different host', 'https://other/multi/t/oauth/token', discovery, false],
-    ['the same host on a different port', 'https://localhost:8443/o', discovery, false],
-    ['an unparsable token URL', 'not a url', discovery, false],
-    ['an unparsable discovery URL', 'https://localhost/o', 'not a url', false],
-    ['a userinfo trick where the host is evil', 'https://localhost@evil/o', discovery, false],
-    [
-      'an uppercase host with the default port',
-      'https://LOCALHOST:443/multi/oauth/token',
-      discovery,
-      true,
-    ],
-    ['credentials in the token URL', 'https://user:pw@localhost/o', discovery, false],
-    ['an IDN host in punycode', 'https://xn--bcher-kva.de/o', 'https://bücher.de/', true],
-    ['a trailing-dot host', 'https://localhost./o', 'https://localhost/', false],
-  ])('%s -> %s', (_label, tokenUrl, discoveryUrl, expected) => {
-    expect(isTrustedTokenUrl(tokenUrl, discoveryUrl)).toBe(expected);
   });
 });

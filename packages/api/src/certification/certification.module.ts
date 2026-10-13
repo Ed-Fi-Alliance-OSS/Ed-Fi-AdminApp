@@ -6,6 +6,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationController } from './certification.controller';
 import { CertificationService } from './certification.service';
+import { CertificationTargetService } from './certification-target.service';
 import { CertificationTokenController } from './certification-token.controller';
 import { CertificationTokenService } from './certification-token.service';
 
@@ -20,6 +21,6 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationTokenController,
     CertificationCatalogController,
   ],
-  providers: [CertificationService, CertificationTokenService],
+  providers: [CertificationService, CertificationTargetService, CertificationTokenService],
 })
 export class CertificationModule {}
