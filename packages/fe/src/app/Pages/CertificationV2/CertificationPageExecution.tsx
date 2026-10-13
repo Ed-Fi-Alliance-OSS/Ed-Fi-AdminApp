@@ -5,6 +5,7 @@ import {
   Button,
   ButtonGroup,
   FormControl,
+  FormHelperText,
   FormLabel,
   HStack,
   Input,
@@ -20,26 +21,19 @@ import {
 import { PageTemplate } from '@edanalytics/common-ui';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import certificationScenarios from './certification-scenarios.json';
+import { CertificationStepDto } from '@edanalytics/models';
 import { useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
-
-type CertificationParameter = {
-  name?: string;
-  description?: string;
-};
-
-type CertificationScenario = {
-  id: number;
-  scenariosVersion?: string;
-  scenariosGroup?: string;
-  scenariosName?: string;
-  scenarioStep?: string;
-  parameters?: CertificationParameter[];
-};
+import {
+  displayNameOf,
+  isUserInputParameter,
+  parameterFieldOf,
+  stepNameOf,
+} from './certificationCatalog';
+import { useCertificationCatalog, useCertificationSteps } from './useCertificationCatalog';
 
 type ValidationErrorResult = {
   property: string;
@@ -64,8 +58,18 @@ export const CertificationPageExecution = () => {
   const sbEnvironmentId = Number(useParams().sbEnvironmentId);
   const { edfiTenantId, odsId, scenarioId } = useCertificationSelection();
   const { auth, clearReason } = useCertificationAuth();
-  const scenarios = certificationScenarios as CertificationScenario[];
-  const selectedScenario = scenarios.find((item) => item.id === scenarioId);
+  const catalog = useCertificationCatalog(sbEnvironmentId);
+  const selected = useMemo(() => {
+    for (const area of catalog.areas) {
+      const scenario = area.scenarios.find((item) => item.scenarioId === scenarioId);
+      if (scenario) return { area, scenario };
+    }
+    return undefined;
+  }, [catalog.areas, scenarioId]);
+  const { steps: scenarioRows, isPending: isStepsPending } = useCertificationSteps(
+    sbEnvironmentId,
+    selected?.scenario.scenarioId,
+  );
   const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
 
   // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
@@ -78,31 +82,19 @@ export const CertificationPageExecution = () => {
   }, [edfiTenantId, odsId, navToParentOptions]);
 
   useEffect(() => {
-    if (!selectedScenario || edfiTenantId === undefined) {
+    // Wait for the catalog before deciding a scenario ID from the URL doesn't exist.
+    const scenarioMissing = scenarioId === undefined || (!catalog.isPending && !selected);
+    if (scenarioMissing || edfiTenantId === undefined) {
       navigate(parentLocation, { replace: true });
     }
-  }, [selectedScenario, edfiTenantId, navigate, parentLocation]);
+  }, [scenarioId, catalog.isPending, selected, edfiTenantId, navigate, parentLocation]);
 
-  const scenarioRows = useMemo(
-    () =>
-      scenarios.filter(
-        (item) =>
-          item.scenariosVersion === selectedScenario?.scenariosVersion &&
-          item.scenariosGroup === selectedScenario?.scenariosGroup &&
-          item.scenariosName === selectedScenario?.scenariosName,
-      ),
-    [scenarios, selectedScenario],
-  );
+  const [validatedStep, setValidatedStep] = useState<CertificationStepDto | null>(null);
 
-  const [validatedScenario, setValidatedScenario] = useState<CertificationScenario | null>(null);
-
+  // Only `input` parameters are typed in; the app fills in `context` and `reference` ones.
   const parameterDefinitions = useMemo(
-    () =>
-      (validatedScenario?.parameters ?? []).filter(
-        (parameter): parameter is CertificationParameter & { name: string } =>
-          Boolean(parameter.name?.trim()),
-      ),
-    [validatedScenario],
+    () => (validatedStep?.parameters ?? []).filter(isUserInputParameter),
+    [validatedStep],
   );
 
   const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
@@ -118,8 +110,8 @@ export const CertificationPageExecution = () => {
       const next = { ...prev };
 
       scenarioRows.forEach((row) => {
-        if (next[row.id] === undefined) {
-          next[row.id] = 'Not executed';
+        if (next[row.stepId] === undefined) {
+          next[row.stepId] = 'Not executed';
           hasChanges = true;
         }
       });
@@ -129,29 +121,29 @@ export const CertificationPageExecution = () => {
   }, [scenarioRows]);
 
   useEffect(() => {
-    if (!validatedScenario) {
+    if (!validatedStep) {
       setParameterValues({});
       return;
     }
 
     const initialValues = parameterDefinitions.reduce<Record<string, string>>((acc, parameter) => {
-      acc[parameter.name] = '';
+      acc[parameter.parameterId] = '';
       return acc;
     }, {});
 
     setParameterValues(initialValues);
-  }, [validatedScenario, parameterDefinitions]);
+  }, [validatedStep, parameterDefinitions]);
 
   if (!config.showRequestCertification) {
     return null;
   }
 
-  if (!selectedScenario || edfiTenantId === undefined) {
+  if (!selected || edfiTenantId === undefined) {
     return null;
   }
 
   const canExecuteScenario = parameterDefinitions.every((parameter) =>
-    Boolean(parameterValues[parameter.name]?.trim()),
+    Boolean(parameterValues[parameter.parameterId]?.trim()),
   );
 
   const formattedLastExecution = (() => {
@@ -203,7 +195,7 @@ export const CertificationPageExecution = () => {
                   Group or Area
                 </Text>
                 <Text fontSize="lg" fontWeight="bold" color="blue.800">
-                  {selectedScenario.scenariosGroup ?? 'N/A'}
+                  {displayNameOf(selected.area)}
                 </Text>
               </Box>
               <Box>
@@ -211,7 +203,7 @@ export const CertificationPageExecution = () => {
                   Scenario
                 </Text>
                 <Text fontSize="lg" fontWeight="bold" color="blue.800">
-                  {selectedScenario.scenariosName ?? 'N/A'}
+                  {displayNameOf(selected.scenario)}
                 </Text>
               </Box>
             </HStack>
@@ -227,11 +219,11 @@ export const CertificationPageExecution = () => {
             </Thead>
             <Tbody>
               {scenarioRows.map((row) => (
-                <Tr key={row.id}>
-                  <Td>{row.scenarioStep ?? 'N/A'}</Td>
+                <Tr key={row.stepId}>
+                  <Td>{stepNameOf(row)}</Td>
                   <Td>
                     {(() => {
-                      const status = rowExecutionStatusById[row.id] ?? 'Not executed';
+                      const status = rowExecutionStatusById[row.stepId] ?? 'Not executed';
                       const statusColor =
                         status === 'Successful'
                           ? 'green.600'
@@ -265,7 +257,7 @@ export const CertificationPageExecution = () => {
                       type="button"
                       isDisabled={!isAuthenticated}
                       onClick={() => {
-                        setValidatedScenario(row);
+                        setValidatedStep(row);
                         setExecutionResult(null);
                       }}
                     >
@@ -277,14 +269,16 @@ export const CertificationPageExecution = () => {
               {scenarioRows.length === 0 && (
                 <Tr>
                   <Td colSpan={3}>
-                    <Text color="gray.600">No scenarios found for the selected filters.</Text>
+                    <Text color="gray.600">
+                      {isStepsPending ? 'Loading steps...' : 'No steps found for this scenario.'}
+                    </Text>
                   </Td>
                 </Tr>
               )}
             </Tbody>
           </Table>
 
-          {validatedScenario && (
+          {validatedStep && (
             <Box
               w="full"
               maxW="42em"
@@ -312,21 +306,31 @@ export const CertificationPageExecution = () => {
                 </Text>
               </Box>
 
-              {parameterDefinitions.map((parameter) => (
-                <FormControl key={parameter.name} mb={4}>
-                  <FormLabel>{parameter.description?.trim() || parameter.name}</FormLabel>
-                  <Input
-                    placeholder={`Enter ${parameter.name}`}
-                    value={parameterValues[parameter.name] ?? ''}
-                    onChange={(event) => {
-                      setParameterValues((prev) => ({
-                        ...prev,
-                        [parameter.name]: event.target.value,
-                      }));
-                    }}
-                  />
-                </FormControl>
-              ))}
+              {parameterDefinitions.map((parameter) => {
+                const { label, hint } = parameterFieldOf(parameter);
+                return (
+                  <FormControl key={parameter.parameterId} mb={4}>
+                    <FormLabel>{label}</FormLabel>
+                    <Input
+                      placeholder={hint ?? `Enter ${label.toLowerCase()}`}
+                      value={parameterValues[parameter.parameterId] ?? ''}
+                      onChange={(event) => {
+                        setParameterValues((prev) => ({
+                          ...prev,
+                          [parameter.parameterId]: event.target.value,
+                        }));
+                      }}
+                    />
+                    {hint && <FormHelperText>Format: {hint}</FormHelperText>}
+                  </FormControl>
+                );
+              })}
+
+              {parameterDefinitions.length === 0 && (
+                <Text mb={4} color="gray.600">
+                  This step has no parameters to enter.
+                </Text>
+              )}
 
               <Button
                 colorScheme="primary"
@@ -336,7 +340,7 @@ export const CertificationPageExecution = () => {
                   const hasErrors = !nextExecutionIsSuccess;
 
                   setExecutionResult({
-                    scenarioStep: validatedScenario.scenarioStep ?? '',
+                    scenarioStep: stepNameOf(validatedStep),
                     lastModifiedDate: new Date().toISOString(),
                     isValid: !hasErrors,
                     successful: 15,
@@ -359,7 +363,7 @@ export const CertificationPageExecution = () => {
 
                   setRowExecutionStatusById((prev) => ({
                     ...prev,
-                    [validatedScenario.id]: hasErrors ? 'Failed' : 'Successful',
+                    [validatedStep.stepId]: hasErrors ? 'Failed' : 'Successful',
                   }));
 
                   setNextExecutionIsSuccess((prev) => !prev);
@@ -370,7 +374,7 @@ export const CertificationPageExecution = () => {
             </Box>
           )}
 
-          {!validatedScenario && (
+          {!validatedStep && (
             <Text color="gray.600" mb={2}>
               Select Validate on a row to load its dynamic parameters.
             </Text>

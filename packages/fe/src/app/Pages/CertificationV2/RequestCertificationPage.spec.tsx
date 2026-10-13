@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { RequestCertificationPage } from './RequestCertificationPage';
 import { useCertificationSelection } from './useCertificationSelection';
 import { useCertificationAuth } from './CertificationAuthContext';
+import { useCertificationCatalog } from './useCertificationCatalog';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router', () => ({
@@ -32,6 +33,9 @@ jest.mock('./CertificationAuthContext', () => ({
   ...jest.requireActual('./CertificationAuthContext'),
   useCertificationAuth: jest.fn(),
 }));
+jest.mock('./useCertificationCatalog', () => ({
+  useCertificationCatalog: jest.fn(),
+}));
 jest.mock('./CertificationAuthenticateForm', () => ({
   CertificationAuthenticateForm: (p: { isDisabled?: boolean }) => (
     <div data-testid="auth-form" data-disabled={String(!!p.isDisabled)} />
@@ -39,6 +43,40 @@ jest.mock('./CertificationAuthenticateForm', () => ({
 }));
 
 const setSelection = jest.fn();
+const catalogAreas = [
+  {
+    areaId: 17,
+    catalogVersionId: 2,
+    name: 'EducationOrganizationCalendar',
+    displayName: 'Education Organization Calendar',
+    displayOrder: 2,
+    scenarios: [
+      { scenarioId: 52, areaId: 17, name: 'Calendars', displayName: 'Calendars', displayOrder: 6 },
+      { scenarioId: 51, areaId: 17, name: 'CalendarDates', displayName: null, displayOrder: 7 },
+    ],
+  },
+  {
+    areaId: 18,
+    catalogVersionId: 2,
+    name: 'Staff',
+    displayName: 'Staff',
+    displayOrder: 3,
+    scenarios: [
+      { scenarioId: 60, areaId: 18, name: 'Staffs', displayName: 'Staffs', displayOrder: 1 },
+    ],
+  },
+];
+const loadedCatalog = {
+  dataStandardVersion: 'v5',
+  catalogVersion: {
+    catalogVersionId: 2,
+    artifactVersion: 'v2.1.0',
+    dataStandardVersion: 'v5',
+    isActive: true,
+  },
+  areas: catalogAreas,
+  isPending: false,
+};
 const multiTenantEnv = {
   id: 1,
   version: 'v3',
@@ -86,6 +124,75 @@ describe('RequestCertificationPage', () => {
       setSelection,
       toSearch: (e: { scenarioId?: number } = {}) => `?edfiTenantId=10&scenarioId=${e.scenarioId}`,
     });
+    (useCertificationCatalog as jest.Mock).mockReturnValue(loadedCatalog);
+  });
+
+  it('shows the data standard version and lists the catalog areas and scenarios', () => {
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    expect(screen.getByText('Certification 2.1.0')).toBeTruthy();
+    expect(screen.getByText('Data Standard v5')).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Education Organization Calendar' })).toBeTruthy();
+    expect(screen.getByRole('option', { name: 'Staff' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: 'Calendars' })).toBeTruthy();
+    // Falls back to the name when there is no display name.
+    expect(screen.getByRole('cell', { name: 'CalendarDates' })).toBeTruthy();
+    expect(screen.getByRole('cell', { name: 'Staffs' })).toBeTruthy();
+  });
+
+  it('filters the scenarios by the selected area', () => {
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    fireEvent.change(screen.getByRole('combobox', { name: 'Area or Group Filter' }), {
+      target: { value: '18' },
+    });
+    expect(screen.queryByRole('cell', { name: 'Calendars' })).toBeNull();
+    expect(screen.getByRole('cell', { name: 'Staffs' })).toBeTruthy();
+  });
+
+  it('warns when no catalog matches the data standard', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: 'v6',
+      catalogVersion: undefined,
+      areas: [],
+      isPending: false,
+    });
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    expect(
+      screen.getByText('No certification catalog is available for data standard v6.'),
+    ).toBeTruthy();
+    expect(
+      (screen.getByRole('combobox', { name: 'Area or Group Filter' }) as HTMLSelectElement)
+        .disabled,
+    ).toBe(true);
+    expect(screen.getByText('No scenarios found for the current filters.')).toBeTruthy();
+  });
+
+  it('shows a loading message for the version while the catalog loads', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: 'v5',
+      catalogVersion: undefined,
+      areas: [],
+      isPending: true,
+    });
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    expect(screen.getByText('Loading certification version...')).toBeTruthy();
+    expect(screen.queryByText(/No certification catalog/)).toBeNull();
+  });
+
+  it('warns when the environment has no data standard version', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: undefined,
+      catalogVersion: undefined,
+      areas: [],
+      isPending: false,
+    });
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    expect(screen.getByText(/data standard version is unknown/)).toBeTruthy();
+    expect(screen.getByText('Certification version not available')).toBeTruthy();
   });
 
   it('labels the ODS field "Data Store" on v3 and no longer shows an API address', () => {
@@ -250,7 +357,7 @@ describe('RequestCertificationPage', () => {
     expect(container.firstElementChild?.firstElementChild).toBe(alert.closest('[role="alert"]'));
     expect(screen.queryByText('Tenant')).toBeNull();
     expect(screen.queryByTestId('auth-form')).toBeNull();
-    expect(screen.queryByText('Scenarios Version')).toBeNull();
+    expect(screen.queryByText('Certification 2.1.0')).toBeNull();
     expect(screen.queryAllByRole('button', { name: 'Validate Scenario' })).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });
@@ -297,7 +404,7 @@ describe('RequestCertificationPage', () => {
     fireEvent.click(firstButton());
     expect(mockNavigate).toHaveBeenCalledWith({
       pathname: 'execution',
-      search: expect.stringMatching(/^\?edfiTenantId=10&scenarioId=\d+$/),
+      search: '?edfiTenantId=10&scenarioId=52',
     });
   });
 });
