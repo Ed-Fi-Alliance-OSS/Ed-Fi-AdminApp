@@ -28,7 +28,7 @@ import { config } from '../../../config/config';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
-import { displayNameOf } from './certificationCatalog';
+import { displayNameOf, formatArtifactVersion } from './certificationCatalog';
 import { useCertificationCatalog } from './useCertificationCatalog';
 
 const TENANT_TOOLTIP =
@@ -213,10 +213,20 @@ export const RequestCertificationPage = () => {
             isDisabled={isLoadingSelection || (odsRequired && odsId === undefined)}
           />
 
-          <FormControl mt={4}>
-            <FormLabel>Scenarios Version</FormLabel>
-            {catalog.dataStandardVersion ?? 'N/A'}
-          </FormControl>
+          <Box mt={4}>
+            {catalog.isPending ? (
+              <Text color="gray.600">Loading certification version...</Text>
+            ) : catalog.catalogVersion ? (
+              <>
+                <Text>
+                  Certification {formatArtifactVersion(catalog.catalogVersion.artifactVersion)}
+                </Text>
+                <Text>Data Standard {catalog.catalogVersion.dataStandardVersion}</Text>
+              </>
+            ) : (
+              <Text color="gray.600">Certification version not available</Text>
+            )}
+          </Box>
 
           {!catalog.isPending && !hasCatalog && (
             <Alert status="warning" mt={4}>

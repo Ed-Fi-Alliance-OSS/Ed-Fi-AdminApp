@@ -60,7 +60,18 @@ const steps = [
     displayOrder: 1,
     parameters: [
       { parameterId: 484, type: 'input', name: 'schoolId', description: 'FIRST SCHOOL ID' },
-      { parameterId: 485, type: 'output', name: 'schoolYear', description: null },
+      {
+        parameterId: 485,
+        type: 'input',
+        name: 'beginDate',
+        description: 'FIRST BEGIN DATE YYYY-MM-DD',
+      },
+      {
+        parameterId: 486,
+        type: 'context',
+        name: 'calendarReference',
+        description: 'Resolved from Bruno context variable: calendarRef',
+      },
     ],
   },
   {
@@ -68,9 +79,17 @@ const steps = [
     scenarioId: 52,
     stepName: '02 - 2nd Calendar is valid',
     displayName: null,
-    stepType: 'CREATE',
+    stepType: 'UPDATE',
     displayOrder: 2,
-    parameters: [],
+    parameters: [
+      {
+        parameterId: 487,
+        type: 'reference',
+        name: 'calendarId',
+        description:
+          'Resource identifier captured from the CREATE step and provided automatically by the App',
+      },
+    ],
   },
 ];
 const validAuth = {
@@ -109,7 +128,7 @@ describe('CertificationPageExecution', () => {
     expect(screen.getByText('02 - 2nd Calendar is valid')).toBeTruthy();
   });
 
-  it('shows every parameter of the validated step', () => {
+  const renderAuthenticated = () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
       odsId: undefined,
@@ -121,10 +140,43 @@ describe('CertificationPageExecution', () => {
       clearAuth: jest.fn(),
     });
     render(<CertificationPageExecution />);
+  };
+  const executeButton = () =>
+    screen.getByRole('button', { name: 'Execute Scenario' }) as HTMLButtonElement;
+
+  it('shows only the input parameters, with readable labels and format hints', () => {
+    renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[0]);
     expect(screen.getByText('Enter Validation Parameters')).toBeTruthy();
-    expect(screen.getByLabelText('FIRST SCHOOL ID')).toBeTruthy();
-    expect(screen.getByLabelText('schoolYear')).toBeTruthy();
+    expect(screen.getByLabelText('First school id')).toBeTruthy();
+    expect((screen.getByLabelText('First begin date') as HTMLInputElement).placeholder).toBe(
+      'YYYY-MM-DD',
+    );
+    expect(screen.getByText('Format: YYYY-MM-DD')).toBeTruthy();
+    expect(screen.queryByText(/Bruno context variable/)).toBeNull();
+    expect(screen.getAllByRole('textbox')).toHaveLength(2);
+  });
+
+  it('enables Execute Scenario once every input parameter is filled', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[0]);
+    expect(executeButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('First school id'), { target: { value: '255901' } });
+    expect(executeButton().disabled).toBe(true);
+    fireEvent.change(screen.getByLabelText('First begin date'), {
+      target: { value: '2026-08-15' },
+    });
+    expect(executeButton().disabled).toBe(false);
+    fireEvent.click(executeButton());
+    expect(screen.getAllByText('Successful').length).toBeGreaterThan(0);
+  });
+
+  it('asks for nothing on a step whose only parameter the app fills in', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[1]);
+    expect(screen.queryByRole('textbox')).toBeNull();
+    expect(screen.getByText('This step has no parameters to enter.')).toBeTruthy();
+    expect(executeButton().disabled).toBe(false);
   });
 
   it.each([

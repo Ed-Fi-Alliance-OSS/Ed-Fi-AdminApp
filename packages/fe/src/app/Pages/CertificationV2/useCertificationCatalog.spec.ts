@@ -1,0 +1,163 @@
+import 'reflect-metadata';
+import { renderHook } from '@testing-library/react';
+import { useQuery } from '@tanstack/react-query';
+import { methods } from '../../api';
+import {
+  certificationQueryKeys,
+  useCertificationCatalog,
+  useCertificationSteps,
+} from './useCertificationCatalog';
+
+jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
+jest.mock('../../api', () => ({
+  methods: { getMany: jest.fn() },
+  sbEnvironmentQueriesGlobal: { getOne: ({ id }: { id: number }) => ({ queryKey: ['env', id] }) },
+}));
+
+type QueryState = { data?: unknown; isPending: boolean };
+type QueryOptions = { queryKey: unknown[]; enabled?: boolean; queryFn?: () => unknown };
+
+const settled = (data: unknown): QueryState => ({ data, isPending: false });
+const loading: QueryState = { data: undefined, isPending: true };
+
+const versions = [
+  { catalogVersionId: 1, artifactVersion: 'v2.1.0', dataStandardVersion: 'v4', isActive: true },
+  { catalogVersionId: 2, artifactVersion: 'v2.1.0', dataStandardVersion: 'v5', isActive: true },
+];
+const area = (areaId: number, displayOrder: number) => ({
+  areaId,
+  displayOrder,
+  scenarios: [
+    { scenarioId: areaId * 10 + 2, displayOrder: 2 },
+    { scenarioId: areaId * 10 + 1, displayOrder: 1 },
+  ],
+});
+
+/** Answers each useQuery call by key; a disabled query never settles, as in TanStack Query v5. */
+const mockQueries = (states: {
+  env: QueryState;
+  versions?: QueryState;
+  scenarios?: QueryState;
+  steps?: QueryState;
+}) =>
+  (useQuery as jest.Mock).mockImplementation((options: QueryOptions) => {
+    if (options.enabled === false) return loading;
+    if (options.queryKey[0] === 'env') return states.env;
+    const byName: Record<string, QueryState | undefined> = {
+      'catalog-versions': states.versions,
+      scenarios: states.scenarios,
+      steps: states.steps,
+    };
+    return byName[options.queryKey[2] as string] ?? loading;
+  });
+
+const optionsFor = (name: string) =>
+  (useQuery as jest.Mock).mock.calls
+    .map(([options]) => options as QueryOptions)
+    .filter((options) => options.queryKey[2] === name)
+    .at(-1);
+
+describe('useCertificationCatalog', () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  it.each([
+    ['5.2.0', 2],
+    ['4.0.0', 1],
+  ])('for data standard %s picks catalog version %d and loads its areas', (odsDsVersion, id) => {
+    mockQueries({
+      env: settled({ odsDsVersion }),
+      versions: settled(versions),
+      scenarios: settled([area(2, 2), area(1, 1)]),
+    });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.catalogVersion?.catalogVersionId).toBe(id);
+    expect(result.current.isPending).toBe(false);
+    expect(optionsFor('scenarios')).toMatchObject({
+      queryKey: certificationQueryKeys.scenarios(7, id),
+      enabled: true,
+    });
+    // Areas and their scenarios come back sorted by displayOrder.
+    expect(result.current.areas.map((a) => a.areaId)).toEqual([1, 2]);
+    expect(result.current.areas[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
+  });
+
+  it('requests only the matched catalog version', () => {
+    mockQueries({
+      env: settled({ odsDsVersion: '5.2.0' }),
+      versions: settled(versions),
+      scenarios: settled([]),
+    });
+    renderHook(() => useCertificationCatalog(7));
+
+    optionsFor('scenarios')?.queryFn?.();
+
+    expect(methods.getMany).toHaveBeenCalledWith(
+      'sb-environments/7/certification/scenarios',
+      expect.anything(),
+      { params: { catalogVersionId: 2 } },
+    );
+  });
+
+  it('is not pending and loads no areas when no catalog version matches', () => {
+    mockQueries({ env: settled({ odsDsVersion: '6.1.0' }), versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(optionsFor('scenarios')?.enabled).toBe(false);
+    expect(result.current.dataStandardVersion).toBe('v6');
+    expect(result.current.catalogVersion).toBeUndefined();
+    expect(result.current.areas).toEqual([]);
+    expect(result.current.isPending).toBe(false);
+  });
+
+  it.each([
+    ['the environment', { env: loading, versions: settled(versions) }],
+    ['the catalog versions', { env: settled({ odsDsVersion: '5.2.0' }), versions: loading }],
+    [
+      'the areas',
+      { env: settled({ odsDsVersion: '5.2.0' }), versions: settled(versions), scenarios: loading },
+    ],
+  ])('is pending while %s load', (_, states) => {
+    mockQueries(states);
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.isPending).toBe(true);
+  });
+});
+
+describe('useCertificationSteps', () => {
+  beforeEach(() => jest.resetAllMocks());
+
+  it('loads the scenario steps in display order', () => {
+    mockQueries({
+      env: loading,
+      steps: settled([
+        { stepId: 2, displayOrder: 2 },
+        { stepId: 1, displayOrder: 1 },
+      ]),
+    });
+
+    const { result } = renderHook(() => useCertificationSteps(7, 52));
+    optionsFor('steps')?.queryFn?.();
+
+    expect(result.current.steps.map((s) => s.stepId)).toEqual([1, 2]);
+    expect(result.current.isPending).toBe(false);
+    expect(methods.getMany).toHaveBeenCalledWith(
+      'sb-environments/7/certification/steps',
+      expect.anything(),
+      { params: { scenarioId: 52 } },
+    );
+  });
+
+  it('is not pending and does not query without a scenario', () => {
+    mockQueries({ env: loading });
+
+    const { result } = renderHook(() => useCertificationSteps(7, undefined));
+
+    expect(optionsFor('steps')?.enabled).toBe(false);
+    expect(result.current).toEqual({ steps: [], isPending: false });
+  });
+});

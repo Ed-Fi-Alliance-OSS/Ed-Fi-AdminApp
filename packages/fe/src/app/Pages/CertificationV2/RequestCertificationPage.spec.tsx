@@ -130,7 +130,8 @@ describe('RequestCertificationPage', () => {
   it('shows the data standard version and lists the catalog areas and scenarios', () => {
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
-    expect(screen.getByText('v5')).toBeTruthy();
+    expect(screen.getByText('Certification 2.1.0')).toBeTruthy();
+    expect(screen.getByText('Data Standard v5')).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Education Organization Calendar' })).toBeTruthy();
     expect(screen.getByRole('option', { name: 'Staff' })).toBeTruthy();
     expect(screen.getByRole('cell', { name: 'Calendars' })).toBeTruthy();
@@ -168,6 +169,19 @@ describe('RequestCertificationPage', () => {
     expect(screen.getByText('No scenarios found for the current filters.')).toBeTruthy();
   });
 
+  it('shows a loading message for the version while the catalog loads', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: 'v5',
+      catalogVersion: undefined,
+      areas: [],
+      isPending: true,
+    });
+    mockQueries(multiTenantEnv, tenants, {});
+    render(<RequestCertificationPage />);
+    expect(screen.getByText('Loading certification version...')).toBeTruthy();
+    expect(screen.queryByText(/No certification catalog/)).toBeNull();
+  });
+
   it('warns when the environment has no data standard version', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: undefined,
@@ -178,6 +192,7 @@ describe('RequestCertificationPage', () => {
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
     expect(screen.getByText(/data standard version is unknown/)).toBeTruthy();
+    expect(screen.getByText('Certification version not available')).toBeTruthy();
   });
 
   it('labels the ODS field "Data Store" on v3 and no longer shows an API address', () => {
@@ -342,7 +357,7 @@ describe('RequestCertificationPage', () => {
     expect(container.firstElementChild?.firstElementChild).toBe(alert.closest('[role="alert"]'));
     expect(screen.queryByText('Tenant')).toBeNull();
     expect(screen.queryByTestId('auth-form')).toBeNull();
-    expect(screen.queryByText('Scenarios Version')).toBeNull();
+    expect(screen.queryByText('Certification 2.1.0')).toBeNull();
     expect(screen.queryAllByRole('button', { name: 'Validate Scenario' })).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });

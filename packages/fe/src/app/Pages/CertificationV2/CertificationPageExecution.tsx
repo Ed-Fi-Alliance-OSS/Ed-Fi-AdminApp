@@ -5,6 +5,7 @@ import {
   Button,
   ButtonGroup,
   FormControl,
+  FormHelperText,
   FormLabel,
   HStack,
   Input,
@@ -26,10 +27,13 @@ import { config } from '../../../config/config';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
-import { displayNameOf } from './certificationCatalog';
+import {
+  displayNameOf,
+  isUserInputParameter,
+  parameterFieldOf,
+  stepNameOf,
+} from './certificationCatalog';
 import { useCertificationCatalog, useCertificationSteps } from './useCertificationCatalog';
-
-const stepNameOf = (step: CertificationStepDto) => step.displayName?.trim() || step.stepName;
 
 type ValidationErrorResult = {
   property: string;
@@ -87,7 +91,11 @@ export const CertificationPageExecution = () => {
 
   const [validatedStep, setValidatedStep] = useState<CertificationStepDto | null>(null);
 
-  const parameterDefinitions = useMemo(() => validatedStep?.parameters ?? [], [validatedStep]);
+  // Only `input` parameters are typed in; the app fills in `context` and `reference` ones.
+  const parameterDefinitions = useMemo(
+    () => (validatedStep?.parameters ?? []).filter(isUserInputParameter),
+    [validatedStep],
+  );
 
   const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
   const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
@@ -298,21 +306,31 @@ export const CertificationPageExecution = () => {
                 </Text>
               </Box>
 
-              {parameterDefinitions.map((parameter) => (
-                <FormControl key={parameter.parameterId} mb={4}>
-                  <FormLabel>{parameter.description?.trim() || parameter.name}</FormLabel>
-                  <Input
-                    placeholder={`Enter ${parameter.name}`}
-                    value={parameterValues[parameter.parameterId] ?? ''}
-                    onChange={(event) => {
-                      setParameterValues((prev) => ({
-                        ...prev,
-                        [parameter.parameterId]: event.target.value,
-                      }));
-                    }}
-                  />
-                </FormControl>
-              ))}
+              {parameterDefinitions.map((parameter) => {
+                const { label, hint } = parameterFieldOf(parameter);
+                return (
+                  <FormControl key={parameter.parameterId} mb={4}>
+                    <FormLabel>{label}</FormLabel>
+                    <Input
+                      placeholder={hint ?? `Enter ${label.toLowerCase()}`}
+                      value={parameterValues[parameter.parameterId] ?? ''}
+                      onChange={(event) => {
+                        setParameterValues((prev) => ({
+                          ...prev,
+                          [parameter.parameterId]: event.target.value,
+                        }));
+                      }}
+                    />
+                    {hint && <FormHelperText>Format: {hint}</FormHelperText>}
+                  </FormControl>
+                );
+              })}
+
+              {parameterDefinitions.length === 0 && (
+                <Text mb={4} color="gray.600">
+                  This step has no parameters to enter.
+                </Text>
+              )}
 
               <Button
                 colorScheme="primary"
