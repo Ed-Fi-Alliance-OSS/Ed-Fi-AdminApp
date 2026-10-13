@@ -1,0 +1,300 @@
+import 'reflect-metadata';
+import * as fs from 'fs';
+import * as path from 'path';
+import { ConflictException, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  CertificationProcess,
+  CertificationProcessScenario,
+  ScenarioStep,
+  ScenarioStepError,
+  StepCatalog,
+} from '@edanalytics/models-server';
+import { CertificationService, deriveScenarioStatus } from './certification.service';
+import { runBrunoCli } from './runner/bruno-cli';
+import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
+import { createRunWorkspace } from './runner/run-workspace';
+
+jest.mock('./runner/bruno-cli', () => ({
+  ...jest.requireActual('./runner/bruno-cli'),
+  runBrunoCli: jest.fn(),
+}));
+jest.mock('./runner/run-workspace', () => ({
+  ...jest.requireActual('./runner/run-workspace'),
+  createRunWorkspace: jest.fn(),
+}));
+jest.mock('./runner/bruno-report', () => ({
+  ...jest.requireActual('./runner/bruno-report'),
+  readBrunoReport: jest.fn(),
+}));
+
+const fixture = (name: string) =>
+  JSON.parse(fs.readFileSync(path.join(__dirname, 'runner', '__fixtures__', `${name}.json`), 'utf8'));
+
+const TOKEN = 'secret-token-value';
+const STEP_PATH = 'v5/Student/Students/01 - 1st Student is valid.bru';
+const sbEnvironment = { id: 1 } as never;
+const edfiTenant = { id: 10, name: 'tenant1' } as never;
+
+const makeStep = () => ({
+  stepId: 101,
+  scenarioId: 20,
+  fileName: '01 - 1st Student is valid.bru',
+  isEnabled: true,
+  scenario: {
+    scenarioId: 20,
+    name: 'Students',
+    isEnabled: true,
+    area: {
+      name: 'Student',
+      isEnabled: true,
+      catalogVersionId: 3,
+      catalogVersion: { catalogVersionId: 3, isActive: true, dataStandardVersion: 'v5', artifactVersion: 'v2.1.0' },
+    },
+  },
+});
+
+describe('CertificationService.runStep', () => {
+  let stepRepository: { findOne: jest.Mock };
+  let parameterRepository: { find: jest.Mock };
+  let processRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let processScenarioRepository: { findOne: jest.Mock };
+  let em: Record<string, Record<string, jest.Mock>>;
+  let dataSource: { transaction: jest.Mock };
+  let artifactService: { isRunTimeReady: boolean; currentRef: string; sisRoot: string; brunoCliPath: string };
+  let targetService: { resolve: jest.Mock };
+  let service: CertificationService;
+  let dispose: jest.Mock;
+
+  const run = (overrides: Partial<Parameters<CertificationService['runStep']>[0]> = {}) =>
+    service.runStep({
+      sbEnvironment,
+      edfiTenant,
+      sisVersion: 'v5',
+      stepId: 101,
+      odsId: 5,
+      token: TOKEN,
+      inputs: { studentUniqueId: 'S1' },
+      ...overrides,
+    });
+
+  beforeEach(() => {
+    jest.resetAllMocks();
+    stepRepository = { findOne: jest.fn().mockResolvedValue(makeStep()) };
+    parameterRepository = { find: jest.fn().mockResolvedValue([{ name: 'studentUniqueId' }]) };
+    processRepository = {
+      findOne: jest.fn().mockResolvedValue({ certificationProcessId: 7 }),
+      create: jest.fn((value) => value),
+      save: jest.fn(async (value) => ({ certificationProcessId: 7, ...value })),
+    };
+    processScenarioRepository = {
+      findOne: jest.fn().mockResolvedValue({ capturedVars: { firstStudentUniqueId: 'old' } }),
+    };
+    // Keyed by entity class name, matching em.getRepository(Entity) in the service.
+    em = {
+      [ScenarioStep.name]: {
+        findOne: jest.fn().mockResolvedValue(null),
+        create: jest.fn((value) => value),
+        save: jest.fn(async (value) => ({ stepRunId: 55, ...value })),
+        find: jest.fn().mockResolvedValue([{ stepId: 101, status: 'success' }]),
+      },
+      [ScenarioStepError.name]: { delete: jest.fn(), save: jest.fn() },
+      [CertificationProcessScenario.name]: {
+        findOne: jest.fn().mockResolvedValue({ certificationProcessId: 7, scenarioId: 20, capturedVars: { firstStudentUniqueId: 'old' } }),
+        create: jest.fn((value) => value),
+        save: jest.fn(),
+      },
+      [CertificationProcess.name]: { update: jest.fn() },
+      [StepCatalog.name]: { find: jest.fn().mockResolvedValue([{ stepId: 101 }]) },
+    };
+    dataSource = {
+      transaction: jest.fn(async (work) =>
+        work({ getRepository: (entity: { name: string }) => em[entity.name] })
+      ),
+    };
+    artifactService = { isRunTimeReady: true, currentRef: 'v2.1.0', sisRoot: '/sis', brunoCliPath: '/sis/bru.js' };
+    targetService = {
+      resolve: jest.fn().mockResolvedValue({
+        oauthUrl: 'https://h/tenant1/oauth/token',
+        resourceBaseUrl: 'https://h/tenant1/data/v3',
+      }),
+    };
+    dispose = jest.fn();
+    (createRunWorkspace as jest.Mock).mockResolvedValue({
+      dir: '/tmp/cert-run-x',
+      stepPath: STEP_PATH,
+      reportPath: '/tmp/cert-run-x/report.json',
+      dispose,
+    });
+    (runBrunoCli as jest.Mock).mockResolvedValue({ exitCode: 0, timedOut: false, stderrTail: '' });
+    (readBrunoReport as jest.Mock).mockResolvedValue(fixture('step-passed'));
+
+    service = new CertificationService(
+      artifactService as never,
+      targetService as never,
+      stepRepository as never,
+      parameterRepository as never,
+      processRepository as never,
+      processScenarioRepository as never,
+      dataSource as never
+    );
+  });
+
+  it('runs the step and saves a passing result with the captured values', async () => {
+    const result = await run();
+
+    expect(result).toEqual({
+      stepId: 101,
+      status: 'success',
+      ranAt: expect.any(String),
+      scenarioStatus: 'completed',
+      errors: [],
+    });
+    expect(createRunWorkspace).toHaveBeenCalledWith(
+      expect.objectContaining({
+        sisRoot: '/sis',
+        stepSegments: ['v5', 'Student', 'Students', '01 - 1st Student is valid.bru'],
+        inputs: { studentUniqueId: 'S1' },
+        resourceBaseUrl: 'https://h/tenant1/data/v3',
+        oauthUrl: 'https://h/tenant1/oauth/token',
+        restoredVars: { firstStudentUniqueId: 'old' },
+      })
+    );
+    expect(runBrunoCli).toHaveBeenCalledWith(
+      expect.objectContaining({ cliPath: '/sis/bru.js', cwd: '/tmp/cert-run-x', token: TOKEN, timeoutMs: 60000 })
+    );
+    // config.mock sets SSL_VERIFICATION=false, so Bruno mirrors it with --insecure.
+    expect((runBrunoCli as jest.Mock).mock.calls[0][0].args).toContain('--insecure');
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ certificationProcessId: 7, stepId: 101, status: 'success', inputs: { studentUniqueId: 'S1' } })
+    );
+    expect(em.ScenarioStepError.delete).toHaveBeenCalledWith({ stepRunId: 55 });
+    expect(em.ScenarioStepError.save).not.toHaveBeenCalled();
+    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+      expect.objectContaining({
+        status: 'completed',
+        capturedVars: {
+          firstStudentUniqueId: 'abc123',
+          firstStudentId: 'S1',
+          firstStudentBirthDate: '2010-01-01',
+          firstStudentBirthCity: 'Austin',
+        },
+      })
+    );
+    expect(dispose).toHaveBeenCalled();
+  });
+
+  it('saves a failing result with its errors, replacing the previous row', async () => {
+    em.ScenarioStep.findOne.mockResolvedValue({ stepRunId: 55, certificationProcessId: 7, scenarioId: 20, stepId: 101 });
+    em.ScenarioStep.find.mockResolvedValue([{ stepId: 101, status: 'failed' }]);
+    (readBrunoReport as jest.Mock).mockResolvedValue(fixture('assertion-failed'));
+
+    const result = await run();
+
+    expect(result.status).toBe('failed');
+    expect(result.scenarioStatus).toBe('failed');
+    expect(em.ScenarioStep.create).not.toHaveBeenCalled();
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(expect.objectContaining({ stepRunId: 55, status: 'failed' }));
+    expect(em.ScenarioStepError.save).toHaveBeenCalledWith([
+      { stepRunId: 55, property: 'res.body', validation: 'isNotEmpty', description: 'expected [] not to be empty' },
+      expect.objectContaining({ property: 'res.body[0].id' }),
+      expect.objectContaining({ property: '', validation: 'script' }),
+    ]);
+  });
+
+  it('keeps the stored captured values when the run does not complete', async () => {
+    (runBrunoCli as jest.Mock).mockResolvedValue({ exitCode: null, timedOut: true, stderrTail: '' });
+    em.ScenarioStep.find.mockResolvedValue([{ stepId: 101, status: 'failed' }]);
+
+    const result = await run();
+
+    expect(result.status).toBe('failed');
+    expect(result.errors).toEqual([{ property: '', validation: 'run', error: INCOMPLETE_RUN_MESSAGE }]);
+    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+      expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } })
+    );
+  });
+
+  it('removes the workspace even when the CLI throws', async () => {
+    (runBrunoCli as jest.Mock).mockRejectedValue(new Error('spawn failed'));
+    await expect(run()).rejects.toThrow('spawn failed');
+    expect(dispose).toHaveBeenCalled();
+  });
+
+  it('creates the process on the first run of a tenant without an ODS', async () => {
+    processRepository.findOne.mockResolvedValue(null);
+    await run({ odsId: undefined });
+    expect(processRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ edfiTenantId: 10, odsId: null, catalogVersionId: 3, status: 'inprogress' })
+    );
+  });
+
+  it('returns 503 while the runtime is not ready', async () => {
+    artifactService.isRunTimeReady = false;
+    await expect(run()).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('rejects an unsupported SIS version before touching the catalog', async () => {
+    await expect(run({ sisVersion: 'v4' })).rejects.toMatchObject({ status: 400 });
+    expect(stepRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    ['missing', () => null],
+    ['disabled', () => ({ ...makeStep(), isEnabled: false })],
+    ['from another SIS version', () => { const s = makeStep(); s.scenario.area.catalogVersion.dataStandardVersion = 'v4'; return s; }],
+    ['from an inactive catalog', () => { const s = makeStep(); s.scenario.area.catalogVersion.isActive = false; return s; }],
+    ['from another artifact', () => { const s = makeStep(); s.scenario.area.catalogVersion.artifactVersion = 'v9'; return s; }],
+  ])('returns 404 for a step that is %s', async (_label, step) => {
+    stepRepository.findOne.mockResolvedValue(step());
+    await expect(run()).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects invalid inputs without running Bruno', async () => {
+    await expect(run({ inputs: { notAnInput: 'x' } })).rejects.toMatchObject({ status: 400 });
+    expect(runBrunoCli).not.toHaveBeenCalled();
+  });
+
+  it('returns 409 while another step of the same scenario is running', async () => {
+    let finish: (value: unknown) => void = () => undefined;
+    (runBrunoCli as jest.Mock).mockReturnValue(new Promise((resolve) => (finish = resolve)));
+    const first = run();
+    await new Promise((resolve) => setImmediate(resolve));
+
+    await expect(run()).rejects.toBeInstanceOf(ConflictException);
+
+    finish({ exitCode: 0, timedOut: false, stderrTail: '' });
+    await first;
+  });
+
+  it('returns 503 at the concurrency cap', async () => {
+    const limiter = (service as unknown as { runLimiter: { tryAcquire: jest.Mock } }).runLimiter;
+    jest.spyOn(limiter, 'tryAcquire').mockReturnValue('at-capacity');
+    await expect(run()).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('never logs the token', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    (runBrunoCli as jest.Mock).mockResolvedValue({ exitCode: 1, timedOut: false, stderrTail: `boom ${TOKEN}` });
+    (readBrunoReport as jest.Mock).mockResolvedValue(null);
+
+    await run();
+
+    const logged = JSON.stringify([...log.mock.calls, ...warn.mock.calls]);
+    expect(logged).not.toContain(TOKEN);
+  });
+});
+
+describe('deriveScenarioStatus', () => {
+  it('is failed when any step failed', () => {
+    expect(deriveScenarioStatus([1, 2], [{ stepId: 1, status: 'success' }, { stepId: 2, status: 'failed' }])).toBe('failed');
+  });
+
+  it('is completed when every enabled step passed', () => {
+    expect(deriveScenarioStatus([1, 2], [{ stepId: 1, status: 'success' }, { stepId: 2, status: 'success' }])).toBe('completed');
+  });
+
+  it('is in progress while some steps have not run', () => {
+    expect(deriveScenarioStatus([1, 2], [{ stepId: 1, status: 'success' }])).toBe('inprogress');
+  });
+});

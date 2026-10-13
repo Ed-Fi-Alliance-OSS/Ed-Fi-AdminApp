@@ -1,4 +1,14 @@
-import { EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
+import {
+  CertificationProcess,
+  CertificationProcessScenario,
+  EdfiTenant,
+  Ods,
+  SbEnvironment,
+  ScenarioStep,
+  ScenarioStepError,
+  StepCatalog,
+  StepParameterCatalog,
+} from '@edanalytics/models-server';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArtifactModule } from './artifact/artifact.module';
@@ -14,7 +24,17 @@ import { CertificationTokenService } from './certification-token.service';
   imports: [
     ArtifactModule,
     CatalogModule,
-    TypeOrmModule.forFeature([Ods, EdfiTenant, SbEnvironment]),
+    TypeOrmModule.forFeature([
+      Ods,
+      EdfiTenant,
+      SbEnvironment,
+      StepCatalog,
+      StepParameterCatalog,
+      CertificationProcess,
+      CertificationProcessScenario,
+      ScenarioStep,
+      ScenarioStepError,
+    ]),
   ],
   controllers: [
     CertificationController,
