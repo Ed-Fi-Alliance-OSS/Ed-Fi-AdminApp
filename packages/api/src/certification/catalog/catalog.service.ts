@@ -19,6 +19,7 @@ interface ParsedParam {
 
 interface ParsedStep {
   stepName: string;
+  fileName: string;
   displayName: string | null;
   seq: number;
   stepType: string;
@@ -151,6 +152,7 @@ export class CatalogService {
             const stepCatalog = manager.create(StepCatalog, {
               scenarioId: scenarioCatalog.scenarioId,
               stepName: step.stepName,
+              fileName: step.fileName,
               displayName: step.displayName,
               stepType: step.stepType,
               displayOrder: step.seq,
@@ -236,6 +238,7 @@ export class CatalogService {
         return {
           stepName: metaName,
           displayName: metaName,
+          fileName: stepFile,
           seq,
           stepType,
           params: this.extractParams(content, stepType),

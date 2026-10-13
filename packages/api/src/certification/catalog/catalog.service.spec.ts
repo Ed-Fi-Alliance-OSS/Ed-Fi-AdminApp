@@ -1,5 +1,6 @@
 import { Logger } from '@nestjs/common';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import { DataSource, Repository } from 'typeorm';
 import {
@@ -14,6 +15,7 @@ import { CatalogService } from './catalog.service';
 type ParsedParamLike = { name: string; type: string; description: string | null };
 type ParsedStepLike = {
   stepName: string;
+  fileName: string;
   displayName: string | null;
   seq: number;
   stepType: string;
@@ -217,6 +219,7 @@ describe('CatalogService', () => {
             steps: [
               {
                 stepName: 'Create record',
+                fileName: '01 - Create record.bru',
                 displayName: 'Create record',
                 seq: 1,
                 stepType: 'CREATE',
@@ -245,6 +248,37 @@ describe('CatalogService', () => {
       CatalogVersion,
       expect.objectContaining({ artifactVersion: 'v2.1.0', dataStandardVersion: 'v4', isActive: true })
     );
+    expect(manager.create).toHaveBeenCalledWith(
+      StepCatalog,
+      expect.objectContaining({ fileName: '01 - Create record.bru' })
+    );
+  });
+
+  it('parseAreas should record each step file name', () => {
+    // fs read functions are module-mocked above; this test needs the real ones.
+    const actualFs = jest.requireActual<typeof fs>('fs');
+    mockedFs.existsSync.mockImplementation(actualFs.existsSync);
+    mockedFs.readdirSync.mockImplementation(actualFs.readdirSync as typeof fs.readdirSync);
+    mockedFs.readFileSync.mockImplementation(actualFs.readFileSync as typeof fs.readFileSync);
+
+    const root = fs.mkdtempSync(path.join(os.tmpdir(), 'catalog-filename-'));
+    try {
+      const scenarioDir = path.join(root, 'Student', 'Students');
+      fs.mkdirSync(scenarioDir, { recursive: true });
+      fs.writeFileSync(
+        path.join(scenarioDir, '01 - 1st Student is valid.bru'),
+        'meta {\n  name: 01 - 1st Student is valid\n  seq: 1\n}\n'
+      );
+
+      const [area] = asInternal(service).parseAreas(root);
+
+      expect(area.scenarios[0].steps[0]).toMatchObject({
+        stepName: '01 - 1st Student is valid',
+        fileName: '01 - 1st Student is valid.bru',
+      });
+    } finally {
+      fs.rmSync(root, { recursive: true, force: true });
+    }
   });
 
   it('parseMeta should return null values when folder.bru does not exist', () => {
