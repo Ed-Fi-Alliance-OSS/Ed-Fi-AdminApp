@@ -199,6 +199,10 @@ if (-not $env:TEAM_ID -and ($SeedData -or $isAuthRequest)) {
 
 $null = New-Item -ItemType Directory -Path "tests/api/test-results" -Force
 $bruArgs = @('run', $targetPath, '--env', $Env, '--insecure', '--reporter-html', './test-results/results.html', '--reporter-junit', './test-results/report.xml')
+# The certification collection posts the ODS key/secret; keep request bodies out of the HTML/JUnit reports.
+if ($env:CERT_ODS_SECRET) {
+  $bruArgs += '--reporter-skip-request-body'
+}
 if ($env:ACCESS_TOKEN) {
   $bruArgs += '--env-var'
   $bruArgs += "ACCESS_TOKEN=$env:ACCESS_TOKEN"

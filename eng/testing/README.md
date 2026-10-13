@@ -91,6 +91,37 @@ Run a single request by name:
 .\eng\testing\run-bruno.ps1 -Env local -Request auth-me
 ```
 
+#### Run the certification step collection (AC-466)
+
+`collections/certification` calls the step-run endpoint against a real ODS/API. Every request skips itself unless `CERT_SB_ENVIRONMENT_ID` is set, so the default suite is unaffected. The ODS must contain data matching the inputs. Locally, refresh the ODS databases to Data Model 5.2 templates first (otherwise every data call returns 500), or point the environment at certification.ed-fi.org. The `ACCESS_TOKEN` user needs `sb-environment:update` on the environment.
+
+Look up the v5 Students step ids after the API has synced the catalog:
+
+```sql
+SELECT s."stepId", s."fileName"
+FROM cert.step_catalog s
+JOIN cert.scenario_catalog sc ON sc."scenarioId" = s."scenarioId"
+JOIN cert.area_catalog a ON a."areaId" = sc."areaId"
+JOIN cert.catalog_version v ON v."catalogVersionId" = a."catalogVersionId"
+WHERE v."isActive" AND v."dataStandardVersion" = 'v5' AND a.name = 'Student' AND sc.name = 'Students'
+ORDER BY s."displayOrder";
+```
+
+```powershell
+$env:CERT_SB_ENVIRONMENT_ID = '1'
+$env:CERT_EDFI_TENANT_ID = '1'
+$env:CERT_ODS_ID = '1'                 # leave unset for a tenant without ODSs
+$env:CERT_ODS_KEY = '<ODS/API key>'
+$env:CERT_ODS_SECRET = '<ODS/API secret>'
+$env:CERT_STEP_01_ID = '<stepId of 01 - 1st Student is valid.bru>'
+$env:CERT_STEP_03_ID = '<stepId of 03 - 1st Student - birthDate was Updated.bru>'
+$env:CERT_STUDENT_UNIQUE_ID = '<a studentUniqueId in that ODS>'
+$env:CERT_EXPECT_SUCCESS = 'true'      # optional: also assert step 01 passes
+.\eng\testing\run-bruno.ps1 -Env local -Collection collections/certification
+```
+
+When `CERT_ODS_SECRET` is set, the runner adds `--reporter-skip-request-body` so the secret stays out of `test-results/`.
+
 #### Custom OIDC Grant Type
 
 Use password grant instead of client_credentials:
