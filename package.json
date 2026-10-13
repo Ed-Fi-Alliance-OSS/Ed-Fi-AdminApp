@@ -60,6 +60,7 @@
     "@nestjs/swagger": "^12.0.2",
     "@nestjs/throttler": "^6.7.1",
     "@nestjs/typeorm": "^12.0.2",
+    "@opentelemetry/api": "^1.9.1",
     "@tanstack/match-sorter-utils": "^9.2.6",
     "@tanstack/react-query": "^5.104.1",
     "@tanstack/react-query-devtools": "^5.104.1",
