@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import * as fs from 'fs';
+import fs from 'fs';
 import * as path from 'path';
 import { ConflictException, Logger, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import {
@@ -9,7 +9,7 @@ import {
   ScenarioStepError,
   StepCatalog,
 } from '@edanalytics/models-server';
-import { CertificationService, deriveScenarioStatus } from './certification.service';
+import { CertificationService, deriveScenarioStatus, positiveNumber } from './certification.service';
 import { runBrunoCli } from './runner/bruno-cli';
 import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
 import { createRunWorkspace } from './runner/run-workspace';
@@ -64,6 +64,7 @@ describe('CertificationService.runStep', () => {
   let targetService: { resolve: jest.Mock };
   let service: CertificationService;
   let dispose: jest.Mock;
+  let cliExists: boolean;
 
   const run = (overrides: Partial<Parameters<CertificationService['runStep']>[0]> = {}) =>
     service.runStep({
@@ -79,6 +80,12 @@ describe('CertificationService.runStep', () => {
 
   beforeEach(() => {
     jest.resetAllMocks();
+    // Only the fake CLI path is faked; every other path keeps its real answer.
+    cliExists = true;
+    const realExistsSync = fs.existsSync.bind(fs);
+    jest
+      .spyOn(fs, 'existsSync')
+      .mockImplementation((target) => (target === '/sis/bru.js' ? cliExists : realExistsSync(target)));
     stepRepository = { findOne: jest.fn().mockResolvedValue(makeStep()) };
     parameterRepository = { find: jest.fn().mockResolvedValue([{ name: 'studentUniqueId' }]) };
     processRepository = {
@@ -118,7 +125,7 @@ describe('CertificationService.runStep', () => {
         resourceBaseUrl: 'https://h/tenant1/data/v3',
       }),
     };
-    dispose = jest.fn();
+    dispose = jest.fn().mockResolvedValue(undefined);
     (createRunWorkspace as jest.Mock).mockResolvedValue({
       dir: '/tmp/cert-run-x',
       stepPath: STEP_PATH,
@@ -214,6 +221,58 @@ describe('CertificationService.runStep', () => {
     );
   });
 
+  it('still saves the result when removing the workspace fails, and warns', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    dispose.mockRejectedValue(new Error(`EBUSY: ${TOKEN}`));
+
+    const result = await run();
+
+    expect(result.status).toBe('success');
+    expect(em.ScenarioStep.save).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringMatching(/step 101.*workspace cleanup failed/));
+    expect(JSON.stringify(warn.mock.calls)).not.toContain(TOKEN);
+  });
+
+  it('drops tampered stored captured values, restores none, and logs only the keys', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    processScenarioRepository.findOne.mockResolvedValue({
+      capturedVars: { tamperedKey: { nested: 'hidden-value-123' }, okKey: 'fine' },
+    });
+
+    await run();
+
+    expect(createRunWorkspace).toHaveBeenCalledWith(expect.objectContaining({ restoredVars: {} }));
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('tamperedKey');
+    expect(logged).toContain('101');
+    expect(logged).not.toContain('hidden-value-123');
+    expect(logged).not.toContain('fine');
+  });
+
+  it('does not warn when there are no stored captured values', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    processScenarioRepository.findOne.mockResolvedValue(null);
+    await run();
+    expect(warn).not.toHaveBeenCalled();
+  });
+
+  it('logs the keys, not the values, of a captured body that fails validation, and keeps stored values', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const report = fixture('step-passed');
+    report[0].results[2].request.data = JSON.stringify({ badKey: { inner: 'leaky-value-456' } });
+    (readBrunoReport as jest.Mock).mockResolvedValue(report);
+
+    await run();
+
+    const logged = JSON.stringify(warn.mock.calls);
+    expect(logged).toContain('badKey');
+    expect(logged).toContain('101');
+    expect(logged).not.toContain('leaky-value-456');
+    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+      expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } })
+    );
+  });
+
   it('removes the workspace even when the CLI throws', async () => {
     (runBrunoCli as jest.Mock).mockRejectedValue(new Error('spawn failed'));
     await expect(run()).rejects.toThrow('spawn failed');
@@ -231,6 +290,13 @@ describe('CertificationService.runStep', () => {
   it('returns 503 while the runtime is not ready', async () => {
     artifactService.isRunTimeReady = false;
     await expect(run()).rejects.toBeInstanceOf(ServiceUnavailableException);
+  });
+
+  it('returns 503 when the Bruno CLI file is missing, without running anything', async () => {
+    cliExists = false;
+    await expect(run()).rejects.toBeInstanceOf(ServiceUnavailableException);
+    expect(runBrunoCli).not.toHaveBeenCalled();
+    expect(createRunWorkspace).not.toHaveBeenCalled();
   });
 
   it('rejects an unsupported SIS version before touching the catalog', async () => {
@@ -282,6 +348,22 @@ describe('CertificationService.runStep', () => {
 
     const logged = JSON.stringify([...log.mock.calls, ...warn.mock.calls]);
     expect(logged).not.toContain(TOKEN);
+  });
+});
+
+describe('positiveNumber', () => {
+  it.each([
+    ['abc', 5],
+    ['0', 5],
+    ['-5', 5],
+    [undefined, 5],
+    [null, 5],
+    ['', 5],
+    [Infinity, 5],
+    ['30000', 30000],
+    [2, 2],
+  ])('turns %j into %j', (value, expected) => {
+    expect(positiveNumber(value, 5)).toBe(expected);
   });
 });
 

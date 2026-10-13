@@ -25,6 +25,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
+import fs from 'fs';
 import { DataSource, IsNull, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
@@ -74,13 +75,25 @@ export const deriveScenarioStatus = (
     : CERT_SCENARIO_STATUS.inprogress;
 };
 
+/** A finite number above zero, else the fallback, so a bad config value can't disable a cap or timeout. */
+export const positiveNumber = (value: unknown, fallback: number): number => {
+  const parsed = Number(value);
+  return Number.isFinite(parsed) && parsed > 0 ? parsed : fallback;
+};
+
 const isSslVerificationDisabled = () =>
   config.SSL_VERIFICATION === false || config.SSL_VERIFICATION === 'false';
+
+/** Key names only, never values, so logs can't leak captured data. */
+const describeKeys = (value: unknown): string =>
+  value !== null && typeof value === 'object'
+    ? Object.keys(value).slice(0, 50).join(', ') || 'none'
+    : 'none';
 
 @Injectable()
 export class CertificationService {
   private readonly logger = new Logger(CertificationService.name);
-  private readonly runLimiter = new RunLimiter(Number(config.CERT_BRUNO_MAX_CONCURRENT_RUNS ?? 2));
+  private readonly runLimiter = new RunLimiter(positiveNumber(config.CERT_BRUNO_MAX_CONCURRENT_RUNS, 2));
 
   constructor(
     private readonly artifactService: ArtifactService,
@@ -101,7 +114,7 @@ export class CertificationService {
    * and saves the result. The token is used only for this run and is never stored or logged.
    */
   async runStep(params: RunStepParams): Promise<CertificationStepRunDto> {
-    if (!this.artifactService.isRunTimeReady) {
+    if (!this.artifactService.isRunTimeReady || !fs.existsSync(this.artifactService.brunoCliPath)) {
       throw new ServiceUnavailableException(CERT_RUN_MESSAGES.runtimeNotReady);
     }
     if (!isSupportedSisVersion(params.sisVersion)) {
@@ -199,7 +212,16 @@ export class CertificationService {
         scenarioId: step.scenarioId,
       },
     });
-    const timeoutMs = Number(config.CERT_BRUNO_RUN_TIMEOUT_MS ?? 60000);
+    const storedVars = scenarioRow?.capturedVars ?? null;
+    const restoredVars = sanitizeCapturedVars(storedVars ?? {}) ?? {};
+    if (storedVars && sanitizeCapturedVars(storedVars) === null) {
+      this.logger.warn(
+        `Certification step ${step.stepId}: stored captured values were invalid and were ignored (keys: ${describeKeys(
+          storedVars
+        )})`
+      );
+    }
+    const timeoutMs = positiveNumber(config.CERT_BRUNO_RUN_TIMEOUT_MS, 60000);
     const startedAt = Date.now();
     const workspace = await createRunWorkspace({
       sisRoot: this.artifactService.sisRoot,
@@ -213,7 +235,7 @@ export class CertificationService {
       resourceBaseUrl: target.resourceBaseUrl,
       oauthUrl: target.oauthUrl,
       tokenExpiresAt: Math.floor((startedAt + timeoutMs) / 1000) + 60,
-      restoredVars: sanitizeCapturedVars(scenarioRow?.capturedVars ?? {}) ?? {},
+      restoredVars,
     });
 
     try {
@@ -234,12 +256,22 @@ export class CertificationService {
         `Certification step ${step.stepId} finished: exit=${cli.exitCode} timedOut=${cli.timedOut} ` +
           `complete=${parsed.complete} passed=${parsed.passed} ms=${Date.now() - startedAt}`
       );
+      if (parsed.capturedVarsRejectedKeys) {
+        this.logger.warn(
+          `Certification step ${step.stepId}: captured values failed validation and were not stored ` +
+            `(keys: ${parsed.capturedVarsRejectedKeys.join(', ') || 'none'})`
+        );
+      }
       if (!parsed.complete && cli.stderrTail) {
         this.logger.warn(`Certification step ${step.stepId} stderr: ${cleanMessage(cli.stderrTail, token)}`);
       }
       return parsed;
     } finally {
-      await workspace.dispose();
+      await workspace
+        .dispose()
+        .catch(() =>
+          this.logger.warn(`Certification step ${step.stepId}: temporary workspace cleanup failed`)
+        );
     }
   }
 

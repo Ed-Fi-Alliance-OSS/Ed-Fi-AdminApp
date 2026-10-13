@@ -27,6 +27,7 @@ describe('parseBrunoReport', () => {
       passed: true,
       errors: [],
       capturedVars: CAPTURED,
+      capturedVarsRejectedKeys: null,
     });
   });
 
@@ -51,6 +52,7 @@ describe('parseBrunoReport', () => {
         },
       ],
       capturedVars: CAPTURED,
+      capturedVarsRejectedKeys: null,
     });
   });
 
@@ -95,6 +97,38 @@ describe('parseBrunoReport', () => {
     report[0].results[2].request.data = 'not json';
     const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
     expect(result).toMatchObject({ complete: true, passed: true, capturedVars: null });
+  });
+
+  it('ignores captured values when the capture request itself failed, so stored values survive', () => {
+    const report = load('step-passed');
+    report[0].results[2].status = 'error';
+    report[0].results[2].error = 'boom';
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result).toMatchObject({ complete: true, passed: true, capturedVars: null });
+  });
+
+  it('ignores captured values when the capture request is missing', () => {
+    const report = load('step-passed');
+    report[0].results.splice(2, 1);
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result).toMatchObject({ complete: true, passed: true, capturedVars: null });
+  });
+
+  it('reports the keys of a rejected capture body (never the values)', () => {
+    const report = load('step-passed');
+    report[0].results[2].request.data = '{"a":{"b":1},"c":"secret"}';
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result.capturedVars).toBeNull();
+    expect(result.capturedVarsRejectedKeys).toEqual(['a', 'c']);
+  });
+
+  it('caps the rejected key list', () => {
+    const report = load('step-passed');
+    const body: Record<string, unknown> = { nested: {} };
+    for (let i = 0; i < 80; i++) body[`k${i}`] = i;
+    report[0].results[2].request.data = JSON.stringify(body);
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result.capturedVarsRejectedKeys).toHaveLength(50);
   });
 
   it('redacts the token from error messages', () => {

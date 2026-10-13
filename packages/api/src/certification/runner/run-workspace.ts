@@ -102,7 +102,9 @@ export const createRunWorkspace = async (options: RunWorkspaceOptions): Promise<
   const sourceStep = resolveInside(options.sisRoot, options.stepSegments);
 
   const dir = await fs.promises.mkdtemp(path.join(os.tmpdir(), 'cert-run-'));
-  const dispose = () => fs.promises.rm(dir, { recursive: true, force: true });
+  // Retries cover a briefly locked file (common on Windows) so a workspace isn't left behind.
+  const dispose = () =>
+    fs.promises.rm(dir, { recursive: true, force: true, maxRetries: 3, retryDelay: 100 });
   try {
     await fs.promises.chmod(dir, 0o700);
     for (const file of COLLECTION_FILES) {
@@ -142,7 +144,8 @@ export const createRunWorkspace = async (options: RunWorkspaceOptions): Promise<
       'utf8'
     );
   } catch (error) {
-    await dispose();
+    // A failing cleanup must not hide the real build error.
+    await dispose().catch(() => undefined);
     throw error;
   }
 

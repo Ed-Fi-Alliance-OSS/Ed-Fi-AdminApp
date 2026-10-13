@@ -17,6 +17,10 @@ describe('sanitizeCapturedVars', () => {
     ['a nested object', { a: { b: 1 } }],
     ['a key with spaces', { 'bad key': 'x' }],
     ['a prototype key', JSON.parse('{"__proto__":"x"}')],
+    ['a key that shadows resourceBaseUrl', { resourceBaseUrl: 'https://evil' }],
+    ['a key that shadows oauthUrl', { oauthUrl: 'https://evil' }],
+    ['a key that shadows edFiCertToken', { edFiCertToken: 'x' }],
+    ['a key that shadows edFiCertTokenExpiration', { edFiCertTokenExpiration: 1 }],
   ])('rejects %s', (_label, value) => {
     expect(sanitizeCapturedVars(value)).toBeNull();
   });

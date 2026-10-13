@@ -103,4 +103,25 @@ describe('createRunWorkspace', () => {
     const created = await mkdtemp.mock.results[0].value;
     expect(fs.existsSync(created)).toBe(false);
   });
+
+  it('keeps the original build error when cleanup also fails', async () => {
+    fs.rmSync(path.join(sisRoot, 'utils.js'));
+    const mkdtemp = jest.spyOn(fs.promises, 'mkdtemp');
+    jest.spyOn(fs.promises, 'rm').mockRejectedValue(new Error('EBUSY: cleanup failed'));
+    await expect(createRunWorkspace(baseOptions(sisRoot))).rejects.toThrow(/utils\.js/);
+    jest.restoreAllMocks();
+    fs.rmSync(await mkdtemp.mock.results[0].value, { recursive: true, force: true });
+  });
+
+  it('retries removal so a briefly locked file does not leave the workspace behind', async () => {
+    const rm = jest.spyOn(fs.promises, 'rm');
+    const workspace = await createRunWorkspace(baseOptions(sisRoot));
+    await workspace.dispose();
+    expect(rm).toHaveBeenCalledWith(workspace.dir, {
+      recursive: true,
+      force: true,
+      maxRetries: 3,
+      retryDelay: 100,
+    });
+  });
 });

@@ -15,6 +15,8 @@ export interface ParsedBrunoReport {
   errors: StepRunError[];
   /** Runtime variables after the step ran; null when unavailable (leave the stored ones alone). */
   capturedVars: CapturedVars | null;
+  /** Keys (never values) of a capture body that failed validation, capped; null when nothing was rejected. */
+  capturedVarsRejectedKeys: string[] | null;
 }
 
 export const INCOMPLETE_RUN_MESSAGE =
@@ -22,6 +24,7 @@ export const INCOMPLETE_RUN_MESSAGE =
 
 const MAX_MESSAGE_LENGTH = 1000;
 const MAX_PROPERTY_LENGTH = 500;
+const MAX_REJECTED_KEYS = 50;
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
 interface ReportTest {
@@ -63,17 +66,33 @@ export const incompleteRunReport = (): ParsedBrunoReport => ({
   passed: false,
   errors: [{ property: '', validation: 'run', error: INCOMPLETE_RUN_MESSAGE }],
   capturedVars: null,
+  capturedVarsRejectedKeys: null,
 });
 
 const normalizePath = (filename?: string): string => (filename ?? '').split('\\').join('/');
 
-const readCapturedVars = (capture?: ReportResult): CapturedVars | null => {
-  const data = capture?.request?.data;
-  if (typeof data !== 'string') return null;
+type CapturedVarsReading = Pick<ParsedBrunoReport, 'capturedVars' | 'capturedVarsRejectedKeys'>;
+
+/**
+ * Captured values are only trusted when the capture request ran cleanly (like the restore check).
+ * A failed capture reports {} and would wipe the stored values, so it returns null instead.
+ */
+const readCapturedVars = (capture?: ReportResult): CapturedVarsReading => {
+  const none: CapturedVarsReading = { capturedVars: null, capturedVarsRejectedKeys: null };
+  if (!capture || capture.error || capture.status !== 'skipped') return none;
+  const data = capture.request?.data;
+  if (typeof data !== 'string') return none;
   try {
-    return sanitizeCapturedVars(JSON.parse(data));
+    const parsed: unknown = JSON.parse(data);
+    const capturedVars = sanitizeCapturedVars(parsed);
+    if (capturedVars) return { capturedVars, capturedVarsRejectedKeys: null };
+    const keys =
+      parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
+        ? Object.keys(parsed).slice(0, MAX_REJECTED_KEYS)
+        : [];
+    return { capturedVars: null, capturedVarsRejectedKeys: keys };
   } catch {
-    return null;
+    return none;
   }
 };
 
@@ -134,7 +153,7 @@ export const parseBrunoReport = (
     complete: true,
     passed: errors.length === 0,
     errors,
-    capturedVars: readCapturedVars(find(CAPTURE_VARS_FILE)),
+    ...readCapturedVars(find(CAPTURE_VARS_FILE)),
   };
 };
 

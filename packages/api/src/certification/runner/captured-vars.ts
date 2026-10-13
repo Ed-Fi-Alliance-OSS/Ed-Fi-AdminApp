@@ -3,7 +3,17 @@ export type CapturedVars = Record<string, CapturedValue>;
 
 export const MAX_CAPTURED_VARS_BYTES = 64 * 1024;
 const KEY_PATTERN = /^[\w.-]{1,100}$/;
-const FORBIDDEN_KEYS = new Set(['__proto__', 'constructor', 'prototype']);
+// The last four are env-file variables: Bruno resolves runtime vars before env vars, so a captured
+// key with one of these names would override the run's host/token settings.
+const FORBIDDEN_KEYS = new Set([
+  '__proto__',
+  'constructor',
+  'prototype',
+  'resourceBaseUrl',
+  'oauthUrl',
+  'edFiCertToken',
+  'edFiCertTokenExpiration',
+]);
 
 /**
  * Captured values come back from artifact scripts and go into the next run,
