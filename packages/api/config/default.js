@@ -213,6 +213,6 @@ module.exports = {
   CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref
   CERT_BRUNO_SRC_CHECKSUM: '72eaf14f4f95dc8088b04db79f46d693fb3a34356056c792100d014a374835d5', // SHA-256 checksum of the artifact zip file for integrity verification
   CERT_BRUNO_ON_DOWNLOAD_ERROR: 'error', // 'error' | 'warning' // Whether to error out or just warn if there's a problem downloading or initializing the certification artifact. Note that if set to 'warning' and there's a problem with the certification artifact, any API routes depending on it will fail at runtime when they attempt to use the artifact.
-  CERT_BRUNO_RUN_TIMEOUT_MS: 60000, // Kill a certification step run after this many milliseconds
+  CERT_BRUNO_RUN_TIMEOUT_MS: 45000, // Kill a certification step run after this many milliseconds. Must stay below the reverse proxy read timeout (nginx default 60s) since discovery and workspace setup run before Bruno
   CERT_BRUNO_MAX_CONCURRENT_RUNS: 2, // Simultaneous certification step runs per API instance
 };

@@ -69,19 +69,22 @@ describe('parseBrunoReport', () => {
       {
         property: '',
         validation: 'script',
-        error: 'No Student found, or multiple records were returned. Check your parameters and try again.',
+        error:
+          'No Student found, or multiple records were returned. Check your parameters and try again.',
       },
     ]);
     expect(result.capturedVars).toEqual({});
   });
 
   it('treats a missing report as an incomplete run', () => {
-    expect(parseBrunoReport(null, { stepPath: STEP_01, token: TOKEN })).toEqual(incompleteRunReport());
+    expect(parseBrunoReport(null, { stepPath: STEP_01, token: TOKEN })).toEqual(
+      incompleteRunReport(),
+    );
   });
 
   it('treats a report without the step as an incomplete run', () => {
     expect(
-      parseBrunoReport(load('step-passed'), { stepPath: 'v5/Other/x.bru', token: TOKEN }).complete
+      parseBrunoReport(load('step-passed'), { stepPath: 'v5/Other/x.bru', token: TOKEN }).complete,
     ).toBe(false);
   });
 
@@ -120,6 +123,24 @@ describe('parseBrunoReport', () => {
     const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
     expect(result.capturedVars).toBeNull();
     expect(result.capturedVarsRejectedKeys).toEqual(['a', 'c']);
+  });
+
+  it('rejects the whole capture when a captured value contains the token (keys only reported)', () => {
+    const report = load('step-passed');
+    report[0].results[2].request.data = JSON.stringify({ a: 'fine', b: `Bearer ${TOKEN}`, c: 1 });
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result).toMatchObject({ complete: true, passed: true, capturedVars: null });
+    expect(result.capturedVarsRejectedKeys).toEqual(['a', 'b', 'c']);
+    expect(JSON.stringify(result)).not.toContain(TOKEN);
+  });
+
+  it('rejects the whole capture when a captured key contains the token, and never lists that key', () => {
+    const report = load('step-passed');
+    report[0].results[2].request.data = JSON.stringify({ a: 'fine', [`k-${TOKEN}`]: 1 });
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+    expect(result).toMatchObject({ complete: true, passed: true, capturedVars: null });
+    expect(result.capturedVarsRejectedKeys).toEqual(['a', '[REDACTED]']);
+    expect(JSON.stringify(result)).not.toContain(TOKEN);
   });
 
   it('caps the rejected key list', () => {

@@ -7,7 +7,6 @@ import {
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
-  StepParameterCatalog,
 } from '@edanalytics/models-server';
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
@@ -29,7 +28,6 @@ import { CertificationTokenService } from './certification-token.service';
       EdfiTenant,
       SbEnvironment,
       StepCatalog,
-      StepParameterCatalog,
       CertificationProcess,
       CertificationProcessScenario,
       ScenarioStep,

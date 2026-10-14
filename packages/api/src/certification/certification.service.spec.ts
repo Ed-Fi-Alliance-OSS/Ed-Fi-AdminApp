@@ -21,7 +21,7 @@ import {
 } from './certification.service';
 import { runBrunoCli } from './runner/bruno-cli';
 import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
-import { createRunWorkspace } from './runner/run-workspace';
+import { createRunWorkspace, readStepInputNames } from './runner/run-workspace';
 
 jest.mock('./runner/bruno-cli', () => ({
   ...jest.requireActual('./runner/bruno-cli'),
@@ -30,6 +30,7 @@ jest.mock('./runner/bruno-cli', () => ({
 jest.mock('./runner/run-workspace', () => ({
   ...jest.requireActual('./runner/run-workspace'),
   createRunWorkspace: jest.fn(),
+  readStepInputNames: jest.fn(),
 }));
 jest.mock('./runner/bruno-report', () => ({
   ...jest.requireActual('./runner/bruno-report'),
@@ -71,7 +72,6 @@ const makeStep = () => ({
 
 describe('CertificationService.runStep', () => {
   let stepRepository: { findOne: jest.Mock };
-  let parameterRepository: { find: jest.Mock };
   let processRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let processScenarioRepository: { findOne: jest.Mock };
   let em: Record<string, Record<string, jest.Mock>>;
@@ -110,7 +110,6 @@ describe('CertificationService.runStep', () => {
         target === '/sis/bru.js' ? cliExists : realExistsSync(target),
       );
     stepRepository = { findOne: jest.fn().mockResolvedValue(makeStep()) };
-    parameterRepository = { find: jest.fn().mockResolvedValue([{ name: 'studentUniqueId' }]) };
     processRepository = {
       findOne: jest.fn().mockResolvedValue({ certificationProcessId: 7 }),
       create: jest.fn((value) => value),
@@ -164,6 +163,7 @@ describe('CertificationService.runStep', () => {
       reportPath: '/tmp/cert-run-x/report.json',
       dispose,
     });
+    (readStepInputNames as jest.Mock).mockResolvedValue(['studentUniqueId']);
     (runBrunoCli as jest.Mock).mockResolvedValue({ exitCode: 0, timedOut: false, stderrTail: '' });
     (readBrunoReport as jest.Mock).mockResolvedValue(fixture('step-passed'));
 
@@ -171,7 +171,6 @@ describe('CertificationService.runStep', () => {
       artifactService as never,
       targetService as never,
       stepRepository as never,
-      parameterRepository as never,
       processRepository as never,
       processScenarioRepository as never,
       dataSource as never,
@@ -203,7 +202,7 @@ describe('CertificationService.runStep', () => {
         cliPath: '/sis/bru.js',
         cwd: '/tmp/cert-run-x',
         token: TOKEN,
-        timeoutMs: 60000,
+        timeoutMs: 45000,
       }),
     );
     // config.mock sets SSL_VERIFICATION=false, so Bruno mirrors it with --insecure.
@@ -406,6 +405,27 @@ describe('CertificationService.runStep', () => {
     expect(runBrunoCli).not.toHaveBeenCalled();
   });
 
+  it('takes the expected inputs from the step file, so disabled ~ params are not required', async () => {
+    // The file has `~schoolId: [ENTER ...]` disabled, so only studentUniqueId is an input.
+    await run({ inputs: { studentUniqueId: 'S1' } });
+    expect(readStepInputNames).toHaveBeenCalledWith('/sis', [
+      'v5',
+      'Student',
+      'Students',
+      '01 - 1st Student is valid.bru',
+    ]);
+    await expect(run({ inputs: { studentUniqueId: 'S1', schoolId: '1' } })).rejects.toMatchObject({
+      status: 400,
+    });
+  });
+
+  it('treats a null odsId like an omitted one', async () => {
+    processRepository.findOne.mockResolvedValue(null);
+    await run({ odsId: null });
+    expect(targetService.resolve).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
+    expect(processRepository.save).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
+  });
+
   it('returns 409 while another step of the same scenario is running', async () => {
     let finish: (value: unknown) => void = () => undefined;
     (runBrunoCli as jest.Mock).mockReturnValue(new Promise((resolve) => (finish = resolve)));
@@ -438,6 +458,49 @@ describe('CertificationService.runStep', () => {
 
     const logged = JSON.stringify([...log.mock.calls, ...warn.mock.calls]);
     expect(logged).not.toContain(TOKEN);
+  });
+
+  it('keeps the token out of everything saved, returned or logged, wherever a report echoes it', async () => {
+    const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
+    const echoed = `Bearer ${TOKEN}`;
+    const report = fixture('assertion-failed');
+    const step = report[0].results[1];
+    step.error = echoed;
+    step.assertionResults = [
+      { lhsExpr: echoed, rhsExpr: `eq ${echoed}`, status: 'fail', error: echoed },
+    ];
+    step.postResponseTestResults = [
+      { description: echoed, status: 'fail', error: echoed },
+      { description: 'script', status: 'fail', error: echoed, isScriptError: true },
+    ];
+    report[0].results[2].request.data = JSON.stringify({ echoedKey: echoed });
+    (readBrunoReport as jest.Mock).mockResolvedValue(report);
+    (runBrunoCli as jest.Mock).mockResolvedValue({
+      exitCode: 1,
+      timedOut: false,
+      stderrTail: `boom ${TOKEN}`,
+    });
+
+    const result = await run();
+
+    const sinks = Object.values(em).flatMap((repository) =>
+      ['save', 'update', 'delete'].flatMap((method) => repository[method]?.mock.calls ?? []),
+    );
+    const saved = JSON.stringify([
+      sinks,
+      processRepository.save.mock.calls,
+      result,
+      log.mock.calls,
+      warn.mock.calls,
+    ]);
+    expect(sinks.length).toBeGreaterThan(0);
+    expect(result.errors.length).toBeGreaterThanOrEqual(4);
+    expect(saved).not.toContain(TOKEN);
+    expect(JSON.stringify(warn.mock.calls)).toContain('echoedKey');
+    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+      expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
+    );
   });
 });
 

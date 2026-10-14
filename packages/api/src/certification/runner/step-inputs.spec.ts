@@ -77,8 +77,14 @@ describe('substituteStepInputs', () => {
   });
 
   it('leaves disabled (~) params untouched', () => {
-    const out = substituteStepInputs(STEP_01, { studentUniqueId: '604822', schoolId: '1' });
+    const out = substituteStepInputs(STEP_01, { studentUniqueId: '604822' });
     expect(out).toContain('~schoolId: [ENTER_SCHOOL_ID]');
+  });
+
+  it('throws, naming the key, when a provided input has no [ENTER ...] token to replace', () => {
+    expect(() => substituteStepInputs(STEP_01, { studentUniqueId: '1', schoolId: '2' })).toThrow(
+      'schoolId',
+    );
   });
 
   it('handles the descriptor KEEP_IT_AT_THE_END param', () => {
@@ -93,8 +99,6 @@ describe('substituteStepInputs', () => {
     const out = substituteStepInputs(step, {
       programTypeDescriptor_KEEP_IT_AT_THE_END: 'uri://ed-fi.org/ProgramTypeDescriptor#Athletics',
     });
-    expect(out).toContain(
-      '_KEEP_IT_AT_THE_END=uri://ed-fi.org/ProgramTypeDescriptor#Athletics'
-    );
+    expect(out).toContain('_KEEP_IT_AT_THE_END=uri://ed-fi.org/ProgramTypeDescriptor#Athletics');
   });
 });

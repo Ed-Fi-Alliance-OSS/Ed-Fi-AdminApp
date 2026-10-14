@@ -9,6 +9,7 @@ import {
   RESTORE_VARS_FILE,
 } from './bridge-requests';
 import { CapturedVars } from './captured-vars';
+import { parseInputParams } from './bru-params';
 import { substituteStepInputs } from './step-inputs';
 
 /** The child env var the generated env file reads the token from. */
@@ -62,6 +63,15 @@ const resolveInside = (root: string, segments: string[]): string => {
     throw new Error('Certification step path escapes the collection root');
   }
   return full;
+};
+
+/** The enabled `[ENTER ...]` input names of the step file itself, the single source of truth for what a run needs. */
+export const readStepInputNames = async (
+  sisRoot: string,
+  stepSegments: string[],
+): Promise<string[]> => {
+  const content = await fs.promises.readFile(resolveInside(sisRoot, stepSegments), 'utf8');
+  return parseInputParams(content).map(({ name }) => name);
 };
 
 /** URLs are written into the env file as text, so only plain absolute http(s) URLs are allowed. */
@@ -125,23 +135,31 @@ export const createRunWorkspace = async (options: RunWorkspaceOptions): Promise<
     await fs.promises.writeFile(
       path.join(dir, ...options.stepSegments),
       substituteStepInputs(stepContent, options.inputs),
-      'utf8'
+      'utf8',
     );
 
     await fs.promises.mkdir(path.join(dir, 'environments'));
     await fs.promises.writeFile(
       path.join(dir, 'environments', `${RUN_ENV_NAME}.bru`),
       buildRunEnvironment(options),
-      'utf8'
+      'utf8',
     );
 
     await fs.promises.mkdir(path.join(dir, BRIDGE_DIR));
-    await fs.promises.writeFile(path.join(dir, ...RESTORE_VARS_FILE.split('/')), RESTORE_VARS_BRU, 'utf8');
-    await fs.promises.writeFile(path.join(dir, ...CAPTURE_VARS_FILE.split('/')), CAPTURE_VARS_BRU, 'utf8');
+    await fs.promises.writeFile(
+      path.join(dir, ...RESTORE_VARS_FILE.split('/')),
+      RESTORE_VARS_BRU,
+      'utf8',
+    );
+    await fs.promises.writeFile(
+      path.join(dir, ...CAPTURE_VARS_FILE.split('/')),
+      CAPTURE_VARS_BRU,
+      'utf8',
+    );
     await fs.promises.writeFile(
       path.join(dir, RUN_VARS_FILE),
       JSON.stringify([options.restoredVars]),
-      'utf8'
+      'utf8',
     );
   } catch (error) {
     // A failing cleanup must not hide the real build error.

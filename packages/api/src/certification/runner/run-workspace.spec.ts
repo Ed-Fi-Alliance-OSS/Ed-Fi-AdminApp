@@ -2,7 +2,12 @@ import * as fs from 'fs';
 import * as os from 'os';
 import * as path from 'path';
 import { CAPTURE_VARS_FILE, RESTORE_VARS_FILE } from './bridge-requests';
-import { assertSafeSegment, buildRunEnvironment, createRunWorkspace } from './run-workspace';
+import {
+  assertSafeSegment,
+  buildRunEnvironment,
+  createRunWorkspace,
+  readStepInputNames,
+} from './run-workspace';
 
 const STEP_FILE = '01 - 1st Student is valid.bru';
 const STEP_BRU = [
@@ -83,17 +88,17 @@ describe('createRunWorkspace', () => {
 
   it('rejects a step path that escapes the collection root', async () => {
     await expect(
-      createRunWorkspace({ ...baseOptions(sisRoot), stepSegments: ['v5', '..', '..', 'x.bru'] })
+      createRunWorkspace({ ...baseOptions(sisRoot), stepSegments: ['v5', '..', '..', 'x.bru'] }),
     ).rejects.toThrow('Unsafe certification path segment');
   });
 
   it.each(['https://h/x}\nscript {', 'javascript:alert(1)', 'not a url'])(
     'rejects an unsafe URL for the env file: %j',
     async (resourceBaseUrl) => {
-      await expect(createRunWorkspace({ ...baseOptions(sisRoot), resourceBaseUrl })).rejects.toThrow(
-        'Unsafe URL'
-      );
-    }
+      await expect(
+        createRunWorkspace({ ...baseOptions(sisRoot), resourceBaseUrl }),
+      ).rejects.toThrow('Unsafe URL');
+    },
   );
 
   it('removes the workspace when building it fails', async () => {
@@ -123,5 +128,40 @@ describe('createRunWorkspace', () => {
       maxRetries: 3,
       retryDelay: 100,
     });
+  });
+});
+
+describe('readStepInputNames', () => {
+  let sisRoot: string;
+
+  beforeEach(() => {
+    sisRoot = makeSisRoot();
+  });
+
+  afterEach(() => {
+    fs.rmSync(sisRoot, { recursive: true, force: true });
+  });
+
+  it('returns the enabled [ENTER ...] input names of the step file', async () => {
+    const file = path.join(sisRoot, 'v5', 'Student', 'Students', STEP_FILE);
+    fs.writeFileSync(
+      file,
+      [
+        'params:query {',
+        '  studentUniqueId: [ENTER FIRST STUDENT UNIQUE ID]',
+        '  ~schoolId: [ENTER_SCHOOL_ID]',
+        '}',
+        '',
+      ].join('\n'),
+    );
+    await expect(
+      readStepInputNames(sisRoot, ['v5', 'Student', 'Students', STEP_FILE]),
+    ).resolves.toEqual(['studentUniqueId']);
+  });
+
+  it('rejects a step path that escapes the collection root', async () => {
+    await expect(readStepInputNames(sisRoot, ['v5', '..', '..', 'x.bru'])).rejects.toThrow(
+      'Unsafe certification path segment',
+    );
   });
 });

@@ -32,8 +32,8 @@ describe('CertificationTargetService', () => {
     mockedDiscovery.mockResolvedValue(
       meta(
         'https://localhost/multi/{tenantIdentifier}/oauth/token',
-        'https://localhost/multi/{tenantIdentifier}/data/v3/'
-      )
+        'https://localhost/multi/{tenantIdentifier}/data/v3/',
+      ),
     );
   });
 
@@ -47,10 +47,10 @@ describe('CertificationTargetService', () => {
 
   it('returns 404 when the ODS is not in the tenant', async () => {
     odsRepository.findOneByOrFail.mockRejectedValue(
-      Object.assign(new Error(), { name: 'EntityNotFoundError' })
+      Object.assign(new Error(), { name: 'EntityNotFoundError' }),
     );
     await expect(service.resolve({ sbEnvironment, edfiTenant, odsId: 99 })).rejects.toBeInstanceOf(
-      NotFoundException
+      NotFoundException,
     );
   });
 
@@ -61,26 +61,37 @@ describe('CertificationTargetService', () => {
 
   it('requires an odsId when the tenant has ODSs, before any network call', async () => {
     await expect(service.resolve({ sbEnvironment, edfiTenant })).rejects.toMatchObject(
-      validationError(CERT_TARGET_MESSAGES.odsRequired)
+      validationError(CERT_TARGET_MESSAGES.odsRequired),
     );
+    expect(mockedDiscovery).not.toHaveBeenCalled();
+  });
+
+  it('treats a null odsId like an omitted one, before any lookup or network call', async () => {
+    await expect(service.resolve({ sbEnvironment, edfiTenant, odsId: null })).rejects.toMatchObject(
+      validationError(CERT_TARGET_MESSAGES.odsRequired),
+    );
+    expect(odsRepository.findOneByOrFail).not.toHaveBeenCalled();
     expect(mockedDiscovery).not.toHaveBeenCalled();
   });
 
   it('refuses a data URL that is not on the discovery host, so the token is never sent there', async () => {
     mockedDiscovery.mockResolvedValue(
-      meta('https://localhost/multi/{tenantIdentifier}/oauth/token', 'https://evil.example/data/v3/')
+      meta(
+        'https://localhost/multi/{tenantIdentifier}/oauth/token',
+        'https://evil.example/data/v3/',
+      ),
     );
     await expect(service.resolve({ sbEnvironment, edfiTenant, odsId: 5 })).rejects.toMatchObject(
-      validationError(CERT_TARGET_MESSAGES.untrustedResourceUrl)
+      validationError(CERT_TARGET_MESSAGES.untrustedResourceUrl),
     );
   });
 
   it('refuses context-routed environments', async () => {
     mockedDiscovery.mockResolvedValue(
-      meta('https://localhost/{instanceId}/oauth/token', 'https://localhost/{instanceId}/data/v3/')
+      meta('https://localhost/{instanceId}/oauth/token', 'https://localhost/{instanceId}/data/v3/'),
     );
     await expect(service.resolve({ sbEnvironment, edfiTenant, odsId: 5 })).rejects.toMatchObject(
-      validationError(CERT_TARGET_MESSAGES.contextRouting)
+      validationError(CERT_TARGET_MESSAGES.contextRouting),
     );
   });
 });

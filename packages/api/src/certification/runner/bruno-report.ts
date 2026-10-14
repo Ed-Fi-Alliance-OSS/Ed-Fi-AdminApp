@@ -54,7 +54,11 @@ interface ReportResult {
 }
 
 /** Strips ANSI codes, redacts the token and caps the length before anything is stored. */
-export const cleanMessage = (message: unknown, token: string, maxLength = MAX_MESSAGE_LENGTH): string => {
+export const cleanMessage = (
+  message: unknown,
+  token: string,
+  maxLength = MAX_MESSAGE_LENGTH,
+): string => {
   let text = typeof message === 'string' ? message : JSON.stringify(message ?? '');
   text = text.replace(ANSI_PATTERN, '');
   if (token) text = text.split(token).join('[REDACTED]');
@@ -76,8 +80,12 @@ type CapturedVarsReading = Pick<ParsedBrunoReport, 'capturedVars' | 'capturedVar
 /**
  * Captured values are only trusted when the capture request ran cleanly (like the restore check).
  * A failed capture reports {} and would wipe the stored values, so it returns null instead.
+ * A capture holding the bearer token is rejected whole.
  */
-const readCapturedVars = (capture?: ReportResult): CapturedVarsReading => {
+const readCapturedVars = (
+  capture: ReportResult | undefined,
+  token: string,
+): CapturedVarsReading => {
   const none: CapturedVarsReading = { capturedVars: null, capturedVarsRejectedKeys: null };
   if (!capture || capture.error || capture.status !== 'skipped') return none;
   const data = capture.request?.data;
@@ -85,12 +93,21 @@ const readCapturedVars = (capture?: ReportResult): CapturedVarsReading => {
   try {
     const parsed: unknown = JSON.parse(data);
     const capturedVars = sanitizeCapturedVars(parsed);
-    if (capturedVars) return { capturedVars, capturedVarsRejectedKeys: null };
     const keys =
       parsed !== null && typeof parsed === 'object' && !Array.isArray(parsed)
-        ? Object.keys(parsed).slice(0, MAX_REJECTED_KEYS)
+        ? Object.keys(parsed)
         : [];
-    return { capturedVars: null, capturedVarsRejectedKeys: keys };
+    // Captured keys and values are saved, and the token must never be: drop the whole capture if either holds it.
+    const holdsToken =
+      !!token &&
+      (keys.some((key) => key.includes(token)) || JSON.stringify(parsed).includes(token));
+    if (capturedVars && !holdsToken) return { capturedVars, capturedVarsRejectedKeys: null };
+    return {
+      capturedVars: null,
+      capturedVarsRejectedKeys: keys
+        .slice(0, MAX_REJECTED_KEYS)
+        .map((key) => (token && key.includes(token) ? '[REDACTED]' : key)),
+    };
   } catch {
     return none;
   }
@@ -102,7 +119,7 @@ const readCapturedVars = (capture?: ReportResult): CapturedVarsReading => {
  */
 export const parseBrunoReport = (
   report: unknown,
-  { stepPath, token }: { stepPath: string; token: string }
+  { stepPath, token }: { stepPath: string; token: string },
 ): ParsedBrunoReport => {
   const iteration = Array.isArray(report) ? report[0] : undefined;
   const results: ReportResult[] = Array.isArray(iteration?.results) ? iteration.results : [];
@@ -145,7 +162,7 @@ export const parseBrunoReport = (
             property: cleanMessage(test.description ?? '', token, MAX_PROPERTY_LENGTH),
             validation: 'test',
             error: cleanMessage(test.error, token),
-          }
+          },
     );
   }
 
@@ -153,7 +170,7 @@ export const parseBrunoReport = (
     complete: true,
     passed: errors.length === 0,
     errors,
-    ...readCapturedVars(find(CAPTURE_VARS_FILE)),
+    ...readCapturedVars(find(CAPTURE_VARS_FILE), token),
   };
 };
 

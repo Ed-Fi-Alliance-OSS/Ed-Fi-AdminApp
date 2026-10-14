@@ -52,9 +52,10 @@ export class CertificationTargetService {
   }: {
     sbEnvironment: SbEnvironment;
     edfiTenant: EdfiTenant;
-    odsId?: number;
+    odsId?: number | null;
   }): Promise<CertificationTarget> {
-    if (odsId !== undefined) {
+    // null means "not chosen", same as omitted (TypeORM would otherwise reject a null where-value).
+    if (odsId != null) {
       await this.odsRepository
         .findOneByOrFail({ id: odsId, edfiTenantId: edfiTenant.id })
         .catch(throwNotFound);

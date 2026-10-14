@@ -14,7 +14,6 @@ import {
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
-  StepParameterCatalog,
 } from '@edanalytics/models-server';
 import {
   ConflictException,
@@ -40,7 +39,7 @@ import {
   readBrunoReport,
 } from './runner/bruno-report';
 import { sanitizeCapturedVars } from './runner/captured-vars';
-import { createRunWorkspace } from './runner/run-workspace';
+import { createRunWorkspace, readStepInputNames } from './runner/run-workspace';
 import { validateStepInputs } from './runner/step-inputs';
 
 export const CERT_RUN_MESSAGES = {
@@ -56,7 +55,7 @@ export interface RunStepParams {
   edfiTenant: EdfiTenant;
   sisVersion: string;
   stepId: number;
-  odsId?: number;
+  odsId?: number | null;
   token: string;
   inputs: Record<string, string>;
 }
@@ -64,11 +63,12 @@ export interface RunStepParams {
 /** A scenario passes when all its enabled steps pass; any failed step fails it. */
 export const deriveScenarioStatus = (
   enabledStepIds: number[],
-  runs: { stepId: number; status: string }[]
+  runs: { stepId: number; status: string }[],
 ): CertScenarioStatus => {
-  if (runs.some((run) => run.status === CERT_STEP_STATUS.failed)) return CERT_SCENARIO_STATUS.failed;
+  if (runs.some((run) => run.status === CERT_STEP_STATUS.failed))
+    return CERT_SCENARIO_STATUS.failed;
   const passed = new Set(
-    runs.filter((run) => run.status === CERT_STEP_STATUS.success).map((run) => run.stepId)
+    runs.filter((run) => run.status === CERT_STEP_STATUS.success).map((run) => run.stepId),
   );
   return enabledStepIds.every((stepId) => passed.has(stepId))
     ? CERT_SCENARIO_STATUS.completed
@@ -90,18 +90,26 @@ const describeKeys = (value: unknown): string =>
     ? Object.keys(value).slice(0, 50).join(', ') || 'none'
     : 'none';
 
+/** [sisVersion, area, scenario, fileName], straight from the catalog. */
+const stepSegments = (step: StepCatalog): string[] => [
+  step.scenario.area.catalogVersion.dataStandardVersion,
+  step.scenario.area.name,
+  step.scenario.name,
+  step.fileName,
+];
+
 @Injectable()
 export class CertificationService {
   private readonly logger = new Logger(CertificationService.name);
-  private readonly runLimiter = new RunLimiter(positiveNumber(config.CERT_BRUNO_MAX_CONCURRENT_RUNS, 2));
+  private readonly runLimiter = new RunLimiter(
+    positiveNumber(config.CERT_BRUNO_MAX_CONCURRENT_RUNS, 2),
+  );
 
   constructor(
     private readonly artifactService: ArtifactService,
     private readonly targetService: CertificationTargetService,
     @InjectRepository(StepCatalog)
     private readonly stepRepository: Repository<StepCatalog>,
-    @InjectRepository(StepParameterCatalog)
-    private readonly parameterRepository: Repository<StepParameterCatalog>,
     @InjectRepository(CertificationProcess)
     private readonly processRepository: Repository<CertificationProcess>,
     @InjectRepository(CertificationProcessScenario)
@@ -122,27 +130,28 @@ export class CertificationService {
     }
 
     const step = await this.findRunnableStep(params.stepId, params.sisVersion);
-    const inputNames = (
-      await this.parameterRepository.find({ where: { stepId: step.stepId, type: 'input' } })
-    ).map((parameter) => parameter.name);
+    // The step file is what runs, so it decides which inputs are expected (not the synced catalog rows).
+    const inputNames = await readStepInputNames(this.artifactService.sisRoot, stepSegments(step));
     const inputErrors = validateStepInputs(inputNames, params.inputs);
     if (inputErrors.length > 0) {
       throw new ValidationHttpException(...inputErrors);
     }
 
+    // null (from a JSON body) means "not chosen", the same as omitted.
+    const odsId = params.odsId ?? null;
     const target = await this.targetService.resolve({
       sbEnvironment: params.sbEnvironment,
       edfiTenant: params.edfiTenant,
-      odsId: params.odsId,
+      odsId,
     });
     const certificationProcess = await this.findOrCreateProcess(
       params.edfiTenant.id,
-      params.odsId ?? null,
-      step.scenario.area.catalogVersionId
+      odsId,
+      step.scenario.area.catalogVersionId,
     );
 
     const slot = this.runLimiter.tryAcquire(
-      `${certificationProcess.certificationProcessId}:${step.scenarioId}`
+      `${certificationProcess.certificationProcessId}:${step.scenarioId}`,
     );
     if (slot === 'busy-key') throw new ConflictException(CERT_RUN_MESSAGES.busyScenario);
     if (slot === 'at-capacity') throw new ServiceUnavailableException(CERT_RUN_MESSAGES.atCapacity);
@@ -178,7 +187,7 @@ export class CertificationService {
   private async findOrCreateProcess(
     edfiTenantId: number,
     odsId: number | null,
-    catalogVersionId: number
+    catalogVersionId: number,
   ): Promise<CertificationProcess> {
     const where = { edfiTenantId, odsId: odsId ?? IsNull(), catalogVersionId };
     const existing = await this.processRepository.findOne({ where });
@@ -190,7 +199,7 @@ export class CertificationService {
           odsId,
           catalogVersionId,
           status: CERT_PROCESS_STATUS.inprogress,
-        })
+        }),
       );
     } catch (error) {
       // Two first runs can race; the unique index lets only one insert win.
@@ -204,7 +213,7 @@ export class CertificationService {
     step: StepCatalog,
     certificationProcess: CertificationProcess,
     target: CertificationTarget,
-    { token, inputs }: RunStepParams
+    { token, inputs }: RunStepParams,
   ): Promise<ParsedBrunoReport> {
     const scenarioRow = await this.processScenarioRepository.findOne({
       where: {
@@ -217,20 +226,15 @@ export class CertificationService {
     if (storedVars && sanitizeCapturedVars(storedVars) === null) {
       this.logger.warn(
         `Certification step ${step.stepId}: stored captured values were invalid and were ignored (keys: ${describeKeys(
-          storedVars
-        )})`
+          storedVars,
+        )})`,
       );
     }
-    const timeoutMs = positiveNumber(config.CERT_BRUNO_RUN_TIMEOUT_MS, 60000);
+    const timeoutMs = positiveNumber(config.CERT_BRUNO_RUN_TIMEOUT_MS, 45000);
     const startedAt = Date.now();
     const workspace = await createRunWorkspace({
       sisRoot: this.artifactService.sisRoot,
-      stepSegments: [
-        step.scenario.area.catalogVersion.dataStandardVersion,
-        step.scenario.area.name,
-        step.scenario.name,
-        step.fileName,
-      ],
+      stepSegments: stepSegments(step),
       inputs,
       resourceBaseUrl: target.resourceBaseUrl,
       oauthUrl: target.oauthUrl,
@@ -242,7 +246,10 @@ export class CertificationService {
       const cli = await runBrunoCli({
         cliPath: this.artifactService.brunoCliPath,
         cwd: workspace.dir,
-        args: buildBrunoArgs({ stepPath: workspace.stepPath, insecure: isSslVerificationDisabled() }),
+        args: buildBrunoArgs({
+          stepPath: workspace.stepPath,
+          insecure: isSslVerificationDisabled(),
+        }),
         token,
         timeoutMs,
       });
@@ -254,23 +261,25 @@ export class CertificationService {
           });
       this.logger.log(
         `Certification step ${step.stepId} finished: exit=${cli.exitCode} timedOut=${cli.timedOut} ` +
-          `complete=${parsed.complete} passed=${parsed.passed} ms=${Date.now() - startedAt}`
+          `complete=${parsed.complete} passed=${parsed.passed} ms=${Date.now() - startedAt}`,
       );
       if (parsed.capturedVarsRejectedKeys) {
         this.logger.warn(
           `Certification step ${step.stepId}: captured values failed validation and were not stored ` +
-            `(keys: ${parsed.capturedVarsRejectedKeys.join(', ') || 'none'})`
+            `(keys: ${parsed.capturedVarsRejectedKeys.join(', ') || 'none'})`,
         );
       }
       if (!parsed.complete && cli.stderrTail) {
-        this.logger.warn(`Certification step ${step.stepId} stderr: ${cleanMessage(cli.stderrTail, token)}`);
+        this.logger.warn(
+          `Certification step ${step.stepId} stderr: ${cleanMessage(cli.stderrTail, token)}`,
+        );
       }
       return parsed;
     } finally {
       await workspace
         .dispose()
         .catch(() =>
-          this.logger.warn(`Certification step ${step.stepId}: temporary workspace cleanup failed`)
+          this.logger.warn(`Certification step ${step.stepId}: temporary workspace cleanup failed`),
         );
     }
   }
@@ -280,7 +289,7 @@ export class CertificationService {
     step: StepCatalog,
     certificationProcess: CertificationProcess,
     inputs: Record<string, string>,
-    parsed: ParsedBrunoReport
+    parsed: ParsedBrunoReport,
   ): Promise<CertificationStepRunDto> {
     const { certificationProcessId } = certificationProcess;
     const { stepId, scenarioId } = step;
@@ -295,7 +304,7 @@ export class CertificationService {
           status,
           inputs,
           runAt: ranAt,
-        })
+        }),
       );
 
       const errors = em.getRepository(ScenarioStepError);
@@ -307,7 +316,7 @@ export class CertificationService {
             property: error.property,
             validation: error.validation,
             description: error.error,
-          }))
+          })),
         );
       }
 
@@ -326,7 +335,9 @@ export class CertificationService {
         scenarioRow.capturedVars = parsed.capturedVars;
       }
       await scenarios.save(scenarioRow);
-      await em.getRepository(CertificationProcess).update({ certificationProcessId }, { updatedAt: ranAt });
+      await em
+        .getRepository(CertificationProcess)
+        .update({ certificationProcessId }, { updatedAt: ranAt });
 
       return { stepId, status, ranAt: ranAt.toISOString(), scenarioStatus, errors: parsed.errors };
     });

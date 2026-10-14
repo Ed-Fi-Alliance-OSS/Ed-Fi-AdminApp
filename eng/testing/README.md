@@ -120,7 +120,7 @@ $env:CERT_EXPECT_SUCCESS = 'true'      # optional: also assert step 01 passes
 .\eng\testing\run-bruno.ps1 -Env local -Collection collections/certification
 ```
 
-When `CERT_ODS_SECRET` is set, the runner adds `--reporter-skip-request-body` so the secret stays out of `test-results/`.
+When `CERT_ODS_SECRET` is set, the runner adds `--reporter-skip-request-body`, `--reporter-skip-response-body` and `--reporter-skip-all-headers` so the key/secret, tokens and headers stay out of `test-results/`.
 
 #### Custom OIDC Grant Type
 

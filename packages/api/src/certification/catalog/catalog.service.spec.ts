@@ -352,6 +352,21 @@ describe('CatalogService', () => {
     ]);
   });
 
+  it('extractInputParams and extractContextParams skip disabled (~) lines', () => {
+    const bru = [
+      'params:query {',
+      '  schoolYear: [ENTER school year]',
+      '  ~schoolId: [ENTER_SCHOOL_ID]',
+      '  ~sessionId: {{session_id}}',
+      '}',
+    ].join('\n');
+
+    expect(asInternal(service).extractInputParams(bru)).toEqual([
+      { name: 'schoolYear', type: 'input', description: 'school year' },
+    ]);
+    expect(asInternal(service).extractContextParams(bru)).toEqual([]);
+  });
+
   it('extractReferenceParam should return URL trailing id var for UPDATE/DELETE only', () => {
     const bru = 'url: {{baseUrl}}/schools/{{school_id}}?limit=1';
 
