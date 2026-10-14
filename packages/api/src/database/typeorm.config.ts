@@ -1,7 +1,6 @@
 import {
   AreaCatalog,
   CatalogVersion,
-  CertificationOdsApi,
   CertificationProcess,
   CertificationProcessScenario,
   EdfiTenant,
@@ -70,6 +69,7 @@ import { AddCreateDeleteOdsPrivileges1785181605952 as PgsqlAddCreateDeleteOdsPri
 import { RenameDbInstanceIdToInstanceManageId1785365966591 as PgsqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/pgsql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/pgsql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
 import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/pgsql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
+import { CertificationStepRuns1792000000000 as PgsqlCertificationStepRuns1792000000000 } from './migrations/pgsql/1792000000000-CertificationStepRuns';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -110,6 +110,7 @@ import { AddCreateDeleteOdsPrivileges1785181605952 as MssqlAddCreateDeleteOdsPri
 import { RenameDbInstanceIdToInstanceManageId1785365966591 as MssqlRenameDbInstanceIdToInstanceManageId1785365966591 } from './migrations/mssql/1785365966591-RenameDbInstanceIdToInstanceManageId';
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as MssqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/mssql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
 import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/mssql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
+import { CertificationStepRuns1792000000000 as MssqlCertificationStepRuns1792000000000 } from './migrations/mssql/1792000000000-CertificationStepRuns';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -150,6 +151,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlRenameDbInstanceIdToInstanceManageId1785365966591,
   PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000,
   PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
+  PgsqlCertificationStepRuns1792000000000,
 ];
 
 const getMSSQLMigrations = () => [
@@ -191,6 +193,7 @@ const getMSSQLMigrations = () => [
   MssqlRenameDbInstanceIdToInstanceManageId1785365966591,
   MssqlAddMissingPrivilegesToGlobalAdmin1791158400000,
   MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
+  MssqlCertificationStepRuns1792000000000,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
@@ -216,7 +219,6 @@ const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOpt
     ScenarioCatalog,
     StepCatalog,
     StepParameterCatalog,
-    CertificationOdsApi,
     CertificationProcess,
     CertificationProcessScenario,
     ScenarioStep,

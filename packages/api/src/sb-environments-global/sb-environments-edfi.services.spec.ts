@@ -3,7 +3,15 @@ import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, getEntityManagerToken } from '@nestjs/typeorm';
 import { SbEnvironmentsEdFiService } from './sb-environments-edfi.services';
 import { AdminApiVersionStrategyFactory } from '../admin-api-version-strategy';
-import { EdfiTenant, SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
+import {
+  CertificationProcess,
+  EdfiTenant,
+  Edorg,
+  Ods,
+  SbEnvironment,
+  SbSyncQueue,
+} from '@edanalytics/models-server';
+import { IsNull, Not } from 'typeorm';
 import { PostSbEnvironmentDto, PutSbEnvironmentDto } from '@edanalytics/models';
 import {
   StartingBlocksServiceV1,
@@ -419,5 +427,70 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (unrecognized version)', (
     // The factory should never be called for a version outside v1/v2/v3 — updateEnvironment
     // must degrade to an undefined strategy locally instead of delegating to the factory's throw.
     expect(strategyFactory.getStrategy).not.toHaveBeenCalled();
+  });
+});
+
+describe('SbEnvironmentsEdFiService tenant and ODS removal (MSSQL certification FK)', () => {
+  let service: SbEnvironmentsEdFiService;
+  let repos: Record<string, { delete: jest.Mock }>;
+
+  beforeEach(async () => {
+    repos = {
+      [Edorg.name]: { delete: jest.fn() },
+      [CertificationProcess.name]: { delete: jest.fn() },
+      [Ods.name]: { delete: jest.fn() },
+      [EdfiTenant.name]: { delete: jest.fn() },
+    };
+    const em = { getRepository: (entity: { name: string }) => repos[entity.name] };
+    const module: TestingModule = await Test.createTestingModule({
+      providers: [
+        SbEnvironmentsEdFiService,
+        { provide: getRepositoryToken(SbEnvironment), useValue: {} },
+        { provide: StartingBlocksServiceV1, useValue: {} },
+        { provide: StartingBlocksServiceV2, useValue: {} },
+        { provide: getRepositoryToken(EdfiTenant), useValue: {} },
+        {
+          provide: getEntityManagerToken(),
+          useValue: { transaction: jest.fn(async (work) => work(em)) },
+        },
+        { provide: 'IJobQueueService', useValue: {} },
+        { provide: getRepositoryToken(SbSyncQueue), useValue: {} },
+        { provide: AdminApiVersionStrategyFactory, useValue: {} },
+      ],
+    }).compile();
+    service = module.get(SbEnvironmentsEdFiService);
+  });
+
+  const calledBefore = (first: jest.Mock, second: jest.Mock) =>
+    first.mock.invocationCallOrder[0] < second.mock.invocationCallOrder[0];
+
+  it('removeTenant deletes the tenant ODS certification processes before its ODS rows', async () => {
+    await (service as unknown as { removeTenant: (t: EdfiTenant) => Promise<void> }).removeTenant({
+      id: 10,
+    } as EdfiTenant);
+
+    expect(repos[CertificationProcess.name].delete).toHaveBeenCalledWith({
+      edfiTenantId: 10,
+      odsId: Not(IsNull()),
+    });
+    expect(calledBefore(repos[CertificationProcess.name].delete, repos[Ods.name].delete)).toBe(
+      true,
+    );
+    expect(repos[Ods.name].delete).toHaveBeenCalledWith({ edfiTenantId: 10 });
+  });
+
+  it('removeAllOdsForTenant deletes only ODS-bound certification processes before the ODS rows', async () => {
+    await (
+      service as unknown as { removeAllOdsForTenant: (t: EdfiTenant) => Promise<void> }
+    ).removeAllOdsForTenant({ id: 10 } as EdfiTenant);
+
+    expect(repos[CertificationProcess.name].delete).toHaveBeenCalledWith({
+      edfiTenantId: 10,
+      odsId: Not(IsNull()),
+    });
+    expect(calledBefore(repos[CertificationProcess.name].delete, repos[Ods.name].delete)).toBe(
+      true,
+    );
+    expect(repos[EdfiTenant.name].delete).not.toHaveBeenCalled();
   });
 });

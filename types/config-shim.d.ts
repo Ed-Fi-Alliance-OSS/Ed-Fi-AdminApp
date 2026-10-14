@@ -109,6 +109,10 @@ declare module 'config' {
     CERT_BRUNO_SRC_REF?: string;
     CERT_BRUNO_SRC_CHECKSUM?: string;
     CERT_BRUNO_ON_DOWNLOAD_ERROR?: 'error' | 'warn' | 'skip';
+    /** Kill a certification step run after this many ms (env vars arrive as strings). */
+    CERT_BRUNO_RUN_TIMEOUT_MS: number | string;
+    /** Simultaneous certification step runs per API instance (env vars arrive as strings). */
+    CERT_BRUNO_MAX_CONCURRENT_RUNS: number | string;
 
     /** Polling interval for MSSQL job queue in milliseconds (default: 1000) */
     MSSQL_JOB_POLL_MS?: number;

@@ -13,6 +13,10 @@ export class ScenarioStepError {
   @Column()
   stepRunId: number;
 
+  /** What failed: an assertion expression, a test name, or '' for a script error. */
+  @Column({ type: 'varchar', length: 500, nullable: true })
+  property: string | null;
+
   @Column({ type: 'text', nullable: true })
   description: string | null;
 
