@@ -29,7 +29,10 @@ import {
 } from '@edanalytics/models';
 import { useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
-import { useRunCertificationStep } from '../../api-v2/useRunCertificationStep';
+import {
+  RunCertificationStepVariables,
+  useRunCertificationStep,
+} from '../../api-v2/useRunCertificationStep';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { CertificationStepResult } from './CertificationStepResult';
@@ -85,7 +88,42 @@ export const CertificationPageExecution = () => {
     sisVersion,
     scenarioId: selected?.scenario.scenarioId,
   });
-  const run = useRunCertificationStep();
+  const stepRunsQueryKey = stepRuns.queryKey;
+  const refetchStepRuns = stepRuns.refetch;
+  const run = useRunCertificationStep({
+    onSuccess: (result: CertificationStepRunDto, variables: RunCertificationStepVariables) => {
+      // Show the new result right away; the API overwrote the saved one.
+      const saved = {
+        stepId: result.stepId,
+        status: result.status,
+        ranAt: result.ranAt,
+        inputs: variables.body.inputs,
+        errors: result.errors,
+      };
+      queryClient.setQueryData(
+        stepRunsQueryKey,
+        (previous: CertificationStepRunsDto | undefined): CertificationStepRunsDto => {
+          const steps = previous?.steps ?? [];
+          return {
+            scenarioStatus: result.scenarioStatus,
+            steps: steps.some((item) => item.stepId === saved.stepId)
+              ? steps.map((item) => (item.stepId === saved.stepId ? saved : item))
+              : [...steps, saved],
+          };
+        },
+      );
+      queryClient.invalidateQueries({ queryKey: stepRunsQueryKey });
+    },
+    onError: (error: unknown) => {
+      const kind = classifyRunError(error);
+      if (kind.kind === 'unknown') {
+        // A proxy timeout or dropped connection: the run may still have been saved.
+        refetchStepRuns();
+      } else if (kind.notFound) {
+        queryClient.invalidateQueries({ queryKey: certificationQueryKeys.all(sbEnvironmentId) });
+      }
+    },
+  });
   const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
 
   // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
@@ -138,55 +176,26 @@ export const CertificationPageExecution = () => {
   const canExecuteStep = parameterDefinitions.every((parameter) =>
     Boolean(parameterValues[parameter.parameterId]?.trim()),
   );
-  const runError = run.error ? classifyRunError(run.error) : undefined;
+  // A run's error belongs to the step it ran, not to whichever step is open now.
+  const runError =
+    run.error && run.variables?.stepId === validatedStep?.stepId
+      ? classifyRunError(run.error)
+      : undefined;
 
   const executeStep = (step: CertificationStepDto) => {
     if (!isAuthenticated || sisVersion === undefined) return;
-    const inputs = toRunInputs(parameterDefinitions, parameterValues);
     run.reset();
-    run.mutate(
-      {
-        sbEnvironmentId,
-        edfiTenantId,
-        sisVersion,
-        stepId: step.stepId,
-        body: { odsId, token: auth.token, inputs },
+    run.mutate({
+      sbEnvironmentId,
+      edfiTenantId,
+      sisVersion,
+      stepId: step.stepId,
+      body: {
+        odsId,
+        token: auth.token,
+        inputs: toRunInputs(parameterDefinitions, parameterValues),
       },
-      {
-        onSuccess: (result: CertificationStepRunDto) => {
-          // Show the new result right away; the API overwrote the saved one.
-          queryClient.setQueryData(
-            stepRuns.queryKey,
-            (previous: CertificationStepRunsDto | undefined): CertificationStepRunsDto => {
-              const saved = {
-                stepId: result.stepId,
-                status: result.status,
-                ranAt: result.ranAt,
-                inputs,
-                errors: result.errors,
-              };
-              const others = (previous?.steps ?? []).filter((item) => item.stepId !== saved.stepId);
-              const steps = previous?.steps.some((item) => item.stepId === saved.stepId)
-                ? previous.steps.map((item) => (item.stepId === saved.stepId ? saved : item))
-                : [...others, saved];
-              return { scenarioStatus: result.scenarioStatus, steps };
-            },
-          );
-          queryClient.invalidateQueries({ queryKey: stepRuns.queryKey });
-        },
-        onError: (error: unknown) => {
-          const kind = classifyRunError(error);
-          if (kind.kind === 'unknown') {
-            // A proxy timeout or dropped connection: the run may still have been saved.
-            stepRuns.refetch();
-          } else if (kind.notFound) {
-            queryClient.invalidateQueries({
-              queryKey: certificationQueryKeys.all(sbEnvironmentId),
-            });
-          }
-        },
-      },
-    );
+    });
   };
 
   return (
@@ -270,10 +279,7 @@ export const CertificationPageExecution = () => {
                         size="sm"
                         colorScheme="primary"
                         type="button"
-                        onClick={() => {
-                          setValidatedStep(row);
-                          run.reset();
-                        }}
+                        onClick={() => setValidatedStep(row)}
                       >
                         Validate
                       </Button>
