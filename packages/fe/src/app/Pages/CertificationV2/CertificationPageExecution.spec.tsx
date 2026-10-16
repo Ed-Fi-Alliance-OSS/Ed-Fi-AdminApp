@@ -1,8 +1,14 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CertificationPageExecution } from './CertificationPageExecution';
 import { useCertificationSelection } from './useCertificationSelection';
 import { useCertificationAuth } from './CertificationAuthContext';
-import { useCertificationCatalog, useCertificationSteps } from './useCertificationCatalog';
+import {
+  certificationQueryKeys,
+  useCertificationCatalog,
+  useCertificationSteps,
+} from './useCertificationCatalog';
+import { useCertificationStepRuns } from './useCertificationStepRuns';
+import { useRunCertificationStep } from '../../api-v2/useRunCertificationStep';
 
 const mockNavigate = jest.fn();
 jest.mock('react-router', () => ({
@@ -20,9 +26,14 @@ jest.mock('./CertificationAuthContext', () => ({
   useCertificationAuth: jest.fn(),
 }));
 jest.mock('./useCertificationCatalog', () => ({
+  certificationQueryKeys: { all: (sbEnvironmentId: number) => ['certification', sbEnvironmentId] },
   useCertificationCatalog: jest.fn(),
   useCertificationSteps: jest.fn(),
 }));
+jest.mock('./useCertificationStepRuns', () => ({ useCertificationStepRuns: jest.fn() }));
+jest.mock('../../api-v2/useRunCertificationStep', () => ({ useRunCertificationStep: jest.fn() }));
+const mockQueryClient = { setQueryData: jest.fn(), invalidateQueries: jest.fn() };
+jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => mockQueryClient }));
 jest.mock('./CertificationAuthenticateForm', () => ({
   CertificationAuthenticateForm: () => <div data-testid="auth-form" />,
 }));
@@ -101,9 +112,45 @@ const validAuth = {
   odsId: undefined,
 };
 
+const STEP_RUNS_KEY = ['step-runs-key'];
+const savedFailure = {
+  stepId: 189,
+  status: 'failed',
+  ranAt: '2026-10-15T15:00:00.000Z',
+  inputs: { schoolId: '255901', beginDate: '2026-08-01' },
+  errors: [{ property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' }],
+};
+let refetch: jest.Mock;
+let runState: {
+  mutate: jest.Mock;
+  reset: jest.Mock;
+  isPending: boolean;
+  variables: { stepId: number } | undefined;
+  error: unknown;
+};
+const handlers = () => (useRunCertificationStep as jest.Mock).mock.calls.at(-1)[0];
+const mockStepRuns = (runsByStepId: Record<number, unknown>) =>
+  (useCertificationStepRuns as jest.Mock).mockReturnValue({
+    runsByStepId,
+    scenarioStatus: null,
+    isPending: false,
+    refetch,
+    queryKey: STEP_RUNS_KEY,
+  });
+
 describe('CertificationPageExecution', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    refetch = jest.fn();
+    runState = {
+      mutate: jest.fn(),
+      reset: jest.fn(),
+      isPending: false,
+      variables: undefined,
+      error: null,
+    };
+    (useRunCertificationStep as jest.Mock).mockImplementation(() => runState);
+    mockStepRuns({});
     (useCertificationAuth as jest.Mock).mockReturnValue({
       auth: null,
       setAuth: jest.fn(),
@@ -142,7 +189,7 @@ describe('CertificationPageExecution', () => {
     render(<CertificationPageExecution />);
   };
   const executeButton = () =>
-    screen.getByRole('button', { name: 'Execute Scenario' }) as HTMLButtonElement;
+    screen.getByRole('button', { name: 'Execute step' }) as HTMLButtonElement;
 
   it('shows only the input parameters, with readable labels and format hints', () => {
     renderAuthenticated();
@@ -157,7 +204,7 @@ describe('CertificationPageExecution', () => {
     expect(screen.getAllByRole('textbox')).toHaveLength(2);
   });
 
-  it('enables Execute Scenario once every input parameter is filled', () => {
+  it('enables Execute step once every input parameter is filled', () => {
     renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[0]);
     expect(executeButton().disabled).toBe(true);
@@ -167,8 +214,6 @@ describe('CertificationPageExecution', () => {
       target: { value: '2026-08-15' },
     });
     expect(executeButton().disabled).toBe(false);
-    fireEvent.click(executeButton());
-    expect(screen.getAllByText('Successful').length).toBeGreaterThan(0);
   });
 
   it('asks for nothing on a step whose only parameter the app fills in', () => {
@@ -262,7 +307,7 @@ describe('CertificationPageExecution', () => {
     });
   });
 
-  it('after a refresh, keeps the scenario from the URL and asks to validate again', () => {
+  it('after a refresh, keeps the scenario from the URL, asks to validate again and still lets steps be opened', () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
       odsId: undefined,
@@ -279,7 +324,7 @@ describe('CertificationPageExecution', () => {
     const buttons = screen.getAllByRole('button', { name: 'Validate' });
     expect(buttons.length).toBeGreaterThan(0);
     buttons.forEach((button) => {
-      expect((button as HTMLButtonElement).disabled).toBe(true);
+      expect((button as HTMLButtonElement).disabled).toBe(false);
     });
   });
 
@@ -330,6 +375,229 @@ describe('CertificationPageExecution', () => {
     expect(buttons.length).toBeGreaterThan(0);
     buttons.forEach((button) => {
       expect((button as HTMLButtonElement).disabled).toBe(false);
+    });
+  });
+
+  describe('real step runs', () => {
+    const select = (index: number) =>
+      fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[index]);
+    const rowOf = (stepName: string) => screen.getByText(stepName).closest('tr') as HTMLElement;
+    const fillStep189 = () => {
+      fireEvent.change(screen.getByLabelText('First school id'), { target: { value: '255901' } });
+      fireEvent.change(screen.getByLabelText('First begin date'), {
+        target: { value: '2026-08-01' },
+      });
+    };
+
+    it('reads saved results for the tenant, ODS, version and scenario', () => {
+      renderAuthenticated();
+      expect(useCertificationStepRuns).toHaveBeenCalledWith({
+        sbEnvironmentId: 1,
+        edfiTenantId: 10,
+        odsId: undefined,
+        sisVersion: 'v5',
+        scenarioId: 52,
+      });
+    });
+
+    it("shows each step's saved status on load", () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+
+      expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Failed')).toBeTruthy();
+      expect(within(rowOf('02 - 2nd Calendar is valid')).getByText('Not executed')).toBeTruthy();
+    });
+
+    it('shows the saved errors and prefilled inputs when a step is selected', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+
+      expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('255901');
+      expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe(
+        '2026-08-01',
+      );
+      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+    });
+
+    it('lets a signed-out vendor select a step and see saved results, but not execute', () => {
+      mockStepRuns({ 189: savedFailure });
+      (useCertificationSelection as jest.Mock).mockReturnValue({
+        edfiTenantId: 10,
+        odsId: undefined,
+        scenarioId: 52,
+      });
+      (useCertificationAuth as jest.Mock).mockReturnValue({
+        auth: null,
+        clearReason: 'expired',
+        setAuth: jest.fn(),
+        clearAuth: jest.fn(),
+      });
+      render(<CertificationPageExecution />);
+      select(0);
+
+      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+      expect(executeButton().disabled).toBe(true);
+      expect(
+        screen.getByText('Validate your credentials above to execute this step.'),
+      ).toBeTruthy();
+    });
+
+    it('runs the step with inputs keyed by parameter name and the token', () => {
+      renderAuthenticated();
+      select(0);
+      fillStep189();
+      fireEvent.click(executeButton());
+
+      expect(runState.reset).toHaveBeenCalled();
+      expect(runState.mutate).toHaveBeenCalledWith({
+        sbEnvironmentId: 1,
+        edfiTenantId: 10,
+        sisVersion: 'v5',
+        stepId: 189,
+        body: {
+          odsId: undefined,
+          token: 't',
+          inputs: { schoolId: '255901', beginDate: '2026-08-01' },
+        },
+      });
+    });
+
+    it('shows Running on the row and disables Execute while the run is pending', () => {
+      mockStepRuns({ 189: savedFailure });
+      runState.isPending = true;
+      runState.variables = { stepId: 189 };
+      renderAuthenticated();
+      select(0);
+
+      expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
+      expect(executeButton().disabled).toBe(true);
+    });
+
+    it('writes the run response into the saved results and refreshes them', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+      fireEvent.click(executeButton());
+      handlers().onSuccess(
+        {
+          stepId: 189,
+          status: 'success',
+          ranAt: '2026-10-16T10:00:00.000Z',
+          scenarioStatus: 'inprogress',
+          errors: [],
+        },
+        runState.mutate.mock.calls[0][0],
+      );
+
+      expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
+        STEP_RUNS_KEY,
+        expect.any(Function),
+      );
+      const update = mockQueryClient.setQueryData.mock.calls[0][1];
+      const otherStep = { ...savedFailure, stepId: 190 };
+      expect(update({ scenarioStatus: 'failed', steps: [savedFailure, otherStep] })).toEqual({
+        scenarioStatus: 'inprogress',
+        steps: [
+          {
+            stepId: 189,
+            status: 'success',
+            ranAt: '2026-10-16T10:00:00.000Z',
+            inputs: { schoolId: '255901', beginDate: '2026-08-01' },
+            errors: [],
+          },
+          otherStep,
+        ],
+      });
+      expect(update(undefined)).toEqual({
+        scenarioStatus: 'inprogress',
+        steps: [expect.objectContaining({ stepId: 189, status: 'success' })],
+      });
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: STEP_RUNS_KEY });
+    });
+
+    it('shows the API message when the run is rejected', () => {
+      const message =
+        'Another step of this scenario is running. Wait for it to finish, then try again.';
+      runState.error = { statusCode: 409, message };
+      runState.variables = { stepId: 189 };
+      renderAuthenticated();
+      select(0);
+
+      expect(screen.getByText(message)).toBeTruthy();
+    });
+
+    it('reloads the catalog when the step is no longer in it', () => {
+      renderAuthenticated();
+      select(1);
+      fireEvent.click(executeButton());
+      handlers().onError({ statusCode: 404, message: 'Not Found' });
+
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: certificationQueryKeys.all(1),
+      });
+      expect(refetch).not.toHaveBeenCalled();
+    });
+
+    it('does not mark the step failed when the result is unknown, and refetches', () => {
+      runState.error = '<html>504 Gateway Time-out</html>';
+      runState.variables = { stepId: 190 };
+      renderAuthenticated();
+      select(1);
+      fireEvent.click(executeButton());
+      handlers().onError(runState.error);
+
+      expect(refetch).toHaveBeenCalled();
+      expect(within(rowOf('02 - 2nd Calendar is valid')).getByText('Not executed')).toBeTruthy();
+      expect(
+        screen.getByText(
+          "We couldn't confirm this run's result. It may still have been saved, so the step statuses have been refreshed.",
+        ),
+      ).toBeTruthy();
+    });
+
+    it("shows a run's error only on the step it ran", () => {
+      const message =
+        'Another step of this scenario is running. Wait for it to finish, then try again.';
+      runState.error = { statusCode: 409, message };
+      runState.variables = { stepId: 189 };
+      renderAuthenticated();
+      select(1);
+
+      expect(screen.queryByText(message)).toBeNull();
+    });
+
+    it('keeps a running step running when the vendor opens another step', () => {
+      runState.isPending = true;
+      runState.variables = { stepId: 189 };
+      renderAuthenticated();
+      select(0);
+      select(1);
+
+      expect(runState.reset).not.toHaveBeenCalled();
+      expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
+      expect(executeButton().disabled).toBe(true);
+    });
+
+    it("keeps a vendor's edits when switching steps and back", () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+      fireEvent.change(screen.getByLabelText('First school id'), { target: { value: '999' } });
+      select(1);
+      select(0);
+
+      expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('999');
+      expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe(
+        '2026-08-01',
+      );
+    });
+
+    it('has no leftover simulated results', () => {
+      renderAuthenticated();
+      select(0);
+      expect(screen.queryByText(/simulated/i)).toBeNull();
+      expect(screen.queryByText(/alternateDayName/)).toBeNull();
     });
   });
 });

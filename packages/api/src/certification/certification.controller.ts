@@ -3,15 +3,17 @@ import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
   Controller,
+  Get,
   HttpCode,
   Param,
   ParseIntPipe,
   Post,
+  Query,
   Res,
   ServiceUnavailableException,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import {
   ReqEdfiTenant,
@@ -19,6 +21,7 @@ import {
   SbEnvironmentEdfiTenantInterceptor,
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
+import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationService } from './certification.service';
 
 const RETRY_AFTER_SECONDS = '30';
@@ -27,7 +30,10 @@ const RETRY_AFTER_SECONDS = '30';
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
 @Controller('sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/certification')
 export class CertificationController {
-  constructor(private readonly certificationService: CertificationService) {}
+  constructor(
+    private readonly certificationService: CertificationService,
+    private readonly stepRunsService: CertificationStepRunsService,
+  ) {}
 
   /** Runs one certification step through the Bruno CLI and returns its saved result (AC-466). */
   @Post('sis/:sisVersion/steps/:stepId/run')
@@ -58,5 +64,26 @@ export class CertificationController {
       }
       throw error;
     }
+  }
+
+  /**
+   * The saved result of each step of one scenario (AC-475). Read-only: it never creates a
+   * certification process and never contacts the ODS/API, so it needs no token.
+   */
+  @Get('sis/:sisVersion/step-runs')
+  @ApiQuery({ name: 'odsId', required: false, type: Number })
+  @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
+  async getStepRuns(
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('sisVersion') sisVersion: string,
+    @Query('scenarioId', ParseIntPipe) scenarioId: number,
+    @Query('odsId', new ParseIntPipe({ optional: true })) odsId?: number,
+  ) {
+    return this.stepRunsService.findStepRuns({
+      edfiTenantId: edfiTenant.id,
+      odsId: odsId ?? null,
+      sisVersion,
+      scenarioId,
+    });
   }
 }

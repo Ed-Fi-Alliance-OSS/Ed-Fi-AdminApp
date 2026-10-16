@@ -6,6 +6,7 @@ import {
   PostCertificationStepRunDto,
   SUPPORTED_SIS_VERSIONS,
   toCertificationStepRunDto,
+  toCertificationStepRunsDto,
 } from './certification-step-run.dto';
 
 // Same transform options as the API's global ValidationPipe.
@@ -57,6 +58,50 @@ describe('certification step run DTOs', () => {
       ranAt: '2026-10-12T20:00:00.000Z',
       scenarioStatus: 'failed',
       errors: [{ property: 'birthDate changed', validation: 'test', error: 'expected a change' }],
+    });
+  });
+
+  it('serializes saved step runs, keeping inputs and dropping unknown fields', () => {
+    const result = toCertificationStepRunsDto({
+      scenarioStatus: 'failed',
+      steps: [
+        {
+          stepId: 12,
+          status: 'failed',
+          ranAt: '2026-10-15T15:00:00.000Z',
+          inputs: { studentUniqueId: '604822' },
+          errors: [
+            {
+              property: 'res.status',
+              validation: 'eq 200',
+              error: 'expected 500 to equal 200',
+              extra: 1,
+            },
+          ],
+          stepRunId: 99,
+        },
+      ],
+    } as never);
+    expect(result).toEqual({
+      scenarioStatus: 'failed',
+      steps: [
+        {
+          stepId: 12,
+          status: 'failed',
+          ranAt: '2026-10-15T15:00:00.000Z',
+          inputs: { studentUniqueId: '604822' },
+          errors: [
+            { property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' },
+          ],
+        },
+      ],
+    });
+  });
+
+  it('serializes an empty saved step-runs result', () => {
+    expect(toCertificationStepRunsDto({ scenarioStatus: null, steps: [] })).toEqual({
+      scenarioStatus: null,
+      steps: [],
     });
   });
 });
