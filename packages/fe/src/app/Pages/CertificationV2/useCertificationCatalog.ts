@@ -21,6 +21,19 @@ export const certificationQueryKeys = {
     [...certificationQueryKeys.all(sbEnvironmentId), 'scenarios', catalogVersionId] as const,
   steps: (sbEnvironmentId: number, scenarioId: number | undefined) =>
     [...certificationQueryKeys.all(sbEnvironmentId), 'steps', scenarioId] as const,
+  stepRuns: (
+    sbEnvironmentId: number,
+    edfiTenantId: number | undefined,
+    odsId: number | undefined,
+    scenarioId: number | undefined,
+  ) =>
+    [
+      ...certificationQueryKeys.all(sbEnvironmentId),
+      'step-runs',
+      edfiTenantId,
+      odsId ?? null,
+      scenarioId,
+    ] as const,
 };
 
 /**
