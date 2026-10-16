@@ -412,6 +412,9 @@ try {
   Push-Location $repoRoot
   try {
     if ($SkipV1) {
+      # playwright.config.ts applies the @v1 exclusion per project through E2E_SKIP_V1,
+      # because --grep-invert is ignored by projects that run as dependencies of others.
+      $env:E2E_SKIP_V1 = '1'
       npm run test:e2e:bdd -- --grep-invert '@v1'
     } else {
       npm run test:e2e:bdd

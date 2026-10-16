@@ -627,8 +627,15 @@ class EnvironmentsPage {
   }
 
   async fillVendorFields(company: string, prefixes: string, contactName: string, contactEmail: string) {
+    const editLink = this.page.getByRole('link', { name: 'Edit', exact: true })
+    // `isVisible()` does not wait, so settle on whichever of the form (create flow) or the
+    // details page's Edit link (edit flow) actually rendered before deciding what to click.
+    await expect(
+      this.vendorCompanyInput.or(editLink).first(),
+      'Neither the vendor form nor the vendor Edit link rendered'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
     if (!(await this.vendorCompanyInput.isVisible())) {
-      await this.page.getByRole('link', { name: 'Edit', exact: true }).click()
+      await editLink.click()
     }
     await this.vendorCompanyInput.fill(company)
     await this.vendorPrefixesInput.fill(prefixes)
