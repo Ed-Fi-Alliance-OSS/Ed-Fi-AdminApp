@@ -9,7 +9,12 @@ import { useCertificationStepRuns } from './useCertificationStepRuns';
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
 jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
 
-type QueryOptions = { queryKey: unknown[]; enabled?: boolean; queryFn: () => unknown };
+type QueryOptions = {
+  queryKey: unknown[];
+  enabled?: boolean;
+  queryFn: () => unknown;
+  throwOnError: (error: unknown, query: { state: { data: unknown } }) => boolean;
+};
 
 const args = {
   sbEnvironmentId: 1,
@@ -92,5 +97,19 @@ describe('useCertificationStepRuns', () => {
   it('exposes refetch', () => {
     render().result.refetch();
     expect(refetch).toHaveBeenCalled();
+  });
+
+  it('sends a failed first load to the error page', () => {
+    const { options } = render();
+    expect(options.throwOnError(new Error('x'), { state: { data: undefined } })).toBe(true);
+  });
+
+  it('keeps the page and its saved results when a later refetch fails', () => {
+    const { options } = render();
+    expect(
+      options.throwOnError(new Error('x'), {
+        state: { data: { scenarioStatus: null, steps: [] } },
+      }),
+    ).toBe(false);
   });
 });

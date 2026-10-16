@@ -44,7 +44,9 @@ export const useCertificationStepRuns = ({
         { params: odsId === undefined ? { scenarioId } : { scenarioId, odsId } },
       ),
     enabled,
-    throwOnError: true,
+    // Only a failed first load goes to the error page; a failed refetch (e.g. after a dropped
+    // connection) keeps the page, the vendor's typed inputs and the results already shown.
+    throwOnError: (_error, query) => query.state.data === undefined,
   });
   const { data, refetch } = stepRunsQuery;
   const runsByStepId = useMemo(
