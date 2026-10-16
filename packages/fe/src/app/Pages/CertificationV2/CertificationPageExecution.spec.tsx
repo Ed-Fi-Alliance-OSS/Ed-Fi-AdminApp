@@ -128,6 +128,7 @@ let runState: {
   variables: { stepId: number } | undefined;
   error: unknown;
 };
+const handlers = () => (useRunCertificationStep as jest.Mock).mock.calls.at(-1)[0];
 const mockStepRuns = (runsByStepId: Record<number, unknown>) =>
   (useCertificationStepRuns as jest.Mock).mockReturnValue({
     runsByStepId,
@@ -449,20 +450,17 @@ describe('CertificationPageExecution', () => {
       fireEvent.click(executeButton());
 
       expect(runState.reset).toHaveBeenCalled();
-      expect(runState.mutate).toHaveBeenCalledWith(
-        {
-          sbEnvironmentId: 1,
-          edfiTenantId: 10,
-          sisVersion: 'v5',
-          stepId: 189,
-          body: {
-            odsId: undefined,
-            token: 't',
-            inputs: { schoolId: '255901', beginDate: '2026-08-01' },
-          },
+      expect(runState.mutate).toHaveBeenCalledWith({
+        sbEnvironmentId: 1,
+        edfiTenantId: 10,
+        sisVersion: 'v5',
+        stepId: 189,
+        body: {
+          odsId: undefined,
+          token: 't',
+          inputs: { schoolId: '255901', beginDate: '2026-08-01' },
         },
-        expect.objectContaining({ onSuccess: expect.any(Function), onError: expect.any(Function) }),
-      );
+      });
     });
 
     it('shows Running on the row and disables Execute while the run is pending', () => {
@@ -481,14 +479,16 @@ describe('CertificationPageExecution', () => {
       renderAuthenticated();
       select(0);
       fireEvent.click(executeButton());
-      const { onSuccess } = runState.mutate.mock.calls[0][1];
-      onSuccess({
-        stepId: 189,
-        status: 'success',
-        ranAt: '2026-10-16T10:00:00.000Z',
-        scenarioStatus: 'inprogress',
-        errors: [],
-      });
+      handlers().onSuccess(
+        {
+          stepId: 189,
+          status: 'success',
+          ranAt: '2026-10-16T10:00:00.000Z',
+          scenarioStatus: 'inprogress',
+          errors: [],
+        },
+        runState.mutate.mock.calls[0][0],
+      );
 
       expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
         STEP_RUNS_KEY,
@@ -520,6 +520,7 @@ describe('CertificationPageExecution', () => {
       const message =
         'Another step of this scenario is running. Wait for it to finish, then try again.';
       runState.error = { statusCode: 409, message };
+      runState.variables = { stepId: 189 };
       renderAuthenticated();
       select(0);
 
@@ -530,7 +531,7 @@ describe('CertificationPageExecution', () => {
       renderAuthenticated();
       select(1);
       fireEvent.click(executeButton());
-      runState.mutate.mock.calls[0][1].onError({ statusCode: 404, message: 'Not Found' });
+      handlers().onError({ statusCode: 404, message: 'Not Found' });
 
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
         queryKey: certificationQueryKeys.all(1),
@@ -540,10 +541,11 @@ describe('CertificationPageExecution', () => {
 
     it('does not mark the step failed when the result is unknown, and refetches', () => {
       runState.error = '<html>504 Gateway Time-out</html>';
+      runState.variables = { stepId: 190 };
       renderAuthenticated();
       select(1);
       fireEvent.click(executeButton());
-      runState.mutate.mock.calls[0][1].onError(runState.error);
+      handlers().onError(runState.error);
 
       expect(refetch).toHaveBeenCalled();
       expect(within(rowOf('02 - 2nd Calendar is valid')).getByText('Not executed')).toBeTruthy();
@@ -554,12 +556,27 @@ describe('CertificationPageExecution', () => {
       ).toBeTruthy();
     });
 
-    it('clears a previous run error when another step is selected', () => {
+    it("shows a run's error only on the step it ran", () => {
+      const message =
+        'Another step of this scenario is running. Wait for it to finish, then try again.';
+      runState.error = { statusCode: 409, message };
+      runState.variables = { stepId: 189 };
+      renderAuthenticated();
+      select(1);
+
+      expect(screen.queryByText(message)).toBeNull();
+    });
+
+    it('keeps a running step running when the vendor opens another step', () => {
+      runState.isPending = true;
+      runState.variables = { stepId: 189 };
       renderAuthenticated();
       select(0);
-      runState.reset.mockClear();
       select(1);
-      expect(runState.reset).toHaveBeenCalled();
+
+      expect(runState.reset).not.toHaveBeenCalled();
+      expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
+      expect(executeButton().disabled).toBe(true);
     });
 
     it("keeps a vendor's edits when switching steps and back", () => {

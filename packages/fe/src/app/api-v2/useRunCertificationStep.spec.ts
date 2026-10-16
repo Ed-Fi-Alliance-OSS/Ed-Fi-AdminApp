@@ -9,7 +9,7 @@ describe('useRunCertificationStep', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('does not keep the token in the mutation cache', () => {
-    useRunCertificationStep();
+    useRunCertificationStep({ onSuccess: jest.fn(), onError: jest.fn() });
     expect((useMutation as jest.Mock).mock.calls[0][0]).toMatchObject({ gcTime: 0 });
   });
 
@@ -22,7 +22,7 @@ describe('useRunCertificationStep', () => {
       errors: [],
     };
     (apiClient.post as jest.Mock).mockResolvedValue(result);
-    useRunCertificationStep();
+    useRunCertificationStep({ onSuccess: jest.fn(), onError: jest.fn() });
     const { mutationFn } = (useMutation as jest.Mock).mock.calls[0][0];
     const body = { odsId: 5, token: 't', inputs: { schoolId: '255901' } };
 
