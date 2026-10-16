@@ -169,13 +169,6 @@ export const SbSyncQueuesTable = ({
         : false,
   });
   const isAutoRefreshing = hasPendingSyncQueueRows(pendingCheckData.data);
-  const wasPendingRef = useRef(false);
-  useEffect(() => {
-    if (wasPendingRef.current && !isAutoRefreshing) {
-      onSyncSettled?.();
-    }
-    wasPendingRef.current = isAutoRefreshing;
-  }, [isAutoRefreshing, onSyncSettled]);
   const queueData = useQuery({
     queryKey: queryKey({
       resourceName: 'SbSyncQueue',
@@ -219,7 +212,22 @@ export const SbSyncQueuesTable = ({
     refetchInterval: (query) =>
       isAutoRefreshing || query.state.error ? syncQueuePollingIntervalMs : false,
   });
-  const hasRefreshError = queueData.isError || facetedValues.isError || pendingCheckData.isError;
+  const wasPendingRef = useRef(false);
+  const { refetch: refetchQueueData } = queueData;
+  const { refetch: refetchFacetedValues } = facetedValues;
+  useEffect(() => {
+    if (wasPendingRef.current && !isAutoRefreshing) {
+      // `queueData` and `facetedValues` poll on their own timers and stop as
+      // soon as `isAutoRefreshing` goes false, so either can be left holding
+      // its last pre-completion fetch (still showing "active"). Refetch once
+      // so the table and filter counts reflect the settled state.
+      refetchQueueData();
+      refetchFacetedValues();
+      onSyncSettled?.();
+    }
+    wasPendingRef.current = isAutoRefreshing;
+  }, [isAutoRefreshing, onSyncSettled, refetchQueueData, refetchFacetedValues]);
+  const hasRefreshError =queueData.isError || facetedValues.isError || pendingCheckData.isError;
 
   return (
     <SbaaTableProviderServerSide

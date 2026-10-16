@@ -8,7 +8,7 @@ import {
   SbaaCellContext,
 } from '@edanalytics/common-ui';
 import { GetEdfiTenantDto } from '@edanalytics/models';
-import { UseQueryResult, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import omit from 'lodash/omit';
 import { edfiTenantQueriesGlobal, userQueries } from '../../api';
 import { useSbEnvironmentNavContext, withLoader } from '../../helpers';
@@ -17,15 +17,17 @@ import { EdfiTenantGlobalLink, UserGlobalLink } from '../../routes';
 import { useEdfiTenantGlobalActions } from './useEdfiTenantGlobalActions';
 import { useEdfiTenantsGlobalActions } from './useEdfiTenantsGlobalActions';
 
-const EdfiTenantsNameCell = (
-  info: SbaaCellContext<GetEdfiTenantDto> & {
-    edfiTenants: Pick<UseQueryResult<Record<string | number, GetEdfiTenantDto>>, 'data'>;
-  }
-) => {
-  const actions = useEdfiTenantGlobalActions(info.row.original);
+export const EdfiTenantsNameCell = (info: SbaaCellContext<GetEdfiTenantDto>) => {
+  const tenant = info.row.original;
+  const actions = useEdfiTenantGlobalActions(tenant);
+  // Resolve the link from the row itself rather than from the tenants query
+  // map: after a refetch (e.g. sync completion) the table's rows and the
+  // query data can briefly be different snapshots, which made the link render
+  // `can't find "<id>"` for a tenant that is plainly in this row.
+  const rowQuery = { data: { [tenant.id]: tenant } };
   return (
     <HStack justify="space-between">
-      <EdfiTenantGlobalLink id={info.row.original.id} query={info.edfiTenants} />
+      <EdfiTenantGlobalLink id={tenant.id} query={rowQuery} />
       <TableRowActions actions={actions} />
     </HStack>
   );
@@ -50,7 +52,7 @@ export const EdfiTenantsGlobalTable = () => {
       columns={[
         {
           accessorKey: 'displayName',
-          cell: (info) => <EdfiTenantsNameCell {...info} edfiTenants={edfiTenants} />,
+          cell: (info) => <EdfiTenantsNameCell {...info} />,
           header: 'Name',
         },
         {
