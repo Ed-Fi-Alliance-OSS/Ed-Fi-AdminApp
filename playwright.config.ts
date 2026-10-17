@@ -41,7 +41,8 @@ export default defineConfig({
     actionTimeout: 30000,
     navigationTimeout: 30000,
     launchOptions: {
-      slowMo: 150,
+      // Override with PW_SLOW_MO (e.g. 0) to stress the suite for races.
+      slowMo: Number(process.env.PW_SLOW_MO ?? 150),
     },
   },
   projects: [

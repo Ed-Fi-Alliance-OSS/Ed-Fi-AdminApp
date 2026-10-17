@@ -4,6 +4,12 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import { expect, Page } from '@playwright/test'
+import {
+  API_WRITE_TIMEOUT_MS,
+  POLL_ATTEMPT_TIMEOUT_MS,
+  UI_RENDER_TIMEOUT_MS,
+  clickNavLink,
+} from './support'
 
 type CreateUserInput = {
   username: string
@@ -65,7 +71,7 @@ class UsersPage {
   }
 
   async clickUsersOption() {
-    await this.usersOption.click()
+    await clickNavLink(this.page, this.usersOption, /\/adminapp\/users\/?$/)
   }
 
   async clickCreateNewButton() {
@@ -90,24 +96,24 @@ class UsersPage {
   }
 
   async clickSaveButton() {
+    // No settle wait here: a valid form navigates away (asserted with a write-sized timeout in
+    // newUserDetailsShouldBeLoaded) and an invalid one only highlights fields client-side.
     await this.saveButton.click()
-    await this.page.waitForLoadState('networkidle')
   }
 
   async clickCancelButton() {
     await this.cancelButton.click()
-    await this.page.waitForLoadState('networkidle')
   }
 
   async newUserDetailsShouldBeLoaded() {
-    await expect(this.page).toHaveURL(/\/users\/\d+\/?$/)
+    await expect(this.page).toHaveURL(/\/users\/\d+\/?$/, { timeout: API_WRITE_TIMEOUT_MS })
     await expect(this.page.getByText('Create new user')).not.toBeVisible()
     await expect(this.page.getByText('Username')).toBeVisible()
     await expect(this.page.getByText('Role', { exact: true })).toBeVisible()
   }
 
   async newUserShouldNotBeCreated(userType: string) {
-    await expect(this.page).toHaveURL(/\/users\/?$/)
+    await expect(this.page).toHaveURL(/\/users\/?$/, { timeout: UI_RENDER_TIMEOUT_MS })
     if (userType === 'Human') {
       await this.page.getByRole('textbox', { name: 'Search' }).first().fill('UserACopy')
       await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
@@ -127,7 +133,7 @@ class UsersPage {
   }
 
   async usersTableDetailsShouldBeLoaded() {
-    await this.usersOption.click()
+    await this.clickUsersOption()
     await expect(this.usersHeading).toBeVisible()
     await expect(this.humanUsersHeading).toBeVisible()
     await expect(this.machineUsersHeading).toBeVisible()
@@ -140,7 +146,13 @@ class UsersPage {
     const firstRow = this.page.locator('tbody td').first()
     await firstRow.hover()
     const rowActionButton = this.page.getByRole('link', { name: optionLabel }).first()
-    if (await rowActionButton.isVisible().catch(() => false)) {
+    // isVisible() answers instantly, so right after hover() it could miss the not-yet-rendered
+    // action and silently skip the click. Delete may be a button instead, so it waits less.
+    const actionTimeout = option === 'delete' ? POLL_ATTEMPT_TIMEOUT_MS : UI_RENDER_TIMEOUT_MS
+    const hasRowAction = await rowActionButton
+      .waitFor({ state: 'visible', timeout: actionTimeout })
+      .then(() => true, () => false)
+    if (hasRowAction) {
       await rowActionButton.click()
       return
     }
@@ -153,7 +165,7 @@ class UsersPage {
   async clickFirstUserFromTable() {
     await this.captureFirstUserNameFromTable()
     await this.firstUserNameLink.click()
-    await this.page.waitForLoadState('networkidle')
+    await expect(this.page).toHaveURL(/\/users\/\d+\/?$/, { timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async clickEditTab() {
@@ -174,6 +186,12 @@ class UsersPage {
 
   async currentUserDetailsShouldBeDisplayed() {
     await expect(this.page).toHaveURL(/\/users\/\d+\/?$/)
+    // The URL changes before the detail page renders. The users list still on screen has
+    // "Username" column headers and menu items, which makes getByText('Username') ambiguous,
+    // and a strict mode violation is not retried. Wait for the list's headers to go first.
+    await expect(this.page.getByRole('columnheader', { name: 'Username' })).toHaveCount(0, {
+      timeout: UI_RENDER_TIMEOUT_MS,
+    })
     await expect(this.page.getByText('Username')).toBeVisible()
     await expect(this.page.getByText('Status')).toBeVisible()
     await expect(this.page.getByText('Role', { exact: true })).toBeVisible()

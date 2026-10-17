@@ -4,6 +4,13 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import { expect, Page } from '@playwright/test'
+import {
+  API_FETCH_TIMEOUT_MS,
+  API_WRITE_TIMEOUT_MS,
+  POLL_ATTEMPT_TIMEOUT_MS,
+  UI_RENDER_TIMEOUT_MS,
+  clickNavLink,
+} from './support'
 
 class TeamMembershipsPage {
   private readonly teamMembershipsOption
@@ -30,7 +37,7 @@ class TeamMembershipsPage {
   }
 
   async clickTeamMembershipsOption() {
-    await this.teamMembershipsOption.click()
+    await clickNavLink(this.page, this.teamMembershipsOption, /\/adminapp\/user-team-memberships\/?$/)
   }
 
   async clickCreateNewButton() {
@@ -45,12 +52,13 @@ class TeamMembershipsPage {
 
   async clickSaveButton() {
     await this.saveButton.click()
-    await this.page.waitForLoadState('networkidle')
+    // Create and edit both leave their form route once the write round-trips to the API.
+    await expect(this.page).not.toHaveURL(/\/create|[?]edit=true/, { timeout: API_WRITE_TIMEOUT_MS })
   }
 
   async clickCancelButton() {
     await this.cancelButton.click()
-    await this.page.waitForLoadState('networkidle')
+    await expect(this.page).not.toHaveURL(/\/create|[?]edit=true/, { timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async newTeamMembershipDetailsShouldBeLoaded() {
@@ -86,7 +94,7 @@ class TeamMembershipsPage {
     await this.filterToTestMemberships()
     await this.captureFirstMembershipName()
     await this.firstMembershipLink.click()
-    await this.page.waitForLoadState('networkidle')
+    await expect(this.page).toHaveURL(/\/user-team-memberships\/\d+\/?$/, { timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async clickEditTab() {
@@ -153,8 +161,10 @@ class TeamMembershipsPage {
   }
 
   async selectedTeamMembershipShouldBeRemoved() {
-    await expect(this.page).toHaveURL(/\/user-team-memberships\/?$/)
-    await expect(this.page.getByRole('heading', { name: 'Team memberships' })).toBeVisible()
+    await expect(this.page).toHaveURL(/\/user-team-memberships\/?$/, { timeout: API_WRITE_TIMEOUT_MS })
+    await expect(this.page.getByRole('heading', { name: 'Team memberships' })).toBeVisible({
+      timeout: API_FETCH_TIMEOUT_MS,
+    })
     if (this.selectedMembershipId) {
       await expect(this.membershipRow(this.selectedMembershipId)).toHaveCount(0)
     } else if (this.selectedMembershipName) {
@@ -258,7 +268,12 @@ class TeamMembershipsPage {
     await combobox.click()
     await this.page.keyboard.type(preferredOptionText)
     const preferredOption = this.page.getByRole('option', { name: preferredOptionText, exact: true })
-    if (await preferredOption.isVisible().catch(() => false)) {
+    // The options filter asynchronously after typing, so an instant isVisible() could miss the
+    // preferred one and fall back to whichever option happens to be first.
+    const hasPreferredOption = await preferredOption
+      .waitFor({ state: 'visible', timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      .then(() => true, () => false)
+    if (hasPreferredOption) {
       await preferredOption.click()
       return
     }
@@ -293,7 +308,10 @@ class TeamMembershipsPage {
 
   private async captureCurrentRole() {
     const roleValue = this.page.getByText('Role', { exact: true }).locator('xpath=following::a[1]')
-    if (await roleValue.isVisible().catch(() => false)) {
+    const hasRoleValue = await roleValue
+      .waitFor({ state: 'visible', timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      .then(() => true, () => false)
+    if (hasRoleValue) {
       this.selectedRoleBeforeEdit = (await roleValue.textContent())?.trim() ?? null
     }
   }
