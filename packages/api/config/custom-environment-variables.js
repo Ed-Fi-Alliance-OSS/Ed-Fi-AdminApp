@@ -28,8 +28,9 @@ module.exports = {
   USE_PKCE: 'USE_PKCE',
   OPENAPI_TITLE: 'OPENAPI_TITLE',
   OPENAPI_DESCRIPTION: 'OPENAPI_DESCRIPTION',
-  RATE_LIMIT_TTL: 'RATE_LIMIT_TTL',
-  RATE_LIMIT_LIMIT: 'RATE_LIMIT_LIMIT',
+  // json format so the env strings reach the throttler as numbers
+  RATE_LIMIT_TTL: { __name: 'RATE_LIMIT_TTL', __format: 'json' },
+  RATE_LIMIT_LIMIT: { __name: 'RATE_LIMIT_LIMIT', __format: 'json' },
   LOG_LEVEL: 'LOG_LEVEL',
   SSL_VERIFICATION: 'SSL_VERIFICATION',
 

@@ -11,6 +11,9 @@ export const JSON_ENV_VARS: readonly string[] = [
   'SESSION_SECRET_VALUE',
   'SAMPLE_OIDC_CONFIG',
   'AUTH0_CONFIG_SECRET_VALUE',
+  // Not secrets, but mapped with __format json so they reach the throttler as numbers.
+  'RATE_LIMIT_TTL',
+  'RATE_LIMIT_LIMIT',
 ];
 
 export function assertJsonEnvVarsParse(env: NodeJS.ProcessEnv = process.env): void {

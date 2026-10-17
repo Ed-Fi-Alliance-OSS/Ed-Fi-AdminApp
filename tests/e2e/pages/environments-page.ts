@@ -11,6 +11,7 @@ import {
   POLL_ATTEMPT_TIMEOUT_MS,
   SYNC_COMPLETE_TIMEOUT_MS,
   UI_RENDER_TIMEOUT_MS,
+  clickNavLink,
   selectComboboxOptionIn,
 } from './support'
 
@@ -78,8 +79,17 @@ class EnvironmentsPage {
   private readonly claimsetFileInput
   private readonly claimsetImportButton
   private readonly importedClaimsetViewLink
+  /**
+   * The vendor and claimset that "a test application ... exists" scenarios build on.
+   * Every scenario used to copy a claimset and create a vendor through the UI (about
+   * 10s each); now the first one does and the rest reuse them. Per worker process, so a
+   * worker restart after a failure simply recreates them. Scenarios that delete a vendor
+   * or claimset must not use this: they go through `prepareApplicationDependencies`.
+   */
+  private static sharedApplicationDependencies?: { vendor: string; claimset: string }
   private readonly runSuffix = Date.now().toString(36)
   private rowCountBeforeDelete = 0
+  private lastHoveredResource: string | undefined
   private readonly testResourceNames = new Map<string, string>()
   private resetCredentials: { key?: string; secret?: string; link?: string } | undefined
 
@@ -154,7 +164,7 @@ class EnvironmentsPage {
   }
 
   async clickEnvironmentOption() {
-    await this.environmentOption.click()
+    await clickNavLink(this.page, this.environmentOption, /\/adminapp\/sb-environments\/?$/)
   }
 
   async selectGlobalTeam(teamName: string) {
@@ -174,10 +184,10 @@ class EnvironmentsPage {
     dbName: string,
     eduOrgIdentifier: string
   ) {
-    await this.nameInput.fill(`${names}-${this.runSuffix}`, {timeout: 700})
-    await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
-    await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
-    await this.labelInput.fill(label, {timeout: 700})
+    await this.nameInput.fill(`${names}-${this.runSuffix}`)
+    await this.edfiApiInput.fill(edfiApi)
+    await this.edfiManagementInput.fill(edfiManagement)
+    await this.labelInput.fill(label)
     await this.addOdsInstances.click()
     await this.odsName.fill(odsName)
     await this.dbName.fill(dbName)
@@ -185,10 +195,10 @@ class EnvironmentsPage {
   }
 
   async fillAllRequiredFieldsV2(name: string, edfiApi: string, edfiManagement: string, label: string) {
-    await this.nameInput.fill(`${name}-${this.runSuffix}`, {timeout: 700})
-    await this.edfiApiInput.fill(edfiApi, {timeout: 1000})
-    await this.edfiManagementInput.fill(edfiManagement, {timeout: 1000})
-    await this.labelInput.fill(label, {timeout: 700})
+    await this.nameInput.fill(`${name}-${this.runSuffix}`)
+    await this.edfiApiInput.fill(edfiApi)
+    await this.edfiManagementInput.fill(edfiManagement)
+    await this.labelInput.fill(label)
   }
 
   async fillAllRequiredFields(type: string) {
@@ -275,15 +285,16 @@ class EnvironmentsPage {
   }
 
   async createTeam(name: string) {
-    await this.teamsOption.click()
+    await clickNavLink(this.page, this.teamsOption, /\/adminapp\/teams\/?$/)
     await this.createTeamButton.click()
     await this.teamNameInput.fill(name)
     await this.saveButton.click()
-    await this.page.waitForLoadState('networkidle')
+    // The form closes once the create round-trips to the API.
+    await expect(this.teamNameInput).toBeHidden({ timeout: API_WRITE_TIMEOUT_MS })
   }
 
   async createTeamMembership(team: string, user: string, role: string) {
-    await this.teamMembershipsOption.click()
+    await clickNavLink(this.page, this.teamMembershipsOption, /\/adminapp\/user-team-memberships\/?$/)
     await this.createTeamMembershipButton.click()
     await selectComboboxOptionIn(
       this.page,
@@ -301,7 +312,7 @@ class EnvironmentsPage {
       role,
     )
     await this.saveButton.click()
-    await this.page.waitForLoadState('networkidle')
+    await expect(this.page).not.toHaveURL(/\/create/, { timeout: API_WRITE_TIMEOUT_MS })
   }
 
   async clickResourceOption(resource: 'ods' | 'edorgs' | 'vendors' | 'applications' | 'profiles') {
@@ -449,7 +460,19 @@ class EnvironmentsPage {
   }
 
   async prepareTestApplication(name: string) {
-    await this.prepareApplicationDependencies('E2EClaimset')
+    const shared = EnvironmentsPage.sharedApplicationDependencies
+    if (shared) {
+      this.testResourceNames.set('E2EVendor', shared.vendor)
+      this.testResourceNames.set('E2EClaimset', shared.claimset)
+      await this.clickResourceOption('applications')
+    } else {
+      await this.prepareApplicationDependencies('E2EClaimset')
+      // Only remembered once the whole setup succeeded.
+      EnvironmentsPage.sharedApplicationDependencies = {
+        vendor: this.testResourceName('E2EVendor'),
+        claimset: this.testResourceName('E2EClaimset'),
+      }
+    }
     await this.clickNewButton()
     await this.fillApplicationFields(name, 'E2EClaimset')
     await this.clickSaveButton()
@@ -627,8 +650,15 @@ class EnvironmentsPage {
   }
 
   async fillVendorFields(company: string, prefixes: string, contactName: string, contactEmail: string) {
+    const editLink = this.page.getByRole('link', { name: 'Edit', exact: true })
+    // `isVisible()` does not wait, so settle on whichever of the form (create flow) or the
+    // details page's Edit link (edit flow) actually rendered before deciding what to click.
+    await expect(
+      this.vendorCompanyInput.or(editLink).first(),
+      'Neither the vendor form nor the vendor Edit link rendered'
+    ).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
     if (!(await this.vendorCompanyInput.isVisible())) {
-      await this.page.getByRole('link', { name: 'Edit', exact: true }).click()
+      await editLink.click()
     }
     await this.vendorCompanyInput.fill(company)
     await this.vendorPrefixesInput.fill(prefixes)
@@ -689,6 +719,7 @@ class EnvironmentsPage {
     const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
     await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await row.hover()
+    this.lastHoveredResource = name
   }
 
   async clickFirstResourceRow() {
@@ -718,18 +749,35 @@ class EnvironmentsPage {
     resourceName?: string,
   ) {
 
-    const hoveredRow = this.resourceTable.locator('tbody tr:hover').first()
-    const row = resourceName
-      ? this.resourceTable.locator('tbody tr').filter({ hasText: resourceName }).first()
-      : (await hoveredRow.count()) > 0
-        ? hoveredRow
-        : this.resourceTable.locator('tbody tr').first()
+    // Use the row hoverResourceRow() last targeted rather than asking the browser which row
+    // is under the mouse: `:hover` is instant and silently falls back to the first row,
+    // which can be a different resource (e.g. the wrong ODS getting deleted).
+    const targetName = resourceName ?? this.lastHoveredResource
+    const row = targetName
+      ? this.resourceTable.locator('tbody tr').filter({ hasText: targetName }).first()
+      : this.resourceTable.locator('tbody tr').first()
     await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
-    await row.hover()
+    if (resource === 'ods' && action === 'Delete') {
+      // A row whose create job is still running ("Create: Pending") only offers View, and the
+      // list does not refresh itself, so reload until the job has finished.
+      await expect(async () => {
+        await this.page.reload()
+        await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+        await expect(row.getByRole('cell', { name: /: Pending$/ })).toHaveCount(0, {
+          timeout: POLL_ATTEMPT_TIMEOUT_MS,
+        })
+      }).toPass({ timeout: SYNC_COMPLETE_TIMEOUT_MS })
+    }
     const actionControl =
       action === 'Edit' && resource === 'vendor'
         ? row.getByRole('link', { name: action, exact: true })
         : row.getByRole('button', { name: action, exact: true })
+    // The row actions appear on hover. If the table re-renders after the hover (a list refetch)
+    // they vanish, so hover again until they show instead of waiting out the whole click timeout.
+    await expect(async () => {
+      await row.hover()
+      await expect(actionControl).toBeVisible({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+    }).toPass({ timeout: API_FETCH_TIMEOUT_MS })
     await actionControl.click()
   }
 
@@ -738,8 +786,9 @@ class EnvironmentsPage {
   }
 
   async confirmResourceDeletion() {
-    await this.page.getByRole('button', { name: 'Yes', exact: true }).click()
-    await this.page.waitForLoadState('networkidle')
+    const yesButton = this.page.getByRole('button', { name: 'Yes', exact: true })
+    await yesButton.click()
+    await expect(yesButton).toBeHidden({ timeout: API_WRITE_TIMEOUT_MS })
   }
 
   async resourceShouldBeRemoved(name: string) {
@@ -933,6 +982,8 @@ class EnvironmentsPage {
 
   async clickOnFirstEnvironment() {
     await this.firstEnvironmentRowSpan.click();
+    // click() returns before the route changes.
+    await expect(this.page).toHaveURL(/\/sb-environments\/\d+\/?$/, { timeout: UI_RENDER_TIMEOUT_MS })
   }
 
   async searchAndSelectEnvironment(environmentName: string, withinEnvironment = false) {
@@ -945,6 +996,10 @@ class EnvironmentsPage {
   async clickOnTabOption(optionName: string) {
     switch (optionName.trim().toLowerCase()) {
       case 'edit':
+        // The URL changes before the detail page renders, and every list row has an "Edit
+        // environment details" link. A strict mode violation is not retried, so wait until only
+        // the detail page's link is left.
+        await expect(this.editEnvDetails).toHaveCount(1, { timeout: UI_RENDER_TIMEOUT_MS })
         await this.editEnvDetails.click()
         break
       case 'delete':
@@ -964,13 +1019,17 @@ class EnvironmentsPage {
 
   async environmentNameIsUpdated() {
     await this.clickEnvironmentOption()
-    await this.page.reload({ waitUntil: 'networkidle' });
-    await expect(this.environmentsMainContainer).toBeVisible()
-    await expect(this.environmentsMainContainer).toContainText('UpdateName');
+    await this.page.reload()
+    await expect(this.environmentsMainContainer).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
+    await expect(this.environmentsMainContainer).toContainText('UpdateName', {
+      timeout: API_FETCH_TIMEOUT_MS,
+    })
   }
 
   async clickOnTheFirstOptionFromThreeDots(optionName: string) {
     const firstRow = this.tableRows.first()
+    // count() below does not wait: without a loaded table it records 0 rows.
+    await expect(firstRow).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await firstRow.hover()
 
     switch (optionName.trim().toLowerCase()) {
@@ -988,6 +1047,7 @@ class EnvironmentsPage {
 
   async clickOnTheOptionFromMoreThreeDots(optionName: string) {
     const firstRow = this.tableRows.first()
+    await expect(firstRow).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await firstRow.hover()
     switch (optionName.trim().toLowerCase()) {
       case 'delete':
@@ -1004,12 +1064,12 @@ class EnvironmentsPage {
   }
 
   async clickOnDeletePopup(optionName: boolean) {
-    if(!optionName){
-      await this.noDeletePopup.click()
-    } else {
-      await this.yesDeletePopup.click()
-    }
-    await this.page.waitForLoadState('networkidle')
+    const popupButton = optionName ? this.yesDeletePopup : this.noDeletePopup
+    await popupButton.click()
+    // Yes deletes through the API; No only closes the dialog.
+    await expect(popupButton).toBeHidden({
+      timeout: optionName ? API_WRITE_TIMEOUT_MS : UI_RENDER_TIMEOUT_MS,
+    })
   }
 
   async environmentShouldBeRemoved(environmentName: string) {
