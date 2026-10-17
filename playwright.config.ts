@@ -41,7 +41,7 @@ export default defineConfig({
     actionTimeout: 30000,
     navigationTimeout: 30000,
     launchOptions: {
-      slowMo: 250,
+      slowMo: 100,
     },
   },
   projects: [
@@ -55,7 +55,11 @@ export default defineConfig({
       }
     },
     {
+      // Independent of the other specs. It depends on `setup` only for scheduling: with no
+      // dependencies it shares the first phase with `setup` and everything else waits for
+      // its 5 tests (about 15s) to finish; one phase later it runs next to longer projects.
       name: 'chromium-login',
+      dependencies: ['setup'],
       testMatch: /login-page\/login\.feature\.spec\.js/,
       use: {
         ...devices['Desktop Chrome'],

@@ -15,6 +15,7 @@ class TeamMembershipsPage {
   private readonly firstMembershipTeam
 
   private selectedMembershipName: string | null = null
+  private selectedMembershipId: string | null = null
   private selectedRoleBeforeEdit: string | null = null
   private lastLinkOptionUsed: string | null = null
 
@@ -82,8 +83,7 @@ class TeamMembershipsPage {
   }
 
   async clickFirstTeamMembershipFromTable() {
-    await this.page.getByRole('textbox', { name: 'Search' }).first().fill('teamMember')
-    await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
+    await this.filterToTestMemberships()
     await this.captureFirstMembershipName()
     await this.firstMembershipLink.click()
     await this.page.waitForLoadState('networkidle')
@@ -135,10 +135,17 @@ class TeamMembershipsPage {
   }
 
   async prepareDeleteFromTable() {
-    await this.page.getByRole('textbox', { name: 'Search' }).first().fill('teamMember')
-    await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
-    await this.page.waitForLoadState('networkidle')
+    await this.filterToTestMemberships()
     await this.captureFirstMembershipName()
+  }
+
+  private async filterToTestMemberships() {
+    const search = this.page.getByRole('textbox', { name: 'Search' }).first()
+    await search.fill('teamMember')
+    await search.press('Enter')
+    // The filter lands after the keystroke. Capturing the first row before then grabs an
+    // unfiltered row (a different membership than the one acted on next).
+    await expect(this.firstMembershipTeam).toContainText('teamMember')
   }
 
   async prepareDeleteFromDetail() {
@@ -148,16 +155,20 @@ class TeamMembershipsPage {
   async selectedTeamMembershipShouldBeRemoved() {
     await expect(this.page).toHaveURL(/\/user-team-memberships\/?$/)
     await expect(this.page.getByRole('heading', { name: 'Team memberships' })).toBeVisible()
-    if (this.selectedMembershipName) {
+    if (this.selectedMembershipId) {
+      await expect(this.membershipRow(this.selectedMembershipId)).toHaveCount(0)
+    } else if (this.selectedMembershipName) {
       await expect(this.page.locator('tbody')).not.toContainText(this.selectedMembershipName)
     }
   }
 
   async selectedTeamMembershipShouldNotBeRemoved() {
-    this.clickTeamMembershipsOption()
+    await this.clickTeamMembershipsOption()
     await expect(this.page).toHaveURL(/\/user-team-memberships\/?$/)
     await expect(this.page.getByRole('heading', { name: 'Team memberships' })).toBeVisible()
-    if (this.selectedMembershipName) {
+    if (this.selectedMembershipId) {
+      await expect(this.membershipRow(this.selectedMembershipId)).toHaveCount(1)
+    } else if (this.selectedMembershipName) {
       await expect(this.page.locator('tbody')).toContainText(this.selectedMembershipName)
     }
   }
@@ -258,6 +269,21 @@ class TeamMembershipsPage {
   private async captureFirstMembershipName() {
     await expect(this.firstMembershipTeam).toBeVisible()
     this.selectedMembershipName = (await this.firstMembershipTeam.textContent())?.trim() ?? null
+    // The team name is not unique (several memberships can share a team), so also keep the
+    // membership's own id to tell afterwards whether this exact row is gone.
+    const href = await this.page
+      .locator('tbody tr')
+      .first()
+      .getByRole('link', { name: 'Membership', exact: true })
+      .getAttribute('href')
+    this.selectedMembershipId = href?.match(/user-team-memberships\/(\d+)/)?.[1] ?? null
+  }
+
+  /** The table row for one membership. Rows, not links: a row can hold several anchors with the same href. */
+  private membershipRow(id: string) {
+    return this.page.locator('tbody tr').filter({
+      has: this.page.locator(`a[href$="/user-team-memberships/${id}"]`),
+    })
   }
 
   private async captureCurrentMembershipName() {

@@ -113,15 +113,16 @@ class UsersPage {
       await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
       await this.page.waitForLoadState('networkidle')
       const table = this.page.locator('table').nth(0)
-      await expect(table.locator('td')).not.toBeVisible()
-
+      // toHaveCount retries until the search filter lands; `not.toBeVisible()` on a
+      // locator matching several cells throws a strict mode violation instead.
+      await expect(table.locator('td')).toHaveCount(0)
     }
     if (userType === 'Machine') {
       await this.page.getByRole('textbox', { name: 'Search' }).nth(1).click()
       await this.page.getByRole('textbox', { name: 'Search' }).nth(1).fill('MachineCopy')
       await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
       const table = this.page.locator('table').nth(1)
-      await expect(table.locator('td')).not.toBeVisible()
+      await expect(table.locator('td')).toHaveCount(0)
     }
   }
 
@@ -134,6 +135,8 @@ class UsersPage {
 
   async clickOptionFromUserActions(option: 'view' | 'add team' | 'edit' | 'delete') {
     const optionLabel = this.mapUserActionLabel(option)
+    // Act on a test user, never on the unfiltered first row (the admin the session runs as).
+    await this.captureFirstUserNameFromTable()
     const firstRow = this.page.locator('tbody td').first()
     await firstRow.hover()
     const rowActionButton = this.page.getByRole('link', { name: optionLabel }).first()
@@ -309,7 +312,9 @@ class UsersPage {
   private async captureFirstUserNameFromTable() {
     await this.page.getByRole('textbox', { name: 'Search' }).first().fill('User')
     await this.page.getByRole('textbox', { name: 'Search' }).first().press('Enter')
-    await expect(this.firstUserNameLink).toBeVisible()
+    // Wait for the filter to land. Until then the first row is the unfiltered one, which is
+    // the admin user the whole session runs as: deleting it logs every test out.
+    await expect(this.firstUserNameLink).toContainText(/user/i)
     this.selectedUserDisplayName = (await this.firstUserNameLink.textContent())?.trim() ?? null
   }
 }

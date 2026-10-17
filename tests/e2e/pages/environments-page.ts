@@ -78,8 +78,17 @@ class EnvironmentsPage {
   private readonly claimsetFileInput
   private readonly claimsetImportButton
   private readonly importedClaimsetViewLink
+  /**
+   * The vendor and claimset that "a test application ... exists" scenarios build on.
+   * Every scenario used to copy a claimset and create a vendor through the UI (about
+   * 10s each); now the first one does and the rest reuse them. Per worker process, so a
+   * worker restart after a failure simply recreates them. Scenarios that delete a vendor
+   * or claimset must not use this: they go through `prepareApplicationDependencies`.
+   */
+  private static sharedApplicationDependencies?: { vendor: string; claimset: string }
   private readonly runSuffix = Date.now().toString(36)
   private rowCountBeforeDelete = 0
+  private lastHoveredResource: string | undefined
   private readonly testResourceNames = new Map<string, string>()
   private resetCredentials: { key?: string; secret?: string; link?: string } | undefined
 
@@ -449,7 +458,19 @@ class EnvironmentsPage {
   }
 
   async prepareTestApplication(name: string) {
-    await this.prepareApplicationDependencies('E2EClaimset')
+    const shared = EnvironmentsPage.sharedApplicationDependencies
+    if (shared) {
+      this.testResourceNames.set('E2EVendor', shared.vendor)
+      this.testResourceNames.set('E2EClaimset', shared.claimset)
+      await this.clickResourceOption('applications')
+    } else {
+      await this.prepareApplicationDependencies('E2EClaimset')
+      // Only remembered once the whole setup succeeded.
+      EnvironmentsPage.sharedApplicationDependencies = {
+        vendor: this.testResourceName('E2EVendor'),
+        claimset: this.testResourceName('E2EClaimset'),
+      }
+    }
     await this.clickNewButton()
     await this.fillApplicationFields(name, 'E2EClaimset')
     await this.clickSaveButton()
@@ -696,6 +717,7 @@ class EnvironmentsPage {
     const row = this.resourceTable.locator('tbody tr').filter({ hasText: name }).first()
     await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await row.hover()
+    this.lastHoveredResource = name
   }
 
   async clickFirstResourceRow() {
@@ -725,12 +747,13 @@ class EnvironmentsPage {
     resourceName?: string,
   ) {
 
-    const hoveredRow = this.resourceTable.locator('tbody tr:hover').first()
-    const row = resourceName
-      ? this.resourceTable.locator('tbody tr').filter({ hasText: resourceName }).first()
-      : (await hoveredRow.count()) > 0
-        ? hoveredRow
-        : this.resourceTable.locator('tbody tr').first()
+    // Use the row hoverResourceRow() last targeted rather than asking the browser which row
+    // is under the mouse: `:hover` is instant and silently falls back to the first row,
+    // which can be a different resource (e.g. the wrong ODS getting deleted).
+    const targetName = resourceName ?? this.lastHoveredResource
+    const row = targetName
+      ? this.resourceTable.locator('tbody tr').filter({ hasText: targetName }).first()
+      : this.resourceTable.locator('tbody tr').first()
     await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     await row.hover()
     const actionControl =
