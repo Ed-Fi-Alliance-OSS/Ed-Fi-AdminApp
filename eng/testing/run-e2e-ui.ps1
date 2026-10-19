@@ -244,14 +244,6 @@ function Set-AdminAppEnvFile {
     throw "compose/.env.example must contain exactly one EDFI_ODS_DATASET entry; found $($datasetLines.Count)."
   }
   $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
-
-  # The Playwright workers all call the API from one IP. At the default limit (100 requests per
-  # minute) a fast run gets 429s on /auth/me, so the nav never renders and clicks time out.
-  $rateLimitLines = @($content | Where-Object { $_ -match '^RATE_LIMIT_LIMIT=' })
-  if ($rateLimitLines.Count -ne 1) {
-    throw "compose/.env.example must contain exactly one RATE_LIMIT_LIMIT entry; found $($rateLimitLines.Count)."
-  }
-  $content = $content -replace '^RATE_LIMIT_LIMIT=.*$', 'RATE_LIMIT_LIMIT=100000'
   Set-Content -Path $envPath -Value $content
 
   if ($Engine -ne 'mssql') {
@@ -408,6 +400,14 @@ function Show-AdminAppServiceLogs {
 }
 
 $testExitCode = 1
+# The Playwright workers all call the API from one IP. At the default limit (100 requests per
+# minute) a fast run gets 429s on /auth/me, so the nav never renders and clicks time out. A process
+# env var outranks --env-file in Compose interpolation, so this covers generated, reused and
+# -KeepEnvFile environments alike without touching compose/.env. An explicit caller value wins.
+$previousRateLimit = $env:RATE_LIMIT_LIMIT
+if (-not $env:RATE_LIMIT_LIMIT) {
+  $env:RATE_LIMIT_LIMIT = '100000'
+}
 try {
   & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6:(-not $SkipV1) -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql') -StartTimeoutMinutes $ServiceStartTimeoutMinutes
   if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
@@ -439,6 +439,7 @@ catch {
   throw
 }
 finally {
+  $env:RATE_LIMIT_LIMIT = $previousRateLimit
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
     & (Join-Path $repoRoot 'compose/stop.ps1')

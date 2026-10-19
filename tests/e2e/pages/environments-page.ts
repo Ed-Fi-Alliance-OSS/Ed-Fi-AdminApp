@@ -772,12 +772,12 @@ class EnvironmentsPage {
       : this.resourceTable.locator('tbody tr').first()
     await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     if (resource === 'ods' && action === 'Delete') {
-      // A row whose create job is still running ("Create: Pending") only offers View, and the
-      // list does not refresh itself, so reload until the job has finished.
+      // A row whose create job has not finished ("Create: Pending" / "Create: In Progress") only
+      // offers View, and the list does not refresh itself, so reload until the row is Available.
       await expect(async () => {
         await this.page.reload()
         await expect(row).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
-        await expect(row.getByRole('cell', { name: /: Pending$/ })).toHaveCount(0, {
+        await expect(row.getByRole('cell', { name: 'Available', exact: true })).toBeVisible({
           timeout: POLL_ATTEMPT_TIMEOUT_MS,
         })
       }).toPass({ timeout: SYNC_COMPLETE_TIMEOUT_MS })
