@@ -9,6 +9,7 @@ import {
   SbV2MetaEnv,
   TenantDto,
 } from '@edanalytics/models';
+import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
@@ -265,7 +266,7 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     tenantName: string,
     isMultiTenant: boolean
   ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
-    const registerUrl = `${adminApiUrl}/connect/register`;
+    const registerUrl = `${trimTrailingSlashes(adminApiUrl)}/connect/register`;
     const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const secretBytes = randomBytes(32);
     const clientSecret = Array.from(secretBytes, (byte) => secretCharset[byte % secretCharset.length]).join('');

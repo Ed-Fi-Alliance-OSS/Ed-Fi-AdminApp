@@ -10,6 +10,7 @@ import {
   SbV1MetaOds,
   TenantDto,
 } from '@edanalytics/models';
+import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
 import { AdminApiServiceV1, StartingBlocksServiceV1 } from '../teams/edfi-tenants/starting-blocks';
@@ -104,7 +105,7 @@ export class V1AdminApiVersionStrategy implements AdminApiVersionStrategy {
   private async createClientCredentials(
     adminApiUrl: string
   ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
-    const registerUrl = `${adminApiUrl}/connect/register`;
+    const registerUrl = `${trimTrailingSlashes(adminApiUrl)}/connect/register`;
     const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const secretBytes = randomBytes(32);
     const clientSecret = Array.from(secretBytes, (byte) => secretCharset[byte % secretCharset.length]).join('');
