@@ -289,8 +289,10 @@ class EnvironmentsPage {
     await this.createTeamButton.click()
     await this.teamNameInput.fill(name)
     await this.saveButton.click()
-    // The form closes once the create round-trips to the API.
-    await expect(this.teamNameInput).toBeHidden({ timeout: API_WRITE_TIMEOUT_MS })
+    // Wait for the redirect to the team's detail page, not just for the form to close: the
+    // form unmounts before the app navigates, and the next step's nav click would be
+    // overridden by the late redirect.
+    await expect(this.page).toHaveURL(/\/teams\/\d+\/?$/, { timeout: API_WRITE_TIMEOUT_MS })
   }
 
   async createTeamMembership(team: string, user: string, role: string) {
@@ -441,9 +443,21 @@ class EnvironmentsPage {
   private async selectFirstFormOption(label: string) {
     const field = this.page.locator('form').getByText(label, { exact: true }).locator('..')
     const combobox = field.getByRole('combobox')
-    await combobox.click()
-    await this.page.keyboard.press('ArrowDown')
-    await this.page.keyboard.press('Enter')
+    const openMenu = this.page.locator('[id^="react-select-"][id$="-option-0"]')
+    // The keystrokes can fire before the async options render and select nothing, so the
+    // dependent field (Ed-org after ODS) never appears. Retry until the menu has closed.
+    await expect(async () => {
+      if (await openMenu.count()) {
+        await this.page.keyboard.press('Escape')
+      }
+      await combobox.click({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      await this.page.keyboard.press('ArrowDown')
+      // Enter without an open menu and a focused option submits the form, so only press it once
+      // the options are on screen.
+      await expect(openMenu).toBeVisible({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      await this.page.keyboard.press('Enter')
+      await expect(openMenu).toBeHidden({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+    }).toPass({ timeout: API_FETCH_TIMEOUT_MS })
   }
 
   private async selectNamedFormOption(label: string, name: string) {

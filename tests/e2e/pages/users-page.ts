@@ -5,6 +5,7 @@
 
 import { expect, Page } from '@playwright/test'
 import {
+  API_FETCH_TIMEOUT_MS,
   API_WRITE_TIMEOUT_MS,
   POLL_ATTEMPT_TIMEOUT_MS,
   UI_RENDER_TIMEOUT_MS,
@@ -298,18 +299,30 @@ class UsersPage {
 
   private async selectFirstComboboxOption(label: string) {
     const combobox = this.page.getByText(label, { exact: true })
-    switch (label) {
-      case 'Team':
-        await combobox.click()
-        break
-      case 'Role':
-        await combobox.nth(1).click()
-        break
-      default:
-        throw new Error(`Unsupported option name: ${label}`)
-    }
-    await this.page.keyboard.press('ArrowDown')
-    await this.page.keyboard.press('Enter')
+    const openMenu = this.page.locator('[id^="react-select-"][id$="-option-0"]')
+    // The keystrokes can fire before the async options render and select nothing, leaving the
+    // menu open over the next field. Retry the whole selection until the menu has closed.
+    await expect(async () => {
+      if (await openMenu.count()) {
+        await this.page.keyboard.press('Escape')
+      }
+      switch (label) {
+        case 'Team':
+          await combobox.click({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+          break
+        case 'Role':
+          await combobox.nth(1).click({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+          break
+        default:
+          throw new Error(`Unsupported option name: ${label}`)
+      }
+      await this.page.keyboard.press('ArrowDown')
+      // Enter without an open menu and a focused option submits the form (a second POST that
+      // fails on the duplicate username), so only press it once the options are on screen.
+      await expect(openMenu).toBeVisible({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+      await this.page.keyboard.press('Enter')
+      await expect(openMenu).toBeHidden({ timeout: POLL_ATTEMPT_TIMEOUT_MS })
+    }).toPass({ timeout: API_FETCH_TIMEOUT_MS })
   }
 
   private mapUserActionLabel(option: 'view' | 'add team' | 'edit' | 'delete') {
