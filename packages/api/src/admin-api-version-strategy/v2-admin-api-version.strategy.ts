@@ -9,6 +9,7 @@ import {
   SbV2MetaEnv,
   TenantDto,
 } from '@edanalytics/models';
+import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
 import { generateClientSecret } from './client-secret';
@@ -266,7 +267,7 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     tenantName: string,
     isMultiTenant: boolean
   ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
-    const registerUrl = `${adminApiUrl}/connect/register`;
+    const registerUrl = `${trimTrailingSlashes(adminApiUrl)}/connect/register`;
     const clientSecret = generateClientSecret();
     const clientId = `client_${randomUUID()}`;
     const nameSuffixBytes = randomBytes(4);
