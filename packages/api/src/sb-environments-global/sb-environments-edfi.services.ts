@@ -33,6 +33,7 @@ import {
   ISbEnvironmentConfigPublicV2,
   toSbSyncQueueDto,
 } from '@edanalytics/models';
+import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import {
   deleteOdsCertificationProcesses,
@@ -337,7 +338,7 @@ export class SbEnvironmentsEdFiService {
     createSbEnvironmentDto: PostSbEnvironmentDto,
     tenant?: string,
   ): Promise<TenantCredentials> {
-    const registerUrl = `${createSbEnvironmentDto.adminApiUrl}/connect/register`;
+    const registerUrl = `${trimTrailingSlashes(createSbEnvironmentDto.adminApiUrl!)}/connect/register`;
     const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
     const secretBytes = randomBytes(32);
     const clientSecret = Array.from(
@@ -496,7 +497,11 @@ export class SbEnvironmentsEdFiService {
         // When the Admin API URL changes on a v2/v3 environment, the stored credentials
         // are invalid for the new endpoint. Clear them so the pg_boss job's bootstrap
         // logic re-registers fresh credentials against the new URL.
-        const adminApiUrlChanged = updateDto.adminApiUrl !== existingEnvironment.adminApiUrl;
+        // Compare trimmed values: the DTO strips trailing slashes, but the entity getter
+        // returns new URL(...).toString(), which appends "/" to a path-less URL.
+        const adminApiUrlChanged =
+          trimTrailingSlashes(updateDto.adminApiUrl) !==
+          trimTrailingSlashes(existingEnvironment.adminApiUrl ?? '');
         if (existingStrategy?.supportsMultiTenant && adminApiUrlChanged) {
           this.logger.log(
             `Admin API URL changed for ${existingStrategy.version} environment ${id} — clearing tenant credentials for re-bootstrap`,

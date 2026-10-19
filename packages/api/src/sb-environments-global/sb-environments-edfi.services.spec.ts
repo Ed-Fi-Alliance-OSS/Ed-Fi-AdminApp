@@ -20,6 +20,7 @@ import {
 import * as utils from '../utils';
 import { ValidationHttpException } from '../utils';
 import * as adminApiTenancy from '../utils/admin-api-tenancy';
+import axios, { AxiosResponse } from 'axios';
 
 jest.mock('../utils', () => ({
   ...jest.requireActual('../utils'),
@@ -309,6 +310,62 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v3)', () => {
     expect(v3Strategy.shouldTriggerResync).toHaveBeenCalledWith(true);
     expect(v3Strategy.dispatchSync).toHaveBeenCalled();
   });
+
+  describe('Admin API URL change detection', () => {
+    // Mirrors a real loaded entity: the `adminApiUrl` getter returns new URL(...).toString(),
+    // which appends "/" to a path-less URL, while the incoming DTO value has trailing slashes trimmed.
+    const buildPathLessEnvironment = () => ({
+      id: 5,
+      adminApiUrl: 'https://api.test.com/',
+      configPublic: {
+        version: 'v3',
+        adminApiUrl: 'https://api.test.com',
+        values: {
+          meta: { mode: 'MultiTenant', domainName: 'old.test.com' },
+          tenants: { default: { adminApiKey: 'client_existing' } },
+        },
+      },
+      configPrivate: { tenants: { default: { adminApiSecret: 'secret_existing' } } },
+    });
+
+    it('keeps tenant credentials when an unchanged path-less adminApiUrl is re-saved', async () => {
+      sbEnvironmentsRepository.findOne.mockResolvedValue(buildPathLessEnvironment());
+
+      await service.updateEnvironment(
+        5,
+        {
+          name: 'renamed-env',
+          adminApiUrl: 'https://api.test.com',
+        } as unknown as PutSbEnvironmentDto,
+        undefined,
+      );
+
+      const saved = sbEnvironmentsRepository.save.mock.calls[0][0];
+      expect(saved.configPublic.values.tenants).toEqual({
+        default: { adminApiKey: 'client_existing' },
+      });
+      expect(saved.configPrivate).toEqual({
+        tenants: { default: { adminApiSecret: 'secret_existing' } },
+      });
+    });
+
+    it('clears tenant credentials for re-bootstrap when adminApiUrl actually changes', async () => {
+      sbEnvironmentsRepository.findOne.mockResolvedValue(buildPathLessEnvironment());
+
+      await service.updateEnvironment(
+        5,
+        {
+          name: 'my-env',
+          adminApiUrl: 'https://new-api.test.com',
+        } as unknown as PutSbEnvironmentDto,
+        undefined,
+      );
+
+      const saved = sbEnvironmentsRepository.save.mock.calls[0][0];
+      expect(saved.configPublic.values.tenants).toEqual({});
+      expect(saved.configPrivate).toEqual({ tenants: {} });
+    });
+  });
 });
 
 describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () => {
@@ -319,6 +376,7 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () 
     version: string;
     supportsMultiTenant: boolean;
     getTenantModeDefault: jest.Mock;
+    getRegistrationHeaders: jest.Mock;
   };
 
   const existingV1Environment = {
@@ -336,6 +394,9 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () 
       version: 'v1',
       supportsMultiTenant: false,
       getTenantModeDefault: jest.fn().mockReturnValue(false),
+      getRegistrationHeaders: jest
+        .fn()
+        .mockReturnValue({ 'Content-Type': 'application/x-www-form-urlencoded' }),
     };
     strategyFactory = { getStrategy: jest.fn().mockReturnValue(v1Strategy) };
 
@@ -369,6 +430,29 @@ describe('SbEnvironmentsEdFiService.updateEnvironment (v1 message wording)', () 
     expect(response.data.errors.isMultitenant.message).toContain(
       '(v1 environments are always single-tenant)',
     );
+  });
+
+  it('does not produce a double slash in the registration URL when the new adminApiUrl has a trailing slash', async () => {
+    const postSpy = jest
+      .spyOn(axios, 'post')
+      .mockResolvedValue({ status: 200 } as unknown as AxiosResponse);
+
+    await (
+      service as unknown as {
+        createClientCredentials: (dto: PostSbEnvironmentDto) => Promise<unknown>;
+      }
+    ).createClientCredentials({
+      adminApiUrl: 'https://api-v1.test.com/adminapi/',
+      isMultitenant: false,
+      version: 'v1',
+    } as PostSbEnvironmentDto);
+
+    expect(postSpy).toHaveBeenCalledWith(
+      'https://api-v1.test.com/adminapi/connect/register',
+      expect.any(String),
+      expect.any(Object),
+    );
+    postSpy.mockRestore();
   });
 });
 
