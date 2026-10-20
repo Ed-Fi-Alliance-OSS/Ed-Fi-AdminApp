@@ -53,7 +53,7 @@ import { QueryKey, UseQueryOptions, useQueries } from '@tanstack/react-query';
 import kebabCase from 'kebab-case';
 import path from 'path-browserify';
 import { authCacheKey } from '../../helpers';
-import { apiClient } from '../methods';
+import { apiClient, methods } from '../methods';
 import { EntityQueryBuilder, StandardQueryKeyParams, queryKeyNew, standardPath } from './builder';
 import { TeamOptions } from './team-options';
 
@@ -537,6 +537,39 @@ export const sbSyncQueueQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: SbSyncQueueDto })
   .build();
+
+/**
+ * Team-scoped read of one `ods-manage` job (a datastore create/delete tracked from Admin API).
+ * Hand-written rather than built with `EntityQueryBuilder` because the path is not an entity
+ * path. Pass `refetchInterval` to poll.
+ */
+export const odsManageJobQueries = {
+  getOne: (params: {
+    teamId: number | string;
+    edfiTenantId: number | string;
+    operation: string;
+    jobId: string;
+    refetchInterval?: UseQueryOptions<SbSyncQueueDto>['refetchInterval'];
+  }): UseQueryOptions<SbSyncQueueDto> => ({
+    queryKey: [
+      'teams',
+      String(params.teamId),
+      'edfi-tenants',
+      String(params.edfiTenantId),
+      'ods-manage-jobs',
+      params.operation,
+      params.jobId,
+    ],
+    queryFn: () =>
+      methods.getOne(
+        `teams/${params.teamId}/edfi-tenants/${params.edfiTenantId}/odss/jobs/${params.operation}/${params.jobId}`,
+        SbSyncQueueDto
+      ),
+    refetchInterval: params.refetchInterval,
+    // A 404 means "not found or not allowed", which will not change by retrying.
+    retry: false,
+  }),
+};
 
 export const privilegeSelector = (res: SpecificIds | true | false) => {
   return Array.isArray(res) ? new Set(res) : res;
