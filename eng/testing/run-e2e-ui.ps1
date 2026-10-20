@@ -440,6 +440,7 @@ catch {
 }
 finally {
   $env:RATE_LIMIT_LIMIT = $previousRateLimit
+  Remove-Item Env:E2E_SKIP_V1 -ErrorAction SilentlyContinue
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
     & (Join-Path $repoRoot 'compose/stop.ps1')

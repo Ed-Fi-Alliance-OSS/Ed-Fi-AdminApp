@@ -15,11 +15,16 @@ const testDir = defineBddConfig({
 
 // `--grep-invert` is not applied to projects that run as dependencies of other projects,
 // so the @v1 exclusion is also set on the projects that contain @v1 tests. Set by
-// run-e2e-ui.ps1 -SkipV1; a bare `--grep-invert @v1` on the command line is honoured too.
-const grepInvertIndex = process.argv.indexOf('--grep-invert')
-const skipV1 =
-  process.env.E2E_SKIP_V1 === '1' ||
-  (grepInvertIndex !== -1 && process.argv[grepInvertIndex + 1]?.includes('@v1') === true)
+// run-e2e-ui.ps1 -SkipV1; `--grep-invert @v1`, `--grep-invert=@v1`, `-gv @v1` and `-gv=@v1`
+// on the command line are honoured too.
+const grepInvertFlags = ['--grep-invert', '-gv']
+const cliInvertsV1 = process.argv.some((arg, index) => {
+  const flag = grepInvertFlags.find((f) => arg === f || arg.startsWith(`${f}=`))
+  if (!flag) return false
+  const value = arg === flag ? process.argv[index + 1] : arg.slice(flag.length + 1)
+  return value?.includes('@v1') === true
+})
+const skipV1 = process.env.E2E_SKIP_V1 === '1' || cliInvertsV1
 const skipV1Grep = skipV1 ? { grepInvert: /@v1/ } : {}
 
 export default defineConfig({
@@ -41,7 +46,8 @@ export default defineConfig({
     actionTimeout: 30000,
     navigationTimeout: 30000,
     launchOptions: {
-      // Override with PW_SLOW_MO (e.g. 0) to stress the suite for races.
+      // No artificial delay by default. Set PW_SLOW_MO (milliseconds) to slow the browser
+      // down when debugging.
       slowMo: Number(process.env.PW_SLOW_MO ?? 0),
     },
   },
@@ -211,9 +217,11 @@ export default defineConfig({
     reuseExistingServer: true,
     ignoreHTTPSErrors: true
   },
-  // One worker per lane that can be running at once (see the lanes in `projects`):
-  // A (environments, then the environmentv2andApi and ownerships projects side by
-  // side), B (team-memberships, teams, users) and C (roles, pages).
+  // One worker per project that can be running at once (see the lanes in `projects`):
+  // chromium-login plus lanes A (environments, environmentv2andApi setup, environmentv2andApi,
+  // then ownerships, one after the other), B (team-memberships, teams, users) and C (roles,
+  // pages). Four workers hit the API from one IP, so a stack started outside run-e2e-ui.ps1
+  // needs a raised RATE_LIMIT_LIMIT (see eng/testing/README.md).
   workers: 4,
 
 })

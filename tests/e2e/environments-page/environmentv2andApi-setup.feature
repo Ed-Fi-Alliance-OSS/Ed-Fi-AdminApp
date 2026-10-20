@@ -2,8 +2,8 @@ Feature: Environments V2 with Api setup
 
   # Creates the teams and the Full*Environmentv2 environments that
   # environmentv2andApi.feature and ownerships.feature build on. Kept in its own
-  # file so the Playwright project that runs it can finish first and let those two
-  # run in parallel instead of one waiting on the other.
+  # file so its Playwright project can finish before them. Those two then run one after
+  # the other (ownerships last), because they change the same ownership rows.
   Scenario Outline: Environment Management v2 with Api
     Given the user is logged with a valid user
     And the user create a new team called '<team>'

@@ -165,6 +165,8 @@ If the stack is already running (e.g. via `eng/helpers/start-services-target.ps1
 npm run test:e2e:bdd
 ```
 
+The suite runs 4 workers from one IP, so the API must have a raised `RATE_LIMIT_LIMIT` (the default of 100 requests per minute gives 429s). `run-e2e-ui.ps1` sets it to `100000` for its own run. When you start the stack yourself, set `RATE_LIMIT_LIMIT=100000` first (for example `$env:RATE_LIMIT_LIMIT = '100000'` before `start-services-target.ps1`). See [UI Playwright E2E Tests](eng/testing/README.md#ui-playwright-e2e-tests).
+
 ## Contributing
 
 ### Commit Message Format

@@ -227,7 +227,7 @@ export const SbSyncQueuesTable = ({
     }
     wasPendingRef.current = isAutoRefreshing;
   }, [isAutoRefreshing, onSyncSettled, refetchQueueData, refetchFacetedValues]);
-  const hasRefreshError =queueData.isError || facetedValues.isError || pendingCheckData.isError;
+  const hasRefreshError = queueData.isError || facetedValues.isError || pendingCheckData.isError;
 
   return (
     <SbaaTableProviderServerSide
