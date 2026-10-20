@@ -70,6 +70,7 @@ import { RenameDbInstanceIdToInstanceManageId1785365966591 as PgsqlRenameDbInsta
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/pgsql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
 import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/pgsql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
 import { CertificationStepRuns1792000000000 as PgsqlCertificationStepRuns1792000000000 } from './migrations/pgsql/1792000000000-CertificationStepRuns';
+import { OdsManageSyncQueue1792100000000 as PgsqlOdsManageSyncQueue1792100000000 } from './migrations/pgsql/1792100000000-OdsManageSyncQueue';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -111,6 +112,7 @@ import { RenameDbInstanceIdToInstanceManageId1785365966591 as MssqlRenameDbInsta
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as MssqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/mssql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
 import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/mssql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
 import { CertificationStepRuns1792000000000 as MssqlCertificationStepRuns1792000000000 } from './migrations/mssql/1792000000000-CertificationStepRuns';
+import { OdsManageSyncQueue1792100000000 as MssqlOdsManageSyncQueue1792100000000 } from './migrations/mssql/1792100000000-OdsManageSyncQueue';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -152,6 +154,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlAddMissingPrivilegesToGlobalAdmin1791158400000,
   PgsqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
   PgsqlCertificationStepRuns1792000000000,
+  PgsqlOdsManageSyncQueue1792100000000,
 ];
 
 const getMSSQLMigrations = () => [
@@ -194,6 +197,7 @@ const getMSSQLMigrations = () => [
   MssqlAddMissingPrivilegesToGlobalAdmin1791158400000,
   MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
   MssqlCertificationStepRuns1792000000000,
+  MssqlOdsManageSyncQueue1792100000000,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {

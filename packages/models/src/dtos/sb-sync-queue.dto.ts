@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import type { ISbSyncQueue, PgBossJobState } from '../interfaces';
+import type { ISbSyncQueue, OdsManageJobData, PgBossJobState } from '../interfaces';
 import { makeSerializer } from '../utils/make-serializer';
 
 // This is a Get DTO that should not have whitespace trimmed
@@ -7,7 +7,7 @@ export class SbSyncQueueDto implements ISbSyncQueue {
   @Expose()
   id: string;
   @Expose()
-  type: 'SbEnvironment' | 'EdfiTenant';
+  type: 'SbEnvironment' | 'EdfiTenant' | 'OdsManage';
   @Expose()
   name: string | 'resource no longer exists';
   @Expose()
@@ -19,7 +19,8 @@ export class SbSyncQueueDto implements ISbSyncQueue {
   @Expose()
   data:
     | { sbEnvironmentId: number; edfiTenantId?: undefined }
-    | { sbEnvironmentId?: undefined; edfiTenantId: number };
+    | { sbEnvironmentId?: undefined; edfiTenantId: number }
+    | OdsManageJobData;
   @Expose()
   state: PgBossJobState;
   @Expose()
@@ -66,7 +67,7 @@ export const toSyncQueuePaginatedResults = makeSerializer(SyncQueuePaginatedResu
 export class SbSyncQueueFacetedValuesDto {
   /** unique */
   @Expose()
-  type: ('SbEnvironment' | 'EdfiTenant')[];
+  type: ('SbEnvironment' | 'EdfiTenant' | 'OdsManage')[];
   /** unique */
   @Expose()
   dataText: (string | 'resource no longer exists')[];
