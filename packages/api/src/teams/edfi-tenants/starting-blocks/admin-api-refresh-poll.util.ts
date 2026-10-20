@@ -33,6 +33,65 @@ export async function triggerEdOrgRefresh(
   }
 }
 
+export type AdminApiJobPollResult =
+  | { outcome: 'completed' }
+  | { outcome: 'failed'; errorMessage: string | null }
+  | { outcome: 'timeout' };
+
+/**
+ * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
+ * Admin API reports status as Pending | InProgress | Completed | Error; comparison is case-insensitive
+ * and 'failed' is also treated as a failure.
+ * @param client - The Admin API client for the environment (from getAdminApiClientForEnvironment())
+ * @param jobId - The Admin API job ID
+ * @param logger - The calling service's logger, so log output is attributed to the right service
+ * @param label - A display label (e.g. the environment name), for logging
+ * @param options - maxAttempts and intervalMs (ms between attempts)
+ */
+export async function pollAdminApiJob(
+  client: AxiosInstance,
+  jobId: string,
+  logger: Logger,
+  label: string,
+  options: { maxAttempts: number; intervalMs: number }
+): Promise<AdminApiJobPollResult> {
+  const { maxAttempts, intervalMs } = options;
+
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      const response = await client.get(`jobs/${jobId}`);
+      const body = response as unknown as { status?: string; errorMessage?: string | null };
+      const status = body?.status?.toLowerCase();
+      if (status === 'completed') return { outcome: 'completed' };
+      if (status === 'error' || status === 'failed') {
+        return { outcome: 'failed', errorMessage: body?.errorMessage ?? null };
+      }
+    } catch (error) {
+      // A 404 right after triggering the job can simply mean the job's status
+      // row hasn't been persisted yet (observed in practice: the job starts executing
+      // milliseconds after the first poll 404s) — keep retrying through the attempt
+      // budget instead of treating a single 404 as proof the endpoint is unsupported.
+      if (isAxiosError(error) && error.response?.status === 404) {
+        logger.debug(
+          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for ${label} — retrying`
+        );
+      } else {
+        logger.error(
+          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
+        );
+        return { outcome: 'timeout' };
+      }
+    }
+
+    if (attempt < maxAttempts) {
+      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
+    }
+  }
+
+  logger.warn(`Job ${jobId} did not complete after ${maxAttempts} poll attempts for ${label}`);
+  return { outcome: 'timeout' };
+}
+
 /**
  * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
  * Poll parameters are driven by ADMINAPI_REFRESH_POLL_ATTEMPTS and ADMINAPI_REFRESH_POLL_INTERVAL_MS config.
@@ -53,34 +112,9 @@ export async function pollJobStatus(
   const maxAttempts: number = Number.isFinite(rawMaxAttempts) && rawMaxAttempts >= 1 ? rawMaxAttempts : 10;
   const intervalMs: number = Number.isFinite(rawIntervalMs) && rawIntervalMs >= 0 ? rawIntervalMs : 5000;
 
-  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
-    try {
-      const response = await client.get(`jobs/${jobId}`);
-      const status = (response as unknown as { status?: string })?.status;
-      if (status === 'completed') return 'completed';
-      if (status === 'failed') return 'failed';
-    } catch (error) {
-      // A 404 right after triggering the refresh can simply mean the job's status
-      // row hasn't been persisted yet (observed in practice: the job starts executing
-      // milliseconds after the first poll 404s) â€” keep retrying through the attempt
-      // budget instead of treating a single 404 as proof the endpoint is unsupported.
-      if (isAxiosError(error) && error.response?.status === 404) {
-        logger.debug(
-          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for environment ${environmentName} â€” retrying`
-        );
-      } else {
-        logger.error(
-          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${(error as Error).message}`
-        );
-        return 'timeout';
-      }
-    }
-
-    if (attempt < maxAttempts) {
-      await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
-    }
-  }
-
-  logger.warn(`Job ${jobId} did not complete after ${maxAttempts} poll attempts for environment ${environmentName}`);
-  return 'timeout';
+  const result = await pollAdminApiJob(client, jobId, logger, `environment ${environmentName}`, {
+    maxAttempts,
+    intervalMs,
+  });
+  return result.outcome;
 }
