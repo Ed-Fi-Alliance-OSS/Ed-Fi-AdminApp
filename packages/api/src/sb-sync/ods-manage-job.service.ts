@@ -62,6 +62,8 @@ export class OdsManageJobService {
         {
           maxAttempts: Number.isFinite(rawAttempts) && rawAttempts >= 1 ? rawAttempts : 720,
           intervalMs: Number.isFinite(rawInterval) && rawInterval >= 0 ? rawInterval : 5000,
+          // A transient Admin API error must not end tracking early with a false timeout.
+          retryOnError: true,
         }
       );
 
@@ -70,6 +72,9 @@ export class OdsManageJobService {
       }
       if (result.outcome === 'failed') {
         throw new Error(result.errorMessage ?? `Admin API job ${adminApiJobId} failed.`);
+      }
+      if (result.outcome === 'error') {
+        throw new Error(`Couldn't check Admin API job ${adminApiJobId}: ${result.message}`);
       }
       throw new Error(`Timed out waiting for Admin API job ${adminApiJobId}.`);
     } finally {

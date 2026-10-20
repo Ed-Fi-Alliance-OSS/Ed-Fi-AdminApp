@@ -36,7 +36,9 @@ export async function triggerEdOrgRefresh(
 export type AdminApiJobPollResult =
   | { outcome: 'completed' }
   | { outcome: 'failed'; errorMessage: string | null }
-  | { outcome: 'timeout' };
+  | { outcome: 'timeout' }
+  /** Only with `retryOnError`: the attempt budget ended while the last poll was still erroring. */
+  | { outcome: 'error'; message: string };
 
 /**
  * Polls GET jobs/{jobId} until the job reaches a terminal state or the attempt limit is reached.
@@ -46,20 +48,24 @@ export type AdminApiJobPollResult =
  * @param jobId - The Admin API job ID
  * @param logger - The calling service's logger, so log output is attributed to the right service
  * @param label - A display label (e.g. the environment name), for logging
- * @param options - maxAttempts and intervalMs (ms between attempts)
+ * @param options - maxAttempts and intervalMs (ms between attempts). With `retryOnError`, a non-404
+ *   error is retried within the attempt budget (and reported as an `error` outcome if the budget
+ *   ends while still erroring) instead of ending the poll immediately as a `timeout`.
  */
 export async function pollAdminApiJob(
   client: AxiosInstance,
   jobId: string,
   logger: Logger,
   label: string,
-  options: { maxAttempts: number; intervalMs: number }
+  options: { maxAttempts: number; intervalMs: number; retryOnError?: boolean }
 ): Promise<AdminApiJobPollResult> {
-  const { maxAttempts, intervalMs } = options;
+  const { maxAttempts, intervalMs, retryOnError = false } = options;
+  let lastError: Error | null = null;
 
   for (let attempt = 1; attempt <= maxAttempts; attempt++) {
     try {
       const response = await client.get(`jobs/${jobId}`);
+      lastError = null;
       const body = response as unknown as { status?: string; errorMessage?: string | null };
       const status = body?.status?.toLowerCase();
       if (status === 'completed') return { outcome: 'completed' };
@@ -72,8 +78,14 @@ export async function pollAdminApiJob(
       // milliseconds after the first poll 404s) — keep retrying through the attempt
       // budget instead of treating a single 404 as proof the endpoint is unsupported.
       if (isAxiosError(error) && error.response?.status === 404) {
+        lastError = null;
         logger.debug(
           `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for ${label} — retrying`
+        );
+      } else if (retryOnError) {
+        lastError = error as Error;
+        logger.warn(
+          `Poll attempt ${attempt}/${maxAttempts} failed for job ${jobId}: ${lastError.message} — retrying`
         );
       } else {
         logger.error(
@@ -86,6 +98,13 @@ export async function pollAdminApiJob(
     if (attempt < maxAttempts) {
       await new Promise<void>((resolve) => setTimeout(resolve, intervalMs));
     }
+  }
+
+  if (lastError) {
+    logger.error(
+      `Job ${jobId} could not be checked after ${maxAttempts} poll attempts for ${label}: ${lastError.message}`
+    );
+    return { outcome: 'error', message: lastError.message };
   }
 
   logger.warn(`Job ${jobId} did not complete after ${maxAttempts} poll attempts for ${label}`);
@@ -116,5 +135,6 @@ export async function pollJobStatus(
     maxAttempts,
     intervalMs,
   });
-  return result.outcome;
+  // retryOnError is never set here, so an 'error' outcome cannot occur.
+  return result.outcome === 'error' ? 'timeout' : result.outcome;
 }

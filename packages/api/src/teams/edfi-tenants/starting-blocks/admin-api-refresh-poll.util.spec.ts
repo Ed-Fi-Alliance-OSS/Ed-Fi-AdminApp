@@ -128,6 +128,65 @@ describe('pollAdminApiJob', () => {
   });
 });
 
+describe('pollAdminApiJob retryOnError', () => {
+  let logger: Logger;
+  const options = { maxAttempts: 3, intervalMs: 0, retryOnError: true };
+
+  beforeEach(() => {
+    logger = new Logger('test');
+    jest.spyOn(logger, 'warn').mockImplementation(() => undefined);
+    jest.spyOn(logger, 'error').mockImplementation(() => undefined);
+    jest.spyOn(logger, 'debug').mockImplementation(() => undefined);
+  });
+
+  it('retries past a non-404 error and returns completed', async () => {
+    const get = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('Request failed with status code 500'))
+      .mockResolvedValueOnce({ status: 'Completed' });
+    const client = { get } as unknown as AxiosInstance;
+
+    await expect(pollAdminApiJob(client, 'job-1', logger, 'Label', options)).resolves.toEqual({
+      outcome: 'completed',
+    });
+    expect(get).toHaveBeenCalledTimes(2);
+  });
+
+  it('returns an error outcome with the message when the budget ends on an error', async () => {
+    const get = jest.fn().mockRejectedValue(new Error('connect ECONNREFUSED'));
+    const client = { get } as unknown as AxiosInstance;
+
+    await expect(pollAdminApiJob(client, 'job-1', logger, 'Label', options)).resolves.toEqual({
+      outcome: 'error',
+      message: 'connect ECONNREFUSED',
+    });
+    expect(get).toHaveBeenCalledTimes(3);
+  });
+
+  it('returns timeout (not error) when the last attempt was a 404 after earlier errors', async () => {
+    const get = jest
+      .fn()
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockRejectedValueOnce(new Error('boom'))
+      .mockRejectedValueOnce(make404());
+    const client = { get } as unknown as AxiosInstance;
+
+    await expect(pollAdminApiJob(client, 'job-1', logger, 'Label', options)).resolves.toEqual({
+      outcome: 'timeout',
+    });
+  });
+
+  it('without retryOnError still returns timeout immediately on a non-404 error', async () => {
+    const get = jest.fn().mockRejectedValue(new Error('network error'));
+    const client = { get } as unknown as AxiosInstance;
+
+    await expect(
+      pollAdminApiJob(client, 'job-1', logger, 'Label', { maxAttempts: 3, intervalMs: 0 })
+    ).resolves.toEqual({ outcome: 'timeout' });
+    expect(get).toHaveBeenCalledTimes(1);
+  });
+});
+
 describe('pollJobStatus status mapping', () => {
   const logger = new Logger('test');
 

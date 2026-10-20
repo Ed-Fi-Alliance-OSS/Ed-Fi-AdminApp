@@ -75,6 +75,7 @@ describe('OdsManageJobService', () => {
     expect(pollMock).toHaveBeenCalledWith(client, 'job-1', expect.anything(), expect.any(String), {
       maxAttempts: 3,
       intervalMs: 0,
+      retryOnError: true,
     });
   });
 
@@ -91,6 +92,13 @@ describe('OdsManageJobService', () => {
   it('throws timeout message when polling times out', async () => {
     pollMock.mockResolvedValue({ outcome: 'timeout' });
     await expect(service.handle(job)).rejects.toThrow('Timed out waiting for Admin API job job-1.');
+  });
+
+  it('throws a could-not-check message when polling ends on an Admin API error', async () => {
+    pollMock.mockResolvedValue({ outcome: 'error', message: 'connect ECONNREFUSED' });
+    await expect(service.handle(job)).rejects.toThrow(
+      "Couldn't check Admin API job job-1: connect ECONNREFUSED"
+    );
   });
 
   it('sends one ENV_SYNC_CHNL job for the environment on success and on failure', async () => {
