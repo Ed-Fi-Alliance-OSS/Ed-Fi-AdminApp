@@ -1,10 +1,10 @@
 import {
-  CatalogVersion,
   CertificationProcess,
   CertificationProcessScenario,
   EdfiTenant,
   Ods,
   SbEnvironment,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
@@ -28,8 +28,8 @@ import { CertificationTokenService } from './certification-token.service';
     TypeOrmModule.forFeature([
       Ods,
       EdfiTenant,
-      CatalogVersion,
       SbEnvironment,
+      ScenarioCatalog,
       StepCatalog,
       CertificationProcess,
       CertificationProcessScenario,

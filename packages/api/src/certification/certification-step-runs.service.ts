@@ -4,9 +4,9 @@ import {
   toCertificationStepRunsDto,
 } from '@edanalytics/models';
 import {
-  CatalogVersion,
   CertificationProcess,
   CertificationProcessScenario,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
 } from '@edanalytics/models-server';
@@ -14,7 +14,6 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
-import { ArtifactService } from './artifact/artifact.service';
 import { CERT_RUN_MESSAGES } from './certification.service';
 
 export interface FindStepRunsParams {
@@ -33,9 +32,8 @@ const EMPTY: CertificationStepRunsDto = { scenarioStatus: null, steps: [] };
 @Injectable()
 export class CertificationStepRunsService {
   constructor(
-    private readonly artifactService: ArtifactService,
-    @InjectRepository(CatalogVersion)
-    private readonly catalogVersionRepository: Repository<CatalogVersion>,
+    @InjectRepository(ScenarioCatalog)
+    private readonly scenarioRepository: Repository<ScenarioCatalog>,
     @InjectRepository(CertificationProcess)
     private readonly processRepository: Repository<CertificationProcess>,
     @InjectRepository(CertificationProcessScenario)
@@ -51,21 +49,21 @@ export class CertificationStepRunsService {
       throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
     }
 
-    // The same catalog match runStep uses, so reads and runs share one process.
-    const catalogVersion = await this.catalogVersionRepository.findOne({
-      where: {
-        isActive: true,
-        dataStandardVersion: params.sisVersion,
-        artifactVersion: this.artifactService.currentRef,
-      },
+    // runStep keys the process on step.scenario.area.catalogVersionId; take the same value
+    // from the requested scenario so a read always finds the process a run wrote.
+    const scenario = await this.scenarioRepository.findOne({
+      where: { scenarioId: params.scenarioId },
+      relations: { area: { catalogVersion: true } },
     });
-    if (!catalogVersion) return EMPTY;
+    if (!scenario || scenario.area.catalogVersion.dataStandardVersion !== params.sisVersion) {
+      return EMPTY;
+    }
 
     const certificationProcess = await this.processRepository.findOne({
       where: {
         edfiTenantId: params.edfiTenantId,
         odsId: params.odsId ?? IsNull(),
-        catalogVersionId: catalogVersion.catalogVersionId,
+        catalogVersionId: scenario.area.catalogVersionId,
       },
     });
     if (!certificationProcess) return EMPTY;

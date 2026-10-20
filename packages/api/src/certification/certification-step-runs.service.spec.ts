@@ -4,7 +4,7 @@ import { ValidationHttpException } from '../utils';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 
 describe('CertificationStepRunsService.findStepRuns', () => {
-  let catalogVersionRepository: { findOne: jest.Mock };
+  let scenarioRepository: { findOne: jest.Mock };
   let processRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let processScenarioRepository: { findOne: jest.Mock };
   let stepRunRepository: { find: jest.Mock };
@@ -23,7 +23,15 @@ describe('CertificationStepRunsService.findStepRuns', () => {
     });
 
   beforeEach(() => {
-    catalogVersionRepository = { findOne: jest.fn().mockResolvedValue({ catalogVersionId: 3 }) };
+    scenarioRepository = {
+      findOne: jest.fn().mockResolvedValue({
+        scenarioId: 20,
+        area: {
+          catalogVersionId: 3,
+          catalogVersion: { catalogVersionId: 3, dataStandardVersion: 'v5' },
+        },
+      }),
+    };
     processRepository = {
       findOne: jest.fn().mockResolvedValue({ certificationProcessId: 7 }),
       create: jest.fn(),
@@ -33,8 +41,7 @@ describe('CertificationStepRunsService.findStepRuns', () => {
     stepRunRepository = { find: jest.fn().mockResolvedValue([]) };
     stepErrorRepository = { find: jest.fn().mockResolvedValue([]) };
     service = new CertificationStepRunsService(
-      { currentRef: 'v2.1.0' } as never,
-      catalogVersionRepository as never,
+      scenarioRepository as never,
       processRepository as never,
       processScenarioRepository as never,
       stepRunRepository as never,
@@ -42,13 +49,35 @@ describe('CertificationStepRunsService.findStepRuns', () => {
     );
   });
 
-  it('returns no steps when there is no active catalog version for the SIS version', async () => {
-    catalogVersionRepository.findOne.mockResolvedValue(null);
+  it("keys the process on the requested scenario's catalog version, the same one runStep uses", async () => {
+    await find();
+
+    expect(scenarioRepository.findOne).toHaveBeenCalledWith({
+      where: { scenarioId: 20 },
+      relations: { area: { catalogVersion: true } },
+    });
+    expect(processRepository.findOne).toHaveBeenCalledWith({
+      where: { edfiTenantId: 10, odsId: 5, catalogVersionId: 3 },
+    });
+  });
+
+  it('returns no steps when the scenario does not exist', async () => {
+    scenarioRepository.findOne.mockResolvedValue(null);
 
     await expect(find()).resolves.toEqual({ scenarioStatus: null, steps: [] });
-    expect(catalogVersionRepository.findOne).toHaveBeenCalledWith({
-      where: { isActive: true, dataStandardVersion: 'v5', artifactVersion: 'v2.1.0' },
+    expect(processRepository.findOne).not.toHaveBeenCalled();
+  });
+
+  it("returns no steps when the scenario belongs to another SIS version's catalog", async () => {
+    scenarioRepository.findOne.mockResolvedValue({
+      scenarioId: 20,
+      area: {
+        catalogVersionId: 9,
+        catalogVersion: { catalogVersionId: 9, dataStandardVersion: 'v4' },
+      },
     });
+
+    await expect(find()).resolves.toEqual({ scenarioStatus: null, steps: [] });
     expect(processRepository.findOne).not.toHaveBeenCalled();
   });
 
@@ -147,6 +176,6 @@ describe('CertificationStepRunsService.findStepRuns', () => {
 
   it('rejects an unsupported SIS version', async () => {
     await expect(find({ sisVersion: 'v4' })).rejects.toBeInstanceOf(ValidationHttpException);
-    expect(catalogVersionRepository.findOne).not.toHaveBeenCalled();
+    expect(scenarioRepository.findOne).not.toHaveBeenCalled();
   });
 });
