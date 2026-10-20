@@ -19,13 +19,23 @@ import {
   chakra,
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
+import { useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { CertificationStepDto } from '@edanalytics/models';
+import {
+  CertificationStepDto,
+  CertificationStepRunDto,
+  CertificationStepRunsDto,
+} from '@edanalytics/models';
 import { useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
+import {
+  RunCertificationStepVariables,
+  useRunCertificationStep,
+} from '../../api-v2/useRunCertificationStep';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
+import { CertificationStepResult } from './CertificationStepResult';
 import { useCertificationSelection } from './useCertificationSelection';
 import {
   displayNameOf,
@@ -33,32 +43,32 @@ import {
   parameterFieldOf,
   stepNameOf,
 } from './certificationCatalog';
-import { useCertificationCatalog, useCertificationSteps } from './useCertificationCatalog';
+import {
+  classifyRunError,
+  STEP_STATUS_DISPLAY,
+  toDisplayStatus,
+  toParameterValues,
+  toRunInputs,
+} from './certificationStepResults';
+import {
+  certificationQueryKeys,
+  useCertificationCatalog,
+  useCertificationSteps,
+} from './useCertificationCatalog';
+import { useCertificationStepRuns } from './useCertificationStepRuns';
 
-type ValidationErrorResult = {
-  property: string;
-  validation: string;
-  error: string;
-};
-
-type ExecutionResult = {
-  scenarioStep: string;
-  lastModifiedDate: string;
-  isValid: boolean;
-  successful: number;
-  errors: number;
-  'validation-errors': ValidationErrorResult[];
-};
-
-type RowExecutionStatus = 'Not executed' | 'Successful' | 'Failed';
+const UNKNOWN_RESULT_MESSAGE =
+  "We couldn't confirm this run's result. It may still have been saved, so the step statuses have been refreshed.";
 
 export const CertificationPageExecution = () => {
   const navigate = useNavigate();
   const navToParentOptions = useNavToParent();
+  const queryClient = useQueryClient();
   const sbEnvironmentId = Number(useParams().sbEnvironmentId);
   const { edfiTenantId, odsId, scenarioId } = useCertificationSelection();
   const { auth, clearReason } = useCertificationAuth();
   const catalog = useCertificationCatalog(sbEnvironmentId);
+  const sisVersion = catalog.dataStandardVersion;
   const selected = useMemo(() => {
     for (const area of catalog.areas) {
       const scenario = area.scenarios.find((item) => item.scenarioId === scenarioId);
@@ -70,6 +80,50 @@ export const CertificationPageExecution = () => {
     sbEnvironmentId,
     selected?.scenario.scenarioId,
   );
+  // Saved results need no token, so they show before the vendor validates credentials again.
+  const stepRuns = useCertificationStepRuns({
+    sbEnvironmentId,
+    edfiTenantId,
+    odsId,
+    sisVersion,
+    scenarioId: selected?.scenario.scenarioId,
+  });
+  const stepRunsQueryKey = stepRuns.queryKey;
+  const refetchStepRuns = stepRuns.refetch;
+  const run = useRunCertificationStep({
+    onSuccess: (result: CertificationStepRunDto, variables: RunCertificationStepVariables) => {
+      // Show the new result right away; the API overwrote the saved one.
+      const saved = {
+        stepId: result.stepId,
+        status: result.status,
+        ranAt: result.ranAt,
+        inputs: variables.body.inputs,
+        errors: result.errors,
+      };
+      queryClient.setQueryData(
+        stepRunsQueryKey,
+        (previous: CertificationStepRunsDto | undefined): CertificationStepRunsDto => {
+          const steps = previous?.steps ?? [];
+          return {
+            scenarioStatus: result.scenarioStatus,
+            steps: steps.some((item) => item.stepId === saved.stepId)
+              ? steps.map((item) => (item.stepId === saved.stepId ? saved : item))
+              : [...steps, saved],
+          };
+        },
+      );
+      queryClient.invalidateQueries({ queryKey: stepRunsQueryKey });
+    },
+    onError: (error: unknown) => {
+      const kind = classifyRunError(error);
+      if (kind.kind === 'unknown') {
+        // A proxy timeout or dropped connection: the run may still have been saved.
+        refetchStepRuns();
+      } else if (kind.notFound) {
+        queryClient.invalidateQueries({ queryKey: certificationQueryKeys.all(sbEnvironmentId) });
+      }
+    },
+  });
   const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
 
   // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
@@ -97,42 +151,18 @@ export const CertificationPageExecution = () => {
     [validatedStep],
   );
 
-  const [parameterValues, setParameterValues] = useState<Record<string, string>>({});
-  const [executionResult, setExecutionResult] = useState<ExecutionResult | null>(null);
-  const [nextExecutionIsSuccess, setNextExecutionIsSuccess] = useState(true);
-  const [rowExecutionStatusById, setRowExecutionStatusById] = useState<
-    Record<number, RowExecutionStatus>
+  // What the vendor typed this visit, per step; it wins over the saved run's inputs.
+  const [typedValuesByStep, setTypedValuesByStep] = useState<
+    Record<number, Record<string, string>>
   >({});
-
-  useEffect(() => {
-    setRowExecutionStatusById((prev) => {
-      let hasChanges = false;
-      const next = { ...prev };
-
-      scenarioRows.forEach((row) => {
-        if (next[row.stepId] === undefined) {
-          next[row.stepId] = 'Not executed';
-          hasChanges = true;
-        }
-      });
-
-      return hasChanges ? next : prev;
-    });
-  }, [scenarioRows]);
-
-  useEffect(() => {
-    if (!validatedStep) {
-      setParameterValues({});
-      return;
-    }
-
-    const initialValues = parameterDefinitions.reduce<Record<string, string>>((acc, parameter) => {
-      acc[parameter.parameterId] = '';
-      return acc;
-    }, {});
-
-    setParameterValues(initialValues);
-  }, [validatedStep, parameterDefinitions]);
+  const selectedRun = validatedStep ? stepRuns.runsByStepId[validatedStep.stepId] : undefined;
+  const parameterValues = useMemo(
+    () => ({
+      ...toParameterValues(parameterDefinitions, selectedRun?.inputs),
+      ...(validatedStep ? typedValuesByStep[validatedStep.stepId] : undefined),
+    }),
+    [parameterDefinitions, selectedRun, validatedStep, typedValuesByStep],
+  );
 
   if (!config.showRequestCertification) {
     return null;
@@ -142,25 +172,31 @@ export const CertificationPageExecution = () => {
     return null;
   }
 
-  const canExecuteScenario = parameterDefinitions.every((parameter) =>
+  const isRunningStep = (stepId: number) => run.isPending && run.variables?.stepId === stepId;
+  const canExecuteStep = parameterDefinitions.every((parameter) =>
     Boolean(parameterValues[parameter.parameterId]?.trim()),
   );
+  // A run's error belongs to the step it ran, not to whichever step is open now.
+  const runError =
+    run.error && run.variables?.stepId === validatedStep?.stepId
+      ? classifyRunError(run.error)
+      : undefined;
 
-  const formattedLastExecution = (() => {
-    if (!executionResult) {
-      return '';
-    }
-
-    const executionDate = new Date(executionResult.lastModifiedDate);
-    if (Number.isNaN(executionDate.getTime())) {
-      return executionResult.lastModifiedDate;
-    }
-
-    return new Intl.DateTimeFormat(undefined, {
-      dateStyle: 'medium',
-      timeStyle: 'short',
-    }).format(executionDate);
-  })();
+  const executeStep = (step: CertificationStepDto) => {
+    if (!isAuthenticated || sisVersion === undefined) return;
+    run.reset();
+    run.mutate({
+      sbEnvironmentId,
+      edfiTenantId,
+      sisVersion,
+      stepId: step.stepId,
+      body: {
+        odsId,
+        token: auth.token,
+        inputs: toRunInputs(parameterDefinitions, parameterValues),
+      },
+    });
+  };
 
   return (
     <PageTemplate title="Certification">
@@ -218,54 +254,39 @@ export const CertificationPageExecution = () => {
               </Tr>
             </Thead>
             <Tbody>
-              {scenarioRows.map((row) => (
-                <Tr key={row.stepId}>
-                  <Td>{stepNameOf(row)}</Td>
-                  <Td>
-                    {(() => {
-                      const status = rowExecutionStatusById[row.stepId] ?? 'Not executed';
-                      const statusColor =
-                        status === 'Successful'
-                          ? 'green.600'
-                          : status === 'Failed'
-                            ? 'red.600'
-                            : 'gray.600';
-                      const dotColor =
-                        status === 'Successful'
-                          ? 'green.500'
-                          : status === 'Failed'
-                            ? 'red.500'
-                            : 'gray.400';
-
-                      return (
-                        <HStack spacing={2}>
-                          <Box w="8px" h="8px" borderRadius="full" bg={dotColor} />
-                          <Text
-                            color={statusColor}
-                            fontWeight={status === 'Not executed' ? 'normal' : 'medium'}
-                          >
-                            {status}
-                          </Text>
-                        </HStack>
-                      );
-                    })()}
-                  </Td>
-                  <Td>
-                    <Button
-                      size="sm"
-                      colorScheme="primary"
-                      type="button"
-                      isDisabled={!isAuthenticated}
-                      onClick={() => {
-                        setValidatedStep(row);
-                        setExecutionResult(null);
-                      }}
-                    >
-                      Validate
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
+              {scenarioRows.map((row) => {
+                const status = toDisplayStatus(
+                  stepRuns.runsByStepId[row.stepId]?.status,
+                  isRunningStep(row.stepId),
+                );
+                const display = STEP_STATUS_DISPLAY[status];
+                return (
+                  <Tr key={row.stepId}>
+                    <Td>{stepNameOf(row)}</Td>
+                    <Td>
+                      <HStack spacing={2}>
+                        <Box w="8px" h="8px" borderRadius="full" bg={display.dotColor} />
+                        <Text
+                          color={display.textColor}
+                          fontWeight={status === 'notExecuted' ? 'normal' : 'medium'}
+                        >
+                          {display.label}
+                        </Text>
+                      </HStack>
+                    </Td>
+                    <Td>
+                      <Button
+                        size="sm"
+                        colorScheme="primary"
+                        type="button"
+                        onClick={() => setValidatedStep(row)}
+                      >
+                        Validate
+                      </Button>
+                    </Td>
+                  </Tr>
+                );
+              })}
               {scenarioRows.length === 0 && (
                 <Tr>
                   <Td colSpan={3}>
@@ -301,7 +322,7 @@ export const CertificationPageExecution = () => {
                   Enter Validation Parameters
                 </Text>
                 <Text fontSize="sm" color="orange.900">
-                  Complete the fields below, then click Execute Scenario to run validation for the
+                  Complete the fields below, then click Execute step to run validation for the
                   selected step.
                 </Text>
               </Box>
@@ -315,9 +336,11 @@ export const CertificationPageExecution = () => {
                       placeholder={hint ?? `Enter ${label.toLowerCase()}`}
                       value={parameterValues[parameter.parameterId] ?? ''}
                       onChange={(event) => {
-                        setParameterValues((prev) => ({
+                        const { stepId } = validatedStep;
+                        const { value } = event.target;
+                        setTypedValuesByStep((prev) => ({
                           ...prev,
-                          [parameter.parameterId]: event.target.value,
+                          [stepId]: { ...prev[stepId], [parameter.parameterId]: value },
                         }));
                       }}
                     />
@@ -332,45 +355,36 @@ export const CertificationPageExecution = () => {
                 </Text>
               )}
 
-              <Button
-                colorScheme="primary"
-                type="button"
-                isDisabled={!isAuthenticated || !canExecuteScenario}
-                onClick={() => {
-                  const hasErrors = !nextExecutionIsSuccess;
+              {runError?.kind === 'api' && (
+                <Alert status="error" mb={3}>
+                  <AlertIcon />
+                  {runError.message}
+                </Alert>
+              )}
+              {runError?.kind === 'unknown' && (
+                <Alert status="warning" mb={3}>
+                  <AlertIcon />
+                  {UNKNOWN_RESULT_MESSAGE}
+                </Alert>
+              )}
 
-                  setExecutionResult({
-                    scenarioStep: stepNameOf(validatedStep),
-                    lastModifiedDate: new Date().toISOString(),
-                    isValid: !hasErrors,
-                    successful: 15,
-                    errors: hasErrors ? 2 : 0,
-                    'validation-errors': hasErrors
-                      ? [
-                          {
-                            property: 'alternateDayName',
-                            validation: 'isString',
-                            error: 'expected undefined to be a string',
-                          },
-                          {
-                            property: 'alternateDayName',
-                            validation: 'isNotEmpty',
-                            error: '.empty was passed non-string primitive undefined',
-                          },
-                        ]
-                      : [],
-                  });
-
-                  setRowExecutionStatusById((prev) => ({
-                    ...prev,
-                    [validatedStep.stepId]: hasErrors ? 'Failed' : 'Successful',
-                  }));
-
-                  setNextExecutionIsSuccess((prev) => !prev);
-                }}
-              >
-                Execute Scenario
-              </Button>
+              <HStack spacing={3} alignItems="center">
+                <Button
+                  colorScheme="primary"
+                  type="button"
+                  isDisabled={
+                    !isAuthenticated || !canExecuteStep || run.isPending || sisVersion === undefined
+                  }
+                  onClick={() => executeStep(validatedStep)}
+                >
+                  Execute step
+                </Button>
+                {!isAuthenticated && (
+                  <Text fontSize="sm" color="gray.600">
+                    Validate your credentials above to execute this step.
+                  </Text>
+                )}
+              </HStack>
             </Box>
           )}
 
@@ -394,73 +408,14 @@ export const CertificationPageExecution = () => {
         </Box>
       </chakra.form>
 
-      <Box mt={8} w="30em" borderTop="1px solid" borderColor="gray.200" pt={6}>
-        <HStack mb={3} justify="space-between" alignItems="center">
-          <Text fontWeight="semibold">Execution result</Text>
-          {executionResult ? (
-            <HStack spacing={2}>
-              <Box
-                w="10px"
-                h="10px"
-                borderRadius="full"
-                bg={executionResult.isValid ? 'green.500' : 'red.500'}
-              />
-              <Text
-                fontSize="sm"
-                fontWeight="medium"
-                color={executionResult.isValid ? 'green.600' : 'red.600'}
-              >
-                {executionResult.isValid ? 'Successful' : 'Errors found'}
-              </Text>
-            </HStack>
-          ) : (
-            <Text fontSize="sm" color="gray.500">
-              Not executed
-            </Text>
-          )}
-        </HStack>
-
-        {executionResult && (
-          <>
-            <Text mb={1}>Last execution: {formattedLastExecution}</Text>
-
-            {executionResult.errors > 0 && executionResult['validation-errors'].length > 0 && (
-              <>
-                <Text mb={3}>Errors: {executionResult.errors}</Text>
-                <Text mb={2} fontWeight="medium">
-                  Validation errors:
-                </Text>
-                {executionResult['validation-errors'].map((item, index) => (
-                  <Box
-                    key={`${item.property}-${item.validation}-${index}`}
-                    mb={3}
-                    p={3}
-                    border="1px solid"
-                    borderColor="red.200"
-                    bg="red.50"
-                    borderLeftWidth="4px"
-                    borderLeftColor="red.500"
-                    borderRadius="md"
-                  >
-                    <HStack mb={2} spacing={2}>
-                      <Box w="8px" h="8px" borderRadius="full" bg="red.500" />
-                      <Text fontSize="sm" fontWeight="semibold" color="red.700">
-                        Error
-                      </Text>
-                    </HStack>
-                    <Text mb={1}>Property: {item.property}</Text>
-                    <Text mb={1}>Validation: {item.validation}</Text>
-                    <Text>Error: {item.error}</Text>
-                  </Box>
-                ))}
-              </>
-            )}
-          </>
-        )}
-        {executionResult === null && (
-          <Text color="gray.600">Run the scenario to see the simulated response.</Text>
-        )}
-      </Box>
+      {validatedStep && (
+        <Box mt={8} w="30em" maxW="100%" borderTop="1px solid" borderColor="gray.200" pt={6}>
+          <CertificationStepResult
+            run={selectedRun}
+            isRunning={isRunningStep(validatedStep.stepId)}
+          />
+        </Box>
+      )}
     </PageTemplate>
   );
 };

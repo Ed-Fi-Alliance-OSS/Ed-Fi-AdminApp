@@ -4,6 +4,7 @@ import {
   EdfiTenant,
   Ods,
   SbEnvironment,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
@@ -14,6 +15,7 @@ import { ArtifactModule } from './artifact/artifact.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationController } from './certification.controller';
+import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationService } from './certification.service';
 import { CertificationTargetService } from './certification-target.service';
 import { CertificationTokenController } from './certification-token.controller';
@@ -27,6 +29,7 @@ import { CertificationTokenService } from './certification-token.service';
       Ods,
       EdfiTenant,
       SbEnvironment,
+      ScenarioCatalog,
       StepCatalog,
       CertificationProcess,
       CertificationProcessScenario,
@@ -39,6 +42,11 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationTokenController,
     CertificationCatalogController,
   ],
-  providers: [CertificationService, CertificationTargetService, CertificationTokenService],
+  providers: [
+    CertificationService,
+    CertificationStepRunsService,
+    CertificationTargetService,
+    CertificationTokenService,
+  ],
 })
 export class CertificationModule {}
