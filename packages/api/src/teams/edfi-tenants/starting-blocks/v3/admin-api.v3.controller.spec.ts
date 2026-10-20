@@ -367,6 +367,18 @@ describe('AdminApiControllerV3 - postInstance', () => {
     expect(result.syncQueue).toMatchObject({ id: 'manage-1', state: 'created' });
   });
 
+  it('returns { id } when queueing the ods-manage job fails', async () => {
+    mockSbService.postInstance.mockResolvedValue({ id: 55, jobId: 'CreateInstanceJob-7_abc' });
+    mockOdsRepository.save.mockResolvedValue({ id: 901 });
+    mockJobQueue.send.mockImplementation((channel: string) =>
+      channel === ODS_MANAGE_CHNL ? Promise.reject(new Error('queue down')) : Promise.resolve('sync-1')
+    );
+
+    await expect(controller.postInstance(1, 1, mockEdfiTenant, mockInstance)).resolves.toEqual({
+      id: 901,
+    });
+  });
+
   it('without jobId returns { id } and queues no ods-manage job', async () => {
     mockSbService.postInstance.mockResolvedValue({ id: 55, jobId: undefined });
     mockOdsRepository.save.mockResolvedValue({ id: 901 });
@@ -508,6 +520,15 @@ describe('AdminApiControllerV3 - deleteInstance', () => {
       { expireInHours: 2, retryLimit: 0 }
     );
     expect(result.syncQueue).toMatchObject({ id: 'manage-1', state: 'created' });
+  });
+
+  it('returns {} when queueing the ods-manage job fails', async () => {
+    mockSbService.deleteInstance.mockResolvedValue({ jobId: 'DeleteInstanceJob-8_xyz' });
+    mockJobQueue.send.mockImplementation((channel: string) =>
+      channel === ODS_MANAGE_CHNL ? Promise.reject(new Error('queue down')) : Promise.resolve('sync-1')
+    );
+
+    await expect(controller.deleteInstance(1, 1, mockEdfiTenant, 55)).resolves.toEqual({});
   });
 
   it('without jobId returns {} and queues no ods-manage job', async () => {

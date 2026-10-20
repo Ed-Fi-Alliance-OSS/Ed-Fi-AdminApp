@@ -26,6 +26,7 @@ import {
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV3,
   toPostApplicationResponseDtoV3,
+  OdsManageJobData,
   toSbSyncQueueDto,
 } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
@@ -112,6 +113,23 @@ export class AdminApiControllerV3 {
     @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService,
     @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>,
   ) {}
+
+  /**
+   * Queues the `ods-manage` tracking job. The Admin API operation has already succeeded by the
+   * time this runs, so a queueing failure must not fail the request; it only costs the outcome banner.
+   */
+  private async tryQueueOdsManageJob(data: OdsManageJobData) {
+    try {
+      return toSbSyncQueueDto(
+        await queueOdsManageJob(this.jobQueue, this.queueRepository, data)
+      );
+    } catch (err) {
+      Logger.warn(
+        `Could not queue ods-manage job for Admin API job ${data.adminApiJobId}: ${String(err)}`
+      );
+      return undefined;
+    }
+  }
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
@@ -1202,8 +1220,7 @@ export class AdminApiControllerV3 {
       );
 
       const syncQueue = createdInstance.jobId
-        ? toSbSyncQueueDto(
-            await queueOdsManageJob(this.jobQueue, this.queueRepository, {
+        ? await this.tryQueueOdsManageJob({
               sbEnvironmentId: edfiTenant.sbEnvironmentId,
               edfiTenantId: edfiTenant.id,
               adminApiJobId: createdInstance.jobId,
@@ -1211,7 +1228,6 @@ export class AdminApiControllerV3 {
               odsName: instance.name,
               odsId: createdOds.id,
             })
-          )
         : undefined;
 
       return syncQueue ? { id: createdOds.id, syncQueue } : { id: createdOds.id };
@@ -1283,8 +1299,7 @@ export class AdminApiControllerV3 {
     );
 
     const syncQueue = deleted?.jobId
-      ? toSbSyncQueueDto(
-          await queueOdsManageJob(this.jobQueue, this.queueRepository, {
+      ? await this.tryQueueOdsManageJob({
             sbEnvironmentId: edfiTenant.sbEnvironmentId,
             edfiTenantId: edfiTenant.id,
             adminApiJobId: deleted.jobId,
@@ -1292,7 +1307,6 @@ export class AdminApiControllerV3 {
             odsName: localOds.odsInstanceName ?? localOds.dbName,
             odsId: localOds.id,
           })
-        )
       : undefined;
 
     return syncQueue ? { syncQueue } : {};
