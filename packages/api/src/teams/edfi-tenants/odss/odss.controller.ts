@@ -1,4 +1,4 @@
-import { GetSessionDataDto, Ids, PostOdsDto, PutOdsDto, toGetOdsDto, toOdsRowCountsDto } from '@edanalytics/models';
+import { GetSessionDataDto, Ids, PostOdsDto, PutOdsDto, toGetOdsDto, toOdsRowCountsDto, toSbSyncQueueDto } from '@edanalytics/models';
 import { addUserCreating, addUserModifying, EdfiTenant, Ods, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
@@ -58,6 +58,40 @@ export class OdssController {
         edfiTenantId,
       })
     );
+  }
+
+  @Get('jobs/create/:jobId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:create-ods',
+    subject: {
+      teamId: 'teamId',
+      edfiTenantId: 'edfiTenantId',
+      id: '__filtered__',
+    },
+  })
+  async getCreateJob(
+    @Param('jobId') jobId: string,
+    @Param('teamId', new ParseIntPipe()) _teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number
+  ) {
+    return toSbSyncQueueDto(await this.odsService.findOdsManageJob(edfiTenantId, jobId, 'create'));
+  }
+
+  @Get('jobs/delete/:jobId')
+  @Authorize({
+    privilege: 'team.sb-environment.edfi-tenant:delete-ods',
+    subject: {
+      teamId: 'teamId',
+      edfiTenantId: 'edfiTenantId',
+      id: '__filtered__',
+    },
+  })
+  async getDeleteJob(
+    @Param('jobId') jobId: string,
+    @Param('teamId', new ParseIntPipe()) _teamId: number,
+    @Param('edfiTenantId', new ParseIntPipe()) edfiTenantId: number
+  ) {
+    return toSbSyncQueueDto(await this.odsService.findOdsManageJob(edfiTenantId, jobId, 'delete'));
   }
 
   @Get(':odsId')
