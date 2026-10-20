@@ -3,7 +3,7 @@ import '@testing-library/jest-dom';
 import React from 'react';
 import { act, render, screen } from '@testing-library/react';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { SbSyncQueueDto } from '@edanalytics/models';
+import { OdsManageJobDto } from '@edanalytics/models';
 import { methods } from '../../api/methods';
 import { OdsManageJobPage } from './OdsManageJobPage';
 
@@ -50,11 +50,9 @@ jest.mock('../../api/methods', () => ({
 
 const mockGetOne = methods.getOne as jest.Mock;
 
-const makeJob = (state: string, output: object = {}) =>
-  Object.assign(new SbSyncQueueDto(), {
+const makeJob = (state: string, output: { message: string } | null = null) =>
+  Object.assign(new OdsManageJobDto(), {
     id: 'job-1',
-    type: 'OdsManage',
-    name: 'Environment A',
     state,
     createdon: new Date('2026-01-01T00:00:00Z'),
     completedon: new Date('2026-01-01T00:00:05Z'),
@@ -95,7 +93,7 @@ describe('OdsManageJobPage', () => {
   });
 
   it('renders output.message as the error for a failed job', async () => {
-    mockGetOne.mockResolvedValue(makeJob('failed', { message: 'Database name already exists', stack: 's' }));
+    mockGetOne.mockResolvedValue(makeJob('failed', { message: 'Database name already exists' }));
     renderPage();
 
     const alert = await screen.findByRole('alert');

@@ -6,7 +6,6 @@ import {
   ContentSection,
   PageTemplate,
 } from '@edanalytics/common-ui';
-import { OdsManageJobData } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
 import { useParams } from 'react-router';
 import { odsManageJobQueries } from '../../api';
@@ -14,12 +13,6 @@ import { useOdsTerminology } from '../../helpers';
 import { jobStateColorSchemes, syncQueueRefetchInterval } from '../SbSyncQueue/syncQueueStates';
 
 const failureStates = ['failed', 'cancelled', 'expired'];
-
-/** Admin API's error message, verbatim, is stored as `output.message` on the job. */
-const getOutputMessage = (output: unknown): string | undefined =>
-  output && typeof output === 'object' && 'message' in output
-    ? String((output as { message: unknown }).message)
-    : undefined;
 
 /**
  * apiClient rethrows the response body (`{ statusCode, ... }`) when there is one, and the raw
@@ -73,9 +66,9 @@ export const OdsManageJobPage = () => {
   }
 
   const data = job.data;
-  const jobData = data.data as OdsManageJobData;
+  const jobData = data.data;
   const errorMessage = failureStates.includes(data.state)
-    ? getOutputMessage(data.output) ?? `The ${terminology.singular} ${operation} did not complete.`
+    ? data.output?.message ?? `The ${terminology.singular} ${operation} did not complete.`
     : undefined;
 
   return (

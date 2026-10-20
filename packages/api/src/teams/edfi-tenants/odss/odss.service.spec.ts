@@ -2,7 +2,7 @@ import 'reflect-metadata';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
 import { PostOdsDto } from '@edanalytics/models';
 import { NotFoundException } from '@nestjs/common';
-import { Repository } from 'typeorm';
+import { QueryFailedError, Repository } from 'typeorm';
 import { OdssService } from './odss.service';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
 import { OdsRowCountService } from '../starting-blocks/v2/ods-rowcount.service';
@@ -110,6 +110,18 @@ describe('OdssService', () => {
     it('404 when operation does not match (delete job via create endpoint)', async () => {
       syncQueueRepository.findOneBy.mockResolvedValue(job({ data: { operation: 'delete' } }));
       await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow(NotFoundException);
+    });
+
+    it('404 when the lookup fails with a query error (e.g. non-UUID id on pgsql)', async () => {
+      syncQueueRepository.findOneBy.mockRejectedValue(
+        new QueryFailedError('select', ['x'], new Error('invalid input syntax for type uuid: "x"'))
+      );
+      await expect(service.findOdsManageJob(10, 'x', 'create')).rejects.toThrow(NotFoundException);
+    });
+
+    it('rethrows unexpected non-query errors', async () => {
+      syncQueueRepository.findOneBy.mockRejectedValue(new Error('connection lost'));
+      await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow('connection lost');
     });
 
     it('404 for an unknown id', async () => {

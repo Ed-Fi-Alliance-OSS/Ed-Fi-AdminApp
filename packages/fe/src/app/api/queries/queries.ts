@@ -6,6 +6,7 @@ import {
   GetEdfiTenantDto,
   GetEdorgDto,
   GetOdsDto,
+  OdsManageJobDto,
   GetOwnershipDto,
   GetOwnershipViewDto,
   GetRoleDto,
@@ -549,8 +550,8 @@ export const odsManageJobQueries = {
     edfiTenantId: number | string;
     operation: string;
     jobId: string;
-    refetchInterval?: UseQueryOptions<SbSyncQueueDto>['refetchInterval'];
-  }): UseQueryOptions<SbSyncQueueDto> => ({
+    refetchInterval?: UseQueryOptions<OdsManageJobDto>['refetchInterval'];
+  }): UseQueryOptions<OdsManageJobDto> => ({
     queryKey: [
       'teams',
       String(params.teamId),
@@ -563,7 +564,7 @@ export const odsManageJobQueries = {
     queryFn: () =>
       methods.getOne(
         `teams/${params.teamId}/edfi-tenants/${params.edfiTenantId}/odss/jobs/${params.operation}/${params.jobId}`,
-        SbSyncQueueDto
+        OdsManageJobDto
       ),
     refetchInterval: params.refetchInterval,
     // A 404 means "not found or not allowed", which will not change by retrying.
