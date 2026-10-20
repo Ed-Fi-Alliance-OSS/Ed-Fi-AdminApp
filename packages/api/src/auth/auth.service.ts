@@ -26,6 +26,13 @@ import {
 } from './authorization/helpers';
 import config from 'config';
 
+/**
+ * MSSQL query-builder `IN (:...x)` needs real array parameters (a comma-joined string is bound
+ * as one nvarchar and fails to convert to int) and an empty array would render invalid `IN ()`.
+ * Ids are identity values, so -1 never matches a row.
+ */
+const nonEmptyIdList = (ids: number[]) => (ids.length ? ids : [-1]);
+
 @Injectable()
 export class AuthService {
   edorgsTreeRepository: TreeRepository<Edorg>;
@@ -313,25 +320,25 @@ export class AuthService {
           .leftJoin(
             'edorg_closure',
             'descendants',
-            'descendants.id_ancestor IN (:edorgs) AND descendants.id_descendant = edorg.id',
+            'descendants.id_ancestor IN (:...edorgs) AND descendants.id_descendant = edorg.id',
             {
-              edorgs: [...edorgPrivileges.keys()].join(','),
+              edorgs: nonEmptyIdList([...edorgPrivileges.keys()]),
             }
           )
           .leftJoin(
             'edorg_closure',
             'ancestors',
-            'ancestors.id_descendant IN (:edorgs) AND ancestors.id_ancestor = edorg.id',
+            'ancestors.id_descendant IN (:...edorgs) AND ancestors.id_ancestor = edorg.id',
             {
-              edorgs: [...edorgPrivileges.keys()].join(','),
+              edorgs: nonEmptyIdList([...edorgPrivileges.keys()]),
             }
           )
           .where(
             `descendants.id_ancestor IS NOT NULL OR
               ancestors.id_descendant IS NOT NULL OR
-              edorg.odsId IN (:odss)`,
+              edorg.odsId IN (:...odss)`,
             {
-              odss: ownedOdss.map((o) => o.ods.id).join(','),
+              odss: nonEmptyIdList(ownedOdss.map((o) => o.ods.id)),
             }
           )
           .getMany();
@@ -488,11 +495,11 @@ export class AuthService {
 
     const dbSpecificEdOrgClosureQuery = {
       mssql: () => {
-        const edOrgIdList = [[...edorgIds.values()]].join(',');
+        const edOrgIdList = nonEmptyIdList([...edorgIds.values()]);
         return this.edorgClosureRepository
           .createQueryBuilder('edorg_closure')
           .where('"id_ancestor" <> "id_descendant"')
-          .andWhere('("id_ancestor" IN (:ancestors) OR "id_descendant" IN (:descendants))', {
+          .andWhere('("id_ancestor" IN (:...ancestors) OR "id_descendant" IN (:...descendants))', {
             ancestors: edOrgIdList,
             descendants: edOrgIdList,
           })
