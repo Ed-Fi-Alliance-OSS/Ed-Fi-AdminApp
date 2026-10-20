@@ -69,11 +69,11 @@ export async function pollAdminApiJob(
     } catch (error) {
       // A 404 right after triggering the job can simply mean the job's status
       // row hasn't been persisted yet (observed in practice: the job starts executing
-      // milliseconds after the first poll 404s) — keep retrying through the attempt
+      // milliseconds after the first poll 404s) â€” keep retrying through the attempt
       // budget instead of treating a single 404 as proof the endpoint is unsupported.
       if (isAxiosError(error) && error.response?.status === 404) {
         logger.debug(
-          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for ${label} — retrying`
+          `Job ${jobId} not found (404) on attempt ${attempt}/${maxAttempts} for ${label} â€” retrying`
         );
       } else {
         logger.error(
