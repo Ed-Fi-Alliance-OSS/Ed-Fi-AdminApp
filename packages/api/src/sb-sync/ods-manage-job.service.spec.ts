@@ -118,6 +118,12 @@ describe('OdsManageJobService', () => {
     edfiTenantsRepository.findOne.mockResolvedValue(null);
     await expect(service.handle(job)).rejects.toThrow(/tenant 11/i);
     expect(pollMock).not.toHaveBeenCalled();
+    expect(jobQueue.send).toHaveBeenCalledTimes(1);
+    expect(jobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: 7 },
+      { expireInHours: 2 }
+    );
   });
 
   it('fails clearly when the Admin API version has no manage endpoints', async () => {
@@ -125,5 +131,25 @@ describe('OdsManageJobService', () => {
     strategyFactory.getStrategy.mockReturnValue({ getAdminApiService: () => adminApiService });
     await expect(service.handle(job)).rejects.toThrow(/does not support/i);
     expect(pollMock).not.toHaveBeenCalled();
+    expect(jobQueue.send).toHaveBeenCalledTimes(1);
+    expect(jobQueue.send).toHaveBeenCalledWith(
+      ENV_SYNC_CHNL,
+      { sbEnvironmentId: 7 },
+      { expireInHours: 2 }
+    );
+  });
+
+  it('still resolves with the completed message when the follow-up sync send rejects', async () => {
+    pollMock.mockResolvedValue({ outcome: 'completed' });
+    jobQueue.send.mockRejectedValue(new Error('queue down'));
+    await expect(service.handle(job)).resolves.toEqual({
+      message: 'Admin API job job-1 completed.',
+    });
+  });
+
+  it('still throws the verbatim Admin API errorMessage when the follow-up sync send rejects', async () => {
+    pollMock.mockResolvedValue({ outcome: 'failed', errorMessage: 'Database "x" already exists' });
+    jobQueue.send.mockRejectedValue(new Error('queue down'));
+    await expect(service.handle(job)).rejects.toThrow('Database "x" already exists');
   });
 });

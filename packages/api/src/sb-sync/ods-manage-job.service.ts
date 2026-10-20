@@ -73,7 +73,14 @@ export class OdsManageJobService {
       }
       throw new Error(`Timed out waiting for Admin API job ${adminApiJobId}.`);
     } finally {
-      await this.jobQueue.send(ENV_SYNC_CHNL, { sbEnvironmentId }, { expireInHours: 2 });
+      // A failed follow-up sync must never replace the real job outcome.
+      try {
+        await this.jobQueue.send(ENV_SYNC_CHNL, { sbEnvironmentId }, { expireInHours: 2 });
+      } catch (sendError) {
+        this.logger.warn(
+          `Failed to queue environment sync for environment ${sbEnvironmentId}: ${(sendError as Error).message}`
+        );
+      }
     }
   }
 }
