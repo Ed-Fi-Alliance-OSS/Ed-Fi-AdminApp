@@ -88,3 +88,19 @@ export class SbSyncQueueFacetedValuesDto {
   completedon: [Date | null, Date | null];
 }
 export const toSbSyncQueueFacetedValuesDto = makeSerializer(SbSyncQueueFacetedValuesDto);
+
+/** Response of creating a datastore (ODS instance). `syncQueue` is the queued `ods-manage` job, when Admin API returned a job id. */
+export class PostInstanceResponseDto {
+  @Expose()
+  id: number;
+  @Expose()
+  @Type(() => SbSyncQueueDto)
+  syncQueue?: SbSyncQueueDto;
+}
+
+/** Response of deleting a datastore (ODS instance). `syncQueue` is the queued `ods-manage` job, when Admin API returned a job id. */
+export class DeleteInstanceResponseDto {
+  @Expose()
+  @Type(() => SbSyncQueueDto)
+  syncQueue?: SbSyncQueueDto;
+}
