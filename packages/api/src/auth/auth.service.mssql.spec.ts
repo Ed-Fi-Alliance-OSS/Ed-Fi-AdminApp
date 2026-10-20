@@ -63,6 +63,25 @@ describe('AuthService.constructTeamOwnerships (mssql)', () => {
     expect(closureParams).toEqual({ ancestors: [1, 2, 3, 4, 5], descendants: [1, 2, 3, 4, 5] });
   });
 
+  it('keeps every statement under the 2,100-parameter limit for large edorg sets', async () => {
+    const manyEdorgs = Array.from({ length: 1200 }, (_, i) => ({
+      id: i + 1,
+      odsId: 7,
+      parentId: null,
+    }));
+    const { service, closureQb } = build([odsOwnership], manyEdorgs);
+
+    await service.constructTeamOwnerships(1);
+
+    const batches = closureQb.andWhere.mock.calls.map(([, params]) => params);
+    expect(batches.length).toBeGreaterThan(1);
+    batches.forEach(({ ancestors, descendants }) => {
+      expect(ancestors.length + descendants.length).toBeLessThan(2100);
+    });
+    const covered = new Set(batches.flatMap(({ ancestors }) => ancestors));
+    expect(covered.size).toBe(1200);
+  });
+
   it('never renders an empty IN () when the team owns nothing', async () => {
     const { service, edorgQb, closureQb } = build([]);
 

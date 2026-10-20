@@ -28,10 +28,25 @@ import config from 'config';
 
 /**
  * MSSQL query-builder `IN (:...x)` needs real array parameters (a comma-joined string is bound
- * as one nvarchar and fails to convert to int) and an empty array would render invalid `IN ()`.
- * Ids are identity values, so -1 never matches a row.
+ * as one nvarchar and fails to convert to int). SQL Server also caps a statement at 2,100
+ * parameters and the queries below expand the same list twice, so ids are sent in batches of
+ * this size (at most ~1,000 parameters per statement) and the results merged.
  */
-const nonEmptyIdList = (ids: number[]) => (ids.length ? ids : [-1]);
+const MSSQL_ID_BATCH_SIZE = 500;
+
+/**
+ * Ids are identity values, so -1 never matches a row; it stands in for an empty list because
+ * an empty array would render invalid `IN ()`.
+ */
+const NO_MATCH_IDS = [-1];
+
+const chunkIds = (ids: number[], size = MSSQL_ID_BATCH_SIZE) => {
+  const chunks: number[][] = [];
+  for (let i = 0; i < ids.length; i += size) {
+    chunks.push(ids.slice(i, i + size));
+  }
+  return chunks;
+};
 
 @Injectable()
 export class AuthService {
@@ -314,34 +329,48 @@ export class AuthService {
     const allEdfiTenantIds = [...allEdfiTenants.keys()];
 
     const dbSpecificEdOrgQuery = {
-      mssql: () => {
-        return this.edorgsRepository
-          .createQueryBuilder('edorg')
-          .leftJoin(
-            'edorg_closure',
-            'descendants',
-            'descendants.id_ancestor IN (:...edorgs) AND descendants.id_descendant = edorg.id',
-            {
-              edorgs: nonEmptyIdList([...edorgPrivileges.keys()]),
-            }
-          )
-          .leftJoin(
-            'edorg_closure',
-            'ancestors',
-            'ancestors.id_descendant IN (:...edorgs) AND ancestors.id_ancestor = edorg.id',
-            {
-              edorgs: nonEmptyIdList([...edorgPrivileges.keys()]),
-            }
-          )
-          .where(
-            `descendants.id_ancestor IS NOT NULL OR
+      mssql: async () => {
+        const queryBatch = (edorgs: number[], odss: number[]) =>
+          this.edorgsRepository
+            .createQueryBuilder('edorg')
+            .leftJoin(
+              'edorg_closure',
+              'descendants',
+              'descendants.id_ancestor IN (:...edorgs) AND descendants.id_descendant = edorg.id',
+              { edorgs }
+            )
+            .leftJoin(
+              'edorg_closure',
+              'ancestors',
+              'ancestors.id_descendant IN (:...edorgs) AND ancestors.id_ancestor = edorg.id',
+              { edorgs }
+            )
+            .where(
+              `descendants.id_ancestor IS NOT NULL OR
               ancestors.id_descendant IS NOT NULL OR
               edorg.odsId IN (:...odss)`,
-            {
-              odss: nonEmptyIdList(ownedOdss.map((o) => o.ods.id)),
-            }
-          )
-          .getMany();
+              { odss }
+            )
+            .getMany();
+
+        // The conditions are OR-ed, so the union of per-batch results equals the full query.
+        const batches = [
+          ...chunkIds([...edorgPrivileges.keys()]).map((edorgs) => ({
+            edorgs,
+            odss: NO_MATCH_IDS,
+          })),
+          ...chunkIds(ownedOdss.map((o) => o.ods.id)).map((odss) => ({
+            edorgs: NO_MATCH_IDS,
+            odss,
+          })),
+        ];
+        if (!batches.length) batches.push({ edorgs: NO_MATCH_IDS, odss: NO_MATCH_IDS });
+
+        const edorgsById = new Map<number, Edorg>();
+        for (const { edorgs, odss } of batches) {
+          (await queryBatch(edorgs, odss)).forEach((edorg) => edorgsById.set(edorg.id, edorg));
+        }
+        return [...edorgsById.values()];
       },
       pgsql: () => {
         return this.edorgsRepository
@@ -494,16 +523,23 @@ export class AuthService {
     const edorgIds = new Set(edorgPrivilegesEntries.map(([edorgId]) => edorgId));
 
     const dbSpecificEdOrgClosureQuery = {
-      mssql: () => {
-        const edOrgIdList = nonEmptyIdList([...edorgIds.values()]);
-        return this.edorgClosureRepository
-          .createQueryBuilder('edorg_closure')
-          .where('"id_ancestor" <> "id_descendant"')
-          .andWhere('("id_ancestor" IN (:...ancestors) OR "id_descendant" IN (:...descendants))', {
-            ancestors: edOrgIdList,
-            descendants: edOrgIdList,
-          })
-          .getMany();
+      mssql: async () => {
+        const batches = chunkIds([...edorgIds.values()]);
+        if (!batches.length) batches.push(NO_MATCH_IDS);
+
+        const rowsByEdge = new Map<string, EdOrgClosure>();
+        for (const edOrgIdList of batches) {
+          const rows = await this.edorgClosureRepository
+            .createQueryBuilder('edorg_closure')
+            .where('"id_ancestor" <> "id_descendant"')
+            .andWhere(
+              '("id_ancestor" IN (:...ancestors) OR "id_descendant" IN (:...descendants))',
+              { ancestors: edOrgIdList, descendants: edOrgIdList }
+            )
+            .getMany();
+          rows.forEach((row) => rowsByEdge.set(`${row.id_ancestor}:${row.id_descendant}`, row));
+        }
+        return [...rowsByEdge.values()];
       },
       pgsql: () => {
         return this.entityManager.query(
