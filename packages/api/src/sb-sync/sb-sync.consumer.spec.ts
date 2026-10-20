@@ -10,6 +10,7 @@ import {
   StartingBlocksServiceV2,
 } from '../teams/edfi-tenants/starting-blocks';
 import { MetadataService } from '../teams/edfi-tenants/starting-blocks/metadata.service';
+import { OdsManageJobService } from './ods-manage-job.service';
 import { ENV_SYNC_CHNL } from './sb-sync.module';
 
 jest.mock('config', () => ({
@@ -68,6 +69,7 @@ describe('SbSyncConsumer — SYNC_SCHEDULER_CHNL', () => {
         { provide: StartingBlocksServiceV2, useValue: {} },
         { provide: MetadataService, useValue: {} },
         { provide: AdminApiSyncService, useValue: {} },
+        { provide: OdsManageJobService, useValue: {} },
       ],
     }).compile();
 
@@ -140,6 +142,7 @@ describe('SbSyncConsumer — refreshSbEnvironment', () => {
         { provide: StartingBlocksServiceV2, useValue: {} },
         { provide: MetadataService, useValue: {} },
         { provide: AdminApiSyncService, useValue: adminapiSyncService },
+        { provide: OdsManageJobService, useValue: {} },
       ],
     }).compile();
 
@@ -201,6 +204,7 @@ describe('SbSyncConsumer — refreshEdfiTenant', () => {
         { provide: StartingBlocksServiceV2, useValue: {} },
         { provide: MetadataService, useValue: metadataService },
         { provide: AdminApiSyncService, useValue: adminapiSyncService },
+        { provide: OdsManageJobService, useValue: {} },
       ],
     }).compile();
 
