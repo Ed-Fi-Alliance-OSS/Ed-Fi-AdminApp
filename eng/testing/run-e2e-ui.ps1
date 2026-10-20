@@ -400,6 +400,14 @@ function Show-AdminAppServiceLogs {
 }
 
 $testExitCode = 1
+# The Playwright workers all call the API from one IP. At the default limit (100 requests per
+# minute) a fast run gets 429s on /auth/me, so the nav never renders and clicks time out. A process
+# env var outranks --env-file in Compose interpolation, so this covers generated, reused and
+# -KeepEnvFile environments alike without touching compose/.env. An explicit caller value wins.
+$previousRateLimit = $env:RATE_LIMIT_LIMIT
+if (-not $env:RATE_LIMIT_LIMIT) {
+  $env:RATE_LIMIT_LIMIT = '100000'
+}
 try {
   & (Join-Path $repoRoot 'eng/helpers/start-services-target.ps1') -V6:(-not $SkipV1) -OdsV7AdminV2 -IncludeAdminApp -Rebuild:$Rebuild -MSSQL:($DbEngine -eq 'mssql') -StartTimeoutMinutes $ServiceStartTimeoutMinutes
   if ($LASTEXITCODE -ne 0) { throw 'Failed to start Docker Compose services.' }
@@ -412,6 +420,9 @@ try {
   Push-Location $repoRoot
   try {
     if ($SkipV1) {
+      # playwright.config.ts applies the @v1 exclusion per project through E2E_SKIP_V1,
+      # because --grep-invert is ignored by projects that run as dependencies of others.
+      $env:E2E_SKIP_V1 = '1'
       npm run test:e2e:bdd -- --grep-invert '@v1'
     } else {
       npm run test:e2e:bdd
@@ -428,6 +439,8 @@ catch {
   throw
 }
 finally {
+  $env:RATE_LIMIT_LIMIT = $previousRateLimit
+  Remove-Item Env:E2E_SKIP_V1 -ErrorAction SilentlyContinue
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
     & (Join-Path $repoRoot 'compose/stop.ps1')
