@@ -12,6 +12,7 @@ import {
 import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import { randomBytes, randomUUID } from 'crypto';
+import { generateClientSecret } from './client-secret';
 import { AdminApiServiceV2 } from '../teams/edfi-tenants/starting-blocks';
 import { ENV_SYNC_CHNL } from '../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../sb-sync/job-queue/job-queue.interface';
@@ -267,9 +268,7 @@ export class V2AdminApiVersionStrategy implements AdminApiVersionStrategy {
     isMultiTenant: boolean
   ): Promise<{ clientId: string; clientSecret: string; displayName: string }> {
     const registerUrl = `${trimTrailingSlashes(adminApiUrl)}/connect/register`;
-    const secretCharset = 'ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*';
-    const secretBytes = randomBytes(32);
-    const clientSecret = Array.from(secretBytes, (byte) => secretCharset[byte % secretCharset.length]).join('');
+    const clientSecret = generateClientSecret();
     const clientId = `client_${randomUUID()}`;
     const nameSuffixBytes = randomBytes(4);
     const displayNameSuffix = Array.from(nameSuffixBytes, (byte) => (byte % 36).toString(36)).join('');

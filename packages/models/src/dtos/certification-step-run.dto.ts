@@ -77,3 +77,39 @@ export const toCertificationStepRunDto = makeSerializer<
   CertificationStepRunDto,
   CertificationStepRunDto
 >(CertificationStepRunDto);
+
+/** The last saved result of one step, as read back by GET .../step-runs (AC-475). */
+export class CertificationSavedStepRunDto {
+  @Expose()
+  stepId: number;
+
+  @Expose()
+  status: CertStepStatus;
+
+  /** ISO 8601 instant the step ran. */
+  @Expose()
+  ranAt: string;
+
+  /** The values the vendor typed, keyed by parameter name; used to prefill a re-run. */
+  @Expose()
+  inputs: Record<string, string> | null;
+
+  @Expose()
+  @Type(() => CertificationStepRunErrorDto)
+  errors: CertificationStepRunErrorDto[];
+}
+
+/** Saved results of one scenario's steps; steps that never ran are left out. */
+export class CertificationStepRunsDto {
+  @Expose()
+  scenarioStatus: CertScenarioStatus | null;
+
+  @Expose()
+  @Type(() => CertificationSavedStepRunDto)
+  steps: CertificationSavedStepRunDto[];
+}
+
+export const toCertificationStepRunsDto = makeSerializer<
+  CertificationStepRunsDto,
+  CertificationStepRunsDto
+>(CertificationStepRunsDto);
