@@ -22,6 +22,15 @@ const getOutputMessage = (output: unknown): string | undefined =>
     : undefined;
 
 /**
+ * apiClient rethrows the response body (`{ statusCode, ... }`) when there is one, and the raw
+ * axios error otherwise, so check both shapes.
+ */
+const isNotFound = (error: unknown): boolean => {
+  const e = error as { statusCode?: number; response?: { status?: number } } | null;
+  return e?.statusCode === 404 || e?.response?.status === 404;
+};
+
+/**
  * Shows the outcome of a datastore create/delete. Auto-refreshes until the job reaches a
  * terminal state.
  */
@@ -44,10 +53,14 @@ export const OdsManageJobPage = () => {
   );
   const title = `${terminology.singular} ${operation === 'delete' ? 'deletion' : 'creation'}`;
 
-  if (job.isError) {
+  if (!job.data && job.isError) {
     return (
       <PageTemplate title={title} actions={undefined}>
-        <Text>This job is no longer available.</Text>
+        <Text>
+          {isNotFound(job.error)
+            ? 'This job is no longer available.'
+            : "Couldn't load this job. Try refreshing the page."}
+        </Text>
       </PageTemplate>
     );
   }

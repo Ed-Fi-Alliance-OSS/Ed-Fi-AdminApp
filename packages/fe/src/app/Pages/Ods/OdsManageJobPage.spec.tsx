@@ -137,4 +137,33 @@ describe('OdsManageJobPage', () => {
 
     expect(await screen.findByText('This job is no longer available.')).toBeInTheDocument();
   });
+
+  it('shows a generic message, not "no longer available", for a non-404 error with no data', async () => {
+    mockGetOne.mockRejectedValue({ statusCode: 500, message: 'boom' });
+    renderPage();
+
+    expect(await screen.findByText(/Couldn't load this job/)).toBeInTheDocument();
+    expect(screen.queryByText('This job is no longer available.')).not.toBeInTheDocument();
+  });
+
+  it('keeps rendering the last data when a later poll errors', async () => {
+    jest.useFakeTimers();
+    mockGetOne
+      .mockResolvedValueOnce(makeJob('active'))
+      .mockRejectedValueOnce({ statusCode: 500, message: 'boom' })
+      .mockResolvedValue(makeJob('active'));
+    renderPage();
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(0);
+    });
+    expect(screen.getByText(/My New Datastore/)).toBeInTheDocument();
+
+    await act(async () => {
+      await jest.advanceTimersByTimeAsync(3100);
+    });
+    expect(mockGetOne).toHaveBeenCalledTimes(2);
+    expect(screen.getByText(/My New Datastore/)).toBeInTheDocument();
+    expect(screen.queryByText('This job is no longer available.')).not.toBeInTheDocument();
+  });
 });
