@@ -5,7 +5,13 @@
 
 import { randomUUID } from 'node:crypto';
 import { expect, Page } from '@playwright/test';
-import { selectComboboxOption } from './support';
+import {
+  API_FETCH_TIMEOUT_MS,
+  API_WRITE_TIMEOUT_MS,
+  UI_RENDER_TIMEOUT_MS,
+  clickNavLink,
+  selectComboboxOption,
+} from './support';
 import TeamsPage from './teams-page';
 
 type OwnershipAction = 'view' | 'edit' | 'delete';
@@ -53,7 +59,7 @@ class OwnershipsPage {
   }
 
   async clickOwnershipsOption() {
-    await this.ownershipsOption.click();
+    await clickNavLink(this.page, this.ownershipsOption, /\/adminapp\/ownerships\/?$/);
     await this.ownershipsTableShouldBeDisplayed();
   }
 
@@ -106,12 +112,13 @@ class OwnershipsPage {
 
   async clickSaveButton() {
     await this.saveButton.click();
-    await this.page.waitForLoadState('networkidle');
+    // Create and edit both leave their form route once the write round-trips to the API.
+    await expect(this.page).not.toHaveURL(/\/create|[?]edit=true/, { timeout: API_WRITE_TIMEOUT_MS });
   }
 
   async clickCancelButton() {
     await this.cancelButton.click();
-    await this.page.waitForLoadState('networkidle');
+    await expect(this.page).not.toHaveURL(/\/create|[?]edit=true/, { timeout: UI_RENDER_TIMEOUT_MS });
   }
 
   async clickRowAction(action: OwnershipAction) {
@@ -136,7 +143,7 @@ class OwnershipsPage {
     await this.captureFirstOwnershipName();
     await this.captureFirstOwnershipRole();
     await this.firstOwnershipLink.click();
-    await this.page.waitForLoadState('networkidle');
+    await expect(this.page).toHaveURL(/\/ownerships\/\d+\/?$/, { timeout: UI_RENDER_TIMEOUT_MS });
   }
 
   async clickEditTab() {
@@ -152,8 +159,12 @@ class OwnershipsPage {
   }
 
   async confirmDelete(answer: DeleteConfirmation) {
-    await (answer === 'yes' ? this.yesButton : this.noButton).click();
-    await this.page.waitForLoadState('networkidle');
+    const button = answer === 'yes' ? this.yesButton : this.noButton;
+    await button.click();
+    // Yes deletes through the API; No only closes the dialog.
+    await expect(button).toBeHidden({
+      timeout: answer === 'yes' ? API_WRITE_TIMEOUT_MS : UI_RENDER_TIMEOUT_MS,
+    });
   }
 
   async newOwnershipDetailsShouldBeDisplayed() {
@@ -182,8 +193,8 @@ class OwnershipsPage {
   }
 
   async ownershipsTableShouldBeDisplayed() {
-    await expect(this.pageHeading).toBeVisible();
-    await expect(this.page.locator('table')).toBeVisible();
+    await expect(this.pageHeading).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS });
+    await expect(this.page.locator('table')).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS });
   }
 
   async selectedOwnershipShouldBeRemoved() {
