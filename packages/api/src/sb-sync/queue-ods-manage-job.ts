@@ -16,7 +16,11 @@ export async function queueOdsManageJob(
   queueRepository: Repository<SbSyncQueue>,
   data: OdsManageJobData
 ): Promise<SbSyncQueue> {
-  const id = await jobQueue.send(ODS_MANAGE_CHNL, data, { expireInHours: 2, retryLimit: 0 });
+  const id = await jobQueue.send(ODS_MANAGE_CHNL, data, {
+    // pg-boss 12 only honors expireInSeconds; the handler polls Admin API for up to ~1h.
+    expireInSeconds: 7200,
+    retryLimit: 0,
+  });
 
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     const queueItem = await queueRepository.findOneBy({ id });

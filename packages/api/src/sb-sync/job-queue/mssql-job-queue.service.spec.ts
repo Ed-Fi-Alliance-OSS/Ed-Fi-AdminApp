@@ -158,6 +158,24 @@ describe('MssqlJobQueueService', () => {
     });
   });
 
+  describe('send() — expiry', () => {
+    it('applies expireInSeconds with DATEADD(SECOND, ...)', async () => {
+      await service.send('q', { a: 1 }, { expireInSeconds: 7200, retryLimit: 0 });
+
+      const [sql, params] = mockJobRepository.query.mock.calls[0] as [string, unknown[]];
+      expect(sql).toContain('DATEADD(SECOND, @7, GETUTCDATE())');
+      expect(params[7]).toBe(7200);
+    });
+
+    it('keeps mapping expireInHours with DATEADD(HOUR, ...)', async () => {
+      await service.send('q', { a: 1 }, { expireInHours: 2 });
+
+      const [sql, params] = mockJobRepository.query.mock.calls[0] as [string, unknown[]];
+      expect(sql).toContain('DATEADD(HOUR, @7, GETUTCDATE())');
+      expect(params[7]).toBe(2);
+    });
+  });
+
   // --------------------------------------------------------------------------
   // Retry delay enforcement (availableAt)
   // --------------------------------------------------------------------------

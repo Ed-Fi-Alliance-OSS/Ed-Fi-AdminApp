@@ -113,9 +113,15 @@ export class SbSyncConsumer implements OnModuleInit {
         return this.refreshEdfiTenant(job.data.edfiTenantId);
       });
 
-      await this.jobQueue.work(ODS_MANAGE_CHNL, async (job: Job<OdsManageJobData>) => {
-        return this.odsManageJobService.handle(job);
-      });
+      // The handler polls Admin API in-process for a long time, so allow several datastore
+      // operations to be tracked at once instead of queueing them one behind another.
+      await this.jobQueue.work(
+        ODS_MANAGE_CHNL,
+        async (job: Job<OdsManageJobData>) => {
+          return this.odsManageJobService.handle(job);
+        },
+        { localConcurrency: 5 }
+      );
 
       Logger.log('Sync workers registered successfully');
     } catch (error) {

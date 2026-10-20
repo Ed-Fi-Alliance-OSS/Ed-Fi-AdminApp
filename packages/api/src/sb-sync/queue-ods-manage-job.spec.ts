@@ -31,7 +31,10 @@ describe('queueOdsManageJob', () => {
     const promise = queueOdsManageJob(jobQueue, repo, data);
     await jest.advanceTimersByTimeAsync(500);
     await expect(promise).resolves.toEqual({ id: 'job-1', state: 'active' });
-    expect(send).toHaveBeenCalledWith(ODS_MANAGE_CHNL, data, { expireInHours: 2, retryLimit: 0 });
+    expect(send).toHaveBeenCalledWith(ODS_MANAGE_CHNL, data, {
+      expireInSeconds: 7200,
+      retryLimit: 0,
+    });
     expect(findOneBy).toHaveBeenCalledWith({ id: 'job-1' });
   });
 

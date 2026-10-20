@@ -5,7 +5,7 @@ import { randomUUID } from 'crypto';
 import { DataSource, In, Repository } from 'typeorm';
 import config from 'config';
 import { JobQueue } from '@edanalytics/models-server';
-import { IJobQueueService, Job, JobOptions, ScheduleOptions } from './job-queue.interface';
+import { IJobQueueService, Job, JobOptions, ScheduleOptions, WorkOptions } from './job-queue.interface';
 
 @Injectable()
 export class MssqlJobQueueService
@@ -68,7 +68,9 @@ export class MssqlJobQueueService
     const retrybackoff = (options?.retryBackoff ?? false) ? 1 : 0;
 
     try {
-      if (options?.expireInHours != null) {
+      if (options?.expireInSeconds != null || options?.expireInHours != null) {
+        const expireUnit = options.expireInSeconds != null ? 'SECOND' : 'HOUR';
+        const expireAmount = options.expireInSeconds ?? options.expireInHours;
         // Use server-side DATEADD so expirein uses the same clock as GETUTCDATE() comparisons.
         // Node.js Date.now() and the SQL Server clock can differ; using SQL functions eliminates
         // the mismatch entirely.
@@ -76,8 +78,8 @@ export class MssqlJobQueueService
           `INSERT INTO job_queue
              (id, name, data, state, createdon, singletonKey, retrylimit, retrydelay, retrybackoff, expirein)
            VALUES
-             (@0, @1, @2, 'created', GETUTCDATE(), @3, @4, @5, @6, DATEADD(HOUR, @7, GETUTCDATE()))`,
-          [id, queueName, jobData, singletonKey, retrylimit, retrydelay, retrybackoff, options.expireInHours]
+             (@0, @1, @2, 'created', GETUTCDATE(), @3, @4, @5, @6, DATEADD(${expireUnit}, @7, GETUTCDATE()))`,
+          [id, queueName, jobData, singletonKey, retrylimit, retrydelay, retrybackoff, expireAmount]
         );
       } else {
         await this.jobRepository.query(
@@ -126,8 +128,11 @@ export class MssqlJobQueueService
 
   async work<T = object>(
     queueName: string,
-    handler: (job: Job<T>) => Promise<unknown>
+    handler: (job: Job<T>) => Promise<unknown>,
+    _options?: WorkOptions
   ): Promise<void> {
+    // `_options.localConcurrency` is accepted but not needed here: processJobs() claims up to
+    // 10 jobs per tick and runs each handler fire-and-forget, so handlers already run concurrently.
     this.workers.set(queueName, handler as (job: Job) => Promise<unknown>);
     this.logger.log(`Worker registered for queue: ${queueName}`);
   }

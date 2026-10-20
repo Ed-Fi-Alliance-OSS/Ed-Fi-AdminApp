@@ -386,7 +386,7 @@ describe('AdminApiControllerV2 - postInstance', () => {
         odsName: 'my-ods',
         odsId: 901,
       },
-      { expireInHours: 2, retryLimit: 0 }
+      { expireInSeconds: 7200, retryLimit: 0 }
     );
     expect(result.id).toBe(901);
     expect(result.syncQueue).toMatchObject({ id: 'manage-1', state: 'created' });
@@ -585,7 +585,7 @@ describe('AdminApiControllerV2 - deleteInstance', () => {
         odsName: 'named-ods',
         odsId: 901,
       },
-      { expireInHours: 2, retryLimit: 0 }
+      { expireInSeconds: 7200, retryLimit: 0 }
     );
     expect(result.syncQueue).toMatchObject({ id: 'manage-1', state: 'created' });
   });
