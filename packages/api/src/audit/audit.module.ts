@@ -4,6 +4,7 @@ import { AuditLog } from '@edanalytics/models-server';
 import config from 'config';
 import { Repository } from 'typeorm';
 import { asBool } from '../utils/config-bool';
+import { AuditActionMiddleware } from './audit-action.middleware';
 import { AuditEventQueue } from './audit-event.queue';
 import { AuditEventRecorder } from './audit-event.recorder';
 import { AuditLogWriter } from './audit-log.writer';
@@ -30,6 +31,7 @@ export const auditProviders: Provider[] = [
       new AuditLogWriter(queue, repo, enabled),
     inject: [AuditEventQueue, getRepositoryToken(AuditLog), AUDIT_ENABLED],
   },
+  AuditActionMiddleware,
 ];
 
 @Global()
