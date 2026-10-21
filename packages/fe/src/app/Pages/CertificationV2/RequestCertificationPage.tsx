@@ -144,6 +144,19 @@ export const RequestCertificationPage = () => {
     </ButtonGroup>
   );
 
+  // The API refuses these environments too; this keeps the page and says why.
+  if (catalog.unsupportedMessage) {
+    return (
+      <PageTemplate title="Request Certification">
+        <Alert status="warning">
+          <AlertIcon />
+          {catalog.unsupportedMessage}
+        </Alert>
+        <chakra.form w="full">{cancelButtons}</chakra.form>
+      </PageTemplate>
+    );
+  }
+
   if (contextRouting) {
     return (
       <PageTemplate title="Request Certification">
@@ -231,9 +244,8 @@ export const RequestCertificationPage = () => {
           {!catalog.isPending && !hasCatalog && (
             <Alert status="warning" mt={4}>
               <AlertIcon />
-              {catalog.dataStandardVersion
-                ? `No certification catalog is available for data standard ${catalog.dataStandardVersion}.`
-                : "This environment's data standard version is unknown, so no certification catalog is available."}
+              {/* An unknown data standard is unsupported, so it never reaches this alert. */}
+              No certification catalog is available for data standard {catalog.dataStandardVersion}.
             </Alert>
           )}
 

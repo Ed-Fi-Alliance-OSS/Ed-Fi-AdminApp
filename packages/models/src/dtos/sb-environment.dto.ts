@@ -99,7 +99,7 @@ export class GetSbEnvironmentDto
   }
 
   get odsDsVersion() {
-    return this.configPublic?.odsApiMeta?.dataModels.find((dm) => dm.name === 'Ed-Fi')?.version;
+    return this.configPublic?.odsApiMeta?.dataModels?.find((dm) => dm.name === 'Ed-Fi')?.version;
   }
 
   get adminApiUrl() {

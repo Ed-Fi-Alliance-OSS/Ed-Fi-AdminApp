@@ -2,6 +2,8 @@ import {
   CertificationAreaDto,
   CertificationCatalogVersionDto,
   CertificationStepDto,
+  certificationUnsupportedMessage,
+  supportsCertification,
 } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
@@ -38,11 +40,18 @@ export const certificationQueryKeys = {
 
 /**
  * The certification areas (with their scenarios) for the catalog version that matches
- * the environment's data standard.
+ * the environment's data standard. For an environment that doesn't support certification,
+ * nothing is requested (the API would refuse it) and `unsupportedMessage` says why.
  */
 export const useCertificationCatalog = (sbEnvironmentId: number) => {
   const sbEnvironmentQuery = useQuery(sbEnvironmentQueriesGlobal.getOne({ id: sbEnvironmentId }));
-  const dataStandardVersion = toDataStandardMajor(sbEnvironmentQuery.data?.odsDsVersion);
+  const odsDsVersion = sbEnvironmentQuery.data?.odsDsVersion;
+  const dataStandardVersion = toDataStandardMajor(odsDsVersion);
+  const isSupported = sbEnvironmentQuery.data !== undefined && supportsCertification(odsDsVersion);
+  const unsupportedMessage =
+    sbEnvironmentQuery.data !== undefined && !isSupported
+      ? certificationUnsupportedMessage(odsDsVersion)
+      : undefined;
 
   const catalogVersionsQuery = useQuery({
     queryKey: certificationQueryKeys.catalogVersions(sbEnvironmentId),
@@ -51,6 +60,7 @@ export const useCertificationCatalog = (sbEnvironmentId: number) => {
         `${catalogUrl(sbEnvironmentId)}/catalog-versions`,
         CertificationCatalogVersionDto,
       ),
+    enabled: isSupported,
     throwOnError: true,
   });
   const catalogVersion = useMemo(
@@ -77,13 +87,13 @@ export const useCertificationCatalog = (sbEnvironmentId: number) => {
     [areasQuery.data],
   );
 
-  // A disabled query reports isPending forever, so only count the areas query when it can run.
+  // A disabled query reports isPending forever, so only count each query when it can run.
   const isPending =
     sbEnvironmentQuery.isPending ||
-    catalogVersionsQuery.isPending ||
+    (isSupported && catalogVersionsQuery.isPending) ||
     (catalogVersionId !== undefined && areasQuery.isPending);
 
-  return { dataStandardVersion, catalogVersion, areas, isPending };
+  return { dataStandardVersion, unsupportedMessage, catalogVersion, areas, isPending };
 };
 
 /** The steps (with their parameters) of one scenario, in display order. */

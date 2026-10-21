@@ -182,17 +182,27 @@ describe('RequestCertificationPage', () => {
     expect(screen.queryByText(/No certification catalog/)).toBeNull();
   });
 
-  it('warns when the environment has no data standard version', () => {
+  it('shows only an inline warning with Cancel when the environment does not support certification', () => {
+    const clearAuth = jest.fn();
+    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null, setAuth: jest.fn(), clearAuth });
     (useCertificationCatalog as jest.Mock).mockReturnValue({
-      dataStandardVersion: undefined,
+      dataStandardVersion: 'v4',
+      unsupportedMessage: 'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
       catalogVersion: undefined,
       areas: [],
       isPending: false,
     });
-    mockQueries(multiTenantEnv, tenants, {});
+    mockQueries(multiTenantEnv, tenants, odss);
     render(<RequestCertificationPage />);
-    expect(screen.getByText(/data standard version is unknown/)).toBeTruthy();
-    expect(screen.getByText('Certification version not available')).toBeTruthy();
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
+    );
+    expect(screen.queryByText('Tenant')).toBeNull();
+    expect(screen.queryByTestId('auth-form')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(clearAuth).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('..');
   });
 
   it('labels the ODS field "Data Store" on v3 and no longer shows an API address', () => {

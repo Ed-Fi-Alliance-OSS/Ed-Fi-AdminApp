@@ -13,3 +13,4 @@ export { default as TrimWhitespace } from './TrimWhitespace';
 export { default as TrimTrailingSlashes } from './TrimTrailingSlashes';
 export * from './ods-name';
 export * from './resolve-ods-api-urls';
+export * from './certification-support';

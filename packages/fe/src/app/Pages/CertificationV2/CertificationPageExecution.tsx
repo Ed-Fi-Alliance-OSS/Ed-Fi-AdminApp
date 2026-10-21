@@ -66,7 +66,7 @@ export const CertificationPageExecution = () => {
   const queryClient = useQueryClient();
   const sbEnvironmentId = Number(useParams().sbEnvironmentId);
   const { edfiTenantId, odsId, scenarioId } = useCertificationSelection();
-  const { auth, clearReason } = useCertificationAuth();
+  const { auth, clearAuth, clearReason } = useCertificationAuth();
   const catalog = useCertificationCatalog(sbEnvironmentId);
   const sisVersion = catalog.dataStandardVersion;
   const selected = useMemo(() => {
@@ -135,13 +135,24 @@ export const CertificationPageExecution = () => {
     return { pathname: navToParentOptions, search: query ? `?${query}` : '' };
   }, [edfiTenantId, odsId, navToParentOptions]);
 
+  const { unsupportedMessage } = catalog;
   useEffect(() => {
+    // An unsupported environment has no catalog; it gets a warning here, not a redirect.
+    if (unsupportedMessage) return;
     // Wait for the catalog before deciding a scenario ID from the URL doesn't exist.
     const scenarioMissing = scenarioId === undefined || (!catalog.isPending && !selected);
     if (scenarioMissing || edfiTenantId === undefined) {
       navigate(parentLocation, { replace: true });
     }
-  }, [scenarioId, catalog.isPending, selected, edfiTenantId, navigate, parentLocation]);
+  }, [
+    unsupportedMessage,
+    scenarioId,
+    catalog.isPending,
+    selected,
+    edfiTenantId,
+    navigate,
+    parentLocation,
+  ]);
 
   const [validatedStep, setValidatedStep] = useState<CertificationStepDto | null>(null);
 
@@ -166,6 +177,30 @@ export const CertificationPageExecution = () => {
 
   if (!config.showRequestCertification) {
     return null;
+  }
+
+  // The API refuses these environments too. The request page would only repeat this
+  // warning, so Cancel goes back to the environment.
+  if (unsupportedMessage) {
+    return (
+      <PageTemplate title="Certification">
+        <Alert status="warning">
+          <AlertIcon />
+          {unsupportedMessage}
+        </Alert>
+        <ButtonGroup mt={4} colorScheme="primary">
+          <Button
+            variant="ghost"
+            onClick={() => {
+              clearAuth();
+              navigate(`/sb-environments/${sbEnvironmentId}`);
+            }}
+          >
+            Cancel
+          </Button>
+        </ButtonGroup>
+      </PageTemplate>
+    );
   }
 
   if (!selected || edfiTenantId === undefined) {

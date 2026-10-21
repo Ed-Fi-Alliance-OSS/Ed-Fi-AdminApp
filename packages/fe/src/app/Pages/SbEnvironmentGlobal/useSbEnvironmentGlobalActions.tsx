@@ -1,4 +1,8 @@
-import { GetSbEnvironmentDto, OWNERSHIP_RESOURCE_TYPE } from '@edanalytics/models';
+import {
+  GetSbEnvironmentDto,
+  OWNERSHIP_RESOURCE_TYPE,
+  supportsCertification,
+} from '@edanalytics/models';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { sbEnvironmentQueriesGlobal } from '../../api';
@@ -187,11 +191,13 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
         // Gated on update, not read: certification starts a workflow. The page
         // also lists tenants and ODSs, so it needs those read privileges too.
         // A dedicated privilege, enforced server-side, is tracked in AC-466.
+        // The data model gate is also enforced server-side on every certification route.
         ...(config.showRequestCertification &&
         canUpdate &&
         canReadTenants &&
         canReadOdss &&
-        CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '')
+        CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '') &&
+        supportsCertification(sbEnvironment.odsDsVersion)
           ? {
               RequestCert: {
                 overflowOnly: true,
