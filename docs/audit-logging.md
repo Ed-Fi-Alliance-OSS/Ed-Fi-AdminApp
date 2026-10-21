@@ -26,7 +26,9 @@ produces only a `LoginSuccess` or `LoginFailure` row.
 so requests rejected by those, or by an authorization guard, are recorded too, with their final
 `statusCode` (for example 400, 401 or 403). The actor is resolved when the response finishes, and is
 null if the request was rejected before authentication. Machine (bearer token) callers are recorded
-with `actorType = 'machine'`.
+with `actorType = 'machine'`. Requests made with a session also carry `oidcId`, the identifier of the
+OIDC provider configuration the session was authenticated through; it is null for machine users and
+unauthenticated requests.
 
 If the connection closes before the response is finished (for example the client disconnects early),
 the row gets the sentinel `statusCode = 499` ("client closed request"). The outcome of such a request
@@ -40,7 +42,8 @@ Not logged:
 
 ### Login events
 
-Login rows carry `sourceIpAddress` and `oidcId` (the identity provider id). On failures, `details`
+Login and logout rows carry `sourceIpAddress` and `oidcId` (the identifier of the OIDC provider
+configuration used to sign in). On failures, `details`
 holds a short reason code, never the raw error message:
 
 | `details`        | Meaning                                                                    |
@@ -69,7 +72,7 @@ describe. The application only inserts into it; it never updates or deletes entr
 | `httpVerb`        | `varchar(10)`              | `NVARCHAR(10)`          | `Action` rows only.                                      |
 | `httpUrl`         | `varchar(2048)`            | `NVARCHAR(2048)`        | `Action` rows only; no query string.                     |
 | `statusCode`      | `integer`                  | `INT`                   | `Action` rows only.                                      |
-| `oidcId`          | `varchar(100)`             | `NVARCHAR(100)`         | Login and logout rows.                                   |
+| `oidcId`          | `varchar(100)`             | `NVARCHAR(100)`         | Identifier of the OIDC provider configuration the session was authenticated through; set on login, logout and on every write request made with a session; null for machine users and unauthenticated requests. |
 | `details`         | `text`                     | `NVARCHAR(max)`         | Delete snapshot JSON, or login failure reason.           |
 
 The table is created by migration `1792000000001-CreateAuditLog` for both engines. Before storage,

@@ -43,6 +43,7 @@ export class AuditActionMiddleware {
           httpVerb: req.method,
           httpUrl: req.originalUrl,
           statusCode: res.writableFinished ? res.statusCode : ABORTED_STATUS_CODE,
+          oidcId: this.sessionOidcId(req),
           details: snapshot ? safeStringify(snapshot) : null,
         });
       } catch (error) {
@@ -53,4 +54,19 @@ export class AuditActionMiddleware {
     res.once('close', record);
     next();
   };
+
+  /**
+   * The OIDC provider configuration the session was authenticated through. Null for machine users
+   * (bearer tokens carry no session), unauthenticated requests, or when the session is unreadable,
+   * so a session problem never costs the Action row.
+   */
+  private sessionOidcId(req: Request): string | null {
+    try {
+      const oidcId = req.session?.oidcId;
+      return oidcId === undefined || oidcId === null ? null : String(oidcId);
+    } catch (error) {
+      this.logger.warn(`Could not read oidcId from the session: ${error}`);
+      return null;
+    }
+  }
 }

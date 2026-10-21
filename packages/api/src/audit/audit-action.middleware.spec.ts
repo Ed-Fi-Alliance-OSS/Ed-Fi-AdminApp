@@ -10,11 +10,13 @@ describe('AuditActionMiddleware', () => {
   let recorded: AuditEvent[];
   let recorder: { record: jest.Mock };
   let user: unknown;
+  let session: unknown;
 
   const build = () => {
     const app = express();
     app.use((req, _res, next) => {
       (req as unknown as { user: unknown }).user = user;
+      (req as unknown as { session: unknown }).session = session;
       next();
     });
     app.use(new AuditActionMiddleware(recorder as never).handle);
@@ -24,6 +26,7 @@ describe('AuditActionMiddleware', () => {
   beforeEach(() => {
     recorded = [];
     user = undefined;
+    session = undefined;
     recorder = { record: jest.fn((e: AuditEvent) => void recorded.push(e)) };
   });
 
@@ -79,6 +82,54 @@ describe('AuditActionMiddleware', () => {
     await request(app).patch('/things').expect(401);
 
     expect(recorded[0]).toMatchObject({ statusCode: 401, actorUsername: null, actorType: null });
+  });
+
+  describe('oidcId', () => {
+    it('records the OIDC provider the session was authenticated through', async () => {
+      user = { username: 'alice', userType: 'human' };
+      session = { oidcId: 7 };
+      const app = build();
+      app.post('/things', (_req, res) => void res.sendStatus(201));
+
+      await request(app).post('/things').expect(201);
+
+      expect(recorded[0].oidcId).toBe('7');
+    });
+
+    it.each([
+      ['no session', undefined],
+      ['a session without an oidcId', {}],
+    ])('records null with %s', async (_label, value) => {
+      session = value;
+      const app = build();
+      app.post('/things', (_req, res) => void res.sendStatus(201));
+
+      await request(app).post('/things').expect(201);
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0].oidcId).toBeNull();
+    });
+
+    it('still records the action, with a null oidcId, when reading the session throws', async () => {
+      const app = express();
+      app.use((req, _res, next) => {
+        Object.defineProperty(req, 'session', {
+          get: () => {
+            throw new Error('session store down');
+          },
+        });
+        next();
+      });
+      app.use(new AuditActionMiddleware(recorder as never).handle);
+      app.post('/things', (_req, res) => void res.status(201).send('ok'));
+
+      const res = await request(app).post('/things');
+
+      expect(res.status).toBe(201);
+      expect(res.text).toBe('ok');
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]).toMatchObject({ statusCode: 201, oidcId: null });
+    });
   });
 
   it('passes the original url including the query string to the recorder', async () => {
