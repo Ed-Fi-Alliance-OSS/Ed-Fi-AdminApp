@@ -71,7 +71,11 @@ export const RequestCertificationPage = () => {
   const sbEnvironmentQuery = useQuery(sbEnvironmentQueriesGlobal.getOne({ id: sbEnvironmentId }));
   const sbEnvironment = sbEnvironmentQuery.data;
   const version = sbEnvironment?.version;
-  const tenantsQuery = useQuery(edfiTenantQueriesGlobal.getAll({ sbEnvironmentId }));
+  // Wait until certification is known to be supported: a failed tenant (or, after it, ODS)
+  // request goes to the route error page and would replace the unsupported warning.
+  const tenantsQuery = useQuery(
+    edfiTenantQueriesGlobal.getAll({ sbEnvironmentId, enabled: catalog.isSupported }),
+  );
   const tenants = Object.values(tenantsQuery.data ?? {});
   const edfiTenant = tenants.find((t) => t.id === edfiTenantId);
   const showOds = version !== 'v1';

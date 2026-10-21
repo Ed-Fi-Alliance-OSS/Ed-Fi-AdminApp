@@ -63,9 +63,14 @@ export const useCertificationCatalog = (sbEnvironmentId: number) => {
     enabled: isSupported,
     throwOnError: true,
   });
+  // A disabled query keeps its cached data, so a list cached while the environment was
+  // supported must not select a catalog now.
   const catalogVersion = useMemo(
-    () => selectCatalogVersion(catalogVersionsQuery.data ?? [], dataStandardVersion),
-    [catalogVersionsQuery.data, dataStandardVersion],
+    () =>
+      isSupported
+        ? selectCatalogVersion(catalogVersionsQuery.data ?? [], dataStandardVersion)
+        : undefined,
+    [isSupported, catalogVersionsQuery.data, dataStandardVersion],
   );
   const catalogVersionId = catalogVersion?.catalogVersionId;
 
@@ -93,7 +98,8 @@ export const useCertificationCatalog = (sbEnvironmentId: number) => {
     (isSupported && catalogVersionsQuery.isPending) ||
     (catalogVersionId !== undefined && areasQuery.isPending);
 
-  return { dataStandardVersion, unsupportedMessage, catalogVersion, areas, isPending };
+  // isSupported is false until the environment loads; unsupportedMessage only once it has.
+  return { dataStandardVersion, isSupported, unsupportedMessage, catalogVersion, areas, isPending };
 };
 
 /** The steps (with their parameters) of one scenario, in display order. */

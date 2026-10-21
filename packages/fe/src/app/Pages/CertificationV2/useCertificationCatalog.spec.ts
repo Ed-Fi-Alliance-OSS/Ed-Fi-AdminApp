@@ -112,8 +112,37 @@ describe('useCertificationCatalog', () => {
     const { result } = renderHook(() => useCertificationCatalog(7));
 
     expect(optionsFor('catalog-versions')?.enabled).toBe(false);
+    expect(result.current.isSupported).toBe(false);
     expect(result.current.unsupportedMessage).toBeUndefined();
     expect(result.current.isPending).toBe(true);
+  });
+
+  it.each([
+    ['5.2.0', true],
+    ['4.0.0', false],
+  ])('reports whether data standard %s supports certification', (odsDsVersion, isSupported) => {
+    mockQueries({ env: settled({ odsDsVersion }), versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.isSupported).toBe(isSupported);
+  });
+
+  it('ignores a catalog list cached while the environment was supported', () => {
+    // TanStack Query keeps a disabled query's cached data. "5.0.0-pre" maps to the v5 catalog,
+    // so without the guard it would select it and request areas the API refuses (400).
+    (useQuery as jest.Mock).mockImplementation((options: QueryOptions) => {
+      if (options.queryKey[0] === 'env') return settled({ odsDsVersion: '5.0.0-pre' });
+      if (options.queryKey[2] === 'catalog-versions') return settled(versions);
+      return loading;
+    });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.catalogVersion).toBeUndefined();
+    expect(optionsFor('scenarios')?.enabled).toBe(false);
+    expect(result.current.unsupportedMessage).toBeDefined();
+    expect(result.current.isPending).toBe(false);
   });
 
   it('requests only the matched catalog version', () => {

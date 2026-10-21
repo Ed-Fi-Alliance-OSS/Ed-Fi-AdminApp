@@ -1,8 +1,10 @@
 /** Certification is offered only for Ed-Fi Data Model 5.0.0 or later (ODS/API 7.x). */
 export const MIN_CERTIFICATION_DATA_MODEL = '5.0.0';
 
-// MAJOR.MINOR.PATCH with an optional prerelease and build, as in semver.org.
-const SEMVER = /^(\d+)\.(\d+)\.(\d+)(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$/;
+// MAJOR.MINOR.PATCH with an optional prerelease and build, as in semver.org: no leading
+// zeros, no empty identifiers. Each repetition must consume a literal ".", so it stays linear.
+const SEMVER =
+  /^(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)(-[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?(\+[0-9A-Za-z-]+(?:\.[0-9A-Za-z-]+)*)?$/;
 
 /**
  * Whether an environment's Ed-Fi data model (`odsDsVersion`) supports certification.

@@ -25,7 +25,23 @@ describe('supportsCertification', () => {
     expect(supportsCertification(odsDsVersion)).toBe(false);
   });
 
-  it.each([[undefined], [''], ['unknown'], ['5'], ['5.0'], ['v5'], ['5.x.0'], ['5.0.0.1']])(
+  it.each([
+    [undefined],
+    [''],
+    ['unknown'],
+    ['5'],
+    ['5.0'],
+    ['v5'],
+    ['5.x.0'],
+    ['5.0.0.1'],
+    // Not valid semver: leading zeros and empty prerelease or build identifiers.
+    ['05.0.0'],
+    ['5.01.0'],
+    ['5.0.0+.'],
+    ['5.0.0+build.'],
+    ['5.1.0-alpha..1'],
+    ['5.1.0-'],
+  ])(
     'treats an undeterminable data model %p as unsupported',
     (odsDsVersion) => {
       expect(supportsCertification(odsDsVersion)).toBe(false);

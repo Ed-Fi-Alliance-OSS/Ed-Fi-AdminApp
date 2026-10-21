@@ -68,6 +68,7 @@ const catalogAreas = [
 ];
 const loadedCatalog = {
   dataStandardVersion: 'v5',
+  isSupported: true,
   catalogVersion: {
     catalogVersionId: 2,
     artifactVersion: 'v2.1.0',
@@ -203,6 +204,38 @@ describe('RequestCertificationPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(clearAuth).toHaveBeenCalled();
     expect(mockNavigate).toHaveBeenCalledWith('..');
+  });
+
+  // Tenant (and so ODS) queries throw to the route error page on failure, which would
+  // replace the warning; they must not run until the environment is known to be supported.
+  const tenantsQueryEnabled = () =>
+    (useQuery as jest.Mock).mock.calls
+      .map(([options]) => options as { key: string; enabled?: boolean })
+      .filter((options) => options.key === 'tenants')
+      .at(-1)?.enabled;
+
+  it.each([
+    ['unsupported', { unsupportedMessage: 'Not supported.', isSupported: false }],
+    ['still loading', { isSupported: false, isPending: true }],
+  ])('does not request tenants while the environment is %s', (_, state) => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: undefined,
+      catalogVersion: undefined,
+      areas: [],
+      isPending: false,
+      ...state,
+    });
+    mockQueries(multiTenantEnv, tenants, odss);
+    render(<RequestCertificationPage />);
+
+    expect(tenantsQueryEnabled()).toBe(false);
+  });
+
+  it('requests tenants once the environment supports certification', () => {
+    mockQueries(multiTenantEnv, tenants, odss);
+    render(<RequestCertificationPage />);
+
+    expect(tenantsQueryEnabled()).toBe(true);
   });
 
   it('labels the ODS field "Data Store" on v3 and no longer shows an API address', () => {
