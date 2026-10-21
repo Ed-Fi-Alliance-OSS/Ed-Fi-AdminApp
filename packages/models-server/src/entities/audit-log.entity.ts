@@ -4,8 +4,10 @@ import * as config from 'config';
 /** One audit trail entry. Deliberately has no relations so entries outlive the rows they describe. */
 @Entity({ name: 'audit_log' })
 export class AuditLog {
-  // bigint comes back from the driver as a string
-  @PrimaryGeneratedColumn('identity', { type: 'bigint' })
+  // bigint comes back from the driver as a string.
+  // 'increment' (not 'identity') makes TypeORM leave the column out of INSERTs; with 'identity'
+  // it sends DEFAULT, which SQL Server rejects for an identity column. The migrations own the DDL.
+  @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;
 
   @Column({ type: 'varchar', length: 30 })
