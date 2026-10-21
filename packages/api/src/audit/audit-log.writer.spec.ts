@@ -68,8 +68,29 @@ describe('AuditLogWriter', () => {
     await jest.advanceTimersByTimeAsync(30);
     await expect(flushing).resolves.toBeUndefined();
 
-    expect(insert).toHaveBeenCalledTimes(3);
+    // three batch attempts, then one attempt for the single row
+    expect(insert).toHaveBeenCalledTimes(4);
     expect(errorSpy.mock.calls.some(([message]) => String(message).includes('/lost'))).toBe(true);
+  });
+
+  it('retries rows one at a time after the batch fails, so a bad row only loses itself', async () => {
+    const persisted: string[] = [];
+    insert.mockImplementation(async (rows: AuditEvent[]) => {
+      if (rows.some((row) => row.httpUrl === '/poison')) throw new Error('value too long');
+      persisted.push(...rows.map((row) => row.httpUrl as string));
+    });
+    ['/1', '/poison', '/2'].forEach((url) => queue.enqueue(event(url)));
+
+    const flushing = new AuditLogWriter(queue, repo, true, options).flush();
+    await jest.advanceTimersByTimeAsync(30);
+    await expect(flushing).resolves.toBeUndefined();
+
+    expect(persisted).toEqual(['/1', '/2']);
+    const notPersisted = errorSpy.mock.calls
+      .map(([message]) => String(message))
+      .filter((message) => message.includes('Audit event not persisted'));
+    expect(notPersisted).toHaveLength(1);
+    expect(notPersisted[0]).toContain('/poison');
   });
 
   it('flushes on the timer', async () => {

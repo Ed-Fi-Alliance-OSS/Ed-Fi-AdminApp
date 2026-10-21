@@ -68,10 +68,23 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
       return;
     }
     if (!(await this.insertWithRetry(batch))) {
-      batch.forEach((event) =>
-        this.logger.error(`Audit event not persisted: ${safeStringify(event)}`),
-      );
+      await this.insertOneByOne(batch);
     }
+  }
+
+  /** After the batch fails for good, a single bad row must not take the other rows down with it. */
+  private async insertOneByOne(batch: AuditEvent[]): Promise<void> {
+    for (const event of batch) {
+      try {
+        await this.repo.insert([event]);
+      } catch {
+        this.logNotPersisted(event);
+      }
+    }
+  }
+
+  private logNotPersisted(event: AuditEvent): void {
+    this.logger.error(`Audit event not persisted: ${safeStringify(event)}`);
   }
 
   private async insertWithRetry(batch: AuditEvent[]): Promise<boolean> {

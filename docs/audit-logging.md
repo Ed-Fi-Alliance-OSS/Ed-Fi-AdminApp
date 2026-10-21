@@ -66,8 +66,9 @@ describe. The application only inserts into it; it never updates or deletes entr
 | `details`         | `text`                     | `NVARCHAR(max)`         | Delete snapshot JSON, or login failure reason.           |
 
 The table is created by migration `1792000000001-CreateAuditLog` for both engines. Before storage,
-`actorUsername` is capped at 256 characters, `httpUrl` at 2048, and control characters are removed from
-both.
+every string column except `details` is capped at its column length (for example `actorUsername` at
+256 characters, `sourceIpAddress` at 45, `httpUrl` at 2048), and control characters are removed from
+them.
 
 ## Delete snapshots
 
@@ -111,8 +112,10 @@ Requests never wait on the database. Events are sanitized and put in an in-memor
 capacity of 10 000 events.
 
 - A background writer flushes every 1 second, inserting up to 100 events per batch.
-- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}` and each event in
-  the batch is written to the application log (`Audit event not persisted: {json}`).
+- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}` and the
+  events of the batch are then inserted one at a time, so one bad event cannot keep the others out of
+  the table. Each event that still fails is written to the application log
+  (`Audit event not persisted: {json}`).
 - When the queue is full, the new event is written to the application log instead
   (`Audit queue full, event not persisted: {json}`).
 - On graceful shutdown the writer finishes any in-flight batch and drains the queue.

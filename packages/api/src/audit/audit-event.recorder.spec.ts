@@ -1,4 +1,5 @@
 import { Logger } from '@nestjs/common';
+import { AUDIT_COLUMN_LENGTHS } from './audit-column-lengths';
 import { AuditEvent, AuditEventType } from './audit-event';
 import { AuditEventQueue } from './audit-event.queue';
 import { AuditEventRecorder } from './audit-event.recorder';
@@ -44,6 +45,40 @@ describe('AuditEventRecorder', () => {
     const [recorded] = queue.drain(1);
     expect(recorded.actorUsername).toHaveLength(256);
     expect(recorded.httpUrl).toHaveLength(2048);
+  });
+
+  it('caps every string column to its database length', () => {
+    const queue = new AuditEventQueue(10);
+
+    new AuditEventRecorder(queue, true, logger).record(
+      event({
+        eventType: 'x'.repeat(300) as AuditEvent['eventType'],
+        actorType: 'm'.repeat(300) as AuditEvent['actorType'],
+        sourceIpAddress: '1'.repeat(300),
+        oidcId: 'o'.repeat(300),
+        httpVerb: 'D'.repeat(300),
+      }),
+    );
+
+    const [recorded] = queue.drain(1);
+    expect(recorded.eventType).toHaveLength(AUDIT_COLUMN_LENGTHS.eventType);
+    expect(recorded.actorType).toHaveLength(AUDIT_COLUMN_LENGTHS.actorType);
+    expect(recorded.sourceIpAddress).toHaveLength(AUDIT_COLUMN_LENGTHS.sourceIpAddress);
+    expect(recorded.oidcId).toHaveLength(AUDIT_COLUMN_LENGTHS.oidcId);
+    expect(recorded.httpVerb).toHaveLength(AUDIT_COLUMN_LENGTHS.httpVerb);
+  });
+
+  it('removes control characters from every string column', () => {
+    const queue = new AuditEventQueue(10);
+
+    new AuditEventRecorder(queue, true, logger).record(
+      event({ sourceIpAddress: '10.0.0.1\r\n', oidcId: 'id\u00001', httpVerb: 'DEL\tETE' }),
+    );
+
+    const [recorded] = queue.drain(1);
+    expect(recorded.sourceIpAddress).toBe('10.0.0.1');
+    expect(recorded.oidcId).toBe('id1');
+    expect(recorded.httpVerb).toBe('DELETE');
   });
 
   it('logs the event and does not throw when the queue is full', () => {

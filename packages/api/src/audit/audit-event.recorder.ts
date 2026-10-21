@@ -1,10 +1,30 @@
 import { Injectable, Logger } from '@nestjs/common';
+import { AUDIT_COLUMN_LENGTHS } from './audit-column-lengths';
 import { AuditEvent } from './audit-event';
 import { AuditEventQueue } from './audit-event.queue';
 import { safeStringify, sanitizeText, stripQueryString } from './audit-sanitizer';
 
-const MAX_USERNAME_LENGTH = 256;
-const MAX_URL_LENGTH = 2048;
+/** Removes control characters and caps every string column so no value can make the insert fail. */
+function sanitizeEvent(event: AuditEvent): AuditEvent {
+  return {
+    ...event,
+    eventType: sanitizeText(
+      event.eventType,
+      AUDIT_COLUMN_LENGTHS.eventType,
+    ) as AuditEvent['eventType'],
+    actorUsername: sanitizeText(event.actorUsername, AUDIT_COLUMN_LENGTHS.actorUsername),
+    actorType: sanitizeText(
+      event.actorType,
+      AUDIT_COLUMN_LENGTHS.actorType,
+    ) as AuditEvent['actorType'],
+    sourceIpAddress: sanitizeText(event.sourceIpAddress, AUDIT_COLUMN_LENGTHS.sourceIpAddress),
+    httpVerb: sanitizeText(event.httpVerb, AUDIT_COLUMN_LENGTHS.httpVerb),
+    httpUrl: event.httpUrl
+      ? sanitizeText(stripQueryString(event.httpUrl), AUDIT_COLUMN_LENGTHS.httpUrl)
+      : null,
+    oidcId: sanitizeText(event.oidcId, AUDIT_COLUMN_LENGTHS.oidcId),
+  };
+}
 
 /** Entry point for emitting audit events. Never throws: auditing must not break the request. */
 @Injectable()
@@ -20,13 +40,7 @@ export class AuditEventRecorder {
       return;
     }
     try {
-      const sanitized: AuditEvent = {
-        ...event,
-        actorUsername: sanitizeText(event.actorUsername, MAX_USERNAME_LENGTH),
-        httpUrl: event.httpUrl
-          ? sanitizeText(stripQueryString(event.httpUrl), MAX_URL_LENGTH)
-          : null,
-      };
+      const sanitized = sanitizeEvent(event);
       if (!this.queue.enqueue(sanitized)) {
         this.logger.warn(`Audit queue full, event not persisted: ${safeStringify(sanitized)}`);
       }
