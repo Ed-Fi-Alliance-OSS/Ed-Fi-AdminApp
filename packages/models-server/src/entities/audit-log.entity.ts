@@ -12,8 +12,8 @@ export class AuditLog {
   eventType: string;
 
   @Index('IDX_audit_log_timestamp')
-  // An absolute instant: timestamptz on PostgreSQL, datetime2 (UTC) on SQL Server
-  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'timestamptz' : 'datetime2' })
+  // An absolute instant with its offset on both engines, so it never depends on the host time zone
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'timestamptz' : 'datetimeoffset' })
   timestamp: Date;
 
   @Index('IDX_audit_log_actorUsername')

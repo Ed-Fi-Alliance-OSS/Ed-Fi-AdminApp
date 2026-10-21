@@ -34,10 +34,33 @@ describe('CreateAuditLog1792000000001 (mssql) SQL', () => {
     }
     expect(sql).toContain('BIGINT IDENTITY(1,1)');
     expect(sql).toContain('[details]         NVARCHAR(max)');
-    expect(sql).toContain('datetime2');
     expect(sql).toContain('IDX_audit_log_timestamp');
     expect(sql).toContain('IDX_audit_log_actorUsername');
     expect(sql).not.toContain('FOREIGN KEY');
+  });
+
+  it('stores the timestamp as datetimeoffset so the instant does not depend on the host time zone', async () => {
+    const sql = await sqlFor('up');
+    expect(sql).toMatch(/\[timestamp\]\s+datetimeoffset NOT NULL/);
+    expect(sql).not.toContain('datetime2');
+  });
+
+  it('keeps the other column types unchanged', async () => {
+    const sql = await sqlFor('up');
+    for (const definition of [
+      /\[id\]\s+BIGINT IDENTITY\(1,1\) NOT NULL/,
+      /\[eventType\]\s+NVARCHAR\(30\) NOT NULL/,
+      /\[actorUsername\]\s+NVARCHAR\(256\) NULL/,
+      /\[actorType\]\s+NVARCHAR\(20\) NULL/,
+      /\[sourceIpAddress\]\s+NVARCHAR\(45\) NULL/,
+      /\[httpVerb\]\s+NVARCHAR\(10\) NULL/,
+      /\[httpUrl\]\s+NVARCHAR\(2048\) NULL/,
+      /\[statusCode\]\s+INT NULL/,
+      /\[oidcId\]\s+NVARCHAR\(100\) NULL/,
+      /\[details\]\s+NVARCHAR\(max\) NULL/,
+    ]) {
+      expect(sql).toMatch(definition);
+    }
   });
 
   it('drops the indexes and table on down, guarded by OBJECT_ID', async () => {

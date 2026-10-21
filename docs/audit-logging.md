@@ -55,7 +55,7 @@ describe. The application only inserts into it; it never updates or deletes entr
 | ----------------- | -------------------------- | ----------------------- | -------------------------------------------------------- |
 | `id`              | `bigint` identity, PK      | `BIGINT` identity, PK   | Constraint `PK_audit_log`.                               |
 | `eventType`       | `varchar(30)` not null     | `NVARCHAR(30)` not null | See above.                                               |
-| `timestamp`       | `timestamptz` not null     | `datetime2` not null    | An absolute instant, when the request or login event started. Indexed (`IDX_audit_log_timestamp`). |
+| `timestamp`       | `timestamptz` not null     | `datetimeoffset` not null | An absolute instant, when the request or login event started. Indexed (`IDX_audit_log_timestamp`). |
 | `actorUsername`   | `varchar(256)`             | `NVARCHAR(256)`         | Null if unknown. Indexed (`IDX_audit_log_actorUsername`). |
 | `actorType`       | `varchar(20)`              | `NVARCHAR(20)`          | `user` or `machine`; null if unknown.                    |
 | `sourceIpAddress` | `varchar(45)`              | `NVARCHAR(45)`          | Client address as seen by Express (`req.ip`).            |
@@ -130,7 +130,7 @@ behaviour only; use database permissions if you need protection against tamperin
 
 Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcId` are also populated):
 
-| id  | eventType    | timestamp (instant) | actorUsername     | httpVerb | httpUrl                | statusCode | details                         |
+| id  | eventType    | timestamp (UTC)     | actorUsername     | httpVerb | httpUrl                | statusCode | details                         |
 | --- | ------------ | ------------------- | ----------------- | -------- | ---------------------- | ---------- | ------------------------------- |
 | 101 | LoginSuccess | 2026-10-20 14:02:11 | maria@example.org |          |                        |            |                                 |
 | 102 | Action       | 2026-10-20 14:05:40 | maria@example.org | POST     | /api/teams             | 201        |                                 |
@@ -142,9 +142,10 @@ Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcId` a
 
 Row 104 was denied by authorization, so it has no snapshot. Rows 106 and 107 are the two rows one logout produces.
 
-`timestamp` is an absolute instant on both engines (PostgreSQL `timestamptz`, shown in the session time
-zone; SQL Server `datetime2` holding UTC, the mssql driver default), so comparing it with `NOW()` or
-`SYSUTCDATETIME()` as below is correct.
+`timestamp` is an absolute instant on both engines, whatever the time zone of the API host:
+PostgreSQL `timestamptz` (shown in the session time zone) and SQL Server `datetimeoffset` (stored with
+the API host's UTC offset at the time of the event). Compare it with `NOW()` on PostgreSQL and
+`SYSDATETIMEOFFSET()` on SQL Server, as below; both comparisons are offset-aware.
 
 PostgreSQL needs double quotes around the camelCase column names. SQL Server accepts brackets, or the
 bare names.
@@ -171,7 +172,7 @@ SQL Server:
 -- Failed logins in the last 24 hours
 SELECT [timestamp], [actorUsername], [sourceIpAddress], [details]
 FROM audit_log
-WHERE [eventType] = 'LoginFailure' AND [timestamp] > DATEADD(day, -1, SYSUTCDATETIME())
+WHERE [eventType] = 'LoginFailure' AND [timestamp] > DATEADD(day, -1, SYSDATETIMEOFFSET())
 ORDER BY [timestamp] DESC;
 
 -- Deletes with their snapshots, newest first

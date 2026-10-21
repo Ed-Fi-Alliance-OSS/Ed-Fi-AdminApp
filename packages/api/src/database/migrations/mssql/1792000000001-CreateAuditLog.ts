@@ -9,7 +9,7 @@ export class CreateAuditLog1792000000001 implements MigrationInterface {
       CREATE TABLE [audit_log] (
         [id]              BIGINT IDENTITY(1,1) NOT NULL,
         [eventType]       NVARCHAR(30) NOT NULL,
-        [timestamp]       datetime2 NOT NULL,
+        [timestamp]       datetimeoffset NOT NULL,
         [actorUsername]   NVARCHAR(256) NULL,
         [actorType]       NVARCHAR(20) NULL,
         [sourceIpAddress] NVARCHAR(45) NULL,
