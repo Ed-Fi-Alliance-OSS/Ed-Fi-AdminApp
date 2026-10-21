@@ -37,6 +37,11 @@ describe('CreateAuditLog1792000000001 (pgsql) SQL', () => {
     expect(sql).not.toContain('FOREIGN KEY');
   });
 
+  it('stores the timestamp as an absolute instant (timestamptz)', async () => {
+    const sql = await sqlFor('up');
+    expect(sql).toMatch(/"timestamp"\s+TIMESTAMP WITH TIME ZONE NOT NULL/);
+  });
+
   it('drops the indexes and table on down', async () => {
     const sql = await sqlFor('down');
     expect(sql).toContain('DROP INDEX "IDX_audit_log_actorUsername"');

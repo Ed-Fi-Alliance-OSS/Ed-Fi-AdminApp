@@ -1,4 +1,5 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
+import * as config from 'config';
 
 /** One audit trail entry. Deliberately has no relations so entries outlive the rows they describe. */
 @Entity({ name: 'audit_log' })
@@ -11,7 +12,8 @@ export class AuditLog {
   eventType: string;
 
   @Index('IDX_audit_log_timestamp')
-  @Column()
+  // An absolute instant: timestamptz on PostgreSQL, datetime2 (UTC) on SQL Server
+  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'timestamptz' : 'datetime2' })
   timestamp: Date;
 
   @Index('IDX_audit_log_actorUsername')

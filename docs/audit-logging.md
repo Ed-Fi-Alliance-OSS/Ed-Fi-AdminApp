@@ -15,6 +15,10 @@ Every entry has an `eventType`:
 | `LoginFailure` | An OIDC login fails. One row per login attempt.                                 |
 | `Logout`       | `auth/logout` is called, including without a session (the actor is then null).  |
 
+Because `POST /api/auth/logout` is a write request, one logout produces two rows: the `Logout` row and an
+`Action` row for the request (status 302, the redirect). The login callback is a `GET`, so a login
+produces only a `LoginSuccess` or `LoginFailure` row.
+
 `Action` rows are written by a middleware that runs before the body parser and the CSRF origin guard,
 so requests rejected by those, or by an authorization guard, are recorded too, with their final
 `statusCode` (for example 400, 401 or 403). The actor is resolved when the response finishes, and is
@@ -51,7 +55,7 @@ describe. The application only inserts into it; it never updates or deletes entr
 | ----------------- | -------------------------- | ----------------------- | -------------------------------------------------------- |
 | `id`              | `bigint` identity, PK      | `BIGINT` identity, PK   | Constraint `PK_audit_log`.                               |
 | `eventType`       | `varchar(30)` not null     | `NVARCHAR(30)` not null | See above.                                               |
-| `timestamp`       | `timestamp` not null       | `datetime2` not null    | UTC. When the request or login event started. Indexed (`IDX_audit_log_timestamp`). |
+| `timestamp`       | `timestamptz` not null     | `datetime2` not null    | An absolute instant, when the request or login event started. Indexed (`IDX_audit_log_timestamp`). |
 | `actorUsername`   | `varchar(256)`             | `NVARCHAR(256)`         | Null if unknown. Indexed (`IDX_audit_log_actorUsername`). |
 | `actorType`       | `varchar(20)`              | `NVARCHAR(20)`          | `user` or `machine`; null if unknown.                    |
 | `sourceIpAddress` | `varchar(45)`              | `NVARCHAR(45)`          | Client address as seen by Express (`req.ip`).            |
@@ -107,7 +111,7 @@ Requests never wait on the database. Events are sanitized and put in an in-memor
 capacity of 10 000 events.
 
 - A background writer flushes every 1 second, inserting up to 100 events per batch.
-- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, each event in
+- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}` and each event in
   the batch is written to the application log (`Audit event not persisted: {json}`).
 - When the queue is full, the new event is written to the application log instead
   (`Audit queue full, event not persisted: {json}`).
@@ -126,7 +130,7 @@ behaviour only; use database permissions if you need protection against tamperin
 
 Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcId` are also populated):
 
-| id  | eventType    | timestamp (UTC)     | actorUsername     | httpVerb | httpUrl                | statusCode | details                         |
+| id  | eventType    | timestamp (instant) | actorUsername     | httpVerb | httpUrl                | statusCode | details                         |
 | --- | ------------ | ------------------- | ----------------- | -------- | ---------------------- | ---------- | ------------------------------- |
 | 101 | LoginSuccess | 2026-10-20 14:02:11 | maria@example.org |          |                        |            |                                 |
 | 102 | Action       | 2026-10-20 14:05:40 | maria@example.org | POST     | /api/teams             | 201        |                                 |
@@ -134,8 +138,13 @@ Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcId` a
 | 104 | Action       | 2026-10-20 14:11:37 | sam@example.org   | DELETE   | /api/teams/12          | 403        |                                 |
 | 105 | LoginFailure | 2026-10-20 15:30:05 | lee@example.org   |          |                        |            | `user-not-found`                |
 | 106 | Logout       | 2026-10-20 16:00:00 | maria@example.org |          |                        |            |                                 |
+| 107 | Action       | 2026-10-20 16:00:00 | maria@example.org | POST     | /api/auth/logout       | 302        |                                 |
 
-Row 104 was denied by authorization, so it has no snapshot.
+Row 104 was denied by authorization, so it has no snapshot. Rows 106 and 107 are the two rows one logout produces.
+
+`timestamp` is an absolute instant on both engines (PostgreSQL `timestamptz`, shown in the session time
+zone; SQL Server `datetime2` holding UTC, the mssql driver default), so comparing it with `NOW()` or
+`SYSUTCDATETIME()` as below is correct.
 
 PostgreSQL needs double quotes around the camelCase column names. SQL Server accepts brackets, or the
 bare names.
