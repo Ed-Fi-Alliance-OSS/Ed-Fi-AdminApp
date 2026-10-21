@@ -113,6 +113,7 @@ import { RenameDbInstanceIdToInstanceManageId1785365966591 as MssqlRenameDbInsta
 import { AddMissingPrivilegesToGlobalAdmin1791158400000 as MssqlAddMissingPrivilegesToGlobalAdmin1791158400000 } from './migrations/mssql/1791158400000-AddMissingPrivilegesToGlobalAdmin';
 import { RemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 as MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000 } from './migrations/mssql/1791417600000-RemoveIntegrationProviderPrivilegesFromGlobalAdmin';
 import { CertificationStepRuns1792000000000 as MssqlCertificationStepRuns1792000000000 } from './migrations/mssql/1792000000000-CertificationStepRuns';
+import { CreateAuditLog1792000000001 as MssqlCreateAuditLog1792000000001 } from './migrations/mssql/1792000000001-CreateAuditLog';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -197,6 +198,7 @@ const getMSSQLMigrations = () => [
   MssqlAddMissingPrivilegesToGlobalAdmin1791158400000,
   MssqlRemoveIntegrationProviderPrivilegesFromGlobalAdmin1791417600000,
   MssqlCertificationStepRuns1792000000000,
+  MssqlCreateAuditLog1792000000001,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
