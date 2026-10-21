@@ -157,7 +157,18 @@ describe('AuditActionMiddleware', () => {
     await new Promise((r) => server.close(r));
 
     expect(recorder.record).toHaveBeenCalledTimes(1);
-    expect(recorded[0]).toMatchObject({ httpVerb: 'POST', httpUrl: '/slow' });
+    expect(recorded[0]).toMatchObject({ httpVerb: 'POST', httpUrl: '/slow', statusCode: 499 });
+  });
+
+  it('records the real status of a finished response, not the abort sentinel', async () => {
+    const app = build();
+    app.delete('/things/1', (_req, res) => void res.sendStatus(500));
+
+    await request(app).delete('/things/1').expect(500);
+    await new Promise((r) => setTimeout(r, 20));
+
+    expect(recorder.record).toHaveBeenCalledTimes(1);
+    expect(recorded[0].statusCode).toBe(500);
   });
 
   describe('body parser failures', () => {

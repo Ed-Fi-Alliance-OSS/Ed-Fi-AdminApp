@@ -7,6 +7,11 @@ import { getAuditSnapshot } from './audit-request-context';
 import { safeStringify } from './audit-sanitizer';
 
 const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
+/**
+ * Recorded when the connection closes before the response finished. Express's default 200 would
+ * otherwise make an aborted request look successful. 499 is nginx's "client closed request".
+ */
+const ABORTED_STATUS_CODE = 499;
 
 /** Records one Action audit event per write request, with the final response status. */
 @Injectable()
@@ -37,7 +42,7 @@ export class AuditActionMiddleware {
           sourceIpAddress: req.ip,
           httpVerb: req.method,
           httpUrl: req.originalUrl,
-          statusCode: res.statusCode,
+          statusCode: res.writableFinished ? res.statusCode : ABORTED_STATUS_CODE,
           details: snapshot ? safeStringify(snapshot) : null,
         });
       } catch (error) {

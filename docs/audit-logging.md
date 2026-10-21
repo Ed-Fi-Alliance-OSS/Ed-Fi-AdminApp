@@ -25,6 +25,10 @@ so requests rejected by those, or by an authorization guard, are recorded too, w
 null if the request was rejected before authentication. Machine (bearer token) callers are recorded
 with `actorType = 'machine'`.
 
+If the connection closes before the response is finished (for example the client disconnects early),
+the row gets the sentinel `statusCode = 499` ("client closed request"). The outcome of such a request
+is unknown: the handler may or may not have completed its change.
+
 Not logged:
 
 - `GET` and other read-only requests.
