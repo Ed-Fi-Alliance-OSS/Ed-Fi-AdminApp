@@ -110,7 +110,8 @@ Limits:
 
 `AUDIT_LOGGING_ENABLED` turns audit logging on or off. It defaults to on, and an unset variable means
 on. It is read from the environment variable of the same name (see
-`packages/api/config/custom-environment-variables.js`) once at startup, so changing it requires a
+`packages/api/config/custom-environment-variables.js`; with Docker Compose, set it in `compose/.env`)
+once at startup, so changing it requires a
 restart of the API. When it is off, no rows are written, the background writer does nothing, and
 deletes do not load the entity for a snapshot.
 
