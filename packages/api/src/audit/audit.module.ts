@@ -10,6 +10,7 @@ import { AuditDeleteInterceptor } from './audit-delete.interceptor';
 import { AuditEventQueue } from './audit-event.queue';
 import { AuditEventRecorder } from './audit-event.recorder';
 import { AuditLogWriter } from './audit-log.writer';
+import './delete-snapshot.registrations';
 
 export const AUDIT_QUEUE_CAPACITY = 10_000;
 export const AUDIT_ENABLED = Symbol('AUDIT_ENABLED');
