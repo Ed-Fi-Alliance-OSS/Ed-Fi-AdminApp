@@ -410,6 +410,14 @@ const putKeysToInvalidate = (base: {
   teamId?: number | string;
 }) => [base.standard, ...listKeyToInvalidate(base)];
 
+// Teams and team memberships decide which teams the team context picker lists (useMyTeams), so
+// their mutations also refresh that query. Otherwise a new team or membership only shows up in
+// the picker after a reload.
+const myTeamsKey: QueryKey = ['me', 'teams'];
+const alsoMyTeams =
+  <T>(keysToInvalidate: (base: T) => QueryKey[]) =>
+  (base: T) => [...keysToInvalidate(base), myTeamsKey];
+
 export const teamQueries = new EntityQueryBuilder({
   name: 'Team',
   includeEdfiTenant: false,
@@ -417,14 +425,22 @@ export const teamQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetTeamDto })
   .getAll('getAll', { ResDto: GetTeamDto })
-  .put('put', { ReqDto: PutTeamDto, ResDto: GetTeamDto, keysToInvalidate: putKeysToInvalidate })
-  .post('post', { ReqDto: PostTeamDto, ResDto: GetTeamDto, keysToInvalidate: listKeyToInvalidate })
+  .put('put', {
+    ReqDto: PutTeamDto,
+    ResDto: GetTeamDto,
+    keysToInvalidate: alsoMyTeams(putKeysToInvalidate),
+  })
+  .post('post', {
+    ReqDto: PostTeamDto,
+    ResDto: GetTeamDto,
+    keysToInvalidate: alsoMyTeams(listKeyToInvalidate),
+  })
   .getAll(
     'navSearchList',
     { ResDto: EnvNavDto },
     (base, extras: { teamId: number }) => `${baseUrl}/teams/${extras.teamId}/env-nav`
   )
-  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
+  .delete('delete', { keysToInvalidate: alsoMyTeams(listKeyToInvalidate) })
   .build();
 
 export const userQueries = new EntityQueryBuilder({
@@ -449,14 +465,14 @@ export const userTeamMembershipQueries = new EntityQueryBuilder({
   .put('put', {
     ReqDto: PutUserTeamMembershipDto,
     ResDto: GetUserTeamMembershipDto,
-    keysToInvalidate: putKeysToInvalidate,
+    keysToInvalidate: alsoMyTeams(putKeysToInvalidate),
   })
   .post('post', {
     ReqDto: PostUserTeamMembershipDto,
     ResDto: GetUserTeamMembershipDto,
-    keysToInvalidate: listKeyToInvalidate,
+    keysToInvalidate: alsoMyTeams(listKeyToInvalidate),
   })
-  .delete('delete', { keysToInvalidate: listKeyToInvalidate })
+  .delete('delete', { keysToInvalidate: alsoMyTeams(listKeyToInvalidate) })
   .build();
 
 export const vendorQueriesV1 = new EntityQueryBuilder({
