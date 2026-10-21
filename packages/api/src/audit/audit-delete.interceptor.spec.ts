@@ -15,10 +15,14 @@ class Widget {
 class Unregistered {
   id: number;
 }
+class Bare {
+  id: number;
+}
 
 registerDeleteSnapshot(Widget, (w) => ({ id: w.id, name: w.name, owner: w.owner?.username }), {
   relations: ['owner'],
 });
+registerDeleteSnapshot(Bare, (b) => ({ id: b.id }));
 
 class Controller {
   @AuditDelete(Widget, 'id')
@@ -27,6 +31,10 @@ class Controller {
   }
   @AuditDelete(Unregistered, 'id')
   removeUnregistered() {
+    return;
+  }
+  @AuditDelete(Bare, 'id')
+  removeBare() {
     return;
   }
   plain() {
@@ -64,8 +72,26 @@ describe('AuditDeleteInterceptor', () => {
     const { run } = setup(findOne);
     const { req, handle } = await run(c.remove, { id: '5' });
     expect(getAuditSnapshot(req)).toEqual({ id: 5, name: 'w', owner: 'bob' });
-    expect(findOne).toHaveBeenCalledWith(Widget, { where: { id: 5 }, relations: ['owner'] });
+    expect(findOne).toHaveBeenCalledWith(Widget, {
+      where: { id: 5 },
+      relations: { owner: true },
+    });
     expect(handle).toHaveBeenCalled();
+  });
+
+  it('passes relations in object syntax, never the array syntax TypeORM 1.x rejects', async () => {
+    const findOne = jest.fn().mockResolvedValue({ id: 5, name: 'w' });
+    const { run } = setup(findOne);
+    await run(c.remove, { id: '5' });
+    const [, options] = findOne.mock.calls[0];
+    expect(Array.isArray(options.relations)).toBe(false);
+  });
+
+  it('passes empty object relations for an entity registered without relations', async () => {
+    const findOne = jest.fn().mockResolvedValue({ id: 5 });
+    const { run } = setup(findOne);
+    await run(c.removeBare, { id: '5' });
+    expect(findOne).toHaveBeenCalledWith(Bare, { where: { id: 5 }, relations: {} });
   });
 
   it('does not read the database when audit logging is disabled, and still runs the handler', async () => {

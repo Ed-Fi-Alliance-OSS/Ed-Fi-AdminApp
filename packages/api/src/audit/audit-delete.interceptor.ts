@@ -13,7 +13,7 @@ import { DataSource } from 'typeorm';
 import { AUDIT_DELETE_METADATA, AuditDeleteMetadata } from './audit-delete.decorator';
 import { AUDIT_ENABLED } from './audit-enabled.token';
 import { setAuditSnapshot } from './audit-request-context';
-import { getDeleteSnapshotBuilder, getDeleteSnapshotRelations } from './delete-snapshot.registry';
+import { getDeleteSnapshotBuilder, getDeleteSnapshotFindOptions } from './delete-snapshot.registry';
 
 /**
  * Loads the entity named by `@AuditDelete` before the handler runs and attaches an allowlisted
@@ -64,10 +64,7 @@ export class AuditDeleteInterceptor implements NestInterceptor {
     if (!pk) return;
     const found = await this.dataSource.manager.findOne(
       meta.entity as never,
-      {
-        where: { [pk]: id },
-        relations: getDeleteSnapshotRelations(meta.entity),
-      } as never,
+      getDeleteSnapshotFindOptions(meta.entity, pk, id),
     );
     if (!found) return;
     setAuditSnapshot(req, build(found as never));

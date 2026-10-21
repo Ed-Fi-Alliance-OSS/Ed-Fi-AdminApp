@@ -8,19 +8,25 @@ type ModelsServer = typeof import('@edanalytics/models-server');
  * Builds real TypeORM entity metadata for one database engine without connecting to a database,
  * so tests can generate the exact SQL that engine would receive.
  *
- * Some entities pick column types from `config.DB_ENGINE` when their module loads, so the entities
- * are loaded in an isolated module registry with that engine configured.
+ * Some entities pick column types from `config.DB_ENGINE` when their module loads, so everything
+ * runs in an isolated module registry with that engine configured: `pickEntities` and
+ * `requireAlongside` run inside it and therefore see the same entity classes.
  */
-export const buildOfflineDataSource = async (
+export const buildOfflineDataSource = async <T = undefined>(
   engine: DbEngine,
   pickEntities: (models: ModelsServer) => unknown[],
-): Promise<{ dataSource: DataSource; models: ModelsServer }> => {
+  requireAlongside?: () => T,
+): Promise<{ dataSource: DataSource; models: ModelsServer; alongside: T }> => {
   let models!: ModelsServer;
   let typeorm!: typeof import('typeorm');
+  let entities!: unknown[];
+  let alongside!: T;
   jest.isolateModules(() => {
     jest.doMock('config', () => ({ ...jest.requireActual('config'), DB_ENGINE: engine }));
     typeorm = require('typeorm');
     models = require('@edanalytics/models-server');
+    entities = pickEntities(models);
+    alongside = requireAlongside?.() as T;
   });
   const dataSource = new typeorm.DataSource({
     ...(engine === 'mssql'
@@ -30,9 +36,14 @@ export const buildOfflineDataSource = async (
     username: 'offline',
     password: 'offline',
     database: 'offline',
-    entities: pickEntities(models) as never,
+    entities: entities as never,
   });
   // DataSource.initialize() would connect; building the metadata is the only part these tests need.
   await (dataSource as unknown as { buildMetadatas: () => Promise<void> }).buildMetadatas();
-  return { dataSource, models };
+  return { dataSource, models, alongside };
 };
+
+/** The entity list the API registers with TypeORM (database/typeorm.config.ts). */
+export const productionEntities = (): unknown[] =>
+  (require('../../database/typeorm.config') as { default: { entities: unknown[] } }).default
+    .entities;

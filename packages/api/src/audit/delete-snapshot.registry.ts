@@ -1,7 +1,8 @@
-import type { EntityTarget } from 'typeorm';
+import type { EntityTarget, FindOneOptions } from 'typeorm';
+import { toFindOptionsRelations } from './find-options-relations';
 
 export type DeleteSnapshotOptions = {
-  /** Relations to load alongside the entity so the builder can read them. */
+  /** Relations to load alongside the entity so the builder can read them; dotted paths nest. */
   relations?: string[];
 };
 
@@ -34,3 +35,13 @@ export const getDeleteSnapshotBuilder = <T>(
 
 export const getDeleteSnapshotRelations = (entity: EntityTarget<unknown>): string[] =>
   registry.get(entity)?.relations ?? [];
+
+/** The findOne options that load one entity plus the relations its snapshot builder reads. */
+export const getDeleteSnapshotFindOptions = (
+  entity: EntityTarget<unknown>,
+  primaryKey: string,
+  id: number,
+): FindOneOptions => ({
+  where: { [primaryKey]: id },
+  relations: toFindOptionsRelations(getDeleteSnapshotRelations(entity)),
+});
