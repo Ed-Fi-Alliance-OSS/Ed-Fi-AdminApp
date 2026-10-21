@@ -160,6 +160,49 @@ describe('AuditActionMiddleware', () => {
     expect(recorded[0]).toMatchObject({ httpVerb: 'POST', httpUrl: '/slow' });
   });
 
+  describe('body parser failures', () => {
+    const bodyParserApp = (auditFirst: boolean) => {
+      const app = express();
+      const audit = new AuditActionMiddleware(recorder as never).handle;
+      if (auditFirst) app.use(audit);
+      app.use(express.json({ limit: '100b' }));
+      if (!auditFirst) app.use(audit);
+      app.post('/things', (_req, res) => void res.sendStatus(201));
+      return app;
+    };
+
+    it('audits invalid JSON rejected with 400 when mounted before the parser', async () => {
+      await request(bodyParserApp(true))
+        .post('/things')
+        .set('Content-Type', 'application/json')
+        .send('{not json')
+        .expect(400);
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]).toMatchObject({ httpVerb: 'POST', statusCode: 400 });
+    });
+
+    it('audits an over-limit body rejected with 413 when mounted before the parser', async () => {
+      await request(bodyParserApp(true))
+        .post('/things')
+        .send({ blob: 'x'.repeat(500) })
+        .expect(413);
+
+      expect(recorded).toHaveLength(1);
+      expect(recorded[0]).toMatchObject({ statusCode: 413 });
+    });
+
+    it('shows why order matters: mounted after the parser, a rejection is not audited', async () => {
+      await request(bodyParserApp(false))
+        .post('/things')
+        .set('Content-Type', 'application/json')
+        .send('{not json')
+        .expect(400);
+
+      expect(recorded).toHaveLength(0);
+    });
+  });
+
   it('calls next for non-write requests untouched', () => {
     const next = jest.fn();
     const res = { once: jest.fn(), on: jest.fn() } as unknown as Response;

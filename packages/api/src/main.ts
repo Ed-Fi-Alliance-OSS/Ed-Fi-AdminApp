@@ -225,7 +225,7 @@ async function bootstrap() {
     logger: getLogLevel(),
   });
 
-  // Without this, onApplicationShutdown hooks (e.g. flushing queued audit events) never fire on SIGTERM/SIGINT.
+  // Without this, onApplicationShutdown hooks (flushing audit events) never fire on SIGTERM/SIGINT.
   app.enableShutdownHooks();
 
   app.set('trust proxy', SESSION_TRUST_PROXY_HOPS);
@@ -250,9 +250,9 @@ async function bootstrap() {
   const sessionSecret = await config.SESSION_SECRET;
   assertValidSessionSecret(sessionSecret);
 
-  app.use(json({ limit: '512kb' }));
-  // Registered before the CSRF guard so requests it denies are audited too.
+  // Registered before the body parser and the CSRF guard so requests they reject are audited too.
   app.use(app.get(AuditActionMiddleware).handle);
+  app.use(json({ limit: '512kb' }));
   app.use(createCsrfOriginGuard(config.FE_URL));
   app.use(
     expressSession.default({
