@@ -17,6 +17,9 @@ on:
           - ci
           - local
 
+permissions:
+  contents: read
+
 jobs:
   bruno-e2e:
     runs-on: ubuntu-latest
