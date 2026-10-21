@@ -158,6 +158,70 @@ describe('MssqlJobQueueService', () => {
     });
   });
 
+  describe('processJobs (localConcurrency)', () => {
+    // Answers each capped-queue claim with as many jobs as its TOP asks for; everything else empty.
+    const claimFromCappedQueue = () => {
+      let next = 0;
+      mockJobRepository.query.mockImplementation(async (sql: string, params?: unknown[]) => {
+        if (sql.includes('UPDLOCK') && sql.includes('name = @0')) {
+          const top = Number(/TOP \((\d+)\)/.exec(sql)![1]);
+          return Array.from({ length: top }, () =>
+            buildMockJob({ id: `job-${next++}`, name: params![0] as string })
+          );
+        }
+        return [];
+      });
+    };
+
+    it('never runs more handlers than the cap across ticks while handlers are pending', async () => {
+      claimFromCappedQueue();
+      (service as any).isRunning = true;
+      const handler = jest.fn(() => new Promise<void>(() => undefined)); // never settles
+      await service.work('capped-queue', handler, { localConcurrency: 5 });
+
+      await (service as any).processJobs();
+      await (service as any).processJobs();
+      await (service as any).processJobs();
+
+      expect(handler).toHaveBeenCalledTimes(5);
+      const cappedClaims = mockJobRepository.query.mock.calls.filter(
+        ([sql]: [string]) => sql.includes('UPDLOCK') && sql.includes('name = @0')
+      );
+      expect(cappedClaims).toHaveLength(1);
+      expect(cappedClaims[0][0]).toContain('TOP (5)');
+    });
+
+    it('frees capacity when a handler settles', async () => {
+      claimFromCappedQueue();
+      (service as any).isRunning = true;
+      const resolvers: Array<() => void> = [];
+      const handler = jest.fn(() => new Promise<void>((resolve) => resolvers.push(resolve)));
+      await service.work('capped-queue', handler, { localConcurrency: 2 });
+
+      await (service as any).processJobs();
+      expect(handler).toHaveBeenCalledTimes(2);
+
+      resolvers[0]();
+      await new Promise((resolve) => setImmediate(resolve));
+      await (service as any).processJobs();
+
+      expect(handler).toHaveBeenCalledTimes(3);
+    });
+
+    it('excludes capped queues from the general claim', async () => {
+      (service as any).isRunning = true;
+      await service.work('capped-queue', jest.fn(), { localConcurrency: 5 });
+
+      await (service as any).processJobs();
+
+      const generalClaim = mockJobRepository.query.mock.calls.find(
+        ([sql]: [string]) => sql.includes('UPDLOCK') && sql.includes('TOP (10)')
+      );
+      expect(generalClaim![0]).toContain('name NOT IN (@0)');
+      expect(generalClaim![1]).toEqual(['capped-queue']);
+    });
+  });
+
   describe('send() — expiry', () => {
     it('applies expireInSeconds with DATEADD(SECOND, ...)', async () => {
       await service.send('q', { a: 1 }, { expireInSeconds: 7200, retryLimit: 0 });

@@ -76,8 +76,9 @@ describe('OdssService', () => {
   });
 
   describe('findOdsManageJob', () => {
+    const JOB_ID = '6f1c2a3b-4d5e-4f60-8a7b-9c0d1e2f3a4b';
     const job = (over: Record<string, unknown> = {}) => ({
-      id: 'job-1',
+      id: JOB_ID,
       type: 'OdsManage',
       edfiTenantId: 10,
       data: { operation: 'create' },
@@ -87,46 +88,51 @@ describe('OdssService', () => {
     it('returns the job for matching tenant and operation', async () => {
       const row = job();
       syncQueueRepository.findOneBy.mockResolvedValue(row);
-      await expect(service.findOdsManageJob(10, 'job-1', 'create')).resolves.toBe(row);
-      expect(syncQueueRepository.findOneBy).toHaveBeenCalledWith({ id: 'job-1' });
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).resolves.toBe(row);
+      expect(syncQueueRepository.findOneBy).toHaveBeenCalledWith({ id: JOB_ID });
     });
 
     it('matches operation when data arrives as a JSON string', async () => {
       const row = job({ data: JSON.stringify({ operation: 'delete' }) });
       syncQueueRepository.findOneBy.mockResolvedValue(row);
-      await expect(service.findOdsManageJob(10, 'job-1', 'delete')).resolves.toBe(row);
+      await expect(service.findOdsManageJob(10, JOB_ID, 'delete')).resolves.toBe(row);
     });
 
     it('404 for a job in another tenant', async () => {
       syncQueueRepository.findOneBy.mockResolvedValue(job({ edfiTenantId: 99 }));
-      await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow(NotFoundException);
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).rejects.toThrow(NotFoundException);
     });
 
     it('404 for an sbe-sync (SbEnvironment) job id', async () => {
       syncQueueRepository.findOneBy.mockResolvedValue(job({ type: 'SbEnvironment' }));
-      await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow(NotFoundException);
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).rejects.toThrow(NotFoundException);
     });
 
     it('404 when operation does not match (delete job via create endpoint)', async () => {
       syncQueueRepository.findOneBy.mockResolvedValue(job({ data: { operation: 'delete' } }));
-      await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow(NotFoundException);
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).rejects.toThrow(NotFoundException);
     });
 
-    it('404 when the lookup fails with a query error (e.g. non-UUID id on pgsql)', async () => {
-      syncQueueRepository.findOneBy.mockRejectedValue(
-        new QueryFailedError('select', ['x'], new Error('invalid input syntax for type uuid: "x"'))
-      );
+    it('404 for a non-UUID id without querying', async () => {
       await expect(service.findOdsManageJob(10, 'x', 'create')).rejects.toThrow(NotFoundException);
+      expect(syncQueueRepository.findOneBy).not.toHaveBeenCalled();
+    });
+
+    it('propagates operational query failures instead of reporting 404', async () => {
+      syncQueueRepository.findOneBy.mockRejectedValue(
+        new QueryFailedError('select', [JOB_ID], new Error('canceling statement due to statement timeout'))
+      );
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).rejects.toThrow(QueryFailedError);
     });
 
     it('rethrows unexpected non-query errors', async () => {
       syncQueueRepository.findOneBy.mockRejectedValue(new Error('connection lost'));
-      await expect(service.findOdsManageJob(10, 'job-1', 'create')).rejects.toThrow('connection lost');
+      await expect(service.findOdsManageJob(10, JOB_ID, 'create')).rejects.toThrow('connection lost');
     });
 
     it('404 for an unknown id', async () => {
       syncQueueRepository.findOneBy.mockResolvedValue(null);
-      await expect(service.findOdsManageJob(10, 'nope', 'create')).rejects.toThrow(NotFoundException);
+      await expect(service.findOdsManageJob(10, '00000000-0000-4000-8000-000000000000', 'create')).rejects.toThrow(NotFoundException);
     });
   });
 });

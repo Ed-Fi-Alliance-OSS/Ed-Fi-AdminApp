@@ -10,6 +10,10 @@ const POLL_INTERVAL_MS = 500;
 /**
  * Queues an `ods-manage` job and waits only until its row is visible in the sync queue view
  * (not until it finishes), so the caller can return the job to the frontend quickly.
+ *
+ * Returns only the id and state: the response reaches team users, and a job that already
+ * failed would otherwise carry its output (including the stack). The team job endpoint
+ * exposes the error message.
  */
 export async function queueOdsManageJob(
   jobQueue: IJobQueueService,
@@ -22,14 +26,18 @@ export async function queueOdsManageJob(
     retryLimit: 0,
   });
 
+  let state: SbSyncQueue['state'] = 'created';
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     const queueItem = await queueRepository.findOneBy({ id });
-    if (queueItem) return queueItem;
+    if (queueItem) {
+      state = queueItem.state;
+      break;
+    }
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
 
-  const fallback = new SbSyncQueue();
-  fallback.id = id;
-  fallback.state = 'created';
-  return fallback;
+  const result = new SbSyncQueue();
+  result.id = id;
+  result.state = state;
+  return result;
 }

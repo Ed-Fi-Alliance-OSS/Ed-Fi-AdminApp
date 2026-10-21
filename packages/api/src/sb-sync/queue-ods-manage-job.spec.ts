@@ -30,12 +30,26 @@ describe('queueOdsManageJob', () => {
     findOneBy.mockResolvedValueOnce(null).mockResolvedValueOnce({ id: 'job-1', state: 'active' });
     const promise = queueOdsManageJob(jobQueue, repo, data);
     await jest.advanceTimersByTimeAsync(500);
-    await expect(promise).resolves.toEqual({ id: 'job-1', state: 'active' });
+    await expect(promise).resolves.toMatchObject({ id: 'job-1', state: 'active' });
     expect(send).toHaveBeenCalledWith(ODS_MANAGE_CHNL, data, {
       expireInSeconds: 7200,
       retryLimit: 0,
     });
     expect(findOneBy).toHaveBeenCalledWith({ id: 'job-1' });
+  });
+
+  it('returns only id and state, not the output of an already-failed job', async () => {
+    findOneBy.mockResolvedValueOnce({
+      id: 'job-1',
+      state: 'failed',
+      output: { message: 'boom', stack: 'Error: boom at secret.ts:1' },
+      data,
+    });
+    const result = await queueOdsManageJob(jobQueue, repo, data);
+    expect(result.id).toBe('job-1');
+    expect(result.state).toBe('failed');
+    expect(result.output).toBeUndefined();
+    expect(result.data).toBeUndefined();
   });
 
   it('falls back to a created row when it never appears', async () => {

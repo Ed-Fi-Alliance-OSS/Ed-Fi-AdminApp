@@ -3,8 +3,11 @@ import { EdfiTenant, Edorg, Ods, SbEnvironment, SbSyncQueue, regarding } from '@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { CustomHttpException, ValidationHttpException } from '../../../utils';
-import { QueryFailedError, Repository } from 'typeorm';
+import { Repository } from 'typeorm';
 import { StartingBlocksServiceV2 } from '../starting-blocks';
+
+// Job ids are UUIDs on both queue backends (pg-boss and the MSSQL job_queue).
+const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
 
 const safeParse = (text: string): unknown => {
   try {
@@ -32,16 +35,11 @@ export class OdssService {
     jobId: string,
     operation: 'create' | 'delete'
   ): Promise<SbSyncQueue> {
-    let job: SbSyncQueue | null;
-    try {
-      job = await this.syncQueueRepository.findOneBy({ id: jobId });
-    } catch (error) {
-      // e.g. a non-UUID id against a uuid column on PostgreSQL: the job cannot exist.
-      if (error instanceof QueryFailedError) {
-        throw new NotFoundException('Job not found');
-      }
-      throw error;
+    // A non-UUID id can't match a job, and on PostgreSQL would fail the uuid column cast.
+    if (!UUID_PATTERN.test(jobId)) {
+      throw new NotFoundException('Job not found');
     }
+    const job = await this.syncQueueRepository.findOneBy({ id: jobId });
     // data may arrive as JSON text on MSSQL
     const data: unknown = typeof job?.data === 'string' ? safeParse(job.data) : job?.data;
     const jobOperation = (data as { operation?: string } | null | undefined)?.operation;

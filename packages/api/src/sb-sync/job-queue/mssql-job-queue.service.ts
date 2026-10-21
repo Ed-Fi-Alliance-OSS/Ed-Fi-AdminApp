@@ -13,6 +13,9 @@ export class MssqlJobQueueService
 {
   private readonly logger = new Logger(MssqlJobQueueService.name);
   private workers = new Map<string, (job: Job) => Promise<unknown>>();
+  // Per-queue handler cap from WorkOptions.localConcurrency, and the handlers running now
+  private concurrencyLimits = new Map<string, number>();
+  private activeHandlers = new Map<string, number>();
   // In-process schedule registry — no DB table (D-10)
   private scheduleRegistry = new Map<string, { cron: string; data: unknown; tz: string }>();
   private lastScheduleFire = new Map<string, Date>();
@@ -129,10 +132,13 @@ export class MssqlJobQueueService
   async work<T = object>(
     queueName: string,
     handler: (job: Job<T>) => Promise<unknown>,
-    _options?: WorkOptions
+    options?: WorkOptions
   ): Promise<void> {
-    // `_options.localConcurrency` is accepted but not needed here: processJobs() claims up to
-    // 10 jobs per tick and runs each handler fire-and-forget, so handlers already run concurrently.
+    // Without localConcurrency a queue is unbounded: processJobs() claims up to 10 jobs per tick
+    // and runs each handler fire-and-forget. With it, claims are limited to the free capacity.
+    if (options?.localConcurrency != null) {
+      this.concurrencyLimits.set(queueName, options.localConcurrency);
+    }
     this.workers.set(queueName, handler as (job: Job) => Promise<unknown>);
     this.logger.log(`Worker registered for queue: ${queueName}`);
   }
@@ -191,30 +197,32 @@ export class MssqlJobQueueService
     }
   }
 
-  // Atomically claim up to 10 eligible jobs using MSSQL locking hints (D-01)
+  // Atomically claim up to 10 eligible jobs using MSSQL locking hints (D-01).
+  // Queues with a localConcurrency cap are claimed separately, only up to their free capacity.
   private async processJobs(): Promise<void> {
     if (!this.isRunning) return;
 
-    const leaseMinutes = 5;
+    const limitedQueues = [...this.concurrencyLimits.keys()];
+    const claimed: JobQueue[] =
+      limitedQueues.length === 0
+        ? await this.claimJobs(10, '', [])
+        : await this.claimJobs(
+            10,
+            `AND name NOT IN (${limitedQueues.map((_, i) => `@${i}`).join(', ')})`,
+            limitedQueues
+          );
 
-    // Use GETUTCDATE() + server-side DATEADD for leaseUntil so it uses the same clock
-    // as the expirein/availableAt comparisons — avoids Node.js vs SQL Server clock skew.
-    const claimed: JobQueue[] = await this.jobRepository.query(
-      `UPDATE TOP (10) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
-       SET state      = 'active',
-           startedon  = GETUTCDATE(),
-           leaseUntil = DATEADD(MINUTE, ${leaseMinutes}, GETUTCDATE())
-       OUTPUT INSERTED.*
-       WHERE state IN ('created', 'retry')
-         AND (availableAt IS NULL OR availableAt <= GETUTCDATE())
-         AND (expirein    IS NULL OR expirein    >  GETUTCDATE())`,
-      []
-    );
+    for (const [queueName, limit] of this.concurrencyLimits) {
+      const capacity = limit - (this.activeHandlers.get(queueName) ?? 0);
+      if (capacity > 0) {
+        claimed.push(...(await this.claimJobs(capacity, 'AND name = @0', [queueName])));
+      }
+    }
 
     for (const job of claimed) {
       this.logger.log(`Claimed job ${job.id} (${job.name}) — running handler`);
       // fire-and-forget — each job runs independently without blocking the next poll tick
-      void this.executeJob(job);
+      void this.runClaimedJob(job);
     }
 
     if (claimed.length === 0) {
@@ -251,6 +259,35 @@ export class MssqlJobQueueService
           }
         }
       }
+    }
+  }
+
+  private async claimJobs(top: number, nameFilter: string, params: unknown[]): Promise<JobQueue[]> {
+    const leaseMinutes = 5;
+
+    // Use GETUTCDATE() + server-side DATEADD for leaseUntil so it uses the same clock
+    // as the expirein/availableAt comparisons — avoids Node.js vs SQL Server clock skew.
+    return this.jobRepository.query(
+      `UPDATE TOP (${top}) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
+       SET state      = 'active',
+           startedon  = GETUTCDATE(),
+           leaseUntil = DATEADD(MINUTE, ${leaseMinutes}, GETUTCDATE())
+       OUTPUT INSERTED.*
+       WHERE state IN ('created', 'retry')
+         AND (availableAt IS NULL OR availableAt <= GETUTCDATE())
+         AND (expirein    IS NULL OR expirein    >  GETUTCDATE())
+         ${nameFilter}`,
+      params
+    );
+  }
+
+  // Counts the handler against its queue's capacity until it settles.
+  private async runClaimedJob(job: JobQueue): Promise<void> {
+    this.activeHandlers.set(job.name, (this.activeHandlers.get(job.name) ?? 0) + 1);
+    try {
+      await this.executeJob(job);
+    } finally {
+      this.activeHandlers.set(job.name, (this.activeHandlers.get(job.name) ?? 1) - 1);
     }
   }
 
