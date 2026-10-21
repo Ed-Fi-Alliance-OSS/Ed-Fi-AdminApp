@@ -15,6 +15,9 @@ Every entry has an `eventType`:
 | `LoginFailure` | An OIDC login fails. One row per login attempt.                                 |
 | `Logout`       | `auth/logout` is called, including without a session (the actor is then null).  |
 
+A session that ends other than through `auth/logout` leaves no `Logout` row, for example when the
+session of a deactivated user is destroyed on that user's next request.
+
 Because `POST /api/auth/logout` is a write request, one logout produces two rows: the `Logout` row and an
 `Action` row for the request (status 302, the redirect). The login callback is a `GET`, so a login
 produces only a `LoginSuccess` or `LoginFailure` row.
@@ -108,12 +111,15 @@ Limits:
 `AUDIT_LOGGING_ENABLED` turns audit logging on or off. It defaults to on, and an unset variable means
 on. It is read from the environment variable of the same name (see
 `packages/api/config/custom-environment-variables.js`) once at startup, so changing it requires a
-restart of the API. When it is off, no rows are written and the background writer does nothing.
+restart of the API. When it is off, no rows are written, the background writer does nothing, and
+deletes do not load the entity for a snapshot.
 
 ## Queue, retries and fallback
 
-Requests never wait on the database. Events are sanitized and put in an in-memory queue with a
-capacity of 10 000 events.
+Requests do not wait for audit rows to be written. Events are sanitized and put in an in-memory
+queue with a capacity of 10 000 events. The one database read on the request path is the delete
+snapshot: a delete of one of the entities listed under [Delete snapshots](#delete-snapshots) waits
+for the entity to be loaded before its handler runs.
 
 - A background writer flushes every 1 second, inserting up to 100 events per batch.
 - A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}` and the

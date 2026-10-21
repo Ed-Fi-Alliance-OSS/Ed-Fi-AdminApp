@@ -7,13 +7,14 @@ import { Repository } from 'typeorm';
 import { asBool } from '../utils/config-bool';
 import { AuditActionMiddleware } from './audit-action.middleware';
 import { AuditDeleteInterceptor } from './audit-delete.interceptor';
+import { AUDIT_ENABLED } from './audit-enabled.token';
 import { AuditEventQueue } from './audit-event.queue';
 import { AuditEventRecorder } from './audit-event.recorder';
 import { AuditLogWriter } from './audit-log.writer';
 import './delete-snapshot.registrations';
 
+export { AUDIT_ENABLED };
 export const AUDIT_QUEUE_CAPACITY = 10_000;
-export const AUDIT_ENABLED = Symbol('AUDIT_ENABLED');
 
 /** The audit flag defaults to ON when it is not configured. */
 export const isAuditEnabled = (value: unknown): boolean =>

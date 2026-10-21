@@ -1,15 +1,24 @@
-import { CallHandler, ExecutionContext, Injectable, Logger, NestInterceptor } from '@nestjs/common';
+import {
+  CallHandler,
+  ExecutionContext,
+  Inject,
+  Injectable,
+  Logger,
+  NestInterceptor,
+} from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import type { Request } from 'express';
 import { Observable } from 'rxjs';
 import { DataSource } from 'typeorm';
 import { AUDIT_DELETE_METADATA, AuditDeleteMetadata } from './audit-delete.decorator';
+import { AUDIT_ENABLED } from './audit-enabled.token';
 import { setAuditSnapshot } from './audit-request-context';
 import { getDeleteSnapshotBuilder, getDeleteSnapshotRelations } from './delete-snapshot.registry';
 
 /**
  * Loads the entity named by `@AuditDelete` before the handler runs and attaches an allowlisted
- * snapshot to the request. Never throws and never blocks the request.
+ * snapshot to the request. Never throws: a failed lookup only skips the snapshot. Does nothing when
+ * audit logging is disabled.
  */
 @Injectable()
 export class AuditDeleteInterceptor implements NestInterceptor {
@@ -18,9 +27,13 @@ export class AuditDeleteInterceptor implements NestInterceptor {
   constructor(
     private readonly reflector: Reflector,
     private readonly dataSource: DataSource,
+    @Inject(AUDIT_ENABLED) private readonly enabled: boolean,
   ) {}
 
   async intercept(context: ExecutionContext, next: CallHandler): Promise<Observable<unknown>> {
+    if (!this.enabled) {
+      return next.handle();
+    }
     try {
       await this.snapshot(context);
     } catch (err) {

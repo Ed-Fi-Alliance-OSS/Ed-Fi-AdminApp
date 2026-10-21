@@ -34,12 +34,12 @@ class Controller {
   }
 }
 
-const setup = (findOne: jest.Mock) => {
+const setup = (findOne: jest.Mock, enabled = true) => {
   const dataSource = {
     getMetadata: jest.fn().mockReturnValue({ primaryColumns: [{ propertyName: 'id' }] }),
     manager: { findOne },
   };
-  const interceptor = new AuditDeleteInterceptor(new Reflector(), dataSource as never);
+  const interceptor = new AuditDeleteInterceptor(new Reflector(), dataSource as never, enabled);
   const run = async (handler: () => void, params: Record<string, string>) => {
     const req = { params } as never;
     const ctx = {
@@ -51,7 +51,7 @@ const setup = (findOne: jest.Mock) => {
     await interceptor.intercept(ctx, { handle } as CallHandler);
     return { req, handle };
   };
-  return { run };
+  return { run, dataSource };
 };
 
 describe('AuditDeleteInterceptor', () => {
@@ -65,6 +65,16 @@ describe('AuditDeleteInterceptor', () => {
     const { req, handle } = await run(c.remove, { id: '5' });
     expect(getAuditSnapshot(req)).toEqual({ id: 5, name: 'w', owner: 'bob' });
     expect(findOne).toHaveBeenCalledWith(Widget, { where: { id: 5 }, relations: ['owner'] });
+    expect(handle).toHaveBeenCalled();
+  });
+
+  it('does not read the database when audit logging is disabled, and still runs the handler', async () => {
+    const findOne = jest.fn();
+    const { run, dataSource } = setup(findOne, false);
+    const { req, handle } = await run(c.remove, { id: '5' });
+    expect(getAuditSnapshot(req)).toBeUndefined();
+    expect(findOne).not.toHaveBeenCalled();
+    expect(dataSource.getMetadata).not.toHaveBeenCalled();
     expect(handle).toHaveBeenCalled();
   });
 
