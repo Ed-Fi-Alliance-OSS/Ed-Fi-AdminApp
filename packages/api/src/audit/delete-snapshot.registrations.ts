@@ -1,4 +1,15 @@
-import { Ownership, Team, User, UserTeamMembership } from '@edanalytics/models-server';
+import {
+  EdfiTenant,
+  Edorg,
+  IntegrationProvider,
+  Ods,
+  Ownership,
+  Role,
+  SbEnvironment,
+  Team,
+  User,
+  UserTeamMembership,
+} from '@edanalytics/models-server';
 import { registerDeleteSnapshot } from './delete-snapshot.registry';
 
 /**
@@ -76,5 +87,52 @@ registerDeleteSnapshot(
   { relations: ['user', 'team', 'role'] },
 );
 
+registerDeleteSnapshot(
+  EdfiTenant,
+  (tenant) => ({
+    name: tenant.name,
+    environment: nameOf(tenant.sbEnvironment),
+  }),
+  { relations: ['sbEnvironment'] },
+);
+
+registerDeleteSnapshot(
+  Ods,
+  (ods) => ({
+    dbName: ods.dbName,
+    tenant: nameOf(ods.edfiTenant),
+  }),
+  { relations: ['edfiTenant'] },
+);
+
+// educationOrganizationId is the business key shown to users, not the surrogate row id.
+registerDeleteSnapshot(
+  Edorg,
+  (edorg) => ({
+    nameOfInstitution: edorg.nameOfInstitution,
+    educationOrganizationId: edorg.educationOrganizationId,
+    ods: edorg.ods?.dbName ?? null,
+  }),
+  { relations: ['ods'] },
+);
+
+registerDeleteSnapshot(Role, (role) => ({ name: role.name, type: role.type }));
+
+registerDeleteSnapshot(IntegrationProvider, (provider) => ({ name: provider.name }));
+
+// SbEnvironment holds configPublic (admin API URL) and encrypted configPrivate: name only.
+registerDeleteSnapshot(SbEnvironment, (environment) => ({ name: environment.name }));
+
 /** The entities whose deletes are audited; the registrations spec checks each has a builder. */
-export const AUDITED_DELETE_ENTITIES = [User, Team, Ownership, UserTeamMembership];
+export const AUDITED_DELETE_ENTITIES = [
+  User,
+  Team,
+  Ownership,
+  UserTeamMembership,
+  EdfiTenant,
+  Ods,
+  Edorg,
+  Role,
+  IntegrationProvider,
+  SbEnvironment,
+];
