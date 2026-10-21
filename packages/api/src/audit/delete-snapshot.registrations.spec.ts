@@ -200,6 +200,26 @@ describe('delete snapshot registrations', () => {
       });
       expectNoForbiddenKeys(snapshot);
     });
+    it.each([
+      ['ods', Object.assign(new Ods(), { dbName: 'ods_1' }), 'ods_1 (tenant1)'],
+      [
+        'edorg',
+        Object.assign(new Edorg(), { nameOfInstitution: 'District' }),
+        'District (tenant1)',
+      ],
+    ])('labels an %s resource with its tenant name', (type, resource, label) => {
+      const edfiTenant = Object.assign(new EdfiTenant(), { name: 'tenant1' });
+      const snapshot = build(
+        Ownership,
+        Object.assign(new Ownership(), base, { [type]: Object.assign(resource, { edfiTenant }) }),
+      );
+      expect(snapshot).toEqual({
+        team: 'Team A',
+        role: 'Admin',
+        resourceType: type,
+        resource: label,
+      });
+    });
     it('tolerates missing relations', () => {
       expect(build(Ownership, Object.assign(new Ownership(), { id: 1 }))).toEqual({
         team: null,
@@ -208,18 +228,18 @@ describe('delete snapshot registrations', () => {
         resource: null,
       });
     });
-    it('loads team, role and resource relations', () => {
-      expect(getDeleteSnapshotRelations(Ownership)).toEqual(
-        expect.arrayContaining([
-          'team',
-          'role',
-          'sbEnvironment',
-          'edfiTenant',
-          'ods',
-          'edorg',
-          'integrationProvider',
-        ]),
-      );
+    it('loads team, role, resource and resource tenant relations', () => {
+      expect(getDeleteSnapshotRelations(Ownership)).toEqual([
+        'team',
+        'role',
+        'sbEnvironment',
+        'edfiTenant',
+        'ods',
+        'ods.edfiTenant',
+        'edorg',
+        'edorg.edfiTenant',
+        'integrationProvider',
+      ]);
     });
   });
 

@@ -88,7 +88,7 @@ never included.
 | ---------------------- | --------------------------------------------------------- |
 | User                   | `username`, `userType`, `role`                            |
 | Team                   | `name`                                                    |
-| Ownership              | `team`, `role`, `resourceType`, `resource`                |
+| Ownership              | `team`, `role`, `resourceType`, `resource` (an ODS or edorg resource is labelled with its tenant, e.g. `ods_1 (tenant1)`) |
 | User team membership   | `username`, `team`, `role`                                |
 | Ed-Fi tenant           | `name`, `environment`                                     |
 | ODS                    | `dbName`, `tenant`                                        |

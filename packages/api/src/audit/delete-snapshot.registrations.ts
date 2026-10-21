@@ -22,6 +22,12 @@ type Named = { name?: string | null } | null | undefined;
 
 const nameOf = (target: Named): string | null => target?.name ?? null;
 
+/** ODS and edorg names repeat across tenants, so their labels carry the tenant name. */
+const withTenant = (name: string | null | undefined, tenant: Named): string | null => {
+  const tenantName = nameOf(tenant);
+  return name && tenantName ? `${name} (${tenantName})` : (name ?? null);
+};
+
 const ownershipResource = (ownership: Ownership): { type: string; name: string | null } | null => {
   if (ownership.sbEnvironment) {
     return { type: 'sbEnvironment', name: nameOf(ownership.sbEnvironment) };
@@ -30,10 +36,13 @@ const ownershipResource = (ownership: Ownership): { type: string; name: string |
     return { type: 'edfiTenant', name: nameOf(ownership.edfiTenant) };
   }
   if (ownership.ods) {
-    return { type: 'ods', name: ownership.ods.dbName ?? null };
+    return { type: 'ods', name: withTenant(ownership.ods.dbName, ownership.ods.edfiTenant) };
   }
   if (ownership.edorg) {
-    return { type: 'edorg', name: ownership.edorg.nameOfInstitution ?? null };
+    return {
+      type: 'edorg',
+      name: withTenant(ownership.edorg.nameOfInstitution, ownership.edorg.edfiTenant),
+    };
   }
   if (ownership.integrationProvider) {
     return { type: 'integrationProvider', name: nameOf(ownership.integrationProvider) };
@@ -71,7 +80,9 @@ registerDeleteSnapshot(
       'sbEnvironment',
       'edfiTenant',
       'ods',
+      'ods.edfiTenant',
       'edorg',
+      'edorg.edfiTenant',
       'integrationProvider',
     ],
   },
