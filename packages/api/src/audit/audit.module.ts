@@ -1,10 +1,12 @@
 import { Global, Module, Provider } from '@nestjs/common';
+import { APP_INTERCEPTOR } from '@nestjs/core';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { AuditLog } from '@edanalytics/models-server';
 import config from 'config';
 import { Repository } from 'typeorm';
 import { asBool } from '../utils/config-bool';
 import { AuditActionMiddleware } from './audit-action.middleware';
+import { AuditDeleteInterceptor } from './audit-delete.interceptor';
 import { AuditEventQueue } from './audit-event.queue';
 import { AuditEventRecorder } from './audit-event.recorder';
 import { AuditLogWriter } from './audit-log.writer';
@@ -32,6 +34,7 @@ export const auditProviders: Provider[] = [
     inject: [AuditEventQueue, getRepositoryToken(AuditLog), AUDIT_ENABLED],
   },
   AuditActionMiddleware,
+  { provide: APP_INTERCEPTOR, useClass: AuditDeleteInterceptor },
 ];
 
 @Global()
