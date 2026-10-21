@@ -108,4 +108,51 @@ describe('AuditLogWriter', () => {
 
     expect(insert).not.toHaveBeenCalled();
   });
+
+  it('resolves and logs every event even when serialization throws', async () => {
+    insert.mockRejectedValue(new Error('down'));
+    const circular: AuditEvent = event('/circular');
+    (circular as unknown as { self: unknown }).self = circular;
+    queue.enqueue(circular);
+    queue.enqueue({ ...event('/bigint'), details: 1n as unknown as string });
+
+    const flushing = new AuditLogWriter(queue, repo, true, options).flush();
+    await jest.advanceTimersByTimeAsync(30);
+    await expect(flushing).resolves.toBeUndefined();
+
+    expect(errorSpy.mock.calls.filter(([m]) => String(m).includes('not persisted'))).toHaveLength(
+      2,
+    );
+  });
+
+  it('keeps only one flush in flight while an insert is pending', async () => {
+    insert.mockReturnValue(new Promise(() => undefined));
+    const writer = new AuditLogWriter(queue, repo, true, options);
+    writer.onModuleInit();
+    queue.enqueue(event('/1'));
+
+    await jest.advanceTimersByTimeAsync(5000);
+    queue.enqueue(event('/2'));
+    await jest.advanceTimersByTimeAsync(5000);
+
+    expect(insert).toHaveBeenCalledTimes(1);
+  });
+
+  it('waits for an in-flight flush on shutdown', async () => {
+    let finish: () => void = () => undefined;
+    insert.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));
+    const writer = new AuditLogWriter(queue, repo, true, options);
+    writer.onModuleInit();
+    queue.enqueue(event('/1'));
+    await jest.advanceTimersByTimeAsync(1000);
+
+    let done = false;
+    const shutdown = writer.onApplicationShutdown().then(() => (done = true));
+    await jest.advanceTimersByTimeAsync(100);
+    expect(done).toBe(false);
+
+    finish();
+    await shutdown;
+    expect(done).toBe(true);
+  });
 });

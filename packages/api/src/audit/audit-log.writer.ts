@@ -3,6 +3,7 @@ import { AuditLog } from '@edanalytics/models-server';
 import { Repository } from 'typeorm';
 import { AuditEvent } from './audit-event';
 import { AuditEventQueue } from './audit-event.queue';
+import { safeStringify } from './audit-sanitizer';
 
 export interface AuditLogWriterOptions {
   flushIntervalMs: number;
@@ -24,6 +25,7 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
   private readonly logger = new Logger(AuditLogWriter.name);
   private readonly options: AuditLogWriterOptions;
   private timer?: NodeJS.Timeout;
+  private inFlight?: Promise<void>;
 
   constructor(
     private readonly queue: AuditEventQueue,
@@ -39,27 +41,35 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
       return;
     }
     this.timer = setInterval(() => void this.flush(), this.options.flushIntervalMs);
+    this.timer.unref?.();
   }
 
   async onApplicationShutdown(): Promise<void> {
     clearInterval(this.timer);
     this.timer = undefined;
+    await this.inFlight;
     while (this.enabled && this.queue.size > 0) {
       await this.flush();
     }
   }
 
-  async flush(): Promise<void> {
+  /** Never rejects. Concurrent callers share the flush already in progress. */
+  flush(): Promise<void> {
     if (!this.enabled) {
-      return;
+      return Promise.resolve();
     }
+    this.inFlight ??= this.flushBatch().finally(() => (this.inFlight = undefined));
+    return this.inFlight;
+  }
+
+  private async flushBatch(): Promise<void> {
     const batch = this.queue.drain(this.options.batchSize);
     if (batch.length === 0) {
       return;
     }
     if (!(await this.insertWithRetry(batch))) {
       batch.forEach((event) =>
-        this.logger.error(`Audit event not persisted: ${JSON.stringify(event)}`),
+        this.logger.error(`Audit event not persisted: ${safeStringify(event)}`),
       );
     }
   }

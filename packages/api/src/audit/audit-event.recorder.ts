@@ -1,7 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { AuditEvent } from './audit-event';
 import { AuditEventQueue } from './audit-event.queue';
-import { sanitizeText, stripQueryString } from './audit-sanitizer';
+import { safeStringify, sanitizeText, stripQueryString } from './audit-sanitizer';
 
 const MAX_USERNAME_LENGTH = 256;
 const MAX_URL_LENGTH = 2048;
@@ -28,10 +28,10 @@ export class AuditEventRecorder {
           : null,
       };
       if (!this.queue.enqueue(sanitized)) {
-        this.logger.warn(`Audit queue full, event not persisted: ${JSON.stringify(sanitized)}`);
+        this.logger.warn(`Audit queue full, event not persisted: ${safeStringify(sanitized)}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to record audit event: ${error}`);
+      this.logger.error(`Failed to record audit event: ${error}; event: ${safeStringify(event)}`);
     }
   }
 }
