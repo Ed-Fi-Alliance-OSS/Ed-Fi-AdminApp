@@ -40,4 +40,8 @@ describe('custom-environment-variables.js', () => {
       __format: 'json',
     });
   });
+
+  it('maps AUDIT_LOGGING_ENABLED to the AUDIT_LOGGING_ENABLED env var', () => {
+    expect(customEnvironmentVariables.AUDIT_LOGGING_ENABLED).toBe('AUDIT_LOGGING_ENABLED');
+  });
 });
