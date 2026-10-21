@@ -204,7 +204,7 @@
     "react-refresh": "^0.19.0",
     "rollup-plugin-visualizer": "^7.1.1",
     "semantic-release": "^25.0.9",
-    "storybook": "10.6.1",
+    "storybook": "10.6.3",
     "supertest": "^7.3.1",
     "ts-jest": "29.4.14",
     "ts-node": "^10.9.2",
