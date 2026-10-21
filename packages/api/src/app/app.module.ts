@@ -10,6 +10,7 @@ import { AdminApiModuleV2 } from '../teams/edfi-tenants/starting-blocks/v2/admin
 import { AdminApiModuleV3 } from '../teams/edfi-tenants/starting-blocks/v3/admin-api.v3.module';
 import { AuthCacheGuard } from '../auth/authorization/authorization-cache.guard';
 import { AuthModule } from '../auth/auth.module';
+import { AuditModule } from '../audit/audit.module';
 import { AuthenticatedGuard } from '../auth/login/authenticated.guard';
 import { AuthorizedGuard } from '../auth/authorization/authorized.guard';
 import { EdfiTenantsGlobalModule } from '../edfi-tenants-global/edfi-tenants-global.module';
@@ -65,6 +66,7 @@ import config from 'config';
     AdminApiModuleV1,
     AdminApiModuleV2,
     AdminApiModuleV3,
+    AuditModule,
     AuthModule,
     EdfiTenantsGlobalModule,
     EdfiTenantsModule,
