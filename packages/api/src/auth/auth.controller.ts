@@ -123,10 +123,6 @@ export class AuthController {
           if (loginError) {
             return this.redirectLoginFailure(loginError, request, response, oidcId);
           }
-          this.recordLoginEvent(AuditEventType.LoginSuccess, request, oidcId, {
-            actorUsername: user.username,
-            actorType: 'user',
-          });
           // Track which provider the user authenticated with, and keep the
           // id_token for use as id_token_hint during RP-Initiated Logout.
           // Must happen after logIn, which regenerates the session.
@@ -142,6 +138,10 @@ export class AuthController {
               );
               return this.redirectLoginFailure(saveError, request, response, oidcId);
             }
+            this.recordLoginEvent(AuditEventType.LoginSuccess, request, oidcId, {
+              actorUsername: user.username,
+              actorType: 'user',
+            });
             return response.redirect(`${config.FE_URL}${redirect}`);
           });
         });
@@ -180,7 +180,11 @@ export class AuthController {
         : error.message === NO_ROLE
         ? 'no-role'
         : 'error';
-    this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, { details: reason });
+    this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, {
+      // The unverified claim, attached to the error by the strategy; never surfaced to the browser
+      actorUsername: (error as { username?: string }).username ?? null,
+      details: reason,
+    });
 
     if (error.message === USER_NOT_FOUND) {
       response.redirect(

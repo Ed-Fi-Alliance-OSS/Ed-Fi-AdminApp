@@ -331,6 +331,25 @@ describe('AuthController', () => {
       expect(JSON.stringify(event)).not.toContain('secret-token');
     });
 
+    it.each([
+      ['USER_NOT_FOUND', USER_NOT_FOUND, 'user-not-found'],
+      ['NO_ROLE', NO_ROLE, 'no-role'],
+    ])('records the claimed username on a %s failure', (_name, message, reason) => {
+      mockAuthenticate(Object.assign(new Error(message), { username: 'claim@example.org' }), false);
+
+      callback(callbackRequest());
+
+      expect(record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          eventType: 'LoginFailure',
+          actorUsername: 'claim@example.org',
+          details: reason,
+        })
+      );
+      const redirectUrl = (response.redirect as jest.Mock).mock.calls[0][0];
+      expect(redirectUrl).not.toContain('claim@example.org');
+    });
+
     it('records LoginFailure when the IdP reports no user', () => {
       mockAuthenticate(null, false);
 
@@ -342,7 +361,7 @@ describe('AuthController', () => {
       );
     });
 
-    it('records LoginFailure after LoginSuccess when the session cannot be saved', () => {
+    it('records only LoginFailure when the session cannot be saved', () => {
       mockAuthenticate(null, user, { idToken: 'secret-id-token' });
       const request = callbackRequest();
       (request.session.save as jest.Mock).mockImplementation((cb: (err?: Error) => void) =>
@@ -351,21 +370,23 @@ describe('AuthController', () => {
 
       callback(request);
 
-      expect(record.mock.calls.map(([e]) => e.eventType)).toEqual(['LoginSuccess', 'LoginFailure']);
+      expect(record.mock.calls.map(([e]) => e.eventType)).toEqual(['LoginFailure']);
     });
 
     it('records Logout with the username captured before the session is destroyed', async () => {
       const request = buildRequest({ oidcId: 3, idToken: 'secret-id-token', id: 'sess-123' });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (request as any).user = user;
+      let callsAtDestroy = -1;
       (request.session.destroy as jest.Mock).mockImplementation((cb: (err?: Error) => void) => {
-        // The event must already be recorded when the session is destroyed
-        expect(record).toHaveBeenCalledTimes(1);
+        callsAtDestroy = record.mock.calls.length;
         cb();
       });
 
       await controller.logout(request, response);
 
+      // The event must already be recorded when the session is destroyed
+      expect(callsAtDestroy).toBe(1);
       expect(record).toHaveBeenCalledTimes(1);
       expect(record).toHaveBeenCalledWith(
         expect.objectContaining({
@@ -407,6 +428,32 @@ describe('AuthController', () => {
       await realController.logout(request, response);
 
       const [event] = queue.drain(10);
+      expect(event.actorUsername?.length).toBeLessThanOrEqual(256);
+      expect(event.actorUsername).not.toMatch(/[\n\r]/);
+    });
+
+    it('stores an oversized claimed username on a failed login capped and clean', () => {
+      const queue = new AuditEventQueue(10);
+      const realController = new AuthController(
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        {} as any,
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        { getEndSessionUrl, getSoleOidcId } as any,
+        new AuditEventRecorder(queue, true)
+      );
+      mockAuthenticate(
+        Object.assign(new Error(USER_NOT_FOUND), { username: `a\n${'x'.repeat(10000)}` }),
+        false
+      );
+
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      realController.oidcLoginCallback('3' as any, callbackRequest(), response);
+
+      const [event] = queue.drain(10);
+      expect(event.eventType).toBe('LoginFailure');
+      expect(event.actorUsername?.length).toBeGreaterThan(0);
       expect(event.actorUsername?.length).toBeLessThanOrEqual(256);
       expect(event.actorUsername).not.toMatch(/[\n\r]/);
     });
