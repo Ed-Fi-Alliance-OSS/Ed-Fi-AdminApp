@@ -122,7 +122,9 @@ capacity of 10 000 events.
   (`Audit event not persisted: {json}`).
 - When the queue is full, the new event is written to the application log instead
   (`Audit queue full, event not persisted: {json}`).
-- On graceful shutdown the writer finishes any in-flight batch and drains the queue.
+- On graceful shutdown the writer finishes any in-flight batch and drains the queue, waiting at most
+  5 seconds. Events still unwritten after that (for example because the database hangs) are written
+  to the application log (`Audit event not persisted: {json}`).
 - Events still in memory are lost if the process is killed without a graceful shutdown.
 
 A failure while recording an event is logged and never affects the request.

@@ -48,6 +48,8 @@ import config from 'config';
 
 @Module({
   imports: [
+    // The audit writer flushes on shutdown, so it must shut down before the DataSource is destroyed.
+    // That relies on TypeOrmModule being imported before AuditModule: keep this order.
     TypeOrmModule.forRootAsync({
       useFactory: async (configService: DatabaseConfigService) => {
         return await configService.createTypeOrmOptions();
@@ -66,6 +68,7 @@ import config from 'config';
     AdminApiModuleV1,
     AdminApiModuleV2,
     AdminApiModuleV3,
+    // Must stay after TypeOrmModule (see above) so the audit writer flushes before the DataSource closes.
     AuditModule,
     AuthModule,
     EdfiTenantsGlobalModule,

@@ -159,6 +159,60 @@ describe('AuditLogWriter', () => {
     expect(insert).toHaveBeenCalledTimes(1);
   });
 
+  describe('shutdown timeout', () => {
+    const notPersistedUrls = () =>
+      errorSpy.mock.calls
+        .map(([message]) => String(message))
+        .filter((message) => message.startsWith('Audit event not persisted'));
+
+    it('gives up after the timeout and logs the in-flight and queued events', async () => {
+      insert.mockReturnValue(new Promise(() => undefined));
+      const writer = new AuditLogWriter(queue, repo, true, {
+        ...options,
+        shutdownTimeoutMs: 5000,
+      });
+      writer.onModuleInit();
+      queue.enqueue(event('/in-flight'));
+      await jest.advanceTimersByTimeAsync(1000);
+      queue.enqueue(event('/queued-1'));
+      queue.enqueue(event('/queued-2'));
+
+      let done = false;
+      const shutdown = writer.onApplicationShutdown().then(() => (done = true));
+      await jest.advanceTimersByTimeAsync(4999);
+      expect(done).toBe(false);
+      await jest.advanceTimersByTimeAsync(1);
+      await expect(shutdown).resolves.toBe(true);
+
+      const logged = notPersistedUrls();
+      expect(logged).toHaveLength(3);
+      ['/in-flight', '/queued-1', '/queued-2'].forEach((url, i) =>
+        expect(logged[i]).toContain(url),
+      );
+      expect(queue.size).toBe(0);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it('shuts down without waiting for the timeout when inserts are fast', async () => {
+      const writer = new AuditLogWriter(queue, repo, true, {
+        ...options,
+        shutdownTimeoutMs: 5000,
+      });
+      writer.onModuleInit();
+      queue.enqueue(event('/1'));
+
+      let done = false;
+      const shutdown = writer.onApplicationShutdown().then(() => (done = true));
+      await jest.advanceTimersByTimeAsync(0);
+
+      expect(done).toBe(true);
+      await shutdown;
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(notPersistedUrls()).toHaveLength(0);
+      expect(jest.getTimerCount()).toBe(0);
+    });
+  });
+
   it('waits for an in-flight flush on shutdown', async () => {
     let finish: () => void = () => undefined;
     insert.mockReturnValue(new Promise<void>((resolve) => (finish = resolve)));

@@ -9,12 +9,17 @@ export interface AuditLogWriterOptions {
   flushIntervalMs: number;
   batchSize: number;
   retryDelaysMs: number[];
+  /** How long shutdown waits for pending inserts before logging the remaining events instead. */
+  shutdownTimeoutMs: number;
 }
 
 const DEFAULT_OPTIONS: AuditLogWriterOptions = {
   flushIntervalMs: 1000,
+  // Each row binds 10 parameters, and SQL Server allows at most 2100 per statement:
+  // keep batchSize at or below ~200.
   batchSize: 100,
   retryDelaysMs: [250, 1000],
+  shutdownTimeoutMs: 5000,
 };
 
 const delay = (ms: number) => new Promise<void>((resolve) => setTimeout(resolve, ms));
@@ -26,6 +31,8 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
   private readonly options: AuditLogWriterOptions;
   private timer?: NodeJS.Timeout;
   private inFlight?: Promise<void>;
+  private pendingBatch: AuditEvent[] = [];
+  private abandoned = false;
 
   constructor(
     private readonly queue: AuditEventQueue,
@@ -44,13 +51,48 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
     this.timer.unref?.();
   }
 
+  /** Never rejects, and never waits longer than shutdownTimeoutMs for the database. */
   async onApplicationShutdown(): Promise<void> {
     clearInterval(this.timer);
     this.timer = undefined;
+    if (!this.enabled) {
+      return;
+    }
+    if (!(await this.drainWithin(this.options.shutdownTimeoutMs))) {
+      this.abandonRemaining();
+    }
+  }
+
+  /** Resolves true when every event was handled before the timeout, false otherwise. */
+  private async drainWithin(timeoutMs: number): Promise<boolean> {
+    let timeout: NodeJS.Timeout | undefined;
+    const timedOut = new Promise<boolean>((resolve) => {
+      timeout = setTimeout(() => resolve(false), timeoutMs);
+      timeout.unref?.();
+    });
+    try {
+      return await Promise.race([this.drain().then(() => true), timedOut]);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+
+  private async drain(): Promise<void> {
     await this.inFlight;
-    while (this.enabled && this.queue.size > 0) {
+    while (!this.abandoned && this.queue.size > 0) {
       await this.flush();
     }
+  }
+
+  /**
+   * Logs the in-flight batch and the queue so nothing is silently lost. An in-flight insert that
+   * still completes later can leave an event both in the table and in the log.
+   */
+  private abandonRemaining(): void {
+    this.abandoned = true;
+    const remaining = [...this.pendingBatch, ...this.queue.drain(this.queue.size)];
+    this.pendingBatch = [];
+    remaining.forEach((event) => this.logNotPersisted(event));
   }
 
   /** Never rejects. Concurrent callers share the flush already in progress. */
@@ -67,14 +109,22 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
     if (batch.length === 0) {
       return;
     }
-    if (!(await this.insertWithRetry(batch))) {
-      await this.insertOneByOne(batch);
+    this.pendingBatch = batch;
+    try {
+      if (!(await this.insertWithRetry(batch))) {
+        await this.insertOneByOne(batch);
+      }
+    } finally {
+      this.pendingBatch = [];
     }
   }
 
   /** After the batch fails for good, a single bad row must not take the other rows down with it. */
   private async insertOneByOne(batch: AuditEvent[]): Promise<void> {
     for (const event of batch) {
+      if (this.abandoned) {
+        return; // shutdown already logged this batch
+      }
       try {
         await this.repo.insert([event]);
       } catch {
