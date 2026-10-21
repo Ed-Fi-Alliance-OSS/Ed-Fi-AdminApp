@@ -11,7 +11,7 @@ const event = (overrides: Partial<AuditEvent> = {}): AuditEvent => ({
 });
 
 describe('AuditEventRecorder', () => {
-  const logger = { warn: jest.fn() } as unknown as Logger;
+  const logger = { warn: jest.fn(), error: jest.fn() } as unknown as Logger;
 
   beforeEach(() => jest.clearAllMocks());
 
@@ -79,6 +79,29 @@ describe('AuditEventRecorder', () => {
     expect(recorded.sourceIpAddress).toBe('10.0.0.1');
     expect(recorded.oidcId).toBe('id1');
     expect(recorded.httpVerb).toBe('DELETE');
+  });
+
+  it('logs only the event type and query-free url when recording fails', () => {
+    const queue = new AuditEventQueue(10);
+    jest.spyOn(queue, 'enqueue').mockImplementation(() => {
+      throw new Error('boom');
+    });
+    const recorder = new AuditEventRecorder(queue, true, logger);
+
+    expect(() =>
+      recorder.record(
+        event({ actorUsername: 'alice', httpUrl: '/api/things?token=secret', details: 'snap' }),
+      ),
+    ).not.toThrow();
+
+    expect(logger.error).toHaveBeenCalledTimes(1);
+    const message = String((logger.error as jest.Mock).mock.calls[0][0]);
+    expect(message).toContain('boom');
+    expect(message).toContain('Action');
+    expect(message).toContain('/api/things');
+    expect(message).not.toContain('secret');
+    expect(message).not.toContain('alice');
+    expect(message).not.toContain('snap');
   });
 
   it('logs the event and does not throw when the queue is full', () => {

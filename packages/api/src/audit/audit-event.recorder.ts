@@ -26,6 +26,16 @@ function sanitizeEvent(event: AuditEvent): AuditEvent {
   };
 }
 
+/** Event type and query-free URL only: the raw event may hold secrets in its query string. */
+function describeForLog(event: AuditEvent): string {
+  const eventType = sanitizeText(String(event?.eventType), AUDIT_COLUMN_LENGTHS.eventType);
+  const url =
+    typeof event?.httpUrl === 'string'
+      ? sanitizeText(stripQueryString(event.httpUrl), AUDIT_COLUMN_LENGTHS.httpUrl)
+      : null;
+  return [eventType, url].filter(Boolean).join(' ');
+}
+
 /** Entry point for emitting audit events. Never throws: auditing must not break the request. */
 @Injectable()
 export class AuditEventRecorder {
@@ -45,7 +55,7 @@ export class AuditEventRecorder {
         this.logger.warn(`Audit queue full, event not persisted: ${safeStringify(sanitized)}`);
       }
     } catch (error) {
-      this.logger.error(`Failed to record audit event: ${error}; event: ${safeStringify(event)}`);
+      this.logger.error(`Failed to record audit event ${describeForLog(event)}: ${error}`);
     }
   }
 }
