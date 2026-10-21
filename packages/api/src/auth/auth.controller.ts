@@ -33,6 +33,9 @@ import { randomUUID } from 'crypto';
 import type { Response, Request } from 'express';
 import passport from 'passport';
 import { Repository } from 'typeorm';
+import { AuditEvent, AuditEventType } from '../audit/audit-event';
+import { AuditEventRecorder } from '../audit/audit-event.recorder';
+import { resolveActor } from '../audit/audit-actor.resolver';
 import { Authorize, NoAuthorization } from './authorization';
 import { Public } from './authorization/public.decorator';
 import { AuthCache } from './helpers/inject-auth-cache';
@@ -53,7 +56,8 @@ export class AuthController {
     @InjectRepository(Team)
     private readonly teamsRepository: Repository<Team>,
     private readonly authService: AuthService,
-    private readonly oidcProviderRegistry: OidcProviderRegistry
+    private readonly oidcProviderRegistry: OidcProviderRegistry,
+    private readonly auditEventRecorder: AuditEventRecorder
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -109,15 +113,20 @@ export class AuthController {
       `oidc-${oidcId}`,
       (error: Error | null, user: User | false, info?: OidcLoginInfo) => {
         if (error) {
-          return this.redirectLoginFailure(error, response);
+          return this.redirectLoginFailure(error, request, response, oidcId);
         }
         if (!user) {
+          this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, { details: 'error' });
           return response.redirect(`${config.FE_URL}/unauthenticated`);
         }
         request.logIn(user, (loginError: Error | null) => {
           if (loginError) {
-            return this.redirectLoginFailure(loginError, response);
+            return this.redirectLoginFailure(loginError, request, response, oidcId);
           }
+          this.recordLoginEvent(AuditEventType.LoginSuccess, request, oidcId, {
+            actorUsername: user.username,
+            actorType: 'user',
+          });
           // Track which provider the user authenticated with, and keep the
           // id_token for use as id_token_hint during RP-Initiated Logout.
           // Must happen after logIn, which regenerates the session.
@@ -131,17 +140,47 @@ export class AuthController {
               Logger.error(
                 `Failed to persist session after login for provider ${oidcId}: ${saveError}`
               );
-              return this.redirectLoginFailure(saveError, response);
+              return this.redirectLoginFailure(saveError, request, response, oidcId);
             }
             return response.redirect(`${config.FE_URL}${redirect}`);
           });
         });
       }
-    )(request, response, (error: Error) => this.redirectLoginFailure(error, response));
+    )(request, response, (error: Error) =>
+      this.redirectLoginFailure(error, request, response, oidcId)
+    );
   }
 
-  private redirectLoginFailure(error: Error, response: Response) {
+  private recordLoginEvent(
+    eventType: AuditEventType,
+    request: Request,
+    oidcId: number | string | undefined | null,
+    extra: Pick<AuditEvent, 'actorUsername' | 'actorType' | 'details'> = {}
+  ) {
+    this.auditEventRecorder.record({
+      eventType,
+      timestamp: new Date(),
+      sourceIpAddress: request.ip,
+      oidcId: oidcId === undefined || oidcId === null ? null : String(oidcId),
+      ...extra,
+    });
+  }
+
+  private redirectLoginFailure(
+    error: Error,
+    request: Request,
+    response: Response,
+    oidcId: number | string
+  ) {
     Logger.error(error);
+    // Only a short reason code is audited, never the raw error message
+    const reason =
+      error.message === USER_NOT_FOUND
+        ? 'user-not-found'
+        : error.message === NO_ROLE
+        ? 'no-role'
+        : 'error';
+    this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, { details: reason });
 
     if (error.message === USER_NOT_FOUND) {
       response.redirect(
@@ -287,6 +326,13 @@ export class AuthController {
 
     // Read the login provider before destroying the session
     const { oidcId, idToken } = request.session;
+    // Record before the session (and request.user) is destroyed. An anonymous
+    // logout is still recorded, with a null actor, so the attempt is visible.
+    const actor = resolveActor(request);
+    this.recordLoginEvent(AuditEventType.Logout, request, oidcId, {
+      actorUsername: actor?.username ?? null,
+      actorType: actor?.type ?? null,
+    });
 
     try {
       // Destroy the local session first
