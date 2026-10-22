@@ -8,15 +8,17 @@ import { ApiQuery, ApiTags } from '@nestjs/swagger';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
 import { CatalogQueryService } from './catalog/catalog-query.service';
+import { CertificationSupportInterceptor } from './certification-support.interceptor';
 
 /**
  * Read-only access to the certification catalog synced from the artifact.
  * The catalog is not tenant-specific, so routes are scoped to the environment only.
  * The environment ID is still validated (400) and resolved (404) so an unknown
- * environment doesn't return the catalog.
+ * environment doesn't return the catalog, and an environment below Ed-Fi Data Model
+ * 5.0.0 is refused (400).
  */
 @ApiTags('Certification')
-@UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
+@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, CertificationSupportInterceptor)
 @Controller('sb-environments/:sbEnvironmentId/certification')
 export class CertificationCatalogController {
   constructor(private readonly catalogQueryService: CatalogQueryService) {}

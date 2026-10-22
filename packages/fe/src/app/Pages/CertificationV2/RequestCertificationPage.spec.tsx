@@ -68,6 +68,7 @@ const catalogAreas = [
 ];
 const loadedCatalog = {
   dataStandardVersion: 'v5',
+  isSupported: true,
   catalogVersion: {
     catalogVersionId: 2,
     artifactVersion: 'v2.1.0',
@@ -182,17 +183,75 @@ describe('RequestCertificationPage', () => {
     expect(screen.queryByText(/No certification catalog/)).toBeNull();
   });
 
-  it('warns when the environment has no data standard version', () => {
+  it('shows only an inline warning with Cancel when the environment does not support certification', () => {
+    const clearAuth = jest.fn();
+    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null, setAuth: jest.fn(), clearAuth });
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: 'v4',
+      unsupportedMessage: 'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
+      catalogVersion: undefined,
+      areas: [],
+      isPending: false,
+    });
+    mockQueries(multiTenantEnv, tenants, odss);
+    render(<RequestCertificationPage />);
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
+    );
+    expect(screen.queryByText('Tenant')).toBeNull();
+    expect(screen.queryByTestId('auth-form')).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(clearAuth).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('..');
+  });
+
+  // Tenant (and so ODS) queries throw to the route error page on failure, which would
+  // replace the warning; they must not run until the environment is known to be supported.
+  const tenantsQueryEnabled = () =>
+    (useQuery as jest.Mock).mock.calls
+      .map(([options]) => options as { key: string; enabled?: boolean })
+      .filter((options) => options.key === 'tenants')
+      .at(-1)?.enabled;
+
+  it.each([
+    ['unsupported', { unsupportedMessage: 'Not supported.', isSupported: false }],
+    ['still loading', { isSupported: false, isPending: true }],
+  ])('does not request tenants while the environment is %s', (_, state) => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: undefined,
       catalogVersion: undefined,
       areas: [],
       isPending: false,
+      ...state,
     });
-    mockQueries(multiTenantEnv, tenants, {});
+    mockQueries(multiTenantEnv, tenants, odss);
     render(<RequestCertificationPage />);
-    expect(screen.getByText(/data standard version is unknown/)).toBeTruthy();
-    expect(screen.getByText('Certification version not available')).toBeTruthy();
+
+    expect(tenantsQueryEnabled()).toBe(false);
+  });
+
+  it('shows a loading state, not the empty form, until the environment loads', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: undefined,
+      isSupported: false,
+      catalogVersion: undefined,
+      areas: [],
+      isPending: true,
+    });
+    (useQuery as jest.Mock).mockReturnValue({ data: undefined, isPending: true });
+    render(<RequestCertificationPage />);
+
+    expect(screen.getByText('Loading...')).toBeTruthy();
+    expect(screen.queryByText('Tenant')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
+  it('requests tenants once the environment supports certification', () => {
+    mockQueries(multiTenantEnv, tenants, odss);
+    render(<RequestCertificationPage />);
+
+    expect(tenantsQueryEnabled()).toBe(true);
   });
 
   it('labels the ODS field "Data Store" on v3 and no longer shows an API address', () => {

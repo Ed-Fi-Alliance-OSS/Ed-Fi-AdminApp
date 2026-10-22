@@ -69,6 +69,7 @@ const buildSbEnvironment = (
     version,
     startingBlocks,
     configPublic,
+    odsDsVersion: '5.2.0',
   }) as unknown as GetSbEnvironmentDto;
 
 type Auth = {
@@ -329,6 +330,21 @@ describe('useSbEnvironmentGlobalActions', () => {
       const env = { ...buildSbEnvironment('v2', false), version: undefined } as GetSbEnvironmentDto;
       const actions = setup(env, { ...certAuth });
       expect(actions.RequestCert).toBeUndefined();
+    });
+
+    it.each(['v1', 'v2', 'v3'] as const)(
+      'is absent for a %s environment on Ed-Fi Data Model 4.0.0, even when the flag is on',
+      (version) => {
+        enableCertificationFlag();
+        const env = { ...buildSbEnvironment(version, false), odsDsVersion: '4.0.0' };
+        expect(setup(env as GetSbEnvironmentDto, { ...certAuth }).RequestCert).toBeUndefined();
+      }
+    );
+
+    it('is absent for an environment whose data model is unknown, even when the flag is on', () => {
+      enableCertificationFlag();
+      const env = { ...buildSbEnvironment('v3', false), odsDsVersion: undefined };
+      expect(setup(env as GetSbEnvironmentDto, { ...certAuth }).RequestCert).toBeUndefined();
     });
 
     it.each([

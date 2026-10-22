@@ -1,7 +1,17 @@
+import { INTERCEPTORS_METADATA } from '@nestjs/common/constants';
+import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
+import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationTokenController } from './certification-token.controller';
 
 describe('CertificationTokenController', () => {
+  it('resolves the environment, then refuses unsupported data models', () => {
+    expect(Reflect.getMetadata(INTERCEPTORS_METADATA, CertificationTokenController)).toEqual([
+      SbEnvironmentEdfiTenantInterceptor,
+      CertificationSupportInterceptor,
+    ]);
+  });
+
   it('passes the tenant, environment and body to the service and serializes the result', async () => {
     const service = {
       requestToken: jest.fn().mockResolvedValue({

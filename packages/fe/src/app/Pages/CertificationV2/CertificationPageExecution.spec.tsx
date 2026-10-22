@@ -253,6 +253,34 @@ describe('CertificationPageExecution', () => {
     expect(mockNavigate).not.toHaveBeenCalled();
   });
 
+  it('shows an inline warning instead of redirecting when the environment does not support certification', () => {
+    const clearAuth = jest.fn();
+    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null, setAuth: jest.fn(), clearAuth });
+    (useCertificationSelection as jest.Mock).mockReturnValue({
+      edfiTenantId: 10,
+      odsId: undefined,
+      scenarioId: 52,
+    });
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: 'v4',
+      unsupportedMessage: 'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
+      catalogVersion: undefined,
+      areas: [],
+      isPending: false,
+    });
+    render(<CertificationPageExecution />);
+
+    expect(screen.getByRole('alert').textContent).toBe(
+      'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
+    );
+    expect(useCertificationSteps).toHaveBeenCalledWith(1, undefined);
+    expect(mockNavigate).not.toHaveBeenCalled();
+    // The request page would only repeat the warning, so Cancel goes to the environment.
+    fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
+    expect(clearAuth).toHaveBeenCalled();
+    expect(mockNavigate).toHaveBeenCalledWith('/sb-environments/1');
+  });
+
   it('redirects when the scenario is not in the catalog', () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
