@@ -26,8 +26,10 @@ import {
   toApplicationYopassResponseDto,
   toPostApiClientResponseDtoV2,
   toPostApplicationResponseDtoV2,
+  OdsManageJobData,
+  toSbSyncQueueDto,
 } from '@edanalytics/models';
-import { EdfiTenant, Edorg, Ods, SbEnvironment } from '@edanalytics/models-server';
+import { EdfiTenant, Edorg, Ods, SbEnvironment, SbSyncQueue } from '@edanalytics/models-server';
 import {
   BadRequestException,
   Body,
@@ -80,6 +82,7 @@ import { AdminApiServiceV2 } from './admin-api.v2.service';
 import { IntegrationAppsTeamService } from '../../../../integration-apps-team/integration-apps-team.service';
 import { ENV_SYNC_CHNL } from '../../../../sb-sync/sb-sync.module';
 import { IJobQueueService } from '../../../../sb-sync/job-queue/job-queue.interface';
+import { queueOdsManageJob } from '../../../../sb-sync/queue-ods-manage-job';
 import config from 'config';
 
 @Injectable()
@@ -107,8 +110,25 @@ export class AdminApiControllerV2 {
     private readonly sbService: AdminApiServiceV2,
     @InjectRepository(Edorg) private readonly edorgRepository: Repository<Edorg>,
     @InjectRepository(Ods) private readonly odsRepository: Repository<Ods>,
-    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService
+    @Inject('IJobQueueService') private readonly jobQueue: IJobQueueService,
+    @InjectRepository(SbSyncQueue) private readonly queueRepository: Repository<SbSyncQueue>
   ) {}
+
+  /**
+   * Queues the `ods-manage` tracking job. The Admin API operation has already succeeded by the
+   * time this runs, so a queueing failure must not fail the request; it only costs the outcome banner.
+   */
+  private async tryQueueOdsManageJob(data: OdsManageJobData) {
+    try {
+      const queueItem = await queueOdsManageJob(this.jobQueue, this.queueRepository, data);
+      return queueItem ? toSbSyncQueueDto(queueItem) : undefined;
+    } catch (err) {
+      Logger.warn(
+        `Could not queue ods-manage job for Admin API job ${data.adminApiJobId}: ${String(err)}`
+      );
+      return undefined;
+    }
+  }
 
   /** Check application edorg IDs against auth cache for _safe_ operations (GET). Requires `some` ID to be authorized. */
   private checkApplicationEdorgsForSafeOperations(
@@ -1234,7 +1254,18 @@ export class AdminApiControllerV2 {
         { expireInHours: 2 }
       );
 
-      return { id: createdOds.id };
+      const syncQueue = createdInstance.jobId
+        ? await this.tryQueueOdsManageJob({
+              sbEnvironmentId: edfiTenant.sbEnvironmentId,
+              edfiTenantId: edfiTenant.id,
+              adminApiJobId: createdInstance.jobId,
+              operation: 'create',
+              odsName: instance.name,
+              odsId: createdOds.id,
+            })
+        : undefined;
+
+      return syncQueue ? { id: createdOds.id, syncQueue } : { id: createdOds.id };
     } catch (PostError: unknown) {
       Logger.error(
         'Admin API postInstance failed: ' +
@@ -1309,7 +1340,7 @@ export class AdminApiControllerV2 {
       throw new BadRequestException("ODS must be in 'Created' status to delete by instanceManageId");
     }
 
-    await this.sbService.deleteInstance(edfiTenant, instanceManageId);
+    const deleted = await this.sbService.deleteInstance(edfiTenant, instanceManageId);
 
     await this.odsRepository.save({
       ...localOds,
@@ -1322,7 +1353,18 @@ export class AdminApiControllerV2 {
       { expireInHours: 2 }
     );
 
-    return undefined;
+    const syncQueue = deleted?.jobId
+      ? await this.tryQueueOdsManageJob({
+            sbEnvironmentId: edfiTenant.sbEnvironmentId,
+            edfiTenantId: edfiTenant.id,
+            adminApiJobId: deleted.jobId,
+            operation: 'delete',
+            odsName: localOds.odsInstanceName ?? localOds.dbName,
+            odsId: localOds.id,
+          })
+      : undefined;
+
+    return syncQueue ? { syncQueue } : {};
   }
 
   @Post('profiles')

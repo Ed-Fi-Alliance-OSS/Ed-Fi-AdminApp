@@ -73,6 +73,12 @@ declare module 'config' {
     ADMINAPI_REFRESH_POLL_ATTEMPTS: number;
     /** Milliseconds to wait between EdOrg refresh job poll attempts (default: 5000) */
     ADMINAPI_REFRESH_POLL_INTERVAL_MS: number;
+    /** Milliseconds between polls of an Admin API datastore create/delete job (default: 5000) */
+    ADMINAPI_DATASTORE_JOB_POLL_INTERVAL_MS: number;
+    /** Max poll attempts for an Admin API datastore create/delete job (default: 720, i.e. 60 min) */
+    ADMINAPI_DATASTORE_JOB_POLL_ATTEMPTS: number;
+    /** Datastore jobs one API instance tracks at once (default: 5) */
+    ADMINAPI_DATASTORE_JOB_CONCURRENCY: number;
 
     SAMPLE_OIDC_CONFIG?: {
       issuer: string;

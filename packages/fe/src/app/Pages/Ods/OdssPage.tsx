@@ -17,9 +17,10 @@ import {
 import { useOdssActions } from './useOdssActions';
 import { Badge, HStack, Link } from '@chakra-ui/react';
 import { Link as RouterLink, useNavigate } from 'react-router';
-import { GetOdsDto } from '@edanalytics/models';
+import { DeleteInstanceResponseDto, GetOdsDto } from '@edanalytics/models';
 import { odsStatusDisplayMap } from './Utils';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
+import { popSyncBanner } from '../../helpers/popSyncBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 
 const withPendingDeleteStatus = <T extends { status: string | null }>(value: T): T =>
@@ -69,7 +70,20 @@ const useOdsRowActions = (ods: GetOdsDto) => {
             );
             return deleteInstance.mutateAsync(
               { id: ods.instanceManageId! },
-              mutationErrCallback({ popGlobalBanner: popBanner })
+              {
+                ...mutationErrCallback({ popGlobalBanner: popBanner }),
+                onSuccess: (data: unknown) => {
+                  const syncQueue = (data as DeleteInstanceResponseDto | undefined)?.syncQueue;
+                  if (syncQueue) {
+                    popSyncBanner({
+                      popBanner,
+                      syncQueue,
+                      linkTo: `/as/${teamId}/sb-environments/${edfiTenant.sbEnvironmentId}/edfi-tenants/${edfiTenant.id}/odss/jobs/delete/${syncQueue.id}`,
+                      subject: `${terminology.singular} deletion`,
+                    });
+                  }
+                },
+              }
             );
           },
         }
