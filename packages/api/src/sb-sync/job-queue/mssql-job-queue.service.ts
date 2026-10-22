@@ -23,6 +23,9 @@ export class MssqlJobQueueService
   private scheduleTimer: NodeJS.Timeout | undefined;
   private isRunning = false;
   private lastDiagnosticLog = 0; // timestamp of last diagnostic log to avoid spam
+  // Lease on a claimed job; renewed while its handler runs (see runClaimedJob)
+  private readonly leaseMinutes = 5;
+  private readonly leaseRenewMs = 60_000;
   private readonly pollIntervalMs: number;
   private readonly scheduleIntervalMs: number;
 
@@ -263,15 +266,13 @@ export class MssqlJobQueueService
   }
 
   private async claimJobs(top: number, nameFilter: string, params: unknown[]): Promise<JobQueue[]> {
-    const leaseMinutes = 5;
-
     // Use GETUTCDATE() + server-side DATEADD for leaseUntil so it uses the same clock
     // as the expirein/availableAt comparisons — avoids Node.js vs SQL Server clock skew.
     return this.jobRepository.query(
       `UPDATE TOP (${top}) job_queue WITH (UPDLOCK, ROWLOCK, READPAST)
        SET state      = 'active',
            startedon  = GETUTCDATE(),
-           leaseUntil = DATEADD(MINUTE, ${leaseMinutes}, GETUTCDATE())
+           leaseUntil = DATEADD(MINUTE, ${this.leaseMinutes}, GETUTCDATE())
        OUTPUT INSERTED.*
        WHERE state IN ('created', 'retry')
          AND (availableAt IS NULL OR availableAt <= GETUTCDATE())
@@ -281,13 +282,30 @@ export class MssqlJobQueueService
     );
   }
 
-  // Counts the handler against its queue's capacity until it settles.
+  // Counts the handler against its queue's capacity until it settles, and renews the job's lease
+  // meanwhile so a long handler (e.g. an hour-long ods-manage poll) is never seen as stale by
+  // another instance's startup sweeper (recoverStaleJobs).
   private async runClaimedJob(job: JobQueue): Promise<void> {
     this.activeHandlers.set(job.name, (this.activeHandlers.get(job.name) ?? 0) + 1);
+    const heartbeat = setInterval(() => void this.renewLease(job.id), this.leaseRenewMs);
     try {
       await this.executeJob(job);
     } finally {
+      clearInterval(heartbeat);
       this.activeHandlers.set(job.name, (this.activeHandlers.get(job.name) ?? 1) - 1);
+    }
+  }
+
+  private async renewLease(jobId: string): Promise<void> {
+    try {
+      await this.jobRepository.query(
+        `UPDATE job_queue SET leaseUntil = DATEADD(MINUTE, ${this.leaseMinutes}, GETUTCDATE())
+         WHERE id = @0 AND state = 'active'`,
+        [jobId]
+      );
+    } catch (err) {
+      // The next renewal retries; the lease only lapses after leaseMinutes without one.
+      this.logger.warn(`Could not renew lease for job ${jobId}: ${(err as Error).message}`);
     }
   }
 

@@ -120,9 +120,8 @@ export class AdminApiControllerV2 {
    */
   private async tryQueueOdsManageJob(data: OdsManageJobData) {
     try {
-      return toSbSyncQueueDto(
-        await queueOdsManageJob(this.jobQueue, this.queueRepository, data)
-      );
+      const queueItem = await queueOdsManageJob(this.jobQueue, this.queueRepository, data);
+      return queueItem ? toSbSyncQueueDto(queueItem) : undefined;
     } catch (err) {
       Logger.warn(
         `Could not queue ods-manage job for Admin API job ${data.adminApiJobId}: ${String(err)}`

@@ -1,4 +1,4 @@
-import { PostOdsDto, PutOdsDto, toGetOdsDto } from '@edanalytics/models';
+import { PostOdsDto, PutOdsDto, safeJsonParse, toGetOdsDto } from '@edanalytics/models';
 import { EdfiTenant, Edorg, Ods, SbEnvironment, SbSyncQueue, regarding } from '@edanalytics/models-server';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -8,14 +8,6 @@ import { StartingBlocksServiceV2 } from '../starting-blocks';
 
 // Job ids are UUIDs on both queue backends (pg-boss and the MSSQL job_queue).
 const UUID_PATTERN = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
-
-const safeParse = (text: string): unknown => {
-  try {
-    return JSON.parse(text);
-  } catch {
-    return null;
-  }
-};
 
 @Injectable()
 export class OdssService {
@@ -41,7 +33,7 @@ export class OdssService {
     }
     const job = await this.syncQueueRepository.findOneBy({ id: jobId });
     // data may arrive as JSON text on MSSQL
-    const data: unknown = typeof job?.data === 'string' ? safeParse(job.data) : job?.data;
+    const data: unknown = typeof job?.data === 'string' ? safeJsonParse(job.data) : job?.data;
     const jobOperation = (data as { operation?: string } | null | undefined)?.operation;
     if (
       !job ||

@@ -46,19 +46,17 @@ describe('queueOdsManageJob', () => {
       data,
     });
     const result = await queueOdsManageJob(jobQueue, repo, data);
-    expect(result.id).toBe('job-1');
-    expect(result.state).toBe('failed');
-    expect(result.output).toBeUndefined();
-    expect(result.data).toBeUndefined();
+    expect(result?.id).toBe('job-1');
+    expect(result?.state).toBe('failed');
+    expect(result?.output).toBeUndefined();
+    expect(result?.data).toBeUndefined();
   });
 
-  it('falls back to a created row when it never appears', async () => {
+  it('returns undefined (no banner) when the row never appears', async () => {
     findOneBy.mockResolvedValue(null);
     const promise = queueOdsManageJob(jobQueue, repo, data);
     await jest.advanceTimersByTimeAsync(500 * 20);
-    const result = await promise;
-    expect(result.id).toBe('job-1');
-    expect(result.state).toBe('created');
+    await expect(promise).resolves.toBeUndefined();
     expect(findOneBy).toHaveBeenCalledTimes(20);
   });
 });

@@ -208,6 +208,30 @@ describe('MssqlJobQueueService', () => {
       expect(handler).toHaveBeenCalledTimes(3);
     });
 
+    it('renews the lease while a handler runs, and stops once it settles', async () => {
+      jest.useFakeTimers();
+      try {
+        let finish!: () => void;
+        await service.work('test-queue', () => new Promise<void>((resolve) => (finish = resolve)));
+        const run = (service as any).runClaimedJob(buildMockJob());
+        const renewals = () =>
+          mockJobRepository.query.mock.calls.filter(([sql]: [string]) =>
+            sql.includes('SET leaseUntil')
+          );
+
+        await jest.advanceTimersByTimeAsync(60_000 * 3);
+        expect(renewals()).toHaveLength(3);
+        expect(renewals()[0][1]).toEqual(['job-001']);
+
+        finish();
+        await run;
+        await jest.advanceTimersByTimeAsync(60_000 * 3);
+        expect(renewals()).toHaveLength(3);
+      } finally {
+        jest.useRealTimers();
+      }
+    });
+
     it('excludes capped queues from the general claim', async () => {
       (service as any).isRunning = true;
       await service.work('capped-queue', jest.fn(), { localConcurrency: 5 });

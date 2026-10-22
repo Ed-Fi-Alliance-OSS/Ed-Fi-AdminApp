@@ -115,12 +115,16 @@ export class SbSyncConsumer implements OnModuleInit {
 
       // The handler polls Admin API in-process for a long time, so allow several datastore
       // operations to be tracked at once instead of queueing them one behind another.
+      const rawConcurrency = Number(config.ADMINAPI_DATASTORE_JOB_CONCURRENCY);
       await this.jobQueue.work(
         ODS_MANAGE_CHNL,
         async (job: Job<OdsManageJobData>) => {
           return this.odsManageJobService.handle(job);
         },
-        { localConcurrency: 5 }
+        {
+          localConcurrency:
+            Number.isInteger(rawConcurrency) && rawConcurrency >= 1 ? rawConcurrency : 5,
+        }
       );
 
       Logger.log('Sync workers registered successfully');

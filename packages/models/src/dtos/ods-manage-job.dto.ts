@@ -36,7 +36,7 @@ type OdsManageJobSource = {
 };
 
 const pickMessage = (output: unknown): { message: string } | null => {
-  const parsed = typeof output === 'string' ? safeParse(output) : output;
+  const parsed = typeof output === 'string' ? safeJsonParse(output) : output;
   if (parsed && typeof parsed === 'object' && 'message' in parsed) {
     const message = (parsed as { message: unknown }).message;
     return message === undefined || message === null ? null : { message: String(message) };
@@ -44,7 +44,8 @@ const pickMessage = (output: unknown): { message: string } | null => {
   return null;
 };
 
-const safeParse = (text: string): unknown => {
+/** JSON.parse that returns null instead of throwing (job data/output may arrive as text on MSSQL). */
+export const safeJsonParse = (text: string): unknown => {
   try {
     return JSON.parse(text);
   } catch {
@@ -59,6 +60,6 @@ export const toOdsManageJobDto = (job: OdsManageJobSource): OdsManageJobDto =>
     state: job.state,
     createdon: job.createdon,
     completedon: job.completedon ?? null,
-    data: (typeof job.data === 'string' ? safeParse(job.data) : job.data) as OdsManageJobData,
+    data: (typeof job.data === 'string' ? safeJsonParse(job.data) : job.data) as OdsManageJobData,
     output: pickMessage(job.output),
   });

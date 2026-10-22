@@ -14,30 +14,30 @@ const POLL_INTERVAL_MS = 500;
  * Returns only the id and state: the response reaches team users, and a job that already
  * failed would otherwise carry its output (including the stack). The team job endpoint
  * exposes the error message.
+ *
+ * Returns undefined if the row isn't visible in time, so the caller shows no banner rather
+ * than one linking to a job page that would 404. The job itself still runs.
  */
 export async function queueOdsManageJob(
   jobQueue: IJobQueueService,
   queueRepository: Repository<SbSyncQueue>,
   data: OdsManageJobData
-): Promise<SbSyncQueue> {
+): Promise<SbSyncQueue | undefined> {
   const id = await jobQueue.send(ODS_MANAGE_CHNL, data, {
     // pg-boss 12 only honors expireInSeconds; the handler polls Admin API for up to ~1h.
     expireInSeconds: 7200,
     retryLimit: 0,
   });
 
-  let state: SbSyncQueue['state'] = 'created';
   for (let i = 0; i < MAX_ATTEMPTS; i++) {
     const queueItem = await queueRepository.findOneBy({ id });
     if (queueItem) {
-      state = queueItem.state;
-      break;
+      const result = new SbSyncQueue();
+      result.id = id;
+      result.state = queueItem.state;
+      return result;
     }
     await new Promise<void>((resolve) => setTimeout(resolve, POLL_INTERVAL_MS));
   }
-
-  const result = new SbSyncQueue();
-  result.id = id;
-  result.state = state;
-  return result;
+  return undefined;
 }
