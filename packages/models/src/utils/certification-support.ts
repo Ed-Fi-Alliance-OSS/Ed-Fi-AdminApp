@@ -25,12 +25,15 @@ export const supportsCertification = (odsDsVersion: string | undefined): boolean
 };
 
 /**
- * Why certification isn't offered and what to do next. Shared by the API refusal and the
- * certification pages so both say the same thing. Uses the UI's "data standard" wording.
+ * Why certification isn't offered. Shared by the API refusal and the certification pages so
+ * both say the same thing. Uses the UI's "data standard" wording.
+ * The stored version is only refreshed when an environment is connected (and by the Starting
+ * Blocks sync); editing it doesn't. Re-connecting means deleting the environment, so the
+ * message states the facts and doesn't prescribe that.
  */
 export const certificationUnsupportedMessage = (odsDsVersion: string | undefined): string => {
   const requirement = `Certification requires Ed-Fi Data Standard ${MIN_CERTIFICATION_DATA_MODEL} or later.`;
   return typeof odsDsVersion === 'string' && odsDsVersion.trim()
-    ? `${requirement} Admin App has this environment's data standard version as ${odsDsVersion.trim()}. If its Ed-Fi API has been upgraded since the environment was connected, connect the environment again so Admin App picks up the new version.`
-    : `${requirement} Admin App couldn't read this environment's data standard version from its Ed-Fi API. Check the environment's Ed-Fi API Discovery URL, then connect the environment again.`;
+    ? `${requirement} This environment's data standard version is ${odsDsVersion.trim()}, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.`
+    : `${requirement} Admin App couldn't read this environment's data standard version from its Ed-Fi API when the environment was connected.`;
 };

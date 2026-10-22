@@ -57,19 +57,26 @@ describe('supportsCertification', () => {
   );
 });
 
+// The stored version is only refreshed when an environment is connected, and re-connecting
+// means deleting it (tenants, ODSs, ownerships, saved runs), so the message must state the
+// facts without telling the admin to do that.
 describe('certificationUnsupportedMessage', () => {
-  it('names the stored version and how to refresh it', () => {
+  it('names the stored version and that it is not refreshed after an upgrade', () => {
     expect(certificationUnsupportedMessage('4.0.0')).toBe(
-      "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App has this environment's data standard version as 4.0.0. If its Ed-Fi API has been upgraded since the environment was connected, connect the environment again so Admin App picks up the new version.",
+      "Certification requires Ed-Fi Data Standard 5.0.0 or later. This environment's data standard version is 4.0.0, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.",
     );
   });
 
   it.each([[undefined], [''], [5 as never]])(
-    'explains how to fix an unreadable version %p',
+    'says the version could not be read for %p',
     (odsDsVersion) => {
       expect(certificationUnsupportedMessage(odsDsVersion)).toBe(
-        "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App couldn't read this environment's data standard version from its Ed-Fi API. Check the environment's Ed-Fi API Discovery URL, then connect the environment again.",
+        "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App couldn't read this environment's data standard version from its Ed-Fi API when the environment was connected.",
       );
     },
   );
+
+  it.each([['4.0.0'], [undefined]])('never tells the admin to connect %p again', (odsDsVersion) => {
+    expect(certificationUnsupportedMessage(odsDsVersion)).not.toMatch(/connect the environment again|delete/i);
+  });
 });

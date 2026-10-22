@@ -5,14 +5,20 @@ import { CertificationSupportInterceptor } from './certification-support.interce
 const nextHandler = { handle: jest.fn().mockReturnValue('handled') } as unknown as CallHandler;
 
 // SbEnvironmentEdfiTenantInterceptor runs first and leaves the environment on the request.
-const contextFor = (sbEnvironment: { odsDsVersion: string | undefined } | undefined) =>
+const contextFor = (
+  sbEnvironment: { odsDsVersion: string | undefined } | undefined,
+  sbEnvironmentId = '7',
+) =>
   ({
-    switchToHttp: () => ({ getRequest: () => ({ sbEnvironment }) }),
+    switchToHttp: () => ({ getRequest: () => ({ params: { sbEnvironmentId }, sbEnvironment }) }),
   }) as unknown as ExecutionContext;
+
+const intercept = (context: ExecutionContext) =>
+  new CertificationSupportInterceptor().intercept(context, nextHandler);
 
 const refusal = (odsDsVersion: string | undefined) => {
   try {
-    new CertificationSupportInterceptor().intercept(contextFor({ odsDsVersion }), nextHandler);
+    intercept(contextFor({ odsDsVersion }));
   } catch (error) {
     return error as HttpException;
   }
@@ -23,12 +29,7 @@ describe('CertificationSupportInterceptor', () => {
   beforeEach(() => jest.clearAllMocks());
 
   it('lets a request through for an environment on Ed-Fi Data Model 5.0.0 or later', () => {
-    const result = new CertificationSupportInterceptor().intercept(
-      contextFor({ odsDsVersion: '5.2.0' }),
-      nextHandler,
-    );
-
-    expect(result).toBe('handled');
+    expect(intercept(contextFor({ odsDsVersion: '5.2.0' }))).toBe('handled');
   });
 
   it('refuses an environment on Ed-Fi Data Model 4.0.0 with a 400 that names its version', () => {
@@ -39,7 +40,7 @@ describe('CertificationSupportInterceptor', () => {
       type: 'Error',
       title: 'Certification is not available for this environment.',
       message:
-        "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App has this environment's data standard version as 4.0.0. If its Ed-Fi API has been upgraded since the environment was connected, connect the environment again so Admin App picks up the new version.",
+        "Certification requires Ed-Fi Data Standard 5.0.0 or later. This environment's data standard version is 4.0.0, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.",
     });
     expect(nextHandler.handle).not.toHaveBeenCalled();
   });
@@ -50,18 +51,21 @@ describe('CertificationSupportInterceptor', () => {
     expect(error.getStatus()).toBe(400);
     expect(error.getResponse()).toMatchObject({
       message:
-        "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App couldn't read this environment's data standard version from its Ed-Fi API. Check the environment's Ed-Fi API Discovery URL, then connect the environment again.",
+        "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App couldn't read this environment's data standard version from its Ed-Fi API when the environment was connected.",
     });
     expect(nextHandler.handle).not.toHaveBeenCalled();
   });
 
-  it('leaves a request with no resolved environment to the route pipes (a non-numeric ID gets 400, not 500)', () => {
+  it('leaves a non-numeric environment ID to the route pipes (400, not 500)', () => {
     // Interceptors run before pipes, and the resolver skips non-numeric IDs.
-    const result = new CertificationSupportInterceptor().intercept(
-      contextFor(undefined),
-      nextHandler,
-    );
+    expect(intercept(contextFor(undefined, 'abc'))).toBe('handled');
+  });
 
-    expect(result).toBe('handled');
+  it('fails loudly, not open, when a numeric ID reaches it without a resolved environment', () => {
+    // Means it was wired without SbEnvironmentEdfiTenantInterceptor in front of it.
+    expect(() => intercept(contextFor(undefined, '7'))).toThrow(
+      /SbEnvironmentEdfiTenantInterceptor/,
+    );
+    expect(nextHandler.handle).not.toHaveBeenCalled();
   });
 });

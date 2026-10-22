@@ -71,8 +71,9 @@ export const RequestCertificationPage = () => {
   const sbEnvironmentQuery = useQuery(sbEnvironmentQueriesGlobal.getOne({ id: sbEnvironmentId }));
   const sbEnvironment = sbEnvironmentQuery.data;
   const version = sbEnvironment?.version;
-  // Wait until certification is known to be supported: a failed tenant (or, after it, ODS)
-  // request goes to the route error page and would replace the unsupported warning.
+  // Wait until certification is known to be supported. The tenant and ODS endpoints aren't
+  // behind the certification check, but any failure of theirs (e.g. a 403 without tenant
+  // read) goes to the route error page, which would hide the unsupported warning.
   const tenantsQuery = useQuery(
     edfiTenantQueriesGlobal.getAll({ sbEnvironmentId, enabled: catalog.isSupported }),
   );
@@ -147,6 +148,15 @@ export const RequestCertificationPage = () => {
       </Button>
     </ButtonGroup>
   );
+
+  // Until the environment loads we can't tell whether to show the form or the warning.
+  if (sbEnvironmentQuery.isPending) {
+    return (
+      <PageTemplate title="Request Certification">
+        <Text>Loading...</Text>
+      </PageTemplate>
+    );
+  }
 
   // The API refuses these environments too; this keeps the page and says why.
   if (catalog.unsupportedMessage) {

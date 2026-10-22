@@ -13,10 +13,20 @@ import { CustomHttpException } from '../utils/customExceptions';
 @Injectable()
 export class CertificationSupportInterceptor implements NestInterceptor {
   intercept(context: ExecutionContext, next: CallHandler) {
-    const sbEnvironment: SbEnvironment | undefined = context.switchToHttp().getRequest().sbEnvironment;
-    // No environment means a non-numeric ID; interceptors run before pipes, so let
-    // ParseIntPipe answer with its 400.
-    if (!sbEnvironment) return next.handle();
+    const request = context.switchToHttp().getRequest();
+    const sbEnvironment: SbEnvironment | undefined = request.sbEnvironment;
+    if (!sbEnvironment) {
+      // The resolver skips IDs that aren't numbers (same test as below). Interceptors run
+      // before pipes, so let ParseIntPipe answer those with its 400.
+      const hasNumericId = [request.params?.sbEnvironmentId, request.params?.edfiTenantId].some(
+        (id) => Number.isFinite(Number(id)),
+      );
+      if (!hasNumericId) return next.handle();
+      // A numeric ID with no environment means the resolver didn't run first: fail closed.
+      throw new Error(
+        'CertificationSupportInterceptor must run after SbEnvironmentEdfiTenantInterceptor.',
+      );
+    }
     if (!supportsCertification(sbEnvironment.odsDsVersion)) {
       throw new CustomHttpException(
         {

@@ -231,6 +231,22 @@ describe('RequestCertificationPage', () => {
     expect(tenantsQueryEnabled()).toBe(false);
   });
 
+  it('shows a loading state, not the empty form, until the environment loads', () => {
+    (useCertificationCatalog as jest.Mock).mockReturnValue({
+      dataStandardVersion: undefined,
+      isSupported: false,
+      catalogVersion: undefined,
+      areas: [],
+      isPending: true,
+    });
+    (useQuery as jest.Mock).mockReturnValue({ data: undefined, isPending: true });
+    render(<RequestCertificationPage />);
+
+    expect(screen.getByText('Loading...')).toBeTruthy();
+    expect(screen.queryByText('Tenant')).toBeNull();
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('requests tenants once the environment supports certification', () => {
     mockQueries(multiTenantEnv, tenants, odss);
     render(<RequestCertificationPage />);

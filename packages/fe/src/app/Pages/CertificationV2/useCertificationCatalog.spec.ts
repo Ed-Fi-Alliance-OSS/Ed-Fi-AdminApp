@@ -89,7 +89,7 @@ describe('useCertificationCatalog', () => {
 
     expect(optionsFor('catalog-versions')?.enabled).toBe(false);
     expect(result.current.unsupportedMessage).toBe(
-      "Certification requires Ed-Fi Data Standard 5.0.0 or later. Admin App has this environment's data standard version as 4.0.0. If its Ed-Fi API has been upgraded since the environment was connected, connect the environment again so Admin App picks up the new version.",
+      "Certification requires Ed-Fi Data Standard 5.0.0 or later. This environment's data standard version is 4.0.0, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.",
     );
     expect(result.current.catalogVersion).toBeUndefined();
     expect(result.current.areas).toEqual([]);
