@@ -229,11 +229,16 @@ Write-Step 'Ensuring the client application'
 $applications = @((Invoke-DmsCmsApi -Method Get -Uri "$cmsUrl/v3/applications" -Token $cmsToken).Content | ConvertFrom-Json)
 $application = $applications | Where-Object { $_.applicationName -eq $applicationName } | Select-Object -First 1
 
-if (Test-Path -LiteralPath $credentialsFile) {
+$hasCredentialsFile = Test-Path -LiteralPath $credentialsFile
+if ($hasCredentialsFile -and -not $application) {
+    # The database was reset outside stop-dms.ps1 -v (for example its volume was deleted), so the
+    # saved secret belongs to an application that no longer exists and cannot work anywhere.
+    Write-Warning "The application in $credentialsFile no longer exists (the database was reset). Creating a new one; its credentials replace the old ones."
+    $hasCredentialsFile = $false
+}
+
+if ($hasCredentialsFile) {
     $credentials = Get-Content -LiteralPath $credentialsFile -Raw | ConvertFrom-Json
-    if (-not $application) {
-        throw "$credentialsFile exists but the application '$applicationName' does not. Delete the file, or reset with ./stop-dms.ps1 -v."
-    }
 }
 elseif ($application) {
     # The secret is only returned on creation; never rotate it behind the developer's back.

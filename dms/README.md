@@ -97,6 +97,11 @@ To pin explicitly instead, set `DMS_IMAGE`, `CONFIGURATION_SERVICE_IMAGE` and/or
   Run `./dms/stop-dms.ps1 -v`, then start again.
 - **"application exists but .credentials.json is missing"**: the secret can't be recovered.
   Run `./dms/stop-dms.ps1 -v`.
+- **"The application in .credentials.json no longer exists"** (warning): the database was reset
+  outside `stop-dms.ps1 -v`, for example by `docker system prune` or `compose/stop.ps1 -V`. The
+  latter removes **every** Docker volume, including this stack's. The script creates a new
+  application and saves its new credentials. To start from scratch on purpose, use
+  `./dms/stop-dms.ps1 -v`.
 - **A collection returns `[]` after a successful POST**: this is expected for student-related
   resources. `EdFiSandbox` filters them by relationship to the application's education
   organizations, so a student appears only once it is enrolled in one of them, for example through
