@@ -57,9 +57,11 @@ function Get-DmsSettings {
             $values[$Matches[1]] = ConvertFrom-DmsDotEnvValue -Raw $Matches[2]
         }
     }
+    # An empty variable is treated as unset: PowerShell cannot normally create one ($env:X = ''
+    # removes X), so an empty value is almost always a leftover rather than a real override.
     foreach ($name in @($values.Keys) + $AdditionalNames) {
         $fromEnvironment = [Environment]::GetEnvironmentVariable($name)
-        if ($null -ne $fromEnvironment) {
+        if (-not [string]::IsNullOrEmpty($fromEnvironment)) {
             $values[$name] = $fromEnvironment
         }
     }
@@ -84,7 +86,14 @@ function Invoke-DmsWithEnvironment {
     }
     finally {
         foreach ($name in $previous.Keys) {
-            [Environment]::SetEnvironmentVariable($name, $previous[$name])
+            if ($null -eq $previous[$name]) {
+                # Passing $null to a .NET string parameter sends "", which leaves an empty variable
+                # behind instead of removing it; [NullString]::Value really passes null.
+                [Environment]::SetEnvironmentVariable($name, [NullString]::Value)
+            }
+            else {
+                [Environment]::SetEnvironmentVariable($name, $previous[$name])
+            }
         }
     }
 }
