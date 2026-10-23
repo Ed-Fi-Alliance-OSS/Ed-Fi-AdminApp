@@ -64,8 +64,12 @@ function Write-Step([string]$Message) {
 }
 
 function Invoke-Compose {
-    docker compose -f $composeFile --env-file $envFile @args
-    if ($LASTEXITCODE -ne 0) { throw "docker compose $($args -join ' ') failed with exit code $LASTEXITCODE." }
+    # Compose gets the same effective settings the setup steps use, including the selected images.
+    $composeArguments = $args
+    Invoke-DmsWithEnvironment -Variables $composeEnvironment -ScriptBlock {
+        docker compose -f $composeFile --env-file $envFile @composeArguments
+    }
+    if ($LASTEXITCODE -ne 0) { throw "docker compose $($composeArguments -join ' ') failed with exit code $LASTEXITCODE." }
 }
 
 # --- Prerequisites and settings ---------------------------------------------------------------
@@ -79,7 +83,7 @@ if (-not (Test-Path -LiteralPath $envFile)) {
     Copy-Item -LiteralPath (Join-Path $PSScriptRoot '.env.example') -Destination $envFile
     Write-Host "Created $envFile from .env.example." -ForegroundColor Yellow
 }
-$settings = Read-DmsEnvFile -Path $envFile
+$settings = Get-DmsSettings -Path $envFile -AdditionalNames @('DMS_IMAGE', 'CONFIGURATION_SERVICE_IMAGE', 'SCHEMA_TOOLS_VERSION')
 $database = $settings['POSTGRES_DB_NAME']
 $tag = if ($settings['DMS_IMAGE_TAG']) { $settings['DMS_IMAGE_TAG'] } else { 'pre' }
 $cmsUrl = "http://localhost:$($settings['CONFIGURATION_SERVICE_PORT'])"
@@ -111,10 +115,14 @@ function Resolve-DmsVersions {
 }
 
 $pinned = if (Test-Path -LiteralPath $versionsFile) { Get-Content -LiteralPath $versionsFile -Raw | ConvertFrom-Json -AsHashtable } else { $null }
+$explicitDmsImage = $settings['DMS_IMAGE']
 
 if ($null -eq $pinned -or $Update) {
     $resolved = Resolve-DmsVersions
-    if ($null -ne $pinned -and $pinned.dmsVersion -ne $resolved.dmsVersion) {
+    # Reset only when the DMS image actually used changes. An explicit DMS_IMAGE is not moved by
+    # the tag, so a newer tag must not wipe data that the same image will keep serving.
+    $dmsImageChanges = $null -ne $pinned -and -not $explicitDmsImage -and $pinned.dmsImage -ne $resolved.dmsImage
+    if ($dmsImageChanges) {
         Write-Warning "DMS moves from $($pinned.dmsVersion) to $($resolved.dmsVersion). The database schema may change, so the local DMS data will be deleted."
         if (-not $Force) {
             $answer = Read-Host 'Reset the local DMS data and update? (y/N)'
@@ -125,6 +133,9 @@ if ($null -eq $pinned -or $Update) {
         }
         & (Join-Path $PSScriptRoot 'stop-dms.ps1') -v
     }
+    elseif ($null -ne $pinned -and $explicitDmsImage) {
+        Write-Host "DMS_IMAGE is set explicitly ($explicitDmsImage); the '$tag' tag does not change it."
+    }
     elseif ($null -ne $pinned) {
         Write-Host "DMS is already at $($resolved.dmsVersion)."
     }
@@ -132,7 +143,7 @@ if ($null -eq $pinned -or $Update) {
     $pinned = $resolved
 }
 
-$dmsImage = if ($settings['DMS_IMAGE']) { $settings['DMS_IMAGE'] } else { $pinned.dmsImage }
+$dmsImage = if ($explicitDmsImage) { $explicitDmsImage } else { $pinned.dmsImage }
 $cmsImage = if ($settings['CONFIGURATION_SERVICE_IMAGE']) { $settings['CONFIGURATION_SERVICE_IMAGE'] } else { $pinned.configurationServiceImage }
 foreach ($image in @($dmsImage, $cmsImage)) {
     docker image inspect $image *> $null
@@ -143,9 +154,9 @@ foreach ($image in @($dmsImage, $cmsImage)) {
 }
 $schemaToolsVersion = if ($settings['SCHEMA_TOOLS_VERSION']) { $settings['SCHEMA_TOOLS_VERSION'] } else { Get-DmsImageVersion $dmsImage }
 
-# docker compose reads these from the process environment ahead of .env.
-$env:DMS_IMAGE = $dmsImage
-$env:CONFIGURATION_SERVICE_IMAGE = $cmsImage
+$composeEnvironment = @{} + $settings
+$composeEnvironment['DMS_IMAGE'] = $dmsImage
+$composeEnvironment['CONFIGURATION_SERVICE_IMAGE'] = $cmsImage
 Write-Host "DMS $(Get-DmsImageVersion $dmsImage), Configuration Service $(Get-DmsImageVersion $cmsImage), api-schema-tools $schemaToolsVersion"
 
 # --- 1. PostgreSQL and signing key ------------------------------------------------------------

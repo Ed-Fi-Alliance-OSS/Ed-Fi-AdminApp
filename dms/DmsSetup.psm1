@@ -13,17 +13,80 @@ $script:SchemaToolsVolume = 'adminapp-dms-schema-tools'
 $script:SchemaToolsFeed = 'https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/index.json'
 $script:DotNetSdkImage = 'mcr.microsoft.com/dotnet/sdk:10.0'
 
-function Read-DmsEnvFile {
-    param([Parameter(Mandatory)][string]$Path)
+function ConvertFrom-DmsDotEnvValue {
+    param([Parameter(Mandatory)][AllowEmptyString()][string]$Raw)
 
-    # Last definition wins, matching Docker Compose.
+    # Same rules Docker Compose applies to single-line values: single quotes are literal, double
+    # quotes honor \" and \\, and an unquoted value ends at a " #" inline comment.
+    $Raw = $Raw.Trim()
+    if ($Raw.StartsWith("'")) {
+        $end = $Raw.IndexOf("'", 1)
+        if ($end -gt 0) { return $Raw.Substring(1, $end - 1) }
+    }
+    elseif ($Raw.StartsWith('"')) {
+        $builder = [System.Text.StringBuilder]::new()
+        for ($i = 1; $i -lt $Raw.Length; $i++) {
+            $c = $Raw[$i]
+            if ($c -eq '\' -and $i + 1 -lt $Raw.Length -and $Raw[$i + 1] -in @('"', '\')) {
+                $null = $builder.Append($Raw[$i + 1])
+                $i++
+            }
+            elseif ($c -eq '"') {
+                return $builder.ToString()
+            }
+            else {
+                $null = $builder.Append($c)
+            }
+        }
+    }
+    return ($Raw -replace '\s+#.*$', '').Trim()
+}
+
+function Get-DmsSettings {
+    param(
+        [Parameter(Mandatory)][string]$Path,
+        # Optional settings that may be absent from the file but still set in the environment.
+        [string[]]$AdditionalNames = @()
+    )
+
+    # Resolve settings exactly as Docker Compose does, so the setup steps and the containers agree:
+    # last definition in the file wins, and a variable set in the process environment overrides it.
     $values = @{}
     foreach ($line in Get-Content -LiteralPath $Path) {
-        if ($line -match '^\s*([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
-            $values[$Matches[1]] = $Matches[2].Trim().Trim("'").Trim('"')
+        if ($line -match '^\s*(?:export\s+)?([A-Za-z_][A-Za-z0-9_]*)\s*=(.*)$') {
+            $values[$Matches[1]] = ConvertFrom-DmsDotEnvValue -Raw $Matches[2]
+        }
+    }
+    foreach ($name in @($values.Keys) + $AdditionalNames) {
+        $fromEnvironment = [Environment]::GetEnvironmentVariable($name)
+        if ($null -ne $fromEnvironment) {
+            $values[$name] = $fromEnvironment
         }
     }
     return $values
+}
+
+function Invoke-DmsWithEnvironment {
+    param(
+        [Parameter(Mandatory)][hashtable]$Variables,
+        [Parameter(Mandatory)][scriptblock]$ScriptBlock
+    )
+
+    # Hands settings to a child process (docker compose) without leaving them behind in the
+    # caller's session, where a later run would mistake them for explicit overrides.
+    $previous = @{}
+    foreach ($name in $Variables.Keys) {
+        $previous[$name] = [Environment]::GetEnvironmentVariable($name)
+        [Environment]::SetEnvironmentVariable($name, [string]$Variables[$name])
+    }
+    try {
+        & $ScriptBlock
+    }
+    finally {
+        foreach ($name in $previous.Keys) {
+            [Environment]::SetEnvironmentVariable($name, $previous[$name])
+        }
+    }
 }
 
 function ConvertTo-PgLiteral {
@@ -87,13 +150,17 @@ function New-AspNetPasswordHash {
     )
 
     # Layout CMS expects: [byte 1][int32 LE salt length][salt][PBKDF2-SHA256 subkey].
-    $salt = [System.Security.Cryptography.RandomNumberGenerator]::GetBytes(16)
-    $subkey = [System.Security.Cryptography.Rfc2898DeriveBytes]::Pbkdf2(
+    # Instance APIs rather than the .NET 6 static helpers, so PowerShell 7.0 and 7.1 work too.
+    $salt = [byte[]]::new(16)
+    $rng = [System.Security.Cryptography.RandomNumberGenerator]::Create()
+    try { $rng.GetBytes($salt) } finally { $rng.Dispose() }
+
+    $pbkdf2 = [System.Security.Cryptography.Rfc2898DeriveBytes]::new(
         [System.Text.Encoding]::UTF8.GetBytes($Secret),
         $salt,
         $Iterations,
-        [System.Security.Cryptography.HashAlgorithmName]::SHA256,
-        32)
+        [System.Security.Cryptography.HashAlgorithmName]::SHA256)
+    try { $subkey = $pbkdf2.GetBytes(32) } finally { $pbkdf2.Dispose() }
 
     $bytes = [System.Collections.Generic.List[byte]]::new()
     $bytes.Add(1)
@@ -311,4 +378,7 @@ function Invoke-DmsSchemaTool {
     return [pscustomobject]@{ ExitCode = $exitCode; Output = ($output -join [Environment]::NewLine) }
 }
 
-Export-ModuleMember -Function *-Dms*, New-AspNetPasswordHash, ConvertTo-PgLiteral
+Export-ModuleMember -Function Get-DmsSettings, Invoke-DmsWithEnvironment, Invoke-DmsPsql, Wait-DmsPostgres,
+    Wait-DmsHttpOk, Initialize-DmsSigningKey, Add-DmsReadOnlyClient, Get-DmsCmsAdminToken, Invoke-DmsCmsApi,
+    Get-DmsImageVersion, Get-DmsImageDigest, Export-DmsApiSchema, Invoke-DmsSchemaTool,
+    New-AspNetPasswordHash, ConvertTo-PgLiteral
