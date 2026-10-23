@@ -268,7 +268,11 @@ describe('CertificationPageExecution', () => {
 
   it('shows an inline warning instead of redirecting when the environment does not support certification', () => {
     const clearAuth = jest.fn();
-    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null, setAuth: jest.fn(), clearAuth });
+    (useCertificationAuth as jest.Mock).mockReturnValue({
+      auth: null,
+      setAuth: jest.fn(),
+      clearAuth,
+    });
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
       odsId: undefined,
@@ -449,6 +453,31 @@ describe('CertificationPageExecution', () => {
       expect(within(rowOf('02 - 2nd Calendar is valid')).getByText('Not executed')).toBeTruthy();
     });
 
+    it('lays the parameters and the execution result out side by side in one grid', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+
+      let grid: HTMLElement | null = screen.getByText('Execution result');
+      while (grid && getComputedStyle(grid).display !== 'grid') grid = grid.parentElement;
+      expect(grid).not.toBeNull();
+      expect(within(grid as HTMLElement).getByText('Enter Validation Parameters')).toBeTruthy();
+    });
+
+    it('shows the response details below both columns, at full width', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+
+      let grid: HTMLElement | null = screen.getByText('Execution result');
+      while (grid && getComputedStyle(grid).display !== 'grid') grid = grid.parentElement;
+      const toggle = screen.getByRole('button', { name: /View response details/ });
+      expect(grid?.contains(toggle)).toBe(false);
+      expect(
+        (grid as HTMLElement).compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
     it('shows the saved errors and prefilled inputs when a step is selected', () => {
       mockStepRuns({ 189: savedFailure });
       renderAuthenticated();
@@ -458,7 +487,9 @@ describe('CertificationPageExecution', () => {
       expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe(
         '2026-08-01',
       );
-      expect(screen.getByText('No Calendar found, or multiple records were returned.')).toBeTruthy();
+      expect(
+        screen.getByText('No Calendar found, or multiple records were returned.'),
+      ).toBeTruthy();
     });
 
     it('lets a signed-out vendor select a step and see saved results, but not execute', () => {
@@ -477,7 +508,9 @@ describe('CertificationPageExecution', () => {
       render(<CertificationPageExecution />);
       select(0);
 
-      expect(screen.getByText('No Calendar found, or multiple records were returned.')).toBeTruthy();
+      expect(
+        screen.getByText('No Calendar found, or multiple records were returned.'),
+      ).toBeTruthy();
       expect(executeButton().disabled).toBe(true);
       expect(
         screen.getByText('Validate your credentials above to execute this step.'),

@@ -9,6 +9,7 @@ import {
   FormLabel,
   HStack,
   Input,
+  SimpleGrid,
   Table,
   Tbody,
   Td,
@@ -35,6 +36,7 @@ import {
 } from '../../api-v2/useRunCertificationStep';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
+import { CertificationStepResponseDetails } from './CertificationStepResponseDetails';
 import { CertificationStepResult } from './CertificationStepResult';
 import { useCertificationSelection } from './useCertificationSelection';
 import {
@@ -336,91 +338,119 @@ export const CertificationPageExecution = () => {
           </Table>
 
           {validatedStep && (
-            <Box
-              w="full"
-              maxW="42em"
-              mt={6}
-              p={5}
-              border="1px solid"
-              borderColor="gray.200"
-              borderRadius="md"
-              bg="gray.50"
-            >
+            // Parameters and their result side by side on wide screens; stacked otherwise.
+            <SimpleGrid columns={{ base: 1, xl: 2 }} spacing={6} mt={6} alignItems="start">
               <Box
-                mb={4}
-                p={3}
+                w="full"
+                p={5}
                 border="1px solid"
-                borderColor="orange.200"
-                bg="orange.50"
+                borderColor="gray.200"
                 borderRadius="md"
+                bg="gray.50"
               >
-                <Text fontSize="md" fontWeight="semibold" color="orange.800" mb={1}>
-                  Enter Validation Parameters
-                </Text>
-                <Text fontSize="sm" color="orange.900">
-                  Complete the fields below, then click Execute step to run validation for the
-                  selected step.
-                </Text>
-              </Box>
-
-              {parameterDefinitions.map((parameter) => {
-                const { label, hint } = parameterFieldOf(parameter);
-                return (
-                  <FormControl key={parameter.parameterId} mb={4}>
-                    <FormLabel>{label}</FormLabel>
-                    <Input
-                      placeholder={hint ?? `Enter ${label.toLowerCase()}`}
-                      value={parameterValues[parameter.parameterId] ?? ''}
-                      onChange={(event) => {
-                        const { stepId } = validatedStep;
-                        const { value } = event.target;
-                        setTypedValuesByStep((prev) => ({
-                          ...prev,
-                          [stepId]: { ...prev[stepId], [parameter.parameterId]: value },
-                        }));
-                      }}
-                    />
-                    {hint && <FormHelperText>Format: {hint}</FormHelperText>}
-                  </FormControl>
-                );
-              })}
-
-              {parameterDefinitions.length === 0 && (
-                <Text mb={4} color="gray.600">
-                  This step has no parameters to enter.
-                </Text>
-              )}
-
-              {runError?.kind === 'api' && (
-                <Alert status="error" mb={3}>
-                  <AlertIcon />
-                  {runError.message}
-                </Alert>
-              )}
-              {runError?.kind === 'unknown' && (
-                <Alert status="warning" mb={3}>
-                  <AlertIcon />
-                  {UNKNOWN_RESULT_MESSAGE}
-                </Alert>
-              )}
-
-              <HStack spacing={3} alignItems="center">
-                <Button
-                  colorScheme="primary"
-                  type="button"
-                  isDisabled={
-                    !isAuthenticated || !canExecuteStep || run.isPending || sisVersion === undefined
-                  }
-                  onClick={() => executeStep(validatedStep)}
+                <Box
+                  mb={4}
+                  p={3}
+                  border="1px solid"
+                  borderColor="orange.200"
+                  bg="orange.50"
+                  borderRadius="md"
                 >
-                  Execute step
-                </Button>
-                {!isAuthenticated && (
-                  <Text fontSize="sm" color="gray.600">
-                    Validate your credentials above to execute this step.
+                  <Text fontSize="md" fontWeight="semibold" color="orange.800" mb={1}>
+                    Enter Validation Parameters
+                  </Text>
+                  <Text fontSize="sm" color="orange.900">
+                    Complete the fields below, then click Execute step to run validation for the
+                    selected step.
+                  </Text>
+                </Box>
+
+                {parameterDefinitions.map((parameter) => {
+                  const { label, hint } = parameterFieldOf(parameter);
+                  return (
+                    <FormControl key={parameter.parameterId} mb={4}>
+                      <FormLabel>{label}</FormLabel>
+                      <Input
+                        placeholder={hint ?? `Enter ${label.toLowerCase()}`}
+                        value={parameterValues[parameter.parameterId] ?? ''}
+                        onChange={(event) => {
+                          const { stepId } = validatedStep;
+                          const { value } = event.target;
+                          setTypedValuesByStep((prev) => ({
+                            ...prev,
+                            [stepId]: { ...prev[stepId], [parameter.parameterId]: value },
+                          }));
+                        }}
+                      />
+                      {hint && <FormHelperText>Format: {hint}</FormHelperText>}
+                    </FormControl>
+                  );
+                })}
+
+                {parameterDefinitions.length === 0 && (
+                  <Text mb={4} color="gray.600">
+                    This step has no parameters to enter.
                   </Text>
                 )}
-              </HStack>
+
+                {runError?.kind === 'api' && (
+                  <Alert status="error" mb={3}>
+                    <AlertIcon />
+                    {runError.message}
+                  </Alert>
+                )}
+                {runError?.kind === 'unknown' && (
+                  <Alert status="warning" mb={3}>
+                    <AlertIcon />
+                    {UNKNOWN_RESULT_MESSAGE}
+                  </Alert>
+                )}
+
+                <HStack spacing={3} alignItems="center">
+                  <Button
+                    colorScheme="primary"
+                    type="button"
+                    isDisabled={
+                      !isAuthenticated ||
+                      !canExecuteStep ||
+                      run.isPending ||
+                      sisVersion === undefined
+                    }
+                    onClick={() => executeStep(validatedStep)}
+                  >
+                    Execute step
+                  </Button>
+                  {!isAuthenticated && (
+                    <Text fontSize="sm" color="gray.600">
+                      Validate your credentials above to execute this step.
+                    </Text>
+                  )}
+                </HStack>
+              </Box>
+              <Box
+                w="full"
+                minW={0}
+                p={5}
+                border="1px solid"
+                borderColor="gray.200"
+                borderRadius="md"
+              >
+                <CertificationStepResult
+                  run={selectedRun}
+                  isRunning={isRunningStep(validatedStep.stepId)}
+                />
+              </Box>
+            </SimpleGrid>
+          )}
+
+          {validatedStep && (
+            // Full width below both columns: long values such as descriptor URIs fit on one line.
+            <Box mt={6}>
+              <CertificationStepResponseDetails
+                run={selectedRun}
+                isRunning={isRunningStep(validatedStep.stepId)}
+                snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion }}
+              />
             </Box>
           )}
 
@@ -443,16 +473,6 @@ export const CertificationPageExecution = () => {
           </ButtonGroup>
         </Box>
       </chakra.form>
-
-      {validatedStep && (
-        <Box mt={8} w="30em" maxW="100%" borderTop="1px solid" borderColor="gray.200" pt={6}>
-          <CertificationStepResult
-            run={selectedRun}
-            isRunning={isRunningStep(validatedStep.stepId)}
-            snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion }}
-          />
-        </Box>
-      )}
     </PageTemplate>
   );
 };

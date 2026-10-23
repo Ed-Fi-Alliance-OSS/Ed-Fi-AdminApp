@@ -1,28 +1,6 @@
-import {
-  Badge,
-  Box,
-  Button,
-  Code,
-  HStack,
-  Table,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-} from '@chakra-ui/react';
-import {
-  CERT_STEP_ERROR_KIND,
-  CertificationSavedStepRunDto,
-  CertificationStepSnapshotDto,
-} from '@edanalytics/models';
-import { useState } from 'react';
+import { Box, HStack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import { CERT_STEP_ERROR_KIND, CertificationSavedStepRunDto } from '@edanalytics/models';
 import { STEP_STATUS_DISPLAY, toDisplayStatus } from './certificationStepResults';
-import {
-  useCertificationStepSnapshot,
-  UseCertificationStepSnapshotArgs,
-} from './useCertificationStepSnapshot';
 
 const formatRanAt = (ranAt: string) => {
   const date = new Date(ranAt);
@@ -32,68 +10,16 @@ const formatRanAt = (ranAt: string) => {
   );
 };
 
-const REASON_PHRASES: Record<number, string> = {
-  200: 'OK',
-  201: 'Created',
-  400: 'Bad Request',
-  401: 'Unauthorized',
-  403: 'Forbidden',
-  404: 'Not Found',
-  409: 'Conflict',
-  500: 'Internal Server Error',
-  502: 'Bad Gateway',
-  503: 'Service Unavailable',
-};
-
-const statusLabel = (status: number) =>
-  REASON_PHRASES[status] ? `HTTP ${status} ${REASON_PHRASES[status]}` : `HTTP ${status}`;
-
-export const SNAPSHOT_DISCLAIMER =
-  'This snapshot is deleted when the certification request is approved or rejected.';
-
-const SNAPSHOT_MESSAGES: Record<Exclude<CertificationStepSnapshotDto['state'], 'body'>, string> = {
-  tooLarge:
-    'The response is larger than the 64 KB snapshot limit. To review it, call the Ed-Fi API directly.',
-  none: "No response: the request wasn't sent.",
-  deleted: 'The snapshot was deleted when the certification request was decided.',
-};
-
-const SnapshotContent = ({
-  snapshot,
-  isPending,
-  isError,
-}: ReturnType<typeof useCertificationStepSnapshot>) => {
-  if (isPending) return <Text color="gray.600">Loading the response…</Text>;
-  if (isError || !snapshot) return <Text color="gray.600">The response couldn't be loaded.</Text>;
-  if (snapshot.state === 'body') {
-    return (
-      <Code as="pre" display="block" whiteSpace="pre-wrap" p={3} maxH="24em" overflowY="auto">
-        {snapshot.body}
-      </Code>
-    );
-  }
-  return <Text color="gray.600">{SNAPSHOT_MESSAGES[snapshot.state]}</Text>;
-};
-
 /** The selected step's latest result: its saved run, or Running while a new run is in flight. */
 export const CertificationStepResult = ({
   run,
   isRunning,
-  snapshotArgs,
 }: {
   run: CertificationSavedStepRunDto | undefined;
   isRunning: boolean;
-  snapshotArgs: Omit<UseCertificationStepSnapshotArgs, 'enabled' | 'stepId' | 'ranAt'>;
 }) => {
-  const [isSnapshotOpen, setSnapshotOpen] = useState(false);
   const display = STEP_STATUS_DISPLAY[toDisplayStatus(run?.status, isRunning)];
   const shownRun = isRunning ? undefined : run;
-  const snapshot = useCertificationStepSnapshot({
-    ...snapshotArgs,
-    stepId: shownRun?.stepId,
-    ranAt: shownRun?.ranAt,
-    enabled: isSnapshotOpen && shownRun !== undefined,
-  });
 
   const exceptions =
     shownRun?.errors.filter((e) => e.kind === CERT_STEP_ERROR_KIND.exception) ?? [];
@@ -116,18 +42,7 @@ export const CertificationStepResult = ({
 
       {shownRun && (
         <>
-          <HStack mb={3} spacing={3} wrap="wrap">
-            <Text>Last execution: {formatRanAt(shownRun.ranAt)}</Text>
-            {shownRun.responseStatus !== null && (
-              // The colour follows the step: a "was Deleted" step passes on an expected 404.
-              <Badge
-                data-status={shownRun.status}
-                colorScheme={shownRun.status === 'success' ? 'gray' : 'red'}
-              >
-                {statusLabel(shownRun.responseStatus)}
-              </Badge>
-            )}
-          </HStack>
+          <Text mb={3}>Last execution: {formatRanAt(shownRun.ranAt)}</Text>
 
           {exceptions.map((item, index) => (
             <Box
@@ -187,23 +102,6 @@ export const CertificationStepResult = ({
                   </Tbody>
                 </Table>
               </Box>
-            </Box>
-          )}
-
-          <Button
-            size="sm"
-            variant="link"
-            aria-expanded={isSnapshotOpen}
-            onClick={() => setSnapshotOpen((open) => !open)}
-          >
-            {isSnapshotOpen ? '▾' : '▸'} Response from the API
-          </Button>
-          {isSnapshotOpen && (
-            <Box mt={2}>
-              <Text mb={2} fontSize="sm" color="gray.600">
-                {SNAPSHOT_DISCLAIMER}
-              </Text>
-              <SnapshotContent {...snapshot} />
             </Box>
           )}
         </>
