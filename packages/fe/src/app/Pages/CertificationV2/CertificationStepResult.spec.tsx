@@ -107,6 +107,25 @@ describe('CertificationStepResult', () => {
     expect(screen.getByRole('row', { name: /birthCity/ }).textContent).toContain('Empty text');
   });
 
+  it("shows Bruno's message when a check has neither an expected nor an observed value", () => {
+    renderResult({
+      ...fieldsRun,
+      errors: [
+        {
+          kind: 'assertion',
+          field: 'enrollment count',
+          expected: null,
+          observed: null,
+          message: 'expected 0 to be above 1',
+        },
+      ],
+    });
+
+    const row = screen.getByRole('row', { name: /enrollment count/ });
+    expect(row.textContent).toContain('expected 0 to be above 1');
+    expect(row.textContent).not.toContain('—');
+  });
+
   it("says '1 field' for a single row", () => {
     renderResult({ ...fieldsRun, errors: [fieldsRun.errors[0]] });
 

@@ -245,6 +245,21 @@ describe('parseBrunoReport never stores the token', () => {
     expect(JSON.stringify(result.errors)).not.toContain('tok-1');
   });
 
+  it('redacts a token that JSON escapes when it renders an observed value', () => {
+    const quotedToken = `q"t\\k'1`;
+    const report = load('partial-record');
+    const step = report[0].results[1];
+    step.response.data[0].firstName = `x ${quotedToken} y`;
+    step.assertionResults.push(failingAssertion('res.body[0].firstName'));
+
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: quotedToken });
+
+    const stored = result.errors.flatMap((error) => Object.values(error)).join('\n');
+    expect(stored).toContain('[REDACTED]');
+    expect(stored).not.toContain(quotedToken);
+    expect(stored).not.toContain(JSON.stringify(quotedToken).slice(1, -1));
+  });
+
   it('redacts and caps the status text in what the API returned', () => {
     const report = load('not-found-throw');
     report[0].results[1].response.statusText = `Not Found ${TOKEN} ${'x'.repeat(2000)}`;

@@ -167,8 +167,17 @@ export const CertificationStepResult = ({
                   {fields.map((item, index) => (
                     <Tr key={`${item.field}-${index}`}>
                       <Td fontFamily="mono">{item.field}</Td>
-                      <Td>{item.expected ?? '—'}</Td>
-                      <Td color="red.700">{item.observed ?? '—'}</Td>
+                      {item.expected === null && item.observed === null && item.message ? (
+                        // A check Bruno can't split into expected/observed: its message is the explanation.
+                        <Td colSpan={2} color="red.700">
+                          {item.message}
+                        </Td>
+                      ) : (
+                        <>
+                          <Td>{item.expected ?? '—'}</Td>
+                          <Td color="red.700">{item.observed ?? '—'}</Td>
+                        </>
+                      )}
                     </Tr>
                   ))}
                 </Tbody>

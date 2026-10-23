@@ -14,6 +14,7 @@ import {
   joinExpected,
   observedFromMessage,
   parseEqualityTest,
+  redactToken,
   renderObserved,
   whatWeSawLine,
 } from './step-result-details';
@@ -92,7 +93,7 @@ export const cleanMessage = (
 ): string => {
   let text = typeof message === 'string' ? message : JSON.stringify(message ?? '');
   text = text.replace(ANSI_PATTERN, '');
-  if (token) text = text.split(token).join('[REDACTED]');
+  text = redactToken(text, token);
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 };
 

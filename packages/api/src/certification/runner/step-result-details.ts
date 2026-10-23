@@ -10,6 +10,23 @@ const MAX_DETAIL_LENGTH = 500;
 const cap = (text: string, maxLength = MAX_DETAIL_LENGTH): string =>
   text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 
+/**
+ * Replaces the token with [REDACTED] in stored text. The token can hold any visible ASCII, so
+ * besides the raw form this also matches its JSON-escaped form (serialized values, snapshots)
+ * and the single-quoted form Bruno's assertion messages use.
+ */
+export const redactToken = (text: string, token: string): string => {
+  if (!token) return text;
+  const forms = new Set([
+    token,
+    JSON.stringify(token).slice(1, -1),
+    token.replace(/\\/g, '\\\\').replace(/'/g, "\\'"),
+  ]);
+  let redacted = text;
+  for (const form of forms) redacted = redacted.split(form).join('[REDACTED]');
+  return redacted;
+};
+
 /** `res.body[0].birthCity` → `birthCity`; list queries read their single record at `[0]`. */
 export const fieldLabel = (lhsExpr: string): string => {
   if (lhsExpr === 'res.status') return 'HTTP status';
@@ -129,7 +146,7 @@ export const whatWeSawLine = (response: {
 export const buildSnapshot = (data: unknown, token: string): CertStepSnapshotEnvelope | null => {
   if (data === undefined) return null;
   let text = typeof data === 'string' ? data : JSON.stringify(data, null, 2);
-  if (token) text = text.split(token).join('[REDACTED]');
+  text = redactToken(text, token);
   const sizeBytes = Buffer.byteLength(text, 'utf8');
   return sizeBytes > CERT_SNAPSHOT_MAX_BYTES
     ? { state: 'tooLarge', sizeBytes }

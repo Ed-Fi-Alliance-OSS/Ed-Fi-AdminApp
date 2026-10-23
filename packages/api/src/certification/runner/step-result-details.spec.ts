@@ -8,6 +8,7 @@ import {
   MISSING,
   observedFromMessage,
   parseEqualityTest,
+  redactToken,
   renderObserved,
   whatWeSawLine,
 } from './step-result-details';
@@ -203,5 +204,39 @@ describe('buildSnapshot', () => {
 
   it('has no snapshot without a body', () => {
     expect(buildSnapshot(undefined, TOKEN)).toBeNull();
+  });
+});
+
+// The token DTO allows any visible ASCII, so a token can hold quotes and backslashes that
+// serializing escapes: the escaped forms must be redacted too.
+const QUOTED_TOKEN = `q"t\\k'1`;
+const escapedForms = [
+  QUOTED_TOKEN,
+  JSON.stringify(QUOTED_TOKEN).slice(1, -1),
+  QUOTED_TOKEN.replace(/\\/g, '\\\\').replace(/'/g, "\\'"),
+];
+
+describe('redactToken', () => {
+  it.each([
+    ['raw text', `Bearer ${QUOTED_TOKEN}`],
+    ['JSON-escaped text', JSON.stringify({ echo: QUOTED_TOKEN })],
+    ["Bruno's single-quoted text", `expected '${escapedForms[2]}' to equal 'x'`],
+  ])('redacts the token in %s', (_label, text) => {
+    const redacted = redactToken(text, QUOTED_TOKEN);
+    expect(redacted).toContain('[REDACTED]');
+    for (const form of escapedForms) expect(redacted).not.toContain(form);
+  });
+
+  it('leaves text alone without a token', () => {
+    expect(redactToken('plain', '')).toBe('plain');
+  });
+});
+
+describe('buildSnapshot with a token that JSON escapes', () => {
+  it('redacts the escaped token in values and keys', () => {
+    const snapshot = buildSnapshot({ echo: QUOTED_TOKEN, [QUOTED_TOKEN]: 1 }, QUOTED_TOKEN);
+    const body = (snapshot as { body: string }).body;
+    expect(body).toContain('[REDACTED]');
+    for (const form of escapedForms) expect(body).not.toContain(form);
   });
 });
