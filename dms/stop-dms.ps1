@@ -26,15 +26,29 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'DmsSetup.psm1') -Force
 
 $composeFile = Join-Path $PSScriptRoot 'docker-compose.yml'
 $envFile = Join-Path $PSScriptRoot '.env'
-$envArguments = if (Test-Path -LiteralPath $envFile) { @('--env-file', $envFile) } else { @('--env-file', (Join-Path $PSScriptRoot '.env.example')) }
+if (-not (Test-Path -LiteralPath $envFile)) {
+    $envFile = Join-Path $PSScriptRoot '.env.example'
+}
+
+# Same settings resolution as start-dms.ps1, so an empty leftover variable in the session
+# cannot override .env and fail Compose's required-variable checks.
+$settings = Get-DmsSettings -Path $envFile
+
+function Invoke-ComposeDown {
+    $downArguments = $args
+    Invoke-DmsWithEnvironment -Variables $settings -ScriptBlock {
+        docker compose -f $composeFile --env-file $envFile down @downArguments
+    }
+    if ($LASTEXITCODE -ne 0) { throw "docker compose down failed with exit code $LASTEXITCODE." }
+}
 
 if ($v) {
     Write-Host 'Stopping the local DMS stack and deleting its data...'
-    docker compose -f $composeFile @envArguments down -v
-    if ($LASTEXITCODE -ne 0) { throw "docker compose down failed with exit code $LASTEXITCODE." }
+    Invoke-ComposeDown -v
 
     docker volume rm adminapp-dms-schema-tools *> $null
     foreach ($path in @('.apischema', '.credentials.json')) {
@@ -46,6 +60,5 @@ if ($v) {
 }
 else {
     Write-Host 'Stopping the local DMS stack...'
-    docker compose -f $composeFile @envArguments down
-    if ($LASTEXITCODE -ne 0) { throw "docker compose down failed with exit code $LASTEXITCODE." }
+    Invoke-ComposeDown
 }
