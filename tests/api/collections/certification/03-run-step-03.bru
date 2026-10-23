@@ -31,7 +31,10 @@ script:pre-request {
 tests {
   test("certification/run step 03 - status is 200 and uses step 01's captured values", function() {
     expect(res.getStatus()).to.equal(200);
-    const messages = res.getBody().errors.map((e) => e.error).join(' ');
+    const errors = res.getBody().errors;
+    // Fail loudly if the error shape changes, so the check below can't pass vacuously.
+    errors.forEach((e) => expect(e).to.have.all.keys('kind', 'field', 'expected', 'observed', 'message'));
+    const messages = errors.map((e) => e.message).join(' ');
     expect(messages).to.not.contain('first to populate it');
   });
 }

@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CertificationPageExecution } from './CertificationPageExecution';
 import { useCertificationSelection } from './useCertificationSelection';
@@ -31,6 +32,9 @@ jest.mock('./useCertificationCatalog', () => ({
   useCertificationSteps: jest.fn(),
 }));
 jest.mock('./useCertificationStepRuns', () => ({ useCertificationStepRuns: jest.fn() }));
+jest.mock('./useCertificationStepSnapshot', () => ({
+  useCertificationStepSnapshot: () => ({ snapshot: undefined, isPending: false, isError: false }),
+}));
 jest.mock('../../api-v2/useRunCertificationStep', () => ({ useRunCertificationStep: jest.fn() }));
 const mockQueryClient = { setQueryData: jest.fn(), invalidateQueries: jest.fn() };
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => mockQueryClient }));
@@ -118,7 +122,16 @@ const savedFailure = {
   status: 'failed',
   ranAt: '2026-10-15T15:00:00.000Z',
   inputs: { schoolId: '255901', beginDate: '2026-08-01' },
-  errors: [{ property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' }],
+  responseStatus: 500,
+  errors: [
+    {
+      kind: 'exception',
+      field: null,
+      expected: null,
+      observed: 'The API returned HTTP 500 Internal Server Error.',
+      message: 'No Calendar found, or multiple records were returned.',
+    },
+  ],
 };
 let refetch: jest.Mock;
 let runState: {
@@ -220,8 +233,30 @@ describe('CertificationPageExecution', () => {
     renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[1]);
     expect(screen.queryByRole('textbox')).toBeNull();
-    expect(screen.getByText('This step has no parameters to enter.')).toBeTruthy();
     expect(executeButton().disabled).toBe(false);
+  });
+
+  it('tells the vendor a step without parameters is ready, instead of asking for fields', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[1]);
+
+    expect(screen.getByText('Ready to execute')).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This step doesn't need any parameters. Click Execute step when you're ready.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Enter Validation Parameters')).toBeNull();
+    expect(screen.queryByText(/Complete the fields below/)).toBeNull();
+    expect(screen.queryByText('This step has no parameters to enter.')).toBeNull();
+  });
+
+  it('keeps asking for parameters on a step that has them', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[0]);
+
+    expect(screen.getByText(/Complete the fields below/)).toBeTruthy();
+    expect(screen.queryByText('Ready to execute')).toBeNull();
   });
 
   it.each([
@@ -255,7 +290,11 @@ describe('CertificationPageExecution', () => {
 
   it('shows an inline warning instead of redirecting when the environment does not support certification', () => {
     const clearAuth = jest.fn();
-    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null, setAuth: jest.fn(), clearAuth });
+    (useCertificationAuth as jest.Mock).mockReturnValue({
+      auth: null,
+      setAuth: jest.fn(),
+      clearAuth,
+    });
     (useCertificationSelection as jest.Mock).mockReturnValue({
       edfiTenantId: 10,
       odsId: undefined,
@@ -436,6 +475,31 @@ describe('CertificationPageExecution', () => {
       expect(within(rowOf('02 - 2nd Calendar is valid')).getByText('Not executed')).toBeTruthy();
     });
 
+    it('lays the parameters and the execution result out side by side in one grid', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+
+      let grid: HTMLElement | null = screen.getByText('Execution result');
+      while (grid && getComputedStyle(grid).display !== 'grid') grid = grid.parentElement;
+      expect(grid).not.toBeNull();
+      expect(within(grid as HTMLElement).getByText('Enter Validation Parameters')).toBeTruthy();
+    });
+
+    it('shows the response details below both columns, at full width', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+
+      let grid: HTMLElement | null = screen.getByText('Execution result');
+      while (grid && getComputedStyle(grid).display !== 'grid') grid = grid.parentElement;
+      const toggle = screen.getByRole('button', { name: /View response details/ });
+      expect(grid?.contains(toggle)).toBe(false);
+      expect(
+        (grid as HTMLElement).compareDocumentPosition(toggle) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+    });
+
     it('shows the saved errors and prefilled inputs when a step is selected', () => {
       mockStepRuns({ 189: savedFailure });
       renderAuthenticated();
@@ -445,7 +509,9 @@ describe('CertificationPageExecution', () => {
       expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe(
         '2026-08-01',
       );
-      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+      expect(
+        screen.getByText('No Calendar found, or multiple records were returned.'),
+      ).toBeTruthy();
     });
 
     it('lets a signed-out vendor select a step and see saved results, but not execute', () => {
@@ -464,7 +530,9 @@ describe('CertificationPageExecution', () => {
       render(<CertificationPageExecution />);
       select(0);
 
-      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+      expect(
+        screen.getByText('No Calendar found, or multiple records were returned.'),
+      ).toBeTruthy();
       expect(executeButton().disabled).toBe(true);
       expect(
         screen.getByText('Validate your credentials above to execute this step.'),
@@ -513,6 +581,7 @@ describe('CertificationPageExecution', () => {
           status: 'success',
           ranAt: '2026-10-16T10:00:00.000Z',
           scenarioStatus: 'inprogress',
+          responseStatus: 200,
           errors: [],
         },
         runState.mutate.mock.calls[0][0],
@@ -532,6 +601,7 @@ describe('CertificationPageExecution', () => {
             status: 'success',
             ranAt: '2026-10-16T10:00:00.000Z',
             inputs: { schoolId: '255901', beginDate: '2026-08-01' },
+            responseStatus: 200,
             errors: [],
           },
           otherStep,

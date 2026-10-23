@@ -1,5 +1,5 @@
-import { Box, HStack, Text } from '@chakra-ui/react';
-import { CertificationSavedStepRunDto } from '@edanalytics/models';
+import { Box, HStack, Table, Tbody, Td, Text, Th, Thead, Tr } from '@chakra-ui/react';
+import { CERT_STEP_ERROR_KIND, CertificationSavedStepRunDto } from '@edanalytics/models';
 import { STEP_STATUS_DISPLAY, toDisplayStatus } from './certificationStepResults';
 
 const formatRanAt = (ranAt: string) => {
@@ -21,6 +21,10 @@ export const CertificationStepResult = ({
   const display = STEP_STATUS_DISPLAY[toDisplayStatus(run?.status, isRunning)];
   const shownRun = isRunning ? undefined : run;
 
+  const exceptions =
+    shownRun?.errors.filter((e) => e.kind === CERT_STEP_ERROR_KIND.exception) ?? [];
+  const fields = shownRun?.errors.filter((e) => e.kind !== CERT_STEP_ERROR_KIND.exception) ?? [];
+
   return (
     <>
       <HStack mb={3} justify="space-between" alignItems="center">
@@ -38,38 +42,67 @@ export const CertificationStepResult = ({
 
       {shownRun && (
         <>
-          <Text mb={1}>Last execution: {formatRanAt(shownRun.ranAt)}</Text>
+          <Text mb={3}>Last execution: {formatRanAt(shownRun.ranAt)}</Text>
 
-          {shownRun.errors.length > 0 && (
-            <>
-              <Text mb={3}>Errors: {shownRun.errors.length}</Text>
-              <Text mb={2} fontWeight="medium">
-                Validation errors:
+          {exceptions.map((item, index) => (
+            <Box
+              key={`exception-${index}`}
+              mb={3}
+              p={3}
+              border="1px solid"
+              borderColor="red.200"
+              bg="red.50"
+              borderLeftWidth="4px"
+              borderLeftColor="red.500"
+              borderRadius="md"
+            >
+              <Text color="red.700" overflowWrap="anywhere">
+                {item.message}
               </Text>
-              {shownRun.errors.map((item, index) => (
-                <Box
-                  key={`${item.property}-${item.validation}-${index}`}
-                  mb={3}
-                  p={3}
-                  border="1px solid"
-                  borderColor="red.200"
-                  bg="red.50"
-                  borderLeftWidth="4px"
-                  borderLeftColor="red.500"
-                  borderRadius="md"
-                >
-                  <HStack mb={2} spacing={2}>
-                    <Box w="8px" h="8px" borderRadius="full" bg="red.500" />
-                    <Text fontSize="sm" fontWeight="semibold" color="red.700">
-                      Error
-                    </Text>
-                  </HStack>
-                  <Text mb={1}>Property: {item.property}</Text>
-                  <Text mb={1}>Validation: {item.validation}</Text>
-                  <Text>Error: {item.error}</Text>
-                </Box>
-              ))}
-            </>
+              {item.observed && (
+                <Text mt={1} fontSize="sm" color="red.700">
+                  {item.observed}
+                </Text>
+              )}
+            </Box>
+          ))}
+
+          {fields.length > 0 && (
+            <Box mb={3}>
+              <Text mb={2} fontWeight="medium">
+                {fields.length === 1 ? '1 field' : `${fields.length} fields`} didn't match
+              </Text>
+              {/* Descriptor URIs, nested paths and compact JSON have no spaces to wrap at. */}
+              <Box overflowX="auto">
+                <Table size="sm" sx={{ td: { overflowWrap: 'anywhere' } }}>
+                  <Thead>
+                    <Tr>
+                      <Th>Field</Th>
+                      <Th>Expected</Th>
+                      <Th>Observed</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {fields.map((item, index) => (
+                      <Tr key={`${item.field}-${index}`}>
+                        <Td fontFamily="mono">{item.field}</Td>
+                        {item.expected === null && item.observed === null && item.message ? (
+                          // A check Bruno can't split into expected/observed: its message is the explanation.
+                          <Td colSpan={2} color="red.700">
+                            {item.message}
+                          </Td>
+                        ) : (
+                          <>
+                            <Td>{item.expected ?? '—'}</Td>
+                            <Td color="red.700">{item.observed ?? '—'}</Td>
+                          </>
+                        )}
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </Box>
+            </Box>
           )}
         </>
       )}

@@ -2,6 +2,8 @@ import 'reflect-metadata';
 import { CertificationStepParameterDto } from '@edanalytics/models';
 import {
   classifyRunError,
+  httpStatusColorScheme,
+  httpStatusLabel,
   STEP_NOT_FOUND_MESSAGE,
   STEP_STATUS_DISPLAY,
   toDisplayStatus,
@@ -118,5 +120,36 @@ describe('classifyRunError', () => {
     ['an empty validation body', { data: { errors: {} } }],
   ])('treats %s as unknown', (_label, error) => {
     expect(classifyRunError(error)).toEqual({ kind: 'unknown' });
+  });
+});
+
+describe('httpStatusLabel', () => {
+  it.each([
+    [200, 'HTTP 200 OK'],
+    [404, 'HTTP 404 Not Found'],
+    [500, 'HTTP 500 Internal Server Error'],
+    [418, 'HTTP 418'],
+  ])('labels %i as %s', (status, label) => {
+    expect(httpStatusLabel(status)).toBe(label);
+  });
+});
+
+describe('httpStatusColorScheme', () => {
+  // A passing step met its expected status, e.g. the 404 a "was Deleted" step checks for.
+  it.each([200, 302, 404, 500])('shows %i as green when the step passed', (status) => {
+    expect(httpStatusColorScheme(status, 'success')).toBe('green');
+  });
+
+  it.each([
+    [200, 'green'],
+    [299, 'green'],
+    [301, 'orange'],
+    [399, 'orange'],
+    [400, 'red'],
+    [404, 'red'],
+    [500, 'red'],
+    [503, 'red'],
+  ])('shows %i as %s when the step failed', (status, colorScheme) => {
+    expect(httpStatusColorScheme(status, 'failed')).toBe(colorScheme);
   });
 });
