@@ -3,6 +3,7 @@ import { ParseIntPipe } from '@nestjs/common';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import { CertificationCatalogController } from './certification-catalog.controller';
+import { CertificationSupportInterceptor } from './certification-support.interceptor';
 
 const build = () => {
   const service = {
@@ -115,9 +116,10 @@ describe('CertificationCatalogController', () => {
     },
   );
 
-  it('resolves the environment so an unknown one returns 404', () => {
+  it('resolves the environment (unknown -> 404), then refuses unsupported data models', () => {
     expect(Reflect.getMetadata(INTERCEPTORS_METADATA, CertificationCatalogController)).toEqual([
       SbEnvironmentEdfiTenantInterceptor,
+      CertificationSupportInterceptor,
     ]);
   });
 

@@ -60,27 +60,89 @@ const optionsFor = (name: string) =>
 describe('useCertificationCatalog', () => {
   beforeEach(() => jest.resetAllMocks());
 
-  it.each([
-    ['5.2.0', 2],
-    ['4.0.0', 1],
-  ])('for data standard %s picks catalog version %d and loads its areas', (odsDsVersion, id) => {
+  it('for data standard 5.2.0 picks the v5 catalog version and loads its areas', () => {
     mockQueries({
-      env: settled({ odsDsVersion }),
+      env: settled({ odsDsVersion: '5.2.0' }),
       versions: settled(versions),
       scenarios: settled([area(2, 2), area(1, 1)]),
     });
 
     const { result } = renderHook(() => useCertificationCatalog(7));
 
-    expect(result.current.catalogVersion?.catalogVersionId).toBe(id);
+    expect(result.current.unsupportedMessage).toBeUndefined();
+    expect(result.current.catalogVersion?.catalogVersionId).toBe(2);
     expect(result.current.isPending).toBe(false);
     expect(optionsFor('scenarios')).toMatchObject({
-      queryKey: certificationQueryKeys.scenarios(7, id),
+      queryKey: certificationQueryKeys.scenarios(7, 2),
       enabled: true,
     });
     // Areas and their scenarios come back sorted by displayOrder.
     expect(result.current.areas.map((a) => a.areaId)).toEqual([1, 2]);
     expect(result.current.areas[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
+  });
+
+  // The API refuses these environments with a 400; asking would land on the route error page.
+  it('does not request the catalog for data standard 4.0.0 and says why', () => {
+    mockQueries({ env: settled({ odsDsVersion: '4.0.0' }), versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(optionsFor('catalog-versions')?.enabled).toBe(false);
+    expect(result.current.unsupportedMessage).toBe(
+      "Certification requires Ed-Fi Data Standard 5.0.0 or later. This environment's data standard version is 4.0.0, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.",
+    );
+    expect(result.current.catalogVersion).toBeUndefined();
+    expect(result.current.areas).toEqual([]);
+    expect(result.current.isPending).toBe(false);
+  });
+
+  it('does not request the catalog when the data standard is unknown and says why', () => {
+    mockQueries({ env: settled({ odsDsVersion: undefined }), versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(optionsFor('catalog-versions')?.enabled).toBe(false);
+    expect(result.current.unsupportedMessage).toMatch(/couldn't read this environment's data standard version/);
+    expect(result.current.isPending).toBe(false);
+  });
+
+  it('waits for the environment before requesting the catalog or judging support', () => {
+    mockQueries({ env: loading, versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(optionsFor('catalog-versions')?.enabled).toBe(false);
+    expect(result.current.isSupported).toBe(false);
+    expect(result.current.unsupportedMessage).toBeUndefined();
+    expect(result.current.isPending).toBe(true);
+  });
+
+  it.each([
+    ['5.2.0', true],
+    ['4.0.0', false],
+  ])('reports whether data standard %s supports certification', (odsDsVersion, isSupported) => {
+    mockQueries({ env: settled({ odsDsVersion }), versions: settled(versions) });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.isSupported).toBe(isSupported);
+  });
+
+  it('ignores a catalog list cached while the environment was supported', () => {
+    // TanStack Query keeps a disabled query's cached data. "5.0.0-pre" maps to the v5 catalog,
+    // so without the guard it would select it and request areas the API refuses (400).
+    (useQuery as jest.Mock).mockImplementation((options: QueryOptions) => {
+      if (options.queryKey[0] === 'env') return settled({ odsDsVersion: '5.0.0-pre' });
+      if (options.queryKey[2] === 'catalog-versions') return settled(versions);
+      return loading;
+    });
+
+    const { result } = renderHook(() => useCertificationCatalog(7));
+
+    expect(result.current.catalogVersion).toBeUndefined();
+    expect(optionsFor('scenarios')?.enabled).toBe(false);
+    expect(result.current.unsupportedMessage).toBeDefined();
+    expect(result.current.isPending).toBe(false);
   });
 
   it('requests only the matched catalog version', () => {

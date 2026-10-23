@@ -8,10 +8,11 @@ import {
   SbEnvironmentEdfiTenantInterceptor,
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
+import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationTokenService } from './certification-token.service';
 
 @ApiTags('Certification')
-@UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
+@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, CertificationSupportInterceptor)
 @Controller('sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/certification')
 export class CertificationTokenController {
   constructor(private readonly certificationTokenService: CertificationTokenService) {}

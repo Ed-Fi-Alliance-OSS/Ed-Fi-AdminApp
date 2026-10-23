@@ -24,6 +24,7 @@ import {
   useOdsTerminology,
   useTeamEdfiTenantNavContextLoaded,
 } from '../../helpers';
+import { popSyncBanner } from '../../helpers/popSyncBanner';
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import {
   FIXED_NON_SB_TEMPLATE_OPTIONS,
@@ -104,7 +105,15 @@ export const CreateOds = () => {
               },
             {
               ...callbacks,
-              onSuccess: () => {
+              onSuccess: (result) => {
+                if (result.syncQueue) {
+                  popSyncBanner({
+                    popBanner,
+                    syncQueue: result.syncQueue,
+                    linkTo: `/as/${params.asId}/sb-environments/${params.sbEnvironmentId}/edfi-tenants/${params.edfiTenantId}/odss/jobs/create/${result.syncQueue.id}`,
+                    subject: `${terminology.singular} creation`,
+                  });
+                }
                 void queryClient.invalidateQueries({
                   queryKey: odsQueries.getAll({ edfiTenant: params.edfiTenant, teamId: params.asId }).queryKey,
                 });

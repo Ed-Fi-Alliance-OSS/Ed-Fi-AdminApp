@@ -32,6 +32,11 @@ module.exports = {
   // Admin API EdOrg refresh polling
   ADMINAPI_REFRESH_POLL_ATTEMPTS: 10,
   ADMINAPI_REFRESH_POLL_INTERVAL_MS: 5000,
+  // Admin API datastore create/delete job tracking (720 x 5s = 60 min)
+  ADMINAPI_DATASTORE_JOB_POLL_INTERVAL_MS: 5000,
+  ADMINAPI_DATASTORE_JOB_POLL_ATTEMPTS: 720,
+  // How many datastore jobs one API instance tracks at once
+  ADMINAPI_DATASTORE_JOB_CONCURRENCY: 5,
   TYPEORM_LOGGING: undefined,
   // TypeORM database resilience configuration
   TYPEORM_RETRY_ATTEMPTS: 3,

@@ -60,7 +60,14 @@ import {
   integrationProvidersGlobalRoutes,
   integrationProvidersTeamRoutes,
 } from './integration-providers-global.routes';
-import { odsCreateRoute, odsIndexRoute, odsRoute, odssIndexRoute, odssRoute } from './ods.routes';
+import {
+  odsCreateRoute,
+  odsIndexRoute,
+  odsManageJobRoute,
+  odsRoute,
+  odssIndexRoute,
+  odssRoute,
+} from './ods.routes';
 import {
   ownershipGlobalCreateRoute,
   ownershipGlobalIndexRoute,
@@ -310,6 +317,7 @@ export const authenticatedRoutes: RouteObject = {
     odsRoute,
     odsIndexRoute,
     odsCreateRoute,
+    odsManageJobRoute,
 
     rolesRoute,
     rolesIndexRoute,

@@ -22,12 +22,13 @@ import {
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
 import { CertificationStepRunsService } from './certification-step-runs.service';
+import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationService } from './certification.service';
 
 const RETRY_AFTER_SECONDS = '30';
 
 @ApiTags('Certification')
-@UseInterceptors(SbEnvironmentEdfiTenantInterceptor)
+@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, CertificationSupportInterceptor)
 @Controller('sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/certification')
 export class CertificationController {
   constructor(

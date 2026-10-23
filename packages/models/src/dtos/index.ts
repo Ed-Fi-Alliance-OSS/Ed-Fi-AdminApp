@@ -9,6 +9,7 @@ export * from './edorg.dto';
 export * from './env-nav.dto';
 export * from './integration-app.dto';
 export * from './integration-provider.dto';
+export * from './ods-manage-job.dto';
 export * from './ods.dto';
 export * from './operations.dto';
 export * from './ownership.dto';
