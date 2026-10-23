@@ -17,7 +17,13 @@ describe('AUDIT_COLUMN_LENGTHS', () => {
 
   it('covers every length-limited column of the AuditLog entity with its declared length', () => {
     const limited = getMetadataArgsStorage()
-      .columns.filter((column) => column.target === AuditLog && column.options.length)
+      .columns.filter(
+        (column) =>
+          column.target === AuditLog &&
+          column.options.length &&
+          // nvarchar(MAX) is unbounded, not a numeric limit
+          String(column.options.length).toUpperCase() !== 'MAX',
+      )
       .map((column) => [column.propertyName, Number(column.options.length)]);
 
     expect(Object.fromEntries(limited)).toEqual(AUDIT_COLUMN_LENGTHS);

@@ -3,7 +3,7 @@ import type { NextFunction, Request, Response } from 'express';
 import { resolveActor } from './audit-actor.resolver';
 import { AuditEventType } from './audit-event';
 import { AuditEventRecorder } from './audit-event.recorder';
-import { getAuditSnapshot } from './audit-request-context';
+import { getAuditOidcIssuer, getAuditSnapshot } from './audit-request-context';
 import { safeStringify } from './audit-sanitizer';
 
 const AUDITED_METHODS = new Set(['POST', 'PUT', 'PATCH', 'DELETE']);
@@ -62,7 +62,7 @@ export class AuditActionMiddleware {
    */
   private sessionOidcIssuer(req: Request): string | null {
     try {
-      return req.session?.oidcIssuer ?? null;
+      return getAuditOidcIssuer(req) ?? req.session?.oidcIssuer ?? null;
     } catch (error) {
       this.logger.warn(`Could not read oidcIssuer from the session: ${error}`);
       return null;

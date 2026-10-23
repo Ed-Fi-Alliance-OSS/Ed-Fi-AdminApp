@@ -17,6 +17,9 @@ import {
 import { AUDIT_ENABLED } from './audit-enabled.token';
 import { setAuditSnapshot } from './audit-request-context';
 
+/** Longest the DELETE waits for its pre-delete snapshot before proceeding without one. */
+export const SNAPSHOT_TIMEOUT_MS = 5000;
+
 /**
  * Loads the Admin API resource named by `@AuditAdminApiDelete` before the handler runs and attaches
  * an allowlisted snapshot to the request. Never throws: a failed lookup only skips the snapshot.
@@ -61,7 +64,26 @@ export class AuditAdminApiDeleteInterceptor implements NestInterceptor {
     const id = Number(raw);
     if (!Number.isSafeInteger(id)) return;
 
-    const snapshot = await meta.load({ moduleRef: this.moduleRef, edfiTenant, id });
+    const snapshot = await this.withDeadline(
+      meta.load({ moduleRef: this.moduleRef, edfiTenant, id }),
+    );
     if (snapshot) setAuditSnapshot(req, snapshot);
+  }
+
+  /**
+   * The Admin API clients have no HTTP timeout, so an unresponsive read must not hold back the
+   * DELETE. The loader is not cancellable; on expiry its eventual result is simply ignored.
+   */
+  private withDeadline<T>(work: Promise<T>): Promise<T> {
+    let timer: NodeJS.Timeout;
+    const deadline = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error(`snapshot lookup exceeded ${SNAPSHOT_TIMEOUT_MS}ms`)),
+        SNAPSHOT_TIMEOUT_MS,
+      );
+    });
+    // Without this a late rejection of `work` after the deadline would be unhandled
+    work.catch(() => undefined);
+    return Promise.race([work, deadline]).finally(() => clearTimeout(timer));
   }
 }

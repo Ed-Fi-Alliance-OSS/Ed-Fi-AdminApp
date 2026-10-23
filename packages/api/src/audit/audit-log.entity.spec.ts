@@ -16,6 +16,15 @@ describe.each<DbEngine>(['pgsql', 'mssql'])('AuditLog insert SQL on %s', (engine
 
     expect(dataSource.driver.options.type).toBe(engine === 'pgsql' ? 'postgres' : 'mssql');
     expect(timestamp?.type).toBe(engine === 'pgsql' ? 'timestamptz' : 'datetimeoffset');
+
+    // varchar/text on SQL Server would make TypeORM bind non-Unicode parameters
+    const metadata = dataSource.getMetadata(models.AuditLog);
+    expect(metadata.findColumnWithPropertyName('actorUsername')?.type).toBe(
+      engine === 'pgsql' ? 'varchar' : 'nvarchar',
+    );
+    expect(metadata.findColumnWithPropertyName('details')?.type).toBe(
+      engine === 'pgsql' ? 'text' : 'nvarchar',
+    );
   });
 
   it('leaves the identity id column out of a multi-row insert', async () => {

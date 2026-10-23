@@ -36,6 +36,7 @@ import { Repository } from 'typeorm';
 import { AuditEvent, AuditEventType } from '../audit/audit-event';
 import { AuditEventRecorder } from '../audit/audit-event.recorder';
 import { resolveActor } from '../audit/audit-actor.resolver';
+import { setAuditOidcIssuer } from '../audit/audit-request-context';
 import { Authorize, NoAuthorization } from './authorization';
 import { Public } from './authorization/public.decorator';
 import { AuthCache } from './helpers/inject-auth-cache';
@@ -57,7 +58,7 @@ export class AuthController {
     private readonly teamsRepository: Repository<Team>,
     private readonly authService: AuthService,
     private readonly oidcProviderRegistry: OidcProviderRegistry,
-    private readonly auditEventRecorder: AuditEventRecorder
+    private readonly auditEventRecorder: AuditEventRecorder,
   ) {}
 
   throwOnBearerToken({ request, route }: { request: Request; route: string }) {
@@ -97,7 +98,7 @@ export class AuthController {
   oidcLoginCallback(
     @Param('oidcId') oidcId: number,
     @Req() request: Request,
-    @Res() response: Response
+    @Res() response: Response,
   ) {
     this.throwOnBearerToken({ request, route: 'oidc callback' });
 
@@ -138,7 +139,7 @@ export class AuthController {
               // not do a provider-aware IdP logout. Fail the login instead of
               // redirecting as if it succeeded.
               Logger.error(
-                `Failed to persist session after login for provider ${oidcId}: ${saveError}`
+                `Failed to persist session after login for provider ${oidcId}: ${saveError}`,
               );
               return this.redirectLoginFailure(saveError, request, response, oidcId);
             }
@@ -149,9 +150,9 @@ export class AuthController {
             return response.redirect(`${config.FE_URL}${redirect}`);
           });
         });
-      }
+      },
     )(request, response, (error: Error) =>
-      this.redirectLoginFailure(error, request, response, oidcId)
+      this.redirectLoginFailure(error, request, response, oidcId),
     );
   }
 
@@ -163,7 +164,7 @@ export class AuthController {
     eventType: AuditEventType,
     request: Request,
     oidcIssuer: string | null | undefined,
-    extra: Pick<AuditEvent, 'actorUsername' | 'actorType' | 'details'> = {}
+    extra: Pick<AuditEvent, 'actorUsername' | 'actorType' | 'details'> = {},
   ) {
     this.auditEventRecorder.record({
       eventType,
@@ -178,7 +179,7 @@ export class AuthController {
     error: Error,
     request: Request,
     response: Response,
-    oidcId: number | string
+    oidcId: number | string,
   ) {
     Logger.error(error);
     // Only a short reason code is audited, never the raw error message
@@ -186,8 +187,8 @@ export class AuthController {
       error.message === USER_NOT_FOUND
         ? 'user-not-found'
         : error.message === NO_ROLE
-        ? 'no-role'
-        : 'error';
+          ? 'no-role'
+          : 'error';
     this.recordLoginEvent(AuditEventType.LoginFailure, request, this.issuerOf(oidcId), {
       // The unverified claim, attached to the error by the strategy; never surfaced to the browser
       actorUsername: (error as { username?: string }).username ?? null,
@@ -196,29 +197,29 @@ export class AuthController {
 
     if (error.message === USER_NOT_FOUND) {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=Oops, it looks like your user hasn't been created yet. We'll let you know when you can log in.`
+        `${config.FE_URL}/unauthenticated?msg=Oops, it looks like your user hasn't been created yet. We'll let you know when you can log in.`,
       );
     } else if (error.message === NO_ROLE) {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=Your login worked, but it looks like your setup isn't quite complete. We'll let you know when everything's ready.`
+        `${config.FE_URL}/unauthenticated?msg=Your login worked, but it looks like your setup isn't quite complete. We'll let you know when everything's ready.`,
       );
     } else if (
       error.message?.startsWith('did not find expected authorization request details in session')
     ) {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=Login failed. There may be an issue, but please try again.`
+        `${config.FE_URL}/unauthenticated?msg=Login failed. There may be an issue, but please try again.`,
       );
     } else if (error.message?.startsWith('invalid_grant (Code not valid)')) {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=It looks like there was a hiccup during login. Please try again.`
+        `${config.FE_URL}/unauthenticated?msg=It looks like there was a hiccup during login. Please try again.`,
       );
     } else if (error.message?.includes('Database connection error')) {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=The system is temporarily unavailable. Please try again in a few moments.`
+        `${config.FE_URL}/unauthenticated?msg=The system is temporarily unavailable. Please try again in a few moments.`,
       );
     } else {
       response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=It looks like your login was not successful. Please try again and contact us if the issue persists.`
+        `${config.FE_URL}/unauthenticated?msg=It looks like your login was not successful. Please try again and contact us if the issue persists.`,
       );
     }
   }
@@ -251,7 +252,7 @@ export class AuthController {
   @Header('Cache-Control', 'no-store')
   async myTeams(
     @ReqUser() session: GetSessionDataDto,
-    @AuthCache() privileges: AuthorizationCache
+    @AuthCache() privileges: AuthorizationCache,
   ) {
     if (privileges['team:read'] === true) {
       return toGetTeamDto(await this.teamsRepository.find());
@@ -270,9 +271,9 @@ export class AuthController {
   async getCacheAll(
     @Query('edfiTenantId') edfiTenantId: string | undefined,
     @Query('sbEnvironmentId') sbEnvironmentId: string | undefined,
-    @AuthCache() cache: AuthorizationCache
+    @AuthCache() cache: AuthorizationCache,
   ) {
-  return this.privilegeCache(undefined, edfiTenantId, sbEnvironmentId, cache);
+    return this.privilegeCache(undefined, edfiTenantId, sbEnvironmentId, cache);
   }
 
   @Get('cache/:teamId')
@@ -286,12 +287,17 @@ export class AuthController {
     @Param('teamId') teamId: string,
     @Query('edfiTenantId') edfiTenantId: string | undefined,
     @Query('sbEnvironmentId') sbEnvironmentId: string | undefined,
-    @AuthCache() cache: AuthorizationCache
+    @AuthCache() cache: AuthorizationCache,
   ) {
     return this.handleCache(teamId, cache, sbEnvironmentId, edfiTenantId);
   }
 
-  private handleCache(teamId: string, cache: AuthorizationCache, sbEnvironmentId: string, edfiTenantId: string) {
+  private handleCache(
+    teamId: string,
+    cache: AuthorizationCache,
+    sbEnvironmentId: string,
+    edfiTenantId: string,
+  ) {
     const result: Partial<AuthorizationCache> = {};
     if (teamId === undefined) {
       Object.keys(cache).forEach((privilege: PrivilegeCode) => {
@@ -338,6 +344,8 @@ export class AuthController {
 
     // Read the login provider before destroying the session
     const { oidcId, oidcIssuer, idToken } = request.session;
+    // The Action row is written after the response, when the session no longer exists
+    setAuditOidcIssuer(request, oidcIssuer);
     // Record before the session (and request.user) is destroyed. An anonymous
     // logout is still recorded, with a null actor, so the attempt is visible.
     const actor = resolveActor(request);
@@ -368,7 +376,7 @@ export class AuthController {
         // Still confirm the local sign-out instead of dropping the user on the
         // app root with no explanation that their session ended.
         return response.redirect(
-          `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(SIGNED_OUT_MESSAGE)}`
+          `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(SIGNED_OUT_MESSAGE)}`,
         );
       }
 
@@ -382,7 +390,7 @@ export class AuthController {
       // The provider does not support RP-Initiated Logout (no end_session_endpoint,
       // e.g. Google): local session is destroyed but the IdP session persists
       return response.redirect(
-        `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(LOCAL_ONLY_LOGOUT_MESSAGE)}`
+        `${config.FE_URL}/unauthenticated?msg=${encodeURIComponent(LOCAL_ONLY_LOGOUT_MESSAGE)}`,
       );
     } catch (error) {
       Logger.error('Error during logout process:', error);

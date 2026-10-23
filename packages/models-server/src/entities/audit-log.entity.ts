@@ -1,6 +1,11 @@
 import { Column, Entity, Index, PrimaryGeneratedColumn } from 'typeorm';
 import * as config from 'config';
 
+const isPgsql = config.DB_ENGINE === 'pgsql';
+// The SQL Server migration uses NVARCHAR. A 'varchar' mapping makes TypeORM bind non-Unicode
+// parameters, which corrupts text outside the database code page (e.g. usernames, snapshot names).
+const stringType = isPgsql ? 'varchar' : 'nvarchar';
+
 /** One audit trail entry. Deliberately has no relations so entries outlive the rows they describe. */
 @Entity({ name: 'audit_log' })
 export class AuditLog {
@@ -10,36 +15,40 @@ export class AuditLog {
   @PrimaryGeneratedColumn('increment', { type: 'bigint' })
   id: string;
 
-  @Column({ type: 'varchar', length: 30 })
+  @Column({ type: stringType, length: 30 })
   eventType: string;
 
   @Index('IDX_audit_log_timestamp')
   // An absolute instant with its offset on both engines, so it never depends on the host time zone
-  @Column({ type: config.DB_ENGINE === 'pgsql' ? 'timestamptz' : 'datetimeoffset' })
+  @Column({ type: isPgsql ? 'timestamptz' : 'datetimeoffset' })
   timestamp: Date;
 
   @Index('IDX_audit_log_actorUsername')
-  @Column({ type: 'varchar', length: 256, nullable: true })
+  @Column({ type: stringType, length: 256, nullable: true })
   actorUsername: string | null;
 
-  @Column({ type: 'varchar', length: 20, nullable: true })
+  @Column({ type: stringType, length: 20, nullable: true })
   actorType: 'user' | 'machine' | null;
 
-  @Column({ type: 'varchar', length: 45, nullable: true })
+  @Column({ type: stringType, length: 45, nullable: true })
   sourceIpAddress: string | null;
 
-  @Column({ type: 'varchar', length: 10, nullable: true })
+  @Column({ type: stringType, length: 10, nullable: true })
   httpVerb: string | null;
 
-  @Column({ type: 'varchar', length: 2048, nullable: true })
+  @Column({ type: stringType, length: 2048, nullable: true })
   httpUrl: string | null;
 
   @Column({ type: 'int', nullable: true })
   statusCode: number | null;
 
-  @Column({ type: 'varchar', length: 512, nullable: true })
+  @Column({ type: stringType, length: 512, nullable: true })
   oidcIssuer: string | null;
 
-  @Column({ type: 'text', nullable: true })
+  @Column(
+    isPgsql
+      ? { type: 'text', nullable: true }
+      : { type: 'nvarchar', length: 'MAX', nullable: true },
+  )
   details: string | null;
 }

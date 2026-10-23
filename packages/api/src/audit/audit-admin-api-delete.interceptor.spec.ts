@@ -2,7 +2,10 @@ import { CallHandler, ExecutionContext } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { of } from 'rxjs';
 import { AuditAdminApiDelete } from './audit-admin-api-delete.decorator';
-import { AuditAdminApiDeleteInterceptor } from './audit-admin-api-delete.interceptor';
+import {
+  AuditAdminApiDeleteInterceptor,
+  SNAPSHOT_TIMEOUT_MS,
+} from './audit-admin-api-delete.interceptor';
 import { getAuditSnapshot } from './audit-request-context';
 
 const load = jest.fn();
@@ -52,6 +55,21 @@ describe('AuditAdminApiDeleteInterceptor', () => {
     expect(getAuditSnapshot(req)).toEqual({ company: 'Acme' });
     expect(load).toHaveBeenCalledWith({ moduleRef, edfiTenant, id: 9 });
     expect(handle).toHaveBeenCalled();
+  });
+
+  it('skips the snapshot and still runs the handler when the lookup never settles', async () => {
+    jest.useFakeTimers();
+    try {
+      load.mockReturnValue(new Promise(() => undefined));
+      const { run } = setup();
+      const pending = run(c.remove, { vendorId: '9' });
+      await jest.advanceTimersByTimeAsync(SNAPSHOT_TIMEOUT_MS);
+      const { req, handle } = await pending;
+      expect(getAuditSnapshot(req)).toBeUndefined();
+      expect(handle).toHaveBeenCalled();
+    } finally {
+      jest.useRealTimers();
+    }
   });
 
   it('does not load anything when audit logging is disabled, and still runs the handler', async () => {

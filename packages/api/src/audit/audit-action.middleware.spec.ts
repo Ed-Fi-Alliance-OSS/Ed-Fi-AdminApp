@@ -1,3 +1,4 @@
+import { setAuditOidcIssuer } from './audit-request-context';
 import express, { NextFunction, Request, Response } from 'express';
 import { createServer } from 'http';
 import { AddressInfo, Socket } from 'net';
@@ -92,6 +93,23 @@ describe('AuditActionMiddleware', () => {
       app.post('/things', (_req, res) => void res.sendStatus(201));
 
       await request(app).post('/things').expect(201);
+
+      expect(recorded[0].oidcIssuer).toBe('https://idp.example/realms/edfi');
+    });
+
+    it('keeps the issuer a handler stashed on the request after it destroyed the session', async () => {
+      session = { oidcId: 7, oidcIssuer: 'https://idp.example/realms/edfi' };
+      const app = build();
+      app.post('/logout', (req, res) => {
+        setAuditOidcIssuer(
+          req,
+          (req as never as { session: { oidcIssuer: string } }).session.oidcIssuer,
+        );
+        (req as unknown as { session: unknown }).session = undefined;
+        res.sendStatus(204);
+      });
+
+      await request(app).post('/logout').expect(204);
 
       expect(recorded[0].oidcIssuer).toBe('https://idp.example/realms/edfi');
     });
