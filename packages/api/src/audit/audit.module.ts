@@ -43,6 +43,6 @@ export const auditProviders: Provider[] = [
 @Module({
   imports: [TypeOrmModule.forFeature([AuditLog])],
   providers: auditProviders,
-  exports: [AuditEventRecorder],
+  exports: [AuditEventRecorder, AUDIT_ENABLED],
 })
 export class AuditModule {}
