@@ -35,6 +35,7 @@ describe('AuthController', () => {
   let controller: AuthController;
   let getEndSessionUrl: jest.Mock;
   let getSoleOidcId: jest.Mock;
+  let getIssuer: jest.Mock;
   let response: Response;
   let record: jest.Mock;
 
@@ -54,6 +55,7 @@ describe('AuthController', () => {
   beforeEach(() => {
     getEndSessionUrl = jest.fn();
     getSoleOidcId = jest.fn();
+    getIssuer = jest.fn((id: number | string) => `https://idp.example/realms/${id}`);
     record = jest.fn();
     controller = new AuthController(
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -61,7 +63,7 @@ describe('AuthController', () => {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       {} as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
-      { getEndSessionUrl, getSoleOidcId } as any,
+      { getEndSessionUrl, getSoleOidcId, getIssuer } as any,
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       { record } as any,
     );
@@ -170,6 +172,7 @@ describe('AuthController', () => {
 
       expect(request.logIn).toHaveBeenCalledWith(user, expect.any(Function));
       expect(request.session.oidcId).toBe(3);
+      expect(request.session.oidcIssuer).toBe('https://idp.example/realms/3');
       expect(request.session.idToken).toBe('the-id-token');
       expect(request.session.save).toHaveBeenCalled();
       expect(response.redirect).toHaveBeenCalledWith('http://frontend/teams');
@@ -291,7 +294,7 @@ describe('AuthController', () => {
       return request;
     };
 
-    it('records LoginSuccess with username, ip and oidcId', () => {
+    it('records LoginSuccess with username, ip and oidcIssuer', () => {
       mockAuthenticate(null, user, { idToken: 'secret-id-token' });
 
       callback(callbackRequest());
@@ -303,7 +306,7 @@ describe('AuthController', () => {
           actorUsername: 'jane@example.org',
           actorType: 'user',
           sourceIpAddress: '10.0.0.5',
-          oidcId: '3',
+          oidcIssuer: 'https://idp.example/realms/3',
         })
       );
       expect(JSON.stringify(record.mock.calls)).not.toContain('secret-id-token');
@@ -325,7 +328,7 @@ describe('AuthController', () => {
           eventType: 'LoginFailure',
           details: reason,
           sourceIpAddress: '10.0.0.5',
-          oidcId: '3',
+          oidcIssuer: 'https://idp.example/realms/3',
         })
       );
       expect(JSON.stringify(event)).not.toContain('secret-token');
@@ -374,7 +377,12 @@ describe('AuthController', () => {
     });
 
     it('records Logout with the username captured before the session is destroyed', async () => {
-      const request = buildRequest({ oidcId: 3, idToken: 'secret-id-token', id: 'sess-123' });
+      const request = buildRequest({
+        oidcId: 3,
+        oidcIssuer: 'https://idp.example/realms/3',
+        idToken: 'secret-id-token',
+        id: 'sess-123',
+      });
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       (request as any).user = user;
       let callsAtDestroy = -1;
@@ -393,7 +401,7 @@ describe('AuthController', () => {
           eventType: 'Logout',
           actorUsername: 'jane@example.org',
           actorType: 'user',
-          oidcId: '3',
+          oidcIssuer: 'https://idp.example/realms/3',
         })
       );
       const serialized = JSON.stringify(record.mock.calls);
@@ -418,7 +426,7 @@ describe('AuthController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {} as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { getEndSessionUrl, getSoleOidcId } as any,
+        { getEndSessionUrl, getSoleOidcId, getIssuer } as any,
         new AuditEventRecorder(queue, true)
       );
       const request = buildRequest({});
@@ -440,7 +448,7 @@ describe('AuthController', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         {} as any,
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        { getEndSessionUrl, getSoleOidcId } as any,
+        { getEndSessionUrl, getSoleOidcId, getIssuer } as any,
         new AuditEventRecorder(queue, true)
       );
       mockAuthenticate(

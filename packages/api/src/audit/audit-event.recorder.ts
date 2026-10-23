@@ -22,7 +22,7 @@ function sanitizeEvent(event: AuditEvent): AuditEvent {
     httpUrl: event.httpUrl
       ? sanitizeText(stripQueryString(event.httpUrl), AUDIT_COLUMN_LENGTHS.httpUrl)
       : null,
-    oidcId: sanitizeText(event.oidcId, AUDIT_COLUMN_LENGTHS.oidcId),
+    oidcIssuer: sanitizeText(event.oidcIssuer, AUDIT_COLUMN_LENGTHS.oidcIssuer),
   };
 }
 

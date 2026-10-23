@@ -37,8 +37,8 @@ export class AuditLog {
   @Column({ type: 'int', nullable: true })
   statusCode: number | null;
 
-  @Column({ type: 'varchar', length: 100, nullable: true })
-  oidcId: string | null;
+  @Column({ type: 'varchar', length: 512, nullable: true })
+  oidcIssuer: string | null;
 
   @Column({ type: 'text', nullable: true })
   details: string | null;

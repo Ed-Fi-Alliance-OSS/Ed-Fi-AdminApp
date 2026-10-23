@@ -16,7 +16,7 @@ export class CreateAuditLog1792000000001 implements MigrationInterface {
         "httpVerb"        character varying(10),
         "httpUrl"         character varying(2048),
         "statusCode"      integer,
-        "oidcId"          character varying(100),
+        "oidcIssuer"      character varying(512),
         "details"         text,
         CONSTRAINT "PK_audit_log" PRIMARY KEY ("id")
       )

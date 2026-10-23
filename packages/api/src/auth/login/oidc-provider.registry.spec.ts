@@ -68,6 +68,21 @@ describe('OidcProviderRegistry', () => {
     registry = new OidcProviderRegistry();
   });
 
+  describe('getIssuer', () => {
+    it('returns the issuer of a registered provider, given a numeric or string id', () => {
+      registry.register(1, keycloakConfig);
+
+      expect(registry.getIssuer(1)).toBe('http://keycloak/realms/edfi');
+      expect(registry.getIssuer('1')).toBe('http://keycloak/realms/edfi');
+    });
+
+    it.each([[2], [undefined], [null]])('returns null for %s', (id) => {
+      registry.register(1, keycloakConfig);
+
+      expect(registry.getIssuer(id)).toBeNull();
+    });
+  });
+
   describe('getSoleOidcId', () => {
     it('returns undefined when no providers are registered', () => {
       registry.setConfiguredProviderCount(0);

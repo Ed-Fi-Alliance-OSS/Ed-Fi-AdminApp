@@ -35,7 +35,7 @@ describe.each<DbEngine>(['pgsql', 'mssql'])('AuditLog insert SQL on %s', (engine
           httpVerb: 'POST',
           httpUrl: '/things',
           statusCode: 201,
-          oidcId: '1',
+          oidcIssuer: 'https://idp.example/realms/edfi',
           details: null,
         },
         { eventType: 'LoginFailure', timestamp: new Date(), actorUsername: undefined },

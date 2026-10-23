@@ -16,6 +16,6 @@ export interface AuditEvent {
   httpVerb?: string | null;
   httpUrl?: string | null;
   statusCode?: number | null;
-  oidcId?: string | null;
+  oidcIssuer?: string | null;
   details?: string | null;
 }

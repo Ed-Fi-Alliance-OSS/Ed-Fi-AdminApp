@@ -27,7 +27,7 @@ describe('CreateAuditLog1792000000001 (pgsql) SQL', () => {
       'httpVerb',
       'httpUrl',
       'statusCode',
-      'oidcId',
+      'oidcIssuer',
       'details',
     ]) {
       expect(sql).toContain(`"${column}"`);

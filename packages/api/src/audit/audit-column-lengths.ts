@@ -10,5 +10,5 @@ export const AUDIT_COLUMN_LENGTHS = {
   sourceIpAddress: 45,
   httpVerb: 10,
   httpUrl: 2048,
-  oidcId: 100,
+  oidcIssuer: 512,
 } as const;

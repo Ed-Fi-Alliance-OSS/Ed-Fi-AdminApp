@@ -16,7 +16,7 @@ export class CreateAuditLog1792000000001 implements MigrationInterface {
         [httpVerb]        NVARCHAR(10) NULL,
         [httpUrl]         NVARCHAR(2048) NULL,
         [statusCode]      INT NULL,
-        [oidcId]          NVARCHAR(100) NULL,
+        [oidcIssuer]      NVARCHAR(512) NULL,
         [details]         NVARCHAR(max) NULL,
         CONSTRAINT [PK_audit_log] PRIMARY KEY ([id])
       )

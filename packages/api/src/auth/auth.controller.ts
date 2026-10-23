@@ -116,7 +116,9 @@ export class AuthController {
           return this.redirectLoginFailure(error, request, response, oidcId);
         }
         if (!user) {
-          this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, { details: 'error' });
+          this.recordLoginEvent(AuditEventType.LoginFailure, request, this.issuerOf(oidcId), {
+            details: 'error',
+          });
           return response.redirect(`${config.FE_URL}/unauthenticated`);
         }
         request.logIn(user, (loginError: Error | null) => {
@@ -127,6 +129,8 @@ export class AuthController {
           // id_token for use as id_token_hint during RP-Initiated Logout.
           // Must happen after logIn, which regenerates the session.
           request.session.oidcId = Number(oidcId);
+          // The issuer, unlike the numeric id, still identifies the provider in the audit log after its row is deleted
+          request.session.oidcIssuer = this.issuerOf(oidcId) ?? undefined;
           request.session.idToken = info?.idToken;
           request.session.save((saveError: Error | null) => {
             if (saveError) {
@@ -138,7 +142,7 @@ export class AuthController {
               );
               return this.redirectLoginFailure(saveError, request, response, oidcId);
             }
-            this.recordLoginEvent(AuditEventType.LoginSuccess, request, oidcId, {
+            this.recordLoginEvent(AuditEventType.LoginSuccess, request, this.issuerOf(oidcId), {
               actorUsername: user.username,
               actorType: 'user',
             });
@@ -151,17 +155,21 @@ export class AuthController {
     );
   }
 
+  private issuerOf(oidcId: number | string | undefined | null): string | null {
+    return this.oidcProviderRegistry.getIssuer(oidcId);
+  }
+
   private recordLoginEvent(
     eventType: AuditEventType,
     request: Request,
-    oidcId: number | string | undefined | null,
+    oidcIssuer: string | null | undefined,
     extra: Pick<AuditEvent, 'actorUsername' | 'actorType' | 'details'> = {}
   ) {
     this.auditEventRecorder.record({
       eventType,
       timestamp: new Date(),
       sourceIpAddress: request.ip,
-      oidcId: oidcId === undefined || oidcId === null ? null : String(oidcId),
+      oidcIssuer: oidcIssuer ?? null,
       ...extra,
     });
   }
@@ -180,7 +188,7 @@ export class AuthController {
         : error.message === NO_ROLE
         ? 'no-role'
         : 'error';
-    this.recordLoginEvent(AuditEventType.LoginFailure, request, oidcId, {
+    this.recordLoginEvent(AuditEventType.LoginFailure, request, this.issuerOf(oidcId), {
       // The unverified claim, attached to the error by the strategy; never surfaced to the browser
       actorUsername: (error as { username?: string }).username ?? null,
       details: reason,
@@ -329,11 +337,11 @@ export class AuthController {
     this.throwOnBearerToken({ request, route: 'logout' });
 
     // Read the login provider before destroying the session
-    const { oidcId, idToken } = request.session;
+    const { oidcId, oidcIssuer, idToken } = request.session;
     // Record before the session (and request.user) is destroyed. An anonymous
     // logout is still recorded, with a null actor, so the attempt is visible.
     const actor = resolveActor(request);
-    this.recordLoginEvent(AuditEventType.Logout, request, oidcId, {
+    this.recordLoginEvent(AuditEventType.Logout, request, oidcIssuer, {
       actorUsername: actor?.username ?? null,
       actorType: actor?.type ?? null,
     });

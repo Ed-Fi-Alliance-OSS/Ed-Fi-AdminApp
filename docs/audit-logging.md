@@ -26,8 +26,8 @@ produces only a `LoginSuccess` or `LoginFailure` row.
 so requests rejected by those, or by an authorization guard, are recorded too, with their final
 `statusCode` (for example 400, 401 or 403). The actor is resolved when the response finishes, and is
 null if the request was rejected before authentication. Machine (bearer token) callers are recorded
-with `actorType = 'machine'`. Requests made with a session also carry `oidcId`, the identifier of the
-OIDC provider configuration the session was authenticated through; it is null for machine users and
+with `actorType = 'machine'`. Requests made with a session also carry `oidcIssuer`, the issuer URL of the
+OIDC provider the session was authenticated through; it is null for machine users and
 unauthenticated requests.
 
 If the connection closes before the response is finished (for example the client disconnects early),
@@ -42,8 +42,8 @@ Not logged:
 
 ### Login events
 
-Login and logout rows carry `sourceIpAddress` and `oidcId` (the identifier of the OIDC provider
-configuration used to sign in). On failures, `details`
+Login and logout rows carry `sourceIpAddress` and `oidcIssuer` (the issuer URL of the OIDC provider
+used to sign in). On failures, `details`
 holds a short reason code, never the raw error message:
 
 | `details`        | Meaning                                                                    |
@@ -72,7 +72,7 @@ describe. The application only inserts into it; it never updates or deletes entr
 | `httpVerb`        | `varchar(10)`              | `NVARCHAR(10)`          | `Action` rows only.                                      |
 | `httpUrl`         | `varchar(2048)`            | `NVARCHAR(2048)`        | `Action` rows only; no query string.                     |
 | `statusCode`      | `integer`                  | `INT`                   | `Action` rows only.                                      |
-| `oidcId`          | `varchar(100)`             | `NVARCHAR(100)`         | Identifier of the OIDC provider configuration the session was authenticated through; set on login, logout and on every write request made with a session; null for machine users and unauthenticated requests. |
+| `oidcIssuer`      | `varchar(512)`             | `NVARCHAR(512)`         | Issuer URL of the OIDC provider the session was authenticated through (not the numeric provider id, which means nothing once that provider row is deleted); set on login, logout and on every write request made with a session; null for machine users and unauthenticated requests. |
 | `details`         | `text`                     | `NVARCHAR(max)`         | Delete snapshot JSON, or login failure reason.           |
 
 The table is created by migration `1792000000001-CreateAuditLog` for both engines. Before storage,
@@ -147,7 +147,7 @@ behaviour only; use database permissions if you need protection against tamperin
 
 ## Examples
 
-Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcId` are also populated):
+Sample rows (some columns omitted; `actorType`, `sourceIpAddress` and `oidcIssuer` are also populated):
 
 | id  | eventType    | timestamp (UTC)     | actorUsername     | httpVerb | httpUrl                | statusCode | details                         |
 | --- | ------------ | ------------------- | ----------------- | -------- | ---------------------- | ---------- | ------------------------------- |

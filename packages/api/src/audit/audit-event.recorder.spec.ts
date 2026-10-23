@@ -55,7 +55,7 @@ describe('AuditEventRecorder', () => {
         eventType: 'x'.repeat(300) as AuditEvent['eventType'],
         actorType: 'm'.repeat(300) as AuditEvent['actorType'],
         sourceIpAddress: '1'.repeat(300),
-        oidcId: 'o'.repeat(300),
+        oidcIssuer: 'o'.repeat(600),
         httpVerb: 'D'.repeat(300),
       }),
     );
@@ -64,7 +64,7 @@ describe('AuditEventRecorder', () => {
     expect(recorded.eventType).toHaveLength(AUDIT_COLUMN_LENGTHS.eventType);
     expect(recorded.actorType).toHaveLength(AUDIT_COLUMN_LENGTHS.actorType);
     expect(recorded.sourceIpAddress).toHaveLength(AUDIT_COLUMN_LENGTHS.sourceIpAddress);
-    expect(recorded.oidcId).toHaveLength(AUDIT_COLUMN_LENGTHS.oidcId);
+    expect(recorded.oidcIssuer).toHaveLength(AUDIT_COLUMN_LENGTHS.oidcIssuer);
     expect(recorded.httpVerb).toHaveLength(AUDIT_COLUMN_LENGTHS.httpVerb);
   });
 
@@ -72,12 +72,12 @@ describe('AuditEventRecorder', () => {
     const queue = new AuditEventQueue(10);
 
     new AuditEventRecorder(queue, true, logger).record(
-      event({ sourceIpAddress: '10.0.0.1\r\n', oidcId: 'id\u00001', httpVerb: 'DEL\tETE' }),
+      event({ sourceIpAddress: '10.0.0.1\r\n', oidcIssuer: 'id\u00001', httpVerb: 'DEL\tETE' }),
     );
 
     const [recorded] = queue.drain(1);
     expect(recorded.sourceIpAddress).toBe('10.0.0.1');
-    expect(recorded.oidcId).toBe('id1');
+    expect(recorded.oidcIssuer).toBe('id1');
     expect(recorded.httpVerb).toBe('DELETE');
   });
 

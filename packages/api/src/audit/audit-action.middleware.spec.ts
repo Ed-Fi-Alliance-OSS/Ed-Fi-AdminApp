@@ -84,21 +84,21 @@ describe('AuditActionMiddleware', () => {
     expect(recorded[0]).toMatchObject({ statusCode: 401, actorUsername: null, actorType: null });
   });
 
-  describe('oidcId', () => {
+  describe('oidcIssuer', () => {
     it('records the OIDC provider the session was authenticated through', async () => {
       user = { username: 'alice', userType: 'human' };
-      session = { oidcId: 7 };
+      session = { oidcId: 7, oidcIssuer: 'https://idp.example/realms/edfi' };
       const app = build();
       app.post('/things', (_req, res) => void res.sendStatus(201));
 
       await request(app).post('/things').expect(201);
 
-      expect(recorded[0].oidcId).toBe('7');
+      expect(recorded[0].oidcIssuer).toBe('https://idp.example/realms/edfi');
     });
 
     it.each([
       ['no session', undefined],
-      ['a session without an oidcId', {}],
+      ['a session without an oidcIssuer', {}],
     ])('records null with %s', async (_label, value) => {
       session = value;
       const app = build();
@@ -107,10 +107,10 @@ describe('AuditActionMiddleware', () => {
       await request(app).post('/things').expect(201);
 
       expect(recorded).toHaveLength(1);
-      expect(recorded[0].oidcId).toBeNull();
+      expect(recorded[0].oidcIssuer).toBeNull();
     });
 
-    it('still records the action, with a null oidcId, when reading the session throws', async () => {
+    it('still records the action, with a null oidcIssuer, when reading the session throws', async () => {
       const app = express();
       app.use((req, _res, next) => {
         Object.defineProperty(req, 'session', {
@@ -128,7 +128,7 @@ describe('AuditActionMiddleware', () => {
       expect(res.status).toBe(201);
       expect(res.text).toBe('ok');
       expect(recorded).toHaveLength(1);
-      expect(recorded[0]).toMatchObject({ statusCode: 201, oidcId: null });
+      expect(recorded[0]).toMatchObject({ statusCode: 201, oidcIssuer: null });
     });
   });
 

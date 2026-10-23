@@ -27,7 +27,7 @@ describe('CreateAuditLog1792000000001 (mssql) SQL', () => {
       'httpVerb',
       'httpUrl',
       'statusCode',
-      'oidcId',
+      'oidcIssuer',
       'details',
     ]) {
       expect(sql).toContain(`[${column}]`);
@@ -56,7 +56,7 @@ describe('CreateAuditLog1792000000001 (mssql) SQL', () => {
       /\[httpVerb\]\s+NVARCHAR\(10\) NULL/,
       /\[httpUrl\]\s+NVARCHAR\(2048\) NULL/,
       /\[statusCode\]\s+INT NULL/,
-      /\[oidcId\]\s+NVARCHAR\(100\) NULL/,
+      /\[oidcIssuer\]\s+NVARCHAR\(512\) NULL/,
       /\[details\]\s+NVARCHAR\(max\) NULL/,
     ]) {
       expect(sql).toMatch(definition);
