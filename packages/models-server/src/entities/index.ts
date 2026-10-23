@@ -24,3 +24,4 @@ export * from './cert-certification-process.entity';
 export * from './cert-certification-process-scenario.entity';
 export * from './cert-scenario-step.entity';
 export * from './cert-scenario-step-error.entity';
+export * from './audit-log.entity';

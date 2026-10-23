@@ -67,6 +67,9 @@ import {
   ReqSbEnvironment,
   SbEnvironmentEdfiTenantInterceptor,
 } from '../../../../app/sb-environment-edfi-tenant.interceptor';
+import { adminApiDeleteSnapshots } from '../../../../audit/admin-api-delete.snapshots';
+import { AuditAdminApiDelete } from '../../../../audit/audit-admin-api-delete.decorator';
+import { AuditAdminApiDeleteInterceptor } from '../../../../audit/audit-admin-api-delete.interceptor';
 import { Authorize } from '../../../../auth/authorization';
 import { InjectFilter } from '../../../../auth/helpers/inject-filter';
 import { checkId } from '../../../../auth/helpers/where-ids';
@@ -100,7 +103,11 @@ class AdminApiV2Interceptor implements NestInterceptor {
 }
 
 @UseFilters(new AdminApiV1xExceptionFilter())
-@UseInterceptors(SbEnvironmentEdfiTenantInterceptor, AdminApiV2Interceptor)
+@UseInterceptors(
+  SbEnvironmentEdfiTenantInterceptor,
+  AdminApiV2Interceptor,
+  AuditAdminApiDeleteInterceptor,
+)
 @ApiTags('Admin API Resources - v2.x')
 @Controller()
 export class AdminApiControllerV2 {
@@ -250,6 +257,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('vendors/:vendorId')
+  @AuditAdminApiDelete('vendorId', adminApiDeleteSnapshots.v2.vendor)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.vendor:delete',
     subject: {
@@ -601,6 +609,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('applications/:applicationId')
+  @AuditAdminApiDelete('applicationId', adminApiDeleteSnapshots.v2.application)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
     subject: {
@@ -827,6 +836,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('apiClients/:apiclientId')
+  @AuditAdminApiDelete('apiclientId', adminApiDeleteSnapshots.v2.apiClient)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.ods.edorg.application:delete',
     subject: {
@@ -1106,6 +1116,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('claimsets/:claimsetId')
+  @AuditAdminApiDelete('claimsetId', adminApiDeleteSnapshots.v2.claimset)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.claimset:delete',
     subject: {
@@ -1309,6 +1320,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('instances/:instanceManageId')
+  @AuditAdminApiDelete('instanceManageId', adminApiDeleteSnapshots.v2.instance)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant:delete-ods',
     subject: {
@@ -1426,6 +1438,7 @@ export class AdminApiControllerV2 {
   }
 
   @Delete('profiles/:profileId')
+  @AuditAdminApiDelete('profileId', adminApiDeleteSnapshots.v2.profile)
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant.profile:delete',
     subject: {
