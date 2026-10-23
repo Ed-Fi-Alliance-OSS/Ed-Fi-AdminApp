@@ -4,6 +4,7 @@ import {
   Body,
   Controller,
   Get,
+  Header,
   HttpCode,
   Param,
   ParseIntPipe,
@@ -93,6 +94,8 @@ export class CertificationController {
    * when the vendor opens it, so the step list never carries the bodies.
    */
   @Get('sis/:sisVersion/step-runs/:stepId/snapshot')
+  // The body is a decrypted vendor response: no browser or proxy may keep a copy.
+  @Header('Cache-Control', 'no-store')
   @ApiQuery({ name: 'odsId', required: false, type: Number })
   @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
   async getStepSnapshot(

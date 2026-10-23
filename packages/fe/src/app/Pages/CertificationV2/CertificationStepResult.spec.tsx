@@ -126,6 +126,22 @@ describe('CertificationStepResult', () => {
     expect(row.textContent).not.toContain('—');
   });
 
+  it('keeps long unbroken values inside the result box', () => {
+    renderResult(fieldsRun);
+
+    const table = screen.getByRole('table');
+    expect(getComputedStyle(table.parentElement as HTMLElement).overflowX).toBe('auto');
+    const cell = screen.getByRole('cell', { name: 'Empty text' });
+    expect(getComputedStyle(cell).overflowWrap).toBe('anywhere');
+  });
+
+  it('wraps a long unbroken exception message', () => {
+    renderResult(exceptionRun);
+
+    const message = screen.getByText(/^No Student found, or multiple records/);
+    expect(getComputedStyle(message).overflowWrap).toBe('anywhere');
+  });
+
   it("says '1 field' for a single row", () => {
     renderResult({ ...fieldsRun, errors: [fieldsRun.errors[0]] });
 

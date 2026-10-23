@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import { INTERCEPTORS_METADATA } from '@nestjs/common/constants';
+import { HEADERS_METADATA, INTERCEPTORS_METADATA } from '@nestjs/common/constants';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
@@ -137,6 +137,12 @@ describe('CertificationController', () => {
       expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith(
         expect.objectContaining({ odsId: null }),
       );
+    });
+
+    it('tells browsers and proxies not to keep the decrypted response', () => {
+      expect(
+        Reflect.getMetadata(HEADERS_METADATA, CertificationController.prototype.getStepSnapshot),
+      ).toEqual([{ name: 'Cache-Control', value: 'no-store' }]);
     });
 
     it('is guarded like the step results it belongs to', () => {

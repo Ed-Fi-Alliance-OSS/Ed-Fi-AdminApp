@@ -141,7 +141,9 @@ export const CertificationStepResult = ({
               borderLeftColor="red.500"
               borderRadius="md"
             >
-              <Text color="red.700">{item.message}</Text>
+              <Text color="red.700" overflowWrap="anywhere">
+                {item.message}
+              </Text>
               {item.observed && (
                 <Text mt={1} fontSize="sm" color="red.700">
                   {item.observed}
@@ -155,33 +157,36 @@ export const CertificationStepResult = ({
               <Text mb={2} fontWeight="medium">
                 {fields.length === 1 ? '1 field' : `${fields.length} fields`} didn't match
               </Text>
-              <Table size="sm">
-                <Thead>
-                  <Tr>
-                    <Th>Field</Th>
-                    <Th>Expected</Th>
-                    <Th>Observed</Th>
-                  </Tr>
-                </Thead>
-                <Tbody>
-                  {fields.map((item, index) => (
-                    <Tr key={`${item.field}-${index}`}>
-                      <Td fontFamily="mono">{item.field}</Td>
-                      {item.expected === null && item.observed === null && item.message ? (
-                        // A check Bruno can't split into expected/observed: its message is the explanation.
-                        <Td colSpan={2} color="red.700">
-                          {item.message}
-                        </Td>
-                      ) : (
-                        <>
-                          <Td>{item.expected ?? '—'}</Td>
-                          <Td color="red.700">{item.observed ?? '—'}</Td>
-                        </>
-                      )}
+              {/* Descriptor URIs, nested paths and compact JSON have no spaces to wrap at. */}
+              <Box overflowX="auto">
+                <Table size="sm" sx={{ td: { overflowWrap: 'anywhere' } }}>
+                  <Thead>
+                    <Tr>
+                      <Th>Field</Th>
+                      <Th>Expected</Th>
+                      <Th>Observed</Th>
                     </Tr>
-                  ))}
-                </Tbody>
-              </Table>
+                  </Thead>
+                  <Tbody>
+                    {fields.map((item, index) => (
+                      <Tr key={`${item.field}-${index}`}>
+                        <Td fontFamily="mono">{item.field}</Td>
+                        {item.expected === null && item.observed === null && item.message ? (
+                          // A check Bruno can't split into expected/observed: its message is the explanation.
+                          <Td colSpan={2} color="red.700">
+                            {item.message}
+                          </Td>
+                        ) : (
+                          <>
+                            <Td>{item.expected ?? '—'}</Td>
+                            <Td color="red.700">{item.observed ?? '—'}</Td>
+                          </>
+                        )}
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
+              </Box>
             </Box>
           )}
 

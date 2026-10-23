@@ -1,11 +1,13 @@
 import 'reflect-metadata';
 import * as fs from 'fs';
+import * as os from 'os';
 import * as path from 'path';
 import {
   cleanMessage,
   INCOMPLETE_RUN_MESSAGE,
   incompleteRunReport,
   parseBrunoReport,
+  readBrunoReport,
 } from './bruno-report';
 
 // Real Bruno 3.4.2 reports (body kept, headers skipped), captured against a mock Ed-Fi server.
@@ -286,6 +288,113 @@ describe('parseBrunoReport with unusual assertion paths', () => {
     const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
 
     expect(result.errors.find((error) => error.field === 'constructor')?.observed).toBe('Missing');
+  });
+});
+
+describe('parseBrunoReport exception and assertion paths', () => {
+  const scriptError = (error: string) => ({
+    description: 'Script Error',
+    status: 'fail',
+    error,
+    isScriptError: true,
+  });
+
+  it('reports a script error raised inside a tests block as an exception', () => {
+    const report = load('partial-record');
+    report[0].results[1].testResults = [scriptError('Cannot read properties of undefined')];
+
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+
+    expect(result.errors).toEqual([
+      exception('Cannot read properties of undefined', 'The API returned HTTP 200 OK.'),
+    ]);
+  });
+
+  it('reports a skipped step as an exception', () => {
+    const report = load('script-error');
+    const step = report[0].results[1];
+    delete step.error;
+    step.status = 'skipped';
+    step.skipped = true;
+
+    const result = parseBrunoReport(report, { stepPath: STEP_03, token: TOKEN });
+
+    expect(result).toMatchObject({ passed: false, responseStatus: null });
+    expect(result.errors).toEqual([exception('The step was skipped.', null)]);
+  });
+
+  it('gives every exception of a step the same line about what the API returned', () => {
+    const report = load('not-found-throw');
+    report[0].results[1].error = 'Request failed';
+
+    const result = parseBrunoReport(report, { stepPath: STEP_03, token: TOKEN });
+
+    expect(result.errors).toEqual([
+      exception('Request failed', 'The API returned HTTP 404 Not Found.'),
+      exception(NOT_FOUND_MESSAGE, 'The API returned HTTP 404 Not Found.'),
+    ]);
+  });
+
+  it('lists field rows before check rows, and keeps the message of a check it cannot split', () => {
+    const report = load('partial-record');
+    report[0].results[1].postResponseTestResults = [
+      { description: 'enrollment count', status: 'fail', error: 'expected 0 to be above 1' },
+    ];
+
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+
+    expect(result.errors.map((error) => error.field)).toEqual([
+      'birthCity',
+      'middleName',
+      'enrollment count',
+    ]);
+    expect(result.errors[2]).toEqual({
+      kind: 'assertion',
+      field: 'enrollment count',
+      expected: null,
+      observed: null,
+      message: 'expected 0 to be above 1',
+    });
+  });
+
+  it("reads observed values from Bruno's message when the report has no response", () => {
+    const report = load('partial-record');
+    delete report[0].results[1].response;
+
+    const result = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN });
+
+    expect(result.errors.find((error) => error.field === 'birthCity')?.observed).toBe("''");
+    expect(result).toMatchObject({ responseStatus: null, responseSnapshot: null });
+  });
+
+  it('keeps the raw rule when an assertion names no operator or field', () => {
+    const report = load('step-passed');
+    report[0].results[1].assertionResults = [{ rhsExpr: 'isFoo', status: 'fail', error: 'boom' }];
+
+    const [error] = parseBrunoReport(report, { stepPath: STEP_01, token: TOKEN }).errors;
+
+    expect(error).toMatchObject({ kind: 'assertion', expected: 'IsFoo', message: 'boom' });
+  });
+});
+
+describe('readBrunoReport', () => {
+  const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'bruno-report-spec-'));
+  afterAll(() => fs.rmSync(dir, { recursive: true, force: true }));
+
+  it('parses the report Bruno wrote', async () => {
+    const file = path.join(dir, 'report.json');
+    fs.writeFileSync(file, JSON.stringify([{ results: [] }]));
+    await expect(readBrunoReport(file)).resolves.toEqual([{ results: [] }]);
+  });
+
+  it('returns null when Bruno never wrote a report', async () => {
+    await expect(readBrunoReport(path.join(dir, 'missing.json'))).resolves.toBeNull();
+  });
+
+  it('returns null when the report is not JSON', async () => {
+    const file = path.join(dir, 'broken.json');
+    fs.writeFileSync(file, '{ not json');
+    await expect(readBrunoReport(file)).resolves.toBeNull();
   });
 });
 
