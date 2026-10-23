@@ -112,4 +112,37 @@ describe('CertificationController', () => {
       });
     });
   });
+
+  describe('getStepSnapshot', () => {
+    const snapshot = { state: 'none' };
+
+    it('passes the tenant, version, step and ODS to the step-runs service', async () => {
+      const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
+      const controller = new CertificationController({} as never, stepRunsService as never);
+
+      await expect(controller.getStepSnapshot(edfiTenant, 'v5', 101, 5)).resolves.toEqual(snapshot);
+      expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith({
+        edfiTenantId: 10,
+        odsId: 5,
+        sisVersion: 'v5',
+        stepId: 101,
+      });
+    });
+
+    it('passes a null ODS when none is chosen', async () => {
+      const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
+      const controller = new CertificationController({} as never, stepRunsService as never);
+
+      await controller.getStepSnapshot(edfiTenant, 'v5', 101, undefined);
+      expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ odsId: null }),
+      );
+    });
+
+    it('is guarded like the step results it belongs to', () => {
+      expect(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepSnapshot),
+      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepRuns));
+    });
+  });
 });

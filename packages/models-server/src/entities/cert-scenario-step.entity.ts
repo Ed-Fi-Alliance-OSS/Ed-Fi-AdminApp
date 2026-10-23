@@ -1,8 +1,10 @@
+import { CertStepSnapshotEnvelope } from '@edanalytics/models';
 import * as config from 'config';
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
 import { CertificationProcess } from './cert-certification-process.entity';
 import { ScenarioCatalog } from './cert-scenario-catalog.entity';
 import { StepCatalog } from './cert-step-catalog.entity';
+import { encryptedJsonTransformer } from '../utils/encrypted-json.transformer';
 
 /** The latest result of one step in one process; a re-run updates this row. */
 @Entity({ schema: 'cert', name: 'scenario_step' })
@@ -41,4 +43,12 @@ export class ScenarioStep {
 
   @Column()
   runAt: Date;
+
+  /** HTTP status of the Ed-Fi API response; null when the request was never sent. */
+  @Column({ type: 'int', nullable: true })
+  responseStatus: number | null;
+
+  /** Encrypted response snapshot, read only by the snapshot endpoint. Cleared when the request is decided (AC-660). */
+  @Column({ type: 'text', nullable: true, select: false, transformer: encryptedJsonTransformer })
+  responseSnapshot: CertStepSnapshotEnvelope | null;
 }

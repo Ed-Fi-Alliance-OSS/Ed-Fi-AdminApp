@@ -7,7 +7,16 @@ import {
   SUPPORTED_SIS_VERSIONS,
   toCertificationStepRunDto,
   toCertificationStepRunsDto,
+  toCertificationStepSnapshotDto,
 } from './certification-step-run.dto';
+
+const missingMiddleName = {
+  kind: 'assertion' as const,
+  field: 'middleName',
+  expected: 'Text, not empty',
+  observed: 'Missing',
+  message: 'expected undefined to be a string',
+};
 
 // Same transform options as the API's global ValidationPipe.
 const toDto = (plain: object) =>
@@ -50,14 +59,16 @@ describe('certification step run DTOs', () => {
       status: 'failed',
       ranAt: '2026-10-12T20:00:00.000Z',
       scenarioStatus: 'failed',
-      errors: [{ property: 'birthDate changed', validation: 'test', error: 'expected a change' }],
+      responseStatus: 200,
+      errors: [missingMiddleName],
     });
     expect(result).toEqual({
       stepId: 3,
       status: 'failed',
       ranAt: '2026-10-12T20:00:00.000Z',
       scenarioStatus: 'failed',
-      errors: [{ property: 'birthDate changed', validation: 'test', error: 'expected a change' }],
+      responseStatus: 200,
+      errors: [missingMiddleName],
     });
   });
 
@@ -70,14 +81,8 @@ describe('certification step run DTOs', () => {
           status: 'failed',
           ranAt: '2026-10-15T15:00:00.000Z',
           inputs: { studentUniqueId: '604822' },
-          errors: [
-            {
-              property: 'res.status',
-              validation: 'eq 200',
-              error: 'expected 500 to equal 200',
-              extra: 1,
-            },
-          ],
+          responseStatus: 404,
+          errors: [{ ...missingMiddleName, extra: 1 }],
           stepRunId: 99,
         },
       ],
@@ -90,11 +95,17 @@ describe('certification step run DTOs', () => {
           status: 'failed',
           ranAt: '2026-10-15T15:00:00.000Z',
           inputs: { studentUniqueId: '604822' },
-          errors: [
-            { property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' },
-          ],
+          responseStatus: 404,
+          errors: [missingMiddleName],
         },
       ],
+    });
+  });
+
+  it('serializes a snapshot DTO with its state', () => {
+    expect(toCertificationStepSnapshotDto({ state: 'tooLarge', sizeBytes: 81234 })).toEqual({
+      state: 'tooLarge',
+      sizeBytes: 81234,
     });
   });
 

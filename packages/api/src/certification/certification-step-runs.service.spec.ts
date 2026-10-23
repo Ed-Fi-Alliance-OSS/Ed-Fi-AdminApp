@@ -1,4 +1,5 @@
 import 'reflect-metadata';
+import { NotFoundException } from '@nestjs/common';
 import { In, IsNull } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationStepRunsService } from './certification-step-runs.service';
@@ -7,7 +8,7 @@ describe('CertificationStepRunsService.findStepRuns', () => {
   let scenarioRepository: { findOne: jest.Mock };
   let processRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let processScenarioRepository: { findOne: jest.Mock };
-  let stepRunRepository: { find: jest.Mock };
+  let stepRunRepository: { find: jest.Mock; findOne: jest.Mock };
   let stepErrorRepository: { find: jest.Mock };
   let service: CertificationStepRunsService;
 
@@ -38,7 +39,7 @@ describe('CertificationStepRunsService.findStepRuns', () => {
       save: jest.fn(),
     };
     processScenarioRepository = { findOne: jest.fn().mockResolvedValue({ status: 'failed' }) };
-    stepRunRepository = { find: jest.fn().mockResolvedValue([]) };
+    stepRunRepository = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
     stepErrorRepository = { find: jest.fn().mockResolvedValue([]) };
     service = new CertificationStepRunsService(
       scenarioRepository as never,
@@ -114,6 +115,7 @@ describe('CertificationStepRunsService.findStepRuns', () => {
         status: 'failed',
         runAt: new Date('2026-10-15T15:00:00.000Z'),
         inputs: { studentUniqueId: 'S1' },
+        responseStatus: 404,
       },
       {
         stepRunId: 56,
@@ -121,16 +123,26 @@ describe('CertificationStepRunsService.findStepRuns', () => {
         status: 'success',
         runAt: new Date('2026-10-15T15:05:00.000Z'),
         inputs: null,
+        responseStatus: null,
       },
     ]);
     stepErrorRepository.find.mockResolvedValue([
       {
         stepRunId: 55,
-        property: 'res.status',
-        validation: 'eq 200',
-        description: 'expected 500 to equal 200',
+        kind: 'exception',
+        field: null,
+        expected: null,
+        observed: 'The API returned HTTP 404 Not Found.',
+        message: 'No Student found',
       },
-      { stepRunId: 55, property: null, validation: null, description: null },
+      {
+        stepRunId: 55,
+        kind: 'assertion',
+        field: 'middleName',
+        expected: 'Text, not empty',
+        observed: null,
+        message: null,
+      },
     ]);
 
     await expect(find()).resolves.toEqual({
@@ -141,9 +153,22 @@ describe('CertificationStepRunsService.findStepRuns', () => {
           status: 'failed',
           ranAt: '2026-10-15T15:00:00.000Z',
           inputs: { studentUniqueId: 'S1' },
+          responseStatus: 404,
           errors: [
-            { property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' },
-            { property: '', validation: '', error: '' },
+            {
+              kind: 'exception',
+              field: null,
+              expected: null,
+              observed: 'The API returned HTTP 404 Not Found.',
+              message: 'No Student found',
+            },
+            {
+              kind: 'assertion',
+              field: 'middleName',
+              expected: 'Text, not empty',
+              observed: null,
+              message: null,
+            },
           ],
         },
         {
@@ -151,6 +176,7 @@ describe('CertificationStepRunsService.findStepRuns', () => {
           status: 'success',
           ranAt: '2026-10-15T15:05:00.000Z',
           inputs: null,
+          responseStatus: null,
           errors: [],
         },
       ],
@@ -177,5 +203,94 @@ describe('CertificationStepRunsService.findStepRuns', () => {
   it('rejects an unsupported SIS version', async () => {
     await expect(find({ sisVersion: 'v4' })).rejects.toBeInstanceOf(ValidationHttpException);
     expect(scenarioRepository.findOne).not.toHaveBeenCalled();
+  });
+});
+
+describe('CertificationStepRunsService.findStepSnapshot', () => {
+  let stepRunRepository: { findOne: jest.Mock };
+  let service: CertificationStepRunsService;
+
+  const findSnapshot = () =>
+    service.findStepSnapshot({ edfiTenantId: 10, odsId: 5, sisVersion: 'v5', stepId: 101 });
+
+  beforeEach(() => {
+    stepRunRepository = { findOne: jest.fn() };
+    service = new CertificationStepRunsService(
+      {} as never,
+      {} as never,
+      {} as never,
+      stepRunRepository as never,
+      {} as never,
+    );
+  });
+
+  it("reads only this tenant and ODS's run of the step, selecting the hidden snapshot column", async () => {
+    stepRunRepository.findOne.mockResolvedValue({ responseStatus: 200, responseSnapshot: null });
+
+    await findSnapshot();
+
+    expect(stepRunRepository.findOne).toHaveBeenCalledWith({
+      where: { stepId: 101, certificationProcess: { edfiTenantId: 10, odsId: 5 } },
+      select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
+    });
+  });
+
+  it('looks the run up with IsNull() when no ODS is chosen', async () => {
+    stepRunRepository.findOne.mockResolvedValue({ responseStatus: null, responseSnapshot: null });
+
+    await service.findStepSnapshot({
+      edfiTenantId: 10,
+      odsId: null,
+      sisVersion: 'v5',
+      stepId: 101,
+    });
+
+    expect(stepRunRepository.findOne.mock.calls[0][0].where.certificationProcess).toEqual({
+      edfiTenantId: 10,
+      odsId: IsNull(),
+    });
+  });
+
+  it('returns a stored body', async () => {
+    stepRunRepository.findOne.mockResolvedValue({
+      responseStatus: 200,
+      responseSnapshot: { state: 'body', body: '[]' },
+    });
+
+    await expect(findSnapshot()).resolves.toEqual({ state: 'body', body: '[]' });
+  });
+
+  it('returns the size of a body that was too large to keep', async () => {
+    stepRunRepository.findOne.mockResolvedValue({
+      responseStatus: 200,
+      responseSnapshot: { state: 'tooLarge', sizeBytes: 81234 },
+    });
+
+    await expect(findSnapshot()).resolves.toEqual({ state: 'tooLarge', sizeBytes: 81234 });
+  });
+
+  it('returns none when the request was never sent', async () => {
+    stepRunRepository.findOne.mockResolvedValue({ responseStatus: null, responseSnapshot: null });
+
+    await expect(findSnapshot()).resolves.toEqual({ state: 'none' });
+  });
+
+  it('returns deleted when a response was received but its snapshot was cleared', async () => {
+    stepRunRepository.findOne.mockResolvedValue({ responseStatus: 404, responseSnapshot: null });
+
+    await expect(findSnapshot()).resolves.toEqual({ state: 'deleted' });
+  });
+
+  it('throws NotFound when the step never ran for this tenant and ODS', async () => {
+    stepRunRepository.findOne.mockResolvedValue(null);
+
+    await expect(findSnapshot()).rejects.toBeInstanceOf(NotFoundException);
+  });
+
+  it('rejects an unsupported SIS version', async () => {
+    await expect(
+      service.findStepSnapshot({ edfiTenantId: 10, odsId: 5, sisVersion: 'v4', stepId: 101 }),
+    ).rejects.toBeInstanceOf(ValidationHttpException);
+    expect(stepRunRepository.findOne).not.toHaveBeenCalled();
   });
 });

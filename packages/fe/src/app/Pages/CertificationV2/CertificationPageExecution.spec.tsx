@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CertificationPageExecution } from './CertificationPageExecution';
 import { useCertificationSelection } from './useCertificationSelection';
@@ -31,6 +32,9 @@ jest.mock('./useCertificationCatalog', () => ({
   useCertificationSteps: jest.fn(),
 }));
 jest.mock('./useCertificationStepRuns', () => ({ useCertificationStepRuns: jest.fn() }));
+jest.mock('./useCertificationStepSnapshot', () => ({
+  useCertificationStepSnapshot: () => ({ snapshot: undefined, isPending: false, isError: false }),
+}));
 jest.mock('../../api-v2/useRunCertificationStep', () => ({ useRunCertificationStep: jest.fn() }));
 const mockQueryClient = { setQueryData: jest.fn(), invalidateQueries: jest.fn() };
 jest.mock('@tanstack/react-query', () => ({ useQueryClient: () => mockQueryClient }));
@@ -118,7 +122,16 @@ const savedFailure = {
   status: 'failed',
   ranAt: '2026-10-15T15:00:00.000Z',
   inputs: { schoolId: '255901', beginDate: '2026-08-01' },
-  errors: [{ property: 'res.status', validation: 'eq 200', error: 'expected 500 to equal 200' }],
+  responseStatus: 500,
+  errors: [
+    {
+      kind: 'exception',
+      field: null,
+      expected: null,
+      observed: 'The API returned HTTP 500 Internal Server Error.',
+      message: 'No Calendar found, or multiple records were returned.',
+    },
+  ],
 };
 let refetch: jest.Mock;
 let runState: {
@@ -445,7 +458,7 @@ describe('CertificationPageExecution', () => {
       expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe(
         '2026-08-01',
       );
-      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+      expect(screen.getByText('No Calendar found, or multiple records were returned.')).toBeTruthy();
     });
 
     it('lets a signed-out vendor select a step and see saved results, but not execute', () => {
@@ -464,7 +477,7 @@ describe('CertificationPageExecution', () => {
       render(<CertificationPageExecution />);
       select(0);
 
-      expect(screen.getByText('Error: expected 500 to equal 200')).toBeTruthy();
+      expect(screen.getByText('No Calendar found, or multiple records were returned.')).toBeTruthy();
       expect(executeButton().disabled).toBe(true);
       expect(
         screen.getByText('Validate your credentials above to execute this step.'),
@@ -513,6 +526,7 @@ describe('CertificationPageExecution', () => {
           status: 'success',
           ranAt: '2026-10-16T10:00:00.000Z',
           scenarioStatus: 'inprogress',
+          responseStatus: 200,
           errors: [],
         },
         runState.mutate.mock.calls[0][0],
@@ -532,6 +546,7 @@ describe('CertificationPageExecution', () => {
             status: 'success',
             ranAt: '2026-10-16T10:00:00.000Z',
             inputs: { schoolId: '255901', beginDate: '2026-08-01' },
+            responseStatus: 200,
             errors: [],
           },
           otherStep,

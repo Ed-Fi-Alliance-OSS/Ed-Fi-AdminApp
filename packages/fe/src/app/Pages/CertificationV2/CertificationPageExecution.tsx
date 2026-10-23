@@ -98,6 +98,7 @@ export const CertificationPageExecution = () => {
         status: result.status,
         ranAt: result.ranAt,
         inputs: variables.body.inputs,
+        responseStatus: result.responseStatus,
         errors: result.errors,
       };
       queryClient.setQueryData(
@@ -448,6 +449,7 @@ export const CertificationPageExecution = () => {
           <CertificationStepResult
             run={selectedRun}
             isRunning={isRunningStep(validatedStep.stepId)}
+            snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion }}
           />
         </Box>
       )}
