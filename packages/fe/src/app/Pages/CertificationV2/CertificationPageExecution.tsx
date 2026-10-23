@@ -348,22 +348,41 @@ export const CertificationPageExecution = () => {
                 borderRadius="md"
                 bg="gray.50"
               >
-                <Box
-                  mb={4}
-                  p={3}
-                  border="1px solid"
-                  borderColor="orange.200"
-                  bg="orange.50"
-                  borderRadius="md"
-                >
-                  <Text fontSize="md" fontWeight="semibold" color="orange.800" mb={1}>
-                    Enter Validation Parameters
-                  </Text>
-                  <Text fontSize="sm" color="orange.900">
-                    Complete the fields below, then click Execute step to run validation for the
-                    selected step.
-                  </Text>
-                </Box>
+                {/* Orange asks for input; a step with nothing to fill in gets a neutral blue note. */}
+                {parameterDefinitions.length > 0 ? (
+                  <Box
+                    mb={4}
+                    p={3}
+                    border="1px solid"
+                    borderColor="orange.200"
+                    bg="orange.50"
+                    borderRadius="md"
+                  >
+                    <Text fontSize="md" fontWeight="semibold" color="orange.800" mb={1}>
+                      Enter Validation Parameters
+                    </Text>
+                    <Text fontSize="sm" color="orange.900">
+                      Complete the fields below, then click Execute step to run validation for the
+                      selected step.
+                    </Text>
+                  </Box>
+                ) : (
+                  <Box
+                    mb={4}
+                    p={3}
+                    border="1px solid"
+                    borderColor="blue.200"
+                    bg="blue.50"
+                    borderRadius="md"
+                  >
+                    <Text fontSize="md" fontWeight="semibold" color="blue.800" mb={1}>
+                      Ready to execute
+                    </Text>
+                    <Text fontSize="sm" color="blue.900">
+                      This step doesn't need any parameters. Click Execute step when you're ready.
+                    </Text>
+                  </Box>
+                )}
 
                 {parameterDefinitions.map((parameter) => {
                   const { label, hint } = parameterFieldOf(parameter);
@@ -386,12 +405,6 @@ export const CertificationPageExecution = () => {
                     </FormControl>
                   );
                 })}
-
-                {parameterDefinitions.length === 0 && (
-                  <Text mb={4} color="gray.600">
-                    This step has no parameters to enter.
-                  </Text>
-                )}
 
                 {runError?.kind === 'api' && (
                   <Alert status="error" mb={3}>

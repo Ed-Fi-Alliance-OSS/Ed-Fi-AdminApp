@@ -233,8 +233,30 @@ describe('CertificationPageExecution', () => {
     renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[1]);
     expect(screen.queryByRole('textbox')).toBeNull();
-    expect(screen.getByText('This step has no parameters to enter.')).toBeTruthy();
     expect(executeButton().disabled).toBe(false);
+  });
+
+  it('tells the vendor a step without parameters is ready, instead of asking for fields', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[1]);
+
+    expect(screen.getByText('Ready to execute')).toBeTruthy();
+    expect(
+      screen.getByText(
+        "This step doesn't need any parameters. Click Execute step when you're ready.",
+      ),
+    ).toBeTruthy();
+    expect(screen.queryByText('Enter Validation Parameters')).toBeNull();
+    expect(screen.queryByText(/Complete the fields below/)).toBeNull();
+    expect(screen.queryByText('This step has no parameters to enter.')).toBeNull();
+  });
+
+  it('keeps asking for parameters on a step that has them', () => {
+    renderAuthenticated();
+    fireEvent.click(screen.getAllByRole('button', { name: 'Validate' })[0]);
+
+    expect(screen.getByText(/Complete the fields below/)).toBeTruthy();
+    expect(screen.queryByText('Ready to execute')).toBeNull();
   });
 
   it.each([
