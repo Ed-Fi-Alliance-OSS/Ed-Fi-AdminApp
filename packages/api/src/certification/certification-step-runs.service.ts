@@ -1,9 +1,12 @@
 import {
+  CertificationScenarioStatusDto,
   CertificationStepRunsDto,
   isSupportedSisVersion,
+  toCertificationScenarioStatusDto,
   toCertificationStepRunsDto,
 } from '@edanalytics/models';
 import {
+  CatalogVersion,
   CertificationProcess,
   CertificationProcessScenario,
   ScenarioCatalog,
@@ -14,13 +17,20 @@ import { Injectable } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
-import { CERT_RUN_MESSAGES } from './certification.service';
+import { ArtifactService } from './artifact/artifact.service';
+import { CERT_RUN_MESSAGES, isCurrentCatalogVersion } from './certification.service';
 
 export interface FindStepRunsParams {
   edfiTenantId: number;
   odsId: number | null;
   sisVersion: string;
   scenarioId: number;
+}
+
+export interface FindScenarioStatusesParams {
+  edfiTenantId: number;
+  odsId: number | null;
+  sisVersion: string;
 }
 
 const EMPTY: CertificationStepRunsDto = { scenarioStatus: null, steps: [] };
@@ -42,6 +52,9 @@ export class CertificationStepRunsService {
     private readonly stepRunRepository: Repository<ScenarioStep>,
     @InjectRepository(ScenarioStepError)
     private readonly stepErrorRepository: Repository<ScenarioStepError>,
+    @InjectRepository(CatalogVersion)
+    private readonly catalogVersionRepository: Repository<CatalogVersion>,
+    private readonly artifactService: ArtifactService,
   ) {}
 
   async findStepRuns(params: FindStepRunsParams): Promise<CertificationStepRunsDto> {
@@ -98,5 +111,45 @@ export class CertificationStepRunsService {
           })),
       })),
     });
+  }
+
+  /**
+   * Every scenario's saved status for the current catalog version, read-only: it never
+   * creates a certification process. Scenarios without a saved row are left out.
+   */
+  async findScenarioStatuses(
+    params: FindScenarioStatusesParams,
+  ): Promise<CertificationScenarioStatusDto[]> {
+    if (!isSupportedSisVersion(params.sisVersion)) {
+      throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
+    }
+
+    const catalogVersions = await this.catalogVersionRepository.find({
+      where: { dataStandardVersion: params.sisVersion, isActive: true },
+    });
+    const catalogVersion = catalogVersions.find((version) =>
+      isCurrentCatalogVersion(version, params.sisVersion, this.artifactService.currentRef),
+    );
+    if (!catalogVersion) return [];
+
+    const certificationProcess = await this.processRepository.findOne({
+      where: {
+        edfiTenantId: params.edfiTenantId,
+        odsId: params.odsId ?? IsNull(),
+        catalogVersionId: catalogVersion.catalogVersionId,
+      },
+    });
+    if (!certificationProcess) return [];
+
+    const rows = await this.processScenarioRepository.find({
+      where: { certificationProcessId: certificationProcess.certificationProcessId },
+    });
+
+    return toCertificationScenarioStatusDto(
+      rows.map((row) => ({
+        scenarioId: row.scenarioId,
+        status: row.status as CertificationScenarioStatusDto['status'],
+      })),
+    );
   }
 }

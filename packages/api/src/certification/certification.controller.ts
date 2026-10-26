@@ -87,4 +87,23 @@ export class CertificationController {
       scenarioId,
     });
   }
+
+  /**
+   * Every scenario's saved status for the current catalog version (AC-689). Read-only: it
+   * never creates a certification process and never contacts the ODS/API, so it needs no token.
+   */
+  @Get('sis/:sisVersion/scenario-statuses')
+  @ApiQuery({ name: 'odsId', required: false, type: Number })
+  @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
+  async getScenarioStatuses(
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('sisVersion') sisVersion: string,
+    @Query('odsId', new ParseIntPipe({ optional: true })) odsId?: number,
+  ) {
+    return this.stepRunsService.findScenarioStatuses({
+      edfiTenantId: edfiTenant.id,
+      odsId: odsId ?? null,
+      sisVersion,
+    });
+  }
 }
