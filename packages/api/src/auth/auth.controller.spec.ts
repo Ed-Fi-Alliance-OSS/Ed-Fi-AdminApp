@@ -374,6 +374,7 @@ describe('AuthController', () => {
       callback(request);
 
       expect(record.mock.calls.map(([e]) => e.eventType)).toEqual(['LoginFailure']);
+      expect(record.mock.calls[0][0].actorUsername).toBe(user.username);
     });
 
     it('records Logout with the username captured before the session is destroyed', async () => {

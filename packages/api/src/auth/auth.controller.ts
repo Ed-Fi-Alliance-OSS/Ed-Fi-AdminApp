@@ -124,7 +124,7 @@ export class AuthController {
         }
         request.logIn(user, (loginError: Error | null) => {
           if (loginError) {
-            return this.redirectLoginFailure(loginError, request, response, oidcId);
+            return this.redirectLoginFailure(loginError, request, response, oidcId, user.username);
           }
           // Track which provider the user authenticated with, and keep the
           // id_token for use as id_token_hint during RP-Initiated Logout.
@@ -141,7 +141,13 @@ export class AuthController {
               Logger.error(
                 `Failed to persist session after login for provider ${oidcId}: ${saveError}`,
               );
-              return this.redirectLoginFailure(saveError, request, response, oidcId);
+              return this.redirectLoginFailure(
+                saveError,
+                request,
+                response,
+                oidcId,
+                user.username,
+              );
             }
             this.recordLoginEvent(AuditEventType.LoginSuccess, request, this.issuerOf(oidcId), {
               actorUsername: user.username,
@@ -180,6 +186,7 @@ export class AuthController {
     request: Request,
     response: Response,
     oidcId: number | string,
+    knownUsername?: string,
   ) {
     Logger.error(error);
     // Only a short reason code is audited, never the raw error message
@@ -191,7 +198,7 @@ export class AuthController {
           : 'error';
     this.recordLoginEvent(AuditEventType.LoginFailure, request, this.issuerOf(oidcId), {
       // The unverified claim, attached to the error by the strategy; never surfaced to the browser
-      actorUsername: (error as { username?: string }).username ?? null,
+      actorUsername: knownUsername ?? (error as { username?: string }).username ?? null,
       details: reason,
     });
 

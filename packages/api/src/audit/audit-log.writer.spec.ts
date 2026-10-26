@@ -93,6 +93,32 @@ describe('AuditLogWriter', () => {
     expect(notPersisted[0]).toContain('/poison');
   });
 
+  it('keeps flushing within one call while a full batch is waiting', async () => {
+    const small = { ...options, batchSize: 2 };
+    ['/1', '/2', '/3', '/4', '/5'].forEach((url) => queue.enqueue(event(url)));
+
+    await new AuditLogWriter(queue, repo, true, small).flush();
+
+    // two full batches; the single leftover row waits for the next tick
+    expect(insert).toHaveBeenCalledTimes(2);
+    expect(queue.size).toBe(1);
+  });
+
+  it('skips the row-by-row fallback on a connection error', async () => {
+    insert.mockRejectedValue(Object.assign(new Error('refused'), { code: 'ECONNREFUSED' }));
+    ['/1', '/2'].forEach((url) => queue.enqueue(event(url)));
+
+    const flushing = new AuditLogWriter(queue, repo, true, options).flush();
+    await jest.advanceTimersByTimeAsync(30);
+    await flushing;
+
+    expect(insert).toHaveBeenCalledTimes(3);
+    const notPersisted = errorSpy.mock.calls.filter(([message]) =>
+      String(message).includes('Audit event not persisted'),
+    );
+    expect(notPersisted).toHaveLength(2);
+  });
+
   it('flushes on the timer', async () => {
     const writer = new AuditLogWriter(queue, repo, true, options);
     writer.onModuleInit();

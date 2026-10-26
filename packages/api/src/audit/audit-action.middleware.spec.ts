@@ -180,6 +180,18 @@ describe('AuditActionMiddleware', () => {
     expect(recorded[0].details).toBe(JSON.stringify({ id: 1, name: 'gone' }));
   });
 
+  it('drops the snapshot when the handler rejects the delete after it was taken', async () => {
+    const app = build();
+    app.delete('/things/1', (req, res) => {
+      setAuditSnapshot(req, { id: 1, name: 'kept' });
+      res.sendStatus(403);
+    });
+
+    await request(app).delete('/things/1').expect(403);
+
+    expect(recorded[0]).toMatchObject({ statusCode: 403, details: null });
+  });
+
   it('does not change the response when the recorder throws', async () => {
     recorder.record.mockImplementation(() => {
       throw new Error('boom');

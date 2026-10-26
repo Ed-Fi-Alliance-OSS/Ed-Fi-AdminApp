@@ -1,4 +1,4 @@
-import { CallHandler, ExecutionContext } from '@nestjs/common';
+import { CallHandler, ExecutionContext, Logger } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { of } from 'rxjs';
 import { AuditAdminApiDelete } from './audit-admin-api-delete.decorator';
@@ -91,12 +91,15 @@ describe('AuditAdminApiDeleteInterceptor', () => {
     },
   );
 
-  it('skips the snapshot when no tenant is on the request', async () => {
+  it('warns and skips the snapshot when no tenant is on the request', async () => {
+    const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
     const { run } = setup();
     const { req, handle } = await run(c.remove, { vendorId: '9' }, null as never);
     expect(getAuditSnapshot(req)).toBeUndefined();
     expect(load).not.toHaveBeenCalled();
     expect(handle).toHaveBeenCalled();
+    expect(warn).toHaveBeenCalledWith(expect.stringContaining('interceptor order'));
+    warn.mockRestore();
   });
 
   it('still runs the handler when the loader throws', async () => {

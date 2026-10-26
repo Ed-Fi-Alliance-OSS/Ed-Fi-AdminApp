@@ -59,8 +59,12 @@ export class AuditAdminApiDeleteInterceptor implements NestInterceptor {
 
     const req = context.switchToHttp().getRequest<Request & { edfiTenant?: EdfiTenant }>();
     const edfiTenant = req.edfiTenant;
+    if (!edfiTenant) {
+      // Means this interceptor ran before SbEnvironmentEdfiTenantInterceptor; don't fail silently
+      throw new Error('request has no edfiTenant (check interceptor order)');
+    }
     const raw = req.params?.[meta.idParam];
-    if (!edfiTenant || typeof raw !== 'string' || !/^\d+$/.test(raw)) return;
+    if (typeof raw !== 'string' || !/^\d+$/.test(raw)) return;
     const id = Number(raw);
     if (!Number.isSafeInteger(id)) return;
 

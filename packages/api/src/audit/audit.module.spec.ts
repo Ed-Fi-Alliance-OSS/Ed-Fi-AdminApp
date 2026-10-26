@@ -40,6 +40,12 @@ describe('AuditModule', () => {
       ['true', true],
       [false, false],
       ['false', false],
+      ['FALSE', false],
+      [' False ', false],
+      ['TRUE', true],
+      ['1', true],
+      ['yes', true],
+      ['', true],
     ])('%p -> %p', (value, expected) => {
       expect(isAuditEnabled(value)).toBe(expected);
     });

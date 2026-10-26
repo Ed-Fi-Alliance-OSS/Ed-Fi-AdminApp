@@ -100,20 +100,38 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
     if (!this.enabled) {
       return Promise.resolve();
     }
-    this.inFlight ??= this.flushBatch().finally(() => (this.inFlight = undefined));
+    this.inFlight ??= this.flushAll().finally(() => (this.inFlight = undefined));
     return this.inFlight;
   }
 
-  private async flushBatch(): Promise<void> {
+  /** Keeps writing batches within one tick while the queue holds at least a full batch. */
+  private async flushAll(): Promise<void> {
+    do {
+      const outcome = await this.flushBatch();
+      if (outcome !== 'ok') {
+        return; // empty queue, or the database is failing: wait for the next tick
+      }
+    } while (!this.abandoned && this.queue.size >= this.options.batchSize);
+  }
+
+  private async flushBatch(): Promise<'empty' | 'ok' | 'failed'> {
     const batch = this.queue.drain(this.options.batchSize);
     if (batch.length === 0) {
-      return;
+      return 'empty';
     }
     this.pendingBatch = batch;
     try {
-      if (!(await this.insertWithRetry(batch))) {
+      const result = await this.insertWithRetry(batch);
+      if (result === 'ok') {
+        return 'ok';
+      }
+      // A connection failure would fail every row too, so skip the row-by-row fallback
+      if (result === 'connection') {
+        batch.forEach((event) => this.logNotPersisted(event));
+      } else {
         await this.insertOneByOne(batch);
       }
+      return 'failed';
     } finally {
       this.pendingBatch = [];
     }
@@ -137,18 +155,46 @@ export class AuditLogWriter implements OnModuleInit, OnApplicationShutdown {
     this.logger.error(`Audit event not persisted: ${safeStringify(event)}`);
   }
 
-  private async insertWithRetry(batch: AuditEvent[]): Promise<boolean> {
+  private async insertWithRetry(batch: AuditEvent[]): Promise<'ok' | 'connection' | 'rejected'> {
     for (let attempt = 0; ; attempt++) {
       try {
         await this.repo.insert(batch);
-        return true;
+        return 'ok';
       } catch (error) {
         if (attempt >= this.options.retryDelaysMs.length) {
           this.logger.error(`Audit insert failed after ${attempt + 1} attempts: ${error}`);
-          return false;
+          return isConnectionError(error) ? 'connection' : 'rejected';
         }
         await delay(this.options.retryDelaysMs[attempt]);
       }
     }
   }
 }
+
+const CONNECTION_ERROR_CODES = new Set([
+  'ECONNREFUSED',
+  'ECONNRESET',
+  'ETIMEDOUT',
+  'ENOTFOUND',
+  'EAI_AGAIN',
+  'EPIPE',
+  'ESOCKET', // mssql
+  'ETIMEOUT', // mssql
+  'ECONNCLOSED', // mssql
+  'ELOGIN', // mssql
+  '57P01', // pg: admin shutdown
+  '57P02', // pg: crash shutdown
+  '57P03', // pg: cannot connect now
+]);
+
+/** True when the database itself is unreachable, as opposed to rejecting a particular row. */
+export const isConnectionError = (error: unknown): boolean => {
+  const err = error as
+    | { code?: unknown; driverError?: { code?: unknown; originalError?: { code?: unknown } } }
+    | undefined;
+  const codes = [err?.code, err?.driverError?.code, err?.driverError?.originalError?.code];
+  return codes.some(
+    (code) =>
+      typeof code === 'string' && (CONNECTION_ERROR_CODES.has(code) || code.startsWith('08')),
+  );
+};

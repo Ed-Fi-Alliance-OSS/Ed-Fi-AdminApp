@@ -25,9 +25,10 @@ produces only a `LoginSuccess` or `LoginFailure` row.
 `Action` rows are written by a middleware that runs before the body parser and the CSRF origin guard,
 so requests rejected by those, or by an authorization guard, are recorded too, with their final
 `statusCode` (for example 400, 401 or 403). The actor is resolved when the response finishes, and is
-null if the request was rejected before authentication. Machine (bearer token) callers are recorded
-with `actorType = 'machine'`. Requests made with a session also carry `oidcIssuer`, the issuer URL of the
-OIDC provider the session was authenticated through; it is null for machine users and
+null if the request was rejected before authentication. Callers that authenticate with a machine
+(client credentials) bearer token are recorded with `actorType = 'machine'`. A human's bearer token is
+recorded with `actorType = 'user'`, and, having no session, has no `oidcIssuer`. Requests made with a session also carry `oidcIssuer`, the issuer URL of the
+OIDC provider the session was authenticated through; it is null for bearer-token callers and
 unauthenticated requests.
 
 If the connection closes before the response is finished (for example the client disconnects early),
@@ -67,12 +68,12 @@ describe. The application only inserts into it; it never updates or deletes entr
 | `eventType`       | `varchar(30)` not null     | `NVARCHAR(30)` not null | See above.                                               |
 | `timestamp`       | `timestamptz` not null     | `datetimeoffset` not null | An absolute instant, when the request or login event started. Indexed (`IDX_audit_log_timestamp`). |
 | `actorUsername`   | `varchar(256)`             | `NVARCHAR(256)`         | Null if unknown. Indexed (`IDX_audit_log_actorUsername`). |
-| `actorType`       | `varchar(20)`              | `NVARCHAR(20)`          | `user` or `machine`; null if unknown.                    |
+| `actorType`       | `varchar(20)`              | `NVARCHAR(20)`          | `user` or `machine`; null if unknown. Human bearer-token callers are `user`. |
 | `sourceIpAddress` | `varchar(45)`              | `NVARCHAR(45)`          | Client address as seen by Express (`req.ip`).            |
 | `httpVerb`        | `varchar(10)`              | `NVARCHAR(10)`          | `Action` rows only.                                      |
 | `httpUrl`         | `varchar(2048)`            | `NVARCHAR(2048)`        | `Action` rows only; no query string.                     |
 | `statusCode`      | `integer`                  | `INT`                   | `Action` rows only.                                      |
-| `oidcIssuer`      | `varchar(512)`             | `NVARCHAR(512)`         | Issuer URL of the OIDC provider the session was authenticated through (not the numeric provider id, which means nothing once that provider row is deleted); set on login, logout and on every write request made with a session; null for machine users and unauthenticated requests. |
+| `oidcIssuer`      | `varchar(512)`             | `NVARCHAR(512)`         | Issuer URL of the OIDC provider the session was authenticated through (not the numeric provider id, which means nothing once that provider row is deleted); set on login, logout and on every write request made with a session; null for bearer-token callers and unauthenticated requests. |
 | `details`         | `text`                     | `NVARCHAR(max)`         | Delete snapshot JSON, or login failure reason.           |
 
 The table is created by migration `1792000000001-CreateAuditLog` for both engines. Before storage,
@@ -84,8 +85,8 @@ them.
 
 A deleted row can no longer be looked up, so for deletes of the entities below the `Action` row's
 `details` column holds a JSON snapshot of the entity taken just before the handler runs. Each snapshot
-is an allowlist of fields and uses names rather than ids. Emails, secrets, credentials and tokens are
-never included.
+is an allowlist of fields and uses names rather than ids. Email fields, secrets, credentials and tokens
+are never included; note that a `username` is often an email address and is stored as is.
 
 | Entity                 | Snapshot fields                                           |
 | ---------------------- | --------------------------------------------------------- |
@@ -103,16 +104,26 @@ never included.
 Limits:
 
 - The snapshot is taken only after the authorization guard passes. A delete denied with 401 or 403
-  gets the basic `Action` row and no snapshot.
+  gets the basic `Action` row and no snapshot. The same applies when the handler itself rejects the
+  delete after the snapshot was loaded (any response status of 400 or above): the row is kept
+  without `details`, because nothing was deleted.
 - There is no snapshot if the id is not numeric or the row does not exist, or if loading it fails (a
   warning goes to the application log and the request proceeds).
-- Deletes that the Admin App passes through to the Ed-Fi Admin API (Starting Blocks v1, v2 and v3
-  resources) are not snapshotted and get only the basic row.
+- Admin API resources (Starting Blocks v1, v2 and v3) are snapshotted from the Ed-Fi Admin API:
+  v1 vendors, applications and claim sets; v2 and v3 vendors, applications, API clients, claim sets,
+  instances (read from the local ODS row) and profiles. The snapshot is one extra read before the
+  delete, so those deletes call the Admin API once more than before (some handlers read the
+  resource again themselves). The read waits at most 5 seconds; on a timeout or error the delete
+  proceeds and the row has no snapshot.
+- Admin API snapshots rely on the controller's interceptor order: `AuditAdminApiDeleteInterceptor`
+  must come after `SbEnvironmentEdfiTenantInterceptor`, which sets the tenant on the request. If it
+  runs before, no snapshot is taken and a warning (`Admin API delete snapshot skipped`) is logged.
 
 ## Configuration
 
 `AUDIT_LOGGING_ENABLED` turns audit logging on or off. It defaults to on, and an unset variable means
-on. It is read from the environment variable of the same name (see
+on. Only an explicit `false` (any case) turns it off; any other value, such as `0` or `no`, leaves it
+on. When it is off, a warning is logged at startup. It is read from the environment variable of the same name (see
 `packages/api/config/custom-environment-variables.js`; with Docker Compose, set it in `compose/.env`)
 once at startup, so changing it requires a
 restart of the API. When it is off, no rows are written, the background writer does nothing, and
@@ -121,14 +132,20 @@ deletes do not load the entity for a snapshot.
 ## Queue, retries and fallback
 
 Requests do not wait for audit rows to be written. Events are sanitized and put in an in-memory
-queue with a capacity of 10 000 events. The one database read on the request path is the delete
-snapshot: a delete of one of the entities listed under [Delete snapshots](#delete-snapshots) waits
-for the entity to be loaded before its handler runs.
+queue with a capacity of 10 000 events. The only wait on the request path is the delete snapshot: a
+delete of one of the entities listed under [Delete snapshots](#delete-snapshots) waits for the entity
+to be loaded before its handler runs. For Admin API resources that load is a call to the Ed-Fi Admin
+API, which is waited on for at most 5 seconds; after that the delete proceeds and its row has no
+snapshot.
 
-- A background writer flushes every 1 second, inserting up to 100 events per batch.
-- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}` and the
-  events of the batch are then inserted one at a time, so one bad event cannot keep the others out of
-  the table. Each event that still fails is written to the application log
+- A background writer flushes every 1 second. Within a tick it keeps writing batches of up to 100
+  events for as long as at least a full batch is waiting, so a backlog drains faster than 100 events
+  per second.
+- A failed insert is retried twice, after 250 ms and 1 000 ms. If the third attempt fails, the application log gets `Audit insert failed after 3 attempts: {error}`. When the error is a
+  database error, the events of the batch are then inserted one at a time, so one bad event cannot
+  keep the others out of the table. When the database cannot be reached (connection errors), that
+  fallback is skipped and the whole batch is written to the application log, so an outage does not
+  hold the writer for minutes. Each event that is not persisted is written to the application log
   (`Audit event not persisted: {json}`).
 - When the queue is full, the new event is written to the application log instead
   (`Audit queue full, event not persisted: {json}`).

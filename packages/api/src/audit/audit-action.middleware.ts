@@ -33,7 +33,10 @@ export class AuditActionMiddleware {
       recorded = true;
       try {
         const actor = resolveActor(req);
-        const snapshot = getAuditSnapshot(req);
+        const statusCode = res.writableFinished ? res.statusCode : ABORTED_STATUS_CODE;
+        // A handler can still reject after the snapshot was taken (e.g. a 403 for ed-orgs the user
+        // does not control); nothing was deleted then, so the snapshot would be misleading.
+        const snapshot = res.writableFinished && statusCode >= 400 ? undefined : getAuditSnapshot(req);
         this.recorder.record({
           eventType: AuditEventType.Action,
           timestamp,
@@ -42,7 +45,7 @@ export class AuditActionMiddleware {
           sourceIpAddress: req.ip,
           httpVerb: req.method,
           httpUrl: req.originalUrl,
-          statusCode: res.writableFinished ? res.statusCode : ABORTED_STATUS_CODE,
+          statusCode,
           oidcIssuer: this.sessionOidcIssuer(req),
           details: snapshot ? safeStringify(snapshot) : null,
         });
