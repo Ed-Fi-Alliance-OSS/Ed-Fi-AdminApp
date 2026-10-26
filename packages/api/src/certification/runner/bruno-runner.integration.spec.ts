@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import * as fs from 'fs';
 import * as http from 'http';
 import { AddressInfo } from 'net';
@@ -91,7 +92,8 @@ describeWithRuntime('certification runner with the real Bruno CLI (needs the dow
 
   it('runs the ticket scenario: step 03 fails until the vendor updates the birth date', async () => {
     const step01 = await runStep(STEP_01, { studentUniqueId: 'S1' }, {});
-    expect(step01).toMatchObject({ complete: true, passed: true, errors: [] });
+    expect(step01).toMatchObject({ complete: true, passed: true, errors: [], responseStatus: 200 });
+    expect(step01.responseSnapshot).toMatchObject({ state: 'body' });
     expect(step01.capturedVars).toMatchObject({
       firstStudentUniqueId: 'abc123',
       firstStudentBirthDate: '2010-01-01',
@@ -101,9 +103,11 @@ describeWithRuntime('certification runner with the real Bruno CLI (needs the dow
     expect(unchanged.passed).toBe(false);
     expect(unchanged.errors).toEqual([
       {
-        property: 'birthDate changed',
-        validation: 'test',
-        error: "expected '2010-01-01' to not equal '2010-01-01'",
+        kind: 'assertion',
+        field: 'birthDate changed',
+        expected: "Different from '2010-01-01'",
+        observed: "'2010-01-01'",
+        message: "expected '2010-01-01' to not equal '2010-01-01'",
       },
     ]);
 
@@ -115,7 +119,9 @@ describeWithRuntime('certification runner with the real Bruno CLI (needs the dow
   it('explains the missing dependency when step 03 runs without captured values', async () => {
     const result = await runStep(STEP_03, {}, {});
     expect(result.passed).toBe(false);
-    expect(result.errors[0]).toMatchObject({ property: '', validation: 'script' });
-    expect(result.errors[0].error).toContain('Run "01 - 1st Student is valid" first');
+    expect(result.errors).toHaveLength(1);
+    expect(result.errors[0]).toMatchObject({ kind: 'exception', field: null, observed: null });
+    expect(result.errors[0].message).toContain('Run "01 - 1st Student is valid" first');
+    expect(result).toMatchObject({ responseStatus: null, responseSnapshot: null });
   }, 60_000);
 });

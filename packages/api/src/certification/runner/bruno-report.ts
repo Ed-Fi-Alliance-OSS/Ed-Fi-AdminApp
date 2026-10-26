@@ -1,11 +1,30 @@
+import {
+  CERT_STEP_ERROR_KIND,
+  CertStepErrorKind,
+  CertStepSnapshotEnvelope,
+} from '@edanalytics/models';
 import * as fs from 'fs';
 import { CAPTURE_VARS_FILE, RESTORE_VARS_FILE } from './bridge-requests';
 import { CapturedVars, sanitizeCapturedVars } from './captured-vars';
+import {
+  buildSnapshot,
+  evaluatePath,
+  expectedPhrase,
+  fieldLabel,
+  joinExpected,
+  observedFromMessage,
+  parseEqualityTest,
+  redactToken,
+  renderObserved,
+  whatWeSawLine,
+} from './step-result-details';
 
 export interface StepRunError {
-  property: string;
-  validation: string;
-  error: string;
+  kind: CertStepErrorKind;
+  field: string | null;
+  expected: string | null;
+  observed: string | null;
+  message: string | null;
 }
 
 export interface ParsedBrunoReport {
@@ -13,6 +32,10 @@ export interface ParsedBrunoReport {
   complete: boolean;
   passed: boolean;
   errors: StepRunError[];
+  /** HTTP status of the Ed-Fi API response; null when the request was never sent. */
+  responseStatus: number | null;
+  /** The response body to store (encrypted); null when there was no response. */
+  responseSnapshot: CertStepSnapshotEnvelope | null;
   /** Runtime variables after the step ran; null when unavailable (leave the stored ones alone). */
   capturedVars: CapturedVars | null;
   /** Keys (never values) of a capture body that failed validation, capped; null when nothing was rejected. */
@@ -23,7 +46,7 @@ export const INCOMPLETE_RUN_MESSAGE =
   "The step didn't finish. Check that the Ed-Fi API is reachable and try again.";
 
 const MAX_MESSAGE_LENGTH = 1000;
-const MAX_PROPERTY_LENGTH = 500;
+const MAX_DETAIL_LENGTH = 500;
 const MAX_REJECTED_KEYS = 50;
 const ANSI_PATTERN = new RegExp(`${String.fromCharCode(27)}\\[[0-9;]*m`, 'g');
 
@@ -37,13 +60,22 @@ interface ReportTest {
 interface ReportAssertion {
   lhsExpr?: string;
   rhsExpr?: string;
+  operator?: string;
+  rhsOperand?: string;
   status?: string;
   error?: unknown;
+}
+
+interface ReportResponse {
+  status?: unknown;
+  statusText?: unknown;
+  data?: unknown;
 }
 
 interface ReportResult {
   test?: { filename?: string };
   request?: { data?: unknown };
+  response?: ReportResponse;
   error?: unknown;
   status?: string;
   skipped?: boolean;
@@ -61,14 +93,24 @@ export const cleanMessage = (
 ): string => {
   let text = typeof message === 'string' ? message : JSON.stringify(message ?? '');
   text = text.replace(ANSI_PATTERN, '');
-  if (token) text = text.split(token).join('[REDACTED]');
+  text = redactToken(text, token);
   return text.length > maxLength ? `${text.slice(0, maxLength - 1)}…` : text;
 };
+
+const exceptionError = (message: string, observed: string | null): StepRunError => ({
+  kind: CERT_STEP_ERROR_KIND.exception,
+  field: null,
+  expected: null,
+  observed,
+  message,
+});
 
 export const incompleteRunReport = (): ParsedBrunoReport => ({
   complete: false,
   passed: false,
-  errors: [{ property: '', validation: 'run', error: INCOMPLETE_RUN_MESSAGE }],
+  errors: [exceptionError(INCOMPLETE_RUN_MESSAGE, null)],
+  responseStatus: null,
+  responseSnapshot: null,
   capturedVars: null,
   capturedVarsRejectedKeys: null,
 });
@@ -113,6 +155,85 @@ const readCapturedVars = (
   }
 };
 
+/** Exceptions stop the step, so they supersede its assertions (AC-690). */
+const collectExceptions = (step: ReportResult, token: string): StepRunError[] => {
+  // statusText comes from the vendor's server: redact and cap it like any stored text.
+  const line = whatWeSawLine({ status: undefined, ...step.response });
+  const observed = line === null ? null : cleanMessage(line, token, MAX_DETAIL_LENGTH);
+  const messages: unknown[] = [];
+  if (step.skipped) messages.push('The step was skipped.');
+  if (step.error) messages.push(step.error);
+  for (const test of [
+    ...(step.preRequestTestResults ?? []),
+    ...(step.postResponseTestResults ?? []),
+  ]) {
+    if (test.status !== 'pass' && test.isScriptError) messages.push(test.error);
+  }
+  for (const test of step.testResults ?? []) {
+    if (test.status !== 'pass' && test.isScriptError) messages.push(test.error);
+  }
+  return messages.map((message) => exceptionError(cleanMessage(message, token), observed));
+};
+
+/** One row per failed field, then one per failed `test()` check, in report order. */
+const collectAssertions = (step: ReportResult, token: string): StepRunError[] => {
+  const response = step.response ?? {};
+  const hasBody = 'data' in response;
+  const detail = (text: string) => cleanMessage(text, token, MAX_DETAIL_LENGTH);
+
+  const byField = new Map<string, ReportAssertion[]>();
+  for (const assertion of step.assertionResults ?? []) {
+    if (assertion.status === 'pass') continue;
+    const lhsExpr = assertion.lhsExpr ?? '';
+    byField.set(lhsExpr, [...(byField.get(lhsExpr) ?? []), assertion]);
+  }
+  const rows: StepRunError[] = [...byField].map(([lhsExpr, failed]) => {
+    const message = cleanMessage(failed[0].error, token);
+    const value = hasBody
+      ? evaluatePath(lhsExpr, { status: response.status, body: response.data })
+      : undefined;
+    // Render uncapped, so detail() redacts the token before it caps the text.
+    const observed =
+      value !== undefined ? renderObserved(value, Infinity) : observedFromMessage(message);
+    return {
+      kind: CERT_STEP_ERROR_KIND.assertion,
+      field: detail(fieldLabel(lhsExpr)),
+      expected: detail(
+        joinExpected(
+          failed.map((assertion) =>
+            expectedPhrase(
+              assertion.operator ?? '',
+              assertion.rhsOperand ?? '',
+              assertion.rhsExpr ?? '',
+            ),
+          ),
+        ),
+      ),
+      observed: observed === null ? null : detail(observed),
+      message,
+    };
+  });
+
+  const tests = [
+    ...(step.preRequestTestResults ?? []),
+    ...(step.testResults ?? []),
+    ...(step.postResponseTestResults ?? []),
+  ];
+  for (const test of tests) {
+    if (test.status === 'pass' || test.isScriptError) continue;
+    const message = cleanMessage(test.error, token);
+    const equality = parseEqualityTest(message);
+    rows.push({
+      kind: CERT_STEP_ERROR_KIND.assertion,
+      field: detail(test.description ?? ''),
+      expected: equality ? detail(equality.expected) : null,
+      observed: equality ? detail(equality.observed) : null,
+      message,
+    });
+  }
+  return rows;
+};
+
 /**
  * Turns Bruno's JSON report into the step's verdict. A request whose own `status` is
  * `pass` can still have failed tests, so the verdict comes from errors, assertions and tests.
@@ -133,43 +254,18 @@ export const parseBrunoReport = (
     return incompleteRunReport();
   }
 
-  const errors: StepRunError[] = [];
-  if (step.skipped) {
-    errors.push({ property: '', validation: 'script', error: 'The step was skipped.' });
-  }
-  if (step.error) {
-    errors.push({ property: '', validation: 'script', error: cleanMessage(step.error, token) });
-  }
-  for (const assertion of step.assertionResults ?? []) {
-    if (assertion.status === 'pass') continue;
-    errors.push({
-      property: cleanMessage(assertion.lhsExpr ?? '', token, MAX_PROPERTY_LENGTH),
-      validation: cleanMessage(assertion.rhsExpr ?? '', token),
-      error: cleanMessage(assertion.error, token),
-    });
-  }
-  const tests = [
-    ...(step.preRequestTestResults ?? []),
-    ...(step.testResults ?? []),
-    ...(step.postResponseTestResults ?? []),
-  ];
-  for (const test of tests) {
-    if (test.status === 'pass') continue;
-    errors.push(
-      test.isScriptError
-        ? { property: '', validation: 'script', error: cleanMessage(test.error, token) }
-        : {
-            property: cleanMessage(test.description ?? '', token, MAX_PROPERTY_LENGTH),
-            validation: 'test',
-            error: cleanMessage(test.error, token),
-          },
-    );
-  }
+  const exceptions = collectExceptions(step, token);
+  const errors = exceptions.length > 0 ? exceptions : collectAssertions(step, token);
+  // A request that was never sent reports status 'error' and data null: no status, no snapshot.
+  const status = step.response?.status;
+  const sent = typeof status === 'number';
 
   return {
     complete: true,
     passed: errors.length === 0,
     errors,
+    responseStatus: sent ? status : null,
+    responseSnapshot: sent ? buildSnapshot(step.response?.data, token) : null,
     ...readCapturedVars(find(CAPTURE_VARS_FILE), token),
   };
 };

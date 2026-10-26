@@ -1,5 +1,5 @@
 import { ServiceUnavailableException } from '@nestjs/common';
-import { INTERCEPTORS_METADATA } from '@nestjs/common/constants';
+import { HEADERS_METADATA, INTERCEPTORS_METADATA } from '@nestjs/common/constants';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
@@ -110,6 +110,45 @@ describe('CertificationController', () => {
         privilege: 'sb-environment:read',
         subject: { id: 'sbEnvironmentId' },
       });
+    });
+  });
+
+  describe('getStepSnapshot', () => {
+    const snapshot = { state: 'none' };
+
+    it('passes the tenant, version, step and ODS to the step-runs service', async () => {
+      const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
+      const controller = new CertificationController({} as never, stepRunsService as never);
+
+      await expect(controller.getStepSnapshot(edfiTenant, 'v5', 101, 5)).resolves.toEqual(snapshot);
+      expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith({
+        edfiTenantId: 10,
+        odsId: 5,
+        sisVersion: 'v5',
+        stepId: 101,
+      });
+    });
+
+    it('passes a null ODS when none is chosen', async () => {
+      const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
+      const controller = new CertificationController({} as never, stepRunsService as never);
+
+      await controller.getStepSnapshot(edfiTenant, 'v5', 101, undefined);
+      expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith(
+        expect.objectContaining({ odsId: null }),
+      );
+    });
+
+    it('tells browsers and proxies not to keep the decrypted response', () => {
+      expect(
+        Reflect.getMetadata(HEADERS_METADATA, CertificationController.prototype.getStepSnapshot),
+      ).toEqual([{ name: 'Cache-Control', value: 'no-store' }]);
+    });
+
+    it('is guarded like the step results it belongs to', () => {
+      expect(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepSnapshot),
+      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepRuns));
     });
   });
 });

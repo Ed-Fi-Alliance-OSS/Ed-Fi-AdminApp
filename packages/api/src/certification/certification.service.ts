@@ -304,6 +304,9 @@ export class CertificationService {
           status,
           inputs,
           runAt: ranAt,
+          // Always written, so a re-run that sent nothing never keeps a stale status or snapshot.
+          responseStatus: parsed.responseStatus,
+          responseSnapshot: parsed.responseSnapshot,
         }),
       );
 
@@ -311,12 +314,7 @@ export class CertificationService {
       await errors.delete({ stepRunId: stepRun.stepRunId });
       if (parsed.errors.length > 0) {
         await errors.save(
-          parsed.errors.map((error) => ({
-            stepRunId: stepRun.stepRunId,
-            property: error.property,
-            validation: error.validation,
-            description: error.error,
-          })),
+          parsed.errors.map((error) => ({ stepRunId: stepRun.stepRunId, ...error })),
         );
       }
 
@@ -339,7 +337,14 @@ export class CertificationService {
         .getRepository(CertificationProcess)
         .update({ certificationProcessId }, { updatedAt: ranAt });
 
-      return { stepId, status, ranAt: ranAt.toISOString(), scenarioStatus, errors: parsed.errors };
+      return {
+        stepId,
+        status,
+        ranAt: ranAt.toISOString(),
+        scenarioStatus,
+        responseStatus: parsed.responseStatus,
+        errors: parsed.errors,
+      };
     });
   }
 }

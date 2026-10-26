@@ -38,6 +38,7 @@ tests {
     const body = res.getBody();
     expect(['success', 'failed']).to.include(body.status);
     expect(body.errors).to.be.an('array');
+    expect(body.responseStatus === null || typeof body.responseStatus === 'number').to.equal(true);
   });
 
   test("certification/run step 01 - passes when the ODS has the student", function() {
