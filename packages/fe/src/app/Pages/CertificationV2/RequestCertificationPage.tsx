@@ -6,7 +6,9 @@ import {
   ButtonGroup,
   FormControl,
   FormLabel,
+  HStack,
   Select,
+  Spinner,
   Table,
   Tbody,
   Td,
@@ -30,6 +32,8 @@ import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext
 import { useCertificationSelection } from './useCertificationSelection';
 import { displayNameOf, formatArtifactVersion } from './certificationCatalog';
 import { useCertificationCatalog } from './useCertificationCatalog';
+import { useCertificationScenarioStatuses } from './useCertificationScenarioStatuses';
+import { SCENARIO_STATUS_DISPLAY, toScenarioDisplayStatus } from './certificationStepResults';
 
 const TENANT_TOOLTIP =
   'A tenant is a separate set of data inside this environment, usually one per organization (for example, a school district). Choose the tenant your API key and secret were created for.';
@@ -85,6 +89,18 @@ export const RequestCertificationPage = () => {
   );
   const odss = Object.values(odsQuery.data ?? {});
   const odsRequired = showOds && odss.length > 0;
+
+  const scenarioStatuses = useCertificationScenarioStatuses({
+    sbEnvironmentId,
+    edfiTenantId,
+    odsId,
+    sisVersion: catalog.catalogVersion?.dataStandardVersion,
+    enabled:
+      edfiTenantId !== undefined &&
+      catalog.catalogVersion?.dataStandardVersion !== undefined &&
+      !(odsRequired && odsId === undefined),
+  });
+
   // Fail closed: don't let the form run before we know whether an ODS must be chosen.
   // Query errors go to the route error page (the query builder sets throwOnError: true), so only loading needs a guard here.
   const isLoadingSelection =
@@ -290,35 +306,56 @@ export const RequestCertificationPage = () => {
               <Tr>
                 <Th>Area or Group</Th>
                 <Th>Scenario</Th>
+                <Th>Status</Th>
                 <Th textAlign="right">Action</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {tableScenarios.map(({ area, scenario }) => (
-                <Tr key={scenario.scenarioId}>
-                  <Td>{displayNameOf(area)}</Td>
-                  <Td>{displayNameOf(scenario)}</Td>
-                  <Td textAlign="right">
-                    <Button
-                      size="sm"
-                      colorScheme="primary"
-                      type="button"
-                      isDisabled={!isAuthenticated}
-                      onClick={() =>
-                        navigate({
-                          pathname: 'execution',
-                          search: toSearch({ scenarioId: scenario.scenarioId }),
-                        })
-                      }
-                    >
-                      Validate Scenario
-                    </Button>
-                  </Td>
-                </Tr>
-              ))}
+              {tableScenarios.map(({ area, scenario }) => {
+                const display =
+                  SCENARIO_STATUS_DISPLAY[
+                    toScenarioDisplayStatus(
+                      scenarioStatuses.statusByScenarioId[scenario.scenarioId],
+                    )
+                  ];
+                return (
+                  <Tr key={scenario.scenarioId}>
+                    <Td>{displayNameOf(area)}</Td>
+                    <Td>{displayNameOf(scenario)}</Td>
+                    <Td>
+                      {scenarioStatuses.isPending ? (
+                        <Spinner size="xs" data-testid="scenario-status-spinner" />
+                      ) : (
+                        <HStack spacing={2}>
+                          <Box w="8px" h="8px" borderRadius="full" bg={display.dotColor} />
+                          <Text fontSize="sm" color={display.textColor}>
+                            {display.label}
+                          </Text>
+                        </HStack>
+                      )}
+                    </Td>
+                    <Td textAlign="right">
+                      <Button
+                        size="sm"
+                        colorScheme="primary"
+                        type="button"
+                        isDisabled={!isAuthenticated}
+                        onClick={() =>
+                          navigate({
+                            pathname: 'execution',
+                            search: toSearch({ scenarioId: scenario.scenarioId }),
+                          })
+                        }
+                      >
+                        Validate Scenario
+                      </Button>
+                    </Td>
+                  </Tr>
+                );
+              })}
               {tableScenarios.length === 0 && (
                 <Tr>
-                  <Td colSpan={3}>
+                  <Td colSpan={4}>
                     <Text color="gray.600">
                       {catalog.isPending
                         ? 'Loading scenarios...'

@@ -36,6 +36,17 @@ export const certificationQueryKeys = {
       odsId ?? null,
       scenarioId,
     ] as const,
+  scenarioStatuses: (
+    sbEnvironmentId: number,
+    edfiTenantId: number | undefined,
+    odsId: number | undefined,
+  ) =>
+    [
+      ...certificationQueryKeys.all(sbEnvironmentId),
+      'scenario-statuses',
+      edfiTenantId,
+      odsId ?? null,
+    ] as const,
 };
 
 /**
