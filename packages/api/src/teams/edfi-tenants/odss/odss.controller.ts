@@ -13,6 +13,7 @@ import {
   UseInterceptors,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
+import { AuditDelete } from '../../../audit/audit-delete.decorator';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import {
@@ -150,6 +151,7 @@ export class OdssController {
     return this.odsService.UpdateOdsInstanceId(odsId, addUserModifying(dto, user));
   }
   @Delete(':odsId')
+  @AuditDelete(Ods, 'odsId')
   @Authorize({
     privilege: 'team.sb-environment.edfi-tenant:delete-ods',
     subject: {

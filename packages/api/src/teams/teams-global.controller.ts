@@ -14,6 +14,7 @@ import {
   addUserCreating,
   addUserModifying,
 } from '@edanalytics/models-server';
+import { AuditDelete } from '../audit/audit-delete.decorator';
 import { Body, Controller, Delete, Get, Param, ParseIntPipe, Post, Put } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { InjectRepository } from '@nestjs/typeorm';
@@ -87,6 +88,7 @@ export class TeamsGlobalController {
   }
 
   @Delete(':teamId')
+  @AuditDelete(Team, 'teamId')
   @Authorize({
     privilege: 'team:delete',
     subject: {

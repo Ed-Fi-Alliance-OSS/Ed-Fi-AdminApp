@@ -305,7 +305,7 @@ describe('OidcIdpBootstrapper', () => {
       await verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done);
 
       expect(done).toHaveBeenCalledWith(
-        expect.objectContaining({ message: USER_NOT_FOUND }),
+        expect.objectContaining({ message: USER_NOT_FOUND, username: 'teacher@example.org' }),
         false
       );
     });
@@ -316,7 +316,10 @@ describe('OidcIdpBootstrapper', () => {
 
       await verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done);
 
-      expect(done).toHaveBeenCalledWith(expect.objectContaining({ message: NO_ROLE }), false);
+      expect(done).toHaveBeenCalledWith(
+        expect.objectContaining({ message: NO_ROLE, username: 'teacher@example.org' }),
+        false
+      );
     });
 
     it('maps a validateUser failure to a database error', async () => {

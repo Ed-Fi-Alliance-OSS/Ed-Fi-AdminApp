@@ -54,7 +54,8 @@ export class MssqlJobQueueService
     if (this.scheduleTimer) clearTimeout(this.scheduleTimer);
 
     if (options?.graceful) {
-      const timeout = 30_000;
+      // Docker's default stop grace period is 10 s; waiting longer ends in a forced kill
+      const timeout = 8_000;
       const start = Date.now();
       while (Date.now() - start < timeout) {
         const activeCount = await this.jobRepository.count({ where: { state: 'active' } });
