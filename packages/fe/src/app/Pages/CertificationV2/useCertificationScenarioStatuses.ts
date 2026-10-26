@@ -14,8 +14,8 @@ type UseCertificationScenarioStatusesArgs = {
 
 /**
  * Every scenario's saved status for the current tenant/ODS (AC-689), fetched once and keyed
- * under `certificationQueryKeys.all`: the execution page's existing invalidation after a step
- * run keeps this list fresh too.
+ * under `certificationQueryKeys.scenarioStatuses`. The execution page invalidates that key
+ * (in addition to its own step-runs key) after a step run, so this list stays fresh too.
  */
 export const useCertificationScenarioStatuses = ({
   sbEnvironmentId,

@@ -26,7 +26,14 @@ jest.mock('./CertificationAuthContext', () => ({
   useCertificationAuth: jest.fn(),
 }));
 jest.mock('./useCertificationCatalog', () => ({
-  certificationQueryKeys: { all: (sbEnvironmentId: number) => ['certification', sbEnvironmentId] },
+  certificationQueryKeys: {
+    all: (sbEnvironmentId: number) => ['certification', sbEnvironmentId],
+    scenarioStatuses: (
+      sbEnvironmentId: number,
+      edfiTenantId: number | undefined,
+      odsId: number | undefined,
+    ) => ['certification', sbEnvironmentId, 'scenario-statuses', edfiTenantId, odsId ?? null],
+  },
   useCertificationCatalog: jest.fn(),
   useCertificationSteps: jest.fn(),
 }));
@@ -542,6 +549,27 @@ describe('CertificationPageExecution', () => {
         steps: [expect.objectContaining({ stepId: 189, status: 'success' })],
       });
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: STEP_RUNS_KEY });
+    });
+
+    it('also invalidates the scenario statuses list used by the request page', () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+      fireEvent.click(executeButton());
+      handlers().onSuccess(
+        {
+          stepId: 189,
+          status: 'success',
+          ranAt: '2026-10-16T10:00:00.000Z',
+          scenarioStatus: 'inprogress',
+          errors: [],
+        },
+        runState.mutate.mock.calls[0][0],
+      );
+
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: certificationQueryKeys.scenarioStatuses(1, 10, undefined),
+      });
     });
 
     it('shows the API message when the run is rejected', () => {

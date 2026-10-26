@@ -533,6 +533,15 @@ describe('RequestCertificationPage', () => {
     });
   });
 
+  it('disables the statuses request while the ODS list is still pending', () => {
+    mockQueries(multiTenantEnv, tenants, odss, { isPending: true });
+    render(<RequestCertificationPage />);
+
+    expect((useCertificationScenarioStatuses as jest.Mock).mock.calls.at(-1)[0]).toMatchObject({
+      enabled: false,
+    });
+  });
+
   it('shows a spinner, not a status label, while scenario statuses are pending', () => {
     (useCertificationScenarioStatuses as jest.Mock).mockReturnValue({
       statusByScenarioId: {},

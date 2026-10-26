@@ -113,6 +113,11 @@ export const CertificationPageExecution = () => {
         },
       );
       queryClient.invalidateQueries({ queryKey: stepRunsQueryKey });
+      // The request page's scenario-statuses list is keyed separately; a step run can change
+      // the scenario's overall status, so that list needs its own invalidation too.
+      queryClient.invalidateQueries({
+        queryKey: certificationQueryKeys.scenarioStatuses(sbEnvironmentId, edfiTenantId, odsId),
+      });
     },
     onError: (error: unknown) => {
       const kind = classifyRunError(error);

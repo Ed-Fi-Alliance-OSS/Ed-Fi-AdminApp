@@ -90,23 +90,24 @@ export const RequestCertificationPage = () => {
   const odss = Object.values(odsQuery.data ?? {});
   const odsRequired = showOds && odss.length > 0;
 
-  const scenarioStatuses = useCertificationScenarioStatuses({
-    sbEnvironmentId,
-    edfiTenantId,
-    odsId,
-    sisVersion: catalog.catalogVersion?.dataStandardVersion,
-    enabled:
-      edfiTenantId !== undefined &&
-      catalog.catalogVersion?.dataStandardVersion !== undefined &&
-      !(odsRequired && odsId === undefined),
-  });
-
   // Fail closed: don't let the form run before we know whether an ODS must be chosen.
   // Query errors go to the route error page (the query builder sets throwOnError: true), so only loading needs a guard here.
   const isLoadingSelection =
     sbEnvironmentQuery.isPending ||
     tenantsQuery.isPending ||
     (showOds && !!edfiTenant && odsQuery.isPending);
+
+  const scenarioStatuses = useCertificationScenarioStatuses({
+    sbEnvironmentId,
+    edfiTenantId,
+    odsId,
+    sisVersion: catalog.catalogVersion?.dataStandardVersion,
+    enabled:
+      !isLoadingSelection &&
+      edfiTenantId !== undefined &&
+      catalog.catalogVersion?.dataStandardVersion !== undefined &&
+      !(odsRequired && odsId === undefined),
+  });
 
   // A tenant ID from the URL that isn't in the list (stale link) counts as unset.
   useEffect(() => {
