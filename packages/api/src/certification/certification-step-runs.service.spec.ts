@@ -364,6 +364,8 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
       {} as never,
       stepRunRepository as never,
       {} as never,
+      {} as never,
+      { currentRef: 'ref-1' } as ArtifactService,
     );
   });
 
