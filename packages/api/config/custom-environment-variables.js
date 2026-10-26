@@ -37,6 +37,9 @@ module.exports = {
   LOG_LEVEL: 'LOG_LEVEL',
   SSL_VERIFICATION: 'SSL_VERIFICATION',
 
+  // Audit logging
+  AUDIT_LOGGING_ENABLED: 'AUDIT_LOGGING_ENABLED',
+
   // Certification artifact configuration
   CERT_ENABLED: 'CERT_ENABLED',
   CERT_BRUNO_SRC_REF: 'CERT_BRUNO_SRC_REF',

@@ -213,6 +213,9 @@ module.exports = {
   // Set the _minimum_ log level. This uses NestJs logging, so the allowed values are: verbose, debug, log, warn, error, fatal
   LOG_LEVEL: 'log',
 
+  // Audit logging
+  AUDIT_LOGGING_ENABLED: true, // Master switch for audit logging
+
   // Certification artifact configuration
   CERT_ENABLED: false, // Master switch for the certification runtime/catalog sync at API startup
   CERT_BRUNO_SRC_REF: 'v2.1.0', // Tag name or commit ref

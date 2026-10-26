@@ -107,6 +107,8 @@ declare module 'config' {
     RATE_LIMIT_TTL: number;
     RATE_LIMIT_LIMIT: number;
 
+    AUDIT_LOGGING_ENABLED?: boolean | 'true' | 'false';
+
     USE_PKCE: boolean;
 
     LOG_LEVEL: LogLevel;

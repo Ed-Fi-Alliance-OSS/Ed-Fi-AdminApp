@@ -33,6 +33,17 @@ export class OidcProviderRegistry {
     this.clients.set(oidcId, oidcConfig);
   }
 
+  /**
+   * The issuer URL of a registered provider, or null when it is unknown. Unlike the numeric id, it
+   * stays meaningful if the provider row is later deleted, so it is what the audit log records.
+   */
+  getIssuer(oidcId: number | string | undefined | null): string | null {
+    if (oidcId === undefined || oidcId === null) {
+      return null;
+    }
+    return this.clients.get(Number(oidcId))?.serverMetadata().issuer ?? null;
+  }
+
   markFailed(oidcId: number): void {
     this.failedProviderIds.add(oidcId);
   }

@@ -177,12 +177,12 @@ export class OidcIdpBootstrapper implements OnModuleInit {
             if (!isEaUser) {
               Logger.warn(`LOGIN_ERROR User [${username}] not found in database`);
             }
-            return done(new Error(USER_NOT_FOUND), false);
+            return done(Object.assign(new Error(USER_NOT_FOUND), { username }), false);
           } else if (user.roleId === null || user.roleId === undefined) {
             if (!isEaUser) {
               Logger.warn(`LOGIN_ERROR No role assigned for User [${username}]`);
             }
-            return done(new Error(NO_ROLE), false);
+            return done(Object.assign(new Error(NO_ROLE), { username }), false);
           } else {
             if (!user.userTeamMemberships || user.userTeamMemberships.length === 0) {
               if (!isEaUser) {

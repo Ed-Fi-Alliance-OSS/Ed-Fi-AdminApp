@@ -29,6 +29,7 @@ import { ArtifactService } from './certification/artifact/artifact.service';
 import { CatalogService } from './certification/catalog/catalog.service';
 import { AggregateErrorHandler } from './app/aggregate-error-handler';
 import { AggregateErrorFilter } from './app/aggregate-error.filter';
+import { AuditActionMiddleware } from './audit/audit-action.middleware';
 import { createCsrfOriginGuard } from './app/csrf-origin-guard';
 import { createGlobalValidationPipe } from './app/global-validation-pipe';
 import { getSessionCookieOptions, SESSION_TRUST_PROXY_HOPS } from './app/session-cookie-options';
@@ -224,6 +225,9 @@ async function bootstrap() {
     logger: getLogLevel(),
   });
 
+  // Without this, onApplicationShutdown hooks (flushing audit events) never fire on SIGTERM/SIGINT.
+  app.enableShutdownHooks();
+
   app.set('trust proxy', SESSION_TRUST_PROXY_HOPS);
 
   // Optimize response headers for security
@@ -246,6 +250,8 @@ async function bootstrap() {
   const sessionSecret = await config.SESSION_SECRET;
   assertValidSessionSecret(sessionSecret);
 
+  // Registered before the body parser and the CSRF guard so requests they reject are audited too.
+  app.use(app.get(AuditActionMiddleware).handle);
   app.use(json({ limit: '512kb' }));
   app.use(createCsrfOriginGuard(config.FE_URL));
   app.use(
