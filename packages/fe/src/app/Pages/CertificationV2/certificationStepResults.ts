@@ -46,6 +46,37 @@ export const toScenarioDisplayStatus = (saved: string | undefined): ScenarioDisp
   return 'failed';
 };
 
+const REASON_PHRASES: Record<number, string> = {
+  200: 'OK',
+  201: 'Created',
+  204: 'No Content',
+  400: 'Bad Request',
+  401: 'Unauthorized',
+  403: 'Forbidden',
+  404: 'Not Found',
+  409: 'Conflict',
+  422: 'Unprocessable Entity',
+  500: 'Internal Server Error',
+  502: 'Bad Gateway',
+  503: 'Service Unavailable',
+};
+
+/** `HTTP 404 Not Found`; the number alone when the reason phrase isn't one we know. */
+export const httpStatusLabel = (status: number): string =>
+  REASON_PHRASES[status] ? `HTTP ${status} ${REASON_PHRASES[status]}` : `HTTP ${status}`;
+
+/**
+ * The colour of the API response badge. A passing step met the status it expects (a "was
+ * Deleted" step checks for 404), so it's green whatever the code; otherwise the code decides.
+ */
+export const httpStatusColorScheme = (
+  status: number,
+  stepStatus: CertStepStatus,
+): 'green' | 'orange' | 'red' => {
+  if (stepStatus === 'success' || (status >= 200 && status < 300)) return 'green';
+  return status >= 300 && status < 400 ? 'orange' : 'red';
+};
+
 /** The run API's `inputs`: typed values of `input` parameters, keyed by parameter name. */
 export const toRunInputs = (
   parameters: CertificationStepParameterDto[],

@@ -1,9 +1,13 @@
 import {
   CertificationScenarioStatusDto,
+  CERT_SNAPSHOT_STATE,
   CertificationStepRunsDto,
+  CertificationStepSnapshotDto,
+  CertStepErrorKind,
   isSupportedSisVersion,
   toCertificationScenarioStatusDto,
   toCertificationStepRunsDto,
+  toCertificationStepSnapshotDto,
 } from '@edanalytics/models';
 import {
   CatalogVersion,
@@ -13,7 +17,7 @@ import {
   ScenarioStep,
   ScenarioStepError,
 } from '@edanalytics/models-server';
-import { Injectable } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
@@ -102,12 +106,15 @@ export class CertificationStepRunsService {
         status: stepRun.status as CertificationStepRunsDto['steps'][number]['status'],
         ranAt: stepRun.runAt.toISOString(),
         inputs: stepRun.inputs,
+        responseStatus: stepRun.responseStatus ?? null,
         errors: errors
           .filter((error) => error.stepRunId === stepRun.stepRunId)
           .map((error) => ({
-            property: error.property ?? '',
-            validation: error.validation ?? '',
-            error: error.description ?? '',
+            kind: error.kind as CertStepErrorKind,
+            field: error.field,
+            expected: error.expected,
+            observed: error.observed,
+            message: error.message,
           })),
       })),
     });
@@ -151,5 +158,35 @@ export class CertificationStepRunsService {
         status: row.status as CertificationScenarioStatusDto['status'],
       })),
     );
+  }
+  
+    /**
+   * The decrypted response snapshot of one step's latest run (AC-690). A run that received a
+   * response but has no snapshot had it cleared when the request was decided (AC-660).
+   */
+  async findStepSnapshot(
+    params: Omit<FindStepRunsParams, 'scenarioId'> & { stepId: number },
+  ): Promise<CertificationStepSnapshotDto> {
+    if (!isSupportedSisVersion(params.sisVersion)) {
+      throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
+    }
+    const stepRun = await this.stepRunRepository.findOne({
+      where: {
+        stepId: params.stepId,
+        certificationProcess: {
+          edfiTenantId: params.edfiTenantId,
+          odsId: params.odsId ?? IsNull(),
+        },
+      },
+      select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
+    });
+    if (!stepRun) throw new NotFoundException();
+
+    const snapshot = stepRun.responseSnapshot;
+    if (snapshot) return toCertificationStepSnapshotDto(snapshot);
+    return toCertificationStepSnapshotDto({
+      state:
+        stepRun.responseStatus === null ? CERT_SNAPSHOT_STATE.none : CERT_SNAPSHOT_STATE.deleted,
+    });
   }
 }

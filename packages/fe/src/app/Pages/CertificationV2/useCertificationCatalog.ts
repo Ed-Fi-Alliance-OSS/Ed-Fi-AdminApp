@@ -47,6 +47,22 @@ export const certificationQueryKeys = {
       edfiTenantId,
       odsId ?? null,
     ] as const,
+  /** Includes the run time, so a re-run of the step fetches its new snapshot. */
+  stepSnapshot: (
+    sbEnvironmentId: number,
+    edfiTenantId: number | undefined,
+    odsId: number | undefined,
+    stepId: number | undefined,
+    ranAt: string | undefined,
+  ) =>
+    [
+      ...certificationQueryKeys.all(sbEnvironmentId),
+      'step-snapshot',
+      edfiTenantId,
+      odsId ?? null,
+      stepId,
+      ranAt,
+    ] as const,
 };
 
 /**

@@ -5,7 +5,7 @@ import * as path from 'path';
 import { buildBrunoArgs, buildChildEnv, runBrunoCli } from './bruno-cli';
 
 describe('buildBrunoArgs', () => {
-  it('runs restore, the step and capture in one process with the safe flag set', () => {
+  it('runs restore, the step and capture in one process, keeping the response body for the snapshot', () => {
     expect(buildBrunoArgs({ stepPath: 'v5/A/B/01 - x.bru', insecure: false })).toEqual([
       'run',
       '_adminapp/restore-vars.bru',
@@ -18,7 +18,6 @@ describe('buildBrunoArgs', () => {
       '--reporter-json',
       'report.json',
       '--reporter-skip-all-headers',
-      '--reporter-skip-response-body',
       '--sandbox',
       'safe',
     ]);
