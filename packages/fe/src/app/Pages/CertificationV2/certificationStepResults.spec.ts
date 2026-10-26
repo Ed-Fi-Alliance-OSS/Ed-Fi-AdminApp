@@ -2,11 +2,13 @@ import 'reflect-metadata';
 import { CertificationStepParameterDto } from '@edanalytics/models';
 import {
   classifyRunError,
+  SCENARIO_STATUS_DISPLAY,
   STEP_NOT_FOUND_MESSAGE,
   STEP_STATUS_DISPLAY,
   toDisplayStatus,
   toParameterValues,
   toRunInputs,
+  toScenarioDisplayStatus,
 } from './certificationStepResults';
 
 const parameters = [
@@ -49,6 +51,30 @@ describe('STEP_STATUS_DISPLAY', () => {
       'Successful',
       'Failed',
     ]);
+  });
+});
+
+describe('toScenarioDisplayStatus', () => {
+  it('shows a scenario that never ran as not executed', () => {
+    expect(toScenarioDisplayStatus(undefined)).toBe('notExecuted');
+  });
+
+  it.each([
+    ['completed', 'success'],
+    ['inprogress', 'inProgress'],
+    ['failed', 'failed'],
+  ] as const)('maps a saved %s status', (saved, expected) => {
+    expect(toScenarioDisplayStatus(saved)).toBe(expected);
+  });
+
+  it('never shows an unknown saved status as successful', () => {
+    expect(toScenarioDisplayStatus('bogus')).toBe('failed');
+  });
+});
+
+describe('SCENARIO_STATUS_DISPLAY', () => {
+  it('shows "In progress" for the inProgress status', () => {
+    expect(SCENARIO_STATUS_DISPLAY.inProgress.label).toBe('In progress');
   });
 });
 

@@ -27,6 +27,25 @@ export const toDisplayStatus = (
   return saved === 'success' ? 'success' : 'failed';
 };
 
+export type ScenarioDisplayStatus = StepDisplayStatus | 'inProgress';
+
+/** Same labels/colours as `STEP_STATUS_DISPLAY`, plus the scenario-only "in progress" state. */
+export const SCENARIO_STATUS_DISPLAY: Record<
+  ScenarioDisplayStatus,
+  { label: string; textColor: string; dotColor: string }
+> = {
+  ...STEP_STATUS_DISPLAY,
+  inProgress: { label: 'In progress', textColor: 'orange.600', dotColor: 'orange.500' },
+};
+
+/** An unknown saved status shows as failed: it must never look like a pass. */
+export const toScenarioDisplayStatus = (saved: string | undefined): ScenarioDisplayStatus => {
+  if (saved === undefined) return 'notExecuted';
+  if (saved === 'completed') return 'success';
+  if (saved === 'inprogress') return 'inProgress';
+  return 'failed';
+};
+
 /** The run API's `inputs`: typed values of `input` parameters, keyed by parameter name. */
 export const toRunInputs = (
   parameters: CertificationStepParameterDto[],
