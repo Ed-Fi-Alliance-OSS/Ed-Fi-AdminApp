@@ -113,3 +113,17 @@ export const toCertificationStepRunsDto = makeSerializer<
   CertificationStepRunsDto,
   CertificationStepRunsDto
 >(CertificationStepRunsDto);
+
+/** One scenario's saved status, as read back by GET .../scenario-statuses. */
+export class CertificationScenarioStatusDto {
+  @Expose()
+  scenarioId: number;
+
+  @Expose()
+  status: CertScenarioStatus;
+}
+
+export const toCertificationScenarioStatusDto = makeSerializer<
+  CertificationScenarioStatusDto,
+  CertificationScenarioStatusDto
+>(CertificationScenarioStatusDto);
