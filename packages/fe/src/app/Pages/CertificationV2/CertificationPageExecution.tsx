@@ -460,6 +460,8 @@ export const CertificationPageExecution = () => {
             // Full width below both columns: long values such as descriptor URIs fit on one line.
             <Box mt={6}>
               <CertificationStepResponseDetails
+                // A new step starts closed, so its snapshot loads only when the vendor opens it.
+                key={validatedStep.stepId}
                 run={selectedRun}
                 isRunning={isRunningStep(validatedStep.stepId)}
                 snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion }}

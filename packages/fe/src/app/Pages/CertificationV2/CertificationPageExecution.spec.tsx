@@ -486,6 +486,19 @@ describe('CertificationPageExecution', () => {
       expect(within(grid as HTMLElement).getByText('Enter Validation Parameters')).toBeTruthy();
     });
 
+    it('closes the response details when another step is selected', () => {
+      mockStepRuns({ 189: savedFailure, 190: { ...savedFailure, stepId: 190 } });
+      renderAuthenticated();
+      select(0);
+      const toggle = () => screen.getByRole('button', { name: /View response details/ });
+      fireEvent.click(toggle());
+      expect(toggle().getAttribute('aria-expanded')).toBe('true');
+
+      select(1);
+
+      expect(toggle().getAttribute('aria-expanded')).toBe('false');
+    });
+
     it('shows the response details below both columns, at full width', () => {
       mockStepRuns({ 189: savedFailure });
       renderAuthenticated();
