@@ -33,7 +33,10 @@ export const buildChildEnv = (parentEnv: NodeJS.ProcessEnv, token: string): Node
   return env;
 };
 
-/** One process runs restore-vars → step → capture-vars, so runtime variables flow between them. */
+/**
+ * One process runs restore-vars → step → capture-vars, so runtime variables flow between them.
+ * The response body stays in the report (AC-690): it feeds observed values and the snapshot.
+ */
 export const buildBrunoArgs = ({ stepPath, insecure }: { stepPath: string; insecure: boolean }): string[] => {
   const args = [
     'run',
@@ -47,7 +50,6 @@ export const buildBrunoArgs = ({ stepPath, insecure }: { stepPath: string; insec
     '--reporter-json',
     RUN_REPORT_FILE,
     '--reporter-skip-all-headers',
-    '--reporter-skip-response-body',
     '--sandbox',
     'safe',
   ];

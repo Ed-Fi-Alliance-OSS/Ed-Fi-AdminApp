@@ -185,6 +185,7 @@ describe('CertificationService.runStep', () => {
       status: 'success',
       ranAt: expect.any(String),
       scenarioStatus: 'completed',
+      responseStatus: 200,
       errors: [],
     });
     expect(createRunWorkspace).toHaveBeenCalledWith(
@@ -213,6 +214,8 @@ describe('CertificationService.runStep', () => {
         stepId: 101,
         status: 'success',
         inputs: { studentUniqueId: 'S1' },
+        responseStatus: 200,
+        responseSnapshot: expect.objectContaining({ state: 'body' }),
       }),
     );
     expect(em.ScenarioStepError.delete).toHaveBeenCalledWith({ stepRunId: 55 });
@@ -239,7 +242,7 @@ describe('CertificationService.runStep', () => {
       stepId: 101,
     });
     em.ScenarioStep.find.mockResolvedValue([{ stepId: 101, status: 'failed' }]);
-    (readBrunoReport as jest.Mock).mockResolvedValue(fixture('assertion-failed'));
+    (readBrunoReport as jest.Mock).mockResolvedValue(fixture('partial-record'));
 
     const result = await run();
 
@@ -252,13 +255,36 @@ describe('CertificationService.runStep', () => {
     expect(em.ScenarioStepError.save).toHaveBeenCalledWith([
       {
         stepRunId: 55,
-        property: 'res.body',
-        validation: 'isNotEmpty',
-        description: 'expected [] not to be empty',
+        kind: 'assertion',
+        field: 'birthCity',
+        expected: 'Not empty',
+        observed: 'Empty text',
+        message: "expected '' not to be empty",
       },
-      expect.objectContaining({ property: 'res.body[0].id' }),
-      expect.objectContaining({ property: '', validation: 'script' }),
+      expect.objectContaining({ kind: 'assertion', field: 'middleName', observed: 'Missing' }),
     ]);
+    expect(result.errors).toHaveLength(2);
+    expect(result.responseStatus).toBe(200);
+  });
+
+  it('clears the status and snapshot when a re-run never sent the request', async () => {
+    em.ScenarioStep.findOne.mockResolvedValue({
+      stepRunId: 55,
+      certificationProcessId: 7,
+      scenarioId: 20,
+      stepId: 101,
+      responseStatus: 200,
+      responseSnapshot: { state: 'body', body: '[]' },
+    });
+    em.ScenarioStep.find.mockResolvedValue([{ stepId: 101, status: 'failed' }]);
+    (readBrunoReport as jest.Mock).mockResolvedValue(fixture('unreachable'));
+
+    const result = await run();
+
+    expect(result.responseStatus).toBeNull();
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ stepRunId: 55, responseStatus: null, responseSnapshot: null }),
+    );
   });
 
   it('keeps the stored captured values when the run does not complete', async () => {
@@ -273,7 +299,7 @@ describe('CertificationService.runStep', () => {
 
     expect(result.status).toBe('failed');
     expect(result.errors).toEqual([
-      { property: '', validation: 'run', error: INCOMPLETE_RUN_MESSAGE },
+      { kind: 'exception', field: null, expected: null, observed: null, message: INCOMPLETE_RUN_MESSAGE },
     ]);
     expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
@@ -464,16 +490,20 @@ describe('CertificationService.runStep', () => {
     const log = jest.spyOn(Logger.prototype, 'log').mockImplementation(() => undefined);
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
     const echoed = `Bearer ${TOKEN}`;
-    const report = fixture('assertion-failed');
+    const report = fixture('partial-record');
     const step = report[0].results[1];
-    step.error = echoed;
+    step.response.data = [{ echo: echoed }];
     step.assertionResults = [
-      { lhsExpr: echoed, rhsExpr: `eq ${echoed}`, status: 'fail', error: echoed },
+      {
+        lhsExpr: echoed,
+        rhsExpr: `eq ${echoed}`,
+        operator: 'eq',
+        rhsOperand: echoed,
+        status: 'fail',
+        error: echoed,
+      },
     ];
-    step.postResponseTestResults = [
-      { description: echoed, status: 'fail', error: echoed },
-      { description: 'script', status: 'fail', error: echoed, isScriptError: true },
-    ];
+    step.postResponseTestResults = [{ description: echoed, status: 'fail', error: echoed }];
     report[0].results[2].request.data = JSON.stringify({ echoedKey: echoed });
     (readBrunoReport as jest.Mock).mockResolvedValue(report);
     (runBrunoCli as jest.Mock).mockResolvedValue({
@@ -495,7 +525,10 @@ describe('CertificationService.runStep', () => {
       warn.mock.calls,
     ]);
     expect(sinks.length).toBeGreaterThan(0);
-    expect(result.errors.length).toBeGreaterThanOrEqual(4);
+    expect(result.errors).toHaveLength(2);
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ responseSnapshot: expect.objectContaining({ state: 'body' }) }),
+    );
     expect(saved).not.toContain(TOKEN);
     expect(JSON.stringify(warn.mock.calls)).toContain('echoedKey');
     expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
