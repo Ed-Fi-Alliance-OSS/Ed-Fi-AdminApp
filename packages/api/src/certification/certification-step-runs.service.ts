@@ -17,7 +17,7 @@ import {
   ScenarioStep,
   ScenarioStepError,
 } from '@edanalytics/models-server';
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, IsNull, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
@@ -45,6 +45,8 @@ const EMPTY: CertificationStepRunsDto = { scenarioStatus: null, steps: [] };
  */
 @Injectable()
 export class CertificationStepRunsService {
+  private readonly logger = new Logger(CertificationStepRunsService.name);
+
   constructor(
     @InjectRepository(ScenarioCatalog)
     private readonly scenarioRepository: Repository<ScenarioCatalog>,
@@ -67,7 +69,9 @@ export class CertificationStepRunsService {
     }
 
     // runStep keys the process on step.scenario.area.catalogVersionId; take the same value
-    // from the requested scenario so a read always finds the process a run wrote.
+    // from the requested scenario so a read always finds the process a run wrote. This is
+    // deliberately not isCurrentCatalogVersion: saved results stay readable for the
+    // scenario's own catalog version even if it is no longer the configured one.
     const scenario = await this.scenarioRepository.findOne({
       where: { scenarioId: params.scenarioId },
       relations: { area: { catalogVersion: true } },
@@ -137,7 +141,17 @@ export class CertificationStepRunsService {
     const catalogVersion = catalogVersions.find((version) =>
       isCurrentCatalogVersion(version, params.sisVersion, this.artifactService.currentRef),
     );
-    if (!catalogVersion) return [];
+    if (!catalogVersion) {
+      // An empty list reads as "no runs" to the caller, so make this case diagnosable.
+      this.logger.warn(
+        `No current catalog version for ${params.sisVersion}: configured artifact ref is ${
+          this.artifactService.currentRef ?? 'not set'
+        }; active versions: ${
+          catalogVersions.map((version) => version.artifactVersion).join(', ') || 'none'
+        }.`,
+      );
+      return [];
+    }
 
     const certificationProcess = await this.processRepository.findOne({
       where: {
@@ -159,8 +173,8 @@ export class CertificationStepRunsService {
       })),
     );
   }
-  
-    /**
+
+  /**
    * The decrypted response snapshot of one step's latest run (AC-690). A run that received a
    * response but has no snapshot had it cleared when the request was decided (AC-660).
    */

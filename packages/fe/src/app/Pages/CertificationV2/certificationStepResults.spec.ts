@@ -1,5 +1,5 @@
 import 'reflect-metadata';
-import { CertificationStepParameterDto } from '@edanalytics/models';
+import { CertificationStepParameterDto, CertScenarioStatus } from '@edanalytics/models';
 import {
   classifyRunError,
   SCENARIO_STATUS_DISPLAY,
@@ -70,7 +70,11 @@ describe('toScenarioDisplayStatus', () => {
   });
 
   it('never shows an unknown saved status as successful', () => {
-    expect(toScenarioDisplayStatus('bogus')).toBe('failed');
+    expect(toScenarioDisplayStatus('bogus' as CertScenarioStatus)).toBe('failed');
+  });
+
+  it('does not resolve a prototype member name to a display status', () => {
+    expect(toScenarioDisplayStatus('constructor' as CertScenarioStatus)).toBe('failed');
   });
 });
 

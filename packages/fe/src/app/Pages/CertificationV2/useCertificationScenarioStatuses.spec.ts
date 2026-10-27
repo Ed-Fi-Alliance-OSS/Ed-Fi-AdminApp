@@ -14,7 +14,7 @@ type QueryOptions = {
   enabled?: boolean;
   refetchOnMount?: unknown;
   queryFn: () => unknown;
-  throwOnError: (error: unknown, query: { state: { data: unknown } }) => boolean;
+  throwOnError?: unknown;
 };
 
 const args = {
@@ -25,11 +25,10 @@ const args = {
   enabled: true,
 };
 
-const render = (
-  overrides: Partial<typeof args> = {},
-  state: { data?: unknown; isPending: boolean } = { isPending: true },
-) => {
-  (useQuery as jest.Mock).mockReturnValue(state);
+type QueryState = { data?: unknown; isPending: boolean; isError?: boolean };
+
+const render = (overrides: Partial<typeof args> = {}, state: QueryState = { isPending: true }) => {
+  (useQuery as jest.Mock).mockReturnValue({ refetch: jest.fn(), ...state });
   const { result } = renderHook(() => useCertificationScenarioStatuses({ ...args, ...overrides }));
   const options = (useQuery as jest.Mock).mock.calls.at(-1)[0] as QueryOptions;
   return { result: result.current, options };
@@ -47,11 +46,13 @@ describe('useCertificationScenarioStatuses', () => {
       CertificationScenarioStatusDto,
       { params: {} },
     );
-    expect(options.queryKey).toEqual(certificationQueryKeys.scenarioStatuses(1, 10, undefined));
-    expect(options.queryKey).toEqual(['certification', 1, 'scenario-statuses', 10, null]);
+    expect(options.queryKey).toEqual(
+      certificationQueryKeys.scenarioStatuses(1, 10, undefined, 'v5'),
+    );
+    expect(options.queryKey).toEqual(['certification', 1, 'scenario-statuses', 10, null, 'v5']);
   });
 
-  it('sends odsId when an ODS is chosen', async () => {
+  it('sends odsId when an ODS is chosen, and includes it in the query key', async () => {
     const { options } = render();
     await options.queryFn();
 
@@ -62,10 +63,26 @@ describe('useCertificationScenarioStatuses', () => {
         params: { odsId: 5 },
       },
     );
+    expect(options.queryKey).toEqual(['certification', 1, 'scenario-statuses', 10, 5, 'v5']);
+  });
+
+  it('keys the query by data standard version', () => {
+    expect(render({ sisVersion: 'v6' }).options.queryKey).toEqual([
+      'certification',
+      1,
+      'scenario-statuses',
+      10,
+      5,
+      'v6',
+    ]);
   });
 
   it('always refetches on mount so a saved run elsewhere is reflected', () => {
     expect(render().options.refetchOnMount).toBe('always');
+  });
+
+  it('does not send a failed load to the error page', () => {
+    expect(render().options.throwOnError).toBeUndefined();
   });
 
   it.each([
@@ -75,7 +92,9 @@ describe('useCertificationScenarioStatuses', () => {
   ])('is disabled when %s', (_label, overrides) => {
     const { options, result } = render(overrides);
     expect(options.enabled).toBe(false);
-    expect(result.isPending).toBe(false);
+    expect(result.isLoading).toBe(false);
+    expect(result.isError).toBe(false);
+    expect(result.isUnknown).toBe(true);
   });
 
   it('is enabled once the caller enables it with a tenant and version known', () => {
@@ -95,22 +114,37 @@ describe('useCertificationScenarioStatuses', () => {
     );
 
     expect(result.statusByScenarioId).toEqual({ 52: 'completed', 51: 'failed' });
-    expect(result.isPending).toBe(false);
+    expect(result.isLoading).toBe(false);
+    expect(result.isUnknown).toBe(false);
   });
 
-  it('has no statuses while loading', () => {
+  it('treats a loaded empty list as known, not unknown', () => {
+    const { result } = render({}, { data: [], isPending: false });
+    expect(result.isUnknown).toBe(false);
+  });
+
+  it('is loading and unknown with no statuses while the first load runs', () => {
     const { result } = render();
     expect(result.statusByScenarioId).toEqual({});
-    expect(result.isPending).toBe(true);
+    expect(result.isLoading).toBe(true);
+    expect(result.isUnknown).toBe(true);
   });
 
-  it('sends a failed first load to the error page', () => {
-    const { options } = render();
-    expect(options.throwOnError(new Error('x'), { state: { data: undefined } })).toBe(true);
+  it('reports a failed first load as an error with unknown statuses', () => {
+    const { result } = render({}, { isPending: false, isError: true });
+    expect(result.isError).toBe(true);
+    expect(result.isStale).toBe(false);
+    expect(result.isUnknown).toBe(true);
   });
 
-  it('keeps the page and its statuses when a later refetch fails', () => {
-    const { options } = render();
-    expect(options.throwOnError(new Error('x'), { state: { data: [] } })).toBe(false);
+  it('reports a failed refresh as stale and keeps the old statuses', () => {
+    const { result } = render(
+      {},
+      { data: [{ scenarioId: 52, status: 'completed' }], isPending: false, isError: true },
+    );
+    expect(result.isError).toBe(true);
+    expect(result.isStale).toBe(true);
+    expect(result.isUnknown).toBe(false);
+    expect(result.statusByScenarioId).toEqual({ 52: 'completed' });
   });
 });

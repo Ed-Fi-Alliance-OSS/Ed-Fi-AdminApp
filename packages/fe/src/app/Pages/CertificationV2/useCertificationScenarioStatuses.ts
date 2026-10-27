@@ -9,13 +9,19 @@ type UseCertificationScenarioStatusesArgs = {
   edfiTenantId: number | undefined;
   odsId: number | undefined;
   sisVersion: string | undefined;
+  /** True once the tenant/ODS selection is complete and valid. */
   enabled: boolean;
 };
 
 /**
- * Every scenario's saved status for the current tenant/ODS (AC-689), fetched once and keyed
- * under `certificationQueryKeys.scenarioStatuses`. The execution page invalidates that key
- * (in addition to its own step-runs key) after a step run, so this list stays fresh too.
+ * Every scenario's saved status for the current tenant/ODS (AC-689), keyed under
+ * `certificationQueryKeys.scenarioStatuses`. It refetches on every mount, so a run saved on
+ * the execution page shows when the vendor comes back; that page also invalidates the key
+ * after a step run.
+ *
+ * `isUnknown` is true until a list has loaded (query not runnable yet, loading, or failed).
+ * It is not the same as an empty list: with a loaded list, a scenario that has no entry
+ * really has no saved run.
  */
 export const useCertificationScenarioStatuses = ({
   sbEnvironmentId,
@@ -26,7 +32,12 @@ export const useCertificationScenarioStatuses = ({
 }: UseCertificationScenarioStatusesArgs) => {
   const queryEnabled = enabled && edfiTenantId !== undefined && sisVersion !== undefined;
   const statusesQuery = useQuery({
-    queryKey: certificationQueryKeys.scenarioStatuses(sbEnvironmentId, edfiTenantId, odsId),
+    queryKey: certificationQueryKeys.scenarioStatuses(
+      sbEnvironmentId,
+      edfiTenantId,
+      odsId,
+      sisVersion,
+    ),
     queryFn: () =>
       methods.getMany(
         `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/sis/${sisVersion}/scenario-statuses`,
@@ -35,9 +46,6 @@ export const useCertificationScenarioStatuses = ({
       ),
     enabled: queryEnabled,
     refetchOnMount: 'always',
-    // Only a failed first load goes to the error page; a failed refetch (e.g. after a dropped
-    // connection) keeps the page and the statuses already shown.
-    throwOnError: (_error, query) => query.state.data === undefined,
   });
   const { data } = statusesQuery;
   const statusByScenarioId = useMemo(
@@ -49,9 +57,14 @@ export const useCertificationScenarioStatuses = ({
     [data],
   );
 
-  // A disabled query reports isPending forever, so only count it when it can run.
   return {
     statusByScenarioId,
-    isPending: queryEnabled && statusesQuery.isPending,
+    isUnknown: data === undefined,
+    // A disabled query reports isPending forever, so only count it when it can run.
+    isLoading: queryEnabled && statusesQuery.isPending,
+    isError: queryEnabled && statusesQuery.isError,
+    // A failed refresh that left older statuses on screen.
+    isStale: statusesQuery.isError && data !== undefined,
+    refetch: statusesQuery.refetch,
   };
 };

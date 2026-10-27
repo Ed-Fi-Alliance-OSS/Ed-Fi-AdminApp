@@ -28,6 +28,7 @@ import { edfiTenantQueriesGlobal, odsQueries, sbEnvironmentQueriesGlobal } from 
 import { getOdsTerminology, useNavToParent } from '../../helpers';
 import { config } from '../../../config/config';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { CertificationStatusIndicator } from './CertificationStatusIndicator';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
 import { displayNameOf, formatArtifactVersion } from './certificationCatalog';
@@ -101,12 +102,10 @@ export const RequestCertificationPage = () => {
     sbEnvironmentId,
     edfiTenantId,
     odsId,
-    sisVersion: catalog.catalogVersion?.dataStandardVersion,
+    // The same source as the execution page, so both resolve the same catalog.
+    sisVersion: catalog.dataStandardVersion,
     enabled:
-      !isLoadingSelection &&
-      edfiTenantId !== undefined &&
-      catalog.catalogVersion?.dataStandardVersion !== undefined &&
-      !(odsRequired && odsId === undefined),
+      hasCatalog && !isLoadingSelection && !!edfiTenant && !(odsRequired && odsId === undefined),
   });
 
   // A tenant ID from the URL that isn't in the list (stale link) counts as unset.
@@ -302,6 +301,28 @@ export const RequestCertificationPage = () => {
             Scenarios
           </Text>
 
+          {scenarioStatuses.isLoading && (
+            <HStack role="status" spacing={2} mb={3}>
+              <Spinner size="xs" label="" />
+              <Text fontSize="sm" color="gray.600">
+                Loading scenario statuses...
+              </Text>
+            </HStack>
+          )}
+          {scenarioStatuses.isError && (
+            <Alert status="warning" mb={3} role="alert">
+              <AlertIcon />
+              <Text flex="1">
+                {scenarioStatuses.isStale
+                  ? "We couldn't refresh the scenario statuses. The statuses shown may be out of date."
+                  : "We couldn't load the scenario statuses."}
+              </Text>
+              <Button size="sm" type="button" onClick={() => scenarioStatuses.refetch()}>
+                Retry
+              </Button>
+            </Alert>
+          )}
+
           <Table size="sm" mt={0}>
             <Thead>
               <Tr>
@@ -324,15 +345,12 @@ export const RequestCertificationPage = () => {
                     <Td>{displayNameOf(area)}</Td>
                     <Td>{displayNameOf(scenario)}</Td>
                     <Td>
-                      {scenarioStatuses.isPending ? (
-                        <Spinner size="xs" data-testid="scenario-status-spinner" />
+                      {scenarioStatuses.isUnknown ? (
+                        <Text color="gray.600" aria-label="Status not available">
+                          —
+                        </Text>
                       ) : (
-                        <HStack spacing={2}>
-                          <Box w="8px" h="8px" borderRadius="full" bg={display.dotColor} />
-                          <Text fontSize="sm" color={display.textColor}>
-                            {display.label}
-                          </Text>
-                        </HStack>
+                        <CertificationStatusIndicator display={display} fontSize="sm" />
                       )}
                     </Td>
                     <Td textAlign="right">

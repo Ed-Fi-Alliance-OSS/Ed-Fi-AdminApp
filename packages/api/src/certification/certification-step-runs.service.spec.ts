@@ -1,9 +1,31 @@
 import 'reflect-metadata';
-import { NotFoundException } from '@nestjs/common';
+import { Logger, NotFoundException } from '@nestjs/common';
 import { In, IsNull } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
 import { CertificationStepRunsService } from './certification-step-runs.service';
+
+type Deps = Partial<{
+  scenarioRepository: unknown;
+  processRepository: unknown;
+  processScenarioRepository: unknown;
+  stepRunRepository: unknown;
+  stepErrorRepository: unknown;
+  catalogVersionRepository: unknown;
+  artifactService: unknown;
+}>;
+
+// Named dependencies instead of seven positional arguments; unset ones are empty stubs.
+const makeService = (deps: Deps) =>
+  new CertificationStepRunsService(
+    (deps.scenarioRepository ?? {}) as never,
+    (deps.processRepository ?? {}) as never,
+    (deps.processScenarioRepository ?? {}) as never,
+    (deps.stepRunRepository ?? {}) as never,
+    (deps.stepErrorRepository ?? {}) as never,
+    (deps.catalogVersionRepository ?? {}) as never,
+    (deps.artifactService ?? { currentRef: 'ref-1' }) as ArtifactService,
+  );
 
 describe('CertificationStepRunsService.findStepRuns', () => {
   let scenarioRepository: { findOne: jest.Mock };
@@ -46,15 +68,15 @@ describe('CertificationStepRunsService.findStepRuns', () => {
     stepErrorRepository = { find: jest.fn().mockResolvedValue([]) };
     catalogVersionRepository = { find: jest.fn().mockResolvedValue([]) };
     artifactService = { currentRef: 'ref-1' };
-    service = new CertificationStepRunsService(
-      scenarioRepository as never,
-      processRepository as never,
-      processScenarioRepository as never,
-      stepRunRepository as never,
-      stepErrorRepository as never,
-      catalogVersionRepository as never,
-      artifactService as ArtifactService,
-    );
+    service = makeService({
+      scenarioRepository,
+      processRepository,
+      processScenarioRepository,
+      stepRunRepository,
+      stepErrorRepository,
+      catalogVersionRepository,
+      artifactService,
+    });
   });
 
   it("keys the process on the requested scenario's catalog version, the same one runStep uses", async () => {
@@ -249,27 +271,25 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
     stepRunRepository = { find: jest.fn() };
     stepErrorRepository = { find: jest.fn() };
     catalogVersionRepository = {
-      find: jest
-        .fn()
-        .mockResolvedValue([
-          {
-            catalogVersionId: 3,
-            dataStandardVersion: 'v5',
-            isActive: true,
-            artifactVersion: 'ref-1',
-          },
-        ]),
+      find: jest.fn().mockResolvedValue([
+        {
+          catalogVersionId: 3,
+          dataStandardVersion: 'v5',
+          isActive: true,
+          artifactVersion: 'ref-1',
+        },
+      ]),
     };
     artifactService = { currentRef: 'ref-1' };
-    service = new CertificationStepRunsService(
-      scenarioRepository as never,
-      processRepository as never,
-      processScenarioRepository as never,
-      stepRunRepository as never,
-      stepErrorRepository as never,
-      catalogVersionRepository as never,
-      artifactService as ArtifactService,
-    );
+    service = makeService({
+      scenarioRepository,
+      processRepository,
+      processScenarioRepository,
+      stepRunRepository,
+      stepErrorRepository,
+      catalogVersionRepository,
+      artifactService,
+    });
   });
 
   it('returns statuses of the process for the current catalog version', async () => {
@@ -286,6 +306,8 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
     expect(processScenarioRepository.find).toHaveBeenCalledWith({
       where: { certificationProcessId: 7 },
     });
+    expect(processRepository.create).not.toHaveBeenCalled();
+    expect(processRepository.save).not.toHaveBeenCalled();
   });
 
   it('returns [] when the only results belong to an older catalog version', async () => {
@@ -310,6 +332,48 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
     expect(processRepository.findOne).not.toHaveBeenCalled();
     expect(processRepository.create).not.toHaveBeenCalled();
     expect(processRepository.save).not.toHaveBeenCalled();
+  });
+
+  describe('when no catalog version is current', () => {
+    let warn: jest.SpyInstance;
+    beforeEach(() => {
+      warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation();
+    });
+    afterEach(() => warn.mockRestore());
+
+    it('logs the version, configured ref and active versions found', async () => {
+      catalogVersionRepository.find.mockResolvedValue([
+        {
+          catalogVersionId: 3,
+          dataStandardVersion: 'v5',
+          isActive: true,
+          artifactVersion: 'v2.2.0',
+        },
+      ]);
+      artifactService.currentRef = 'v2.1.0';
+
+      await findStatuses();
+
+      expect(warn).toHaveBeenCalledTimes(1);
+      const message = warn.mock.calls[0][0] as string;
+      expect(message).toContain('v5');
+      expect(message).toContain('v2.1.0');
+      expect(message).toContain('v2.2.0');
+    });
+
+    it('says the ref is not set when currentRef is undefined', async () => {
+      artifactService.currentRef = undefined;
+
+      await findStatuses();
+
+      expect(warn.mock.calls[0][0]).toContain('not set');
+    });
+
+    it('does not log when a current catalog version exists', async () => {
+      await findStatuses();
+
+      expect(warn).not.toHaveBeenCalled();
+    });
   });
 
   it('returns [] when no process exists', async () => {
@@ -358,15 +422,7 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
 
   beforeEach(() => {
     stepRunRepository = { findOne: jest.fn() };
-    service = new CertificationStepRunsService(
-      {} as never,
-      {} as never,
-      {} as never,
-      stepRunRepository as never,
-      {} as never,
-      {} as never,
-      { currentRef: 'ref-1' } as ArtifactService,
-    );
+    service = makeService({ stepRunRepository });
   });
 
   it("reads only this tenant and ODS's run of the step, selecting the hidden snapshot column", async () => {

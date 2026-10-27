@@ -40,12 +40,14 @@ export const certificationQueryKeys = {
     sbEnvironmentId: number,
     edfiTenantId: number | undefined,
     odsId: number | undefined,
+    sisVersion: string | undefined,
   ) =>
     [
       ...certificationQueryKeys.all(sbEnvironmentId),
       'scenario-statuses',
       edfiTenantId,
       odsId ?? null,
+      sisVersion,
     ] as const,
   /** Includes the run time, so a re-run of the step fetches its new snapshot. */
   stepSnapshot: (
