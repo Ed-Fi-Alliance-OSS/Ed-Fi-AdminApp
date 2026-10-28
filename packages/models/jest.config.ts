@@ -4,9 +4,9 @@ export default {
   transform: {
     '^.+\\.tsx?$': ['ts-jest', { tsconfig: '<rootDir>/tsconfig.spec.json' }],
   },
+  setupFiles: ['./jest.setup.js'],
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/packages/models',
-  setupFiles: ['../../jest.setup.js'],
   reporters: [
      'default',
      [
