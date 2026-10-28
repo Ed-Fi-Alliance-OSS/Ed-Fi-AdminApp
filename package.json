@@ -138,7 +138,7 @@
     "@nx/plugin": "^23.3.0",
     "@nx/react": "^23.3.0",
     "@nx/storybook": "^23.3.0",
-    "@nx/vite": "^23.2.1",
+    "@nx/vite": "^24.0.1",
     "@nx/web": "^23.2.1",
     "@nx/webpack": "^23.2.1",
     "@nx/workspace": "^23.0.0",
