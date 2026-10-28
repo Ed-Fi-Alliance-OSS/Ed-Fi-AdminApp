@@ -6,6 +6,7 @@ export default {
   },
   moduleFileExtensions: ['ts', 'js', 'html'],
   coverageDirectory: '../../coverage/packages/models',
+  setupFiles: ['../../jest.setup.js'],
   reporters: [
      'default',
      [
