@@ -13,12 +13,6 @@ id = "GHSA-hp3w-g68c-fv3c"
 reason = "sprintf-js 1.1.3, via tedious -> mssql / connect-mssql-v2 (production, MSSQL driver). No patched sprintf-js version exists (1.1.3 is the latest) and tedious 20.3.8 / mssql 12.7.10 (latest) still depend on it. Denial of service via unbounded precision specifiers. The same advisory also matches a devDependency-only sprintf-js 1.0.3 (via @istanbuljs/load-nyc-config -> argparse, test tooling). Revisit if the advisory gains a fix."
 ignoreUntil = 2026-11-21
 
-# --- zod 3.25.76: via eslint-plugin-react-hooks, langbase, @hookform/resolvers (peer) ---
-[[IgnoredVulns]]
-id = "GHSA-mrhx-c7xc-m3w5"
-reason = "zod 3.25.76. The advisory is fixed only in zod 4.6.6; the 3.x line has no patch, and dependents (eslint-plugin-react-hooks, langbase, openai) require ^3. Denial of service from oversized constrained collections; re-check production reachability at each review."
-ignoreUntil = 2026-11-21
-
 # --- braces: via micromatch, @chakra-ui/cli (devDependency, build/test tooling) ---
 [[IgnoredVulns]]
 id = "GHSA-vfj7-8cjw-p6xm"
