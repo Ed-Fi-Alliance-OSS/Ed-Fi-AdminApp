@@ -5,6 +5,7 @@
   "scripts": {
     "prepare": "husky",
     "start": "nx run-many -p api fe -t serve",
+    "nx:reset": "nx reset",
     "build": "npm run build:fe && npm run build:api",
     "build:fe": "nx run fe:build",
     "build:api": "nx run api:build",
