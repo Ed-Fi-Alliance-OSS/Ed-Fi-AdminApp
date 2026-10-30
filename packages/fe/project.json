@@ -6,44 +6,27 @@
   "tags": [],
   "targets": {
     "build": {
-      "executor": "@nx/vite:build",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/packages/fe"],
       "defaultConfiguration": "production",
       "options": {
-        "outputPath": "dist/packages/fe"
+        "cwd": "packages/fe",
+        "command": "vite build --mode production"
       },
       "configurations": {
         "development": {
-          "extractLicenses": false,
-          "optimization": false,
-          "sourceMap": true,
-          "vendorChunk": true
+          "command": "vite build --mode development --sourcemap"
         },
         "production": {
-          "optimization": true,
-          "outputHashing": "all",
-          "sourceMap": false,
-          "namedChunks": false,
-          "extractLicenses": true,
-          "vendorChunk": false
+          "command": "vite build --mode production"
         }
       }
     },
     "serve": {
-      "executor": "@nx/vite:dev-server",
-      "defaultConfiguration": "development",
+      "executor": "nx:run-commands",
       "options": {
-        "buildTarget": "fe:build",
-        "hmr": true
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "fe:build:development"
-        },
-        "production": {
-          "buildTarget": "fe:build:production",
-          "hmr": true
-        }
+        "cwd": "packages/fe",
+        "command": "vite"
       }
     },
     "lint": {
@@ -58,18 +41,11 @@
       }
     },
     "preview": {
-      "executor": "@nx/vite:preview-server",
-      "defaultConfiguration": "development",
+      "executor": "nx:run-commands",
+      "dependsOn": ["build"],
       "options": {
-        "buildTarget": "fe:build"
-      },
-      "configurations": {
-        "development": {
-          "buildTarget": "fe:build:development"
-        },
-        "production": {
-          "buildTarget": "fe:build:production"
-        }
+        "cwd": "packages/fe",
+        "command": "vite preview"
       }
     }
   }
