@@ -5,8 +5,18 @@
   "projectType": "application",
   "tags": [],
   "targets": {
+    "typecheck": {
+      "executor": "nx:run-commands",
+      "cache": true,
+      "inputs": ["default", "^default"],
+      "options": {
+        "cwd": "packages/fe",
+        "command": "tsc -p tsconfig.app.json --noEmit"
+      }
+    },
     "build": {
       "executor": "nx:run-commands",
+      "dependsOn": ["^build", "typecheck"],
       "outputs": ["{workspaceRoot}/dist/packages/fe"],
       "defaultConfiguration": "production",
       "options": {
