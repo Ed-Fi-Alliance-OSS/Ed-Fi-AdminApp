@@ -19,20 +19,21 @@ id = "GHSA-vfj7-8cjw-p6xm"
 reason = "braces, via micromatch (semantic-release and other build tooling) and @chakra-ui/cli -> chokidar (devDependency, build tooling). No patched braces version exists (3.0.3 is the latest release)."
 ignoreUntil = 2027-01-24
 
-# --- npm-bundled dependencies: ip-address 10.7.2, undici 6.29.0 (devDependency: npm itself) ---
+# --- deepmerge 4.3.1: devDependency only (build/test tooling) ---
+[[IgnoredVulns]]
+id = "GHSA-gcqx-w48m-w2h4"
+reason = "deepmerge 4.3.1 (latest release, affects 4.2.0 through 4.3.1), devDependency only (build/test tooling, not shipped). No patched version exists. Prototype poisoning in mergeObject()."
+ignoreUntil = 2027-01-24
+
+# --- npm-bundled dependencies: glob 13.0.6, minimatch 10.2.5 (devDependency: npm itself) ---
 # npm bundles these inside its own tarball, so root `overrides` cannot patch them.
+# The copies outside npm are overridden to glob ^14 / minimatch ^11.
 [[IgnoredVulns]]
-id = "GHSA-rxp7-6hxx-x8q5"
-reason = "ip-address 10.7.2, bundled inside the npm devDependency (npm -> socks -> ip-address; build/CI tooling only, not shipped). Fixed in 10.7.4 but bundled dependencies cannot be overridden; clears once a npm release bundles the fix."
+id = "GHSA-3g3m-2fjr-6pw4"
+reason = "glob 13.0.6, bundled inside the npm devDependency (build/CI tooling only, not shipped). Fixed in glob 14.0.2 but bundled dependencies cannot be overridden; clears once a npm release bundles the fix."
 ignoreUntil = 2027-01-24
 
 [[IgnoredVulns]]
-id = "GHSA-4qv8-2p9j-2685"
-reason = "undici 6.29.0, bundled inside the npm devDependency (build/CI tooling only, not shipped). Fixed in 6.29.1 but bundled dependencies cannot be overridden; clears once a npm release bundles the fix."
+id = "GHSA-g3hv-75wg-m249"
+reason = "minimatch 10.2.5, bundled inside the npm devDependency (build/CI tooling only, not shipped). Fixed in minimatch 11.0.1 but bundled dependencies cannot be overridden; clears once a npm release bundles the fix."
 ignoreUntil = 2027-01-24
-
-[[IgnoredVulns]]
-id = "GHSA-xjj6-f33q-929c"
-reason = "undici 6.29.0, bundled inside the npm devDependency (build/CI tooling only, not shipped). Fixed in 6.29.1 but bundled dependencies cannot be overridden; clears once a npm release bundles the fix."
-ignoreUntil = 2027-01-24
-
