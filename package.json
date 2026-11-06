@@ -222,7 +222,7 @@
     "zod-validation-error": "^4.0.0",
     "browserslist": "^4.28.7",
     "brace-expansion": "^5.0.12",
-    "npm": "^11.21.1",
+    "npm": "^12.2.2",
     "qs": "^6.16.1",
     "systeminformation": "^5.31.6",
     "uuid": "^11.1.1",
@@ -230,7 +230,8 @@
     "serialize-javascript": "^7.1.3",
     "koa": "^3.1.2",
     "tar": "^7.5.21",
-    "minimatch": "^10.2.3",
+    "minimatch": "^11.0.5",
+    "glob": "^14.0.4",
     "smol-toml": "^1.9.1",
     "body-parser": "^2.4.0",
     "form-data": "^4.0.6",
@@ -246,6 +247,7 @@
     "tmp": "^0.2.7",
     "js-yaml": "^4.3.1",
     "nanoid": "^3.3.18",
+    "undici": "^7.29.1",
     "postcss-svgo": {
       "svgo": "^4.0.2"
     },
@@ -255,17 +257,8 @@
     "@nestjs/swagger": {
       "js-yaml": "^5.2.2"
     },
-    "@actions/http-client": {
-      "undici": "^6.28.1"
-    },
     "http-cache-semantics": "^4.3.0",
     "webpack-dev-middleware": "^7.4.6",
-    "nx": {
-      "undici": "^7.29.1"
-    },
-    "@semantic-release/github": {
-      "undici": "^7.29.1"
-    },
     "@eslint/eslintrc": {
       "minimatch": "^3.1.2"
     }
