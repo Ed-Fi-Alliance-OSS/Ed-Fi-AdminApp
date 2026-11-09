@@ -97,6 +97,12 @@ migration does nothing.
 `privilegeIds` is a text array on PostgreSQL and a comma-separated string on SQL Server. The SQL
 Server migration matches whole codes, so one code can't match the start of another.
 
+## API
+
+`EnvNavDto` (`packages/models/src/dtos/env-nav.dto.ts`) has a new `certifications: boolean`.
+`TeamsGlobalController.envNav` sets it per tenant row from
+`team.sb-environment.edfi-tenant.ods.certification:read` in the user's privilege cache.
+
 ## Front end
 
 ### `useCanSeeCertification(teamId)`
@@ -104,14 +110,23 @@ Server migration matches whole codes, so one code can't match the start of anoth
 `packages/fe/src/app/Pages/MyProducts/useCanSeeCertification.ts` returns
 `{ canSee: boolean; isLoading: boolean }`.
 
-1. Reads the team's tenants from `teamQueries.navSearchList({ teamId })`, the same list `TeamNav`
-   uses. It only does this when `team.sb-environment:read` is authorized.
-2. Loads the `certification:read` privilege cache for **every** tenant in that list.
-3. Returns `canSee: true` when at least one tenant authorizes it.
+1. Waits for the team-level privilege cache and checks `team.sb-environment:read`.
+2. Reads the team's environment menu list, `teamQueries.navSearchList({ teamId })`
+   (`GET /teams/:teamId/env-nav`), the same list `TeamNav` uses.
+3. Returns `canSee: true` when any row has `certifications: true`.
 
-`isLoading` stays true until the team's privilege cache, the tenant list and every tenant cache
-have arrived. On a cold page load, a disabled TanStack query reports `isLoading === false`; without
-this, opening the page directly showed "Not allowed" for a moment.
+`isLoading` stays true until the team privilege cache and the menu list have arrived. On a cold page
+load, a disabled TanStack query reports `isLoading === false`; without this, opening the page
+directly showed "Not allowed" for a moment.
+
+**One request, however many tenants.** Data store privileges are cached per tenant, and
+`/auth/cache/:teamId` without a tenant leaves them out. A first version loaded
+`/auth/cache/:teamId?edfiTenantId=…` once per tenant. That runs into the API's rate limit (100
+requests a minute per client across all endpoints) for teams with many tenants, and with
+`retry: false` the resulting 429s also broke normal tenant navigation. Instead, the API's
+`env-nav` response now carries a `certifications` flag on each tenant row, computed from the user's
+privilege cache like the existing `odss`, `edorgs` and other flags. Environment-only rows (no
+tenant) always have `certifications: false`.
 
 Both the menu and the page guard use this hook, so they can't disagree.
 
@@ -146,8 +161,6 @@ it. For now it holds one item: **My products** (`Icons.CheckCircle`). The items 
 
 ## Known limitations
 
-- **No error view if privileges fail to load.** If the `/auth/cache` request fails, My products
+- **No error view if privileges fail to load.** If the team's `/auth/cache` request fails, My products
   shows a spinner instead of an error. The cause is the shared `usePrivilegeCacheForConfig` helper
   (`notifyOnChangeProps: ['data']`), which this story leaves unchanged.
-- **More privilege requests on team pages.** Every team page now makes one privilege-cache request
-  per tenant. Responses are cached for 90 seconds.

@@ -16,8 +16,6 @@ jest.mock('../../../config/config', () => ({
 // The real privilege-cache helpers, without the rest of the helpers barrel (react-router is ESM).
 jest.mock('../../helpers', () => jest.requireActual('../../helpers/Authorize'));
 
-const CERT = 'team.sb-environment.edfi-tenant.ods.certification:read';
-
 const deferred = <T,>() => {
   let resolve!: (value: T) => void;
   const promise = new Promise<T>((res) => {
@@ -26,11 +24,12 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-const navItem = (edfiTenantId: number) => ({
+const navItem = (edfiTenantId: number, certifications: boolean) => ({
   sbEnvironmentId: 1,
   sbEnvironmentName: 'env',
   edfiTenantId,
   edfiTenantName: `tenant-${edfiTenantId}`,
+  certifications,
 });
 
 const renderCold = () => {
@@ -46,14 +45,13 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
 
   afterEach(() => getSpy.mockRestore());
 
-  it('stays loading until every cache resolves, then grants from one tenant', async () => {
+  it('stays loading until the team cache and nav list resolve, then grants from one tenant', async () => {
     const teamCache = deferred<unknown>();
     // The response interceptor unwraps `res.data`; spying on get bypasses it, so return payloads.
     getSpy = jest.spyOn(apiClient, 'get').mockImplementation(((url: string) => {
       if (url === '/auth/cache/5') return teamCache.promise;
-      if (url === '/teams/5/env-nav') return Promise.resolve([navItem(100), navItem(200)]);
-      if (url === '/auth/cache/5?edfiTenantId=100') return Promise.resolve({});
-      if (url === '/auth/cache/5?edfiTenantId=200') return Promise.resolve({ [CERT]: true });
+      if (url === '/teams/5/env-nav')
+        return Promise.resolve([navItem(100, false), navItem(200, true)]);
       return Promise.reject(new Error(`unexpected GET ${url}`));
     }) as unknown as typeof apiClient.get);
 
@@ -66,6 +64,10 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
 
     await waitFor(() => expect(result.current).toEqual({ canSee: true, isLoading: false }));
     expect(getSpy).toHaveBeenCalledWith('/teams/5/env-nav', undefined);
+    // No per-tenant privilege-cache requests.
+    expect(getSpy.mock.calls.map(([url]) => url)).not.toContainEqual(
+      expect.stringContaining('edfiTenantId='),
+    );
   });
 
   it('resolves to not allowed when the loaded team cache denies environment read', async () => {

@@ -88,6 +88,7 @@ const tenantRow = (
   claimsets: false,
   applications: false,
   profiles: false,
+  certifications: false,
 });
 
 const getRow = (tenantName: string) => screen.getByText(tenantName).closest('tr') as HTMLElement;

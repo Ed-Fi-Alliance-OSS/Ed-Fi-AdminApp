@@ -28,6 +28,9 @@ export class EnvNavDto implements IEnvNav {
   applications: boolean;
   @Expose()
   profiles: boolean;
+  /** The user holds certification read on at least one of this tenant's data stores. */
+  @Expose()
+  certifications: boolean;
 
   get displayName() {
     return this.sbEnvironmentName;
