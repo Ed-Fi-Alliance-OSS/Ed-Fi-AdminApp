@@ -7,6 +7,7 @@ import { useMatches, useParams } from 'react-router';
 import { TeamNav } from './TeamNav';
 import { sbEnvironmentQueries, teamQueries } from '../api';
 import { useGetManyIntegrationProviders } from '../api-v2';
+import { useCanSeeCertification } from '../Pages/MyProducts/useCanSeeCertification';
 
 jest.mock('@tanstack/react-query', () => ({
   useQuery: jest.fn(),
@@ -48,6 +49,10 @@ jest.mock('../helpers', () => ({
   usePrivilegeCacheForConfig: jest.fn(),
 }));
 
+jest.mock('../Pages/MyProducts/useCanSeeCertification', () => ({
+  useCanSeeCertification: jest.fn(() => ({ canSee: false, isLoading: false })),
+}));
+
 jest.mock('./EnvironmentsNav', () => ({
   EnvironmentsNav: () => null,
 }));
@@ -61,7 +66,7 @@ jest.mock('@edanalytics/common-ui', () => ({
     {},
     {
       get: () => () => null,
-    }
+    },
   ),
 }));
 
@@ -73,6 +78,7 @@ const mockUseParams = useParams as jest.Mock;
 const mockSbEnvironmentsGetAll = sbEnvironmentQueries.getAll as jest.Mock;
 const mockNavSearchList = teamQueries.navSearchList as jest.Mock;
 const mockUseGetManyIntegrationProviders = useGetManyIntegrationProviders as jest.Mock;
+const mockUseCanSeeCertification = useCanSeeCertification as jest.Mock;
 
 const renderTeamNavForTenant = (sbEnvironmentVersion: string) => {
   mockUseParams.mockReturnValue({ edfiTenantId: '100', sbEnvironmentId: '10' });
@@ -126,5 +132,44 @@ describe('TeamNav — ODS/Data Store sidebar label', () => {
     renderTeamNavForTenant('v1');
 
     expect(screen.getByText('ODSs')).toBeInTheDocument();
+  });
+});
+
+describe('TeamNav � Certification menu', () => {
+  beforeEach(() => {
+    jest.clearAllMocks();
+    mockUseAtom.mockReturnValue([{}, jest.fn()]);
+    mockUseMatches.mockReturnValue([]);
+    mockUseParams.mockReturnValue({});
+    mockUseQueryClient.mockReturnValue({});
+    mockUseQuery.mockReturnValue({ data: undefined });
+    mockUseGetManyIntegrationProviders.mockReturnValue({ data: [] });
+    mockUseCanSeeCertification.mockReturnValue({ canSee: false, isLoading: false });
+  });
+
+  it('shows the Certification heading with My products when the hook allows it', () => {
+    mockUseCanSeeCertification.mockReturnValue({ canSee: true, isLoading: false });
+
+    render(<TeamNav teamId="7" />);
+
+    expect(mockUseCanSeeCertification).toHaveBeenCalledWith(7);
+    expect(screen.getByText('Certification')).toBeInTheDocument();
+    expect(screen.getByTitle('My products')).toHaveAttribute('to', '/as/7/my-products');
+  });
+
+  it('hides the Certification heading when the hook denies it', () => {
+    render(<TeamNav teamId="7" />);
+
+    expect(screen.queryByText('Certification')).not.toBeInTheDocument();
+    expect(screen.queryByText('My products')).not.toBeInTheDocument();
+  });
+
+  it('marks My products active on /as/:asId/my-products', () => {
+    mockUseCanSeeCertification.mockReturnValue({ canSee: true, isLoading: false });
+    mockUseMatches.mockReturnValue([{ pathname: '/as/7/my-products' }]);
+
+    render(<TeamNav teamId="7" />);
+
+    expect(screen.getByTitle('My products')).toHaveAttribute('aria-current', 'page');
   });
 });

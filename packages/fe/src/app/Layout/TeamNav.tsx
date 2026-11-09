@@ -23,6 +23,7 @@ import { UniversalNavLinks } from './UniversalNavLinks';
 import { usePaths } from '../routes/paths';
 import { useGetManyIntegrationProviders } from '../api-v2';
 import { Icons } from '@edanalytics/common-ui';
+import { useCanSeeCertification } from '../Pages/MyProducts/useCanSeeCertification';
 
 type OpenNavs = Record<number, number[]>;
 const mergeOpenNavs = (objectOne: OpenNavs, objectTwo: OpenNavs) => {
@@ -373,6 +374,8 @@ export const TeamNav = (props: { teamId: string }) => {
     })
     .flat();
 
+  const { canSee: canSeeCertification } = useCanSeeCertification(teamId);
+
   const integrationProviderCount = integrationProviders?.length ?? 0;
 
   const mainItems: INavButtonProps[] = [
@@ -407,11 +410,22 @@ export const TeamNav = (props: { teamId: string }) => {
     ),
   ];
 
+  // Later stories append more items under the Certification heading.
+  const certificationItems: INavButtonProps[] = canSeeCertification
+    ? [
+        {
+          route: `/as/${props.teamId}/my-products`,
+          icon: Icons.CheckCircle,
+          text: 'My products',
+        },
+      ]
+    : [];
+
   const flatten = (item: INavButtonProps): INavButtonProps[] => [
     item,
     ...(item.childItems ?? []).flatMap((ci) => flatten(ci)),
   ];
-  const allItemsFlat = [...mainItems, ...sbEnvironmentItems].flatMap((item) => flatten(item));
+  const allItemsFlat = [...mainItems, ...certificationItems, ...sbEnvironmentItems].flatMap((item) => flatten(item));
 
   const deepestMatch: string | null = findDeepestMatch(useMatches(), allItemsFlat);
 
@@ -421,6 +435,16 @@ export const TeamNav = (props: { teamId: string }) => {
       {tagMatch(mainItems, deepestMatch).map((item) => (
         <NavButton key={item.text + item.route} {...item} />
       ))}
+      {certificationItems.length ? (
+        <>
+          <Text px={3} mt={4} as="h3" color="gray.600" mb={2} fontWeight="600">
+            Certification
+          </Text>
+          {tagMatch(certificationItems, deepestMatch).map((item) => (
+            <NavButton key={item.text + item.route} {...item} />
+          ))}
+        </>
+      ) : null}
       {sbEnvironmentItems.length ? (
         <>
           <Text px={3} mt={4} as="h3" color="gray.600" mb={2} fontWeight="600">
