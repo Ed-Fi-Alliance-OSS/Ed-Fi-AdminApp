@@ -45,5 +45,7 @@ describe('MyProductsPage', () => {
     mockUseCanSee.mockReturnValue({ canSee: false, isLoading: true });
     expect(() => render(<MyProductsPage />)).not.toThrow();
     expect(screen.getByRole('heading', { name: 'My products' })).toBeTruthy();
+    // Chakra's Spinner renders a visually hidden "Loading..." label.
+    expect(screen.getByText('Loading...')).toBeTruthy();
   });
 });
