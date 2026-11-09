@@ -73,9 +73,16 @@ const dynamicGlobalPaths = {
     // dummy function for TypeScript satisfaction
     view: (_: { integrationProviderId: Id; integrationAppId: Id }) => '',
   },
+  myProducts: {
+    // team-only page; dummy function for TypeScript satisfaction
+    index: () => '',
+  },
 };
 
 const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
+  myProducts: {
+    index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
+  },
   integrationProvider: {
     index: () => replaceKeyIds(asTeamPaths.integrationProvider.index, { asId }),
     create: () => replaceKeyIds(asTeamPaths.integrationProvider.create, { asId }),

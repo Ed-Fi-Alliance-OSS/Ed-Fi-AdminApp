@@ -414,7 +414,7 @@ export const TeamNav = (props: { teamId: string }) => {
   const certificationItems: INavButtonProps[] = canSeeCertification
     ? [
         {
-          route: `/as/${props.teamId}/my-products`,
+          route: paths.myProducts.index(),
           icon: Icons.CheckCircle,
           text: 'My products',
         },
@@ -425,7 +425,9 @@ export const TeamNav = (props: { teamId: string }) => {
     item,
     ...(item.childItems ?? []).flatMap((ci) => flatten(ci)),
   ];
-  const allItemsFlat = [...mainItems, ...certificationItems, ...sbEnvironmentItems].flatMap((item) => flatten(item));
+  const allItemsFlat = [...mainItems, ...certificationItems, ...sbEnvironmentItems].flatMap(
+    (item) => flatten(item)
+  );
 
   const deepestMatch: string | null = findDeepestMatch(useMatches(), allItemsFlat);
 

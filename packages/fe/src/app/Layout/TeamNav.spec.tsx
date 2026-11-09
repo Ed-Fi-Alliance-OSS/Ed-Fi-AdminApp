@@ -38,7 +38,10 @@ jest.mock('../api-v2', () => ({
 }));
 
 jest.mock('../routes/paths', () => ({
-  usePaths: jest.fn(() => ({ integrationProvider: { index: () => '/integration-providers' } })),
+  usePaths: jest.fn(() => ({
+    integrationProvider: { index: () => '/integration-providers' },
+    myProducts: { index: () => '/as/7/my-products' },
+  })),
 }));
 
 jest.mock('../helpers', () => ({
@@ -135,7 +138,7 @@ describe('TeamNav — ODS/Data Store sidebar label', () => {
   });
 });
 
-describe('TeamNav � Certification menu', () => {
+describe('TeamNav - Certification menu', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockUseAtom.mockReturnValue([{}, jest.fn()]);
