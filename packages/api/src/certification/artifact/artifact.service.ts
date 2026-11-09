@@ -6,6 +6,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { spawnSync } from 'child_process';
 import AdmZip from 'adm-zip';
+import { resolveNpmCommand } from './npm-command';
 
 @Injectable()
 export class ArtifactService {
@@ -159,15 +160,14 @@ export class ArtifactService {
       );
     }
 
-    const npmCmd = process.platform === 'win32' ? 'cmd.exe' : 'npm';
-    const npmArgs =
-      process.platform === 'win32'
-        ? ['/d', '/s', '/c', 'npm ci --no-audit --no-fund --ignore-scripts']
-        : ['ci', '--no-audit', '--no-fund', '--ignore-scripts'];
+    const npm = resolveNpmCommand();
+    const npmArgs = [...npm.prefixArgs, 'ci', '--no-audit', '--no-fund', '--ignore-scripts'];
 
     this.logger.log('Installing Bruno runtime dependencies (npm ci)...');
-    const result = spawnSync(npmCmd, npmArgs, {
+    const result = spawnSync(npm.command, npmArgs, {
       cwd: this.runtimeRoot,
+      shell: false,
+      windowsHide: true,
       encoding: 'utf8',
       stdio: 'pipe',
       timeout: 10 * 60 * 1000,

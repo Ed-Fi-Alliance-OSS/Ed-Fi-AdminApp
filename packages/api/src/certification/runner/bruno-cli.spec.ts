@@ -81,6 +81,50 @@ describe('runBrunoCli', () => {
     expect(options).toMatchObject({ cwd: dir, shell: false });
   });
 
+  describe('shell metacharacters in arguments', () => {
+    const payloads = [
+      'a; touch canary',
+      'a | touch canary',
+      'a && touch canary',
+      '$(touch canary)',
+      '`touch canary`',
+      'a & touch canary',
+      "a'; touch canary; '",
+      'a\ntouch canary',
+    ];
+
+    it.each(payloads)('passes %j as one literal argument and executes nothing', async (payload) => {
+      const cliPath = script(
+        'argv.js',
+        "require('fs').writeFileSync('argv.json', JSON.stringify(process.argv.slice(2)));\n"
+      );
+      const result = await runBrunoCli({
+        cliPath,
+        cwd: dir,
+        args: buildBrunoArgs({ stepPath: payload, insecure: false }),
+        token: 't',
+        timeoutMs: 10_000,
+      });
+
+      expect(result.exitCode).toBe(0);
+      const argv: string[] = JSON.parse(fs.readFileSync(path.join(dir, 'argv.json'), 'utf8'));
+      expect(argv[2]).toBe(payload);
+      expect(argv).toHaveLength(buildBrunoArgs({ stepPath: payload, insecure: false }).length);
+      expect(fs.existsSync(path.join(dir, 'canary'))).toBe(false);
+    });
+
+    it('does not interpret a payload in the token or the CLI path either', async () => {
+      const token = '$(touch canary); `touch canary`';
+      const cliPath = script(
+        'tok.js',
+        "require('fs').writeFileSync('tok.txt', process.env.EDFI_CERT_TOKEN);\n"
+      );
+      await runBrunoCli({ cliPath, cwd: dir, args: [], token, timeoutMs: 10_000 });
+      expect(fs.readFileSync(path.join(dir, 'tok.txt'), 'utf8')).toBe(token);
+      expect(fs.existsSync(path.join(dir, 'canary'))).toBe(false);
+    });
+  });
+
   it('gives the child only the allowlisted env', async () => {
     const cliPath = script(
       'env.js',

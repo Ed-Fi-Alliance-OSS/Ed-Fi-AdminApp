@@ -346,6 +346,22 @@ describe('ArtifactService: installRuntimeDependencies', () => {
     expect(args).not.toContain('install');
   });
 
+  it('runs npm ci without a shell, as an argument array', () => {
+    fs.writeFileSync(path.join(tmpRoot, 'package-lock.json'), '{}');
+    const spawn = jest
+      .spyOn(childProcess, 'spawnSync')
+      .mockReturnValue({ status: 0, stdout: '', stderr: '' } as never);
+
+    asInternal(service).installRuntimeDependencies();
+
+    const [command, args, options] = spawn.mock.calls[0];
+    expect(command).not.toMatch(/cmd(\.exe)?$/i);
+    expect(Array.isArray(args)).toBe(true);
+    expect(args).not.toContain('/c');
+    expect(args).toEqual(expect.arrayContaining(['ci', '--ignore-scripts']));
+    expect(options).toMatchObject({ shell: false, cwd: tmpRoot });
+  });
+
   it('succeeds when npm ci succeeds', () => {
     fs.writeFileSync(path.join(tmpRoot, 'package-lock.json'), '{}');
     jest
