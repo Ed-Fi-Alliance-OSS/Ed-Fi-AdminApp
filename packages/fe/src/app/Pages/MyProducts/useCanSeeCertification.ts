@@ -1,12 +1,7 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { teamQueries } from '../../api';
-import {
-  AuthorizeConfig,
-  authorize,
-  useAuthorize,
-  usePrivilegeCacheForConfig,
-} from '../../helpers';
+import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
 
 /**
  * Whether the user holds certification:read on at least one of the team's data stores.
@@ -18,9 +13,11 @@ export const useCanSeeCertification = (teamId: number): { canSee: boolean; isLoa
     privilege: 'team.sb-environment:read',
     subject: { id: '__filtered__', teamId },
   };
-  const navList = useQuery(
-    teamQueries.navSearchList({ enabled: useAuthorize(sbEnvironmentAuth) }, { teamId }),
-  );
+  // Track the team cache's loading state: until it arrives, authorize() is false and the nav
+  // query is disabled (isLoading false in TanStack v5), which would read as "not allowed".
+  const sbEnvCache = usePrivilegeCacheForConfig(sbEnvironmentAuth);
+  const canReadEnvs = authorize({ queryClient, config: sbEnvironmentAuth });
+  const navList = useQuery(teamQueries.navSearchList({ enabled: canReadEnvs }, { teamId }));
 
   const configs = useMemo(() => {
     const tenantIds = Array.from(
@@ -40,6 +37,9 @@ export const useCanSeeCertification = (teamId: number): { canSee: boolean; isLoa
 
   return {
     canSee: configs.some((config) => authorize({ queryClient, config })),
-    isLoading: navList.isLoading || caches.some((cache) => cache.isLoading),
+    isLoading:
+      sbEnvCache.some((cache) => cache.isLoading) ||
+      navList.isLoading ||
+      caches.some((cache) => cache.isLoading),
   };
 };
