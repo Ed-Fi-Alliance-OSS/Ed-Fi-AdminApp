@@ -14,6 +14,9 @@ const pathPartials = {
     index: 'integration-providers',
     id: 'integration-providers/:integrationProviderId',
   },
+  myProducts: {
+    index: 'my-products',
+  },
 };
 
 const globalPaths = {
@@ -26,6 +29,9 @@ const globalPaths = {
 };
 
 const asTeamPaths = {
+  myProducts: {
+    index: `/${pathPartials.asTeam}/${pathPartials.myProducts.index}`,
+  },
   integrationApp: {
     view: `/${pathPartials.asTeam}/${pathPartials.integrationProvider.id}/${pathPartials.integrationApp.id}`,
   },
