@@ -15,6 +15,8 @@ export const AC652_CERTIFICATION_PRIVILEGE_CODES: readonly string[] = [
 
 /** Shared-instance ownership (4) and Full ownership (5) also receive the certification codes. */
 export const AC652_GRANTEE_ROLE_IDS = [4, 5] as const;
+/** Roles 4 and 5 are only updated while they are still the seeded ResourceOwnership roles. */
+export const AC652_GRANTEE_ROLE_TYPE = '"ResourceOwnership"';
 
 export const CERTIFICATION_VENDOR_ROLE_NAME = 'Certification vendor';
 export const CERTIFICATION_VENDOR_ROLE_DESCRIPTION =

@@ -2,6 +2,7 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 import {
   AC652_CERTIFICATION_PRIVILEGE_CODES,
   AC652_GRANTEE_ROLE_IDS,
+  AC652_GRANTEE_ROLE_TYPE,
   CERTIFICATION_VENDOR_PRIVILEGE_CODES,
   CERTIFICATION_VENDOR_ROLE_DESCRIPTION,
   CERTIFICATION_VENDOR_ROLE_NAME,
@@ -25,11 +26,12 @@ export class AddCertificationVendorRole1793100000000 implements MigrationInterfa
         `UPDATE [role] SET ${APPEND} WHERE [id] = @1 AND [type] = @2 AND ${MISSING}`,
         [code, GLOBAL_ADMIN_ROLE_ID, GLOBAL_ADMIN_ROLE_TYPE],
       );
+      // Roles 4 and 5: only while they are still the seeded ResourceOwnership roles.
       for (const roleId of AC652_GRANTEE_ROLE_IDS) {
-        await queryRunner.query(`UPDATE [role] SET ${APPEND} WHERE [id] = @1 AND ${MISSING}`, [
-          code,
-          roleId,
-        ]);
+        await queryRunner.query(
+          `UPDATE [role] SET ${APPEND} WHERE [id] = @1 AND [type] = @2 AND ${MISSING}`,
+          [code, roleId, AC652_GRANTEE_ROLE_TYPE],
+        );
       }
     }
 
@@ -55,19 +57,19 @@ export class AddCertificationVendorRole1793100000000 implements MigrationInterfa
     );
     await queryRunner.query(`DELETE FROM [role] WHERE ${roleFilter}`, roleParams);
 
+    // Same type guards as up(): skip role ids 2, 4, 5 if they no longer hold the seeded type.
+    // TRIM cleans up the leading/trailing commas left by REPLACE in the same guarded statement.
+    const grantees: [number, string][] = [
+      [GLOBAL_ADMIN_ROLE_ID, GLOBAL_ADMIN_ROLE_TYPE],
+      ...AC652_GRANTEE_ROLE_IDS.map((id): [number, string] => [id, AC652_GRANTEE_ROLE_TYPE]),
+    ];
     for (const code of AC652_CERTIFICATION_PRIVILEGE_CODES) {
-      for (const roleId of [GLOBAL_ADMIN_ROLE_ID, ...AC652_GRANTEE_ROLE_IDS]) {
+      for (const [roleId, roleType] of grantees) {
         await queryRunner.query(
-          `UPDATE [role] SET [privilegeIds] = REPLACE(',' + ISNULL([privilegeIds], '') + ',', ',' + @0 + ',', ',') WHERE [id] = @1`,
-          [code, roleId],
+          `UPDATE [role] SET [privilegeIds] = TRIM(',' FROM REPLACE(',' + ISNULL([privilegeIds], '') + ',', ',' + @0 + ',', ',')) WHERE [id] = @1 AND [type] = @2`,
+          [code, roleId, roleType],
         );
       }
     }
-
-    // Clean up leading/trailing commas left by REPLACE
-    await queryRunner.query(
-      `UPDATE [role] SET [privilegeIds] = TRIM(',' FROM [privilegeIds]) WHERE [id] IN (@0, @1, @2)`,
-      [GLOBAL_ADMIN_ROLE_ID, ...AC652_GRANTEE_ROLE_IDS],
-    );
   }
 }

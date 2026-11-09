@@ -41,11 +41,14 @@ describe('AddCertificationVendorRole1793100000000 (mssql)', () => {
       }
     });
 
-    it('grants both codes to roles 4 and 5', async () => {
+    it('grants both codes to roles 4 and 5 only when they are ResourceOwnership', async () => {
       const calls = await record('up');
       for (const id of [4, 5]) {
         for (const code of CODES) {
-          expect(forRole(calls, id, code)).toHaveLength(1);
+          const matches = forRole(calls, id, code);
+          expect(matches).toHaveLength(1);
+          expect(matches[0].sql).toContain('[type] = ');
+          expect(matches[0].params).toContain('"ResourceOwnership"');
         }
       }
     });
@@ -110,6 +113,22 @@ describe('AddCertificationVendorRole1793100000000 (mssql)', () => {
       }
       for (const { params } of calls) {
         expect(params).not.toContain(6);
+      }
+    });
+
+    it('only removes codes from roles that still hold their seeded type', async () => {
+      const calls = await record('down');
+      const expectedType: Record<number, string> = {
+        2: '"UserGlobal"',
+        4: '"ResourceOwnership"',
+        5: '"ResourceOwnership"',
+      };
+      for (const id of [2, 4, 5]) {
+        for (const code of CODES) {
+          const [match] = forRole(calls, id, code);
+          expect(match.sql).toContain('[type] = ');
+          expect(match.params).toContain(expectedType[id]);
+        }
       }
     });
   });
