@@ -93,8 +93,10 @@ export const privileges = {
   'team.sb-environment.edfi-tenant.ods:read-row-counts': "Read row counts of your team's ODS's.",
   'team.sb-environment.edfi-tenant.ods:create-edorg': "Create edorgs in your team's ODS's.",
   'team.sb-environment.edfi-tenant.ods:delete-edorg': "Delete edorgs in your team's ODS's.",
-  'team.sb-environment.edfi-tenant.ods.certification:read': "Read certifications for your team's data stores.",
-  'team.sb-environment.edfi-tenant.ods.certification:run': "Run certifications for your team's data stores.",
+  'team.sb-environment.edfi-tenant.ods.certification:read':
+    "Read certifications for your team's data stores.",
+  'team.sb-environment.edfi-tenant.ods.certification:run':
+    "Run certifications for your team's data stores.",
   'team.sb-environment.edfi-tenant.ods.edorg:read': "Read your team's Ed-Orgs.",
   'team.sb-environment.edfi-tenant.ods.edorg.application:read': "Read your team's applications.",
   'team.sb-environment.edfi-tenant.ods.edorg.application:update':
