@@ -111,6 +111,25 @@ export const privilegeDependencies: Partial<
     dependencies: ['team.sb-environment.edfi-tenant.ods:read'],
     message: 'All ODS features require the ability to also access ODSs.',
   },
+  'team.sb-environment.edfi-tenant.ods.certification:read': {
+    dependencies: [
+      'team.sb-environment:read',
+      'team.sb-environment.edfi-tenant:read',
+      'team.sb-environment.edfi-tenant.ods:read',
+    ],
+    message:
+      'All certification features require the ability to also access environments, tenants and data stores.',
+  },
+  'team.sb-environment.edfi-tenant.ods.certification:run': {
+    dependencies: [
+      'team.sb-environment:read',
+      'team.sb-environment.edfi-tenant:read',
+      'team.sb-environment.edfi-tenant.ods:read',
+      'team.sb-environment.edfi-tenant.ods.certification:read',
+    ],
+    message:
+      'All certification features require the ability to also access environments, tenants and data stores.',
+  },
   'team.sb-environment.edfi-tenant.ods.edorg:read': {
     dependencies: [
       'team.sb-environment:read',

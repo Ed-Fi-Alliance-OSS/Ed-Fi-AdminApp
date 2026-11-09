@@ -44,4 +44,37 @@ describe('IsValidPrivileges', () => {
     const errors = await validate(dto);
     expect(errors).toHaveLength(0);
   });
+
+  it('rejects certification:read without ods:read', async () => {
+    const dto = new TestDto();
+    dto.privilegeIds = [
+      'team.sb-environment:read',
+      'team.sb-environment.edfi-tenant:read',
+      'team.sb-environment.edfi-tenant.ods.certification:read',
+    ];
+    expect(await validate(dto)).toHaveLength(1);
+  });
+
+  it('rejects certification:run without certification:read', async () => {
+    const dto = new TestDto();
+    dto.privilegeIds = [
+      'team.sb-environment:read',
+      'team.sb-environment.edfi-tenant:read',
+      'team.sb-environment.edfi-tenant.ods:read',
+      'team.sb-environment.edfi-tenant.ods.certification:run',
+    ];
+    expect(await validate(dto)).toHaveLength(1);
+  });
+
+  it('accepts the Certification vendor privilege set', async () => {
+    const dto = new TestDto();
+    dto.privilegeIds = [
+      'team.sb-environment:read',
+      'team.sb-environment.edfi-tenant:read',
+      'team.sb-environment.edfi-tenant.ods:read',
+      'team.sb-environment.edfi-tenant.ods.certification:read',
+      'team.sb-environment.edfi-tenant.ods.certification:run',
+    ];
+    expect(await validate(dto)).toHaveLength(0);
+  });
 });
