@@ -21,7 +21,7 @@ export class CertificationScenarioDto {
   scenarioId: number;
 
   @Expose()
-  areaId: number;
+  domainId: number;
 
   @Expose()
   name: string;
@@ -33,10 +33,10 @@ export class CertificationScenarioDto {
   displayOrder: number;
 }
 
-/** Row of GET .../certification/scenarios: an area with its enabled scenarios. */
-export class CertificationAreaDto {
+/** Row of GET .../certification/scenarios: a domain with its enabled scenarios. */
+export class CertificationDomainDto {
   @Expose()
-  areaId: number;
+  domainId: number;
 
   @Expose()
   catalogVersionId: number;
@@ -99,8 +99,8 @@ export const toCertificationCatalogVersionDto = makeSerializer<
   CertificationCatalogVersionDto
 >(CertificationCatalogVersionDto);
 
-export const toCertificationAreaDto = makeSerializer<CertificationAreaDto, CertificationAreaDto>(
-  CertificationAreaDto,
+export const toCertificationDomainDto = makeSerializer<CertificationDomainDto, CertificationDomainDto>(
+  CertificationDomainDto,
 );
 
 export const toCertificationStepDto = makeSerializer<CertificationStepDto, CertificationStepDto>(

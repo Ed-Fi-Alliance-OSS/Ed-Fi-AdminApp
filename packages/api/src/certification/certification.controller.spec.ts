@@ -47,6 +47,7 @@ describe('CertificationController', () => {
       odsId: 5,
       token: 't',
       inputs: { studentUniqueId: 'S1' },
+      userId: null,
     });
     expect(result).toEqual({
       stepId: 101,
@@ -55,6 +56,15 @@ describe('CertificationController', () => {
       scenarioStatus: 'inprogress',
       errors: [],
     });
+  });
+
+  it("passes the signed-in user's id to the service", async () => {
+    const service = { runStep: jest.fn().mockResolvedValue({}) };
+    const controller = new CertificationController(service as never, {} as never);
+    await controller.runStep(sbEnvironment, edfiTenant, 'v5', 101, body, {} as never, {
+      id: 42,
+    } as never);
+    expect(service.runStep).toHaveBeenCalledWith(expect.objectContaining({ userId: 42 }));
   });
 
   it('adds Retry-After when the service is temporarily unavailable', async () => {

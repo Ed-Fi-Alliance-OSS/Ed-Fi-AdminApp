@@ -1,6 +1,7 @@
 import { Expose, Type } from 'class-transformer';
 import { IsInt, IsObject, IsOptional, IsString, Matches } from 'class-validator';
 import { makeSerializer } from '../utils/make-serializer';
+import { CertificationRunSummaryDto } from './certification-run.dto';
 
 /** SIS data standard versions Admin App can certify. Add one only after its scenarios are tested. */
 export const SUPPORTED_SIS_VERSIONS = ['v5'] as const;
@@ -42,9 +43,6 @@ export const CERT_SNAPSHOT_STATE = {
   deleted: 'deleted',
 } as const;
 export type CertSnapshotState = (typeof CERT_SNAPSHOT_STATE)[keyof typeof CERT_SNAPSHOT_STATE];
-
-/** Moving a process past `inprogress` (e.g. Ready for Review) belongs to AC-659. */
-export const CERT_PROCESS_STATUS = { inprogress: 'inprogress' } as const;
 
 /**
  * Body of POST .../certification/sis/:sisVersion/steps/:stepId/run.
@@ -168,6 +166,23 @@ export const toCertificationScenarioStatusDto = makeSerializer<
   CertificationScenarioStatusDto,
   CertificationScenarioStatusDto
 >(CertificationScenarioStatusDto);
+
+/** GET .../scenario-statuses: the data store's open SIS run (null when none) and its scenario statuses. */
+export class CertificationScenarioStatusesDto {
+  @Expose()
+  @Type(() => CertificationRunSummaryDto)
+  run: CertificationRunSummaryDto | null;
+
+  @Expose()
+  @Type(() => CertificationScenarioStatusDto)
+  scenarios: CertificationScenarioStatusDto[];
+}
+
+export const toCertificationScenarioStatusesDto = makeSerializer<
+  CertificationScenarioStatusesDto,
+  CertificationScenarioStatusesDto
+>(CertificationScenarioStatusesDto);
+
 /** GET .../step-runs/:stepId/snapshot: the step's decrypted response snapshot (AC-690). */
 export class CertificationStepSnapshotDto {
   @Expose()

@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getEntityManagerToken, getRepositoryToken } from '@nestjs/typeorm';
-import { User } from '@edanalytics/models-server';
+import { CertificationRun, User } from '@edanalytics/models-server';
 import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
 import { UsersGlobalService } from './users-global.service';
 import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
@@ -24,6 +24,16 @@ const mockRepo = {
   find: jest.fn(async () => [mockUser]),
 };
 
+const mockRunRepo = { update: jest.fn(async () => undefined) };
+const order: string[] = [];
+const mockEntityManager = {
+  transaction: jest.fn(async (work: (em: unknown) => Promise<unknown>) =>
+    work({
+      getRepository: (entity: unknown) => (entity === CertificationRun ? mockRunRepo : mockRepo),
+    }),
+  ),
+};
+
 const mockGuard = { assertCanAssignRole: jest.fn(async (..._args: unknown[]) => undefined) };
 
 describe('UsersGlobalService', () => {
@@ -35,7 +45,7 @@ describe('UsersGlobalService', () => {
       providers: [
         UsersGlobalService,
         { provide: getRepositoryToken(User), useValue: mockRepo },
-        { provide: getEntityManagerToken(), useValue: {} },
+        { provide: getEntityManagerToken(), useValue: mockEntityManager },
         { provide: PrivilegeGrantGuardService, useValue: mockGuard },
       ],
     }).compile();
@@ -78,6 +88,19 @@ describe('UsersGlobalService', () => {
     const result = await service.remove(1, { id: 99 } as unknown as GetUserDto);
     expect(mockRepo.remove).toHaveBeenCalled();
     expect(result).toBeUndefined();
+  });
+
+  it('remove() clears the user from the certification runs they started, then removes the user', async () => {
+    // certification_run.createdById is NO ACTION on SQL Server, so a leftover reference blocks the delete.
+    order.length = 0;
+    mockRunRepo.update.mockImplementationOnce(async () => void order.push('clear runs'));
+    mockRepo.remove.mockImplementationOnce(async () => void order.push('remove user'));
+
+    await service.remove(1, { id: 99 } as unknown as GetUserDto);
+
+    expect(mockRunRepo.update).toHaveBeenCalledWith({ createdById: 1 }, { createdById: null });
+    expect(order).toEqual(['clear runs', 'remove user']);
+    expect(mockEntityManager.transaction).toHaveBeenCalledTimes(1);
   });
 
   it('remove() throws NotFoundException when user not found', async () => {

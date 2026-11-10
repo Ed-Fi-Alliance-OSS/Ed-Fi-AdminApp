@@ -1,5 +1,5 @@
 import {
-  toCertificationAreaDto,
+  toCertificationDomainDto,
   toCertificationCatalogVersionDto,
   toCertificationStepDto,
 } from '@edanalytics/models';
@@ -36,8 +36,8 @@ export class CertificationCatalogController {
     @Param('sbEnvironmentId', new ParseIntPipe()) _sbEnvironmentId: number,
     @Query('catalogVersionId', new ParseIntPipe({ optional: true })) catalogVersionId?: number,
   ) {
-    return toCertificationAreaDto(
-      await this.catalogQueryService.findAreasWithScenarios(catalogVersionId),
+    return toCertificationDomainDto(
+      await this.catalogQueryService.findDomainsWithScenarios(catalogVersionId),
     );
   }
 

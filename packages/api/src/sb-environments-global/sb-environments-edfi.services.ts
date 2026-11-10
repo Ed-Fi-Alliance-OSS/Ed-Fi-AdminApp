@@ -36,7 +36,7 @@ import {
 import { trimTrailingSlashes } from '@edanalytics/utils';
 import axios from 'axios';
 import {
-  deleteOdsCertificationProcesses,
+  deleteOdsCertificationRuns,
   persistSyncTenant,
   SyncableOds,
 } from '../sb-sync/sync-ods';
@@ -684,8 +684,8 @@ export class SbEnvironmentsEdFiService {
       // Remove all EdOrgs for this tenant's ODS instances
       await em.getRepository(Edorg).delete({ edfiTenantId: tenant.id });
 
-      // Remove all ODS instances for this tenant (certification processes tied to them first, for MSSQL)
-      await deleteOdsCertificationProcesses(em, { edfiTenantId: tenant.id, odsId: Not(IsNull()) });
+      // Remove all ODS instances for this tenant (certification runs tied to them first, for MSSQL)
+      await deleteOdsCertificationRuns(em, { edfiTenantId: tenant.id, odsId: Not(IsNull()) });
       await em.getRepository(Ods).delete({ edfiTenantId: tenant.id });
 
       // Remove the tenant itself
@@ -701,8 +701,8 @@ export class SbEnvironmentsEdFiService {
       // Remove all EdOrgs for this tenant's ODS instances
       await em.getRepository(Edorg).delete({ edfiTenantId: tenant.id });
 
-      // Remove all ODS instances for this tenant (certification processes tied to them first, for MSSQL)
-      await deleteOdsCertificationProcesses(em, { edfiTenantId: tenant.id, odsId: Not(IsNull()) });
+      // Remove all ODS instances for this tenant (certification runs tied to them first, for MSSQL)
+      await deleteOdsCertificationRuns(em, { edfiTenantId: tenant.id, odsId: Not(IsNull()) });
       await em.getRepository(Ods).delete({ edfiTenantId: tenant.id });
     });
   }

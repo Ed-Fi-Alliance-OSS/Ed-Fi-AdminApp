@@ -4,7 +4,7 @@ import { getRepositoryToken, getEntityManagerToken } from '@nestjs/typeorm';
 import { SbEnvironmentsEdFiService } from './sb-environments-edfi.services';
 import { AdminApiVersionStrategyFactory } from '../admin-api-version-strategy';
 import {
-  CertificationProcess,
+  CertificationRun,
   EdfiTenant,
   Edorg,
   Ods,
@@ -521,7 +521,7 @@ describe('SbEnvironmentsEdFiService tenant and ODS removal (MSSQL certification 
   beforeEach(async () => {
     repos = {
       [Edorg.name]: { delete: jest.fn() },
-      [CertificationProcess.name]: { delete: jest.fn() },
+      [CertificationRun.name]: { delete: jest.fn() },
       [Ods.name]: { delete: jest.fn() },
       [EdfiTenant.name]: { delete: jest.fn() },
     };
@@ -548,31 +548,31 @@ describe('SbEnvironmentsEdFiService tenant and ODS removal (MSSQL certification 
   const calledBefore = (first: jest.Mock, second: jest.Mock) =>
     first.mock.invocationCallOrder[0] < second.mock.invocationCallOrder[0];
 
-  it('removeTenant deletes the tenant ODS certification processes before its ODS rows', async () => {
+  it('removeTenant deletes the tenant ODS certification runs before its ODS rows', async () => {
     await (service as unknown as { removeTenant: (t: EdfiTenant) => Promise<void> }).removeTenant({
       id: 10,
     } as EdfiTenant);
 
-    expect(repos[CertificationProcess.name].delete).toHaveBeenCalledWith({
+    expect(repos[CertificationRun.name].delete).toHaveBeenCalledWith({
       edfiTenantId: 10,
       odsId: Not(IsNull()),
     });
-    expect(calledBefore(repos[CertificationProcess.name].delete, repos[Ods.name].delete)).toBe(
+    expect(calledBefore(repos[CertificationRun.name].delete, repos[Ods.name].delete)).toBe(
       true,
     );
     expect(repos[Ods.name].delete).toHaveBeenCalledWith({ edfiTenantId: 10 });
   });
 
-  it('removeAllOdsForTenant deletes only ODS-bound certification processes before the ODS rows', async () => {
+  it('removeAllOdsForTenant deletes only ODS-bound certification runs before the ODS rows', async () => {
     await (
       service as unknown as { removeAllOdsForTenant: (t: EdfiTenant) => Promise<void> }
     ).removeAllOdsForTenant({ id: 10 } as EdfiTenant);
 
-    expect(repos[CertificationProcess.name].delete).toHaveBeenCalledWith({
+    expect(repos[CertificationRun.name].delete).toHaveBeenCalledWith({
       edfiTenantId: 10,
       odsId: Not(IsNull()),
     });
-    expect(calledBefore(repos[CertificationProcess.name].delete, repos[Ods.name].delete)).toBe(
+    expect(calledBefore(repos[CertificationRun.name].delete, repos[Ods.name].delete)).toBe(
       true,
     );
     expect(repos[EdfiTenant.name].delete).not.toHaveBeenCalled();

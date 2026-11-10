@@ -8,17 +8,19 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import {
-  CertificationProcess,
-  CertificationProcessScenario,
+  CertificationRun,
+  CertificationRunScenario,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
 } from '@edanalytics/models-server';
 import {
+  CERT_RUN_MESSAGES,
   CertificationService,
   deriveScenarioStatus,
   positiveNumber,
 } from './certification.service';
+import { In, Not } from 'typeorm';
 import { runBrunoCli } from './runner/bruno-cli';
 import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
 import { createRunWorkspace, readStepInputNames } from './runner/run-workspace';
@@ -56,7 +58,7 @@ const makeStep = () => ({
     scenarioId: 20,
     name: 'Students',
     isEnabled: true,
-    area: {
+    domain: {
       name: 'Student',
       isEnabled: true,
       catalogVersionId: 3,
@@ -72,8 +74,8 @@ const makeStep = () => ({
 
 describe('CertificationService.runStep', () => {
   let stepRepository: { findOne: jest.Mock };
-  let processRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
-  let processScenarioRepository: { findOne: jest.Mock };
+  let runRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
+  let runScenarioRepository: { findOne: jest.Mock };
   let em: Record<string, Record<string, jest.Mock>>;
   let dataSource: { transaction: jest.Mock };
   let artifactService: {
@@ -96,6 +98,7 @@ describe('CertificationService.runStep', () => {
       odsId: 5,
       token: TOKEN,
       inputs: { studentUniqueId: 'S1' },
+      userId: 42,
       ...overrides,
     });
 
@@ -110,12 +113,12 @@ describe('CertificationService.runStep', () => {
         target === '/sis/bru.js' ? cliExists : realExistsSync(target),
       );
     stepRepository = { findOne: jest.fn().mockResolvedValue(makeStep()) };
-    processRepository = {
-      findOne: jest.fn().mockResolvedValue({ certificationProcessId: 7 }),
+    runRepository = {
+      findOne: jest.fn().mockResolvedValue({ certificationRunId: 7, status: 'DRAFT' }),
       create: jest.fn((value) => value),
-      save: jest.fn(async (value) => ({ certificationProcessId: 7, ...value })),
+      save: jest.fn(async (value) => ({ certificationRunId: 7, ...value })),
     };
-    processScenarioRepository = {
+    runScenarioRepository = {
       findOne: jest.fn().mockResolvedValue({ capturedVars: { firstStudentUniqueId: 'old' } }),
     };
     // Keyed by entity class name, matching em.getRepository(Entity) in the service.
@@ -127,16 +130,16 @@ describe('CertificationService.runStep', () => {
         find: jest.fn().mockResolvedValue([{ stepId: 101, status: 'success' }]),
       },
       [ScenarioStepError.name]: { delete: jest.fn(), save: jest.fn() },
-      [CertificationProcessScenario.name]: {
+      [CertificationRunScenario.name]: {
         findOne: jest.fn().mockResolvedValue({
-          certificationProcessId: 7,
+          certificationRunId: 7,
           scenarioId: 20,
           capturedVars: { firstStudentUniqueId: 'old' },
         }),
         create: jest.fn((value) => value),
         save: jest.fn(),
       },
-      [CertificationProcess.name]: { update: jest.fn() },
+      [CertificationRun.name]: { update: jest.fn() },
       [StepCatalog.name]: { find: jest.fn().mockResolvedValue([{ stepId: 101 }]) },
     };
     dataSource = {
@@ -171,8 +174,8 @@ describe('CertificationService.runStep', () => {
       artifactService as never,
       targetService as never,
       stepRepository as never,
-      processRepository as never,
-      processScenarioRepository as never,
+      runRepository as never,
+      runScenarioRepository as never,
       dataSource as never,
     );
   });
@@ -210,7 +213,7 @@ describe('CertificationService.runStep', () => {
     expect((runBrunoCli as jest.Mock).mock.calls[0][0].args).toContain('--insecure');
     expect(em.ScenarioStep.save).toHaveBeenCalledWith(
       expect.objectContaining({
-        certificationProcessId: 7,
+        certificationRunId: 7,
         stepId: 101,
         status: 'success',
         inputs: { studentUniqueId: 'S1' },
@@ -220,7 +223,7 @@ describe('CertificationService.runStep', () => {
     );
     expect(em.ScenarioStepError.delete).toHaveBeenCalledWith({ stepRunId: 55 });
     expect(em.ScenarioStepError.save).not.toHaveBeenCalled();
-    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+    expect(em.CertificationRunScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({
         status: 'completed',
         capturedVars: {
@@ -237,7 +240,7 @@ describe('CertificationService.runStep', () => {
   it('saves a failing result with its errors, replacing the previous row', async () => {
     em.ScenarioStep.findOne.mockResolvedValue({
       stepRunId: 55,
-      certificationProcessId: 7,
+      certificationRunId: 7,
       scenarioId: 20,
       stepId: 101,
     });
@@ -270,7 +273,7 @@ describe('CertificationService.runStep', () => {
   it('clears the status and snapshot when a re-run never sent the request', async () => {
     em.ScenarioStep.findOne.mockResolvedValue({
       stepRunId: 55,
-      certificationProcessId: 7,
+      certificationRunId: 7,
       scenarioId: 20,
       stepId: 101,
       responseStatus: 200,
@@ -301,7 +304,7 @@ describe('CertificationService.runStep', () => {
     expect(result.errors).toEqual([
       { kind: 'exception', field: null, expected: null, observed: null, message: INCOMPLETE_RUN_MESSAGE },
     ]);
-    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+    expect(em.CertificationRunScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
     );
   });
@@ -320,7 +323,7 @@ describe('CertificationService.runStep', () => {
 
   it('drops tampered stored captured values, restores none, and logs only the keys', async () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    processScenarioRepository.findOne.mockResolvedValue({
+    runScenarioRepository.findOne.mockResolvedValue({
       capturedVars: { tamperedKey: { nested: 'hidden-value-123' }, okKey: 'fine' },
     });
 
@@ -336,7 +339,7 @@ describe('CertificationService.runStep', () => {
 
   it('does not warn when there are no stored captured values', async () => {
     const warn = jest.spyOn(Logger.prototype, 'warn').mockImplementation(() => undefined);
-    processScenarioRepository.findOne.mockResolvedValue(null);
+    runScenarioRepository.findOne.mockResolvedValue(null);
     await run();
     expect(warn).not.toHaveBeenCalled();
   });
@@ -353,7 +356,7 @@ describe('CertificationService.runStep', () => {
     expect(logged).toContain('badKey');
     expect(logged).toContain('101');
     expect(logged).not.toContain('leaky-value-456');
-    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+    expect(em.CertificationRunScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
     );
   });
@@ -364,17 +367,80 @@ describe('CertificationService.runStep', () => {
     expect(dispose).toHaveBeenCalled();
   });
 
-  it('creates the process on the first run of a tenant without an ODS', async () => {
-    processRepository.findOne.mockResolvedValue(null);
-    await run({ odsId: undefined });
-    expect(processRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({
-        edfiTenantId: 10,
-        odsId: null,
-        catalogVersionId: 3,
-        status: 'inprogress',
-      }),
+  it('creates a Draft SIS run on the first step run', async () => {
+    runRepository.findOne.mockResolvedValue(null);
+    await run();
+    expect(runRepository.create).toHaveBeenCalledWith({
+      edfiTenantId: 10,
+      odsId: 5,
+      certificationModel: 'SIS',
+      catalogVersionId: 3,
+      createdById: 42,
+      teamId: null,
+      status: 'DRAFT',
+    });
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ certificationRunId: 7 }),
     );
+  });
+
+  it('creates the run on the first step run of a tenant without an ODS', async () => {
+    runRepository.findOne.mockResolvedValue(null);
+    await run({ odsId: undefined });
+    expect(runRepository.save).toHaveBeenCalledWith(
+      expect.objectContaining({ edfiTenantId: 10, odsId: null, status: 'DRAFT' }),
+    );
+  });
+
+  it('uses the open run and creates none', async () => {
+    await run();
+    expect(runRepository.save).not.toHaveBeenCalled();
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ certificationRunId: 7 }),
+    );
+  });
+
+  it('looks up the open SIS run without the catalog version', async () => {
+    await run();
+    const { where } = runRepository.findOne.mock.calls[0][0];
+    expect(where).toMatchObject({ edfiTenantId: 10, odsId: 5, certificationModel: 'SIS' });
+    expect(where.status).toEqual(Not(In(['APPROVED', 'REJECTED'])));
+    expect(where).not.toHaveProperty('catalogVersionId');
+  });
+
+  it('re-reads the open run when the insert loses the race', async () => {
+    runRepository.findOne
+      .mockResolvedValueOnce(null)
+      .mockResolvedValueOnce({ certificationRunId: 9, status: 'DRAFT' });
+    runRepository.save.mockRejectedValue(new Error('duplicate key'));
+    await run();
+    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
+      expect.objectContaining({ certificationRunId: 9 }),
+    );
+  });
+
+  it('rethrows the insert error when no open run appeared', async () => {
+    runRepository.findOne.mockResolvedValue(null);
+    runRepository.save.mockRejectedValue(new Error('connection lost'));
+    await expect(run()).rejects.toThrow('connection lost');
+  });
+
+  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'])(
+    'returns 409 and saves nothing while the run is %s',
+    async (status) => {
+      runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status });
+      await expect(run()).rejects.toMatchObject({
+        status: 409,
+        message: CERT_RUN_MESSAGES.runLocked,
+      });
+      expect(runBrunoCli).not.toHaveBeenCalled();
+      expect(dataSource.transaction).not.toHaveBeenCalled();
+    },
+  );
+
+  it('runs steps while the run is Changes requested', async () => {
+    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'CHANGES_REQUESTED' });
+    await expect(run()).resolves.toMatchObject({ status: 'success' });
   });
 
   it('returns 503 while the runtime is not ready', async () => {
@@ -401,7 +467,7 @@ describe('CertificationService.runStep', () => {
       'from another SIS version',
       () => {
         const s = makeStep();
-        s.scenario.area.catalogVersion.dataStandardVersion = 'v4';
+        s.scenario.domain.catalogVersion.dataStandardVersion = 'v4';
         return s;
       },
     ],
@@ -409,7 +475,7 @@ describe('CertificationService.runStep', () => {
       'from an inactive catalog',
       () => {
         const s = makeStep();
-        s.scenario.area.catalogVersion.isActive = false;
+        s.scenario.domain.catalogVersion.isActive = false;
         return s;
       },
     ],
@@ -417,7 +483,7 @@ describe('CertificationService.runStep', () => {
       'from another artifact',
       () => {
         const s = makeStep();
-        s.scenario.area.catalogVersion.artifactVersion = 'v9';
+        s.scenario.domain.catalogVersion.artifactVersion = 'v9';
         return s;
       },
     ],
@@ -446,10 +512,10 @@ describe('CertificationService.runStep', () => {
   });
 
   it('treats a null odsId like an omitted one', async () => {
-    processRepository.findOne.mockResolvedValue(null);
+    runRepository.findOne.mockResolvedValue(null);
     await run({ odsId: null });
     expect(targetService.resolve).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
-    expect(processRepository.save).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
+    expect(runRepository.save).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
   });
 
   it('returns 409 while another step of the same scenario is running', async () => {
@@ -519,7 +585,7 @@ describe('CertificationService.runStep', () => {
     );
     const saved = JSON.stringify([
       sinks,
-      processRepository.save.mock.calls,
+      runRepository.save.mock.calls,
       result,
       log.mock.calls,
       warn.mock.calls,
@@ -531,7 +597,7 @@ describe('CertificationService.runStep', () => {
     );
     expect(saved).not.toContain(TOKEN);
     expect(JSON.stringify(warn.mock.calls)).toContain('echoedKey');
-    expect(em.CertificationProcessScenario.save).toHaveBeenCalledWith(
+    expect(em.CertificationRunScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
     );
   });
@@ -580,5 +646,48 @@ describe('deriveScenarioStatus', () => {
 
   it('is in progress while some steps have not run', () => {
     expect(deriveScenarioStatus([1, 2], [{ stepId: 1, status: 'success' }])).toBe('inprogress');
+  });
+});
+
+describe('CertificationService.changeRunStatus', () => {
+  let runRepository: { findOne: jest.Mock; save: jest.Mock };
+  let service: CertificationService;
+
+  beforeEach(() => {
+    runRepository = { findOne: jest.fn(), save: jest.fn(async (value) => value) };
+    service = new CertificationService(
+      {} as never,
+      {} as never,
+      {} as never,
+      runRepository as never,
+      {} as never,
+      {} as never,
+    );
+  });
+
+  it.each([
+    ['DRAFT', 'READY_FOR_REVIEW'],
+    ['CHANGES_REQUESTED', 'READY_FOR_REVIEW_WITH_CHANGES'],
+    ['IN_REVIEW', 'APPROVED'],
+  ] as const)('moves a %s run to %s', async (from, to) => {
+    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: from });
+    await expect(service.changeRunStatus(7, to)).resolves.toMatchObject({ status: to });
+    expect(runRepository.save).toHaveBeenCalledWith({ certificationRunId: 7, status: to });
+  });
+
+  it('refuses Draft straight to Approved and leaves the run Draft', async () => {
+    const certificationRun = { certificationRunId: 7, status: 'DRAFT' };
+    runRepository.findOne.mockResolvedValue(certificationRun);
+    await expect(service.changeRunStatus(7, 'APPROVED')).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.invalidTransition,
+    });
+    expect(runRepository.save).not.toHaveBeenCalled();
+    expect(certificationRun.status).toBe('DRAFT');
+  });
+
+  it('returns 404 for a run that does not exist', async () => {
+    runRepository.findOne.mockResolvedValue(null);
+    await expect(service.changeRunStatus(7, 'IN_REVIEW')).rejects.toBeInstanceOf(NotFoundException);
   });
 });

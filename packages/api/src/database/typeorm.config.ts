@@ -1,9 +1,9 @@
 import {
   AuditLog,
-  AreaCatalog,
+  DomainCatalog,
   CatalogVersion,
-  CertificationProcess,
-  CertificationProcessScenario,
+  CertificationRun,
+  CertificationRunScenario,
   EdfiTenant,
   Edorg,
   EnvNav,
@@ -75,6 +75,9 @@ import { CreateAuditLog1792000000001 as PgsqlCreateAuditLog1792000000001 } from 
 import { OdsManageSyncQueue1792100000000 as PgsqlOdsManageSyncQueue1792100000000 } from './migrations/pgsql/1792100000000-OdsManageSyncQueue';
 import { CertificationStepResultDetails1793000000000 as PgsqlCertificationStepResultDetails1793000000000 } from './migrations/pgsql/1793000000000-CertificationStepResultDetails';
 import { AddCertificationVendorRole1793100000000 as PgsqlAddCertificationVendorRole1793100000000 } from './migrations/pgsql/1793100000000-AddCertificationVendorRole';
+import { CertificationRuns1794000000000 as PgsqlCertificationRuns1794000000000 } from './migrations/pgsql/1794000000000-CertificationRuns';
+import { CertificationDomainCatalog1794000000001 as PgsqlCertificationDomainCatalog1794000000001 } from './migrations/pgsql/1794000000001-CertificationDomainCatalog';
+import { UppercaseCertificationRunStatuses1794000000002 as PgsqlUppercaseCertificationRunStatuses1794000000002 } from './migrations/pgsql/1794000000002-UppercaseCertificationRunStatuses';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -120,6 +123,9 @@ import { CreateAuditLog1792000000001 as MssqlCreateAuditLog1792000000001 } from 
 import { OdsManageSyncQueue1792100000000 as MssqlOdsManageSyncQueue1792100000000 } from './migrations/mssql/1792100000000-OdsManageSyncQueue';
 import { CertificationStepResultDetails1793000000000 as MssqlCertificationStepResultDetails1793000000000 } from './migrations/mssql/1793000000000-CertificationStepResultDetails';
 import { AddCertificationVendorRole1793100000000 as MssqlAddCertificationVendorRole1793100000000 } from './migrations/mssql/1793100000000-AddCertificationVendorRole';
+import { CertificationRuns1794000000000 as MssqlCertificationRuns1794000000000 } from './migrations/mssql/1794000000000-CertificationRuns';
+import { CertificationDomainCatalog1794000000001 as MssqlCertificationDomainCatalog1794000000001 } from './migrations/mssql/1794000000001-CertificationDomainCatalog';
+import { UppercaseCertificationRunStatuses1794000000002 as MssqlUppercaseCertificationRunStatuses1794000000002 } from './migrations/mssql/1794000000002-UppercaseCertificationRunStatuses';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -165,6 +171,9 @@ const getPostgreSQLMigrations = () => [
   PgsqlOdsManageSyncQueue1792100000000,
   PgsqlCertificationStepResultDetails1793000000000,
   PgsqlAddCertificationVendorRole1793100000000,
+  PgsqlCertificationRuns1794000000000,
+  PgsqlCertificationDomainCatalog1794000000001,
+  PgsqlUppercaseCertificationRunStatuses1794000000002,
 ];
 
 const getMSSQLMigrations = () => [
@@ -211,6 +220,9 @@ const getMSSQLMigrations = () => [
   MssqlOdsManageSyncQueue1792100000000,
   MssqlCertificationStepResultDetails1793000000000,
   MssqlAddCertificationVendorRole1793100000000,
+  MssqlCertificationRuns1794000000000,
+  MssqlCertificationDomainCatalog1794000000001,
+  MssqlUppercaseCertificationRunStatuses1794000000002,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
@@ -232,12 +244,12 @@ const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOpt
     User,
     UserTeamMembership,
     CatalogVersion,
-    AreaCatalog,
+    DomainCatalog,
     ScenarioCatalog,
     StepCatalog,
     StepParameterCatalog,
-    CertificationProcess,
-    CertificationProcessScenario,
+    CertificationRun,
+    CertificationRunScenario,
     ScenarioStep,
     ScenarioStepError,
     AuditLog,

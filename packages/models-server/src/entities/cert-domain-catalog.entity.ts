@@ -1,10 +1,10 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
 import { CatalogVersion } from './cert-catalog-version.entity';
 
-@Entity({ schema: 'cert', name: 'area_catalog' })
-export class AreaCatalog {
+@Entity({ schema: 'cert', name: 'domain_catalog' })
+export class DomainCatalog {
   @PrimaryGeneratedColumn()
-  areaId: number;
+  domainId: number;
 
   @ManyToOne(() => CatalogVersion, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'catalogVersionId' })

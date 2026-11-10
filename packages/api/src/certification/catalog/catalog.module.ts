@@ -1,7 +1,7 @@
 import { Module } from '@nestjs/common';
 import { TypeOrmModule } from '@nestjs/typeorm';
 import {
-  AreaCatalog,
+  DomainCatalog,
   CatalogVersion,
   ScenarioCatalog,
   StepCatalog,
@@ -14,7 +14,7 @@ import { CatalogService } from './catalog.service';
   imports: [
     TypeOrmModule.forFeature([
       CatalogVersion,
-      AreaCatalog,
+      DomainCatalog,
       ScenarioCatalog,
       StepCatalog,
       StepParameterCatalog,

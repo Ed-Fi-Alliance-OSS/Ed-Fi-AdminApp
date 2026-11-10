@@ -58,6 +58,7 @@ import {
   useCertificationCatalog,
   useCertificationSteps,
 } from './useCertificationCatalog';
+import { useCertificationScenarioStatuses } from './useCertificationScenarioStatuses';
 import { useCertificationStepRuns } from './useCertificationStepRuns';
 
 const UNKNOWN_RESULT_MESSAGE =
@@ -73,12 +74,12 @@ export const CertificationPageExecution = () => {
   const catalog = useCertificationCatalog(sbEnvironmentId);
   const sisVersion = catalog.dataStandardVersion;
   const selected = useMemo(() => {
-    for (const area of catalog.areas) {
-      const scenario = area.scenarios.find((item) => item.scenarioId === scenarioId);
-      if (scenario) return { area, scenario };
+    for (const domain of catalog.domains) {
+      const scenario = domain.scenarios.find((item) => item.scenarioId === scenarioId);
+      if (scenario) return { domain, scenario };
     }
     return undefined;
-  }, [catalog.areas, scenarioId]);
+  }, [catalog.domains, scenarioId]);
   const { steps: scenarioRows, isPending: isStepsPending } = useCertificationSteps(
     sbEnvironmentId,
     selected?.scenario.scenarioId,
@@ -90,6 +91,14 @@ export const CertificationPageExecution = () => {
     odsId,
     sisVersion,
     scenarioId: selected?.scenario.scenarioId,
+  });
+  // The same query as the request page, so both pages agree on whether steps can run.
+  const scenarioStatuses = useCertificationScenarioStatuses({
+    sbEnvironmentId,
+    edfiTenantId,
+    odsId,
+    sisVersion,
+    enabled: edfiTenantId !== undefined,
   });
   const stepRunsQueryKey = stepRuns.queryKey;
   const refetchStepRuns = stepRuns.refetch;
@@ -139,6 +148,8 @@ export const CertificationPageExecution = () => {
     },
   });
   const isAuthenticated = isAuthValidFor(auth, edfiTenantId, odsId);
+  // No step can run while the run is in or awaiting review, so there is nothing to sign in for.
+  const stepsBlocked = !scenarioStatuses.canExecuteSteps;
 
   // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
   const parentLocation = useMemo(() => {
@@ -249,19 +260,21 @@ export const CertificationPageExecution = () => {
 
   return (
     <PageTemplate title="Certification">
-      <Box mb={4} w="30em" maxW="100%">
-        {!isAuthenticated && clearReason !== 'user' && (
-          <Alert status="info" mb={3}>
-            <AlertIcon />
-            Your session has expired. Please validate your credentials again to continue.
-          </Alert>
-        )}
-        <CertificationAuthenticateForm
-          sbEnvironmentId={sbEnvironmentId}
-          edfiTenantId={edfiTenantId}
-          odsId={odsId}
-        />
-      </Box>
+      {!stepsBlocked && (
+        <Box mb={4} w="30em" maxW="100%">
+          {!isAuthenticated && clearReason !== 'user' && (
+            <Alert status="info" mb={3}>
+              <AlertIcon />
+              Your session has expired. Please validate your credentials again to continue.
+            </Alert>
+          )}
+          <CertificationAuthenticateForm
+            sbEnvironmentId={sbEnvironmentId}
+            edfiTenantId={edfiTenantId}
+            odsId={odsId}
+          />
+        </Box>
+      )}
       <chakra.form w="full">
         <Box w="full">
           <Box
@@ -277,10 +290,10 @@ export const CertificationPageExecution = () => {
             <HStack spacing={8} alignItems="flex-start" flexWrap="wrap">
               <Box>
                 <Text fontSize="xs" color="gray.600" textTransform="uppercase" letterSpacing="wide">
-                  Group or Area
+                  Domain
                 </Text>
                 <Text fontSize="lg" fontWeight="bold" color="blue.800">
-                  {displayNameOf(selected.area)}
+                  {displayNameOf(selected.domain)}
                 </Text>
               </Box>
               <Box>
@@ -325,7 +338,7 @@ export const CertificationPageExecution = () => {
                         type="button"
                         onClick={() => setValidatedStep(row)}
                       >
-                        Validate
+                        Open
                       </Button>
                     </Td>
                   </Tr>
@@ -432,6 +445,7 @@ export const CertificationPageExecution = () => {
                     isDisabled={
                       !isAuthenticated ||
                       !canExecuteStep ||
+                      !scenarioStatuses.canExecuteSteps ||
                       run.isPending ||
                       sisVersion === undefined
                     }
@@ -439,12 +453,17 @@ export const CertificationPageExecution = () => {
                   >
                     Execute step
                   </Button>
-                  {!isAuthenticated && (
+                  {!stepsBlocked && !isAuthenticated && (
                     <Text fontSize="sm" color="gray.600">
                       Validate your credentials above to execute this step.
                     </Text>
                   )}
                 </HStack>
+                {stepsBlocked && (
+                  <Text mt={2} fontSize="sm" color="gray.600">
+                    Steps can't be executed while this run is in review.
+                  </Text>
+                )}
               </Box>
               <Box
                 w="full"
@@ -477,7 +496,7 @@ export const CertificationPageExecution = () => {
 
           {!validatedStep && (
             <Text color="gray.600" mb={2}>
-              Select Validate on a row to load its dynamic parameters.
+              Select Open on a row to load its dynamic parameters.
             </Text>
           )}
 

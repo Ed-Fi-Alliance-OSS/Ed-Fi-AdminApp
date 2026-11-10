@@ -95,15 +95,23 @@ Run a single request by name:
 
 `collections/certification` calls the step-run endpoint against a real ODS/API. Every request skips itself unless `CERT_SB_ENVIRONMENT_ID` is set, so the default suite is unaffected. The ODS must contain data matching the inputs. Locally, refresh the ODS databases to Data Model 5.2 templates first (otherwise every data call returns 500), or point the environment at certification.ed-fi.org. The `ACCESS_TOKEN` user needs `sb-environment:update` on the environment.
 
+Certification run statuses use uppercase database/API values: `DRAFT`, `READY_FOR_REVIEW`,
+`IN_REVIEW`, `CHANGES_REQUESTED`, `READY_FOR_REVIEW_WITH_CHANGES`, `APPROVED`, and `REJECTED`.
+Steps can execute only in `DRAFT` and `CHANGES_REQUESTED`. Migration `1794000000002` converts
+existing run statuses and rebuilds the open-run indexes without deleting runs or results; its
+rollback restores lowercase values. Deploy this migration with the matching API build. Scenario
+and step result statuses are unchanged. When editing test statuses through SQL Server's `sqlcmd`,
+use `-I` so quoted identifiers are enabled for the filtered indexes.
+
 Look up the v5 Students step ids after the API has synced the catalog:
 
 ```sql
 SELECT s."stepId", s."fileName"
 FROM cert.step_catalog s
 JOIN cert.scenario_catalog sc ON sc."scenarioId" = s."scenarioId"
-JOIN cert.area_catalog a ON a."areaId" = sc."areaId"
-JOIN cert.catalog_version v ON v."catalogVersionId" = a."catalogVersionId"
-WHERE v."isActive" AND v."dataStandardVersion" = 'v5' AND a.name = 'Student' AND sc.name = 'Students'
+JOIN cert.domain_catalog d ON d."domainId" = sc."domainId"
+JOIN cert.catalog_version v ON v."catalogVersionId" = d."catalogVersionId"
+WHERE v."isActive" AND v."dataStandardVersion" = 'v5' AND d.name = 'Student' AND sc.name = 'Students'
 ORDER BY s."displayOrder";
 ```
 
