@@ -58,11 +58,13 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
     const { result } = renderCold();
 
     // First render: the team privilege cache has not arrived yet.
-    expect(result.current).toEqual({ canSee: false, isLoading: true });
+    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
 
     await act(async () => teamCache.resolve({ 'team.sb-environment:read': true }));
 
-    await waitFor(() => expect(result.current).toEqual({ canSee: true, isLoading: false }));
+    await waitFor(() =>
+      expect(result.current).toEqual({ canSee: true, isLoading: false, error: null }),
+    );
     expect(getSpy).toHaveBeenCalledWith('/teams/5/env-nav', undefined);
     // No per-tenant privilege-cache requests.
     expect(getSpy.mock.calls.map(([url]) => url)).not.toContainEqual(
@@ -78,8 +80,10 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
 
     const { result } = renderCold();
 
-    expect(result.current).toEqual({ canSee: false, isLoading: true });
-    await waitFor(() => expect(result.current).toEqual({ canSee: false, isLoading: false }));
+    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
+    await waitFor(() =>
+      expect(result.current).toEqual({ canSee: false, isLoading: false, error: null }),
+    );
     expect(getSpy).not.toHaveBeenCalledWith('/teams/5/env-nav', undefined);
   });
 });

@@ -32,10 +32,15 @@ const tenants = (grantedTenant?: number) => ({
 const setup = (opts: {
   data?: unknown;
   navLoading?: boolean;
+  navError?: Error;
   teamCacheLoading?: boolean;
   canReadEnvs?: boolean;
 }) => {
-  mockUseQuery.mockReturnValue({ data: opts.data, isLoading: opts.navLoading ?? false });
+  mockUseQuery.mockReturnValue({
+    data: opts.data,
+    isLoading: opts.navLoading ?? false,
+    error: opts.navError ?? null,
+  });
   mockUsePrivilegeCacheForConfig.mockReturnValue([{ isLoading: opts.teamCacheLoading ?? false }]);
   mockAuthorize.mockImplementation(
     ({ config }: { config: { privilege: string } }) =>
@@ -52,32 +57,39 @@ describe('useCanSeeCertification', () => {
   it('true when one of several tenants grants certification read', () => {
     setup({ data: tenants(200) });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: true, isLoading: false });
+    expect(result.current).toEqual({ canSee: true, isLoading: false, error: null });
   });
 
   it('false when no tenant grants it', () => {
     setup({ data: tenants() });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false });
+    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
   });
 
   it('false and not loading when the team has no tenants', () => {
     setup({ data: {} });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false });
+    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
   });
 
   it('false and not loading when the loaded team cache denies reading environments', () => {
     setup({ data: undefined, canReadEnvs: false });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false });
+    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
     expect(teamQueries.navSearchList).toHaveBeenCalledWith({ enabled: false }, { teamId: 5 });
   });
 
   it('loading while the team privilege cache loads', () => {
     setup({ data: undefined, teamCacheLoading: true, canReadEnvs: false });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: true });
+    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
+  });
+
+  it('reports the env-nav error instead of a plain denial when the request fails', () => {
+    const navError = new Error('Request failed with status code 500');
+    setup({ data: undefined, navError });
+    const { result } = renderHook(() => useCanSeeCertification(5));
+    expect(result.current).toEqual({ canSee: false, isLoading: false, error: navError });
   });
 
   it('loading while the nav list loads', () => {

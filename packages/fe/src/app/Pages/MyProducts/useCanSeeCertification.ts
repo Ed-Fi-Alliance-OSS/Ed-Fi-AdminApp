@@ -8,8 +8,12 @@ import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../he
  *
  * The API flags each tenant row of the team's env-nav list (`certifications`), so this costs one
  * request however many tenants the team has, instead of one privilege-cache request per tenant.
+ *
+ * `error` is the env-nav request's error, if it failed; `canSee` is false then too.
  */
-export const useCanSeeCertification = (teamId: number): { canSee: boolean; isLoading: boolean } => {
+export const useCanSeeCertification = (
+  teamId: number,
+): { canSee: boolean; isLoading: boolean; error: Error | null } => {
   const queryClient = useQueryClient();
   const sbEnvironmentAuth: AuthorizeConfig = {
     privilege: 'team.sb-environment:read',
@@ -24,5 +28,7 @@ export const useCanSeeCertification = (teamId: number): { canSee: boolean; isLoa
   return {
     canSee: Object.values(navList.data ?? {}).some((item) => item.certifications),
     isLoading: sbEnvCache.some((cache) => cache.isLoading) || navList.isLoading,
+    // A failed env-nav request is not a denial; callers must not report it as "Not allowed".
+    error: navList.error ?? null,
   };
 };

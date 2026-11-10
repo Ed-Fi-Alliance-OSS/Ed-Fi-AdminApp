@@ -5,7 +5,7 @@ import { useCanSeeCertification } from './useCanSeeCertification';
 
 export const MyProductsPage = () => {
   const { asId } = useParams();
-  const { canSee, isLoading } = useCanSeeCertification(Number(asId));
+  const { canSee, isLoading, error } = useCanSeeCertification(Number(asId));
 
   if (isLoading) {
     return (
@@ -13,6 +13,11 @@ export const MyProductsPage = () => {
         <Spinner />
       </PageTemplate>
     );
+  }
+
+  if (error) {
+    // A failed access check is not a denial: show the real error, not "Not allowed".
+    throw error;
   }
 
   if (!canSee) {

@@ -53,7 +53,7 @@ jest.mock('../helpers', () => ({
 }));
 
 jest.mock('../Pages/MyProducts/useCanSeeCertification', () => ({
-  useCanSeeCertification: jest.fn(() => ({ canSee: false, isLoading: false })),
+  useCanSeeCertification: jest.fn(() => ({ canSee: false, isLoading: false, error: null })),
 }));
 
 jest.mock('./EnvironmentsNav', () => ({

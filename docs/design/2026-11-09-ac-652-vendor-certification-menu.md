@@ -151,6 +151,10 @@ it. For now it holds one item: **My products** (`Icons.CheckCircle`). The items 
 - **Loading:** it shows a spinner.
 - **No access:** it throws `Error('Not allowed')`, which the routes' existing `ErrorFallback`
   shows. The front end has no dedicated 403 view, and this story doesn't add one.
+- **Access check failed:** if the `env-nav` request fails (network error, 500), the hook returns
+  that `error` and the page throws it, so `ErrorFallback` shows the real error instead of a false
+  "Not allowed". The menu stays hidden in that case, like the other `TeamNav` sections whose
+  requests fail.
 
 ## Not in scope
 
