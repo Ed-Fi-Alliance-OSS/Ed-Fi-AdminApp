@@ -11,6 +11,15 @@ import {
   GLOBAL_ADMIN_ROLE_TYPE,
 } from '../shared/ac652-certification-vendor';
 
+/**
+ * AC-652: adds the team certification privileges to Global admin and the seeded ownership roles,
+ * and inserts the "Certification vendor" team role.
+ *
+ * WARNING (down): reverting deletes the Certification vendor role and leaves every team membership
+ * that used it with no role (`roleId` null). Those users stay in their teams without access until
+ * an admin assigns them another role. No default role is picked automatically, because any choice
+ * could grant access the admin never chose.
+ */
 export class AddCertificationVendorRole1793100000000 implements MigrationInterface {
   name = 'AddCertificationVendorRole1793100000000';
 
