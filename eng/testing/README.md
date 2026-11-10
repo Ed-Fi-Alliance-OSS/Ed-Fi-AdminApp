@@ -104,8 +104,13 @@ and step result statuses are unchanged. When editing test statuses through SQL S
 use `-I` so quoted identifiers are enabled for the filtered indexes.
 
 Run-status updates reject competing decisions with a conflict instead of overwriting them.
+Saving step results rechecks the executable status inside the transaction, before any evidence
+is written. A 409 response refreshes the page's run status so a stale tab becomes read-only.
 Step-result and response-snapshot caches are scoped to the open run, so a new attempt cannot
 reuse a previous attempt's cached results or inputs.
+
+The Domain rename includes database and API names, not just labels. This AC-649 scope change
+was approved and recorded in [Jira comment 100370](https://edfi.atlassian.net/browse/AC-649?focusedCommentId=100370).
 
 Catalog upgrades during an open run are not supported in this MVP. Finish or clean up existing
 test runs before changing the certification artifact. Catalog-pinned inspection and execution

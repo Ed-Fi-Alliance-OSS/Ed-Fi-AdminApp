@@ -859,6 +859,26 @@ describe('CertificationPageExecution', () => {
       ).toBe('false');
     });
 
+    it('refreshes run status after a 409 so a stale tab becomes read-only', () => {
+      const { rerender } = renderAuthenticated();
+      select(1);
+      expect(executeButton().disabled).toBe(false);
+
+      handlers().onError({
+        statusCode: 409,
+        message: 'This certification run is locked for review.',
+      });
+
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: certificationQueryKeys.scenarioStatuses(1, 10, undefined, 'v5'),
+      });
+      mockRunState(false, { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false });
+      rerender(<CertificationPageExecution />);
+
+      expect(executeButton().disabled).toBe(true);
+      expect(screen.queryByTestId('auth-form')).toBeNull();
+    });
+
     it('shows the API message when the run is rejected', () => {
       const message =
         'Another step of this scenario is running. Wait for it to finish, then try again.';

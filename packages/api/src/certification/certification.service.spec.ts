@@ -139,7 +139,7 @@ describe('CertificationService.runStep', () => {
         create: jest.fn((value) => value),
         save: jest.fn(),
       },
-      [CertificationRun.name]: { update: jest.fn() },
+      [CertificationRun.name]: { update: jest.fn().mockResolvedValue({ affected: 1 }) },
       [StepCatalog.name]: { find: jest.fn().mockResolvedValue([{ stepId: 101 }]) },
     };
     dataSource = {
@@ -211,6 +211,13 @@ describe('CertificationService.runStep', () => {
     );
     // config.mock sets SSL_VERIFICATION=false, so Bruno mirrors it with --insecure.
     expect((runBrunoCli as jest.Mock).mock.calls[0][0].args).toContain('--insecure');
+    expect(em.CertificationRun.update).toHaveBeenCalledWith(
+      { certificationRunId: 7, status: In(['DRAFT', 'CHANGES_REQUESTED']) },
+      { updatedAt: expect.any(Date) },
+    );
+    expect(em.CertificationRun.update.mock.invocationCallOrder[0]).toBeLessThan(
+      em.ScenarioStep.findOne.mock.invocationCallOrder[0],
+    );
     expect(em.ScenarioStep.save).toHaveBeenCalledWith(
       expect.objectContaining({
         certificationRunId: 7,
@@ -236,6 +243,36 @@ describe('CertificationService.runStep', () => {
     );
     expect(dispose).toHaveBeenCalled();
   });
+
+  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES', 'APPROVED', 'REJECTED'])(
+    'does not save evidence if the run changes to %s while Bruno is executing',
+    async (nextStatus) => {
+      let currentStatus = 'DRAFT';
+      (runBrunoCli as jest.Mock).mockImplementation(async () => {
+        currentStatus = nextStatus;
+        return { exitCode: 0, timedOut: false, stderrTail: '' };
+      });
+      em.CertificationRun.update.mockImplementation(async () => ({
+        affected: ['DRAFT', 'CHANGES_REQUESTED'].includes(currentStatus) ? 1 : 0,
+      }));
+
+      await expect(run()).rejects.toMatchObject({
+        status: 409,
+        message: CERT_RUN_MESSAGES.runLocked,
+      });
+
+      expect(runBrunoCli).toHaveBeenCalledTimes(1);
+      expect(em.CertificationRun.update).toHaveBeenCalledWith(
+        { certificationRunId: 7, status: In(['DRAFT', 'CHANGES_REQUESTED']) },
+        { updatedAt: expect.any(Date) },
+      );
+      expect(em.ScenarioStep.findOne).not.toHaveBeenCalled();
+      expect(em.ScenarioStep.save).not.toHaveBeenCalled();
+      expect(em.ScenarioStepError.delete).not.toHaveBeenCalled();
+      expect(em.CertificationRunScenario.save).not.toHaveBeenCalled();
+      expect(dispose).toHaveBeenCalled();
+    },
+  );
 
   it('saves a failing result with its errors, replacing the previous row', async () => {
     em.ScenarioStep.findOne.mockResolvedValue({

@@ -1,5 +1,9 @@
 import { MigrationInterface, QueryRunner } from 'typeorm';
 
+/**
+ * Kept separate because the run/domain migrations were already applied in development
+ * before uppercase statuses were requested. Preserve those existing runs and results.
+ */
 export class UppercaseCertificationRunStatuses1794000000002 implements MigrationInterface {
   name = 'UppercaseCertificationRunStatuses1794000000002';
 

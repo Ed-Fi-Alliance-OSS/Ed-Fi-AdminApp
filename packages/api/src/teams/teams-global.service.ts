@@ -1,5 +1,5 @@
 import { GetUserDto, PostTeamDto, PutTeamDto } from '@edanalytics/models';
-import { Team } from '@edanalytics/models-server';
+import { CertificationRun, Team } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -29,7 +29,11 @@ export class TeamsGlobalService {
 
   async remove(id: number, _user: GetUserDto) {
     const old = await this.findOne(id).catch(throwNotFound);
-    await this.teamsRepository.remove(old);
+    await this.entityManager.transaction(async (em) => {
+      // SQL Server uses NO ACTION for this FK; retain the runs without their deleted team.
+      await em.getRepository(CertificationRun).update({ teamId: id }, { teamId: null });
+      await em.getRepository(Team).remove(old);
+    });
     return undefined;
   }
 }

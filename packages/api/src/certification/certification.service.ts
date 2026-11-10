@@ -364,6 +364,16 @@ export class CertificationService {
     const status = parsed.passed ? CERT_STEP_STATUS.success : CERT_STEP_STATUS.failed;
 
     return this.dataSource.transaction(async (em) => {
+      // Lock the run before writing evidence, serializing this save with status decisions.
+      const writable = await em.getRepository(CertificationRun).update(
+        {
+          certificationRunId,
+          status: In([CERT_RUN_STATUS.DRAFT, CERT_RUN_STATUS.CHANGES_REQUESTED]),
+        },
+        { updatedAt: ranAt },
+      );
+      if (writable.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.runLocked);
+
       const stepRuns = em.getRepository(ScenarioStep);
       const existing = await stepRuns.findOne({ where: { certificationRunId, stepId } });
       const stepRun = await stepRuns.save(
@@ -400,9 +410,6 @@ export class CertificationService {
         scenarioRow.capturedVars = parsed.capturedVars;
       }
       await scenarios.save(scenarioRow);
-      await em
-        .getRepository(CertificationRun)
-        .update({ certificationRunId }, { updatedAt: ranAt });
 
       return {
         stepId,

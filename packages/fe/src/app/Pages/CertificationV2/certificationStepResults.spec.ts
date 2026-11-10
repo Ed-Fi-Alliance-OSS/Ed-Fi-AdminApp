@@ -121,6 +121,7 @@ describe('classifyRunError', () => {
       kind: 'api',
       message,
       notFound: false,
+      statusCode: 409,
     });
   });
 
@@ -129,6 +130,7 @@ describe('classifyRunError', () => {
       kind: 'api',
       message: 'Too many runs.',
       notFound: false,
+      statusCode: 503,
     });
   });
 
@@ -137,6 +139,7 @@ describe('classifyRunError', () => {
       kind: 'api',
       message: STEP_NOT_FOUND_MESSAGE,
       notFound: true,
+      statusCode: 404,
     });
     expect(STEP_NOT_FOUND_MESSAGE).toBe(
       'This step is no longer in the active certification catalog. The list has been reloaded.',

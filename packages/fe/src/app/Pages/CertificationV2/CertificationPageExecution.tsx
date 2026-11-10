@@ -151,6 +151,8 @@ export const CertificationPageExecution = () => {
       if (kind.kind === 'unknown') {
         // A proxy timeout or dropped connection: the run may still have been saved.
         refetchStepRuns();
+      }
+      if (kind.kind === 'unknown' || kind.statusCode === 409) {
         queryClient.invalidateQueries({
           queryKey: certificationQueryKeys.scenarioStatuses(
             sbEnvironmentId,
