@@ -103,6 +103,14 @@ rollback restores lowercase values. Deploy this migration with the matching API 
 and step result statuses are unchanged. When editing test statuses through SQL Server's `sqlcmd`,
 use `-I` so quoted identifiers are enabled for the filtered indexes.
 
+Run-status updates reject competing decisions with a conflict instead of overwriting them.
+Step-result and response-snapshot caches are scoped to the open run, so a new attempt cannot
+reuse a previous attempt's cached results or inputs.
+
+Catalog upgrades during an open run are not supported in this MVP. Finish or clean up existing
+test runs before changing the certification artifact. Catalog-pinned inspection and execution
+of older artifacts require follow-up work.
+
 Look up the v5 Students step ids after the API has synced the catalog:
 
 ```sql

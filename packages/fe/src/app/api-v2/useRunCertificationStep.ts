@@ -7,6 +7,9 @@ export type RunCertificationStepVariables = {
   edfiTenantId: number;
   sisVersion: string;
   stepId: number;
+  /** Client-side cache scope, not part of the API request body. */
+  runId: number | null | undefined;
+  scenarioId: number;
   body: PostCertificationStepRunDto;
 };
 

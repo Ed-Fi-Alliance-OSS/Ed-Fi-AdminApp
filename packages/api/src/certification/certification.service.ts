@@ -265,7 +265,15 @@ export class CertificationService {
     if (!canTransitionRun(certificationRun.status, to)) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
-    return this.runRepository.save({ ...certificationRun, status: to });
+    const updatedAt = new Date();
+    const result = await this.runRepository.update(
+      { certificationRunId, status: certificationRun.status },
+      { status: to, updatedAt },
+    );
+    if (result.affected !== 1) {
+      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+    }
+    return { ...certificationRun, status: to, updatedAt };
   }
 
   private async execute(

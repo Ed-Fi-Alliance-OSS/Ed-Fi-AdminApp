@@ -650,11 +650,15 @@ describe('deriveScenarioStatus', () => {
 });
 
 describe('CertificationService.changeRunStatus', () => {
-  let runRepository: { findOne: jest.Mock; save: jest.Mock };
+  let runRepository: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
   let service: CertificationService;
 
   beforeEach(() => {
-    runRepository = { findOne: jest.fn(), save: jest.fn(async (value) => value) };
+    runRepository = {
+      findOne: jest.fn(),
+      save: jest.fn(async (value) => value),
+      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    };
     service = new CertificationService(
       {} as never,
       {} as never,
@@ -672,7 +676,49 @@ describe('CertificationService.changeRunStatus', () => {
   ] as const)('moves a %s run to %s', async (from, to) => {
     runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: from });
     await expect(service.changeRunStatus(7, to)).resolves.toMatchObject({ status: to });
-    expect(runRepository.save).toHaveBeenCalledWith({ certificationRunId: 7, status: to });
+    expect(runRepository.update).toHaveBeenCalledWith(
+      { certificationRunId: 7, status: from },
+      { status: to, updatedAt: expect.any(Date) },
+    );
+    expect(runRepository.save).not.toHaveBeenCalled();
+  });
+
+  it('returns a conflict if the status changed after it was read', async () => {
+    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'IN_REVIEW' });
+    runRepository.update.mockResolvedValue({ affected: 0 });
+
+    await expect(service.changeRunStatus(7, 'CHANGES_REQUESTED')).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.invalidTransition,
+    });
+  });
+
+  it('does not reopen an approved run when two decisions race', async () => {
+    const storedRun = { certificationRunId: 7, status: 'IN_REVIEW' };
+    runRepository.findOne.mockImplementation(async () => ({ ...storedRun }));
+    runRepository.save.mockImplementation(async (value) => {
+      Object.assign(storedRun, value);
+      return { ...storedRun };
+    });
+    runRepository.update.mockImplementation(async (where, changes) => {
+      if (
+        where.certificationRunId !== storedRun.certificationRunId ||
+        where.status !== storedRun.status
+      ) {
+        return { affected: 0 };
+      }
+      Object.assign(storedRun, changes);
+      return { affected: 1 };
+    });
+
+    const decisions = await Promise.allSettled([
+      service.changeRunStatus(7, 'APPROVED'),
+      service.changeRunStatus(7, 'CHANGES_REQUESTED'),
+    ]);
+
+    expect(decisions[0]).toMatchObject({ status: 'fulfilled', value: { status: 'APPROVED' } });
+    expect(decisions[1]).toMatchObject({ status: 'rejected', reason: { status: 409 } });
+    expect(storedRun.status).toBe('APPROVED');
   });
 
   it('refuses Draft straight to Approved and leaves the run Draft', async () => {
@@ -683,11 +729,13 @@ describe('CertificationService.changeRunStatus', () => {
       message: CERT_RUN_MESSAGES.invalidTransition,
     });
     expect(runRepository.save).not.toHaveBeenCalled();
+    expect(runRepository.update).not.toHaveBeenCalled();
     expect(certificationRun.status).toBe('DRAFT');
   });
 
   it('returns 404 for a run that does not exist', async () => {
     runRepository.findOne.mockResolvedValue(null);
     await expect(service.changeRunStatus(7, 'IN_REVIEW')).rejects.toBeInstanceOf(NotFoundException);
+    expect(runRepository.update).not.toHaveBeenCalled();
   });
 });

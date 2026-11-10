@@ -28,6 +28,7 @@ export const certificationQueryKeys = {
     edfiTenantId: number | undefined,
     odsId: number | undefined,
     scenarioId: number | undefined,
+    runId: number | null | undefined,
   ) =>
     [
       ...certificationQueryKeys.all(sbEnvironmentId),
@@ -35,6 +36,7 @@ export const certificationQueryKeys = {
       edfiTenantId,
       odsId ?? null,
       scenarioId,
+      runId,
     ] as const,
   scenarioStatuses: (
     sbEnvironmentId: number,
@@ -49,13 +51,14 @@ export const certificationQueryKeys = {
       odsId ?? null,
       sisVersion,
     ] as const,
-  /** Includes the run time, so a re-run of the step fetches its new snapshot. */
+  /** Includes the run identity and step execution time, so neither kind of re-run shares a snapshot. */
   stepSnapshot: (
     sbEnvironmentId: number,
     edfiTenantId: number | undefined,
     odsId: number | undefined,
     stepId: number | undefined,
     ranAt: string | undefined,
+    runId: number | null | undefined,
   ) =>
     [
       ...certificationQueryKeys.all(sbEnvironmentId),
@@ -64,6 +67,7 @@ export const certificationQueryKeys = {
       odsId ?? null,
       stepId,
       ranAt,
+      runId,
     ] as const,
 };
 

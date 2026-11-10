@@ -6,7 +6,7 @@ import { useCertificationStepSnapshot } from './useCertificationStepSnapshot';
 
 jest.mock('./useCertificationStepSnapshot', () => ({ useCertificationStepSnapshot: jest.fn() }));
 
-const snapshotArgs = { sbEnvironmentId: 1, edfiTenantId: 10, odsId: 5, sisVersion: 'v5' };
+const snapshotArgs = { sbEnvironmentId: 1, edfiTenantId: 10, odsId: 5, sisVersion: 'v5', runId: 7 };
 
 const fieldsRun: CertificationSavedStepRunDto = {
   stepId: 189,

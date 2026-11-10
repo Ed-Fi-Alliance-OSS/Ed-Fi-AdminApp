@@ -21,7 +21,7 @@ import {
 } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import {
   CertificationStepDto,
@@ -84,14 +84,6 @@ export const CertificationPageExecution = () => {
     sbEnvironmentId,
     selected?.scenario.scenarioId,
   );
-  // Saved results need no token, so they show before the vendor validates credentials again.
-  const stepRuns = useCertificationStepRuns({
-    sbEnvironmentId,
-    edfiTenantId,
-    odsId,
-    sisVersion,
-    scenarioId: selected?.scenario.scenarioId,
-  });
   // The same query as the request page, so both pages agree on whether steps can run.
   const scenarioStatuses = useCertificationScenarioStatuses({
     sbEnvironmentId,
@@ -100,10 +92,27 @@ export const CertificationPageExecution = () => {
     sisVersion,
     enabled: edfiTenantId !== undefined,
   });
-  const stepRunsQueryKey = stepRuns.queryKey;
+  const runId = scenarioStatuses.run === null ? null : scenarioStatuses.run?.runId;
+  // Saved results need no token, but must belong to the current open run.
+  const stepRuns = useCertificationStepRuns({
+    sbEnvironmentId,
+    edfiTenantId,
+    odsId,
+    sisVersion,
+    scenarioId: selected?.scenario.scenarioId,
+    runId,
+  });
   const refetchStepRuns = stepRuns.refetch;
   const run = useRunCertificationStep({
     onSuccess: (result: CertificationStepRunDto, variables: RunCertificationStepVariables) => {
+      // The selected run may have changed while this request was in flight.
+      const stepRunsQueryKey = certificationQueryKeys.stepRuns(
+        variables.sbEnvironmentId,
+        variables.edfiTenantId,
+        variables.body.odsId,
+        variables.scenarioId,
+        variables.runId,
+      );
       // Show the new result right away; the API overwrote the saved one.
       const saved = {
         stepId: result.stepId,
@@ -130,10 +139,10 @@ export const CertificationPageExecution = () => {
       // the scenario's overall status, so that list needs its own invalidation too.
       queryClient.invalidateQueries({
         queryKey: certificationQueryKeys.scenarioStatuses(
-          sbEnvironmentId,
-          edfiTenantId,
-          odsId,
-          sisVersion,
+          variables.sbEnvironmentId,
+          variables.edfiTenantId,
+          variables.body.odsId,
+          variables.sisVersion,
         ),
       });
     },
@@ -142,6 +151,14 @@ export const CertificationPageExecution = () => {
       if (kind.kind === 'unknown') {
         // A proxy timeout or dropped connection: the run may still have been saved.
         refetchStepRuns();
+        queryClient.invalidateQueries({
+          queryKey: certificationQueryKeys.scenarioStatuses(
+            sbEnvironmentId,
+            edfiTenantId,
+            odsId,
+            sisVersion,
+          ),
+        });
       } else if (kind.notFound) {
         queryClient.invalidateQueries({ queryKey: certificationQueryKeys.all(sbEnvironmentId) });
       }
@@ -191,6 +208,13 @@ export const CertificationPageExecution = () => {
   const [typedValuesByStep, setTypedValuesByStep] = useState<
     Record<number, Record<string, string>>
   >({});
+  const previousRunId = useRef(runId);
+  useEffect(() => {
+    if (typeof previousRunId.current === 'number' && previousRunId.current !== runId) {
+      setTypedValuesByStep({});
+    }
+    previousRunId.current = runId;
+  }, [runId]);
   const selectedRun = validatedStep ? stepRuns.runsByStepId[validatedStep.stepId] : undefined;
   const parameterValues = useMemo(
     () => ({
@@ -232,13 +256,17 @@ export const CertificationPageExecution = () => {
     return null;
   }
 
-  const isRunningStep = (stepId: number) => run.isPending && run.variables?.stepId === stepId;
+  // The first execution can create the run before the page learns its ID.
+  const mutationMatchesRun =
+    typeof run.variables?.runId !== 'number' || run.variables.runId === runId;
+  const isRunningStep = (stepId: number) =>
+    run.isPending && mutationMatchesRun && run.variables?.stepId === stepId;
   const canExecuteStep = parameterDefinitions.every((parameter) =>
     Boolean(parameterValues[parameter.parameterId]?.trim()),
   );
   // A run's error belongs to the step it ran, not to whichever step is open now.
   const runError =
-    run.error && run.variables?.stepId === validatedStep?.stepId
+    run.error && mutationMatchesRun && run.variables?.stepId === validatedStep?.stepId
       ? classifyRunError(run.error)
       : undefined;
 
@@ -250,6 +278,8 @@ export const CertificationPageExecution = () => {
       edfiTenantId,
       sisVersion,
       stepId: step.stepId,
+      scenarioId: step.scenarioId,
+      runId,
       body: {
         odsId,
         token: auth.token,
@@ -485,11 +515,11 @@ export const CertificationPageExecution = () => {
             // Full width below both columns: long values such as descriptor URIs fit on one line.
             <Box mt={6}>
               <CertificationStepResponseDetails
-                // A new step starts closed, so its snapshot loads only when the vendor opens it.
-                key={validatedStep.stepId}
+                // A new run or step starts closed, so its snapshot loads only when opened.
+                key={`${runId ?? 'no-run'}:${validatedStep.stepId}`}
                 run={selectedRun}
                 isRunning={isRunningStep(validatedStep.stepId)}
-                snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion }}
+                snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion, runId }}
               />
             </Box>
           )}

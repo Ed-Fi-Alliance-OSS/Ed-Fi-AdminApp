@@ -22,6 +22,7 @@ const args = {
   odsId: 5 as number | undefined,
   sisVersion: 'v5' as string | undefined,
   scenarioId: 52 as number | undefined,
+  runId: 7 as number | null | undefined,
 };
 const refetch = jest.fn();
 
@@ -47,8 +48,8 @@ describe('useCertificationStepRuns', () => {
       CertificationStepRunsDto,
       { params: { scenarioId: 52 } },
     );
-    expect(options.queryKey).toEqual(certificationQueryKeys.stepRuns(1, 10, undefined, 52));
-    expect(options.queryKey).toEqual(['certification', 1, 'step-runs', 10, null, 52]);
+    expect(options.queryKey).toEqual(certificationQueryKeys.stepRuns(1, 10, undefined, 52, 7));
+    expect(options.queryKey).toEqual(['certification', 1, 'step-runs', 10, null, 52, 7]);
   });
 
   it('sends odsId when an ODS is chosen', async () => {
@@ -64,6 +65,8 @@ describe('useCertificationStepRuns', () => {
     ['tenant', { edfiTenantId: undefined }],
     ['version', { sisVersion: undefined }],
     ['scenario', { scenarioId: undefined }],
+    ['open run', { runId: undefined }],
+    ['next run', { runId: null }],
   ])('is disabled until the %s is known', (_label, overrides) => {
     const { options, result } = render(overrides);
     expect(options.enabled).toBe(false);
@@ -84,7 +87,7 @@ describe('useCertificationStepRuns', () => {
     expect(result.runsByStepId).toEqual({ 189: step });
     expect(result.scenarioStatus).toBe('failed');
     expect(result.isPending).toBe(false);
-    expect(result.queryKey).toEqual(['certification', 1, 'step-runs', 10, 5, 52]);
+    expect(result.queryKey).toEqual(['certification', 1, 'step-runs', 10, 5, 52, 7]);
   });
 
   it('has no saved steps while loading', () => {

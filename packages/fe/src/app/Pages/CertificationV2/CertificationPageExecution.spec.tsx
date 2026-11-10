@@ -30,6 +30,21 @@ jest.mock('./CertificationAuthContext', () => ({
 jest.mock('./useCertificationCatalog', () => ({
   certificationQueryKeys: {
     all: (sbEnvironmentId: number) => ['certification', sbEnvironmentId],
+    stepRuns: (
+      sbEnvironmentId: number,
+      edfiTenantId: number | undefined,
+      odsId: number | undefined,
+      scenarioId: number | undefined,
+      runId: number | null | undefined,
+    ) => [
+      'certification',
+      sbEnvironmentId,
+      'step-runs',
+      edfiTenantId,
+      odsId ?? null,
+      scenarioId,
+      runId,
+    ],
     scenarioStatuses: (
       sbEnvironmentId: number,
       edfiTenantId: number | undefined,
@@ -135,7 +150,7 @@ const validAuth = {
   odsId: undefined,
 };
 
-const STEP_RUNS_KEY = ['step-runs-key'];
+const STEP_RUNS_KEY = ['certification', 1, 'step-runs', 10, null, 52, 7];
 const savedFailure = {
   stepId: 189,
   status: 'failed',
@@ -157,17 +172,17 @@ let runState: {
   mutate: jest.Mock;
   reset: jest.Mock;
   isPending: boolean;
-  variables: { stepId: number } | undefined;
+  variables: { stepId: number; runId: number | null | undefined } | undefined;
   error: unknown;
 };
 const handlers = () => (useRunCertificationStep as jest.Mock).mock.calls.at(-1)[0];
-const mockStepRuns = (runsByStepId: Record<number, unknown>) =>
+const mockStepRuns = (runsByStepId: Record<number, unknown>, queryKey = STEP_RUNS_KEY) =>
   (useCertificationStepRuns as jest.Mock).mockReturnValue({
     runsByStepId,
     scenarioStatus: null,
     isPending: false,
     refetch,
-    queryKey: STEP_RUNS_KEY,
+    queryKey,
   });
 
 /** What the statuses hook says about the data store's open run. */
@@ -194,7 +209,7 @@ describe('CertificationPageExecution', () => {
     });
     (useCertificationCatalog as jest.Mock).mockReturnValue(catalog);
     (useCertificationSteps as jest.Mock).mockReturnValue({ steps, isPending: false });
-    mockRunState(true);
+    mockRunState(true, { runId: 7, status: 'DRAFT', canExecuteSteps: true });
   });
 
   it('shows the domain, scenario and steps from the catalog', () => {
@@ -224,7 +239,7 @@ describe('CertificationPageExecution', () => {
       setAuth: jest.fn(),
       clearAuth: jest.fn(),
     });
-    render(<CertificationPageExecution />);
+    return render(<CertificationPageExecution />);
   };
   const executeButton = () =>
     screen.getByRole('button', { name: 'Execute step' }) as HTMLButtonElement;
@@ -570,6 +585,7 @@ describe('CertificationPageExecution', () => {
         odsId: undefined,
         sisVersion: 'v5',
         scenarioId: 52,
+        runId: 7,
       });
     });
 
@@ -670,6 +686,8 @@ describe('CertificationPageExecution', () => {
         edfiTenantId: 10,
         sisVersion: 'v5',
         stepId: 189,
+        scenarioId: 52,
+        runId: 7,
         body: {
           odsId: undefined,
           token: 't',
@@ -681,13 +699,26 @@ describe('CertificationPageExecution', () => {
     it('shows Running on the row and disables Execute while the run is pending', () => {
       mockStepRuns({ 189: savedFailure });
       runState.isPending = true;
-      runState.variables = { stepId: 189 };
+      runState.variables = { stepId: 189, runId: 7 };
       renderAuthenticated();
       select(0);
 
       expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
       expect(executeButton().disabled).toBe(true);
     });
+
+    it.each([null, undefined])(
+      'keeps the first execution running when its initial run identity was %s',
+      (runId) => {
+        runState.isPending = true;
+        runState.variables = { stepId: 189, runId };
+        renderAuthenticated();
+        select(0);
+
+        expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
+        expect(executeButton().disabled).toBe(true);
+      },
+    );
 
     it('writes the run response into the saved results and refreshes them', () => {
       mockStepRuns({ 189: savedFailure });
@@ -757,11 +788,82 @@ describe('CertificationPageExecution', () => {
       },
     );
 
+    it('keeps a late mutation result in the run that started it', () => {
+      const { rerender } = renderAuthenticated();
+      select(0);
+      fillStep189();
+      fireEvent.click(executeButton());
+      const variables = runState.mutate.mock.calls[0][0];
+      const nextKey = ['certification', 1, 'step-runs', 10, null, 52, 8];
+      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+      mockStepRuns({}, nextKey);
+      rerender(<CertificationPageExecution />);
+
+      handlers().onSuccess(
+        {
+          stepId: 189,
+          status: 'success',
+          ranAt: 'new-time',
+          scenarioStatus: 'completed',
+          errors: [],
+        },
+        variables,
+      );
+
+      expect(mockQueryClient.setQueryData).toHaveBeenCalledWith(
+        STEP_RUNS_KEY,
+        expect.any(Function),
+      );
+      expect(mockQueryClient.setQueryData).not.toHaveBeenCalledWith(nextKey, expect.any(Function));
+    });
+
+    it.each([null, { runId: 8, status: 'DRAFT', canExecuteSteps: true }])(
+      'clears typed inputs from the previous attempt when the open run becomes %s',
+      (nextRun) => {
+        const { rerender } = renderAuthenticated();
+        select(0);
+        fillStep189();
+        mockRunState(true, nextRun);
+        mockStepRuns({});
+
+        rerender(<CertificationPageExecution />);
+
+        expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('');
+        expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe('');
+      },
+    );
+
+    it('keeps typed inputs when the first execution creates the initial run', () => {
+      mockRunState(true, null);
+      const { rerender } = renderAuthenticated();
+      select(0);
+      fillStep189();
+      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+
+      rerender(<CertificationPageExecution />);
+
+      expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('255901');
+    });
+
+    it('closes response details when the same step belongs to a different run', () => {
+      mockStepRuns({ 189: savedFailure });
+      const { rerender } = renderAuthenticated();
+      select(0);
+      fireEvent.click(screen.getByRole('button', { name: /View response details/ }));
+      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+
+      rerender(<CertificationPageExecution />);
+
+      expect(
+        screen.getByRole('button', { name: /View response details/ }).getAttribute('aria-expanded'),
+      ).toBe('false');
+    });
+
     it('shows the API message when the run is rejected', () => {
       const message =
         'Another step of this scenario is running. Wait for it to finish, then try again.';
       runState.error = { statusCode: 409, message };
-      runState.variables = { stepId: 189 };
+      runState.variables = { stepId: 189, runId: 7 };
       renderAuthenticated();
       select(0);
 
@@ -782,7 +884,7 @@ describe('CertificationPageExecution', () => {
 
     it('does not mark the step failed when the result is unknown, and refetches', () => {
       runState.error = '<html>504 Gateway Time-out</html>';
-      runState.variables = { stepId: 190 };
+      runState.variables = { stepId: 190, runId: 7 };
       renderAuthenticated();
       select(1);
       fireEvent.click(executeButton());
@@ -801,7 +903,7 @@ describe('CertificationPageExecution', () => {
       const message =
         'Another step of this scenario is running. Wait for it to finish, then try again.';
       runState.error = { statusCode: 409, message };
-      runState.variables = { stepId: 189 };
+      runState.variables = { stepId: 189, runId: 7 };
       renderAuthenticated();
       select(1);
 
@@ -810,7 +912,7 @@ describe('CertificationPageExecution', () => {
 
     it('keeps a running step running when the vendor opens another step', () => {
       runState.isPending = true;
-      runState.variables = { stepId: 189 };
+      runState.variables = { stepId: 189, runId: 7 };
       renderAuthenticated();
       select(0);
       select(1);
