@@ -4,6 +4,10 @@ import * as path from 'path';
 import childProcess from 'child_process';
 import { createHash } from 'crypto';
 import { ArtifactService } from './artifact.service';
+import { resolveNpmCommand } from './npm-command';
+
+jest.mock('./npm-command');
+const mockResolveNpmCommand = jest.mocked(resolveNpmCommand);
 
 jest.mock('config', () => ({
   __esModule: true,
@@ -315,6 +319,10 @@ describe('ArtifactService: installRuntimeDependencies', () => {
     tmpRoot = fs.mkdtempSync(path.join(os.tmpdir(), 'artifact-install-'));
     asInternal(service).runtimeRoot = tmpRoot;
     fs.writeFileSync(path.join(tmpRoot, 'package.json'), '{}');
+    mockResolveNpmCommand.mockReturnValue({
+      command: process.execPath,
+      prefixArgs: [path.join('fake', 'npm', 'bin', 'npm-cli.js')],
+    });
   });
 
   afterEach(() => {
@@ -344,6 +352,32 @@ describe('ArtifactService: installRuntimeDependencies', () => {
     const args = JSON.stringify(spawn.mock.calls[0][1]);
     expect(args).toContain('ci');
     expect(args).not.toContain('install');
+  });
+
+  it('runs npm ci without a shell, as an argument array', () => {
+    fs.writeFileSync(path.join(tmpRoot, 'package-lock.json'), '{}');
+    const spawn = jest
+      .spyOn(childProcess, 'spawnSync')
+      .mockReturnValue({ status: 0, stdout: '', stderr: '' } as never);
+
+    asInternal(service).installRuntimeDependencies();
+
+    const [command, args, options] = spawn.mock.calls[0];
+    expect(command).toBe(process.execPath);
+    expect((args as string[])[0]).toMatch(/npm-cli\.js$/);
+    expect(args).toEqual(expect.arrayContaining(['ci', '--ignore-scripts']));
+    expect(options).toMatchObject({ shell: false, cwd: tmpRoot });
+  });
+
+  it('propagates the Windows error when npm-cli.js is missing, without spawning', () => {
+    fs.writeFileSync(path.join(tmpRoot, 'package-lock.json'), '{}');
+    mockResolveNpmCommand.mockImplementation(() => {
+      throw new Error('npm-cli.js not found next to node.exe; cannot run npm without a shell');
+    });
+    const spawn = jest.spyOn(childProcess, 'spawnSync');
+
+    expect(() => asInternal(service).installRuntimeDependencies()).toThrow('npm-cli.js not found');
+    expect(spawn).not.toHaveBeenCalled();
   });
 
   it('succeeds when npm ci succeeds', () => {
