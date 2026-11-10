@@ -42,6 +42,8 @@ export type TeamPrivileges =
   | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
+  | 'team.sb-environment.edfi-tenant.ods.certification:read'
+  | 'team.sb-environment.edfi-tenant.ods.certification:run'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:update'
@@ -69,6 +71,8 @@ export type TeamSbEnvironmentPrivileges =
   | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
+  | 'team.sb-environment.edfi-tenant.ods.certification:read'
+  | 'team.sb-environment.edfi-tenant.ods.certification:run'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:update'
@@ -93,6 +97,8 @@ export type TeamSbEnvironmentEdfiTenantPrivileges =
   | 'team.sb-environment.edfi-tenant.ods:read-row-counts'
   | 'team.sb-environment.edfi-tenant.ods:create-edorg'
   | 'team.sb-environment.edfi-tenant.ods:delete-edorg'
+  | 'team.sb-environment.edfi-tenant.ods.certification:read'
+  | 'team.sb-environment.edfi-tenant.ods.certification:run'
   | 'team.sb-environment.edfi-tenant.ods.edorg:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:read'
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:update'
@@ -172,6 +178,8 @@ export const TeamResourcePrivileges = {
     'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
+    'team.sb-environment.edfi-tenant.ods.certification:read',
+    'team.sb-environment.edfi-tenant.ods.certification:run',
   ],
   'team.sb-environment.edfi-tenant.ods.edorg': ['team.sb-environment.edfi-tenant.ods.edorg:read'],
   'team.sb-environment.edfi-tenant.ods.edorg.application': [
@@ -216,6 +224,8 @@ export const TeamSbEnvironmentResourcePrivileges = {
     'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
+    'team.sb-environment.edfi-tenant.ods.certification:read',
+    'team.sb-environment.edfi-tenant.ods.certification:run',
   ],
   'team.sb-environment.edfi-tenant.ods.edorg': ['team.sb-environment.edfi-tenant.ods.edorg:read'],
   'team.sb-environment.edfi-tenant.ods.edorg.application': [
@@ -251,6 +261,8 @@ export const TeamSbEnvironmentEdfiTenantResourcePrivileges = {
     'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
+    'team.sb-environment.edfi-tenant.ods.certification:read',
+    'team.sb-environment.edfi-tenant.ods.certification:run',
   ],
   'team.sb-environment.edfi-tenant.ods.edorg': ['team.sb-environment.edfi-tenant.ods.edorg:read'],
   'team.sb-environment.edfi-tenant.ods.edorg.application': [

@@ -330,5 +330,39 @@ describe('PrivilegeGrantGuardService', () => {
         );
       });
     });
+
+    describe('Certification vendor role (AC-652)', () => {
+      const readCodes = [
+        'team.sb-environment:read',
+        'team.sb-environment.edfi-tenant:read',
+        'team.sb-environment.edfi-tenant.ods:read',
+      ];
+      const certificationCodes = [
+        'team.sb-environment.edfi-tenant.ods.certification:read',
+        'team.sb-environment.edfi-tenant.ods.certification:run',
+      ];
+      const vendorRole = {
+        id: 8,
+        type: RoleType.UserTeam,
+        teamId: null,
+        privilegeIds: [...readCodes, ...certificationCodes],
+      };
+
+      beforeEach(() => rolesById({ 8: vendorRole }));
+
+      it('allows an actor holding all five codes (Global admin) to assign it', async () => {
+        mockAuthService.getUserPrivileges.mockResolvedValue(
+          held(...readCodes, ...certificationCodes),
+        );
+        await expect(guard.assertCanAssignRole(1, 8, teamCtx)).resolves.toBeUndefined();
+      });
+
+      it('rejects a Tenant admin who lacks the certification codes', async () => {
+        mockAuthService.getUserPrivileges.mockResolvedValue(held(...readCodes));
+        await expect(
+          expectStatus(guard.assertCanAssignRole(1, 8, teamCtx), 403),
+        ).resolves.toBeInstanceOf(HttpException);
+      });
+    });
   });
 });

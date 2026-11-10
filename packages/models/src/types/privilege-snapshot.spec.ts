@@ -53,6 +53,8 @@ const GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT = [
   'team.sb-environment.edfi-tenant.ods.edorg:read',
   'team.sb-environment.edfi-tenant.ods:create-edorg',
   'team.sb-environment.edfi-tenant.ods:delete-edorg',
+  'team.sb-environment.edfi-tenant.ods.certification:read',
+  'team.sb-environment.edfi-tenant.ods.certification:run',
   'team.sb-environment.edfi-tenant.ods:read',
   'team.sb-environment.edfi-tenant.ods:read-row-counts',
   'team.sb-environment.edfi-tenant.profile:create',
