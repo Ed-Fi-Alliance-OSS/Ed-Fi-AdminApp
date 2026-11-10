@@ -69,7 +69,7 @@ jest.mock('@edanalytics/common-ui', () => ({
     {},
     {
       get: () => () => null,
-    },
+    }
   ),
 }));
 
