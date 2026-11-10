@@ -16,18 +16,18 @@ const build = () => {
         isActive: true,
       },
     ]),
-    findAreasWithScenarios: jest.fn().mockResolvedValue([
+    findDomainsWithScenarios: jest.fn().mockResolvedValue([
       {
-        areaId: 3,
+        domainId: 3,
         catalogVersionId: 1,
-        name: 'Area',
-        displayName: 'Area',
+        name: 'Domain',
+        displayName: 'Domain',
         displayOrder: 1,
         isEnabled: true,
         scenarios: [
           {
             scenarioId: 7,
-            areaId: 3,
+            domainId: 3,
             name: 'Scenario',
             displayName: 'Scenario',
             displayOrder: 1,
@@ -63,16 +63,16 @@ describe('CertificationCatalogController', () => {
     ]);
   });
 
-  it('passes catalogVersionId to the service and serializes areas with scenarios', async () => {
+  it('passes catalogVersionId to the service and serializes domains with scenarios', async () => {
     const { controller, service } = build();
 
     const result = plain(await controller.getScenarios(1, 1));
 
-    expect(service.findAreasWithScenarios).toHaveBeenCalledWith(1);
+    expect(service.findDomainsWithScenarios).toHaveBeenCalledWith(1);
     expect(result[0]).not.toHaveProperty('isEnabled');
     expect(result[0].scenarios[0]).toEqual({
       scenarioId: 7,
-      areaId: 3,
+      domainId: 3,
       name: 'Scenario',
       displayName: 'Scenario',
       displayOrder: 1,
@@ -84,7 +84,7 @@ describe('CertificationCatalogController', () => {
 
     await controller.getScenarios(1, undefined);
 
-    expect(service.findAreasWithScenarios).toHaveBeenCalledWith(undefined);
+    expect(service.findDomainsWithScenarios).toHaveBeenCalledWith(undefined);
   });
 
   it('passes scenarioId to the service and serializes steps with parameters', async () => {

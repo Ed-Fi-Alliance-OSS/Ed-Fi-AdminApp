@@ -119,7 +119,7 @@ export const STEP_NOT_FOUND_MESSAGE =
   'This step is no longer in the active certification catalog. The list has been reloaded.';
 
 export type RunErrorKind =
-  { kind: 'api'; message: string; notFound: boolean } | { kind: 'unknown' };
+  { kind: 'api'; message: string; notFound: boolean; statusCode?: number } | { kind: 'unknown' };
 
 /**
  * The API client throws only the response body, so the API's own errors are told apart by
@@ -136,15 +136,18 @@ export const classifyRunError = (error: unknown): RunErrorKind => {
 
   const validationMessage =
     body.data?.errors && Object.values(body.data.errors).find((e) => e?.message)?.message;
-  if (validationMessage) return { kind: 'api', message: validationMessage, notFound: false };
+  const statusCode = typeof body.statusCode === 'number' ? body.statusCode : undefined;
+  if (validationMessage) {
+    return { kind: 'api', message: validationMessage, notFound: false, statusCode };
+  }
 
-  if (typeof body.statusCode === 'number') {
-    if (body.statusCode === 404) {
-      return { kind: 'api', message: STEP_NOT_FOUND_MESSAGE, notFound: true };
+  if (statusCode !== undefined) {
+    if (statusCode === 404) {
+      return { kind: 'api', message: STEP_NOT_FOUND_MESSAGE, notFound: true, statusCode };
     }
     const message = Array.isArray(body.message) ? body.message[0] : body.message;
     if (typeof message === 'string' && message) {
-      return { kind: 'api', message, notFound: false };
+      return { kind: 'api', message, notFound: false, statusCode };
     }
   }
   return { kind: 'unknown' };

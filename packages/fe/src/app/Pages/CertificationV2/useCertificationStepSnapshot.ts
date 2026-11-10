@@ -10,6 +10,7 @@ export type UseCertificationStepSnapshotArgs = {
   sisVersion: string | undefined;
   stepId: number | undefined;
   ranAt: string | undefined;
+  runId: number | null | undefined;
   /** True once the vendor opens the response panel; the snapshot is never loaded before. */
   enabled: boolean;
 };
@@ -22,10 +23,15 @@ export const useCertificationStepSnapshot = ({
   sisVersion,
   stepId,
   ranAt,
+  runId,
   enabled: isOpen,
 }: UseCertificationStepSnapshotArgs) => {
   const enabled =
-    isOpen && edfiTenantId !== undefined && sisVersion !== undefined && stepId !== undefined;
+    isOpen &&
+    edfiTenantId !== undefined &&
+    sisVersion !== undefined &&
+    stepId !== undefined &&
+    typeof runId === 'number';
   const query = useQuery({
     queryKey: certificationQueryKeys.stepSnapshot(
       sbEnvironmentId,
@@ -33,6 +39,7 @@ export const useCertificationStepSnapshot = ({
       odsId,
       stepId,
       ranAt,
+      runId,
     ),
     queryFn: () =>
       methods.getOne(
@@ -45,8 +52,8 @@ export const useCertificationStepSnapshot = ({
 
   // A disabled query reports isPending forever, so only count it when it can run.
   return {
-    snapshot: query.data as CertificationStepSnapshotDto | undefined,
+    snapshot: enabled ? query.data : undefined,
     isPending: enabled && query.isPending,
-    isError: query.isError,
+    isError: enabled && query.isError,
   };
 };

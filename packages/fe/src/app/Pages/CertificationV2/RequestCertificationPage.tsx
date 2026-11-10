@@ -59,16 +59,16 @@ export const RequestCertificationPage = () => {
   const sbEnvironmentId = Number(useParams().sbEnvironmentId);
   const { edfiTenantId, odsId, setSelection, toSearch } = useCertificationSelection();
   const { auth, clearAuth } = useCertificationAuth();
-  const [selectedAreaId, setSelectedAreaId] = useState('');
+  const [selectedDomainId, setSelectedDomainId] = useState('');
   const catalog = useCertificationCatalog(sbEnvironmentId);
   const hasCatalog = catalog.catalogVersion !== undefined;
 
   const tableScenarios = useMemo(
     () =>
-      catalog.areas
-        .filter((area) => selectedAreaId === '' || String(area.areaId) === selectedAreaId)
-        .flatMap((area) => area.scenarios.map((scenario) => ({ area, scenario }))),
-    [catalog.areas, selectedAreaId],
+      catalog.domains
+        .filter((domain) => selectedDomainId === '' || String(domain.domainId) === selectedDomainId)
+        .flatMap((domain) => domain.scenarios.map((scenario) => ({ domain, scenario }))),
+    [catalog.domains, selectedDomainId],
   );
 
   const navToParentOptions = useNavToParent();
@@ -249,12 +249,16 @@ export const RequestCertificationPage = () => {
             </FormControl>
           )}
 
-          <CertificationAuthenticateForm
-            sbEnvironmentId={sbEnvironmentId}
-            edfiTenantId={edfiTenantId}
-            odsId={odsId}
-            isDisabled={isLoadingSelection || (odsRequired && odsId === undefined)}
-          />
+          {/* Credentials are only for running steps. While the run is in review no step can run,
+              so there is nothing to validate and the form is hidden. */}
+          {scenarioStatuses.canExecuteSteps && (
+            <CertificationAuthenticateForm
+              sbEnvironmentId={sbEnvironmentId}
+              edfiTenantId={edfiTenantId}
+              odsId={odsId}
+              isDisabled={isLoadingSelection || (odsRequired && odsId === undefined)}
+            />
+          )}
 
           <Box mt={4}>
             {catalog.isPending ? (
@@ -280,16 +284,16 @@ export const RequestCertificationPage = () => {
           )}
 
           <FormControl>
-            <FormLabel>Area or Group Filter</FormLabel>
+            <FormLabel>Domain Filter</FormLabel>
             <Select
-              placeholder={hasCatalog ? 'All area or group values' : 'No catalog available'}
-              value={selectedAreaId}
+              placeholder={hasCatalog ? 'All domains' : 'No catalog available'}
+              value={selectedDomainId}
               isDisabled={!hasCatalog}
-              onChange={(event) => setSelectedAreaId(event.target.value)}
+              onChange={(event) => setSelectedDomainId(event.target.value)}
             >
-              {catalog.areas.map((area) => (
-                <option key={area.areaId} value={area.areaId}>
-                  {displayNameOf(area)}
+              {catalog.domains.map((domain) => (
+                <option key={domain.domainId} value={domain.domainId}>
+                  {displayNameOf(domain)}
                 </option>
               ))}
             </Select>
@@ -326,14 +330,14 @@ export const RequestCertificationPage = () => {
           <Table size="sm" mt={0}>
             <Thead>
               <Tr>
-                <Th>Area or Group</Th>
+                <Th>Domain</Th>
                 <Th>Scenario</Th>
                 <Th>Status</Th>
                 <Th textAlign="right">Action</Th>
               </Tr>
             </Thead>
             <Tbody>
-              {tableScenarios.map(({ area, scenario }) => {
+              {tableScenarios.map(({ domain, scenario }) => {
                 const display =
                   SCENARIO_STATUS_DISPLAY[
                     toScenarioDisplayStatus(
@@ -342,7 +346,7 @@ export const RequestCertificationPage = () => {
                   ];
                 return (
                   <Tr key={scenario.scenarioId}>
-                    <Td>{displayNameOf(area)}</Td>
+                    <Td>{displayNameOf(domain)}</Td>
                     <Td>{displayNameOf(scenario)}</Td>
                     <Td>
                       {scenarioStatuses.isUnknown ? (
@@ -358,7 +362,10 @@ export const RequestCertificationPage = () => {
                         size="sm"
                         colorScheme="primary"
                         type="button"
-                        isDisabled={!isAuthenticated}
+                        // Opening is allowed in every run status, so a vendor can still read a
+                        // run's results while it's in review. Credentials are only needed when
+                        // steps can run; the steps page blocks running.
+                        isDisabled={scenarioStatuses.canExecuteSteps && !isAuthenticated}
                         onClick={() =>
                           navigate({
                             pathname: 'execution',
@@ -366,7 +373,7 @@ export const RequestCertificationPage = () => {
                           })
                         }
                       >
-                        Validate Scenario
+                        Open Scenario
                       </Button>
                     </Td>
                   </Tr>

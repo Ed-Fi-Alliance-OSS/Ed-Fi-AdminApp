@@ -47,26 +47,26 @@ jest.mock('./CertificationAuthenticateForm', () => ({
 }));
 
 const setSelection = jest.fn();
-const catalogAreas = [
+const catalogDomains = [
   {
-    areaId: 17,
+    domainId: 17,
     catalogVersionId: 2,
     name: 'EducationOrganizationCalendar',
     displayName: 'Education Organization Calendar',
     displayOrder: 2,
     scenarios: [
-      { scenarioId: 52, areaId: 17, name: 'Calendars', displayName: 'Calendars', displayOrder: 6 },
-      { scenarioId: 51, areaId: 17, name: 'CalendarDates', displayName: null, displayOrder: 7 },
+      { scenarioId: 52, domainId: 17, name: 'Calendars', displayName: 'Calendars', displayOrder: 6 },
+      { scenarioId: 51, domainId: 17, name: 'CalendarDates', displayName: null, displayOrder: 7 },
     ],
   },
   {
-    areaId: 18,
+    domainId: 18,
     catalogVersionId: 2,
     name: 'Staff',
     displayName: 'Staff',
     displayOrder: 3,
     scenarios: [
-      { scenarioId: 60, areaId: 18, name: 'Staffs', displayName: 'Staffs', displayOrder: 1 },
+      { scenarioId: 60, domainId: 18, name: 'Staffs', displayName: 'Staffs', displayOrder: 1 },
     ],
   },
 ];
@@ -79,7 +79,7 @@ const loadedCatalog = {
     dataStandardVersion: 'v5',
     isActive: true,
   },
-  areas: catalogAreas,
+  domains: catalogDomains,
   isPending: false,
 };
 const multiTenantEnv = {
@@ -106,6 +106,8 @@ type QueryState = { isPending?: boolean };
 const refetchStatuses = jest.fn();
 const loadedStatuses = (overrides: object = {}) => ({
   statusByScenarioId: {},
+  run: null,
+  canExecuteSteps: true,
   isUnknown: false,
   isLoading: false,
   isError: false,
@@ -145,7 +147,7 @@ describe('RequestCertificationPage', () => {
     (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(loadedStatuses());
   });
 
-  it('shows the data standard version and lists the catalog areas and scenarios', () => {
+  it('shows the data standard version and lists the catalog domains and scenarios', () => {
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
     expect(screen.getByText('Certification 2.1.0')).toBeTruthy();
@@ -158,10 +160,10 @@ describe('RequestCertificationPage', () => {
     expect(screen.getByRole('cell', { name: 'Staffs' })).toBeTruthy();
   });
 
-  it('filters the scenarios by the selected area', () => {
+  it('filters the scenarios by the selected domain', () => {
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
-    fireEvent.change(screen.getByRole('combobox', { name: 'Area or Group Filter' }), {
+    fireEvent.change(screen.getByRole('combobox', { name: 'Domain Filter' }), {
       target: { value: '18' },
     });
     expect(screen.queryByRole('cell', { name: 'Calendars' })).toBeNull();
@@ -172,7 +174,7 @@ describe('RequestCertificationPage', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: 'v6',
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
       isPending: false,
     });
     mockQueries(multiTenantEnv, tenants, {});
@@ -181,7 +183,7 @@ describe('RequestCertificationPage', () => {
       screen.getByText('No certification catalog is available for data standard v6.'),
     ).toBeTruthy();
     expect(
-      (screen.getByRole('combobox', { name: 'Area or Group Filter' }) as HTMLSelectElement)
+      (screen.getByRole('combobox', { name: 'Domain Filter' }) as HTMLSelectElement)
         .disabled,
     ).toBe(true);
     expect(screen.getByText('No scenarios found for the current filters.')).toBeTruthy();
@@ -191,7 +193,7 @@ describe('RequestCertificationPage', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: 'v5',
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
       isPending: true,
     });
     mockQueries(multiTenantEnv, tenants, {});
@@ -211,7 +213,7 @@ describe('RequestCertificationPage', () => {
       dataStandardVersion: 'v4',
       unsupportedMessage: 'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
       isPending: false,
     });
     mockQueries(multiTenantEnv, tenants, odss);
@@ -242,7 +244,7 @@ describe('RequestCertificationPage', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: undefined,
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
       isPending: false,
       ...state,
     });
@@ -257,7 +259,7 @@ describe('RequestCertificationPage', () => {
       dataStandardVersion: undefined,
       isSupported: false,
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
       isPending: true,
     });
     (useQuery as jest.Mock).mockReturnValue({ data: undefined, isPending: true });
@@ -438,7 +440,7 @@ describe('RequestCertificationPage', () => {
     expect(screen.queryByText('Tenant')).toBeNull();
     expect(screen.queryByTestId('auth-form')).toBeNull();
     expect(screen.queryByText('Certification 2.1.0')).toBeNull();
-    expect(screen.queryAllByRole('button', { name: 'Validate Scenario' })).toHaveLength(0);
+    expect(screen.queryAllByRole('button', { name: 'Open Scenario' })).toHaveLength(0);
     expect(screen.getByRole('button', { name: 'Cancel' })).toBeTruthy();
   });
 
@@ -461,11 +463,11 @@ describe('RequestCertificationPage', () => {
     expect(screen.getByTestId('auth-form').getAttribute('data-disabled')).toBe('false');
   });
 
-  it('keeps Validate Scenario disabled until authenticated, then navigates with the query string', () => {
+  it('keeps Open Scenario disabled until authenticated, then navigates with the query string', () => {
     mockQueries(multiTenantEnv, tenants, {});
     const { rerender } = render(<RequestCertificationPage />);
     const firstButton = () =>
-      screen.getAllByRole('button', { name: 'Validate Scenario' })[0] as HTMLButtonElement;
+      screen.getAllByRole('button', { name: 'Open Scenario' })[0] as HTMLButtonElement;
     expect(firstButton().disabled).toBe(true);
 
     (useCertificationAuth as jest.Mock).mockReturnValue({
@@ -495,7 +497,7 @@ describe('RequestCertificationPage', () => {
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
     const headers = screen.getAllByRole('columnheader').map((th) => th.textContent);
-    expect(headers).toEqual(['Area or Group', 'Scenario', 'Status', 'Action']);
+    expect(headers).toEqual(['Domain', 'Scenario', 'Status', 'Action']);
   });
 
   it('shows Successful, Failed and Not executed for each scenario from the statuses hook', () => {
@@ -610,7 +612,7 @@ describe('RequestCertificationPage', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       ...loadedCatalog,
       catalogVersion: undefined,
-      areas: [],
+      domains: [],
     });
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
@@ -629,7 +631,7 @@ describe('RequestCertificationPage', () => {
     expect(within(rowFor('Calendars')).queryByRole('progressbar')).toBeNull();
   });
 
-  it('keeps the form and Validate Scenario buttons and offers Retry when statuses fail to load', () => {
+  it('keeps the form and Open Scenario buttons and offers Retry when statuses fail to load', () => {
     (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
       loadedStatuses({ isUnknown: true, isError: true }),
     );
@@ -637,7 +639,7 @@ describe('RequestCertificationPage', () => {
     render(<RequestCertificationPage />);
 
     expect(screen.getByText("We couldn't load the scenario statuses.")).toBeTruthy();
-    expect(screen.getAllByRole('button', { name: 'Validate Scenario' })).toHaveLength(3);
+    expect(screen.getAllByRole('button', { name: 'Open Scenario' })).toHaveLength(3);
     fireEvent.click(screen.getByRole('button', { name: 'Retry' }));
     expect(refetchStatuses).toHaveBeenCalled();
   });
@@ -675,7 +677,7 @@ describe('RequestCertificationPage', () => {
   it('spans the empty-state row across all four columns', () => {
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       ...loadedCatalog,
-      areas: [],
+      domains: [],
     });
     mockQueries(multiTenantEnv, tenants, {});
     render(<RequestCertificationPage />);
@@ -685,5 +687,78 @@ describe('RequestCertificationPage', () => {
         .closest('td')
         ?.getAttribute('colspan'),
     ).toBe('4');
+  });
+
+  describe('Open Scenario buttons and the open run (AC-649)', () => {
+    const authenticate = () =>
+      (useCertificationAuth as jest.Mock).mockReturnValue({
+        auth: {
+          token: 't',
+          expiresAt: new Date(Date.now() + 60_000).toISOString(),
+          oauthUrl: 'o',
+          resourceBaseUrl: 'r',
+          edfiTenantId: 10,
+          odsId: undefined,
+        },
+        setAuth: jest.fn(),
+        clearAuth: jest.fn(),
+      });
+    const openButtons = () =>
+      screen.getAllByRole('button', { name: 'Open Scenario' }) as HTMLButtonElement[];
+
+    it('hides the credentials form and still lets the vendor open a scenario when the run is in review', () => {
+      // Auth is null here: nothing needs validating, because no step can run.
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({
+          run: { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false },
+          canExecuteSteps: false,
+        }),
+      );
+      mockQueries(multiTenantEnv, tenants, {});
+      render(<RequestCertificationPage />);
+      expect(screen.queryByTestId('auth-form')).toBeNull();
+      expect(openButtons().length).toBeGreaterThan(0);
+      expect(openButtons().every((button) => !button.disabled)).toBe(true);
+    });
+
+    it('shows the credentials form and keeps Open Scenario disabled until signed in while steps can run', () => {
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({
+          run: { runId: 7, status: 'DRAFT', canExecuteSteps: true },
+          canExecuteSteps: true,
+        }),
+      );
+      mockQueries(multiTenantEnv, tenants, {});
+      render(<RequestCertificationPage />);
+      expect(screen.getByTestId('auth-form')).toBeTruthy();
+      expect(openButtons().every((button) => button.disabled)).toBe(true);
+    });
+
+    // The button only opens the steps page, where the vendor can still read the results;
+    // running a step is what a run in review blocks, and that page's Execute step handles it.
+    it.each([
+      ['there is no open run', null, true],
+      ['the run is Draft', { runId: 7, status: 'DRAFT', canExecuteSteps: true }, true],
+      [
+        'the run is Ready for review',
+        { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false },
+        false,
+      ],
+      ['the run is In review', { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false }, false],
+      [
+        'the run is Ready for review with new changes',
+        { runId: 7, status: 'READY_FOR_REVIEW_WITH_CHANGES', canExecuteSteps: false },
+        false,
+      ],
+    ])('stay enabled when %s', (_label, run, canExecuteSteps) => {
+      authenticate();
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({ run, canExecuteSteps }),
+      );
+      mockQueries(multiTenantEnv, tenants, {});
+      render(<RequestCertificationPage />);
+      expect(openButtons().length).toBeGreaterThan(0);
+      expect(openButtons().every((button) => !button.disabled)).toBe(true);
+    });
   });
 });

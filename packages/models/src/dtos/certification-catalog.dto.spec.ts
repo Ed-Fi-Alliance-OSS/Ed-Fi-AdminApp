@@ -1,6 +1,6 @@
 import 'reflect-metadata';
 import {
-  toCertificationAreaDto,
+  toCertificationDomainDto,
   toCertificationCatalogVersionDto,
   toCertificationStepDto,
 } from './certification-catalog.dto';
@@ -23,10 +23,10 @@ describe('toCertificationCatalogVersionDto', () => {
   });
 });
 
-describe('toCertificationAreaDto', () => {
+describe('toCertificationDomainDto', () => {
   it('keeps nested scenarios and drops isEnabled', () => {
-    const dto = toCertificationAreaDto({
-      areaId: 3,
+    const dto = toCertificationDomainDto({
+      domainId: 3,
       catalogVersionId: 1,
       name: 'StudentEnrollment',
       displayName: 'Student Enrollment',
@@ -35,7 +35,7 @@ describe('toCertificationAreaDto', () => {
       scenarios: [
         {
           scenarioId: 7,
-          areaId: 3,
+          domainId: 3,
           name: '01-FirstStudent',
           displayName: '01 - 1st Student is valid',
           displayOrder: 1,
@@ -44,7 +44,7 @@ describe('toCertificationAreaDto', () => {
       ],
     } as never);
     expect(JSON.parse(JSON.stringify(dto))).toEqual({
-      areaId: 3,
+      domainId: 3,
       catalogVersionId: 1,
       name: 'StudentEnrollment',
       displayName: 'Student Enrollment',
@@ -52,7 +52,7 @@ describe('toCertificationAreaDto', () => {
       scenarios: [
         {
           scenarioId: 7,
-          areaId: 3,
+          domainId: 3,
           name: '01-FirstStudent',
           displayName: '01 - 1st Student is valid',
           displayOrder: 1,

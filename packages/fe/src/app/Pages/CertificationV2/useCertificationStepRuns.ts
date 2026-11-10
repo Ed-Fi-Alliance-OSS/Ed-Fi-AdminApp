@@ -14,6 +14,7 @@ type UseCertificationStepRunsArgs = {
   odsId: number | undefined;
   sisVersion: string | undefined;
   scenarioId: number | undefined;
+  runId: number | null | undefined;
 };
 
 /**
@@ -26,15 +27,20 @@ export const useCertificationStepRuns = ({
   odsId,
   sisVersion,
   scenarioId,
+  runId,
 }: UseCertificationStepRunsArgs) => {
   const queryKey = certificationQueryKeys.stepRuns(
     sbEnvironmentId,
     edfiTenantId,
     odsId,
     scenarioId,
+    runId,
   );
   const enabled =
-    edfiTenantId !== undefined && sisVersion !== undefined && scenarioId !== undefined;
+    edfiTenantId !== undefined &&
+    sisVersion !== undefined &&
+    scenarioId !== undefined &&
+    typeof runId === 'number';
   const stepRunsQuery = useQuery({
     queryKey,
     queryFn: () =>
@@ -48,7 +54,8 @@ export const useCertificationStepRuns = ({
     // connection) keeps the page, the vendor's typed inputs and the results already shown.
     throwOnError: (_error, query) => query.state.data === undefined,
   });
-  const { data, refetch } = stepRunsQuery;
+  const { refetch } = stepRunsQuery;
+  const data = enabled ? stepRunsQuery.data : undefined;
   const runsByStepId = useMemo(
     () =>
       Object.fromEntries((data?.steps ?? []).map((step) => [step.stepId, step])) as Record<
@@ -64,7 +71,9 @@ export const useCertificationStepRuns = ({
     runsByStepId,
     scenarioStatus,
     isPending: enabled && stepRunsQuery.isPending,
-    refetch: () => void refetch(),
+    refetch: () => {
+      if (enabled) void refetch();
+    },
     queryKey,
   };
 };
