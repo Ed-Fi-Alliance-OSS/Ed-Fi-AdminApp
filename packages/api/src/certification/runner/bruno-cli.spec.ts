@@ -113,7 +113,7 @@ describe('runBrunoCli', () => {
       expect(fs.existsSync(path.join(dir, 'canary'))).toBe(false);
     });
 
-    it('does not interpret a payload in the token or the CLI path either', async () => {
+    it('does not interpret a payload in the token either', async () => {
       const token = '$(touch canary); `touch canary`';
       const cliPath = script(
         'tok.js',

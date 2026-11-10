@@ -25,6 +25,20 @@ describe('resolveNpmCommand', () => {
     expect(result).toEqual({ command: execPath, prefixArgs: [unixCli] });
   });
 
+  it('prefers the npm next to the node binary when both locations exist', () => {
+    const result = resolveNpmCommand({ execPath, platform: 'win32', exists: () => true });
+    expect(result).toEqual({ command: execPath, prefixArgs: [winCli] });
+  });
+
+  it('finds npm only under ../lib on Windows', () => {
+    const result = resolveNpmCommand({
+      execPath,
+      platform: 'win32',
+      exists: (file) => file === unixCli,
+    });
+    expect(result).toEqual({ command: execPath, prefixArgs: [unixCli] });
+  });
+
   it('falls back to the npm executable on non-Windows platforms', () => {
     const result = resolveNpmCommand({ execPath, platform: 'linux', exists: () => false });
     expect(result).toEqual({ command: 'npm', prefixArgs: [] });

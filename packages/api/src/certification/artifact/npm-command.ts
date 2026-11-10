@@ -18,6 +18,9 @@ export interface ResolveNpmCommandOptions {
  * binary (`<node dir>/node_modules/npm` on Windows, `<node dir>/../lib/node_modules/npm` on
  * Linux/macOS/Docker), so running it through node works everywhere. Windows has no other option:
  * `npm.cmd` can't be spawned with shell: false, and a shell is what we are avoiding.
+ *
+ * If `npm-cli.js` is not found: on Linux/macOS this falls back to plain `npm` resolved from PATH;
+ * on Windows it throws.
  */
 export const resolveNpmCommand = ({
   execPath = process.execPath,
@@ -25,6 +28,8 @@ export const resolveNpmCommand = ({
   exists = fs.existsSync,
 }: ResolveNpmCommandOptions = {}): NpmCommand => {
   const nodeDir = path.dirname(execPath);
+  // Intended: the npm bundled with node wins over a newer globally installed npm. Using the
+  // global one on Windows would require npm.cmd, which cannot be spawned without a shell.
   const candidates = [
     path.join(nodeDir, 'node_modules', 'npm', 'bin', 'npm-cli.js'),
     path.join(nodeDir, '..', 'lib', 'node_modules', 'npm', 'bin', 'npm-cli.js'),

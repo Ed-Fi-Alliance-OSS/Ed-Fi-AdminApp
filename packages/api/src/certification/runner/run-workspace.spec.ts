@@ -82,9 +82,12 @@ describe('createRunWorkspace', () => {
     expect(env).toContain('resourceBaseUrl: https://ods.example.org/tenant1/data/v3');
   });
 
-  it.each([['..'], ['a/b'], ['a\\b'], [''], ['.'], ['a\0b'], ['../$(touch canary)']])('rejects unsafe path segment %j', (segment) => {
-    expect(() => assertSafeSegment(segment)).toThrow('Unsafe certification path segment');
-  });
+  it.each([['..'], ['a/b'], ['a\\b'], [''], ['.'], ['a\0b'], ['../$(touch canary)']])(
+    'rejects unsafe path segment %j',
+    (segment) => {
+      expect(() => assertSafeSegment(segment)).toThrow('Unsafe certification path segment');
+    }
+  );
 
   it('rejects a step path that escapes the collection root', async () => {
     await expect(
