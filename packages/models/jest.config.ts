@@ -12,7 +12,7 @@ export default {
      [
        'jest-junit',
        {
-         outputDirectory: './test-results',
+         outputDirectory: '<rootDir>/../../test-results',
          outputName: 'junit-models.xml',
        },
      ],
