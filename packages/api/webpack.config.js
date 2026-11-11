@@ -1,8 +1,9 @@
 const { join } = require('path');
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
 
-// Builds the API bundle (dist/packages/api/main.js). Run it through `nx run api:build`,
-// which sets NX_TASK_TARGET_CONFIGURATION (production by default, or development).
+// Builds the API bundle (dist/packages/api/main.js). Must be run through `nx run api:build`
+// (not webpack-cli directly): NxAppWebpackPlugin reads the project and configuration from
+// the NX_TASK_TARGET_* variables Nx sets (production by default, or development).
 const isProduction = (process.env.NX_TASK_TARGET_CONFIGURATION || 'production') === 'production';
 
 module.exports = {
@@ -11,6 +12,8 @@ module.exports = {
     // NxAppWebpackPlugin only sets the deprecated output.libraryTarget, after webpack has
     // already normalized the config, so declare the CommonJS library type here.
     library: { type: 'commonjs' },
+    // Remove stale files (e.g. a development main.js.map) from earlier builds.
+    clean: true,
   },
   plugins: [
     new NxAppWebpackPlugin({
