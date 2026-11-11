@@ -12,6 +12,15 @@ updates:
     schedule:
       interval: weekly
     groups:
+      # All nx/@nx/* packages must share one version, so bump them together in a
+      # single PR (any update type). Must stay above the catch-all groups, because
+      # Dependabot puts a dependency in the first group that matches it.
+      # Major bumps still need `npx nx migrate` (see AC-707).
+      nx:
+        applies-to: version-updates
+        patterns:
+          - 'nx'
+          - '@nx/*'
       minor-patches:
         applies-to: version-updates
         patterns:
