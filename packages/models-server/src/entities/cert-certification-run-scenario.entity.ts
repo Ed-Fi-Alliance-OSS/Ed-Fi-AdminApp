@@ -1,19 +1,19 @@
 import * as config from 'config';
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryColumn, UpdateDateColumn } from 'typeorm';
-import { CertificationProcess } from './cert-certification-process.entity';
+import { CertificationRun } from './cert-certification-run.entity';
 import { ScenarioCatalog } from './cert-scenario-catalog.entity';
 
-@Entity({ schema: 'cert', name: 'certification_process_scenario' })
-export class CertificationProcessScenario {
+@Entity({ schema: 'cert', name: 'certification_run_scenario' })
+export class CertificationRunScenario {
   @PrimaryColumn()
-  certificationProcessId: number;
+  certificationRunId: number;
 
   @PrimaryColumn()
   scenarioId: number;
 
-  @ManyToOne(() => CertificationProcess, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'certificationProcessId' })
-  certificationProcess: CertificationProcess;
+  @ManyToOne(() => CertificationRun, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'certificationRunId' })
+  certificationRun: CertificationRun;
 
   @ManyToOne(() => ScenarioCatalog, { onDelete: 'CASCADE' })
   @JoinColumn({ name: 'scenarioId' })

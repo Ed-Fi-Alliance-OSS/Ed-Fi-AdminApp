@@ -1,13 +1,13 @@
 import 'reflect-metadata';
 import { renderHook } from '@testing-library/react';
 import { useQuery } from '@tanstack/react-query';
-import { CertificationScenarioStatusDto } from '@edanalytics/models';
+import { CertificationScenarioStatusesDto } from '@edanalytics/models';
 import { methods } from '../../api';
 import { certificationQueryKeys } from './useCertificationCatalog';
 import { useCertificationScenarioStatuses } from './useCertificationScenarioStatuses';
 
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
-jest.mock('../../api', () => ({ methods: { getMany: jest.fn() } }));
+jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
 
 type QueryOptions = {
   queryKey: unknown[];
@@ -41,9 +41,9 @@ describe('useCertificationScenarioStatuses', () => {
     const { options } = render({ odsId: undefined });
     await options.queryFn();
 
-    expect(methods.getMany).toHaveBeenCalledWith(
+    expect(methods.getOne).toHaveBeenCalledWith(
       'sb-environments/1/edfi-tenants/10/certification/sis/v5/scenario-statuses',
-      CertificationScenarioStatusDto,
+      CertificationScenarioStatusesDto,
       { params: {} },
     );
     expect(options.queryKey).toEqual(
@@ -56,9 +56,9 @@ describe('useCertificationScenarioStatuses', () => {
     const { options } = render();
     await options.queryFn();
 
-    expect(methods.getMany).toHaveBeenCalledWith(
+    expect(methods.getOne).toHaveBeenCalledWith(
       expect.any(String),
-      CertificationScenarioStatusDto,
+      CertificationScenarioStatusesDto,
       {
         params: { odsId: 5 },
       },
@@ -105,10 +105,13 @@ describe('useCertificationScenarioStatuses', () => {
     const { result } = render(
       {},
       {
-        data: [
-          { scenarioId: 52, status: 'completed' },
-          { scenarioId: 51, status: 'failed' },
-        ],
+        data: {
+          run: { runId: 7, status: 'DRAFT', canExecuteSteps: true },
+          scenarios: [
+            { scenarioId: 52, status: 'completed' },
+            { scenarioId: 51, status: 'failed' },
+          ],
+        },
         isPending: false,
       },
     );
@@ -119,8 +122,31 @@ describe('useCertificationScenarioStatuses', () => {
   });
 
   it('treats a loaded empty list as known, not unknown', () => {
-    const { result } = render({}, { data: [], isPending: false });
+    const { result } = render({}, { data: { run: null, scenarios: [] }, isPending: false });
     expect(result.isUnknown).toBe(false);
+  });
+
+  it('exposes the open run and that steps cannot run while it is in review', () => {
+    const run = { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false };
+    const { result } = render(
+      {},
+      { data: { run, scenarios: [{ scenarioId: 3, status: 'completed' }] }, isPending: false },
+    );
+    expect(result.run).toEqual(run);
+    expect(result.canExecuteSteps).toBe(false);
+    expect(result.statusByScenarioId).toEqual({ 3: 'completed' });
+  });
+
+  it('lets steps run when the data store has no open run', () => {
+    const { result } = render({}, { data: { run: null, scenarios: [] }, isPending: false });
+    expect(result.run).toBeNull();
+    expect(result.canExecuteSteps).toBe(true);
+  });
+
+  it('does not block steps while the run is still unknown', () => {
+    const { result } = render();
+    expect(result.run).toBeUndefined();
+    expect(result.canExecuteSteps).toBe(true);
   });
 
   it('is loading and unknown with no statuses while the first load runs', () => {
@@ -140,7 +166,11 @@ describe('useCertificationScenarioStatuses', () => {
   it('reports a failed refresh as stale and keeps the old statuses', () => {
     const { result } = render(
       {},
-      { data: [{ scenarioId: 52, status: 'completed' }], isPending: false, isError: true },
+      {
+        data: { run: null, scenarios: [{ scenarioId: 52, status: 'completed' }] },
+        isPending: false,
+        isError: true,
+      },
     );
     expect(result.isError).toBe(true);
     expect(result.isStale).toBe(true);

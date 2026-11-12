@@ -155,6 +155,8 @@ export interface ITeamCache
   'team.sb-environment.edfi-tenant.profile:create'?: Record<IEdfiTenant['id'], TrueValue>;
   'team.sb-environment.edfi-tenant.ods:read'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods:read-row-counts'?: Record<IEdfiTenant['id'], Ids>;
+  'team.sb-environment.edfi-tenant.ods.certification:read'?: Record<IEdfiTenant['id'], Ids>;
+  'team.sb-environment.edfi-tenant.ods.certification:run'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg:read'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg.application:read'?: Record<IEdfiTenant['id'], Ids>;
   'team.sb-environment.edfi-tenant.ods.edorg.application:update'?: Record<IEdfiTenant['id'], Ids>;
@@ -237,6 +239,8 @@ export const edfiTenantResourcePrivilegesMap: Partial<Record<string, TeamEdfiTen
     'team.sb-environment.edfi-tenant.ods:read-row-counts',
     'team.sb-environment.edfi-tenant.ods:create-edorg',
     'team.sb-environment.edfi-tenant.ods:delete-edorg',
+    'team.sb-environment.edfi-tenant.ods.certification:read',
+    'team.sb-environment.edfi-tenant.ods.certification:run',
   ],
   'team.sb-environment.edfi-tenant.ods.edorg': ['team.sb-environment.edfi-tenant.ods.edorg:read'],
   'team.sb-environment.edfi-tenant.ods.edorg.application': [

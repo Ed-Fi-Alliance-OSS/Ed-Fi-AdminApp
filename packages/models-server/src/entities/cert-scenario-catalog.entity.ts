@@ -1,17 +1,17 @@
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn } from 'typeorm';
-import { AreaCatalog } from './cert-area-catalog.entity';
+import { DomainCatalog } from './cert-domain-catalog.entity';
 
 @Entity({ schema: 'cert', name: 'scenario_catalog' })
 export class ScenarioCatalog {
   @PrimaryGeneratedColumn()
   scenarioId: number;
 
-  @ManyToOne(() => AreaCatalog, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'areaId' })
-  area: AreaCatalog;
+  @ManyToOne(() => DomainCatalog, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'domainId' })
+  domain: DomainCatalog;
 
   @Column()
-  areaId: number;
+  domainId: number;
 
   @Column({ type: 'varchar', length: 255 })
   name: string;

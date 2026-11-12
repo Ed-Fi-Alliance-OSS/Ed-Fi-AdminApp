@@ -16,7 +16,7 @@ export default {
      [
        'jest-junit',
        {
-         outputDirectory: './test-results',
+         outputDirectory: '<rootDir>/../../test-results',
          outputName: 'junit-api.xml',
        },
      ],

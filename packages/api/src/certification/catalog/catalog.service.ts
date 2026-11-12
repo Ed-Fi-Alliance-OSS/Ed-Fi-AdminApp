@@ -4,7 +4,7 @@ import { DataSource, Repository } from 'typeorm';
 import * as fs from 'fs';
 import * as path from 'path';
 import {
-  AreaCatalog,
+  DomainCatalog,
   CatalogVersion,
   ScenarioCatalog,
   StepCatalog,
@@ -34,7 +34,7 @@ interface ParsedScenario {
   steps: ParsedStep[];
 }
 
-interface ParsedArea {
+interface ParsedDomain {
   name: string;
   displayName: string | null;
   displayOrder: number;
@@ -107,7 +107,7 @@ export class CatalogService {
     }
 
     this.logger.log(`Syncing catalog for ${artifactVersion}/${dataStandardVersion}...`);
-    const areas = this.parseAreas(versionRoot);
+    const domains = this.parseDomains(versionRoot);
 
     await this.dataSource.transaction(async (manager) => {
       // Deactivate all currently active versions for this data standard
@@ -129,19 +129,19 @@ export class CatalogService {
       });
       await manager.save(CatalogVersion, catalogVersion);
 
-      for (const area of areas) {
-        const areaCatalog = manager.create(AreaCatalog, {
+      for (const domain of domains) {
+        const domainCatalog = manager.create(DomainCatalog, {
           catalogVersionId: catalogVersion.catalogVersionId,
-          name: area.name,
-          displayName: area.displayName,
-          displayOrder: area.displayOrder,
+          name: domain.name,
+          displayName: domain.displayName,
+          displayOrder: domain.displayOrder,
           isEnabled: true,
         });
-        await manager.save(AreaCatalog, areaCatalog);
+        await manager.save(DomainCatalog, domainCatalog);
 
-        for (const scenario of area.scenarios) {
+        for (const scenario of domain.scenarios) {
           const scenarioCatalog = manager.create(ScenarioCatalog, {
-            areaId: areaCatalog.areaId,
+            domainId: domainCatalog.domainId,
             name: scenario.name,
             displayName: scenario.displayName,
             displayOrder: scenario.displayOrder,
@@ -177,7 +177,7 @@ export class CatalogService {
     });
 
     this.logger.log(
-      `Catalog sync complete for ${artifactVersion}/${dataStandardVersion}: ${areas.length} areas`
+      `Catalog sync complete for ${artifactVersion}/${dataStandardVersion}: ${domains.length} domains`
     );
   }
 
@@ -185,31 +185,31 @@ export class CatalogService {
   // Private — Bruno artifact parsing
   // ---------------------------------------------------------------------------
 
-  private parseAreas(versionRoot: string): ParsedArea[] {
+  private parseDomains(versionRoot: string): ParsedDomain[] {
     return fs
       .readdirSync(versionRoot, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
       .sort()
-      .map((areaName, areaIdx) => {
-        const meta = this.parseMeta(path.join(versionRoot, areaName, 'folder.bru'));
+      .map((domainName, domainIdx) => {
+        const meta = this.parseMeta(path.join(versionRoot, domainName, 'folder.bru'));
         return {
-          name: areaName,
+          name: domainName,
           displayName: meta.name,
-          displayOrder: meta.seq ?? areaIdx + 1,
-          scenarios: this.parseScenarios(path.join(versionRoot, areaName)),
+          displayOrder: meta.seq ?? domainIdx + 1,
+          scenarios: this.parseScenarios(path.join(versionRoot, domainName)),
         };
       });
   }
 
-  private parseScenarios(areaPath: string): ParsedScenario[] {
+  private parseScenarios(domainPath: string): ParsedScenario[] {
     return fs
-      .readdirSync(areaPath, { withFileTypes: true })
+      .readdirSync(domainPath, { withFileTypes: true })
       .filter((d) => d.isDirectory())
       .map((d) => d.name)
       .sort()
       .map((scenarioName, scenarioIdx) => {
-        const scenarioPath = path.join(areaPath, scenarioName);
+        const scenarioPath = path.join(domainPath, scenarioName);
         const meta = this.parseMeta(path.join(scenarioPath, 'folder.bru'));
         const stepTypeMap = this.parseStepTypeMap(path.join(scenarioPath, 'folder.bru'));
         return {

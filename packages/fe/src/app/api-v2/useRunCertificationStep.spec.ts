@@ -27,7 +27,15 @@ describe('useRunCertificationStep', () => {
     const body = { odsId: 5, token: 't', inputs: { schoolId: '255901' } };
 
     await expect(
-      mutationFn({ sbEnvironmentId: 1, edfiTenantId: 10, sisVersion: 'v5', stepId: 189, body }),
+      mutationFn({
+        sbEnvironmentId: 1,
+        edfiTenantId: 10,
+        sisVersion: 'v5',
+        stepId: 189,
+        scenarioId: 52,
+        runId: 7,
+        body,
+      }),
     ).resolves.toEqual(result);
     expect(apiClient.post).toHaveBeenCalledWith(
       'sb-environments/1/edfi-tenants/10/certification/sis/v5/steps/189/run',

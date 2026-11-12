@@ -24,12 +24,12 @@ const versions = [
   { catalogVersionId: 1, artifactVersion: 'v2.1.0', dataStandardVersion: 'v4', isActive: true },
   { catalogVersionId: 2, artifactVersion: 'v2.1.0', dataStandardVersion: 'v5', isActive: true },
 ];
-const area = (areaId: number, displayOrder: number) => ({
-  areaId,
+const domain = (domainId: number, displayOrder: number) => ({
+  domainId,
   displayOrder,
   scenarios: [
-    { scenarioId: areaId * 10 + 2, displayOrder: 2 },
-    { scenarioId: areaId * 10 + 1, displayOrder: 1 },
+    { scenarioId: domainId * 10 + 2, displayOrder: 2 },
+    { scenarioId: domainId * 10 + 1, displayOrder: 1 },
   ],
 });
 
@@ -60,11 +60,11 @@ const optionsFor = (name: string) =>
 describe('useCertificationCatalog', () => {
   beforeEach(() => jest.resetAllMocks());
 
-  it('for data standard 5.2.0 picks the v5 catalog version and loads its areas', () => {
+  it('for data standard 5.2.0 picks the v5 catalog version and loads its domains', () => {
     mockQueries({
       env: settled({ odsDsVersion: '5.2.0' }),
       versions: settled(versions),
-      scenarios: settled([area(2, 2), area(1, 1)]),
+      scenarios: settled([domain(2, 2), domain(1, 1)]),
     });
 
     const { result } = renderHook(() => useCertificationCatalog(7));
@@ -76,9 +76,9 @@ describe('useCertificationCatalog', () => {
       queryKey: certificationQueryKeys.scenarios(7, 2),
       enabled: true,
     });
-    // Areas and their scenarios come back sorted by displayOrder.
-    expect(result.current.areas.map((a) => a.areaId)).toEqual([1, 2]);
-    expect(result.current.areas[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
+    // Domains and their scenarios come back sorted by displayOrder.
+    expect(result.current.domains.map((a) => a.domainId)).toEqual([1, 2]);
+    expect(result.current.domains[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
   });
 
   // The API refuses these environments with a 400; asking would land on the route error page.
@@ -92,7 +92,7 @@ describe('useCertificationCatalog', () => {
       "Certification requires Ed-Fi Data Standard 5.0.0 or later. This environment's data standard version is 4.0.0, as recorded when it was connected to Admin App. If its Ed-Fi API has been upgraded since then, Admin App doesn't detect the new version yet.",
     );
     expect(result.current.catalogVersion).toBeUndefined();
-    expect(result.current.areas).toEqual([]);
+    expect(result.current.domains).toEqual([]);
     expect(result.current.isPending).toBe(false);
   });
 
@@ -130,7 +130,7 @@ describe('useCertificationCatalog', () => {
 
   it('ignores a catalog list cached while the environment was supported', () => {
     // TanStack Query keeps a disabled query's cached data. "5.0.0-pre" maps to the v5 catalog,
-    // so without the guard it would select it and request areas the API refuses (400).
+    // so without the guard it would select it and request domains the API refuses (400).
     (useQuery as jest.Mock).mockImplementation((options: QueryOptions) => {
       if (options.queryKey[0] === 'env') return settled({ odsDsVersion: '5.0.0-pre' });
       if (options.queryKey[2] === 'catalog-versions') return settled(versions);
@@ -162,7 +162,7 @@ describe('useCertificationCatalog', () => {
     );
   });
 
-  it('is not pending and loads no areas when no catalog version matches', () => {
+  it('is not pending and loads no domains when no catalog version matches', () => {
     mockQueries({ env: settled({ odsDsVersion: '6.1.0' }), versions: settled(versions) });
 
     const { result } = renderHook(() => useCertificationCatalog(7));
@@ -170,7 +170,7 @@ describe('useCertificationCatalog', () => {
     expect(optionsFor('scenarios')?.enabled).toBe(false);
     expect(result.current.dataStandardVersion).toBe('v6');
     expect(result.current.catalogVersion).toBeUndefined();
-    expect(result.current.areas).toEqual([]);
+    expect(result.current.domains).toEqual([]);
     expect(result.current.isPending).toBe(false);
   });
 
@@ -178,7 +178,7 @@ describe('useCertificationCatalog', () => {
     ['the environment', { env: loading, versions: settled(versions) }],
     ['the catalog versions', { env: settled({ odsDsVersion: '5.2.0' }), versions: loading }],
     [
-      'the areas',
+      'the domains',
       { env: settled({ odsDsVersion: '5.2.0' }), versions: settled(versions), scenarios: loading },
     ],
   ])('is pending while %s load', (_, states) => {

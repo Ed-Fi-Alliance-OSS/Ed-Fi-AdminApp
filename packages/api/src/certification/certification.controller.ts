@@ -1,4 +1,8 @@
-import { PostCertificationStepRunDto, toCertificationStepRunDto } from '@edanalytics/models';
+import {
+  GetSessionDataDto,
+  PostCertificationStepRunDto,
+  toCertificationStepRunDto,
+} from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
@@ -22,6 +26,7 @@ import {
   SbEnvironmentEdfiTenantInterceptor,
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationService } from './certification.service';
@@ -48,6 +53,7 @@ export class CertificationController {
     @Param('stepId', ParseIntPipe) stepId: number,
     @Body() body: PostCertificationStepRunDto,
     @Res({ passthrough: true }) res: Response,
+    @ReqUser() session?: GetSessionDataDto,
   ) {
     try {
       const result = await this.certificationService.runStep({
@@ -58,6 +64,7 @@ export class CertificationController {
         odsId: body.odsId,
         token: body.token,
         inputs: body.inputs,
+        userId: session?.id ?? null,
       });
       return toCertificationStepRunDto(result);
     } catch (error) {
@@ -70,7 +77,7 @@ export class CertificationController {
 
   /**
    * The saved result of each step of one scenario (AC-475). Read-only: it never creates a
-   * certification process and never contacts the ODS/API, so it needs no token.
+   * certification run and never contacts the ODS/API, so it needs no token.
    */
   @Get('sis/:sisVersion/step-runs')
   @ApiQuery({ name: 'odsId', required: false, type: Number })
@@ -90,8 +97,8 @@ export class CertificationController {
   }
 
   /**
-   * Every scenario's saved status for the current catalog version (AC-689). Read-only: it
-   * never creates a certification process and never contacts the ODS/API, so it needs no token.
+   * The data store's open SIS run and its scenario statuses (AC-689, AC-649). Read-only: it
+   * never creates a certification run and never contacts the ODS/API, so it needs no token.
    */
   @Get('sis/:sisVersion/scenario-statuses')
   @ApiQuery({ name: 'odsId', required: false, type: Number })

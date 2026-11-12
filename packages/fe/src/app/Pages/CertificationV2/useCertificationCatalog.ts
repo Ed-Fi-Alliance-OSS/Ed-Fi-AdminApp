@@ -1,5 +1,5 @@
 import {
-  CertificationAreaDto,
+  CertificationDomainDto,
   CertificationCatalogVersionDto,
   CertificationStepDto,
   certificationUnsupportedMessage,
@@ -28,6 +28,7 @@ export const certificationQueryKeys = {
     edfiTenantId: number | undefined,
     odsId: number | undefined,
     scenarioId: number | undefined,
+    runId: number | null | undefined,
   ) =>
     [
       ...certificationQueryKeys.all(sbEnvironmentId),
@@ -35,6 +36,7 @@ export const certificationQueryKeys = {
       edfiTenantId,
       odsId ?? null,
       scenarioId,
+      runId,
     ] as const,
   scenarioStatuses: (
     sbEnvironmentId: number,
@@ -49,13 +51,14 @@ export const certificationQueryKeys = {
       odsId ?? null,
       sisVersion,
     ] as const,
-  /** Includes the run time, so a re-run of the step fetches its new snapshot. */
+  /** Includes the run identity and step execution time, so neither kind of re-run shares a snapshot. */
   stepSnapshot: (
     sbEnvironmentId: number,
     edfiTenantId: number | undefined,
     odsId: number | undefined,
     stepId: number | undefined,
     ranAt: string | undefined,
+    runId: number | null | undefined,
   ) =>
     [
       ...certificationQueryKeys.all(sbEnvironmentId),
@@ -64,11 +67,12 @@ export const certificationQueryKeys = {
       odsId ?? null,
       stepId,
       ranAt,
+      runId,
     ] as const,
 };
 
 /**
- * The certification areas (with their scenarios) for the catalog version that matches
+ * The certification domains (with their scenarios) for the catalog version that matches
  * the environment's data standard. For an environment that doesn't support certification,
  * nothing is requested (the API would refuse it) and `unsupportedMessage` says why.
  */
@@ -103,32 +107,32 @@ export const useCertificationCatalog = (sbEnvironmentId: number) => {
   );
   const catalogVersionId = catalogVersion?.catalogVersionId;
 
-  const areasQuery = useQuery({
+  const domainsQuery = useQuery({
     queryKey: certificationQueryKeys.scenarios(sbEnvironmentId, catalogVersionId),
     queryFn: () =>
-      methods.getMany(`${catalogUrl(sbEnvironmentId)}/scenarios`, CertificationAreaDto, {
+      methods.getMany(`${catalogUrl(sbEnvironmentId)}/scenarios`, CertificationDomainDto, {
         params: { catalogVersionId },
       }),
     enabled: catalogVersionId !== undefined,
     throwOnError: true,
   });
-  const areas = useMemo(
+  const domains = useMemo(
     () =>
-      byDisplayOrder(areasQuery.data ?? []).map((area) => ({
-        ...area,
-        scenarios: byDisplayOrder(area.scenarios ?? []),
+      byDisplayOrder(domainsQuery.data ?? []).map((domain) => ({
+        ...domain,
+        scenarios: byDisplayOrder(domain.scenarios ?? []),
       })),
-    [areasQuery.data],
+    [domainsQuery.data],
   );
 
   // A disabled query reports isPending forever, so only count each query when it can run.
   const isPending =
     sbEnvironmentQuery.isPending ||
     (isSupported && catalogVersionsQuery.isPending) ||
-    (catalogVersionId !== undefined && areasQuery.isPending);
+    (catalogVersionId !== undefined && domainsQuery.isPending);
 
   // isSupported is false until the environment loads; unsupportedMessage only once it has.
-  return { dataStandardVersion, isSupported, unsupportedMessage, catalogVersion, areas, isPending };
+  return { dataStandardVersion, isSupported, unsupportedMessage, catalogVersion, domains, isPending };
 };
 
 /** The steps (with their parameters) of one scenario, in display order. */

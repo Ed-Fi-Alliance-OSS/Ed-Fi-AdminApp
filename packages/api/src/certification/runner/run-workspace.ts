@@ -24,7 +24,7 @@ const COLLECTION_FILES = ['bruno.json', 'collection.bru', 'utils.js', 'logging.j
 export interface RunWorkspaceOptions {
   /** Absolute path of the verified artifact's SIS collection root. Only read, never written. */
   sisRoot: string;
-  /** [sisVersion, area, scenario, fileName], straight from the catalog. */
+  /** [sisVersion, domain, scenario, fileName], straight from the catalog. */
   stepSegments: string[];
   inputs: Record<string, string>;
   resourceBaseUrl: string;

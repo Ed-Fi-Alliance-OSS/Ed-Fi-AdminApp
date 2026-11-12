@@ -1,24 +1,24 @@
 import { CertStepSnapshotEnvelope } from '@edanalytics/models';
 import * as config from 'config';
 import { Column, Entity, JoinColumn, ManyToOne, PrimaryGeneratedColumn, Unique } from 'typeorm';
-import { CertificationProcess } from './cert-certification-process.entity';
+import { CertificationRun } from './cert-certification-run.entity';
 import { ScenarioCatalog } from './cert-scenario-catalog.entity';
 import { StepCatalog } from './cert-step-catalog.entity';
 import { encryptedJsonTransformer } from '../utils/encrypted-json.transformer';
 
-/** The latest result of one step in one process; a re-run updates this row. */
+/** The latest result of one step in one run; a re-run updates this row. */
 @Entity({ schema: 'cert', name: 'scenario_step' })
-@Unique('UQ_cert_scenario_step_process_step', ['certificationProcessId', 'stepId'])
+@Unique('UQ_cert_scenario_step_run_step', ['certificationRunId', 'stepId'])
 export class ScenarioStep {
   @PrimaryGeneratedColumn()
   stepRunId: number;
 
-  @ManyToOne(() => CertificationProcess, { onDelete: 'CASCADE' })
-  @JoinColumn({ name: 'certificationProcessId' })
-  certificationProcess: CertificationProcess;
+  @ManyToOne(() => CertificationRun, { onDelete: 'CASCADE' })
+  @JoinColumn({ name: 'certificationRunId' })
+  certificationRun: CertificationRun;
 
   @Column()
-  certificationProcessId: number;
+  certificationRunId: number;
 
   @ManyToOne(() => ScenarioCatalog, { onDelete: 'RESTRICT' })
   @JoinColumn({ name: 'scenarioId' })

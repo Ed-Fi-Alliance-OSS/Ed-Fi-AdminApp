@@ -14,6 +14,9 @@ const pathPartials = {
     index: 'integration-providers',
     id: 'integration-providers/:integrationProviderId',
   },
+  myProducts: {
+    index: 'my-products',
+  },
 };
 
 const globalPaths = {
@@ -26,6 +29,9 @@ const globalPaths = {
 };
 
 const asTeamPaths = {
+  myProducts: {
+    index: `/${pathPartials.asTeam}/${pathPartials.myProducts.index}`,
+  },
   integrationApp: {
     view: `/${pathPartials.asTeam}/${pathPartials.integrationProvider.id}/${pathPartials.integrationApp.id}`,
   },
@@ -67,9 +73,16 @@ const dynamicGlobalPaths = {
     // dummy function for TypeScript satisfaction
     view: (_: { integrationProviderId: Id; integrationAppId: Id }) => '',
   },
+  myProducts: {
+    // team-only page; dummy function for TypeScript satisfaction
+    index: () => '',
+  },
 };
 
 const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
+  myProducts: {
+    index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
+  },
   integrationProvider: {
     index: () => replaceKeyIds(asTeamPaths.integrationProvider.index, { asId }),
     create: () => replaceKeyIds(asTeamPaths.integrationProvider.create, { asId }),

@@ -68,4 +68,38 @@ describe('TeamsGlobalController.envNav', () => {
     expect(result).toEqual([]);
     expect(sbEnvironmentsRepository.find).not.toHaveBeenCalled();
   });
+
+  describe('certifications flag', () => {
+    const CERT = 'team.sb-environment.edfi-tenant.ods.certification:read';
+
+    beforeEach(() => {
+      envNavRepository.find.mockResolvedValue([
+        envNav(10, 100, 'granted'),
+        envNav(10, 200, 'denied'),
+        envNav(30, null),
+      ]);
+      sbEnvironmentsRepository.find.mockResolvedValue([]);
+    });
+
+    it('is true only for tenants where the user holds certification read', async () => {
+      const result = await controller.envNav({
+        'team.sb-environment:read': true,
+        [CERT]: { 100: new Set(['__all__']) },
+      } as unknown as AuthorizationCache);
+
+      expect(result.map((row) => [row.edfiTenantId, row.certifications])).toEqual([
+        [100, true],
+        [200, false],
+        [null, false],
+      ]);
+    });
+
+    it('is false everywhere when the user has no certification privilege', async () => {
+      const result = await controller.envNav({
+        'team.sb-environment:read': true,
+      } as AuthorizationCache);
+
+      expect(result.every((row) => row.certifications === false)).toBe(true);
+    });
+  });
 });

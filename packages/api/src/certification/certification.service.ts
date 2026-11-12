@@ -1,14 +1,20 @@
 import {
-  CERT_PROCESS_STATUS,
+  CERT_MODEL,
+  CERT_RUN_STATUS,
   CERT_SCENARIO_STATUS,
   CERT_STEP_STATUS,
+  CERT_RUN_CLOSED_STATUSES,
   CertificationStepRunDto,
+  CertModel,
+  CertRunStatus,
   CertScenarioStatus,
+  canExecuteSteps,
+  canTransitionRun,
   isSupportedSisVersion,
 } from '@edanalytics/models';
 import {
-  CertificationProcess,
-  CertificationProcessScenario,
+  CertificationRun,
+  CertificationRunScenario,
   EdfiTenant,
   SbEnvironment,
   ScenarioStep,
@@ -25,7 +31,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import fs from 'fs';
-import { DataSource, IsNull, Repository } from 'typeorm';
+import { DataSource, FindOptionsWhere, In, IsNull, Not, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
 import { CertificationTarget, CertificationTargetService } from './certification-target.service';
@@ -48,6 +54,8 @@ export const CERT_RUN_MESSAGES = {
   unsupportedVersion: "This SIS version isn't supported yet. Supported: v5.",
   busyScenario: 'Another step of this scenario is running. Wait for it to finish, then try again.',
   atCapacity: 'Too many certification steps are running right now. Try again in a minute.',
+  runLocked: "This certification run can't take new step results in its current status.",
+  invalidTransition: "This certification run can't move to that status.",
 };
 
 export interface RunStepParams {
@@ -58,7 +66,21 @@ export interface RunStepParams {
   odsId?: number | null;
   token: string;
   inputs: Record<string, string>;
+  /** The signed-in user, recorded as the creator when this step run starts a new run. */
+  userId: number | null;
 }
+
+/** Matches the open run of one data store and Certification Model: at most one row (see the unique indexes). */
+export const openRunWhere = (
+  edfiTenantId: number,
+  odsId: number | null,
+  certificationModel: CertModel,
+): FindOptionsWhere<CertificationRun> => ({
+  edfiTenantId,
+  odsId: odsId ?? IsNull(),
+  certificationModel,
+  status: Not(In([...CERT_RUN_CLOSED_STATUSES])),
+});
 
 /** A scenario passes when all its enabled steps pass; any failed step fails it. */
 export const deriveScenarioStatus = (
@@ -100,10 +122,10 @@ const describeKeys = (value: unknown): string =>
     ? Object.keys(value).slice(0, 50).join(', ') || 'none'
     : 'none';
 
-/** [sisVersion, area, scenario, fileName], straight from the catalog. */
+/** [sisVersion, domain, scenario, fileName], straight from the catalog. */
 const stepSegments = (step: StepCatalog): string[] => [
-  step.scenario.area.catalogVersion.dataStandardVersion,
-  step.scenario.area.name,
+  step.scenario.domain.catalogVersion.dataStandardVersion,
+  step.scenario.domain.name,
   step.scenario.name,
   step.fileName,
 ];
@@ -120,10 +142,10 @@ export class CertificationService {
     private readonly targetService: CertificationTargetService,
     @InjectRepository(StepCatalog)
     private readonly stepRepository: Repository<StepCatalog>,
-    @InjectRepository(CertificationProcess)
-    private readonly processRepository: Repository<CertificationProcess>,
-    @InjectRepository(CertificationProcessScenario)
-    private readonly processScenarioRepository: Repository<CertificationProcessScenario>,
+    @InjectRepository(CertificationRun)
+    private readonly runRepository: Repository<CertificationRun>,
+    @InjectRepository(CertificationRunScenario)
+    private readonly runScenarioRepository: Repository<CertificationRunScenario>,
     private readonly dataSource: DataSource,
   ) {}
 
@@ -154,20 +176,25 @@ export class CertificationService {
       edfiTenant: params.edfiTenant,
       odsId,
     });
-    const certificationProcess = await this.findOrCreateProcess(
+    const certificationRun = await this.findOrCreateOpenRun(
       params.edfiTenant.id,
       odsId,
-      step.scenario.area.catalogVersionId,
+      step.scenario.domain.catalogVersionId,
+      params.userId,
     );
+    // A safeguard behind the pages' disabled Run buttons (a stale tab, or a direct API call).
+    if (!canExecuteSteps(certificationRun.status)) {
+      throw new ConflictException(CERT_RUN_MESSAGES.runLocked);
+    }
 
     const slot = this.runLimiter.tryAcquire(
-      `${certificationProcess.certificationProcessId}:${step.scenarioId}`,
+      `${certificationRun.certificationRunId}:${step.scenarioId}`,
     );
     if (slot === 'busy-key') throw new ConflictException(CERT_RUN_MESSAGES.busyScenario);
     if (slot === 'at-capacity') throw new ServiceUnavailableException(CERT_RUN_MESSAGES.atCapacity);
     try {
-      const parsed = await this.execute(step, certificationProcess, target, params);
-      return await this.saveResult(step, certificationProcess, params.inputs, parsed);
+      const parsed = await this.execute(step, certificationRun, target, params);
+      return await this.saveResult(step, certificationRun, params.inputs, parsed);
     } finally {
       slot.release();
     }
@@ -177,55 +204,87 @@ export class CertificationService {
   private async findRunnableStep(stepId: number, sisVersion: string): Promise<StepCatalog> {
     const step = await this.stepRepository.findOne({
       where: { stepId },
-      relations: { scenario: { area: { catalogVersion: true } } },
+      relations: { scenario: { domain: { catalogVersion: true } } },
     });
     if (!step) throw new NotFoundException();
     const { scenario } = step;
-    const { area } = scenario;
-    const { catalogVersion } = area;
+    const { domain } = scenario;
+    const { catalogVersion } = domain;
     const runnable =
       step.isEnabled &&
       scenario.isEnabled &&
-      area.isEnabled &&
+      domain.isEnabled &&
       isCurrentCatalogVersion(catalogVersion, sisVersion, this.artifactService.currentRef);
     if (!runnable) throw new NotFoundException();
     return step;
   }
 
-  private async findOrCreateProcess(
+  /**
+   * The data store's open SIS run, or a new Draft one. An Approved or Rejected run isn't open,
+   * so the next step run starts a new run and the finished one keeps its results.
+   * Temporary until AC-651: once Start Run exists it creates the run, and a step run with no
+   * open run is refused.
+   */
+  private async findOrCreateOpenRun(
     edfiTenantId: number,
     odsId: number | null,
     catalogVersionId: number,
-  ): Promise<CertificationProcess> {
-    const where = { edfiTenantId, odsId: odsId ?? IsNull(), catalogVersionId };
-    const existing = await this.processRepository.findOne({ where });
+    userId: number | null,
+  ): Promise<CertificationRun> {
+    const where = openRunWhere(edfiTenantId, odsId, CERT_MODEL.sis);
+    const existing = await this.runRepository.findOne({ where });
     if (existing) return existing;
     try {
-      return await this.processRepository.save(
-        this.processRepository.create({
+      return await this.runRepository.save(
+        this.runRepository.create({
           edfiTenantId,
           odsId,
+          certificationModel: CERT_MODEL.sis,
+          // Recorded once; a later catalog version doesn't start a new run.
           catalogVersionId,
-          status: CERT_PROCESS_STATUS.inprogress,
+          createdById: userId,
+          teamId: null,
+          status: CERT_RUN_STATUS.DRAFT,
         }),
       );
     } catch (error) {
       // Two first runs can race; the unique index lets only one insert win.
-      const created = await this.processRepository.findOne({ where });
+      const created = await this.runRepository.findOne({ where });
       if (created) return created;
       throw error;
     }
   }
 
+  /**
+   * Moves a run to another workflow status, refusing any change CERT_RUN_TRANSITIONS doesn't
+   * allow. No endpoint calls this yet: Send to Review is AC-659 and the review decisions AC-660.
+   */
+  async changeRunStatus(certificationRunId: number, to: CertRunStatus): Promise<CertificationRun> {
+    const certificationRun = await this.runRepository.findOne({ where: { certificationRunId } });
+    if (!certificationRun) throw new NotFoundException();
+    if (!canTransitionRun(certificationRun.status, to)) {
+      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+    }
+    const updatedAt = new Date();
+    const result = await this.runRepository.update(
+      { certificationRunId, status: certificationRun.status },
+      { status: to, updatedAt },
+    );
+    if (result.affected !== 1) {
+      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+    }
+    return { ...certificationRun, status: to, updatedAt };
+  }
+
   private async execute(
     step: StepCatalog,
-    certificationProcess: CertificationProcess,
+    certificationRun: CertificationRun,
     target: CertificationTarget,
     { token, inputs }: RunStepParams,
   ): Promise<ParsedBrunoReport> {
-    const scenarioRow = await this.processScenarioRepository.findOne({
+    const scenarioRow = await this.runScenarioRepository.findOne({
       where: {
-        certificationProcessId: certificationProcess.certificationProcessId,
+        certificationRunId: certificationRun.certificationRunId,
         scenarioId: step.scenarioId,
       },
     });
@@ -295,20 +354,30 @@ export class CertificationService {
   /** One transaction: replace the step's row and errors, then update the scenario. */
   private saveResult(
     step: StepCatalog,
-    certificationProcess: CertificationProcess,
+    certificationRun: CertificationRun,
     inputs: Record<string, string>,
     parsed: ParsedBrunoReport,
   ): Promise<CertificationStepRunDto> {
-    const { certificationProcessId } = certificationProcess;
+    const { certificationRunId } = certificationRun;
     const { stepId, scenarioId } = step;
     const ranAt = new Date();
     const status = parsed.passed ? CERT_STEP_STATUS.success : CERT_STEP_STATUS.failed;
 
     return this.dataSource.transaction(async (em) => {
+      // Lock the run before writing evidence, serializing this save with status decisions.
+      const writable = await em.getRepository(CertificationRun).update(
+        {
+          certificationRunId,
+          status: In([CERT_RUN_STATUS.DRAFT, CERT_RUN_STATUS.CHANGES_REQUESTED]),
+        },
+        { updatedAt: ranAt },
+      );
+      if (writable.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.runLocked);
+
       const stepRuns = em.getRepository(ScenarioStep);
-      const existing = await stepRuns.findOne({ where: { certificationProcessId, stepId } });
+      const existing = await stepRuns.findOne({ where: { certificationRunId, stepId } });
       const stepRun = await stepRuns.save(
-        Object.assign(existing ?? stepRuns.create({ certificationProcessId, scenarioId, stepId }), {
+        Object.assign(existing ?? stepRuns.create({ certificationRunId, scenarioId, stepId }), {
           status,
           inputs,
           runAt: ranAt,
@@ -329,21 +398,18 @@ export class CertificationService {
       const enabledStepIds = (
         await em.getRepository(StepCatalog).find({ where: { scenarioId, isEnabled: true } })
       ).map((catalogStep) => catalogStep.stepId);
-      const runs = await stepRuns.find({ where: { certificationProcessId, scenarioId } });
+      const runs = await stepRuns.find({ where: { certificationRunId, scenarioId } });
       const scenarioStatus = deriveScenarioStatus(enabledStepIds, runs);
 
-      const scenarios = em.getRepository(CertificationProcessScenario);
+      const scenarios = em.getRepository(CertificationRunScenario);
       const scenarioRow =
-        (await scenarios.findOne({ where: { certificationProcessId, scenarioId } })) ??
-        scenarios.create({ certificationProcessId, scenarioId, capturedVars: null });
+        (await scenarios.findOne({ where: { certificationRunId, scenarioId } })) ??
+        scenarios.create({ certificationRunId, scenarioId, capturedVars: null });
       scenarioRow.status = scenarioStatus;
       if (parsed.complete && parsed.capturedVars) {
         scenarioRow.capturedVars = parsed.capturedVars;
       }
       await scenarios.save(scenarioRow);
-      await em
-        .getRepository(CertificationProcess)
-        .update({ certificationProcessId }, { updatedAt: ranAt });
 
       return {
         stepId,

@@ -1,5 +1,5 @@
 import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
-import { User } from '@edanalytics/models-server';
+import { CertificationRun, User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -69,7 +69,12 @@ export class UsersGlobalService {
 
   async remove(id: number, _user: GetUserDto) {
     const old = await this.findOne(id).catch(throwNotFound);
-    await this.usersRepository.remove(old);
+    await this.entityManager.transaction(async (em) => {
+      // certification_run.createdById is NO ACTION on SQL Server (SET NULL on PostgreSQL), so
+      // clear it first or the delete fails for anyone who started a certification run.
+      await em.getRepository(CertificationRun).update({ createdById: id }, { createdById: null });
+      await em.getRepository(User).remove(old);
+    });
     return undefined;
   }
 }

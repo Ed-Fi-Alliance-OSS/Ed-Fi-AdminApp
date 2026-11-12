@@ -1,6 +1,6 @@
 import { Repository } from 'typeorm';
 import {
-  AreaCatalog,
+  DomainCatalog,
   CatalogVersion,
   ScenarioCatalog,
   StepCatalog,
@@ -11,18 +11,18 @@ import { CatalogQueryService } from './catalog-query.service';
 const mockRepo = <T>(rows: Partial<T>[] = []) =>
   ({ find: jest.fn().mockResolvedValue(rows) }) as unknown as jest.Mocked<Repository<T>>;
 
-const area = (areaId: number, catalogVersionId = 1): Partial<AreaCatalog> => ({
-  areaId,
+const domain = (domainId: number, catalogVersionId = 1): Partial<DomainCatalog> => ({
+  domainId,
   catalogVersionId,
-  name: `Area${areaId}`,
-  displayName: `Area ${areaId}`,
-  displayOrder: areaId,
+  name: `Domain${domainId}`,
+  displayName: `Domain ${domainId}`,
+  displayOrder: domainId,
   isEnabled: true,
 });
 
-const scenario = (scenarioId: number, areaId: number): Partial<ScenarioCatalog> => ({
+const scenario = (scenarioId: number, domainId: number): Partial<ScenarioCatalog> => ({
   scenarioId,
-  areaId,
+  domainId,
   name: `Scenario${scenarioId}`,
   displayName: `Scenario ${scenarioId}`,
   displayOrder: scenarioId,
@@ -49,24 +49,24 @@ const parameter = (parameterId: number, stepId: number): Partial<StepParameterCa
 
 const build = (repos: {
   versions?: Partial<CatalogVersion>[];
-  areas?: Partial<AreaCatalog>[];
+  domains?: Partial<DomainCatalog>[];
   scenarios?: Partial<ScenarioCatalog>[];
   steps?: Partial<StepCatalog>[];
   parameters?: Partial<StepParameterCatalog>[];
 }) => {
   const versionRepo = mockRepo<CatalogVersion>(repos.versions);
-  const areaRepo = mockRepo<AreaCatalog>(repos.areas);
+  const domainRepo = mockRepo<DomainCatalog>(repos.domains);
   const scenarioRepo = mockRepo<ScenarioCatalog>(repos.scenarios);
   const stepRepo = mockRepo<StepCatalog>(repos.steps);
   const parameterRepo = mockRepo<StepParameterCatalog>(repos.parameters);
   const service = new CatalogQueryService(
     versionRepo,
-    areaRepo,
+    domainRepo,
     scenarioRepo,
     stepRepo,
     parameterRepo,
   );
-  return { service, versionRepo, areaRepo, scenarioRepo, stepRepo, parameterRepo };
+  return { service, versionRepo, domainRepo, scenarioRepo, stepRepo, parameterRepo };
 };
 
 describe('CatalogQueryService', () => {
@@ -80,60 +80,60 @@ describe('CatalogQueryService', () => {
     });
   });
 
-  describe('findAreasWithScenarios', () => {
-    it('groups enabled scenarios under their area, preserving order', async () => {
+  describe('findDomainsWithScenarios', () => {
+    it('groups enabled scenarios under their domain, preserving order', async () => {
       const { service } = build({
-        areas: [area(1), area(2)],
+        domains: [domain(1), domain(2)],
         scenarios: [scenario(10, 1), scenario(20, 2), scenario(11, 1)],
       });
 
-      const result = await service.findAreasWithScenarios(1);
+      const result = await service.findDomainsWithScenarios(1);
 
-      expect(result.map((a) => a.areaId)).toEqual([1, 2]);
+      expect(result.map((a) => a.domainId)).toEqual([1, 2]);
       expect(result[0].scenarios.map((s) => s.scenarioId)).toEqual([10, 11]);
       expect(result[1].scenarios.map((s) => s.scenarioId)).toEqual([20]);
     });
 
-    it('filters areas and scenarios by catalogVersionId and isEnabled when given', async () => {
-      const { service, areaRepo, scenarioRepo } = build({ areas: [area(1)] });
+    it('filters domains and scenarios by catalogVersionId and isEnabled when given', async () => {
+      const { service, domainRepo, scenarioRepo } = build({ domains: [domain(1)] });
 
-      await service.findAreasWithScenarios(5);
+      await service.findDomainsWithScenarios(5);
 
-      expect(areaRepo.find).toHaveBeenCalledWith({
+      expect(domainRepo.find).toHaveBeenCalledWith({
         where: { isEnabled: true, catalogVersionId: 5 },
-        order: { displayOrder: 'ASC', areaId: 'ASC' },
+        order: { displayOrder: 'ASC', domainId: 'ASC' },
       });
       expect(scenarioRepo.find).toHaveBeenCalledWith({
-        where: { isEnabled: true, area: { isEnabled: true, catalogVersionId: 5 } },
+        where: { isEnabled: true, domain: { isEnabled: true, catalogVersionId: 5 } },
         order: { displayOrder: 'ASC', scenarioId: 'ASC' },
       });
     });
 
     it('does not filter by catalog version when catalogVersionId is omitted', async () => {
-      const { service, areaRepo, scenarioRepo } = build({ areas: [area(1, 1), area(2, 2)] });
+      const { service, domainRepo, scenarioRepo } = build({ domains: [domain(1, 1), domain(2, 2)] });
 
-      await service.findAreasWithScenarios();
+      await service.findDomainsWithScenarios();
 
-      expect(areaRepo.find).toHaveBeenCalledWith(
+      expect(domainRepo.find).toHaveBeenCalledWith(
         expect.objectContaining({ where: { isEnabled: true } }),
       );
       expect(scenarioRepo.find).toHaveBeenCalledWith(
-        expect.objectContaining({ where: { isEnabled: true, area: { isEnabled: true } } }),
+        expect.objectContaining({ where: { isEnabled: true, domain: { isEnabled: true } } }),
       );
     });
 
-    it('returns an area with no scenarios as an empty list', async () => {
-      const { service } = build({ areas: [area(1)], scenarios: [] });
+    it('returns a domain with no scenarios as an empty list', async () => {
+      const { service } = build({ domains: [domain(1)], scenarios: [] });
 
-      const result = await service.findAreasWithScenarios(1);
+      const result = await service.findDomainsWithScenarios(1);
 
-      expect(result).toEqual([expect.objectContaining({ areaId: 1, scenarios: [] })]);
+      expect(result).toEqual([expect.objectContaining({ domainId: 1, scenarios: [] })]);
     });
 
-    it('returns an empty list and skips the scenario query when no areas match', async () => {
-      const { service, scenarioRepo } = build({ areas: [] });
+    it('returns an empty list and skips the scenario query when no domains match', async () => {
+      const { service, scenarioRepo } = build({ domains: [] });
 
-      await expect(service.findAreasWithScenarios(999)).resolves.toEqual([]);
+      await expect(service.findDomainsWithScenarios(999)).resolves.toEqual([]);
       expect(scenarioRepo.find).not.toHaveBeenCalled();
     });
   });
@@ -157,7 +157,7 @@ describe('CatalogQueryService', () => {
 
       await service.findStepsWithParameters(7);
 
-      const enabledParents = { isEnabled: true, area: { isEnabled: true } };
+      const enabledParents = { isEnabled: true, domain: { isEnabled: true } };
       expect(stepRepo.find).toHaveBeenCalledWith({
         where: { isEnabled: true, scenarioId: 7, scenario: enabledParents },
         order: { displayOrder: 'ASC', stepId: 'ASC' },
@@ -177,7 +177,7 @@ describe('CatalogQueryService', () => {
         expect.objectContaining({
           where: {
             isEnabled: true,
-            scenario: { isEnabled: true, area: { isEnabled: true } },
+            scenario: { isEnabled: true, domain: { isEnabled: true } },
           },
         }),
       );

@@ -1,28 +1,29 @@
 import {
-  CertificationScenarioStatusDto,
+  CERT_MODEL,
   CERT_SNAPSHOT_STATE,
+  CertificationScenarioStatusDto,
+  CertificationScenarioStatusesDto,
   CertificationStepRunsDto,
   CertificationStepSnapshotDto,
   CertStepErrorKind,
+  canExecuteSteps,
   isSupportedSisVersion,
-  toCertificationScenarioStatusDto,
+  toCertificationScenarioStatusesDto,
   toCertificationStepRunsDto,
   toCertificationStepSnapshotDto,
 } from '@edanalytics/models';
 import {
-  CatalogVersion,
-  CertificationProcess,
-  CertificationProcessScenario,
+  CertificationRun,
+  CertificationRunScenario,
   ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
 } from '@edanalytics/models-server';
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, IsNull, Repository } from 'typeorm';
+import { In, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
-import { ArtifactService } from './artifact/artifact.service';
-import { CERT_RUN_MESSAGES, isCurrentCatalogVersion } from './certification.service';
+import { CERT_RUN_MESSAGES, openRunWhere } from './certification.service';
 
 export interface FindStepRunsParams {
   edfiTenantId: number;
@@ -41,26 +42,23 @@ const EMPTY: CertificationStepRunsDto = { scenarioStatus: null, steps: [] };
 
 /**
  * Reads the saved step results that CertificationService.runStep writes (AC-475).
- * Read-only: it never creates a certification process and never contacts the ODS/API.
+ * Read-only: it never creates a certification run and never contacts the ODS/API.
+ * Every read is of the data store's open SIS run, so a finished (Approved or Rejected) run's
+ * results never show under the run that follows it.
  */
 @Injectable()
 export class CertificationStepRunsService {
-  private readonly logger = new Logger(CertificationStepRunsService.name);
-
   constructor(
     @InjectRepository(ScenarioCatalog)
     private readonly scenarioRepository: Repository<ScenarioCatalog>,
-    @InjectRepository(CertificationProcess)
-    private readonly processRepository: Repository<CertificationProcess>,
-    @InjectRepository(CertificationProcessScenario)
-    private readonly processScenarioRepository: Repository<CertificationProcessScenario>,
+    @InjectRepository(CertificationRun)
+    private readonly runRepository: Repository<CertificationRun>,
+    @InjectRepository(CertificationRunScenario)
+    private readonly runScenarioRepository: Repository<CertificationRunScenario>,
     @InjectRepository(ScenarioStep)
     private readonly stepRunRepository: Repository<ScenarioStep>,
     @InjectRepository(ScenarioStepError)
     private readonly stepErrorRepository: Repository<ScenarioStepError>,
-    @InjectRepository(CatalogVersion)
-    private readonly catalogVersionRepository: Repository<CatalogVersion>,
-    private readonly artifactService: ArtifactService,
   ) {}
 
   async findStepRuns(params: FindStepRunsParams): Promise<CertificationStepRunsDto> {
@@ -68,32 +66,25 @@ export class CertificationStepRunsService {
       throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
     }
 
-    // runStep keys the process on step.scenario.area.catalogVersionId; take the same value
-    // from the requested scenario so a read always finds the process a run wrote. This is
-    // deliberately not isCurrentCatalogVersion: saved results stay readable for the
-    // scenario's own catalog version even if it is no longer the configured one.
+    // The scenario is read only to check that it belongs to the requested SIS version.
     const scenario = await this.scenarioRepository.findOne({
       where: { scenarioId: params.scenarioId },
-      relations: { area: { catalogVersion: true } },
+      relations: { domain: { catalogVersion: true } },
     });
-    if (!scenario || scenario.area.catalogVersion.dataStandardVersion !== params.sisVersion) {
+    if (!scenario || scenario.domain.catalogVersion.dataStandardVersion !== params.sisVersion) {
       return EMPTY;
     }
 
-    const certificationProcess = await this.processRepository.findOne({
-      where: {
-        edfiTenantId: params.edfiTenantId,
-        odsId: params.odsId ?? IsNull(),
-        catalogVersionId: scenario.area.catalogVersionId,
-      },
+    const certificationRun = await this.runRepository.findOne({
+      where: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
     });
-    if (!certificationProcess) return EMPTY;
+    if (!certificationRun) return EMPTY;
 
-    const { certificationProcessId } = certificationProcess;
+    const { certificationRunId } = certificationRun;
     const { scenarioId } = params;
     const [stepRuns, scenarioRow] = await Promise.all([
-      this.stepRunRepository.find({ where: { certificationProcessId, scenarioId } }),
-      this.processScenarioRepository.findOne({ where: { certificationProcessId, scenarioId } }),
+      this.stepRunRepository.find({ where: { certificationRunId, scenarioId } }),
+      this.runScenarioRepository.findOne({ where: { certificationRunId, scenarioId } }),
     ]);
     const errors =
       stepRuns.length > 0
@@ -125,53 +116,38 @@ export class CertificationStepRunsService {
   }
 
   /**
-   * Every scenario's saved status for the current catalog version, read-only: it never
-   * creates a certification process. Scenarios without a saved row are left out.
+   * The data store's open SIS run and its scenario statuses, read-only: it never creates a
+   * run. With no open run there are no statuses, because the next step run starts a new run.
+   * Scenarios without a saved row are left out. The pages use `run.canExecuteSteps` to decide
+   * whether their Run buttons work.
    */
   async findScenarioStatuses(
     params: FindScenarioStatusesParams,
-  ): Promise<CertificationScenarioStatusDto[]> {
+  ): Promise<CertificationScenarioStatusesDto> {
     if (!isSupportedSisVersion(params.sisVersion)) {
       throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
     }
 
-    const catalogVersions = await this.catalogVersionRepository.find({
-      where: { dataStandardVersion: params.sisVersion, isActive: true },
+    const certificationRun = await this.runRepository.findOne({
+      where: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
     });
-    const catalogVersion = catalogVersions.find((version) =>
-      isCurrentCatalogVersion(version, params.sisVersion, this.artifactService.currentRef),
-    );
-    if (!catalogVersion) {
-      // An empty list reads as "no runs" to the caller, so make this case diagnosable.
-      this.logger.warn(
-        `No current catalog version for ${params.sisVersion}: configured artifact ref is ${
-          this.artifactService.currentRef ?? 'not set'
-        }; active versions: ${
-          catalogVersions.map((version) => version.artifactVersion).join(', ') || 'none'
-        }.`,
-      );
-      return [];
-    }
+    if (!certificationRun) return toCertificationScenarioStatusesDto({ run: null, scenarios: [] });
 
-    const certificationProcess = await this.processRepository.findOne({
-      where: {
-        edfiTenantId: params.edfiTenantId,
-        odsId: params.odsId ?? IsNull(),
-        catalogVersionId: catalogVersion.catalogVersionId,
+    const rows = await this.runScenarioRepository.find({
+      where: { certificationRunId: certificationRun.certificationRunId },
+    });
+
+    return toCertificationScenarioStatusesDto({
+      run: {
+        runId: certificationRun.certificationRunId,
+        status: certificationRun.status,
+        canExecuteSteps: canExecuteSteps(certificationRun.status),
       },
-    });
-    if (!certificationProcess) return [];
-
-    const rows = await this.processScenarioRepository.find({
-      where: { certificationProcessId: certificationProcess.certificationProcessId },
-    });
-
-    return toCertificationScenarioStatusDto(
-      rows.map((row) => ({
+      scenarios: rows.map((row) => ({
         scenarioId: row.scenarioId,
         status: row.status as CertificationScenarioStatusDto['status'],
       })),
-    );
+    });
   }
 
   /**
@@ -187,10 +163,7 @@ export class CertificationStepRunsService {
     const stepRun = await this.stepRunRepository.findOne({
       where: {
         stepId: params.stepId,
-        certificationProcess: {
-          edfiTenantId: params.edfiTenantId,
-          odsId: params.odsId ?? IsNull(),
-        },
+        certificationRun: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
       },
       select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
     });

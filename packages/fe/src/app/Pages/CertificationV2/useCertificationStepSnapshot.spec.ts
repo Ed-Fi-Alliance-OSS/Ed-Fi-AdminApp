@@ -18,6 +18,7 @@ const args = {
   sisVersion: 'v5' as string | undefined,
   stepId: 189 as number | undefined,
   ranAt: '2026-10-15T15:00:00.000Z' as string | undefined,
+  runId: 7 as number | null | undefined,
   enabled: true,
 };
 
@@ -68,7 +69,7 @@ describe('useCertificationStepSnapshot', () => {
     const { options } = render();
 
     expect(options.queryKey).toEqual(
-      certificationQueryKeys.stepSnapshot(1, 10, 5, 189, '2026-10-15T15:00:00.000Z'),
+      certificationQueryKeys.stepSnapshot(1, 10, 5, 189, '2026-10-15T15:00:00.000Z', 7),
     );
     expect(options.queryKey).toEqual([
       'certification',
@@ -78,12 +79,15 @@ describe('useCertificationStepSnapshot', () => {
       5,
       189,
       '2026-10-15T15:00:00.000Z',
+      7,
     ]);
   });
 
   it('stays disabled while the step or tenant is unknown', () => {
     expect(render({ stepId: undefined }).options.enabled).toBe(false);
     expect(render({ edfiTenantId: undefined }).options.enabled).toBe(false);
+    expect(render({ runId: undefined }).options.enabled).toBe(false);
+    expect(render({ runId: null }).options.enabled).toBe(false);
   });
 
   it('returns the snapshot and its loading and error state', () => {

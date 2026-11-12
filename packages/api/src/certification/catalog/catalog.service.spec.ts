@@ -4,7 +4,7 @@ import * as os from 'os';
 import * as path from 'path';
 import { DataSource, Repository } from 'typeorm';
 import {
-  AreaCatalog,
+  DomainCatalog,
   CatalogVersion,
   ScenarioCatalog,
   StepCatalog,
@@ -27,7 +27,7 @@ type ParsedScenarioLike = {
   displayOrder: number;
   steps: ParsedStepLike[];
 };
-type ParsedAreaLike = {
+type ParsedDomainLike = {
   name: string;
   displayName: string | null;
   displayOrder: number;
@@ -44,7 +44,7 @@ type CatalogServiceInternal = {
     dataStandardVersion: string,
     versionRoot: string
   ): Promise<void>;
-  parseAreas(versionRoot: string): ParsedAreaLike[];
+  parseDomains(versionRoot: string): ParsedDomainLike[];
   parseMeta(folderBruPath: string): BruMetaLike;
   parseStepTypeMap(folderBruPath: string): Record<number, string> | null;
   extractInputParams(bruContent: string): ParsedParamLike[];
@@ -57,14 +57,14 @@ const asInternal = (svc: CatalogService): CatalogServiceInternal =>
   svc as unknown as CatalogServiceInternal;
 
 jest.mock('@edanalytics/models-server', () => {
-  class AreaCatalog {}
+  class DomainCatalog {}
   class CatalogVersion {}
   class ScenarioCatalog {}
   class StepCatalog {}
   class StepParameterCatalog {}
 
   return {
-    AreaCatalog,
+    DomainCatalog,
     CatalogVersion,
     ScenarioCatalog,
     StepCatalog,
@@ -120,7 +120,7 @@ describe('CatalogService', () => {
 
     manager.create.mockImplementation((entity: unknown, payload: Record<string, unknown>) => {
       if (entity === CatalogVersion) return { catalogVersionId: 1, ...payload };
-      if (entity === AreaCatalog) return { areaId: 10, ...payload };
+      if (entity === DomainCatalog) return { domainId: 10, ...payload };
       if (entity === ScenarioCatalog) return { scenarioId: 20, ...payload };
       if (entity === StepCatalog) return { stepId: 30, ...payload };
       if (entity === StepParameterCatalog) return { parameterId: 40, ...payload };
@@ -206,10 +206,10 @@ describe('CatalogService', () => {
 
   it('syncVersion should deactivate active version with portable boolean parameter and persist catalog hierarchy', async () => {
     catalogVersionRepo.findOne.mockResolvedValue(null);
-    jest.spyOn(asInternal(service), 'parseAreas').mockReturnValue([
+    jest.spyOn(asInternal(service), 'parseDomains').mockReturnValue([
       {
-        name: 'area-a',
-        displayName: 'Area A',
+        name: 'domain-a',
+        displayName: 'Domain A',
         displayOrder: 1,
         scenarios: [
           {
@@ -242,7 +242,7 @@ describe('CatalogService', () => {
     );
     expect(qb.execute).toHaveBeenCalledTimes(1);
 
-    // CatalogVersion, AreaCatalog, ScenarioCatalog, StepCatalog, StepParameterCatalog
+    // CatalogVersion, DomainCatalog, ScenarioCatalog, StepCatalog, StepParameterCatalog
     expect(manager.save).toHaveBeenCalledTimes(5);
     expect(manager.create).toHaveBeenCalledWith(
       CatalogVersion,
@@ -254,7 +254,7 @@ describe('CatalogService', () => {
     );
   });
 
-  it('parseAreas should record each step file name', () => {
+  it('parseDomains should record each step file name', () => {
     // fs read functions are module-mocked above; this test needs the real ones.
     const actualFs = jest.requireActual<typeof fs>('fs');
     mockedFs.existsSync.mockImplementation(actualFs.existsSync);
@@ -270,9 +270,9 @@ describe('CatalogService', () => {
         'meta {\n  name: 01 - 1st Student is valid\n  seq: 1\n}\n'
       );
 
-      const [area] = asInternal(service).parseAreas(root);
+      const [domain] = asInternal(service).parseDomains(root);
 
-      expect(area.scenarios[0].steps[0]).toMatchObject({
+      expect(domain.scenarios[0].steps[0]).toMatchObject({
         stepName: '01 - 1st Student is valid',
         fileName: '01 - 1st Student is valid.bru',
       });
