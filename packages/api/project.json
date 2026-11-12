@@ -6,87 +6,72 @@
   "tags": [],
   "targets": {
     "build-migration-config": {
-      "executor": "@nx/webpack:webpack",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/packages/migration"],
       "options": {
-        "target": "node",
-        "compiler": "tsc",
-        "outputPath": "dist/packages/migration",
-        "main": "packages/api/src/database/migrations.datasource.ts",
-        "tsConfig": "packages/api/tsconfig.app.json",
-        "webpackConfig": "packages/api/webpack.config.js"
+        "cwd": "packages/api",
+        "command": "webpack-cli build --config webpack.migration.config.js",
+        "env": {
+          "NODE_ENV": "production"
+        }
       }
     },
     "migrations:generate": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
+      "dependsOn": ["build-migration-config"],
       "options": {
         "cwd": "packages/api",
         "commands": [
           "typeorm -d ../../dist/packages/migration/main.js migration:generate src/database/migrations/pgsql/{args.name}"
         ]
-      },
-      "dependsOn": ["build-migration-config"]
+      }
     },
     "schema:drop": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
+      "dependsOn": ["build-migration-config"],
       "options": {
         "cwd": "packages/api",
         "commands": ["typeorm -d ../../dist/packages/migration/main.js schema:drop"]
-      },
-      "dependsOn": ["build-migration-config"]
+      }
     },
     "migrations:revert": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
+      "dependsOn": ["build-migration-config"],
       "options": {
         "cwd": "packages/api",
         "commands": ["typeorm -d ../../dist/packages/migration/main.js migration:revert"]
-      },
-      "dependsOn": ["build-migration-config"]
+      }
     },
     "migrations:run": {
       "executor": "nx:run-commands",
       "outputs": ["{options.outputPath}"],
+      "dependsOn": ["build-migration-config"],
       "options": {
         "cwd": "packages/api",
         "commands": ["typeorm -d ../../dist/packages/migration/main.js migration:run"]
-      },
-      "dependsOn": ["build-migration-config"]
+      }
     },
     "build": {
-      "executor": "@nx/webpack:webpack",
-      "outputs": ["{options.outputPath}"],
+      "executor": "nx:run-commands",
+      "outputs": ["{workspaceRoot}/dist/packages/api"],
       "defaultConfiguration": "production",
       "options": {
-        "target": "node",
-        "compiler": "tsc",
-        "outputPath": "dist/packages/api",
-        "main": "packages/api/src/main.ts",
-        "tsConfig": "packages/api/tsconfig.app.json",
-        "tsPlugins": [
-          {
-            "name": "@nestjs/swagger/plugin",
-            "options": {
-              "dtoFileNameSuffix": [".entity.ts", ".dto.ts"],
-              "introspectComments": true
-            }
-          }
-        ],
-        "assets": ["packages/api/src/assets"],
-        "isolatedConfig": true,
-        "webpackConfig": "packages/api/webpack.config.js"
+        "cwd": "packages/api",
+        "command": "webpack-cli build --config webpack.config.js"
       },
       "configurations": {
-        "development": {},
+        "development": {
+          "env": {
+            "NODE_ENV": "development"
+          }
+        },
         "production": {
-          "fileReplacements": [
-            {
-              "replace": "packages/api/src/modes/dev.ts",
-              "with": "packages/api/src/modes/prod.ts"
-            }
-          ]
+          "env": {
+            "NODE_ENV": "production"
+          }
         }
       }
     },
@@ -105,16 +90,24 @@
         }
       }
     },
-    "lint": {
-      "executor": "@nx/eslint:lint",
-      "outputs": ["{options.outputFile}"]
+    "serve-watch": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "dependsOn": ["^build"],
+      "defaultConfiguration": "development",
+      "options": {
+        "command": "webpack-cli build --config packages/api/webpack.config.js --watch --env serve"
+      },
+      "configurations": {
+        "development": {
+          "env": {
+            "NODE_ENV": "development"
+          }
+        }
+      }
     },
     "test": {
-      "executor": "@nx/jest:jest",
-      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
-      "options": {
-        "jestConfig": "packages/api/jest.config.ts"
-      }
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
     }
   }
 }

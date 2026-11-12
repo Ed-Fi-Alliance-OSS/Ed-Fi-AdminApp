@@ -54,6 +54,8 @@ packages/
 - `npm run migrations:run:mssql` - Run pending migrations against MSSQL
 - `npm run test:api` - Run API tests
 - `npm run test:fe` - Run frontend tests
+- `npx nx run fe:test -- --testPathPatterns=<pattern>` - Run only the test files matching a pattern (works for any project; `--testFile` is no longer supported)
+- `npm run start:api:dev` - Run the API in watch mode (webpack rebuilds incrementally and restarts the API on each change)
 - `npm run test:e2e:bdd` - Run the Playwright BDD E2E suite (requires the stack already running — see below for the full provisioning runner)
 - `npm run lint:check` - Check linting
 - `npm run storybook` - Start Storybook

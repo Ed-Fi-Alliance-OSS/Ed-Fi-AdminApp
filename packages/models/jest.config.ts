@@ -1,4 +1,5 @@
-export default {
+// CommonJS export: this package's package.json sets "type": "commonjs", so Node won't load `export default` here.
+module.exports = {
   displayName: 'models',
   preset: '../../jest.preset.js',
   transform: {
@@ -12,7 +13,7 @@ export default {
      [
        'jest-junit',
        {
-         outputDirectory: './test-results',
+         outputDirectory: '<rootDir>/../../test-results',
          outputName: 'junit-models.xml',
        },
      ],
