@@ -1,3 +1,4 @@
+// CommonJS export: this package's package.json sets "type": "commonjs", so Node won't load `export default` here.
 module.exports = {
   displayName: 'utils',
   preset: '../../jest.preset.js',
