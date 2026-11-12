@@ -262,6 +262,9 @@
     "webpack-dev-middleware": "^7.4.6",
     "@eslint/eslintrc": {
       "minimatch": "^3.1.2"
+    },
+    "nx": {
+      "minimatch": "10.2.5"
     }
   },
   "lint-staged": {
