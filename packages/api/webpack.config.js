@@ -1,12 +1,15 @@
 const { join } = require('path');
 const { NxAppWebpackPlugin } = require('@nx/webpack/app-plugin');
+const { RunScriptWebpackPlugin } = require('run-script-webpack-plugin');
 
 // Builds the API bundle (dist/packages/api/main.js). Must be run through `nx run api:build`
 // (not webpack-cli directly): NxAppWebpackPlugin reads the project and configuration from
 // the NX_TASK_TARGET_* variables Nx sets (production by default, or development).
+// `nx run api:serve-watch` passes `--watch --env serve`: webpack rebuilds incrementally and
+// RunScriptWebpackPlugin starts the API, restarting it after each rebuild.
 const isProduction = (process.env.NX_TASK_TARGET_CONFIGURATION || 'production') === 'production';
 
-module.exports = {
+module.exports = (env = {}) => ({
   output: {
     path: join(__dirname, '../../dist/packages/api'),
     // NxAppWebpackPlugin only sets the deprecated output.libraryTarget, after webpack has
@@ -46,5 +49,8 @@ module.exports = {
           ]
         : [],
     }),
+    ...(env.serve
+      ? [new RunScriptWebpackPlugin({ name: 'main.js', nodeArgs: ['--enable-source-maps'] })]
+      : []),
   ],
-};
+});

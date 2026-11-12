@@ -90,6 +90,22 @@
         }
       }
     },
+    "serve-watch": {
+      "executor": "nx:run-commands",
+      "continuous": true,
+      "dependsOn": ["^build"],
+      "defaultConfiguration": "development",
+      "options": {
+        "command": "webpack-cli build --config packages/api/webpack.config.js --watch --env serve"
+      },
+      "configurations": {
+        "development": {
+          "env": {
+            "NODE_ENV": "development"
+          }
+        }
+      }
+    },
     "test": {
       "outputs": ["{workspaceRoot}/coverage/{projectRoot}"]
     }
