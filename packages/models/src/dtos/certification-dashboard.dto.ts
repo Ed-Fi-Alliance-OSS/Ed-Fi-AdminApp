@@ -1,3 +1,5 @@
+import { Expose, Type } from 'class-transformer';
+import { makeSerializer } from '../utils/make-serializer';
 import { CERT_RUN_STATUS, CertModel, CertRunStatus } from './certification-run.dto';
 
 /** The "Runs in flight or rejected" list shows at most this many rows; `total` is the real count. */
@@ -18,34 +20,75 @@ export const CERT_DASHBOARD_OTHER_STATUSES: readonly CertRunStatus[] = [
   CERT_RUN_STATUS.REJECTED,
 ];
 
-export type CertificationDashboardCountsDto = {
+export class CertificationDashboardCountsDto {
+  @Expose()
   newlyReadyForReview: number;
+
+  @Expose()
   readyWithNewChanges: number;
+
+  @Expose()
   pickedUp: number;
+
+  @Expose()
   runsInFlight: number;
-};
+}
 
-export type CertificationDashboardRunDto = {
+export class CertificationDashboardRunDto {
+  @Expose()
   runId: number;
+
+  @Expose()
   teamName: string | null;
+
+  @Expose()
   sbEnvironmentName: string;
+
+  @Expose()
   edfiTenantName: string;
+
+  @Expose()
   dataStore: string | null;
+
+  @Expose()
   certificationModel: CertModel;
+
+  @Expose()
   status: CertRunStatus;
+
   /** ISO string. */
+  @Expose()
   statusChangedAt: string;
+
   /** ISO string. */
+  @Expose()
   updatedAt: string;
-};
+}
 
-export type CertificationDashboardListDto = {
+export class CertificationDashboardListDto {
+  @Expose()
+  @Type(() => CertificationDashboardRunDto)
   rows: CertificationDashboardRunDto[];
-  total: number;
-};
 
-export type CertificationDashboardDto = {
+  @Expose()
+  total: number;
+}
+
+export class CertificationDashboardDto {
+  @Expose()
+  @Type(() => CertificationDashboardCountsDto)
   counts: CertificationDashboardCountsDto;
+
+  @Expose()
+  @Type(() => CertificationDashboardListDto)
   waiting: CertificationDashboardListDto;
+
+  @Expose()
+  @Type(() => CertificationDashboardListDto)
   others: CertificationDashboardListDto;
-};
+}
+
+export const toCertificationDashboardDto = makeSerializer<
+  CertificationDashboardDto,
+  CertificationDashboardDto
+>(CertificationDashboardDto);
