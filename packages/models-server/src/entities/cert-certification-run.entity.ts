@@ -77,7 +77,7 @@ export class CertificationRun {
   status: CertRunStatus;
 
   /** When the run entered its current status; set by changeRunStatus, defaulted by the DB on insert. */
-  @Column()
+  @Column({ default: () => 'CURRENT_TIMESTAMP' })
   statusChangedAt: Date;
 
   @CreateDateColumn()

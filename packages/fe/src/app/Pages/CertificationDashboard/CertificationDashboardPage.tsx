@@ -165,7 +165,7 @@ const RunRow = ({
 }) => (
   <Tr>
     <Td>{row.teamName ?? EMPTY}</Td>
-    <Td>{row.dataStore ?? EMPTY}</Td>
+    <Td>{row.dataStore ?? `${row.sbEnvironmentName} / ${row.edfiTenantName}`}</Td>
     <Td>{row.certificationModel}</Td>
     <Td>{STATUS_LABELS[row.status]}</Td>
     <Td>

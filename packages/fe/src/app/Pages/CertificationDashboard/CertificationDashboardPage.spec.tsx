@@ -135,8 +135,9 @@ describe('CertificationDashboardPage', () => {
     const rows = within(table).getAllByRole('row').slice(1);
     expect(rows).toHaveLength(3);
     expect(rows[0].textContent).toContain('First Team');
-    expect(rows[1].textContent).toContain('—');
-    expect(within(rows[1]).getAllByText('—')).toHaveLength(2);
+    expect(within(rows[1]).getAllByText('—')).toHaveLength(1);
+    // No ODS: fall back to environment / tenant so rows stay distinguishable.
+    expect(rows[1].textContent).toContain('Env 1 / tenant1');
     expect(rows[2].textContent).toContain('Third Team');
     expect(rows[2].textContent).toContain('Ready for review with new changes');
     expect(rows[0].textContent).toContain('3h 0m');
