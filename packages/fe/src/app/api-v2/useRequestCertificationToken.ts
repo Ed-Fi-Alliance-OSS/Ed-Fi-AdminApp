@@ -7,16 +7,16 @@ export const useRequestCertificationToken = () =>
     // Don't keep the submitted key/secret in the mutation cache after unmount.
     gcTime: 0,
     mutationFn: async ({
-      sbEnvironmentId,
+      teamId,
       edfiTenantId,
       body,
     }: {
-      sbEnvironmentId: number;
+      teamId: number;
       edfiTenantId: number;
       body: PostCertificationTokenDto;
     }) =>
       (await apiClient.post(
-        `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/token`,
+        `teams/${teamId}/edfi-tenants/${edfiTenantId}/certification/token`,
         body,
       )) as unknown as CertificationTokenDto,
   });

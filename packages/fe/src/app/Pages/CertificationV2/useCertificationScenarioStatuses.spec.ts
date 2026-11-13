@@ -18,10 +18,9 @@ type QueryOptions = {
 };
 
 const args = {
-  sbEnvironmentId: 1,
-  edfiTenantId: 10,
-  odsId: 5 as number | undefined,
-  sisVersion: 'v5' as string | undefined,
+  teamId: 2,
+  edfiTenantId: 10 as number | undefined,
+  runId: 7 as number | undefined,
   enabled: true,
 };
 
@@ -37,43 +36,24 @@ const render = (overrides: Partial<typeof args> = {}, state: QueryState = { isPe
 describe('useCertificationScenarioStatuses', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('reads the scenario-statuses route, omitting odsId when no ODS is chosen', async () => {
-    const { options } = render({ odsId: undefined });
-    await options.queryFn();
-
-    expect(methods.getOne).toHaveBeenCalledWith(
-      'sb-environments/1/edfi-tenants/10/certification/sis/v5/scenario-statuses',
-      CertificationScenarioStatusesDto,
-      { params: {} },
-    );
-    expect(options.queryKey).toEqual(
-      certificationQueryKeys.scenarioStatuses(1, 10, undefined, 'v5'),
-    );
-    expect(options.queryKey).toEqual(['certification', 1, 'scenario-statuses', 10, null, 'v5']);
-  });
-
-  it('sends odsId when an ODS is chosen, and includes it in the query key', async () => {
+  it("reads the run's scenario-statuses route, keyed by team and run", async () => {
     const { options } = render();
     await options.queryFn();
 
     expect(methods.getOne).toHaveBeenCalledWith(
-      expect.any(String),
+      'teams/2/edfi-tenants/10/certification/runs/7/scenario-statuses',
       CertificationScenarioStatusesDto,
-      {
-        params: { odsId: 5 },
-      },
     );
-    expect(options.queryKey).toEqual(['certification', 1, 'scenario-statuses', 10, 5, 'v5']);
+    expect(options.queryKey).toEqual(certificationQueryKeys.scenarioStatuses(2, 7));
+    expect(options.queryKey).toEqual(['certification', 2, 'scenario-statuses', 7]);
   });
 
-  it('keys the query by data standard version', () => {
-    expect(render({ sisVersion: 'v6' }).options.queryKey).toEqual([
+  it('keys each run separately, so a finished run never shows under the next one', () => {
+    expect(render({ runId: 8 }).options.queryKey).toEqual([
       'certification',
-      1,
+      2,
       'scenario-statuses',
-      10,
-      5,
-      'v6',
+      8,
     ]);
   });
 
@@ -88,7 +68,7 @@ describe('useCertificationScenarioStatuses', () => {
   it.each([
     ['disabled by the caller', { enabled: false }],
     ['missing a tenant', { edfiTenantId: undefined }],
-    ['missing a sis version', { sisVersion: undefined }],
+    ['missing a run', { runId: undefined }],
   ])('is disabled when %s', (_label, overrides) => {
     const { options, result } = render(overrides);
     expect(options.enabled).toBe(false);
@@ -97,7 +77,7 @@ describe('useCertificationScenarioStatuses', () => {
     expect(result.isUnknown).toBe(true);
   });
 
-  it('is enabled once the caller enables it with a tenant and version known', () => {
+  it('is enabled once the caller enables it with a tenant and run known', () => {
     expect(render().options.enabled).toBe(true);
   });
 
@@ -126,7 +106,7 @@ describe('useCertificationScenarioStatuses', () => {
     expect(result.isUnknown).toBe(false);
   });
 
-  it('exposes the open run and that steps cannot run while it is in review', () => {
+  it('exposes the run and that steps cannot run while it is in review', () => {
     const run = { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false };
     const { result } = render(
       {},
@@ -135,12 +115,6 @@ describe('useCertificationScenarioStatuses', () => {
     expect(result.run).toEqual(run);
     expect(result.canExecuteSteps).toBe(false);
     expect(result.statusByScenarioId).toEqual({ 3: 'completed' });
-  });
-
-  it('lets steps run when the data store has no open run', () => {
-    const { result } = render({}, { data: { run: null, scenarios: [] }, isPending: false });
-    expect(result.run).toBeNull();
-    expect(result.canExecuteSteps).toBe(true);
   });
 
   it('does not block steps while the run is still unknown', () => {

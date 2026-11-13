@@ -33,7 +33,6 @@ import {
   claimsetsIndexRoute,
   claimsetsRoute,
 } from './claimset.routes';
-import { sbEnvironmentGlobalCertRoute } from './certification.routes';
 import {
   edfiTenantCreateRoute,
   edfiTenantIndexRoute,
@@ -157,7 +156,6 @@ import { LandingLayoutRouteElement } from '../Layout/LandingLayout';
 export * from './account.routes';
 export * from './application.routes';
 export * from './claimset.routes';
-export * from './certification.routes';
 export * from './edorg.routes';
 export * from './ods.routes';
 export * from './ownership.routes';
@@ -252,7 +250,6 @@ export const adminRoutes: RouteObject = {
     sbEnvironmentGlobalEditRoute,
     sbEnvironmentGlobalRoute,
     sbEnvironmentGlobalIndexRoute,
-    sbEnvironmentGlobalCertRoute,
 
     teamsRoute,
     teamsIndexRoute,

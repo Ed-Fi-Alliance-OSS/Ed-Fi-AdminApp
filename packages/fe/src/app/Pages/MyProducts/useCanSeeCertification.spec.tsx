@@ -24,9 +24,20 @@ const mockUseQueryClient = useQueryClient as jest.Mock;
 const mockAuthorize = authorize as jest.Mock;
 const mockUsePrivilegeCacheForConfig = usePrivilegeCacheForConfig as jest.Mock;
 
-const tenants = (grantedTenant?: number) => ({
-  a: { sbEnvironmentId: 1, edfiTenantId: 100, certifications: grantedTenant === 100 },
-  b: { sbEnvironmentId: 1, edfiTenantId: 200, certifications: grantedTenant === 200 },
+/** `grantedTenant` can read certification; `runTenant` (when given) can also run it. */
+const tenants = (grantedTenant?: number, runTenant?: number) => ({
+  a: {
+    sbEnvironmentId: 1,
+    edfiTenantId: 100,
+    certifications: grantedTenant === 100,
+    certificationRuns: runTenant === 100,
+  },
+  b: {
+    sbEnvironmentId: 1,
+    edfiTenantId: 200,
+    certifications: grantedTenant === 200,
+    certificationRuns: runTenant === 200,
+  },
 });
 
 const setup = (opts: {
@@ -57,39 +68,52 @@ describe('useCanSeeCertification', () => {
   it('true when one of several tenants grants certification read', () => {
     setup({ data: tenants(200) });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: true, isLoading: false, error: null });
+    expect(result.current).toEqual({ canSee: true, canRun: false, isLoading: false, error: null });
+  });
+
+  it('can run when one of several tenants grants certification run', () => {
+    setup({ data: tenants(200, 200) });
+    const { result } = renderHook(() => useCanSeeCertification(5));
+    expect(result.current).toEqual({ canSee: true, canRun: true, isLoading: false, error: null });
+  });
+
+  it('can see but not run with a read-only role', () => {
+    setup({ data: tenants(100) });
+    const { result } = renderHook(() => useCanSeeCertification(5));
+    expect(result.current.canSee).toBe(true);
+    expect(result.current.canRun).toBe(false);
   });
 
   it('false when no tenant grants it', () => {
     setup({ data: tenants() });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: false, error: null });
   });
 
   it('false and not loading when the team has no tenants', () => {
     setup({ data: {} });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: false, error: null });
   });
 
   it('false and not loading when the loaded team cache denies reading environments', () => {
     setup({ data: undefined, canReadEnvs: false });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: false, error: null });
     expect(teamQueries.navSearchList).toHaveBeenCalledWith({ enabled: false }, { teamId: 5 });
   });
 
   it('loading while the team privilege cache loads', () => {
     setup({ data: undefined, teamCacheLoading: true, canReadEnvs: false });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: true, error: null });
   });
 
   it('reports the env-nav error instead of a plain denial when the request fails', () => {
     const navError = new Error('Request failed with status code 500');
     setup({ data: undefined, navError });
     const { result } = renderHook(() => useCanSeeCertification(5));
-    expect(result.current).toEqual({ canSee: false, isLoading: false, error: navError });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: false, error: navError });
   });
 
   it('loading while the nav list loads', () => {

@@ -1,15 +1,15 @@
 import { Expose, Type } from 'class-transformer';
-import { IsInt, IsNotEmpty, IsOptional, IsString } from 'class-validator';
+import { IsInt, IsNotEmpty, IsString } from 'class-validator';
 import { TrimWhitespace } from '../utils';
 import { makeSerializer } from '../utils/make-serializer';
 
 /** Body of POST .../edfi-tenants/:edfiTenantId/certification/token. Never persisted or logged. */
 export class PostCertificationTokenDto {
+  /** The data store being certified: a run always belongs to one. */
   @Expose()
-  @IsOptional()
   @Type(() => Number)
   @IsInt()
-  odsId?: number;
+  odsId: number;
 
   @Expose()
   @TrimWhitespace()

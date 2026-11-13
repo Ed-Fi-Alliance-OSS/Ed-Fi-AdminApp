@@ -16,6 +16,11 @@ import { ArtifactModule } from './artifact/artifact.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationController } from './certification.controller';
+import {
+  CertificationRunsController,
+  CertificationTeamRunsController,
+} from './certification-runs.controller';
+import { CertificationRunsService } from './certification-runs.service';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationService } from './certification.service';
 import { CertificationTargetService } from './certification-target.service';
@@ -43,9 +48,12 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationController,
     CertificationTokenController,
     CertificationCatalogController,
+    CertificationRunsController,
+    CertificationTeamRunsController,
   ],
   providers: [
     CertificationService,
+    CertificationRunsService,
     CertificationStepRunsService,
     CertificationTargetService,
     CertificationTokenService,

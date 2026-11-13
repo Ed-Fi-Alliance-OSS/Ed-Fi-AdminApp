@@ -6,48 +6,35 @@ import {
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { methods } from '../../api';
-import { certificationQueryKeys } from './useCertificationCatalog';
+import { certificationQueryKeys, certificationTenantUrl } from './useCertificationCatalog';
 
 type UseCertificationStepRunsArgs = {
-  sbEnvironmentId: number;
+  teamId: number;
+  /** The run's tenant; undefined until the run has loaded. */
   edfiTenantId: number | undefined;
-  odsId: number | undefined;
-  sisVersion: string | undefined;
+  runId: number | undefined;
   scenarioId: number | undefined;
-  runId: number | null | undefined;
 };
 
 /**
- * The saved result of each step of one scenario (AC-475). Reading results needs no ODS
- * token, so a returning vendor sees them before validating their credentials again.
+ * The saved result of each step of one scenario of a run (AC-475). Reading results needs no
+ * ODS token, so a returning vendor sees them before validating their credentials again.
  */
 export const useCertificationStepRuns = ({
-  sbEnvironmentId,
+  teamId,
   edfiTenantId,
-  odsId,
-  sisVersion,
-  scenarioId,
   runId,
+  scenarioId,
 }: UseCertificationStepRunsArgs) => {
-  const queryKey = certificationQueryKeys.stepRuns(
-    sbEnvironmentId,
-    edfiTenantId,
-    odsId,
-    scenarioId,
-    runId,
-  );
-  const enabled =
-    edfiTenantId !== undefined &&
-    sisVersion !== undefined &&
-    scenarioId !== undefined &&
-    typeof runId === 'number';
+  const queryKey = certificationQueryKeys.stepRuns(teamId, runId, scenarioId);
+  const enabled = edfiTenantId !== undefined && scenarioId !== undefined && runId !== undefined;
   const stepRunsQuery = useQuery({
     queryKey,
     queryFn: () =>
       methods.getOne(
-        `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/sis/${sisVersion}/step-runs`,
+        `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/step-runs`,
         CertificationStepRunsDto,
-        { params: odsId === undefined ? { scenarioId } : { scenarioId, odsId } },
+        { params: { scenarioId } },
       ),
     enabled,
     // Only a failed first load goes to the error page; a failed refetch (e.g. after a dropped

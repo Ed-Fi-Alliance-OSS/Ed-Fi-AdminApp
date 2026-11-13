@@ -24,12 +24,13 @@ const deferred = <T,>() => {
   return { promise, resolve };
 };
 
-const navItem = (edfiTenantId: number, certifications: boolean) => ({
+const navItem = (edfiTenantId: number, certifications: boolean, certificationRuns = certifications) => ({
   sbEnvironmentId: 1,
   sbEnvironmentName: 'env',
   edfiTenantId,
   edfiTenantName: `tenant-${edfiTenantId}`,
   certifications,
+  certificationRuns,
 });
 
 const renderCold = () => {
@@ -58,12 +59,12 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
     const { result } = renderCold();
 
     // First render: the team privilege cache has not arrived yet.
-    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: true, error: null });
 
     await act(async () => teamCache.resolve({ 'team.sb-environment:read': true }));
 
     await waitFor(() =>
-      expect(result.current).toEqual({ canSee: true, isLoading: false, error: null }),
+      expect(result.current).toEqual({ canSee: true, canRun: true, isLoading: false, error: null }),
     );
     expect(getSpy).toHaveBeenCalledWith('/teams/5/env-nav', undefined);
     // No per-tenant privilege-cache requests.
@@ -80,9 +81,9 @@ describe('useCanSeeCertification cold load (real QueryClient)', () => {
 
     const { result } = renderCold();
 
-    expect(result.current).toEqual({ canSee: false, isLoading: true, error: null });
+    expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: true, error: null });
     await waitFor(() =>
-      expect(result.current).toEqual({ canSee: false, isLoading: false, error: null }),
+      expect(result.current).toEqual({ canSee: false, canRun: false, isLoading: false, error: null }),
     );
     expect(getSpy).not.toHaveBeenCalledWith('/teams/5/env-nav', undefined);
   });

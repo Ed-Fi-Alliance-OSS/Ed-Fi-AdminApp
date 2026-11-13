@@ -1,0 +1,38 @@
+meta {
+  name: certification/start SIS run - created (201) or already open (409)
+  type: http
+  seq: 2
+  tags: Certification
+}
+
+post {
+  url: {{BASE_URL}}/teams/{{process.env.CERT_TEAM_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/runs
+  body: json
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+body:json {
+  {}
+}
+
+script:pre-request {
+  if (!bru.getProcessEnv('CERT_TEAM_ID')) {
+    bru.runner.skipRequest();
+    return;
+  }
+  req.setBody({ odsId: Number(bru.getProcessEnv('CERT_ODS_ID')), certificationModel: 'SIS' });
+}
+
+tests {
+  test("certification/start run - a Draft run is created, or one is already open", function() {
+    expect([201, 409]).to.include(res.getStatus());
+    if (res.getStatus() === 201) {
+      expect(res.getBody().status).to.equal('DRAFT');
+      expect(res.getBody().certificationModel).to.equal('SIS');
+    }
+  });
+}

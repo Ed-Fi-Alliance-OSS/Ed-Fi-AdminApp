@@ -7,13 +7,17 @@ const build = (plain: object) =>
   plainToInstance(PostCertificationTokenDto, plain, { excludeExtraneousValues: true });
 
 describe('PostCertificationTokenDto', () => {
-  it('accepts key and secret with an optional odsId', async () => {
-    expect(await validate(build({ key: 'k', secret: 's' }))).toHaveLength(0);
+  it('accepts key, secret and the data store', async () => {
     expect(await validate(build({ key: 'k', secret: 's', odsId: 3 }))).toHaveLength(0);
   });
 
+  it('rejects a missing data store', async () => {
+    const errors = await validate(build({ key: 'k', secret: 's' }));
+    expect(errors.map((e) => e.property)).toEqual(['odsId']);
+  });
+
   it('rejects a missing or blank key or secret', async () => {
-    const errors = await validate(build({ key: ' ', secret: '' }));
+    const errors = await validate(build({ key: ' ', secret: '', odsId: 3 }));
     expect(errors.map((e) => e.property).sort()).toEqual(['key', 'secret']);
   });
 

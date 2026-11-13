@@ -3,8 +3,9 @@ import { teamQueries } from '../../api';
 import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
 
 /**
- * Whether the user holds certification:read on at least one of the team's data stores.
- * Single source of truth for the team Certification menu and the My products page guard.
+ * Whether the user holds certification:read (`canSee`) and certification:run (`canRun`) on at
+ * least one of the team's data stores. Single source of truth for the team Certification menu,
+ * the My products page guard and its Request New Certification action.
  *
  * The API flags each tenant row of the team's env-nav list (`certifications`), so this costs one
  * request however many tenants the team has, instead of one privilege-cache request per tenant.
@@ -13,7 +14,7 @@ import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../he
  */
 export const useCanSeeCertification = (
   teamId: number,
-): { canSee: boolean; isLoading: boolean; error: Error | null } => {
+): { canSee: boolean; canRun: boolean; isLoading: boolean; error: Error | null } => {
   const queryClient = useQueryClient();
   const sbEnvironmentAuth: AuthorizeConfig = {
     privilege: 'team.sb-environment:read',
@@ -27,6 +28,8 @@ export const useCanSeeCertification = (
 
   return {
     canSee: Object.values(navList.data ?? {}).some((item) => item.certifications),
+    // Run is a separate privilege from read, so a read-only role sees certification but can't start a run.
+    canRun: Object.values(navList.data ?? {}).some((item) => item.certificationRuns),
     isLoading: sbEnvCache.some((cache) => cache.isLoading) || navList.isLoading,
     // A failed env-nav request is not a denial; callers must not report it as "Not allowed".
     error: navList.error ?? null,
