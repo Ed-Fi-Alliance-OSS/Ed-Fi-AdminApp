@@ -36,6 +36,8 @@ COPY packages/common-ui ./packages/common-ui
 COPY packages/models ./packages/models
 COPY packages/utils ./packages/utils
 COPY types ./types
+# The @nx/eslint plugin runs while Nx builds the project graph, and ESLint 10 needs the flat config
+COPY eslint.config.mjs ./
 
 # Install deps, reset Nx cache, and build in one layer
 RUN --mount=type=cache,target=/root/.npm \

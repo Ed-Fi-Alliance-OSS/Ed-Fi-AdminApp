@@ -28,6 +28,8 @@ RUN --mount=type=cache,target=/root/.npm \
 # Copy source code (filtered by .dockerignore)
 COPY packages/ ./packages/
 COPY types/ ./types/
+# The @nx/eslint plugin runs while Nx builds the project graph, and ESLint 10 needs the flat config
+COPY eslint.config.mjs ./
 
 ENV NODE_OPTIONS="--max-old-space-size=4096"
 
