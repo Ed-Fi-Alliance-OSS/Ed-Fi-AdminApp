@@ -160,7 +160,7 @@ describe('CertificationScenariosPage', () => {
   });
 
   describe('the run', () => {
-    it("loads the run from the address and the catalog of the run's environment", () => {
+    it("loads the run from the address and the catalog the run was started with", () => {
       render(<CertificationScenariosPage />);
 
       expect(useCertificationRun).toHaveBeenCalledWith(2, 7);
@@ -168,6 +168,7 @@ describe('CertificationScenariosPage', () => {
         teamId: 2,
         sbEnvironmentId: 1,
         edfiTenantId: 10,
+        runDataStandardVersion: 'v5',
       });
     });
 

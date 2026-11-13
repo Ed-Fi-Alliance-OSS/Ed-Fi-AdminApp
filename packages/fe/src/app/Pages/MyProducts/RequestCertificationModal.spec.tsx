@@ -117,7 +117,7 @@ const setup = ({
     reset: jest.fn(),
     ...start,
   });
-  return render(<RequestCertificationModal teamId={2} isOpen onClose={onClose} />);
+  return render(<RequestCertificationModal teamId={2} onClose={onClose} />);
 };
 
 const select = (label: string) => screen.getByLabelText(label) as HTMLSelectElement;
@@ -144,16 +144,6 @@ describe('RequestCertificationModal', () => {
     expect(authForm()).toBeTruthy();
     expect(select('Certification Model')).toBeTruthy();
     expect(startButton()).toBeTruthy();
-  });
-
-  it('renders nothing while closed', () => {
-    (useQuery as jest.Mock).mockReturnValue({ data: undefined, isPending: true });
-    (useCertificationAuth as jest.Mock).mockReturnValue({ auth: null });
-    (useLatestCertificationRuns as jest.Mock).mockReturnValue({ latestByModel: {} });
-    (useStartCertificationRun as jest.Mock).mockReturnValue({ mutate, reset: jest.fn() });
-    render(<RequestCertificationModal teamId={2} isOpen={false} onClose={onClose} />);
-
-    expect(screen.queryByText('Request New Certification')).toBeNull();
   });
 
   describe('choosing where to certify', () => {

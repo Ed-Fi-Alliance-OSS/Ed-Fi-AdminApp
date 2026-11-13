@@ -46,7 +46,7 @@ jest.mock('@edanalytics/common-ui', () => ({
 
 jest.mock('./RequestCertificationModal', () => ({
   // Rendered whenever the page mounts it, so a closed popup that stays mounted would show up.
-  RequestCertificationModal: (p: { teamId: number; isOpen: boolean; onClose: () => void }) => (
+  RequestCertificationModal: (p: { teamId: number; onClose: () => void }) => (
     <div data-testid="request-modal" data-team={p.teamId}>
       <button onClick={p.onClose}>close popup</button>
     </div>

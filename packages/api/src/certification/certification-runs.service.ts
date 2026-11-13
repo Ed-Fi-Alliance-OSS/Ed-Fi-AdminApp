@@ -1,4 +1,5 @@
 import {
+  CERT_MODEL,
   CERT_RUN_STATUS,
   CertificationLatestRunDto,
   CertificationRunDto,
@@ -127,7 +128,9 @@ export class CertificationRunsService {
       ...created,
       catalogVersion,
       ods,
-      edfiTenant: Object.assign(edfiTenant, { sbEnvironment }),
+      // Only what toDto reads. Not a spread of the entity (its displayName is a getter that a
+      // spread drops), and not Object.assign, which would change the request's own entity.
+      edfiTenant: { displayName: edfiTenant.displayName, sbEnvironment },
     });
   }
 
@@ -136,21 +139,24 @@ export class CertificationRunsService {
     edfiTenantId: number;
     odsId: number;
   }): Promise<CertificationLatestRunDto[]> {
-    const runs = await this.runRepository.find({
-      where: { edfiTenantId: params.edfiTenantId, odsId: params.odsId },
-      order: { certificationRunId: 'DESC' },
-    });
-    const latest = new Map<CertModel, CertificationRun>();
-    for (const run of runs) {
-      if (!latest.has(run.certificationModel)) latest.set(run.certificationModel, run);
-    }
+    // One row per model, so the work doesn't grow with the data store's run history.
+    const newest = await Promise.all(
+      Object.values(CERT_MODEL).map((certificationModel) =>
+        this.runRepository.findOne({
+          where: { edfiTenantId: params.edfiTenantId, odsId: params.odsId, certificationModel },
+          order: { certificationRunId: 'DESC' },
+        }),
+      ),
+    );
     return toCertificationLatestRunDto(
-      [...latest.values()].map((run) => ({
-        certificationModel: run.certificationModel,
-        runId: run.certificationRunId,
-        status: run.status,
-        isOpen: isOpenRunStatus(run.status),
-      })),
+      newest
+        .filter((run): run is CertificationRun => run !== null)
+        .map((run) => ({
+          certificationModel: run.certificationModel,
+          runId: run.certificationRunId,
+          status: run.status,
+          isOpen: isOpenRunStatus(run.status),
+        })),
     );
   }
 

@@ -45,11 +45,9 @@ const toId = (value: string) => Number(value) || undefined;
  */
 export const RequestCertificationModal = ({
   teamId,
-  isOpen,
   onClose,
 }: {
   teamId: number;
-  isOpen: boolean;
   onClose: () => void;
 }) => {
   const navigate = useNavigate();
@@ -59,7 +57,7 @@ export const RequestCertificationModal = ({
   const [odsId, setOdsId] = useState<number>();
   const [chosenModel, setChosenModel] = useState<CertModel>();
 
-  const environmentsQuery = useQuery(sbEnvironmentQueries.getAll({ teamId, enabled: isOpen }));
+  const environmentsQuery = useQuery(sbEnvironmentQueries.getAll({ teamId, enabled: true }));
   // The API refuses environments below the minimum data model, so they aren't offered.
   const environments = useMemo(
     () =>
@@ -74,7 +72,7 @@ export const RequestCertificationModal = ({
     edfiTenantQueries.getAll({
       teamId,
       sbEnvironmentId: sbEnvironmentId as number,
-      enabled: isOpen && !!sbEnvironment,
+      enabled: !!sbEnvironment,
     }),
   );
   const tenants = useMemo(
@@ -84,7 +82,7 @@ export const RequestCertificationModal = ({
   const edfiTenant = tenants.find((tenant) => tenant.id === edfiTenantId);
 
   const odsQuery = useQuery(
-    odsQueries.getAll({ teamId, edfiTenant: edfiTenant!, enabled: isOpen && !!edfiTenant }),
+    odsQueries.getAll({ teamId, edfiTenant: edfiTenant!, enabled: !!edfiTenant }),
   );
   const odss = useMemo(
     () => (edfiTenant ? Object.values(odsQuery.data ?? {}) : []),
@@ -161,7 +159,7 @@ export const RequestCertificationModal = ({
   const noEnvironments = !environmentsQuery.isPending && environments.length === 0;
 
   return (
-    <Modal isOpen={isOpen} onClose={close} size="lg">
+    <Modal isOpen onClose={close} size="lg">
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>Request New Certification</ModalHeader>

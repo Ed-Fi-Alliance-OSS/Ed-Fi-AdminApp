@@ -63,6 +63,7 @@ export const CertificationScenariosPage = () => {
     teamId,
     sbEnvironmentId: run?.sbEnvironmentId,
     edfiTenantId: run?.edfiTenantId,
+    runDataStandardVersion: run?.dataStandardVersion,
   });
   const hasCatalog = catalog.catalogVersion !== undefined;
 

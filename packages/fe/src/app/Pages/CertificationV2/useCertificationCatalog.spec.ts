@@ -89,6 +89,22 @@ describe('useCertificationCatalog', () => {
     expect(result.current.domains[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
   });
 
+  it("uses the run's data standard, not the environment's current one", () => {
+    // The environment moved to 6.1.0 after the run was started with v5.
+    mockQueries({
+      env: settled({ odsDsVersion: '6.1.0' }),
+      versions: settled(versions),
+      scenarios: settled([domain(1, 1)]),
+    });
+
+    const { result } = renderHook(() =>
+      useCertificationCatalog({ ...catalogArgs, runDataStandardVersion: 'v5' }),
+    );
+
+    expect(result.current.dataStandardVersion).toBe('v5');
+    expect(result.current.catalogVersion?.catalogVersionId).toBe(2);
+  });
+
   // The API refuses these environments with a 400; asking would land on the route error page.
   it('does not request the catalog for data standard 4.0.0 and says why', () => {
     mockQueries({ env: settled({ odsDsVersion: '4.0.0' }), versions: settled(versions) });

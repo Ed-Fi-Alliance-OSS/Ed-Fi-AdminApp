@@ -54,17 +54,24 @@ type UseCertificationCatalogArgs = {
   /** The run's environment and tenant; undefined until the run has loaded. */
   sbEnvironmentId: number | undefined;
   edfiTenantId: number | undefined;
+  /**
+   * The data standard the run was started with (`v5`). The server runs steps from the run's own
+   * catalog, so it wins over the environment's current version, which can change while a run is open.
+   */
+  runDataStandardVersion?: string | null;
 };
 
 /**
- * The certification domains (with their scenarios) for the catalog version that matches
- * the environment's data standard. For an environment that doesn't support certification,
- * nothing is requested (the API would refuse it) and `unsupportedMessage` says why.
+ * The certification domains (with their scenarios) for the run's catalog version, which is the
+ * one matching the environment's data standard when the run was started. For an environment that
+ * doesn't support certification, nothing is requested (the API would refuse it) and
+ * `unsupportedMessage` says why.
  */
 export const useCertificationCatalog = ({
   teamId,
   sbEnvironmentId,
   edfiTenantId,
+  runDataStandardVersion,
 }: UseCertificationCatalogArgs) => {
   const hasTarget = sbEnvironmentId !== undefined && edfiTenantId !== undefined;
   const sbEnvironmentQuery = useQuery(
@@ -72,7 +79,7 @@ export const useCertificationCatalog = ({
   );
   const sbEnvironment = hasTarget ? sbEnvironmentQuery.data : undefined;
   const odsDsVersion = sbEnvironment?.odsDsVersion;
-  const dataStandardVersion = toDataStandardMajor(odsDsVersion);
+  const dataStandardVersion = runDataStandardVersion ?? toDataStandardMajor(odsDsVersion);
   const isSupported = sbEnvironment !== undefined && supportsCertification(odsDsVersion);
   const unsupportedMessage =
     sbEnvironment !== undefined && !isSupported

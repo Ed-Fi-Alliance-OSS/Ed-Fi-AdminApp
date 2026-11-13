@@ -168,20 +168,25 @@ describe('CertificationRunsService', () => {
 
   describe('findLatestRuns', () => {
     it('returns the newest run of each model, and whether it is open', async () => {
-      runRepository.find.mockResolvedValue([
-        { certificationRunId: 9, certificationModel: 'SIS', status: 'REJECTED' },
-        { certificationRunId: 8, certificationModel: 'MTSS', status: 'IN_REVIEW' },
-        { certificationRunId: 4, certificationModel: 'SIS', status: 'APPROVED' },
-      ]);
+      const newest: Record<string, object> = {
+        SIS: { certificationRunId: 9, certificationModel: 'SIS', status: 'REJECTED' },
+        MTSS: { certificationRunId: 8, certificationModel: 'MTSS', status: 'IN_REVIEW' },
+      };
+      // One lookup per model; ASSESSMENTS has no run.
+      runRepository.findOne.mockImplementation(
+        async ({ where }) => newest[where.certificationModel] ?? null,
+      );
 
       expect(await service.findLatestRuns({ edfiTenantId: 10, odsId: 5 })).toEqual([
         { certificationModel: 'SIS', runId: 9, status: 'REJECTED', isOpen: false },
         { certificationModel: 'MTSS', runId: 8, status: 'IN_REVIEW', isOpen: true },
       ]);
-      expect(runRepository.find).toHaveBeenCalledWith({
-        where: { edfiTenantId: 10, odsId: 5 },
+      expect(runRepository.findOne).toHaveBeenCalledTimes(3);
+      expect(runRepository.findOne).toHaveBeenCalledWith({
+        where: { edfiTenantId: 10, odsId: 5, certificationModel: 'SIS' },
         order: { certificationRunId: 'DESC' },
       });
+      expect(runRepository.find).not.toHaveBeenCalled();
     });
   });
 

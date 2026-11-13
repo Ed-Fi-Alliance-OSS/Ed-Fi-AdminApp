@@ -80,6 +80,7 @@ export const CertificationPageExecution = () => {
     teamId,
     sbEnvironmentId: certificationRun?.sbEnvironmentId,
     edfiTenantId,
+    runDataStandardVersion: certificationRun?.dataStandardVersion,
   });
   const selected = useMemo(() => {
     for (const domain of catalog.domains) {

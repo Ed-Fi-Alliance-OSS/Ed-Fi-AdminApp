@@ -47,7 +47,7 @@ export const MyProductsPage = () => {
     >
       {/* Mounted only while open, so each opening starts empty and refetches the open runs. */}
       {requestModal.isOpen && (
-        <RequestCertificationModal teamId={teamId} isOpen onClose={requestModal.onClose} />
+        <RequestCertificationModal teamId={teamId} onClose={requestModal.onClose} />
       )}
     </PageTemplate>
   );
