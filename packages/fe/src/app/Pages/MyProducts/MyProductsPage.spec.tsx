@@ -61,7 +61,7 @@ describe('MyProductsPage', () => {
   });
 
   it('renders My products with the Request New Certification button when allowed', () => {
-    mockUseCanSee.mockReturnValue({ canSee: true, isLoading: false, error: null });
+    mockUseCanSee.mockReturnValue({ canSee: true, canRun: true, isLoading: false, error: null });
     render(<MyProductsPage />);
     expect(screen.getByRole('heading', { name: 'My products' })).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Request New Certification' })).toBeTruthy();
@@ -69,8 +69,17 @@ describe('MyProductsPage', () => {
     expect(mockUseCanSee).toHaveBeenCalledWith(7);
   });
 
+  it("offers no button, and says why, to a user who can see certification but can't run it", () => {
+    mockUseCanSee.mockReturnValue({ canSee: true, canRun: false, isLoading: false, error: null });
+    render(<MyProductsPage />);
+
+    expect(screen.getByRole('heading', { name: 'My products' })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Request New Certification' })).toBeNull();
+    expect(screen.getByText(/can't start a certification run/)).toBeTruthy();
+  });
+
   it('opens the popup for the team, and closes it again', () => {
-    mockUseCanSee.mockReturnValue({ canSee: true, isLoading: false, error: null });
+    mockUseCanSee.mockReturnValue({ canSee: true, canRun: true, isLoading: false, error: null });
     render(<MyProductsPage />);
 
     fireEvent.click(screen.getByRole('button', { name: 'Request New Certification' }));
