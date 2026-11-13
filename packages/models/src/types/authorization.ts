@@ -86,6 +86,7 @@ export const globalPrivilegesMap: Record<BasePrivilege, true> = {
   'sb-environment:refresh-resources': true,
   'sb-sync-queue:read': true,
   'sb-sync-queue:archive': true,
+  'certification:read': true,
   'user:read': true,
   'user:update': true,
   'user:delete': true,

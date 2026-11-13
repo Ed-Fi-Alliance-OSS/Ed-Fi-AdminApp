@@ -3,8 +3,12 @@
  *
  * Used only by the AddMissingPrivilegesToGlobalAdmin1791158400000 migrations. Do NOT import
  * from @edanalytics/models here: migrations must not change meaning when the model changes.
+ *
+ * AC-672 also added 'certification:read' to this list (its migration uses a local constant, but
+ * the list is kept complete so it matches every code Global admin is expected to hold).
  */
 export const AC644_ALL_PRIVILEGE_CODES: readonly string[] = [
+  'certification:read',
   'edorg:read',
   'integration-provider:create',
   'integration-provider:delete',
