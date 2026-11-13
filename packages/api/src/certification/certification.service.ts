@@ -57,6 +57,8 @@ export const CERT_RUN_MESSAGES = {
   runLocked: "This certification run can't take new step results in its current status.",
   invalidTransition: "This certification run can't move to that status.",
   unsupportedModel: "This Certification Model isn't available yet.",
+  unsupportedDataStandard: (odsDsVersion: string | undefined) =>
+    `Certification scenarios aren't available yet for Ed-Fi Data Standard ${odsDsVersion ?? '(unknown)'}.`,
   alreadyOpen: certRunAlreadyOpenMessage,
 };
 

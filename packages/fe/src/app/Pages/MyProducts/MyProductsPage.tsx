@@ -45,11 +45,10 @@ export const MyProductsPage = () => {
         />
       }
     >
-      <RequestCertificationModal
-        teamId={teamId}
-        isOpen={requestModal.isOpen}
-        onClose={requestModal.onClose}
-      />
+      {/* Mounted only while open, so each opening starts empty and refetches the open runs. */}
+      {requestModal.isOpen && (
+        <RequestCertificationModal teamId={teamId} isOpen onClose={requestModal.onClose} />
+      )}
     </PageTemplate>
   );
 };

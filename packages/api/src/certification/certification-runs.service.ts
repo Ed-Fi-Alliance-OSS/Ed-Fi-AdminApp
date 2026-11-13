@@ -79,13 +79,27 @@ export class CertificationRunsService {
 
     // The run records the catalog it was started with; without one there are no scenarios to run.
     const currentRef = this.artifactService.currentRef;
-    const catalogVersion = currentRef
+    if (!currentRef) throw new ServiceUnavailableException(CERT_RUN_MESSAGES.runtimeNotReady);
+    // Catalogs are named by data standard major (v5), so the environment picks its own. Taking
+    // whichever is newest would give a 6.x environment a run with no scenarios that fit it.
+    const major = Number.parseInt(sbEnvironment.odsDsVersion ?? '', 10);
+    const catalogVersion = Number.isInteger(major)
       ? await this.catalogVersionRepository.findOne({
-          where: { isActive: true, artifactVersion: currentRef },
+          where: { isActive: true, artifactVersion: currentRef, dataStandardVersion: `v${major}` },
           order: { catalogVersionId: 'DESC' },
         })
       : null;
-    if (!catalogVersion) throw new ServiceUnavailableException(CERT_RUN_MESSAGES.runtimeNotReady);
+    if (!catalogVersion) {
+      // Scenarios still loading is worth retrying; a data standard with none is not.
+      const loaded = await this.catalogVersionRepository.findOne({
+        where: { isActive: true, artifactVersion: currentRef },
+      });
+      throw loaded
+        ? new ValidationHttpException(
+            CERT_RUN_MESSAGES.unsupportedDataStandard(sbEnvironment.odsDsVersion),
+          )
+        : new ServiceUnavailableException(CERT_RUN_MESSAGES.runtimeNotReady);
+    }
 
     const where = openRunWhere(edfiTenant.id, odsId, certificationModel);
     const alreadyOpen = () => new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));

@@ -9,7 +9,7 @@ import { ValidationHttpException } from '../utils';
 import { CertificationRunsService } from './certification-runs.service';
 import { CERT_RUN_MESSAGES } from './certification.service';
 
-const sbEnvironment = { id: 1, displayName: 'Env One' } as never;
+const sbEnvironment = { id: 1, displayName: 'Env One', odsDsVersion: '5.0.0' } as never;
 const edfiTenant = { id: 10, name: 'tenant1', displayName: 'tenant1', sbEnvironmentId: 1 } as never;
 const ods = { id: 5, edfiTenantId: 10, displayName: 'ods-five' };
 const catalogVersion = { catalogVersionId: 3, dataStandardVersion: 'v5' };
@@ -91,14 +91,27 @@ describe('CertificationRunsService', () => {
       });
     });
 
-    it('looks for the data store inside the tenant and for the loaded, active catalog', async () => {
+    it('looks for the data store inside the tenant and for the loaded, active catalog of the environment’s data standard', async () => {
       await create();
 
       expect(odsRepository.findOneBy).toHaveBeenCalledWith({ id: 5, edfiTenantId: 10 });
       expect(catalogVersionRepository.findOne).toHaveBeenCalledWith({
-        where: { isActive: true, artifactVersion: 'v2.1.0' },
+        where: { isActive: true, artifactVersion: 'v2.1.0', dataStandardVersion: 'v5' },
         order: { catalogVersionId: 'DESC' },
       });
+    });
+
+    it('refuses an environment whose data standard has no catalog, even when another is loaded', async () => {
+      // Nothing for v6, but a v5 catalog is loaded.
+      catalogVersionRepository.findOne
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(catalogVersion);
+
+      const result = create({ sbEnvironment: { ...(sbEnvironment as object), odsDsVersion: '6.1.0' } });
+
+      await expect(result).rejects.toThrow(ValidationHttpException);
+      expect(catalogVersionRepository.findOne.mock.calls[0][0].where.dataStandardVersion).toBe('v6');
+      expect(runRepository.save).not.toHaveBeenCalled();
     });
 
     it('refuses a second open run of the same model on the data store', async () => {
