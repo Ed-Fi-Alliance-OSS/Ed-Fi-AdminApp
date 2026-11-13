@@ -37,6 +37,9 @@ jest.mock('../api-v2', () => ({
   useGetManyIntegrationProviders: jest.fn(() => ({ data: [] })),
 }));
 
+// TeamNav imports GlobalNav helpers, and GlobalNav reads the certification flag from config.
+jest.mock('../../config/config', () => ({ config: { showRequestCertification: false } }));
+
 jest.mock('../routes/paths', () => ({
   usePaths: jest.fn(() => ({
     integrationProvider: { index: () => '/integration-providers' },
