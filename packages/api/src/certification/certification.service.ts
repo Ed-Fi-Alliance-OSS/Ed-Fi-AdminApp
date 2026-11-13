@@ -268,12 +268,12 @@ export class CertificationService {
     const updatedAt = new Date();
     const result = await this.runRepository.update(
       { certificationRunId, status: certificationRun.status },
-      { status: to, updatedAt },
+      { status: to, updatedAt, statusChangedAt: updatedAt },
     );
     if (result.affected !== 1) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
-    return { ...certificationRun, status: to, updatedAt };
+    return { ...certificationRun, status: to, updatedAt, statusChangedAt: updatedAt };
   }
 
   private async execute(

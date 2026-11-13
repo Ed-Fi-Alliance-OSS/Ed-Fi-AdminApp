@@ -24,6 +24,7 @@ import { User } from './user.entity';
  */
 @Index('UQ_cert_certification_run_open_ods', { synchronize: false })
 @Index('UQ_cert_certification_run_open_no_ods', { synchronize: false })
+@Index('IDX_cert_certification_run_status_changed', ['status', 'statusChangedAt'])
 @Entity({ schema: 'cert', name: 'certification_run' })
 export class CertificationRun {
   @PrimaryGeneratedColumn()
@@ -74,6 +75,10 @@ export class CertificationRun {
   /** The workflow status (CERT_RUN_STATUS), not a result: results live on the scenario and step rows. */
   @Column({ type: 'varchar', length: 50 })
   status: CertRunStatus;
+
+  /** When the run entered its current status; set by changeRunStatus, defaulted by the DB on insert. */
+  @Column()
+  statusChangedAt: Date;
 
   @CreateDateColumn()
   createdAt: Date;
