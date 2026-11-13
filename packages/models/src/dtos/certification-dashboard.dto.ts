@@ -1,6 +1,7 @@
 import { Expose, Type } from 'class-transformer';
 import { makeSerializer } from '../utils/make-serializer';
-import { CERT_RUN_STATUS, CertModel, CertRunStatus } from './certification-run.dto';
+import { CERT_RUN_STATUS } from './certification-run.dto';
+import type { CertModel, CertRunStatus } from './certification-run.dto';
 
 /** The "Runs in flight or rejected" list shows at most this many rows; `total` is the real count. */
 export const CERT_DASHBOARD_OTHERS_LIMIT = 100;
