@@ -58,7 +58,7 @@ describe('CertificationCatalogController', () => {
   it('returns catalog versions without importedAt', async () => {
     const { controller } = build();
 
-    expect(plain(await controller.getCatalogVersions(1))).toEqual([
+    expect(plain(await controller.getCatalogVersions(2, 10))).toEqual([
       { catalogVersionId: 1, artifactVersion: '2.1.0', dataStandardVersion: 'v5', isActive: true },
     ]);
   });
@@ -66,7 +66,7 @@ describe('CertificationCatalogController', () => {
   it('passes catalogVersionId to the service and serializes domains with scenarios', async () => {
     const { controller, service } = build();
 
-    const result = plain(await controller.getScenarios(1, 1));
+    const result = plain(await controller.getScenarios(2, 10, 1));
 
     expect(service.findDomainsWithScenarios).toHaveBeenCalledWith(1);
     expect(result[0]).not.toHaveProperty('isEnabled');
@@ -82,7 +82,7 @@ describe('CertificationCatalogController', () => {
   it('passes an omitted catalogVersionId through as undefined', async () => {
     const { controller, service } = build();
 
-    await controller.getScenarios(1, undefined);
+    await controller.getScenarios(2, 10, undefined);
 
     expect(service.findDomainsWithScenarios).toHaveBeenCalledWith(undefined);
   });
@@ -90,7 +90,7 @@ describe('CertificationCatalogController', () => {
   it('passes scenarioId to the service and serializes steps with parameters', async () => {
     const { controller, service } = build();
 
-    const result = plain(await controller.getSteps(1, 7));
+    const result = plain(await controller.getSteps(2, 10, 7));
 
     expect(service.findStepsWithParameters).toHaveBeenCalledWith(7);
     expect(result[0]).not.toHaveProperty('isEnabled');
@@ -102,17 +102,20 @@ describe('CertificationCatalogController', () => {
   it('passes an omitted scenarioId through as undefined', async () => {
     const { controller, service } = build();
 
-    await controller.getSteps(1, undefined);
+    await controller.getSteps(2, 10, undefined);
 
     expect(service.findStepsWithParameters).toHaveBeenCalledWith(undefined);
   });
 
   it.each(['getCatalogVersions', 'getScenarios', 'getSteps'] as const)(
-    '%s is guarded by sb-environment:read on the environment',
+    "%s is guarded by certification:read on the team's tenant",
     (handler) => {
       expect(
         Reflect.getMetadata(AUTHORIZE_KEY, CertificationCatalogController.prototype[handler]),
-      ).toEqual({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } });
+      ).toEqual({
+        privilege: 'team.sb-environment.edfi-tenant.ods.certification:read',
+        subject: { id: '__filtered__', edfiTenantId: 'edfiTenantId', teamId: 'teamId' },
+      });
     },
   );
 
@@ -124,7 +127,7 @@ describe('CertificationCatalogController', () => {
   });
 
   it.each(['getCatalogVersions', 'getScenarios', 'getSteps'] as const)(
-    '%s parses sbEnvironmentId as an integer',
+    '%s parses teamId and edfiTenantId as integers',
     (handler) => {
       const args = Object.values(
         Reflect.getMetadata(ROUTE_ARGS_METADATA, CertificationCatalogController, handler) as Record<
@@ -132,8 +135,9 @@ describe('CertificationCatalogController', () => {
           { data: unknown; pipes: unknown[] }
         >,
       );
-      const param = args.find((arg) => arg.data === 'sbEnvironmentId');
-      expect(param?.pipes).toEqual([expect.any(ParseIntPipe)]);
+      const pipesOf = (name: string) => args.find((arg) => arg.data === name)?.pipes;
+      expect(pipesOf('teamId')).toEqual([expect.any(ParseIntPipe)]);
+      expect(pipesOf('edfiTenantId')).toEqual([expect.any(ParseIntPipe)]);
     },
   );
 });

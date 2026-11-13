@@ -1,14 +1,48 @@
-import { ServiceUnavailableException } from '@nestjs/common';
-import { HEADERS_METADATA, INTERCEPTORS_METADATA } from '@nestjs/common/constants';
+import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import {
+  HEADERS_METADATA,
+  INTERCEPTORS_METADATA,
+  PATH_METADATA,
+} from '@nestjs/common/constants';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationController } from './certification.controller';
 
+const READ = 'team.sb-environment.edfi-tenant.ods.certification:read';
+const RUN = 'team.sb-environment.edfi-tenant.ods.certification:run';
+const subject = { id: '__filtered__', edfiTenantId: 'edfiTenantId', teamId: 'teamId' };
+const authorizeOf = (handler: keyof CertificationController) =>
+  Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype[handler]);
+
 describe('CertificationController', () => {
   const sbEnvironment = { id: 1 } as never;
   const edfiTenant = { id: 10, name: 'tenant1' } as never;
-  const body = { odsId: 5, token: 't', inputs: { studentUniqueId: 'S1' } };
+  const body = { token: 't', inputs: { studentUniqueId: 'S1' } };
+  const certificationRun = { certificationRunId: 7, status: 'DRAFT' };
+  const validOdsIds = new Set([5]);
+  let runsService: { findTeamRun: jest.Mock };
+
+  const make = (service: object = {}, stepRunsService: object = {}) =>
+    new CertificationController(service as never, stepRunsService as never, runsService as never);
+
+  const expectTeamRunLookup = () =>
+    expect(runsService.findTeamRun).toHaveBeenCalledWith({
+      runId: 7,
+      teamId: 2,
+      edfiTenantId: 10,
+      validOdsIds: expect.any(Function),
+    });
+
+  beforeEach(() => {
+    runsService = { findTeamRun: jest.fn().mockResolvedValue(certificationRun) };
+  });
+
+  it("lives under one run of the team's tenant", () => {
+    expect(Reflect.getMetadata(PATH_METADATA, CertificationController)).toBe(
+      'teams/:teamId/edfi-tenants/:edfiTenantId/certification/runs/:runId',
+    );
+  });
 
   it('resolves the environment, then refuses unsupported data models', () => {
     expect(Reflect.getMetadata(INTERCEPTORS_METADATA, CertificationController)).toEqual([
@@ -17,165 +51,117 @@ describe('CertificationController', () => {
     ]);
   });
 
-  it('passes the route, tenant and body to the service and serializes the result', async () => {
-    const service = {
-      runStep: jest.fn().mockResolvedValue({
+  it("checks the run against the data stores the user's privilege covers", async () => {
+    const controller = make({}, { findScenarioStatuses: jest.fn() });
+
+    await controller.getScenarioStatuses(2, edfiTenant, 7, validOdsIds);
+
+    expect(runsService.findTeamRun.mock.calls[0][0].validOdsIds(10)).toBe(validOdsIds);
+  });
+
+  describe('runStep', () => {
+    it("runs the step on the team's run and serializes the result", async () => {
+      const saved = {
         stepId: 101,
         status: 'success',
         ranAt: '2026-10-12T20:00:00.000Z',
         scenarioStatus: 'inprogress',
         errors: [],
-      }),
-    };
-    const controller = new CertificationController(service as never, {} as never);
-    const res = { setHeader: jest.fn() };
+      };
+      const service = { runStep: jest.fn().mockResolvedValue(saved) };
 
-    const result = await controller.runStep(
-      sbEnvironment,
-      edfiTenant,
-      'v5',
-      101,
-      body,
-      res as never,
-    );
+      const result = await make(service).runStep(
+        2,
+        sbEnvironment,
+        edfiTenant,
+        7,
+        101,
+        body,
+        validOdsIds,
+        { setHeader: jest.fn() } as never,
+      );
 
-    expect(service.runStep).toHaveBeenCalledWith({
-      sbEnvironment,
-      edfiTenant,
-      sisVersion: 'v5',
-      stepId: 101,
-      odsId: 5,
-      token: 't',
-      inputs: { studentUniqueId: 'S1' },
-      userId: null,
+      expectTeamRunLookup();
+      expect(service.runStep).toHaveBeenCalledWith({
+        sbEnvironment,
+        edfiTenant,
+        certificationRun,
+        stepId: 101,
+        token: 't',
+        inputs: { studentUniqueId: 'S1' },
+      });
+      expect(result).toEqual(saved);
     });
-    expect(result).toEqual({
-      stepId: 101,
-      status: 'success',
-      ranAt: '2026-10-12T20:00:00.000Z',
-      scenarioStatus: 'inprogress',
-      errors: [],
+
+    it("runs nothing when the run is not the team's", async () => {
+      runsService.findTeamRun.mockRejectedValue(new NotFoundException());
+      const service = { runStep: jest.fn() };
+
+      await expect(
+        make(service).runStep(2, sbEnvironment, edfiTenant, 7, 101, body, validOdsIds, {} as never),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(service.runStep).not.toHaveBeenCalled();
     });
-  });
 
-  it("passes the signed-in user's id to the service", async () => {
-    const service = { runStep: jest.fn().mockResolvedValue({}) };
-    const controller = new CertificationController(service as never, {} as never);
-    await controller.runStep(sbEnvironment, edfiTenant, 'v5', 101, body, {} as never, {
-      id: 42,
-    } as never);
-    expect(service.runStep).toHaveBeenCalledWith(expect.objectContaining({ userId: 42 }));
-  });
+    it('adds Retry-After when the service is temporarily unavailable', async () => {
+      const service = {
+        runStep: jest.fn().mockRejectedValue(new ServiceUnavailableException('busy')),
+      };
+      const res = { setHeader: jest.fn() };
 
-  it('adds Retry-After when the service is temporarily unavailable', async () => {
-    const service = {
-      runStep: jest.fn().mockRejectedValue(new ServiceUnavailableException('busy')),
-    };
-    const controller = new CertificationController(service as never, {} as never);
-    const res = { setHeader: jest.fn() };
+      await expect(
+        make(service).runStep(2, sbEnvironment, edfiTenant, 7, 101, body, validOdsIds, res as never),
+      ).rejects.toBeInstanceOf(ServiceUnavailableException);
+      expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '30');
+    });
 
-    await expect(
-      controller.runStep(sbEnvironment, edfiTenant, 'v5', 101, body, res as never),
-    ).rejects.toBeInstanceOf(ServiceUnavailableException);
-    expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '30');
-  });
-
-  it('is guarded by sb-environment:update on the environment', () => {
-    expect(Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.runStep)).toEqual({
-      privilege: 'sb-environment:update',
-      subject: { id: 'sbEnvironmentId' },
+    it('is guarded by certification:run', () => {
+      expect(authorizeOf('runStep')).toEqual({ privilege: RUN, subject });
     });
   });
 
   describe('getStepRuns', () => {
-    const stepRuns = { scenarioStatus: null, steps: [] };
-
-    it('passes the tenant, version, scenario and ODS to the step-runs service', async () => {
+    it("reads the scenario's results from the team's run", async () => {
+      const stepRuns = { scenarioStatus: null, steps: [] };
       const stepRunsService = { findStepRuns: jest.fn().mockResolvedValue(stepRuns) };
-      const controller = new CertificationController({} as never, stepRunsService as never);
 
-      await expect(controller.getStepRuns(edfiTenant, 'v5', 52, 5)).resolves.toEqual(stepRuns);
+      await expect(
+        make({}, stepRunsService).getStepRuns(2, edfiTenant, 7, 52, validOdsIds),
+      ).resolves.toEqual(stepRuns);
+      expectTeamRunLookup();
       expect(stepRunsService.findStepRuns).toHaveBeenCalledWith({
-        edfiTenantId: 10,
-        odsId: 5,
-        sisVersion: 'v5',
+        certificationRunId: 7,
         scenarioId: 52,
-      });
-    });
-
-    it('passes a null ODS when none is chosen', async () => {
-      const stepRunsService = { findStepRuns: jest.fn().mockResolvedValue(stepRuns) };
-      const controller = new CertificationController({} as never, stepRunsService as never);
-
-      await controller.getStepRuns(edfiTenant, 'v5', 52, undefined);
-      expect(stepRunsService.findStepRuns).toHaveBeenCalledWith(
-        expect.objectContaining({ odsId: null }),
-      );
-    });
-
-    it('is guarded by sb-environment:read on the environment', () => {
-      expect(
-        Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepRuns),
-      ).toEqual({
-        privilege: 'sb-environment:read',
-        subject: { id: 'sbEnvironmentId' },
       });
     });
   });
 
   describe('getScenarioStatuses', () => {
-    const statuses = [{ scenarioId: 1, status: 'completed' }];
-
-    it('delegates with odsId ?? null', async () => {
+    it("reads the statuses of the team's run", async () => {
+      const statuses = { run: null, scenarios: [] };
       const stepRunsService = { findScenarioStatuses: jest.fn().mockResolvedValue(statuses) };
-      const controller = new CertificationController({} as never, stepRunsService as never);
 
-      await expect(controller.getScenarioStatuses(edfiTenant, 'v5', 5)).resolves.toEqual(statuses);
-      expect(stepRunsService.findScenarioStatuses).toHaveBeenCalledWith({
-        edfiTenantId: 10,
-        odsId: 5,
-        sisVersion: 'v5',
-      });
-
-      await controller.getScenarioStatuses(edfiTenant, 'v5', undefined);
-      expect(stepRunsService.findScenarioStatuses).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }),
-      );
-    });
-
-    it('is guarded by sb-environment:read on the environment', () => {
-      expect(
-        Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getScenarioStatuses),
-      ).toEqual({
-        privilege: 'sb-environment:read',
-        subject: { id: 'sbEnvironmentId' },
-      });
+      await expect(
+        make({}, stepRunsService).getScenarioStatuses(2, edfiTenant, 7, validOdsIds),
+      ).resolves.toEqual(statuses);
+      expectTeamRunLookup();
+      expect(stepRunsService.findScenarioStatuses).toHaveBeenCalledWith(certificationRun);
     });
   });
-  
+
   describe('getStepSnapshot', () => {
-    const snapshot = { state: 'none' };
-
-    it('passes the tenant, version, step and ODS to the step-runs service', async () => {
+    it("reads the step's snapshot from the team's run", async () => {
+      const snapshot = { state: 'none' };
       const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
-      const controller = new CertificationController({} as never, stepRunsService as never);
 
-      await expect(controller.getStepSnapshot(edfiTenant, 'v5', 101, 5)).resolves.toEqual(snapshot);
+      await expect(
+        make({}, stepRunsService).getStepSnapshot(2, edfiTenant, 7, 101, validOdsIds),
+      ).resolves.toEqual(snapshot);
+      expectTeamRunLookup();
       expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith({
-        edfiTenantId: 10,
-        odsId: 5,
-        sisVersion: 'v5',
+        certificationRunId: 7,
         stepId: 101,
       });
-    });
-
-    it('passes a null ODS when none is chosen', async () => {
-      const stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue(snapshot) };
-      const controller = new CertificationController({} as never, stepRunsService as never);
-
-      await controller.getStepSnapshot(edfiTenant, 'v5', 101, undefined);
-      expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith(
-        expect.objectContaining({ odsId: null }),
-      );
     });
 
     it('tells browsers and proxies not to keep the decrypted response', () => {
@@ -183,11 +169,12 @@ describe('CertificationController', () => {
         Reflect.getMetadata(HEADERS_METADATA, CertificationController.prototype.getStepSnapshot),
       ).toEqual([{ name: 'Cache-Control', value: 'no-store' }]);
     });
-
-    it('is guarded like the step results it belongs to', () => {
-      expect(
-        Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepSnapshot),
-      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationController.prototype.getStepRuns));
-    });
   });
+
+  it.each(['getStepRuns', 'getScenarioStatuses', 'getStepSnapshot'] as const)(
+    '%s is guarded by certification:read',
+    (handler) => {
+      expect(authorizeOf(handler)).toEqual({ privilege: READ, subject });
+    },
+  );
 });

@@ -17,12 +17,10 @@ type QueryOptions = {
 };
 
 const args = {
-  sbEnvironmentId: 1,
-  edfiTenantId: 10,
-  odsId: 5 as number | undefined,
-  sisVersion: 'v5' as string | undefined,
+  teamId: 2,
+  edfiTenantId: 10 as number | undefined,
   scenarioId: 52 as number | undefined,
-  runId: 7 as number | null | undefined,
+  runId: 7 as number | undefined,
 };
 const refetch = jest.fn();
 
@@ -39,41 +37,30 @@ const render = (
 describe('useCertificationStepRuns', () => {
   beforeEach(() => jest.clearAllMocks());
 
-  it('reads the step-runs route, omitting odsId when no ODS is chosen', async () => {
-    const { options } = render({ odsId: undefined });
-    await options.queryFn();
-
-    expect(methods.getOne).toHaveBeenCalledWith(
-      'sb-environments/1/edfi-tenants/10/certification/sis/v5/step-runs',
-      CertificationStepRunsDto,
-      { params: { scenarioId: 52 } },
-    );
-    expect(options.queryKey).toEqual(certificationQueryKeys.stepRuns(1, 10, undefined, 52, 7));
-    expect(options.queryKey).toEqual(['certification', 1, 'step-runs', 10, null, 52, 7]);
-  });
-
-  it('sends odsId when an ODS is chosen', async () => {
+  it("reads the run's step-runs route for the scenario", async () => {
     const { options } = render();
     await options.queryFn();
 
-    expect(methods.getOne).toHaveBeenCalledWith(expect.any(String), CertificationStepRunsDto, {
-      params: { scenarioId: 52, odsId: 5 },
-    });
+    expect(methods.getOne).toHaveBeenCalledWith(
+      'teams/2/edfi-tenants/10/certification/runs/7/step-runs',
+      CertificationStepRunsDto,
+      { params: { scenarioId: 52 } },
+    );
+    expect(options.queryKey).toEqual(certificationQueryKeys.stepRuns(2, 7, 52));
+    expect(options.queryKey).toEqual(['certification', 2, 'step-runs', 7, 52]);
   });
 
   it.each([
     ['tenant', { edfiTenantId: undefined }],
-    ['version', { sisVersion: undefined }],
     ['scenario', { scenarioId: undefined }],
-    ['open run', { runId: undefined }],
-    ['next run', { runId: null }],
+    ['run', { runId: undefined }],
   ])('is disabled until the %s is known', (_label, overrides) => {
     const { options, result } = render(overrides);
     expect(options.enabled).toBe(false);
     expect(result.isPending).toBe(false);
   });
 
-  it('is enabled once tenant, version and scenario are known, with no token needed', () => {
+  it('is enabled once tenant, run and scenario are known, with no token needed', () => {
     expect(render().options.enabled).toBe(true);
   });
 
@@ -87,7 +74,7 @@ describe('useCertificationStepRuns', () => {
     expect(result.runsByStepId).toEqual({ 189: step });
     expect(result.scenarioStatus).toBe('failed');
     expect(result.isPending).toBe(false);
-    expect(result.queryKey).toEqual(['certification', 1, 'step-runs', 10, 5, 52, 7]);
+    expect(result.queryKey).toEqual(['certification', 2, 'step-runs', 7, 52]);
   });
 
   it('has no saved steps while loading', () => {

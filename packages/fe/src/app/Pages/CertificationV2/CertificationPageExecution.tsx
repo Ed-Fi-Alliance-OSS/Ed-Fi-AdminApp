@@ -28,8 +28,7 @@ import {
   CertificationStepRunDto,
   CertificationStepRunsDto,
 } from '@edanalytics/models';
-import { useNavToParent } from '../../helpers';
-import { config } from '../../../config/config';
+import { certificationRunPath, myProductsPath } from '../../routes/paths';
 import {
   RunCertificationStepVariables,
   useRunCertificationStep,
@@ -58,6 +57,7 @@ import {
   useCertificationCatalog,
   useCertificationSteps,
 } from './useCertificationCatalog';
+import { toRunId, useCertificationRun } from './useCertificationRun';
 import { useCertificationScenarioStatuses } from './useCertificationScenarioStatuses';
 import { useCertificationStepRuns } from './useCertificationStepRuns';
 
@@ -66,13 +66,21 @@ const UNKNOWN_RESULT_MESSAGE =
 
 export const CertificationPageExecution = () => {
   const navigate = useNavigate();
-  const navToParentOptions = useNavToParent();
   const queryClient = useQueryClient();
-  const sbEnvironmentId = Number(useParams().sbEnvironmentId);
-  const { edfiTenantId, odsId, scenarioId } = useCertificationSelection();
+  const params = useParams();
+  const teamId = Number(params.asId);
+  const runId = toRunId(params.runId);
+  // The run in the address fixes the environment, tenant and data store (AC-651).
+  const { run: certificationRun } = useCertificationRun(teamId, runId);
+  const edfiTenantId = certificationRun?.edfiTenantId;
+  const odsId = certificationRun?.odsId;
+  const { scenarioId } = useCertificationSelection();
   const { auth, clearAuth, clearReason } = useCertificationAuth();
-  const catalog = useCertificationCatalog(sbEnvironmentId);
-  const sisVersion = catalog.dataStandardVersion;
+  const catalog = useCertificationCatalog({
+    teamId,
+    sbEnvironmentId: certificationRun?.sbEnvironmentId,
+    edfiTenantId,
+  });
   const selected = useMemo(() => {
     for (const domain of catalog.domains) {
       const scenario = domain.scenarios.find((item) => item.scenarioId === scenarioId);
@@ -80,38 +88,33 @@ export const CertificationPageExecution = () => {
     }
     return undefined;
   }, [catalog.domains, scenarioId]);
-  const { steps: scenarioRows, isPending: isStepsPending } = useCertificationSteps(
-    sbEnvironmentId,
-    selected?.scenario.scenarioId,
-  );
-  // The same query as the request page, so both pages agree on whether steps can run.
-  const scenarioStatuses = useCertificationScenarioStatuses({
-    sbEnvironmentId,
+  const { steps: scenarioRows, isPending: isStepsPending } = useCertificationSteps({
+    teamId,
     edfiTenantId,
-    odsId,
-    sisVersion,
+    scenarioId: selected?.scenario.scenarioId,
+  });
+  // The same query as the Scenarios page, so both pages agree on whether steps can run.
+  const scenarioStatuses = useCertificationScenarioStatuses({
+    teamId,
+    edfiTenantId,
+    runId,
     enabled: edfiTenantId !== undefined,
   });
-  const runId = scenarioStatuses.run === null ? null : scenarioStatuses.run?.runId;
-  // Saved results need no token, but must belong to the current open run.
+  // Saved results need no token; they are the run's own.
   const stepRuns = useCertificationStepRuns({
-    sbEnvironmentId,
+    teamId,
     edfiTenantId,
-    odsId,
-    sisVersion,
-    scenarioId: selected?.scenario.scenarioId,
     runId,
+    scenarioId: selected?.scenario.scenarioId,
   });
   const refetchStepRuns = stepRuns.refetch;
   const run = useRunCertificationStep({
     onSuccess: (result: CertificationStepRunDto, variables: RunCertificationStepVariables) => {
-      // The selected run may have changed while this request was in flight.
+      // Another run may have been opened while this request was in flight.
       const stepRunsQueryKey = certificationQueryKeys.stepRuns(
-        variables.sbEnvironmentId,
-        variables.edfiTenantId,
-        variables.body.odsId,
-        variables.scenarioId,
+        variables.teamId,
         variables.runId,
+        variables.scenarioId,
       );
       // Show the new result right away; the API overwrote the saved one.
       const saved = {
@@ -135,15 +138,10 @@ export const CertificationPageExecution = () => {
         },
       );
       queryClient.invalidateQueries({ queryKey: stepRunsQueryKey });
-      // The request page's scenario-statuses list is keyed separately; a step run can change
-      // the scenario's overall status, so that list needs its own invalidation too.
+      // The Scenarios page's statuses list is keyed separately; a step run can change the
+      // scenario's overall status, so that list needs its own invalidation too.
       queryClient.invalidateQueries({
-        queryKey: certificationQueryKeys.scenarioStatuses(
-          variables.sbEnvironmentId,
-          variables.edfiTenantId,
-          variables.body.odsId,
-          variables.sisVersion,
-        ),
+        queryKey: certificationQueryKeys.scenarioStatuses(variables.teamId, variables.runId),
       });
     },
     onError: (error: unknown) => {
@@ -154,15 +152,10 @@ export const CertificationPageExecution = () => {
       }
       if (kind.kind === 'unknown' || kind.statusCode === 409) {
         queryClient.invalidateQueries({
-          queryKey: certificationQueryKeys.scenarioStatuses(
-            sbEnvironmentId,
-            edfiTenantId,
-            odsId,
-            sisVersion,
-          ),
+          queryKey: certificationQueryKeys.scenarioStatuses(teamId, runId),
         });
       } else if (kind.notFound) {
-        queryClient.invalidateQueries({ queryKey: certificationQueryKeys.all(sbEnvironmentId) });
+        queryClient.invalidateQueries({ queryKey: certificationQueryKeys.all(teamId) });
       }
     },
   });
@@ -170,32 +163,29 @@ export const CertificationPageExecution = () => {
   // No step can run while the run is in or awaiting review, so there is nothing to sign in for.
   const stepsBlocked = !scenarioStatuses.canExecuteSteps;
 
-  // Going back must keep the tenant/ODS choice; the request page doesn't use the scenario.
-  const parentLocation = useMemo(() => {
-    const params = new URLSearchParams();
-    if (edfiTenantId !== undefined) params.set('edfiTenantId', String(edfiTenantId));
-    if (odsId !== undefined) params.set('odsId', String(odsId));
-    const query = params.toString();
-    return { pathname: navToParentOptions, search: query ? `?${query}` : '' };
-  }, [edfiTenantId, odsId, navToParentOptions]);
+  const scenariosLocation = runId === undefined ? undefined : certificationRunPath(teamId, runId);
 
   const { unsupportedMessage } = catalog;
   useEffect(() => {
+    // An address without a valid run ID has nothing to show.
+    if (scenariosLocation === undefined) {
+      navigate(myProductsPath(teamId), { replace: true });
+      return;
+    }
     // An unsupported environment has no catalog; it gets a warning here, not a redirect.
     if (unsupportedMessage) return;
-    // Wait for the catalog before deciding a scenario ID from the URL doesn't exist.
+    // Wait for the catalog before deciding a scenario ID from the URL doesn't exist. The
+    // catalog stays pending until the run has loaded.
     const scenarioMissing = scenarioId === undefined || (!catalog.isPending && !selected);
-    if (scenarioMissing || edfiTenantId === undefined) {
-      navigate(parentLocation, { replace: true });
-    }
+    if (scenarioMissing) navigate(scenariosLocation, { replace: true });
   }, [
     unsupportedMessage,
     scenarioId,
     catalog.isPending,
     selected,
-    edfiTenantId,
     navigate,
-    parentLocation,
+    scenariosLocation,
+    teamId,
   ]);
 
   const [validatedStep, setValidatedStep] = useState<CertificationStepDto | null>(null);
@@ -212,7 +202,7 @@ export const CertificationPageExecution = () => {
   >({});
   const previousRunId = useRef(runId);
   useEffect(() => {
-    if (typeof previousRunId.current === 'number' && previousRunId.current !== runId) {
+    if (previousRunId.current !== undefined && previousRunId.current !== runId) {
       setTypedValuesByStep({});
     }
     previousRunId.current = runId;
@@ -226,12 +216,8 @@ export const CertificationPageExecution = () => {
     [parameterDefinitions, selectedRun, validatedStep, typedValuesByStep],
   );
 
-  if (!config.showRequestCertification) {
-    return null;
-  }
-
-  // The API refuses these environments too. The request page would only repeat this
-  // warning, so Cancel goes back to the environment.
+  // The API refuses these environments too. The Scenarios page would only repeat this
+  // warning, so Cancel goes back to My products.
   if (unsupportedMessage) {
     return (
       <PageTemplate title="Certification">
@@ -244,7 +230,7 @@ export const CertificationPageExecution = () => {
             variant="ghost"
             onClick={() => {
               clearAuth();
-              navigate(`/sb-environments/${sbEnvironmentId}`);
+              navigate(myProductsPath(teamId));
             }}
           >
             Cancel
@@ -254,13 +240,12 @@ export const CertificationPageExecution = () => {
     );
   }
 
-  if (!selected || edfiTenantId === undefined) {
+  if (!selected || edfiTenantId === undefined || runId === undefined) {
     return null;
   }
 
-  // The first execution can create the run before the page learns its ID.
-  const mutationMatchesRun =
-    typeof run.variables?.runId !== 'number' || run.variables.runId === runId;
+  // A step run started on another run's page doesn't belong to this one.
+  const mutationMatchesRun = run.variables === undefined || run.variables.runId === runId;
   const isRunningStep = (stepId: number) =>
     run.isPending && mutationMatchesRun && run.variables?.stepId === stepId;
   const canExecuteStep = parameterDefinitions.every((parameter) =>
@@ -273,17 +258,15 @@ export const CertificationPageExecution = () => {
       : undefined;
 
   const executeStep = (step: CertificationStepDto) => {
-    if (!isAuthenticated || sisVersion === undefined) return;
+    if (!isAuthenticated) return;
     run.reset();
     run.mutate({
-      sbEnvironmentId,
+      teamId,
       edfiTenantId,
-      sisVersion,
+      runId,
       stepId: step.stepId,
       scenarioId: step.scenarioId,
-      runId,
       body: {
-        odsId,
         token: auth.token,
         inputs: toRunInputs(parameterDefinitions, parameterValues),
       },
@@ -301,7 +284,7 @@ export const CertificationPageExecution = () => {
             </Alert>
           )}
           <CertificationAuthenticateForm
-            sbEnvironmentId={sbEnvironmentId}
+            teamId={teamId}
             edfiTenantId={edfiTenantId}
             odsId={odsId}
           />
@@ -478,8 +461,7 @@ export const CertificationPageExecution = () => {
                       !isAuthenticated ||
                       !canExecuteStep ||
                       !scenarioStatuses.canExecuteSteps ||
-                      run.isPending ||
-                      sisVersion === undefined
+                      run.isPending
                     }
                     onClick={() => executeStep(validatedStep)}
                   >
@@ -518,10 +500,10 @@ export const CertificationPageExecution = () => {
             <Box mt={6}>
               <CertificationStepResponseDetails
                 // A new run or step starts closed, so its snapshot loads only when opened.
-                key={`${runId ?? 'no-run'}:${validatedStep.stepId}`}
+                key={`${runId}:${validatedStep.stepId}`}
                 run={selectedRun}
                 isRunning={isRunningStep(validatedStep.stepId)}
-                snapshotArgs={{ sbEnvironmentId, edfiTenantId, odsId, sisVersion, runId }}
+                snapshotArgs={{ teamId, edfiTenantId, runId }}
               />
             </Box>
           )}
@@ -537,7 +519,7 @@ export const CertificationPageExecution = () => {
               variant="ghost"
               type="button"
               onClick={() => {
-                navigate(parentLocation);
+                navigate(certificationRunPath(teamId, runId));
               }}
             >
               Back

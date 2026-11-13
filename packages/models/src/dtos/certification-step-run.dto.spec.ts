@@ -34,7 +34,7 @@ describe('certification step run DTOs', () => {
     expect(isSupportedSisVersion('v4')).toBe(false);
   });
 
-  it('accepts a valid body, keeps the inputs object and drops unknown keys', () => {
+  it('accepts a valid body, keeps the inputs object and drops unknown keys such as odsId', () => {
     const dto = toDto({
       odsId: '5',
       token: 'abc.DEF-123_~',
@@ -42,7 +42,7 @@ describe('certification step run DTOs', () => {
       extra: 'dropped',
     });
     expect(validateSync(dto)).toEqual([]);
-    expect(dto).toEqual({ odsId: 5, token: 'abc.DEF-123_~', inputs: { studentUniqueId: '604822' } });
+    expect(dto).toEqual({ token: 'abc.DEF-123_~', inputs: { studentUniqueId: '604822' } });
   });
 
   it.each(['', 'has space', 'line\nbreak', 'x'.repeat(4097)])('rejects token %j', (token) => {

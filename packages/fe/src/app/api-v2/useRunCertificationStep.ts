@@ -3,12 +3,12 @@ import { useMutation } from '@tanstack/react-query';
 import { apiClient } from './apiClient';
 
 export type RunCertificationStepVariables = {
-  sbEnvironmentId: number;
+  teamId: number;
   edfiTenantId: number;
-  sisVersion: string;
+  /** The run the step belongs to; it fixes the data store. */
+  runId: number;
   stepId: number;
-  /** Client-side cache scope, not part of the API request body. */
-  runId: number | null | undefined;
+  /** Client-side cache scope, not part of the API request. */
   scenarioId: number;
   body: PostCertificationStepRunDto;
 };
@@ -32,14 +32,14 @@ export const useRunCertificationStep = (handlers: RunCertificationStepHandlers) 
     onError: (error: unknown, variables: RunCertificationStepVariables) =>
       handlers.onError(error, variables),
     mutationFn: async ({
-      sbEnvironmentId,
+      teamId,
       edfiTenantId,
-      sisVersion,
+      runId,
       stepId,
       body,
     }: RunCertificationStepVariables) =>
       (await apiClient.post(
-        `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/sis/${sisVersion}/steps/${stepId}/run`,
+        `teams/${teamId}/edfi-tenants/${edfiTenantId}/certification/runs/${runId}/steps/${stepId}/run`,
         body,
       )) as unknown as CertificationStepRunDto,
   });

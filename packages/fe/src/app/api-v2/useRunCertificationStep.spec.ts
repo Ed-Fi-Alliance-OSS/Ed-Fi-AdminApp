@@ -13,7 +13,7 @@ describe('useRunCertificationStep', () => {
     expect((useMutation as jest.Mock).mock.calls[0][0]).toMatchObject({ gcTime: 0 });
   });
 
-  it('posts the body to the step run route and returns the result', async () => {
+  it("posts the body to the run's step route and returns the result", async () => {
     const result = {
       stepId: 189,
       status: 'success',
@@ -24,13 +24,12 @@ describe('useRunCertificationStep', () => {
     (apiClient.post as jest.Mock).mockResolvedValue(result);
     useRunCertificationStep({ onSuccess: jest.fn(), onError: jest.fn() });
     const { mutationFn } = (useMutation as jest.Mock).mock.calls[0][0];
-    const body = { odsId: 5, token: 't', inputs: { schoolId: '255901' } };
+    const body = { token: 't', inputs: { schoolId: '255901' } };
 
     await expect(
       mutationFn({
-        sbEnvironmentId: 1,
+        teamId: 2,
         edfiTenantId: 10,
-        sisVersion: 'v5',
         stepId: 189,
         scenarioId: 52,
         runId: 7,
@@ -38,7 +37,7 @@ describe('useRunCertificationStep', () => {
       }),
     ).resolves.toEqual(result);
     expect(apiClient.post).toHaveBeenCalledWith(
-      'sb-environments/1/edfi-tenants/10/certification/sis/v5/steps/189/run',
+      'teams/2/edfi-tenants/10/certification/runs/7/steps/189/run',
       body,
     );
   });

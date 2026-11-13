@@ -1,51 +1,36 @@
 import { CertificationStepSnapshotDto } from '@edanalytics/models';
 import { useQuery } from '@tanstack/react-query';
 import { methods } from '../../api';
-import { certificationQueryKeys } from './useCertificationCatalog';
+import { certificationQueryKeys, certificationTenantUrl } from './useCertificationCatalog';
 
 export type UseCertificationStepSnapshotArgs = {
-  sbEnvironmentId: number;
+  teamId: number;
+  /** The run's tenant; undefined until the run has loaded. */
   edfiTenantId: number | undefined;
-  odsId: number | undefined;
-  sisVersion: string | undefined;
+  runId: number | undefined;
   stepId: number | undefined;
   ranAt: string | undefined;
-  runId: number | null | undefined;
   /** True once the vendor opens the response panel; the snapshot is never loaded before. */
   enabled: boolean;
 };
 
 /** The saved Ed-Fi API response of one step's latest run (AC-690). */
 export const useCertificationStepSnapshot = ({
-  sbEnvironmentId,
+  teamId,
   edfiTenantId,
-  odsId,
-  sisVersion,
+  runId,
   stepId,
   ranAt,
-  runId,
   enabled: isOpen,
 }: UseCertificationStepSnapshotArgs) => {
   const enabled =
-    isOpen &&
-    edfiTenantId !== undefined &&
-    sisVersion !== undefined &&
-    stepId !== undefined &&
-    typeof runId === 'number';
+    isOpen && edfiTenantId !== undefined && stepId !== undefined && runId !== undefined;
   const query = useQuery({
-    queryKey: certificationQueryKeys.stepSnapshot(
-      sbEnvironmentId,
-      edfiTenantId,
-      odsId,
-      stepId,
-      ranAt,
-      runId,
-    ),
+    queryKey: certificationQueryKeys.stepSnapshot(teamId, runId, stepId, ranAt),
     queryFn: () =>
       methods.getOne(
-        `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/sis/${sisVersion}/step-runs/${stepId}/snapshot`,
+        `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/step-runs/${stepId}/snapshot`,
         CertificationStepSnapshotDto,
-        odsId === undefined ? undefined : { params: { odsId } },
       ),
     enabled,
   });

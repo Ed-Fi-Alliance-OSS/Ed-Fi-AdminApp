@@ -93,7 +93,7 @@ Run a single request by name:
 
 #### Run the certification step collection (AC-466)
 
-`collections/certification` calls the step-run endpoint against a real ODS/API. Every request skips itself unless `CERT_SB_ENVIRONMENT_ID` is set, so the default suite is unaffected. The ODS must contain data matching the inputs. Locally, refresh the ODS databases to Data Model 5.2 templates first (otherwise every data call returns 500), or point the environment at certification.ed-fi.org. The `ACCESS_TOKEN` user needs `sb-environment:update` on the environment.
+`collections/certification` validates credentials, starts (or reuses) the data store's open SIS run and runs steps on it against a real ODS/API. Every request skips itself unless `CERT_TEAM_ID` is set, so the default suite is unaffected. The ODS must contain data matching the inputs. Locally, refresh the ODS databases to Data Model 5.2 templates first (otherwise every data call returns 500), or point the environment at certification.ed-fi.org. The `ACCESS_TOKEN` user needs `team.sb-environment.edfi-tenant.ods.certification:run` on the data store, as a member of the team that owns it.
 
 Certification run statuses use uppercase database/API values: `DRAFT`, `READY_FOR_REVIEW`,
 `IN_REVIEW`, `CHANGES_REQUESTED`, `READY_FOR_REVIEW_WITH_CHANGES`, `APPROVED`, and `REJECTED`.
@@ -129,9 +129,9 @@ ORDER BY s."displayOrder";
 ```
 
 ```powershell
-$env:CERT_SB_ENVIRONMENT_ID = '1'
+$env:CERT_TEAM_ID = '1'                # the team that owns the data store
 $env:CERT_EDFI_TENANT_ID = '1'
-$env:CERT_ODS_ID = '1'                 # leave unset for a tenant without ODSs
+$env:CERT_ODS_ID = '1'
 $env:CERT_ODS_KEY = '<ODS/API key>'
 $env:CERT_ODS_SECRET = '<ODS/API secret>'
 $env:CERT_STEP_01_ID = '<stepId of 01 - 1st Student is valid.bru>'

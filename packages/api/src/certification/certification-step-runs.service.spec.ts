@@ -1,38 +1,23 @@
 import 'reflect-metadata';
 import { NotFoundException } from '@nestjs/common';
-import { FindOperator, In, IsNull, Not } from 'typeorm';
-import { ValidationHttpException } from '../utils';
+import { In } from 'typeorm';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 
 type Deps = Partial<{
-  scenarioRepository: unknown;
-  runRepository: unknown;
   runScenarioRepository: unknown;
   stepRunRepository: unknown;
   stepErrorRepository: unknown;
 }>;
 
-// Named dependencies instead of five positional arguments; unset ones are empty stubs.
+// Named dependencies instead of positional arguments; unset ones are empty stubs.
 const makeService = (deps: Deps) =>
   new CertificationStepRunsService(
-    (deps.scenarioRepository ?? {}) as never,
-    (deps.runRepository ?? {}) as never,
     (deps.runScenarioRepository ?? {}) as never,
     (deps.stepRunRepository ?? {}) as never,
     (deps.stepErrorRepository ?? {}) as never,
   );
 
-/** The open-run lookup every read uses: tenant 10's SIS run that isn't Approved or Rejected. */
-const openRun = (odsId: number | FindOperator<unknown>) => ({
-  edfiTenantId: 10,
-  odsId,
-  certificationModel: 'SIS',
-  status: Not(In(['APPROVED', 'REJECTED'])),
-});
-
 describe('CertificationStepRunsService.findStepRuns', () => {
-  let scenarioRepository: { findOne: jest.Mock };
-  let runRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let runScenarioRepository: { findOne: jest.Mock };
   let stepRunRepository: { find: jest.Mock; findOne: jest.Mock };
   let stepErrorRepository: { find: jest.Mock };
@@ -41,95 +26,23 @@ describe('CertificationStepRunsService.findStepRuns', () => {
   const find = (
     overrides: Partial<Parameters<CertificationStepRunsService['findStepRuns']>[0]> = {},
   ) =>
-    service.findStepRuns({
-      edfiTenantId: 10,
-      odsId: 5,
-      sisVersion: 'v5',
-      scenarioId: 20,
-      ...overrides,
-    });
+    service.findStepRuns({ certificationRunId: 7, scenarioId: 20, ...overrides });
 
   beforeEach(() => {
-    scenarioRepository = {
-      findOne: jest.fn().mockResolvedValue({
-        scenarioId: 20,
-        domain: {
-          catalogVersionId: 3,
-          catalogVersion: { catalogVersionId: 3, dataStandardVersion: 'v5' },
-        },
-      }),
-    };
-    runRepository = {
-      findOne: jest.fn().mockResolvedValue({ certificationRunId: 7, status: 'DRAFT' }),
-      create: jest.fn(),
-      save: jest.fn(),
-    };
     runScenarioRepository = { findOne: jest.fn().mockResolvedValue({ status: 'failed' }) };
     stepRunRepository = { find: jest.fn().mockResolvedValue([]), findOne: jest.fn() };
     stepErrorRepository = { find: jest.fn().mockResolvedValue([]) };
-    service = makeService({
-      scenarioRepository,
-      runRepository,
-      runScenarioRepository,
-      stepRunRepository,
-      stepErrorRepository,
-    });
+    service = makeService({ runScenarioRepository, stepRunRepository, stepErrorRepository });
   });
 
-  it("looks up the data store's open SIS run, the same one runStep uses", async () => {
+  it("reads the given run's rows of the scenario", async () => {
     await find();
 
-    expect(scenarioRepository.findOne).toHaveBeenCalledWith({
-      where: { scenarioId: 20 },
-      relations: { domain: { catalogVersion: true } },
+    expect(stepRunRepository.find).toHaveBeenCalledWith({
+      where: { certificationRunId: 7, scenarioId: 20 },
     });
-    expect(runRepository.findOne).toHaveBeenCalledWith({
-      where: openRun(5),
-    });
-  });
-
-  it('returns no steps when the scenario does not exist', async () => {
-    scenarioRepository.findOne.mockResolvedValue(null);
-
-    await expect(find()).resolves.toEqual({ scenarioStatus: null, steps: [] });
-    expect(runRepository.findOne).not.toHaveBeenCalled();
-  });
-
-  it("returns no steps when the scenario belongs to another SIS version's catalog", async () => {
-    scenarioRepository.findOne.mockResolvedValue({
-      scenarioId: 20,
-      domain: {
-        catalogVersionId: 9,
-        catalogVersion: { catalogVersionId: 9, dataStandardVersion: 'v4' },
-      },
-    });
-
-    await expect(find()).resolves.toEqual({ scenarioStatus: null, steps: [] });
-    expect(runRepository.findOne).not.toHaveBeenCalled();
-  });
-
-  it('returns no steps when the data store has no open run, without creating one', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-
-    await expect(find()).resolves.toEqual({ scenarioStatus: null, steps: [] });
-    expect(runRepository.create).not.toHaveBeenCalled();
-    expect(runRepository.save).not.toHaveBeenCalled();
-    expect(stepRunRepository.find).not.toHaveBeenCalled();
-  });
-
-  it('looks the open run up with IsNull() when no ODS is chosen', async () => {
-    await find({ odsId: null });
-
-    expect(runRepository.findOne).toHaveBeenCalledWith({
-      where: openRun(IsNull()),
-    });
-  });
-
-  it('looks the open run up by the chosen ODS', async () => {
-    await find();
-
-    expect(runRepository.findOne).toHaveBeenCalledWith({
-      where: openRun(5),
+    expect(runScenarioRepository.findOne).toHaveBeenCalledWith({
+      where: { certificationRunId: 7, scenarioId: 20 },
     });
   });
 
@@ -226,37 +139,18 @@ describe('CertificationStepRunsService.findStepRuns', () => {
     expect(stepErrorRepository.find).not.toHaveBeenCalled();
   });
 
-  it('rejects an unsupported SIS version', async () => {
-    await expect(find({ sisVersion: 'v4' })).rejects.toBeInstanceOf(ValidationHttpException);
-    expect(scenarioRepository.findOne).not.toHaveBeenCalled();
-  });
 });
 
 describe('CertificationStepRunsService.findScenarioStatuses', () => {
-  let scenarioRepository: { findOne: jest.Mock };
-  let runRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
   let runScenarioRepository: { find: jest.Mock };
   let stepRunRepository: { find: jest.Mock };
   let stepErrorRepository: { find: jest.Mock };
   let service: CertificationStepRunsService;
 
-  const findStatuses = (
-    overrides: Partial<Parameters<CertificationStepRunsService['findScenarioStatuses']>[0]> = {},
-  ) =>
-    service.findScenarioStatuses({
-      edfiTenantId: 10,
-      odsId: 5,
-      sisVersion: 'v5',
-      ...overrides,
-    });
+  const findStatuses = (status = 'DRAFT') =>
+    service.findScenarioStatuses({ certificationRunId: 7, status } as never);
 
   beforeEach(() => {
-    scenarioRepository = { findOne: jest.fn() };
-    runRepository = {
-      findOne: jest.fn().mockResolvedValue({ certificationRunId: 7, status: 'DRAFT' }),
-      create: jest.fn(),
-      save: jest.fn(),
-    };
     runScenarioRepository = {
       find: jest.fn().mockResolvedValue([
         { scenarioId: 1, status: 'completed' },
@@ -265,16 +159,10 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
     };
     stepRunRepository = { find: jest.fn() };
     stepErrorRepository = { find: jest.fn() };
-    service = makeService({
-      scenarioRepository,
-      runRepository,
-      runScenarioRepository,
-      stepRunRepository,
-      stepErrorRepository,
-    });
+    service = makeService({ runScenarioRepository, stepRunRepository, stepErrorRepository });
   });
 
-  it('returns the open run with canExecuteSteps and its scenario statuses', async () => {
+  it('returns the run with canExecuteSteps and its scenario statuses', async () => {
     await expect(findStatuses()).resolves.toEqual({
       run: { runId: 7, status: 'DRAFT', canExecuteSteps: true },
       scenarios: [
@@ -282,37 +170,24 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
         { scenarioId: 2, status: 'failed' },
       ],
     });
-    expect(runRepository.findOne).toHaveBeenCalledWith({ where: openRun(5) });
     expect(runScenarioRepository.find).toHaveBeenCalledWith({
       where: { certificationRunId: 7 },
     });
-    expect(runRepository.create).not.toHaveBeenCalled();
-    expect(runRepository.save).not.toHaveBeenCalled();
   });
 
-  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'])(
+  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES', 'APPROVED'])(
     'says steps cannot run while the run is %s',
     async (status) => {
-      runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status });
-      await expect(findStatuses()).resolves.toMatchObject({
+      await expect(findStatuses(status)).resolves.toMatchObject({
         run: { runId: 7, status, canExecuteSteps: false },
       });
     },
   );
 
   it('says steps can run while the run is Changes requested', async () => {
-    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'CHANGES_REQUESTED' });
-    await expect(findStatuses()).resolves.toMatchObject({
+    await expect(findStatuses('CHANGES_REQUESTED')).resolves.toMatchObject({
       run: { status: 'CHANGES_REQUESTED', canExecuteSteps: true },
     });
-  });
-
-  it('returns no run and no statuses when the data store has no open run', async () => {
-    // Also the case when its only run is Approved or Rejected: that run isn't open.
-    runRepository.findOne.mockResolvedValue(null);
-
-    await expect(findStatuses()).resolves.toEqual({ run: null, scenarios: [] });
-    expect(runScenarioRepository.find).not.toHaveBeenCalled();
   });
 
   it('omits scenarios without a row', async () => {
@@ -323,28 +198,6 @@ describe('CertificationStepRunsService.findScenarioStatuses', () => {
     });
   });
 
-  it('queries odsId IsNull() when odsId is null', async () => {
-    await findStatuses({ odsId: null });
-
-    expect(runRepository.findOne).toHaveBeenCalledWith({
-      where: openRun(IsNull()),
-    });
-  });
-
-  it('queries the given odsId when provided', async () => {
-    await findStatuses({ odsId: 5 });
-
-    expect(runRepository.findOne).toHaveBeenCalledWith({
-      where: openRun(5),
-    });
-  });
-
-  it('throws the unsupportedVersion validation error for an unsupported sisVersion', async () => {
-    await expect(findStatuses({ sisVersion: 'v4' })).rejects.toBeInstanceOf(
-      ValidationHttpException,
-    );
-    expect(runRepository.findOne).not.toHaveBeenCalled();
-  });
 });
 
 describe('CertificationStepRunsService.findStepSnapshot', () => {
@@ -352,37 +205,22 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
   let service: CertificationStepRunsService;
 
   const findSnapshot = () =>
-    service.findStepSnapshot({ edfiTenantId: 10, odsId: 5, sisVersion: 'v5', stepId: 101 });
+    service.findStepSnapshot({ certificationRunId: 7, stepId: 101 });
 
   beforeEach(() => {
     stepRunRepository = { findOne: jest.fn() };
     service = makeService({ stepRunRepository });
   });
 
-  it("reads only this data store's open run of the step, selecting the hidden snapshot column", async () => {
+  it("reads only the given run's result of the step, selecting the hidden snapshot column", async () => {
     stepRunRepository.findOne.mockResolvedValue({ responseStatus: 200, responseSnapshot: null });
 
     await findSnapshot();
 
     expect(stepRunRepository.findOne).toHaveBeenCalledWith({
-      where: { stepId: 101, certificationRun: openRun(5) },
+      where: { stepId: 101, certificationRunId: 7 },
       select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
     });
-  });
-
-  it('looks the run up with IsNull() when no ODS is chosen', async () => {
-    stepRunRepository.findOne.mockResolvedValue({ responseStatus: null, responseSnapshot: null });
-
-    await service.findStepSnapshot({
-      edfiTenantId: 10,
-      odsId: null,
-      sisVersion: 'v5',
-      stepId: 101,
-    });
-
-    expect(stepRunRepository.findOne.mock.calls[0][0].where.certificationRun).toEqual(
-      openRun(IsNull()),
-    );
   });
 
   it('returns a stored body', async () => {
@@ -415,16 +253,9 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
     await expect(findSnapshot()).resolves.toEqual({ state: 'deleted' });
   });
 
-  it('throws NotFound when the step never ran for this tenant and ODS', async () => {
+  it('throws NotFound when the step never ran in this run', async () => {
     stepRunRepository.findOne.mockResolvedValue(null);
 
     await expect(findSnapshot()).rejects.toBeInstanceOf(NotFoundException);
-  });
-
-  it('rejects an unsupported SIS version', async () => {
-    await expect(
-      service.findStepSnapshot({ edfiTenantId: 10, odsId: 5, sisVersion: 'v4', stepId: 101 }),
-    ).rejects.toBeInstanceOf(ValidationHttpException);
-    expect(stepRunRepository.findOne).not.toHaveBeenCalled();
   });
 });

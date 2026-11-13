@@ -1,4 +1,6 @@
-import { Expose } from 'class-transformer';
+import { Expose, Type } from 'class-transformer';
+import { IsIn, IsInt } from 'class-validator';
+import { makeSerializer } from '../utils/make-serializer';
 
 /** Where a certification run is in its workflow. Not the same as a scenario's or step's result status. */
 export const CERT_RUN_STATUS = {
@@ -70,3 +72,86 @@ export class CertificationRunSummaryDto {
   @Expose()
   canExecuteSteps: boolean;
 }
+
+/** Why a run can't be started: the data store already has an open run of the model. */
+export const certRunAlreadyOpenMessage = (certificationModel: CertModel): string =>
+  `A ${certificationModel} run is already open for this data store.`;
+
+/** The Certification Models a vendor can start a run for. Others appear when their stories are done. */
+export const SUPPORTED_CERT_MODELS: readonly CertModel[] = [CERT_MODEL.sis];
+
+/**
+ * Body of POST .../certification/runs. The team and tenant come from the route, and the user
+ * from the session, so the browser can only choose the data store and the model.
+ */
+export class PostCertificationRunDto {
+  @Expose()
+  @Type(() => Number)
+  @IsInt()
+  odsId: number;
+
+  @Expose()
+  @IsIn(Object.values(CERT_MODEL))
+  certificationModel: CertModel;
+}
+
+/** One certification run, with what its Scenarios page needs to show and to call the API. */
+export class CertificationRunDto {
+  @Expose()
+  runId: number;
+
+  @Expose()
+  sbEnvironmentId: number;
+
+  @Expose()
+  edfiTenantId: number;
+
+  @Expose()
+  odsId: number;
+
+  @Expose()
+  environmentName: string;
+
+  @Expose()
+  tenantName: string;
+
+  @Expose()
+  dataStoreName: string;
+
+  @Expose()
+  certificationModel: CertModel;
+
+  @Expose()
+  status: CertRunStatus;
+
+  @Expose()
+  canExecuteSteps: boolean;
+
+  /** The data standard of the run's catalog (e.g. `v5`); null for a model without a catalog. */
+  @Expose()
+  dataStandardVersion: string | null;
+}
+
+export const toCertificationRunDto = makeSerializer<CertificationRunDto, CertificationRunDto>(
+  CertificationRunDto,
+);
+
+/** The newest run of one Certification Model on a data store; an open one blocks starting another. */
+export class CertificationLatestRunDto {
+  @Expose()
+  certificationModel: CertModel;
+
+  @Expose()
+  runId: number;
+
+  @Expose()
+  status: CertRunStatus;
+
+  @Expose()
+  isOpen: boolean;
+}
+
+export const toCertificationLatestRunDto = makeSerializer<
+  CertificationLatestRunDto,
+  CertificationLatestRunDto
+>(CertificationLatestRunDto);
