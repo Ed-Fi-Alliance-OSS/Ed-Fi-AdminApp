@@ -41,6 +41,12 @@ export default defineConfig(({ mode }) => {
           // Split third-party code into a few cacheable chunks so no chunk exceeds Vite's
           // 500 kB warning limit. Pages keep their existing lazy loading: openpgp and url-join
           // stay out of `vendor` so they still load only with the secret page.
+          //
+          // The package lists are maintained by hand. A module goes to the highest-priority group
+          // whose test matches it; anything not listed (including renamed packages) falls through
+          // to `vendor`. If a dependency change pushes any chunk back over 500 kB, the warning
+          // returns: move packages into their own group here rather than raising the limit.
+          // Check sizes with `nx run fe:build --output-style=static`.
           codeSplitting: {
             groups: [
               { name: 'react', test: nodeModules('react|react-dom|scheduler'), priority: 50 },
@@ -51,7 +57,9 @@ export default defineConfig(({ mode }) => {
                 ),
                 priority: 40,
               },
-              // Higher priority than `chakra`, which would otherwise pull these in as its dependencies.
+              // Chakra UI depends on framer-motion, and rolldown adds a group's dependencies to that
+              // group. This group must outrank `chakra` (45 > 40) to claim them first; otherwise
+              // `chakra` absorbs them and grows to about 480 kB, just under the limit.
               {
                 name: 'motion',
                 test: nodeModules('framer-motion|motion-dom|motion-utils'),
