@@ -20,7 +20,7 @@ import {
   deriveScenarioStatus,
   positiveNumber,
 } from './certification.service';
-import { In, Not } from 'typeorm';
+import { In } from 'typeorm';
 import { runBrunoCli } from './runner/bruno-cli';
 import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
 import { createRunWorkspace, readStepInputNames } from './runner/run-workspace';
@@ -72,6 +72,17 @@ const makeStep = () => ({
   },
 });
 
+/** The run the controller loaded for the team; runStep never looks one up or creates one. */
+const makeRun = (overrides: object = {}) =>
+  ({
+    certificationRunId: 7,
+    edfiTenantId: 10,
+    odsId: 5,
+    status: 'DRAFT',
+    catalogVersion: { catalogVersionId: 3, dataStandardVersion: 'v5' },
+    ...overrides,
+  }) as never;
+
 describe('CertificationService.runStep', () => {
   let stepRepository: { findOne: jest.Mock };
   let runRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
@@ -93,12 +104,10 @@ describe('CertificationService.runStep', () => {
     service.runStep({
       sbEnvironment,
       edfiTenant,
-      sisVersion: 'v5',
+      certificationRun: makeRun(),
       stepId: 101,
-      odsId: 5,
       token: TOKEN,
       inputs: { studentUniqueId: 'S1' },
-      userId: 42,
       ...overrides,
     });
 
@@ -404,80 +413,44 @@ describe('CertificationService.runStep', () => {
     expect(dispose).toHaveBeenCalled();
   });
 
-  it('creates a Draft SIS run on the first step run', async () => {
-    runRepository.findOne.mockResolvedValue(null);
+  it('saves the result under the given run, and neither looks up nor creates a run', async () => {
     await run();
-    expect(runRepository.create).toHaveBeenCalledWith({
-      edfiTenantId: 10,
-      odsId: 5,
-      certificationModel: 'SIS',
-      catalogVersionId: 3,
-      createdById: 42,
-      teamId: null,
-      status: 'DRAFT',
-    });
-    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
-      expect.objectContaining({ certificationRunId: 7 }),
-    );
-  });
-
-  it('creates the run on the first step run of a tenant without an ODS', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    await run({ odsId: undefined });
-    expect(runRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ edfiTenantId: 10, odsId: null, status: 'DRAFT' }),
-    );
-  });
-
-  it('uses the open run and creates none', async () => {
-    await run();
+    expect(runRepository.findOne).not.toHaveBeenCalled();
+    expect(runRepository.create).not.toHaveBeenCalled();
     expect(runRepository.save).not.toHaveBeenCalled();
     expect(em.ScenarioStep.save).toHaveBeenCalledWith(
       expect.objectContaining({ certificationRunId: 7 }),
     );
   });
 
-  it('looks up the open SIS run without the catalog version', async () => {
-    await run();
-    const { where } = runRepository.findOne.mock.calls[0][0];
-    expect(where).toMatchObject({ edfiTenantId: 10, odsId: 5, certificationModel: 'SIS' });
-    expect(where.status).toEqual(Not(In(['APPROVED', 'REJECTED'])));
-    expect(where).not.toHaveProperty('catalogVersionId');
+  it("sends the step to the run's data store", async () => {
+    await run({ certificationRun: makeRun({ odsId: 8 }) });
+    expect(targetService.resolve).toHaveBeenCalledWith({ sbEnvironment, edfiTenant, odsId: 8 });
   });
 
-  it('re-reads the open run when the insert loses the race', async () => {
-    runRepository.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ certificationRunId: 9, status: 'DRAFT' });
-    runRepository.save.mockRejectedValue(new Error('duplicate key'));
-    await run();
-    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
-      expect.objectContaining({ certificationRunId: 9 }),
-    );
-  });
-
-  it('rethrows the insert error when no open run appeared', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    runRepository.save.mockRejectedValue(new Error('connection lost'));
-    await expect(run()).rejects.toThrow('connection lost');
-  });
-
-  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'])(
+  it.each([
+    'READY_FOR_REVIEW',
+    'IN_REVIEW',
+    'READY_FOR_REVIEW_WITH_CHANGES',
+    'APPROVED',
+    'REJECTED',
+  ])(
     'returns 409 and saves nothing while the run is %s',
     async (status) => {
-      runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status });
-      await expect(run()).rejects.toMatchObject({
+      await expect(run({ certificationRun: makeRun({ status }) })).rejects.toMatchObject({
         status: 409,
         message: CERT_RUN_MESSAGES.runLocked,
       });
+      expect(targetService.resolve).not.toHaveBeenCalled();
       expect(runBrunoCli).not.toHaveBeenCalled();
       expect(dataSource.transaction).not.toHaveBeenCalled();
     },
   );
 
   it('runs steps while the run is Changes requested', async () => {
-    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'CHANGES_REQUESTED' });
-    await expect(run()).resolves.toMatchObject({ status: 'success' });
+    await expect(
+      run({ certificationRun: makeRun({ status: 'CHANGES_REQUESTED' }) }),
+    ).resolves.toMatchObject({ status: 'success' });
   });
 
   it('returns 503 while the runtime is not ready', async () => {
@@ -492,8 +465,13 @@ describe('CertificationService.runStep', () => {
     expect(createRunWorkspace).not.toHaveBeenCalled();
   });
 
-  it('rejects an unsupported SIS version before touching the catalog', async () => {
-    await expect(run({ sisVersion: 'v4' })).rejects.toMatchObject({ status: 400 });
+  it.each([
+    ['an unsupported SIS version', { catalogVersionId: 2, dataStandardVersion: 'v4' }],
+    ['no catalog', null],
+  ])('rejects a run with %s before touching the catalog', async (_name, catalogVersion) => {
+    await expect(
+      run({ certificationRun: makeRun({ catalogVersion }) }),
+    ).rejects.toMatchObject({ status: 400 });
     expect(stepRepository.findOne).not.toHaveBeenCalled();
   });
 
@@ -546,13 +524,6 @@ describe('CertificationService.runStep', () => {
     await expect(run({ inputs: { studentUniqueId: 'S1', schoolId: '1' } })).rejects.toMatchObject({
       status: 400,
     });
-  });
-
-  it('treats a null odsId like an omitted one', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    await run({ odsId: null });
-    expect(targetService.resolve).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
-    expect(runRepository.save).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
   });
 
   it('returns 409 while another step of the same scenario is running', async () => {

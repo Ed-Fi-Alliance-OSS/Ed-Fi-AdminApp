@@ -1,7 +1,5 @@
 import 'reflect-metadata';
-import { splitActions } from '@edanalytics/common-ui';
 import { GetSbEnvironmentDto } from '@edanalytics/models';
-import omit from 'lodash/omit';
 import { useSbEnvironmentGlobalActions } from './useSbEnvironmentGlobalActions';
 
 jest.mock('react-router', () => ({
@@ -78,8 +76,6 @@ type Auth = {
   canUpdate?: boolean;
   canDelete?: boolean;
   canRefreshResources?: boolean;
-  canReadTenants?: boolean;
-  canReadOdss?: boolean;
 };
 
 const PRIVILEGE_BY_AUTH: Record<keyof Auth, string> = {
@@ -88,8 +84,6 @@ const PRIVILEGE_BY_AUTH: Record<keyof Auth, string> = {
   canUpdate: 'sb-environment:update',
   canDelete: 'sb-environment:delete',
   canRefreshResources: 'sb-environment:refresh-resources',
-  canReadTenants: 'sb-environment.edfi-tenant:read',
-  canReadOdss: 'ods:read',
 };
 
 let navigate: jest.Mock;
@@ -302,118 +296,15 @@ describe('useSbEnvironmentGlobalActions', () => {
     });
   });
 
-  describe('RequestCert ("Request certification")', () => {
-    // The page lists tenants and ODSs, so update alone would land on an error page.
-    const certAuth = { canUpdate: true, canReadTenants: true, canReadOdss: true };
+  // AC-651: certification starts from the team's My products page, never from the global
+  // environment list.
+  it('never offers "Request certification", whatever the flag and privileges', () => {
+    enableCertificationFlag();
+    setup(buildSbEnvironment('v2', false));
+    // Every privilege, including the tenant and ODS reads the old action asked for.
+    mockUseAuthorize.mockReturnValue(true);
+    const actions = useSbEnvironmentGlobalActions(buildSbEnvironment('v2', false));
 
-    it.each(['v1', 'v2', 'v3'] as const)(
-      'is present for a %s environment when the flag is on and the user can update the environment',
-      (version) => {
-        enableCertificationFlag();
-        const actions = setup(buildSbEnvironment(version, false), { ...certAuth });
-        expect(actions.RequestCert).toMatchObject({
-          text: 'Request certification',
-          title: 'Request certification for Test Env',
-          to: '/sb-environments/1/request-certification',
-        });
-      }
-    );
-
-    it('is present for a startingBlocks environment too (not SB-gated)', () => {
-      enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', true), { ...certAuth });
-      expect(actions.RequestCert).toBeDefined();
-    });
-
-    it('is absent for an environment whose version is unknown, even when the flag is on', () => {
-      enableCertificationFlag();
-      const env = { ...buildSbEnvironment('v2', false), version: undefined } as GetSbEnvironmentDto;
-      const actions = setup(env, { ...certAuth });
-      expect(actions.RequestCert).toBeUndefined();
-    });
-
-    it.each(['v1', 'v2', 'v3'] as const)(
-      'is absent for a %s environment on Ed-Fi Data Model 4.0.0, even when the flag is on',
-      (version) => {
-        enableCertificationFlag();
-        const env = { ...buildSbEnvironment(version, false), odsDsVersion: '4.0.0' };
-        expect(setup(env as GetSbEnvironmentDto, { ...certAuth }).RequestCert).toBeUndefined();
-      }
-    );
-
-    it('is absent for an environment whose data model is unknown, even when the flag is on', () => {
-      enableCertificationFlag();
-      const env = { ...buildSbEnvironment('v3', false), odsDsVersion: undefined };
-      expect(setup(env as GetSbEnvironmentDto, { ...certAuth }).RequestCert).toBeUndefined();
-    });
-
-    it.each([
-      ['tenants', { canUpdate: true, canReadOdss: true }],
-      ['ODSs', { canUpdate: true, canReadTenants: true }],
-      ['both', { canUpdate: true }],
-    ])('is absent when update is granted but the %s read is missing', (_name, auth) => {
-      enableCertificationFlag();
-      expect(setup(buildSbEnvironment('v2', false), auth).RequestCert).toBeUndefined();
-    });
-
-    it('is absent without update even when both reads are granted', () => {
-      enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', false), {
-        canReadTenants: true,
-        canReadOdss: true,
-      });
-      expect(actions.RequestCert).toBeUndefined();
-    });
-
-    it('is absent with only sb-environment:read, even when the flag is on', () => {
-      // Certification starts a workflow, so read access alone isn't enough.
-      enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', false), { canView: true });
-      expect(actions.RequestCert).toBeUndefined();
-    });
-
-    it.each(['v1', 'v2', 'v3'] as const)(
-      'is absent for a %s environment when the flag is off',
-      (version) => {
-        const actions = setup(buildSbEnvironment(version, false), { canUpdate: true });
-        expect(actions.RequestCert).toBeUndefined();
-      }
-    );
-
-    it('goes in the "More" menu without pushing other actions out of the inline buttons', () => {
-      // Mirrors SbEnvironmentGlobalPage, which renders omit(actions, 'View').
-      // These four regular actions exactly fill the inline target, which is
-      // where an extra counted action would push Sync into "More".
-      const auth = {
-        canGrantOwnership: true,
-        canView: true,
-        canUpdate: true,
-        canDelete: true,
-        canRefreshResources: true,
-        canReadTenants: true,
-        canReadOdss: true,
-      };
-      const pageSplit = () => {
-        const { visible, hidden } = splitActions(
-          omit(setup(buildSbEnvironment('v2', false), auth), 'View')
-        );
-        return { visible: visible.map(([key]) => key), hidden: hidden.map(([key]) => key) };
-      };
-
-      const inlineBefore = pageSplit().visible;
-      enableCertificationFlag();
-      const after = pageSplit();
-
-      expect(inlineBefore).toEqual(['GrantOwnership', 'Edit', 'Delete', 'RefreshResources']);
-      expect(after.visible).toEqual(inlineBefore);
-      expect(after.hidden).toEqual(['RequestCert']);
-    });
-
-    it('navigates to the request-certification page on click', () => {
-      enableCertificationFlag();
-      const actions = setup(buildSbEnvironment('v2', false), { ...certAuth });
-      actions.RequestCert?.onClick();
-      expect(navigate).toHaveBeenCalledWith('/sb-environments/1/request-certification');
-    });
+    expect(actions).not.toHaveProperty('RequestCert');
   });
 });

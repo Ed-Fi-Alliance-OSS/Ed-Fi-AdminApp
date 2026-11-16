@@ -1,8 +1,4 @@
-import {
-  GetSessionDataDto,
-  PostCertificationStepRunDto,
-  toCertificationStepRunDto,
-} from '@edanalytics/models';
+import { Ids, PostCertificationStepRunDto, toCertificationStepRunDto } from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
@@ -18,7 +14,7 @@ import {
   ServiceUnavailableException,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiQuery, ApiTags } from '@nestjs/swagger';
+import { ApiTags } from '@nestjs/swagger';
 import { Response } from 'express';
 import {
   ReqEdfiTenant,
@@ -26,45 +22,66 @@ import {
   SbEnvironmentEdfiTenantInterceptor,
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
-import { ReqUser } from '../auth/helpers/user.decorator';
+import { InjectFilter } from '../auth/helpers/inject-filter';
+import {
+  CERT_READ,
+  CERT_RUN,
+  CERT_TENANT_PATH,
+  CERT_TENANT_SUBJECT,
+} from './certification-authorization';
+import { CertificationRunsService } from './certification-runs.service';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
 import { CertificationService } from './certification.service';
 
 const RETRY_AFTER_SECONDS = '30';
 
+/**
+ * Working on one certification run: running its steps and reading their results. Every route
+ * first loads the run for the team, so a run of another team, tenant or data store is a 404.
+ */
 @ApiTags('Certification')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor, CertificationSupportInterceptor)
-@Controller('sb-environments/:sbEnvironmentId/edfi-tenants/:edfiTenantId/certification')
+@Controller(`${CERT_TENANT_PATH}/runs/:runId`)
 export class CertificationController {
   constructor(
     private readonly certificationService: CertificationService,
     private readonly stepRunsService: CertificationStepRunsService,
+    private readonly runsService: CertificationRunsService,
   ) {}
 
+  private findRun(teamId: number, edfiTenant: EdfiTenant, runId: number, validOdsIds: Ids) {
+    return this.runsService.findTeamRun({
+      runId,
+      teamId,
+      edfiTenantId: edfiTenant.id,
+      validOdsIds: () => validOdsIds,
+    });
+  }
+
   /** Runs one certification step through the Bruno CLI and returns its saved result (AC-466). */
-  @Post('sis/:sisVersion/steps/:stepId/run')
+  @Post('steps/:stepId/run')
   @HttpCode(200)
-  @Authorize({ privilege: 'sb-environment:update', subject: { id: 'sbEnvironmentId' } })
+  @Authorize({ privilege: CERT_RUN, subject: CERT_TENANT_SUBJECT })
   async runStep(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqSbEnvironment() sbEnvironment: SbEnvironment,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('sisVersion') sisVersion: string,
-    @Param('stepId', ParseIntPipe) stepId: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @Param('stepId', new ParseIntPipe()) stepId: number,
     @Body() body: PostCertificationStepRunDto,
+    @InjectFilter(CERT_RUN) validOdsIds: Ids,
     @Res({ passthrough: true }) res: Response,
-    @ReqUser() session?: GetSessionDataDto,
   ) {
+    const certificationRun = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
     try {
       const result = await this.certificationService.runStep({
         sbEnvironment,
         edfiTenant,
-        sisVersion,
+        certificationRun,
         stepId,
-        odsId: body.odsId,
         token: body.token,
         inputs: body.inputs,
-        userId: session?.id ?? null,
       });
       return toCertificationStepRunDto(result);
     } catch (error) {
@@ -76,65 +93,52 @@ export class CertificationController {
   }
 
   /**
-   * The saved result of each step of one scenario (AC-475). Read-only: it never creates a
-   * certification run and never contacts the ODS/API, so it needs no token.
+   * The saved result of each step of one scenario (AC-475). Read-only: it never contacts the
+   * ODS/API, so it needs no token.
    */
-  @Get('sis/:sisVersion/step-runs')
-  @ApiQuery({ name: 'odsId', required: false, type: Number })
-  @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
+  @Get('step-runs')
+  @Authorize({ privilege: CERT_READ, subject: CERT_TENANT_SUBJECT })
   async getStepRuns(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('sisVersion') sisVersion: string,
-    @Query('scenarioId', ParseIntPipe) scenarioId: number,
-    @Query('odsId', new ParseIntPipe({ optional: true })) odsId?: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @Query('scenarioId', new ParseIntPipe()) scenarioId: number,
+    @InjectFilter(CERT_READ) validOdsIds: Ids,
   ) {
-    return this.stepRunsService.findStepRuns({
-      edfiTenantId: edfiTenant.id,
-      odsId: odsId ?? null,
-      sisVersion,
-      scenarioId,
-    });
+    const { certificationRunId } = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
+    return this.stepRunsService.findStepRuns({ certificationRunId, scenarioId });
   }
 
-  /**
-   * The data store's open SIS run and its scenario statuses (AC-689, AC-649). Read-only: it
-   * never creates a certification run and never contacts the ODS/API, so it needs no token.
-   */
-  @Get('sis/:sisVersion/scenario-statuses')
-  @ApiQuery({ name: 'odsId', required: false, type: Number })
-  @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
+  /** The run's status and its scenario statuses (AC-689, AC-649). Read-only, needs no token. */
+  @Get('scenario-statuses')
+  @Authorize({ privilege: CERT_READ, subject: CERT_TENANT_SUBJECT })
   async getScenarioStatuses(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('sisVersion') sisVersion: string,
-    @Query('odsId', new ParseIntPipe({ optional: true })) odsId?: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @InjectFilter(CERT_READ) validOdsIds: Ids,
   ) {
-    return this.stepRunsService.findScenarioStatuses({
-      edfiTenantId: edfiTenant.id,
-      odsId: odsId ?? null,
-      sisVersion,
-    });
+    return this.stepRunsService.findScenarioStatuses(
+      await this.findRun(teamId, edfiTenant, runId, validOdsIds),
+    );
   }
 
   /**
    * The decrypted Ed-Fi API response snapshot of one step's latest run (AC-690). Loaded only
    * when the vendor opens it, so the step list never carries the bodies.
    */
-  @Get('sis/:sisVersion/step-runs/:stepId/snapshot')
+  @Get('step-runs/:stepId/snapshot')
   // The body is a decrypted vendor response: no browser or proxy may keep a copy.
   @Header('Cache-Control', 'no-store')
-  @ApiQuery({ name: 'odsId', required: false, type: Number })
-  @Authorize({ privilege: 'sb-environment:read', subject: { id: 'sbEnvironmentId' } })
+  @Authorize({ privilege: CERT_READ, subject: CERT_TENANT_SUBJECT })
   async getStepSnapshot(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
-    @Param('sisVersion') sisVersion: string,
-    @Param('stepId', ParseIntPipe) stepId: number,
-    @Query('odsId', new ParseIntPipe({ optional: true })) odsId?: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @Param('stepId', new ParseIntPipe()) stepId: number,
+    @InjectFilter(CERT_READ) validOdsIds: Ids,
   ) {
-    return this.stepRunsService.findStepSnapshot({
-      edfiTenantId: edfiTenant.id,
-      odsId: odsId ?? null,
-      sisVersion,
-      stepId,
-    });
+    const { certificationRunId } = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
+    return this.stepRunsService.findStepSnapshot({ certificationRunId, stepId });
   }
 }

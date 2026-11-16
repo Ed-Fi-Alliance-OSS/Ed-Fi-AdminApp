@@ -1,0 +1,35 @@
+meta {
+  name: certification/latest runs - the data store's open SIS run (200)
+  type: http
+  seq: 3
+  tags: Certification
+}
+
+get {
+  url: {{BASE_URL}}/teams/{{process.env.CERT_TEAM_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/runs/latest?odsId={{process.env.CERT_ODS_ID}}
+  body: none
+  auth: none
+}
+
+headers {
+  Authorization: Bearer {{ACCESS_TOKEN}}
+}
+
+script:pre-request {
+  if (!bru.getProcessEnv('CERT_TEAM_ID')) {
+    bru.runner.skipRequest();
+  }
+}
+
+script:post-response {
+  const sis = (res.getBody() || []).find((run) => run.certificationModel === 'SIS');
+  bru.setVar('certRunId', sis?.runId);
+}
+
+tests {
+  test("certification/latest runs - the SIS run is open", function() {
+    expect(res.getStatus()).to.equal(200);
+    const sis = res.getBody().find((run) => run.certificationModel === 'SIS');
+    expect(sis.isOpen).to.equal(true);
+  });
+}

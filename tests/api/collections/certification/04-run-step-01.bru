@@ -1,12 +1,12 @@
 meta {
   name: certification/run v5 Students step 01 - OK (200)
   type: http
-  seq: 2
+  seq: 4
   tags: Certification
 }
 
 post {
-  url: {{BASE_URL}}/sb-environments/{{process.env.CERT_SB_ENVIRONMENT_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/sis/v5/steps/{{process.env.CERT_STEP_01_ID}}/run
+  url: {{BASE_URL}}/teams/{{process.env.CERT_TEAM_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/runs/{{certRunId}}/steps/{{process.env.CERT_STEP_01_ID}}/run
   body: json
   auth: none
 }
@@ -20,13 +20,11 @@ body:json {
 }
 
 script:pre-request {
-  if (!bru.getProcessEnv('CERT_SB_ENVIRONMENT_ID')) {
+  if (!bru.getProcessEnv('CERT_TEAM_ID')) {
     bru.runner.skipRequest();
     return;
   }
-  const odsId = bru.getProcessEnv('CERT_ODS_ID');
   req.setBody({
-    ...(odsId ? { odsId: Number(odsId) } : {}),
     token: bru.getVar('certToken'),
     inputs: { studentUniqueId: bru.getProcessEnv('CERT_STUDENT_UNIQUE_ID') },
   });

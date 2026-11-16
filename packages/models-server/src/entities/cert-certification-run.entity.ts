@@ -60,7 +60,7 @@ export class CertificationRun {
   @JoinColumn({ name: 'teamId' })
   team: Team | null;
 
-  /** Null on the global Certification page, which has no team. */
+  /** The team that started the run. Null for a run from before AC-651, or whose team was deleted. */
   @Column({ type: 'int', nullable: true })
   teamId: number | null;
 

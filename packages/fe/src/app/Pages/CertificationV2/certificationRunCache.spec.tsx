@@ -9,7 +9,7 @@ import { useCertificationStepSnapshot } from './useCertificationStepSnapshot';
 
 jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
 
-const scope = { sbEnvironmentId: 1, edfiTenantId: 10, odsId: 5, sisVersion: 'v5' };
+const scope = { teamId: 2, edfiTenantId: 10 };
 const priorStep = {
   stepId: 189,
   status: 'failed',
@@ -20,7 +20,7 @@ const priorStep = {
 };
 const priorResults = { scenarioStatus: 'failed', steps: [priorStep] };
 const emptyResults = { scenarioStatus: null, steps: [] };
-const initialProps = { runId: 7 as number | null | undefined };
+const initialProps = { runId: 7 as number | undefined };
 
 describe('certification result caches (real QueryClient)', () => {
   let client: QueryClient;
@@ -38,11 +38,10 @@ describe('certification result caches (real QueryClient)', () => {
   afterEach(() => client.clear());
 
   it.each([
-    { runId: null, requests: 1 },
     { runId: undefined, requests: 1 },
     { runId: 8, requests: 2 },
   ])(
-    'does not reuse fresh step results or inputs when the open run becomes $runId',
+    'does not reuse fresh step results or inputs when the run becomes $runId',
     async ({ runId, requests }) => {
       (methods.getOne as jest.Mock)
         .mockResolvedValueOnce(priorResults)
@@ -63,11 +62,10 @@ describe('certification result caches (real QueryClient)', () => {
   );
 
   it.each([
-    { runId: null, requests: 1, expected: undefined },
     { runId: undefined, requests: 1, expected: undefined },
     { runId: 8, requests: 2, expected: { state: 'body', body: 'current attempt' } },
   ])(
-    'does not reuse a fresh snapshot with the same step/time when the open run becomes $runId',
+    'does not reuse a fresh snapshot with the same step/time when the run becomes $runId',
     async ({ runId, requests, expected }) => {
       const previous = { state: 'body', body: 'previous attempt' };
       const current = { state: 'body', body: 'current attempt' };

@@ -100,6 +100,25 @@ describe('TeamsGlobalController.envNav', () => {
       } as AuthorizationCache);
 
       expect(result.every((row) => row.certifications === false)).toBe(true);
+      expect(result.every((row) => row.certificationRuns === false)).toBe(true);
+    });
+
+    it('flags certification run separately from read', async () => {
+      const RUN = 'team.sb-environment.edfi-tenant.ods.certification:run';
+      const result = await controller.envNav({
+        'team.sb-environment:read': true,
+        // Read on both tenants, run on one: a read-only role in the other.
+        [CERT]: { 100: new Set(['__all__']), 200: new Set(['__all__']) },
+        [RUN]: { 100: new Set(['__all__']) },
+      } as unknown as AuthorizationCache);
+
+      expect(
+        result.map((row) => [row.edfiTenantId, row.certifications, row.certificationRuns]),
+      ).toEqual([
+        [100, true, true],
+        [200, true, false],
+        [null, false, false],
+      ]);
     });
   });
 });

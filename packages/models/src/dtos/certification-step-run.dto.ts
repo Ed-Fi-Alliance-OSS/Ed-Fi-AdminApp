@@ -1,5 +1,5 @@
 import { Expose, Type } from 'class-transformer';
-import { IsInt, IsObject, IsOptional, IsString, Matches } from 'class-validator';
+import { IsObject, IsString, Matches } from 'class-validator';
 import { makeSerializer } from '../utils/make-serializer';
 import { CertificationRunSummaryDto } from './certification-run.dto';
 
@@ -45,17 +45,11 @@ export const CERT_SNAPSHOT_STATE = {
 export type CertSnapshotState = (typeof CERT_SNAPSHOT_STATE)[keyof typeof CERT_SNAPSHOT_STATE];
 
 /**
- * Body of POST .../certification/sis/:sisVersion/steps/:stepId/run.
+ * Body of POST .../certification/runs/:runId/steps/:stepId/run. The run fixes the data store.
  * The token is never persisted or logged. Input keys and values are checked
  * against the step's catalog parameters in the service.
  */
 export class PostCertificationStepRunDto {
-  @Expose()
-  @IsOptional()
-  @Type(() => Number)
-  @IsInt()
-  odsId?: number;
-
   @Expose()
   @IsString()
   @Matches(/^[\x21-\x7E]{1,4096}$/, { message: 'token must be 1-4096 visible ASCII characters' })

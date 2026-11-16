@@ -6,7 +6,7 @@ meta {
 }
 
 post {
-  url: {{BASE_URL}}/sb-environments/{{process.env.CERT_SB_ENVIRONMENT_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/token
+  url: {{BASE_URL}}/teams/{{process.env.CERT_TEAM_ID}}/edfi-tenants/{{process.env.CERT_EDFI_TENANT_ID}}/certification/token
   body: json
   auth: none
 }
@@ -20,13 +20,12 @@ body:json {
 }
 
 script:pre-request {
-  if (!bru.getProcessEnv('CERT_SB_ENVIRONMENT_ID')) {
+  if (!bru.getProcessEnv('CERT_TEAM_ID')) {
     bru.runner.skipRequest();
     return;
   }
-  const odsId = bru.getProcessEnv('CERT_ODS_ID');
   req.setBody({
-    ...(odsId ? { odsId: Number(odsId) } : {}),
+    odsId: Number(bru.getProcessEnv('CERT_ODS_ID')),
     key: bru.getProcessEnv('CERT_ODS_KEY'),
     secret: bru.getProcessEnv('CERT_ODS_SECRET'),
   });

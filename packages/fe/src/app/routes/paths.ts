@@ -17,6 +17,10 @@ const pathPartials = {
   myProducts: {
     index: 'my-products',
   },
+  certification: {
+    run: 'certification/runs/:runId',
+    runExecution: 'certification/runs/:runId/execution',
+  },
 };
 
 const globalPaths = {
@@ -31,6 +35,10 @@ const globalPaths = {
 const asTeamPaths = {
   myProducts: {
     index: `/${pathPartials.asTeam}/${pathPartials.myProducts.index}`,
+  },
+  certification: {
+    run: `/${pathPartials.asTeam}/${pathPartials.certification.run}`,
+    runExecution: `/${pathPartials.asTeam}/${pathPartials.certification.runExecution}`,
   },
   integrationApp: {
     view: `/${pathPartials.asTeam}/${pathPartials.integrationProvider.id}/${pathPartials.integrationApp.id}`,
@@ -59,6 +67,17 @@ function replaceKeyIds(path: string, ids: Record<string, Id>) {
     return acc.replace(`:${key}`, `${value}`);
   }, path);
 }
+
+/** The team's My products page. */
+export const myProductsPath = (asId: Id) => replaceKeyIds(asTeamPaths.myProducts.index, { asId });
+
+/** The Scenarios page of one certification run. Team-only: a run always belongs to a team. */
+export const certificationRunPath = (asId: Id, runId: Id) =>
+  replaceKeyIds(asTeamPaths.certification.run, { asId, runId });
+
+/** The steps page of one certification run; the scenario goes in the query string. */
+export const certificationRunExecutionPath = (asId: Id, runId: Id) =>
+  replaceKeyIds(asTeamPaths.certification.runExecution, { asId, runId });
 
 const dynamicGlobalPaths = {
   integrationProvider: {
