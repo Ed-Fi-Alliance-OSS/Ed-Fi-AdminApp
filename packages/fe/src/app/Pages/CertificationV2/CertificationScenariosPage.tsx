@@ -25,6 +25,7 @@ import { useNavigate, useParams } from 'react-router';
 import { getOdsTerminology } from '../../helpers';
 import { certificationRunExecutionPath, myProductsPath } from '../../routes/paths';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { CertificationRunReviewBar } from './CertificationRunReviewBar';
 import { CertificationStatusIndicator } from './CertificationStatusIndicator';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { useCertificationSelection } from './useCertificationSelection';
@@ -73,6 +74,12 @@ export const CertificationScenariosPage = () => {
         .filter((domain) => selectedDomainId === '' || String(domain.domainId) === selectedDomainId)
         .flatMap((domain) => domain.scenarios.map((scenario) => ({ domain, scenario }))),
     [catalog.domains, selectedDomainId],
+  );
+
+  // Every scenario of the catalog, whatever the domain filter shows: Send to Review needs all.
+  const allScenarioIds = useMemo(
+    () => catalog.domains.flatMap((domain) => domain.scenarios.map((s) => s.scenarioId)),
+    [catalog.domains],
   );
 
   const scenarioStatuses = useCertificationScenarioStatuses({
@@ -156,6 +163,17 @@ export const CertificationScenariosPage = () => {
           </RunFact>
           <RunFact label="Certification Model">{run.certificationModel}</RunFact>
         </SimpleGrid>
+
+        <CertificationRunReviewBar
+          teamId={teamId}
+          edfiTenantId={run.edfiTenantId}
+          runId={run.runId}
+          // The statuses read refetches after step runs and sends, so it has the newest status.
+          status={scenarioStatuses.run?.status ?? run.status}
+          scenarioIds={allScenarioIds}
+          statusByScenarioId={scenarioStatuses.statusByScenarioId}
+          isStatusUnknown={scenarioStatuses.isUnknown}
+        />
 
         <Box w="30em" maxW="100%">
           {/* Credentials are only for running steps. While the run is in review no step can run,
