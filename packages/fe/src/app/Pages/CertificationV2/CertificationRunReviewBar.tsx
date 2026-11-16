@@ -1,6 +1,7 @@
 import { Alert, AlertIcon, Badge, Box, Button, HStack, Text } from '@chakra-ui/react';
 import { ConfirmAction } from '@edanalytics/common-ui';
 import { CertRunStatus, CertScenarioStatus, sendToReviewStatus } from '@edanalytics/models';
+import { useRef } from 'react';
 import { useCanSeeCertification } from '../MyProducts/useCanSeeCertification';
 import {
   CERT_RUN_STATUS_COLOR,
@@ -39,6 +40,9 @@ export const CertificationRunReviewBar = ({
 }: CertificationRunReviewBarProps) => {
   const { canRun } = useCanSeeCertification(teamId);
   const sendToReview = useSendCertificationRunToReview();
+  // The confirmation's Send button has no busy state, so a second click must not post again:
+  // it would be refused (the run is already sent) and show a false error.
+  const isSending = useRef(false);
   const { successful, total } = countSuccessfulScenarios(scenarioIds, statusByScenarioId);
   const isSendable = sendToReviewStatus(status) !== null;
   const allSucceeded = !isStatusUnknown && total > 0 && successful === total;
@@ -62,10 +66,14 @@ export const CertificationRunReviewBar = ({
             noButtonText="Cancel"
             isDisabled={isDisabled}
             action={async () => {
+              if (isSending.current) return;
+              isSending.current = true;
               try {
                 await sendToReview.mutateAsync({ teamId, edfiTenantId, runId });
               } catch {
                 // Shown from sendToReview.error below.
+              } finally {
+                isSending.current = false;
               }
             }}
           >
@@ -88,7 +96,8 @@ export const CertificationRunReviewBar = ({
           {NOT_ALL_SUCCEEDED}
         </Text>
       )}
-      {sendError && (
+      {/* A refusal stops mattering once the run can't be sent, e.g. another tab sent it. */}
+      {sendError && isSendable && (
         <Alert status="error" mt={2} role="alert">
           <AlertIcon />
           {typeof sendError.message === 'string' && sendError.message

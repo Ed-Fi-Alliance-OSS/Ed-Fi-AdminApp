@@ -118,6 +118,24 @@ describe('CertificationRunReviewBar', () => {
     );
   });
 
+  it('sends once when Send is clicked again while the first send is still running', async () => {
+    mutateAsync.mockReturnValue(new Promise(() => undefined));
+    render(bar());
+    fireEvent.click(sendButton());
+    const confirm = await screen.findByRole('button', { name: 'Send' });
+
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(mutateAsync).toHaveBeenCalledTimes(1));
+  });
+
+  it('drops a refusal once the run is no longer sendable, e.g. sent from another tab', () => {
+    mutation.error = { message: "This certification run can't move to that status." };
+    render(bar({ status: 'READY_FOR_REVIEW' }));
+    expect(screen.queryByRole('alert')).toBeNull();
+  });
+
   it('shows why the server refused to send the run', () => {
     mutation.error = {
       message: 'Every scenario must succeed before the run can be sent to review.',
