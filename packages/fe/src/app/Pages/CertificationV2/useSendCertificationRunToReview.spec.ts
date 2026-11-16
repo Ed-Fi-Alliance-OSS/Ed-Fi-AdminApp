@@ -13,11 +13,12 @@ jest.mock('../../api-v2/apiClient', () => ({ apiClient: { post: jest.fn() } }));
 
 describe('useSendCertificationRunToReview', () => {
   const invalidateQueries = jest.fn();
+  const setQueryData = jest.fn();
   const options = () => (useMutation as jest.Mock).mock.calls[0][0];
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useQueryClient as jest.Mock).mockReturnValue({ invalidateQueries });
+    (useQueryClient as jest.Mock).mockReturnValue({ invalidateQueries, setQueryData });
     useSendCertificationRunToReview();
   });
 
@@ -32,6 +33,27 @@ describe('useSendCertificationRunToReview', () => {
       'teams/2/edfi-tenants/10/certification/runs/7/send-to-review',
       {},
     );
+  });
+
+  it("applies the sent run to the cached run and scenario statuses, so a failed refresh can't show it as editable", () => {
+    const sent = { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false };
+    options().onSuccess(sent, { teamId: 2, edfiTenantId: 10, runId: 7 });
+
+    const update = (key: readonly unknown[]) =>
+      setQueryData.mock.calls.find(
+        ([calledKey]) => JSON.stringify(calledKey) === JSON.stringify(key),
+      )?.[1];
+
+    expect(update(certificationQueryKeys.run(2, 7))).toBe(sent);
+    const applyToStatuses = update(certificationQueryKeys.scenarioStatuses(2, 7));
+    const scenarios = [{ scenarioId: 1, status: 'completed' }];
+    expect(
+      applyToStatuses({ run: { runId: 7, status: 'DRAFT', canExecuteSteps: true }, scenarios }),
+    ).toEqual({
+      run: { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false },
+      scenarios,
+    });
+    expect(applyToStatuses(undefined)).toBeUndefined();
   });
 
   it.each(['onSuccess', 'onError'] as const)(

@@ -1,4 +1,4 @@
-import { CertificationRunDto } from '@edanalytics/models';
+import { CertificationRunDto, CertificationScenarioStatusesDto } from '@edanalytics/models';
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 // Import the file directly: the api-v2 index pulls in more than this hook needs.
 import { apiClient } from '../../api-v2/apiClient';
@@ -25,7 +25,20 @@ export const useSendCertificationRunToReview = () => {
         `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/send-to-review`,
         {},
       )) as unknown as CertificationRunDto,
-    onSuccess: refresh,
+    onSuccess: (sent: CertificationRunDto, variables: SendCertificationRunToReviewVariables) => {
+      // Show the sent run right away, so the page locks even if the refresh below fails.
+      const { teamId, runId } = variables;
+      queryClient.setQueryData(certificationQueryKeys.run(teamId, runId), sent);
+      queryClient.setQueryData(
+        certificationQueryKeys.scenarioStatuses(teamId, runId),
+        (previous: CertificationScenarioStatusesDto | undefined) =>
+          previous && {
+            ...previous,
+            run: { runId: sent.runId, status: sent.status, canExecuteSteps: sent.canExecuteSteps },
+          },
+      );
+      return refresh(sent, variables);
+    },
     onError: refresh,
   });
 };
