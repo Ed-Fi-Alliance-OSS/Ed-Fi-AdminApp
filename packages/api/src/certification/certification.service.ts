@@ -11,12 +11,14 @@ import {
   canTransitionRun,
   certRunAlreadyOpenMessage,
   isSupportedSisVersion,
+  sendToReviewStatus,
 } from '@edanalytics/models';
 import {
   CertificationRun,
   CertificationRunScenario,
   EdfiTenant,
   SbEnvironment,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
@@ -56,6 +58,7 @@ export const CERT_RUN_MESSAGES = {
   atCapacity: 'Too many certification steps are running right now. Try again in a minute.',
   runLocked: "This certification run can't take new step results in its current status.",
   invalidTransition: "This certification run can't move to that status.",
+  notAllScenariosCompleted: 'Every scenario must succeed before the run can be sent to review.',
   unsupportedModel: "This Certification Model isn't available yet.",
   unsupportedDataStandard: (odsDsVersion: string | undefined) =>
     `Certification scenarios aren't available yet for Ed-Fi Data Standard ${odsDsVersion ?? '(unknown)'}.`,
@@ -218,7 +221,8 @@ export class CertificationService {
 
   /**
    * Moves a run to another workflow status, refusing any change CERT_RUN_TRANSITIONS doesn't
-   * allow. No endpoint calls this yet: Send to Review is AC-659 and the review decisions AC-660.
+   * allow. No endpoint calls this yet: it is for the review decisions (AC-660). Send to Review
+   * uses sendToReview, which also checks the scenarios.
    */
   async changeRunStatus(certificationRunId: number, to: CertRunStatus): Promise<CertificationRun> {
     const certificationRun = await this.runRepository.findOne({ where: { certificationRunId } });
@@ -235,6 +239,47 @@ export class CertificationService {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
     return { ...certificationRun, status: to, updatedAt };
+  }
+
+  /**
+   * Sends a Draft or Changes requested run to review (AC-659) and returns its new status. Every
+   * enabled scenario of the run's catalog version must be completed, else 409.
+   *
+   * The status changes first and the scenarios are counted after, in the same transaction.
+   * The update locks the run row, which saveResult also updates before saving a step result,
+   * so a step finishing meanwhile either commits before the count (and is counted) or finds
+   * the run locked and is refused.
+   */
+  async sendToReview(
+    certificationRun: Pick<CertificationRun, 'certificationRunId' | 'status' | 'catalogVersionId'>,
+  ): Promise<CertRunStatus> {
+    const { certificationRunId, status: from, catalogVersionId } = certificationRun;
+    const to = sendToReviewStatus(from);
+    if (!to || catalogVersionId === null) {
+      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+    }
+
+    return this.dataSource.transaction(async (em) => {
+      const moved = await em
+        .getRepository(CertificationRun)
+        .update({ certificationRunId, status: from }, { status: to, updatedAt: new Date() });
+      if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+
+      const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId } };
+      const enabled = await em.getRepository(ScenarioCatalog).count({ where: enabledScenario });
+      const completed = await em.getRepository(CertificationRunScenario).count({
+        where: {
+          certificationRunId,
+          status: CERT_SCENARIO_STATUS.completed,
+          scenario: enabledScenario,
+        },
+      });
+      // Thrown inside the transaction, so the status change above rolls back.
+      if (enabled === 0 || completed !== enabled) {
+        throw new ConflictException(CERT_RUN_MESSAGES.notAllScenariosCompleted);
+      }
+      return to;
+    });
   }
 
   private async execute(
