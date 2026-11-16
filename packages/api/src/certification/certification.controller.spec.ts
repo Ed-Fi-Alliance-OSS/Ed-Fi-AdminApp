@@ -1,6 +1,7 @@
-import { NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import {
   HEADERS_METADATA,
+  HTTP_CODE_METADATA,
   INTERCEPTORS_METADATA,
   PATH_METADATA,
 } from '@nestjs/common/constants';
@@ -110,13 +111,73 @@ describe('CertificationController', () => {
       const res = { setHeader: jest.fn() };
 
       await expect(
-        make(service).runStep(2, sbEnvironment, edfiTenant, 7, 101, body, validOdsIds, res as never),
+        make(service).runStep(
+          2,
+          sbEnvironment,
+          edfiTenant,
+          7,
+          101,
+          body,
+          validOdsIds,
+          res as never,
+        ),
       ).rejects.toBeInstanceOf(ServiceUnavailableException);
       expect(res.setHeader).toHaveBeenCalledWith('Retry-After', '30');
     });
 
     it('is guarded by certification:run', () => {
       expect(authorizeOf('runStep')).toEqual({ privilege: RUN, subject });
+    });
+  });
+
+  describe('sendToReview', () => {
+    const dto = { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false };
+
+    beforeEach(() => {
+      runsService = {
+        findTeamRun: jest.fn().mockResolvedValue(certificationRun),
+        toDto: jest.fn().mockReturnValue(dto),
+      } as never;
+    });
+
+    it("sends the team's run and returns it with its new status", async () => {
+      const service = { sendToReview: jest.fn().mockResolvedValue('READY_FOR_REVIEW') };
+
+      const result = await make(service).sendToReview(2, edfiTenant, 7, validOdsIds);
+
+      expectTeamRunLookup();
+      expect(runsService.findTeamRun.mock.calls[0][0].validOdsIds(10)).toBe(validOdsIds);
+      expect(service.sendToReview).toHaveBeenCalledWith(certificationRun);
+      expect((runsService as unknown as { toDto: jest.Mock }).toDto).toHaveBeenCalledWith({
+        ...certificationRun,
+        status: 'READY_FOR_REVIEW',
+      });
+      expect(result).toBe(dto);
+    });
+
+    it('is a 404 for a run outside the data stores the user may run', async () => {
+      runsService.findTeamRun.mockRejectedValue(new NotFoundException());
+      const service = { sendToReview: jest.fn() };
+
+      await expect(
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+      ).rejects.toBeInstanceOf(NotFoundException);
+      expect(service.sendToReview).not.toHaveBeenCalled();
+    });
+
+    it("passes the service's 409 through", async () => {
+      const service = { sendToReview: jest.fn().mockRejectedValue(new ConflictException('no')) };
+
+      await expect(
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+      ).rejects.toBeInstanceOf(ConflictException);
+    });
+
+    it('is a POST to send-to-review, guarded by certification:run', () => {
+      const handler = CertificationController.prototype.sendToReview;
+      expect(Reflect.getMetadata(PATH_METADATA, handler)).toBe('send-to-review');
+      expect(Reflect.getMetadata(HTTP_CODE_METADATA, handler)).toBe(200);
+      expect(authorizeOf('sendToReview')).toEqual({ privilege: RUN, subject });
     });
   });
 
