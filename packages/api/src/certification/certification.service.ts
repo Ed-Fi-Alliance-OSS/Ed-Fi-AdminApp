@@ -1,4 +1,5 @@
 import {
+  CERT_NOT_ALL_SCENARIOS_COMPLETED,
   CERT_RUN_STATUS,
   CERT_SCENARIO_STATUS,
   CERT_STEP_STATUS,
@@ -58,7 +59,7 @@ export const CERT_RUN_MESSAGES = {
   atCapacity: 'Too many certification steps are running right now. Try again in a minute.',
   runLocked: "This certification run can't take new step results in its current status.",
   invalidTransition: "This certification run can't move to that status.",
-  notAllScenariosCompleted: 'Every scenario must succeed before the run can be sent to review.',
+  notAllScenariosCompleted: CERT_NOT_ALL_SCENARIOS_COMPLETED,
   unsupportedModel: "This Certification Model isn't available yet.",
   unsupportedDataStandard: (odsDsVersion: string | undefined) =>
     `Certification scenarios aren't available yet for Ed-Fi Data Standard ${odsDsVersion ?? '(unknown)'}.`,

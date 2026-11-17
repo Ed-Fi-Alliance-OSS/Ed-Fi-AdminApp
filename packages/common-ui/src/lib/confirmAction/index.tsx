@@ -21,6 +21,8 @@ interface UseConfirmActionProps {
   headerText: string;
   yesButtonText?: string;
   noButtonText?: string;
+  /** Shows the yes button as busy, e.g. while the action's request is running. */
+  isYesLoading?: boolean;
   action?: undefined | (() => Promise<void> | void);
 }
 
@@ -28,7 +30,7 @@ export const useConfirmAction = (
   props: UseConfirmActionProps = {
     headerText: 'Do the thing?',
     action: () => undefined,
-  }
+  },
 ) => {
   const {
     bodyText,
@@ -38,6 +40,7 @@ export const useConfirmAction = (
     action,
     skipConfirmation,
     isDisabled,
+    isYesLoading,
   } = props;
   const { isOpen, onOpen, onClose } = useDisclosure();
   const onClick = async () => {
@@ -50,7 +53,7 @@ export const useConfirmAction = (
     ModalProps &
       Pick<
         UseConfirmActionProps,
-        'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText'
+        'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText' | 'isYesLoading'
       >
   > = (props = {}) => ({
     children: undefined,
@@ -61,6 +64,7 @@ export const useConfirmAction = (
     headerText,
     noButtonText,
     yesButtonText,
+    isYesLoading,
     action: onClick,
   });
 
@@ -105,11 +109,19 @@ export const BasicConfirmationModal = (
   props: ModalProps &
     Pick<
       UseConfirmActionProps,
-      'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText'
-    >
+      'bodyText' | 'action' | 'headerText' | 'yesButtonText' | 'noButtonText' | 'isYesLoading'
+    >,
 ) => {
-  const { headerText, bodyText, action, yesButtonText, noButtonText, onClose, ...modalProps } =
-    props;
+  const {
+    headerText,
+    bodyText,
+    action,
+    yesButtonText,
+    noButtonText,
+    isYesLoading,
+    onClose,
+    ...modalProps
+  } = props;
 
   return (
     <Modal onClose={onClose} {...modalProps}>
@@ -119,7 +131,14 @@ export const BasicConfirmationModal = (
         <ModalCloseButton />
         {bodyText ? <ModalBody>{bodyText}</ModalBody> : null}
         <ModalFooter>
-          <Button size="md" variant="solid" colorScheme="blue" mr={3} onClick={action}>
+          <Button
+            size="md"
+            variant="solid"
+            colorScheme="blue"
+            mr={3}
+            onClick={action}
+            isLoading={isYesLoading}
+          >
             {yesButtonText ?? 'Yes'}
           </Button>
           <Button size="md" variant="ghost" onClick={onClose}>

@@ -15,6 +15,7 @@ import {
   ScenarioStepError,
   StepCatalog,
 } from '@edanalytics/models-server';
+import { CERT_NOT_ALL_SCENARIOS_COMPLETED } from '@edanalytics/models';
 import {
   CERT_RUN_MESSAGES,
   CertificationService,
@@ -770,8 +771,14 @@ describe('CertificationService.sendToReview', () => {
       CertificationService['sendToReview']
     >[0];
 
+  let runRow: { status: string };
+
   beforeEach(() => {
-    runUpdate = jest.fn().mockResolvedValue({ affected: 1 });
+    runRow = { status: 'DRAFT' };
+    runUpdate = jest.fn(async (_where, set: { status: string }) => {
+      runRow.status = set.status;
+      return { affected: 1 };
+    });
     scenarioCount = jest.fn().mockResolvedValue(3);
     completedCount = jest.fn().mockResolvedValue(3);
     const em: Record<string, Record<string, jest.Mock>> = {
@@ -780,9 +787,16 @@ describe('CertificationService.sendToReview', () => {
       [CertificationRunScenario.name]: { count: completedCount },
     };
     dataSource = {
-      transaction: jest.fn(async (work) =>
-        work({ getRepository: (entity: { name: string }) => em[entity.name] }),
-      ),
+      // Like a real transaction: a callback that throws undoes the run's status update.
+      transaction: jest.fn(async (work) => {
+        const before = { ...runRow };
+        try {
+          return await work({ getRepository: (entity: { name: string }) => em[entity.name] });
+        } catch (error) {
+          runRow = before;
+          throw error;
+        }
+      }),
     };
     service = new CertificationService(
       {} as never,
@@ -828,23 +842,18 @@ describe('CertificationService.sendToReview', () => {
     expect(scenarioCount).not.toHaveBeenCalled();
   });
 
-  it('rolls back when a scenario is not completed', async () => {
+  it('puts the status back when a scenario is not completed', async () => {
     completedCount.mockResolvedValue(2);
     await expect(service.sendToReview(run('DRAFT'))).rejects.toMatchObject({
       status: 409,
       message: CERT_RUN_MESSAGES.notAllScenariosCompleted,
     });
-    // The refusal comes from inside the transaction callback, so the status update rolls back.
-    const work = dataSource.transaction.mock.calls[0][0];
-    const em = {
-      getRepository: (entity: { name: string }) =>
-        ({
-          [CertificationRun.name]: { update: runUpdate },
-          [ScenarioCatalog.name]: { count: scenarioCount },
-          [CertificationRunScenario.name]: { count: completedCount },
-        })[entity.name],
-    };
-    await expect(work(em)).rejects.toBeInstanceOf(ConflictException);
+    expect(runUpdate).toHaveBeenCalled();
+    expect(runRow.status).toBe('DRAFT');
+  });
+
+  it('shares the "every scenario" message with the Scenarios page', () => {
+    expect(CERT_RUN_MESSAGES.notAllScenariosCompleted).toBe(CERT_NOT_ALL_SCENARIOS_COMPLETED);
   });
 
   it('refuses a run without a catalog version', async () => {

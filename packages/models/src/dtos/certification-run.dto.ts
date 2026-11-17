@@ -61,6 +61,10 @@ const REVIEW_QUEUE_STATUSES: readonly CertRunStatus[] = [
 export const sendToReviewStatus = (from: CertRunStatus): CertRunStatus | null =>
   CERT_RUN_TRANSITIONS[from].find((to) => REVIEW_QUEUE_STATUSES.includes(to)) ?? null;
 
+/** Why a run can't be sent to review yet; the API's refusal and the Scenarios page's note. */
+export const CERT_NOT_ALL_SCENARIOS_COMPLETED =
+  'Every scenario must succeed before the run can be sent to review.';
+
 /** A data store's open run, as the Certification pages need it. */
 export class CertificationRunSummaryDto {
   @Expose()
