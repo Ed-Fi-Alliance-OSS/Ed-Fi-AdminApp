@@ -299,7 +299,7 @@ describe('CertificationPageExecution', () => {
 
   describe('when the run is in review (AC-649)', () => {
     const IN_REVIEW = { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false };
-    const BLOCKED = "Steps can't be executed while this run is in review.";
+    const BLOCKED = "Steps can't be executed once the run was sent to review.";
     const renderSignedOut = () => {
       (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
       render(<CertificationPageExecution />);

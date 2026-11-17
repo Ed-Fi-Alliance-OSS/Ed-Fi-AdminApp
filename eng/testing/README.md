@@ -143,6 +143,20 @@ $env:CERT_EXPECT_SUCCESS = 'true'      # optional: also assert step 01 passes
 
 When `CERT_ODS_SECRET` is set, the runner adds `--reporter-skip-request-body`, `--reporter-skip-response-body` and `--reporter-skip-all-headers` so the key/secret, tokens and headers stay out of `test-results/`.
 
+#### Send a run to review without running every scenario (AC-659)
+
+"Send to Review" on a run's Scenarios page is enabled only when the run is `DRAFT` or
+`CHANGES_REQUESTED` and every enabled scenario of the run's catalog version is `completed`. The
+API checks both again. To demo it without running each scenario, start a run from My products,
+then run [`sql/cert-complete-run-scenarios.pgsql.sql`](sql/cert-complete-run-scenarios.pgsql.sql)
+against the Admin App PostgreSQL database with the run ID set at the top. It marks every
+enabled scenario of the run as completed. It doesn't write step results, so opening a scenario
+still shows its steps as not run. An optional block in the script puts the run in
+`CHANGES_REQUESTED`, which a review normally does, so you can see "Ready for review with new
+changes". Comments at the end of the script fail one scenario again, put the run back to
+`DRAFT`, or remove the run's scenario results. Use it only on test databases: it skips the
+workflow rules.
+
 #### Custom OIDC Grant Type
 
 Use password grant instead of client_credentials:

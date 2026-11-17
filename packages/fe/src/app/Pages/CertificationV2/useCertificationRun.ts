@@ -95,8 +95,14 @@ export const useStartCertificationRun = () => {
   });
 };
 
-/** The server's reason a run wasn't started: a validation message, or an HTTP error's message. */
-export const certificationRunErrorMessage = (error: unknown): string => {
+/**
+ * The server's reason a run request was refused: a validation message, or an HTTP error's
+ * message. `fallback` is shown when the error says neither.
+ */
+export const certificationRunErrorMessage = (
+  error: unknown,
+  fallback = "The run couldn't be started. Try again.",
+): string => {
   const { data, message } = (error ?? {}) as {
     data?: { errors?: Record<string, { message?: string }> };
     message?: unknown;
@@ -104,7 +110,5 @@ export const certificationRunErrorMessage = (error: unknown): string => {
   const validation =
     data?.errors && Object.values(data.errors).find((item) => item?.message)?.message;
   if (validation) return validation;
-  return typeof message === 'string' && message
-    ? message
-    : "The run couldn't be started. Try again.";
+  return typeof message === 'string' && message ? message : fallback;
 };
