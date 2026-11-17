@@ -6,6 +6,8 @@ const pathPartials = {
   asTeam: 'as/:asId',
   certification: {
     dashboard: 'certification/dashboard',
+    run: 'certification/runs/:runId',
+    runExecution: 'certification/runs/:runId/execution',
   },
   create: 'create',
   edit: 'edit=true',
@@ -19,10 +21,6 @@ const pathPartials = {
   },
   myProducts: {
     index: 'my-products',
-  },
-  certification: {
-    run: 'certification/runs/:runId',
-    runExecution: 'certification/runs/:runId/execution',
   },
 };
 
