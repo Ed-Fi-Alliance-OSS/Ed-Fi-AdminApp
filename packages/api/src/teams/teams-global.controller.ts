@@ -170,6 +170,7 @@ const mapEnvNav =
         applications: false,
         profiles: false,
         certifications: false,
+        certificationRuns: false,
       };
     } else {
       return {
@@ -186,6 +187,8 @@ const mapEnvNav =
         profiles: !!authCache['team.sb-environment.edfi-tenant.profile:read']?.[env.edfiTenantId],
         certifications:
           !!authCache['team.sb-environment.edfi-tenant.ods.certification:read']?.[env.edfiTenantId],
+        certificationRuns:
+          !!authCache['team.sb-environment.edfi-tenant.ods.certification:run']?.[env.edfiTenantId],
       };
     }
   };

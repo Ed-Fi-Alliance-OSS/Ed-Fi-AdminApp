@@ -18,6 +18,11 @@ import { CertificationCatalogController } from './certification-catalog.controll
 import { CertificationDashboardController } from './certification-dashboard.controller';
 import { CertificationDashboardService } from './certification-dashboard.service';
 import { CertificationController } from './certification.controller';
+import {
+  CertificationRunsController,
+  CertificationTeamRunsController,
+} from './certification-runs.controller';
+import { CertificationRunsService } from './certification-runs.service';
 import { CertificationStepRunsService } from './certification-step-runs.service';
 import { CertificationService } from './certification.service';
 import { CertificationTargetService } from './certification-target.service';
@@ -46,10 +51,13 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationTokenController,
     CertificationCatalogController,
     CertificationDashboardController,
+    CertificationRunsController,
+    CertificationTeamRunsController,
   ],
   providers: [
     CertificationDashboardService,
     CertificationService,
+    CertificationRunsService,
     CertificationStepRunsService,
     CertificationTargetService,
     CertificationTokenService,

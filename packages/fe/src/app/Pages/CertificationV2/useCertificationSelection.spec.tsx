@@ -1,47 +1,38 @@
-import { act, renderHook } from '@testing-library/react';
+import { renderHook } from '@testing-library/react';
 import { useCertificationSelection } from './useCertificationSelection';
 
-// react-router is ESM-only under jest, so stand in a minimal state-backed useSearchParams.
-let mockInitialSearch = '';
+// react-router is ESM-only under jest, so stand in a minimal useSearchParams.
+let mockSearch = '';
 jest.mock('react-router', () => ({
-  useSearchParams: () => {
-    const { useState: useStateInner } = jest.requireActual('react');
-    const [params, setParams] = useStateInner(() => new URLSearchParams(mockInitialSearch));
-    return [
-      params,
-      (next: URLSearchParams | ((prev: URLSearchParams) => URLSearchParams)) =>
-        setParams((prev: URLSearchParams) => (typeof next === 'function' ? next(prev) : next)),
-    ];
-  },
+  useSearchParams: () => [new URLSearchParams(mockSearch)],
 }));
 
 const renderSelection = (search: string) => {
-  mockInitialSearch = search;
+  mockSearch = search;
   return renderHook(() => useCertificationSelection());
 };
 
 describe('useCertificationSelection', () => {
-  it('reads positive integer IDs from the query string', () => {
-    const { result } = renderSelection('edfiTenantId=10&odsId=5&scenarioId=3');
-    expect(result.current).toMatchObject({ edfiTenantId: 10, odsId: 5, scenarioId: 3 });
+  it('reads a positive integer scenario ID from the query string', () => {
+    expect(renderSelection('scenarioId=3').result.current.scenarioId).toBe(3);
   });
 
   it.each(['abc', '0', '-1', '1.5', ''])('treats "%s" as unset', (value) => {
-    const { result } = renderSelection(`edfiTenantId=${value}`);
-    expect(result.current.edfiTenantId).toBeUndefined();
+    expect(renderSelection(`scenarioId=${value}`).result.current.scenarioId).toBeUndefined();
   });
 
-  it('setSelection updates and removes only the named keys', () => {
-    const { result } = renderSelection('edfiTenantId=10&odsId=5');
-    act(() => result.current.setSelection({ odsId: undefined, scenarioId: 7 }));
-    expect(result.current).toMatchObject({ edfiTenantId: 10, odsId: undefined, scenarioId: 7 });
-  });
-
-  it('toSearch builds a query string, letting the caller override the scenario', () => {
+  it('ignores the tenant and data store, which now come from the run', () => {
     const { result } = renderSelection('edfiTenantId=10&odsId=5&scenarioId=3');
-    expect(result.current.toSearch()).toBe('?edfiTenantId=10&odsId=5&scenarioId=3');
-    expect(result.current.toSearch({ scenarioId: 9 })).toBe(
-      '?edfiTenantId=10&odsId=5&scenarioId=9',
-    );
+    expect(result.current).toEqual({ scenarioId: 3, toSearch: expect.any(Function) });
+    expect(result.current.toSearch()).toBe('?scenarioId=3');
+  });
+
+  it('toSearch lets the caller choose the scenario', () => {
+    const { result } = renderSelection('scenarioId=3');
+    expect(result.current.toSearch({ scenarioId: 9 })).toBe('?scenarioId=9');
+  });
+
+  it('toSearch is empty when no scenario is chosen', () => {
+    expect(renderSelection('').result.current.toSearch()).toBe('');
   });
 });

@@ -8,20 +8,27 @@ import {
   useCertificationCatalog,
   useCertificationSteps,
 } from './useCertificationCatalog';
+import { useCertificationRun } from './useCertificationRun';
 import { useCertificationScenarioStatuses } from './useCertificationScenarioStatuses';
 import { useCertificationStepRuns } from './useCertificationStepRuns';
 import { useRunCertificationStep } from '../../api-v2/useRunCertificationStep';
 
 const mockNavigate = jest.fn();
+// The run comes from the address: /as/:asId/certification/runs/:runId/execution.
+let mockParams: { asId: string; runId: string };
 jest.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
-  useParams: () => ({ sbEnvironmentId: '1' }),
+  useParams: () => mockParams,
 }));
 jest.mock('@edanalytics/common-ui', () => ({
   PageTemplate: ({ children }: { children: React.ReactNode }) => <div>{children}</div>,
 }));
-jest.mock('../../helpers', () => ({ useNavToParent: () => '/parent' }));
-jest.mock('../../../config/config', () => ({ config: { showRequestCertification: true } }));
+// paths.ts only needs useNavContext from the helpers barrel, which pulls in ESM-only modules.
+jest.mock('../../helpers', () => ({ useNavContext: jest.fn() }));
+jest.mock('./useCertificationRun', () => ({
+  useCertificationRun: jest.fn(),
+  toRunId: (value: string | undefined) => Number(value) || undefined,
+}));
 jest.mock('./useCertificationSelection', () => ({ useCertificationSelection: jest.fn() }));
 jest.mock('./CertificationAuthContext', () => ({
   ...jest.requireActual('./CertificationAuthContext'),
@@ -29,34 +36,19 @@ jest.mock('./CertificationAuthContext', () => ({
 }));
 jest.mock('./useCertificationCatalog', () => ({
   certificationQueryKeys: {
-    all: (sbEnvironmentId: number) => ['certification', sbEnvironmentId],
-    stepRuns: (
-      sbEnvironmentId: number,
-      edfiTenantId: number | undefined,
-      odsId: number | undefined,
-      scenarioId: number | undefined,
-      runId: number | null | undefined,
-    ) => [
+    all: (teamId: number) => ['certification', teamId],
+    stepRuns: (teamId: number, runId: number | undefined, scenarioId: number | undefined) => [
       'certification',
-      sbEnvironmentId,
+      teamId,
       'step-runs',
-      edfiTenantId,
-      odsId ?? null,
-      scenarioId,
       runId,
+      scenarioId,
     ],
-    scenarioStatuses: (
-      sbEnvironmentId: number,
-      edfiTenantId: number | undefined,
-      odsId: number | undefined,
-      sisVersion: string | undefined,
-    ) => [
+    scenarioStatuses: (teamId: number, runId: number | undefined) => [
       'certification',
-      sbEnvironmentId,
+      teamId,
       'scenario-statuses',
-      edfiTenantId,
-      odsId ?? null,
-      sisVersion,
+      runId,
     ],
   },
   useCertificationCatalog: jest.fn(),
@@ -147,10 +139,10 @@ const validAuth = {
   oauthUrl: 'o',
   resourceBaseUrl: 'r',
   edfiTenantId: 10,
-  odsId: undefined,
+  odsId: 5,
 };
 
-const STEP_RUNS_KEY = ['certification', 1, 'step-runs', 10, null, 52, 7];
+const STEP_RUNS_KEY = ['certification', 2, 'step-runs', 7, 52];
 const savedFailure = {
   stepId: 189,
   status: 'failed',
@@ -172,7 +164,7 @@ let runState: {
   mutate: jest.Mock;
   reset: jest.Mock;
   isPending: boolean;
-  variables: { stepId: number; runId: number | null | undefined } | undefined;
+  variables: { stepId: number; runId: number } | undefined;
   error: unknown;
 };
 const handlers = () => (useRunCertificationStep as jest.Mock).mock.calls.at(-1)[0];
@@ -185,13 +177,28 @@ const mockStepRuns = (runsByStepId: Record<number, unknown>, queryKey = STEP_RUN
     queryKey,
   });
 
-/** What the statuses hook says about the data store's open run. */
+/** What the statuses hook says about the run. */
 const mockRunState = (canExecuteSteps: boolean, run: object | null | undefined = null) =>
   (useCertificationScenarioStatuses as jest.Mock).mockReturnValue({ run, canExecuteSteps });
+
+/** The run in the address, which fixes the environment, tenant and data store. */
+const mockRun = (overrides: object = {}) =>
+  (useCertificationRun as jest.Mock).mockReturnValue({
+    run: { runId: 7, sbEnvironmentId: 1, edfiTenantId: 10, odsId: 5, ...overrides },
+    isPending: false,
+  });
+
+/** The vendor moves to another run's address. */
+const openRun = (runId: number) => {
+  mockParams = { asId: '2', runId: String(runId) };
+  mockRun({ runId });
+};
 
 describe('CertificationPageExecution', () => {
   beforeEach(() => {
     jest.resetAllMocks();
+    mockParams = { asId: '2', runId: '7' };
+    mockRun();
     refetch = jest.fn();
     runState = {
       mutate: jest.fn(),
@@ -213,13 +220,19 @@ describe('CertificationPageExecution', () => {
   });
 
   it('shows the domain, scenario and steps from the catalog', () => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
+    render(<CertificationPageExecution />);
+    expect(useCertificationRun).toHaveBeenCalledWith(2, 7);
+    expect(useCertificationCatalog).toHaveBeenCalledWith({
+      teamId: 2,
+      sbEnvironmentId: 1,
       edfiTenantId: 10,
-      odsId: undefined,
+    });
+    expect(useCertificationSteps).toHaveBeenCalledWith({
+      teamId: 2,
+      edfiTenantId: 10,
       scenarioId: 52,
     });
-    render(<CertificationPageExecution />);
-    expect(useCertificationSteps).toHaveBeenCalledWith(1, 52);
     expect(screen.getByText('Education Organization Calendar')).toBeTruthy();
     expect(screen.getByText('Calendars')).toBeTruthy();
     expect(screen.getByText('01 - 1st Calendar is valid')).toBeTruthy();
@@ -228,12 +241,9 @@ describe('CertificationPageExecution', () => {
     expect(screen.getByText('Select Open on a row to load its dynamic parameters.')).toBeTruthy();
   });
 
-  const renderAuthenticated = (odsId?: number) => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId,
-      scenarioId: 52,
-    });
+  const renderAuthenticated = (odsId = 5) => {
+    mockRun({ odsId });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
     (useCertificationAuth as jest.Mock).mockReturnValue({
       auth: { ...validAuth, odsId },
       setAuth: jest.fn(),
@@ -250,25 +260,37 @@ describe('CertificationPageExecution', () => {
     expect(screen.queryByText('Group or Area')).toBeNull();
   });
 
-  it('reads the open run for the same data store and version as the step runs', () => {
-    renderAuthenticated(5);
+  it("reads the run's status and scenario statuses, keyed by the run", () => {
+    renderAuthenticated();
     expect(useCertificationScenarioStatuses).toHaveBeenCalledWith({
-      sbEnvironmentId: 1,
+      teamId: 2,
       edfiTenantId: 10,
-      odsId: 5,
-      sisVersion: 'v5',
+      runId: 7,
       enabled: true,
     });
   });
 
-  it("disables Execute step when the open run can't take step runs", () => {
+  it("accepts only credentials validated for the run's data store", () => {
+    mockRun({ odsId: 6 });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
+    (useCertificationAuth as jest.Mock).mockReturnValue({
+      auth: validAuth,
+      setAuth: jest.fn(),
+      clearAuth: jest.fn(),
+    });
+    render(<CertificationPageExecution />);
+    fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[1]);
+    expect(executeButton().disabled).toBe(true);
+  });
+
+  it("disables Execute step when the run can't take step runs", () => {
     mockRunState(false, { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false });
     renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[1]);
     expect(executeButton().disabled).toBe(true);
   });
 
-  it('keeps Execute step enabled while the open run is still unknown', () => {
+  it("keeps Execute step enabled while the run's status is still unknown", () => {
     mockRunState(true, undefined);
     renderAuthenticated();
     fireEvent.click(screen.getAllByRole('button', { name: 'Open' })[1]);
@@ -279,11 +301,7 @@ describe('CertificationPageExecution', () => {
     const IN_REVIEW = { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false };
     const BLOCKED = "Steps can't be executed while this run is in review.";
     const renderSignedOut = () => {
-      (useCertificationSelection as jest.Mock).mockReturnValue({
-        edfiTenantId: 10,
-        odsId: undefined,
-        scenarioId: 52,
-      });
+      (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
       render(<CertificationPageExecution />);
     };
 
@@ -384,22 +402,14 @@ describe('CertificationPageExecution', () => {
     [true, 'Loading steps...'],
     [false, 'No steps found for this scenario.'],
   ])('with no steps and isPending %s shows %s', (isPending, message) => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
-      scenarioId: 52,
-    });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
     (useCertificationSteps as jest.Mock).mockReturnValue({ steps: [], isPending });
     render(<CertificationPageExecution />);
     expect(screen.getByText(message)).toBeTruthy();
   });
 
   it('waits for the catalog before redirecting', () => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
-      scenarioId: 52,
-    });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       ...catalog,
       domains: [],
@@ -416,11 +426,7 @@ describe('CertificationPageExecution', () => {
       setAuth: jest.fn(),
       clearAuth,
     });
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
-      scenarioId: 52,
-    });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
     (useCertificationCatalog as jest.Mock).mockReturnValue({
       dataStandardVersion: 'v4',
       unsupportedMessage: 'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
@@ -433,72 +439,59 @@ describe('CertificationPageExecution', () => {
     expect(screen.getByRole('alert').textContent).toBe(
       'Certification requires Ed-Fi Data Standard 5.0.0 or later.',
     );
-    expect(useCertificationSteps).toHaveBeenCalledWith(1, undefined);
+    expect(useCertificationSteps).toHaveBeenCalledWith({
+      teamId: 2,
+      edfiTenantId: 10,
+      scenarioId: undefined,
+    });
     expect(mockNavigate).not.toHaveBeenCalled();
-    // The request page would only repeat the warning, so Cancel goes to the environment.
+    // The Scenarios page would only repeat the warning, so Cancel goes to My products.
     fireEvent.click(screen.getByRole('button', { name: 'Cancel' }));
     expect(clearAuth).toHaveBeenCalled();
-    expect(mockNavigate).toHaveBeenCalledWith('/sb-environments/1');
+    expect(mockNavigate).toHaveBeenCalledWith('/as/2/my-products');
   });
 
   it('redirects when the scenario is not in the catalog', () => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
-      scenarioId: 999,
-    });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 999 });
     render(<CertificationPageExecution />);
-    expect(mockNavigate).toHaveBeenCalledWith(
-      { pathname: '/parent', search: '?edfiTenantId=10' },
-      { replace: true },
-    );
+    expect(mockNavigate).toHaveBeenCalledWith('/as/2/certification/runs/7', { replace: true });
   });
 
-  it('redirects to the request page when the URL has no scenario', () => {
-    (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
-      scenarioId: undefined,
-    });
+  it("redirects to the run's Scenarios page when the URL has no scenario", () => {
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: undefined });
     render(<CertificationPageExecution />);
-    expect(mockNavigate).toHaveBeenCalledWith(
-      { pathname: '/parent', search: '?edfiTenantId=10' },
-      { replace: true },
-    );
+    expect(mockNavigate).toHaveBeenCalledWith('/as/2/certification/runs/7', { replace: true });
   });
 
-  it('renders nothing and redirects when the tenant is missing', () => {
+  it('renders nothing and does not redirect while the run loads', () => {
+    (useCertificationRun as jest.Mock).mockReturnValue({ run: undefined, isPending: true });
     (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: undefined,
-      odsId: undefined,
       scenarioId: firstScenario.scenarioId,
     });
     render(<CertificationPageExecution />);
     expect(screen.queryByTestId('auth-form')).toBeNull();
-    expect(mockNavigate).toHaveBeenCalledWith(
-      { pathname: '/parent', search: '' },
-      { replace: true },
-    );
+    expect(mockNavigate).not.toHaveBeenCalled();
   });
 
-  it('Back keeps the tenant and ODS in the query string but drops the scenario', () => {
+  it('goes to My products when the address has no valid run ID', () => {
+    mockParams = { asId: '2', runId: 'abc' };
+    (useCertificationRun as jest.Mock).mockReturnValue({ run: undefined, isPending: false });
+    (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
+    render(<CertificationPageExecution />);
+    expect(mockNavigate).toHaveBeenCalledWith('/as/2/my-products', { replace: true });
+  });
+
+  it("Back returns to the run's Scenarios page", () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: 5,
       scenarioId: firstScenario.scenarioId,
     });
     render(<CertificationPageExecution />);
     fireEvent.click(screen.getByRole('button', { name: 'Back' }));
-    expect(mockNavigate).toHaveBeenCalledWith({
-      pathname: '/parent',
-      search: '?edfiTenantId=10&odsId=5',
-    });
+    expect(mockNavigate).toHaveBeenCalledWith('/as/2/certification/runs/7');
   });
 
   it('after a refresh, keeps the scenario from the URL, asks to validate again and still lets steps be opened', () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
       scenarioId: firstScenario.scenarioId,
     });
     render(<CertificationPageExecution />);
@@ -522,8 +515,6 @@ describe('CertificationPageExecution', () => {
     ['user', false],
   ])('with clearReason %s the expired alert shown is %s', (clearReason, shown) => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
       scenarioId: firstScenario.scenarioId,
     });
     (useCertificationAuth as jest.Mock).mockReturnValue({
@@ -543,8 +534,6 @@ describe('CertificationPageExecution', () => {
 
   it('hides the alert, keeps the status form and enables Validate when the tab already holds a valid token', () => {
     (useCertificationSelection as jest.Mock).mockReturnValue({
-      edfiTenantId: 10,
-      odsId: undefined,
       scenarioId: firstScenario.scenarioId,
     });
     (useCertificationAuth as jest.Mock).mockReturnValue({
@@ -577,15 +566,13 @@ describe('CertificationPageExecution', () => {
       });
     };
 
-    it('reads saved results for the tenant, ODS, version and scenario', () => {
+    it("reads the run's saved results of the scenario", () => {
       renderAuthenticated();
       expect(useCertificationStepRuns).toHaveBeenCalledWith({
-        sbEnvironmentId: 1,
+        teamId: 2,
         edfiTenantId: 10,
-        odsId: undefined,
-        sisVersion: 'v5',
-        scenarioId: 52,
         runId: 7,
+        scenarioId: 52,
       });
     });
 
@@ -651,11 +638,7 @@ describe('CertificationPageExecution', () => {
 
     it('lets a signed-out vendor select a step and see saved results, but not execute', () => {
       mockStepRuns({ 189: savedFailure });
-      (useCertificationSelection as jest.Mock).mockReturnValue({
-        edfiTenantId: 10,
-        odsId: undefined,
-        scenarioId: 52,
-      });
+      (useCertificationSelection as jest.Mock).mockReturnValue({ scenarioId: 52 });
       (useCertificationAuth as jest.Mock).mockReturnValue({
         auth: null,
         clearReason: 'expired',
@@ -682,14 +665,13 @@ describe('CertificationPageExecution', () => {
 
       expect(runState.reset).toHaveBeenCalled();
       expect(runState.mutate).toHaveBeenCalledWith({
-        sbEnvironmentId: 1,
+        teamId: 2,
         edfiTenantId: 10,
-        sisVersion: 'v5',
+        runId: 7,
         stepId: 189,
         scenarioId: 52,
-        runId: 7,
+        // No data store in the body: the run fixes it.
         body: {
-          odsId: undefined,
           token: 't',
           inputs: { schoolId: '255901', beginDate: '2026-08-01' },
         },
@@ -706,19 +688,6 @@ describe('CertificationPageExecution', () => {
       expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
       expect(executeButton().disabled).toBe(true);
     });
-
-    it.each([null, undefined])(
-      'keeps the first execution running when its initial run identity was %s',
-      (runId) => {
-        runState.isPending = true;
-        runState.variables = { stepId: 189, runId };
-        renderAuthenticated();
-        select(0);
-
-        expect(within(rowOf('01 - 1st Calendar is valid')).getByText('Running')).toBeTruthy();
-        expect(executeButton().disabled).toBe(true);
-      },
-    );
 
     it('writes the run response into the saved results and refreshes them', () => {
       mockStepRuns({ 189: savedFailure });
@@ -764,29 +733,26 @@ describe('CertificationPageExecution', () => {
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({ queryKey: STEP_RUNS_KEY });
     });
 
-    it.each([undefined, 5])(
-      'also invalidates the scenario statuses list used by the request page (odsId %s)',
-      (odsId) => {
-        mockStepRuns({ 189: savedFailure });
-        renderAuthenticated(odsId);
-        select(0);
-        fireEvent.click(executeButton());
-        handlers().onSuccess(
-          {
-            stepId: 189,
-            status: 'success',
-            ranAt: '2026-10-16T10:00:00.000Z',
-            scenarioStatus: 'inprogress',
-            errors: [],
-          },
-          runState.mutate.mock.calls[0][0],
-        );
+    it("also invalidates the run's scenario statuses, which the Scenarios page shows", () => {
+      mockStepRuns({ 189: savedFailure });
+      renderAuthenticated();
+      select(0);
+      fireEvent.click(executeButton());
+      handlers().onSuccess(
+        {
+          stepId: 189,
+          status: 'success',
+          ranAt: '2026-10-16T10:00:00.000Z',
+          scenarioStatus: 'inprogress',
+          errors: [],
+        },
+        runState.mutate.mock.calls[0][0],
+      );
 
-        expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-          queryKey: certificationQueryKeys.scenarioStatuses(1, 10, odsId, 'v5'),
-        });
-      },
-    );
+      expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
+        queryKey: certificationQueryKeys.scenarioStatuses(2, 7),
+      });
+    });
 
     it('keeps a late mutation result in the run that started it', () => {
       const { rerender } = renderAuthenticated();
@@ -794,8 +760,8 @@ describe('CertificationPageExecution', () => {
       fillStep189();
       fireEvent.click(executeButton());
       const variables = runState.mutate.mock.calls[0][0];
-      const nextKey = ['certification', 1, 'step-runs', 10, null, 52, 8];
-      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+      const nextKey = ['certification', 2, 'step-runs', 8, 52];
+      openRun(8);
       mockStepRuns({}, nextKey);
       rerender(<CertificationPageExecution />);
 
@@ -817,32 +783,17 @@ describe('CertificationPageExecution', () => {
       expect(mockQueryClient.setQueryData).not.toHaveBeenCalledWith(nextKey, expect.any(Function));
     });
 
-    it.each([null, { runId: 8, status: 'DRAFT', canExecuteSteps: true }])(
-      'clears typed inputs from the previous attempt when the open run becomes %s',
-      (nextRun) => {
-        const { rerender } = renderAuthenticated();
-        select(0);
-        fillStep189();
-        mockRunState(true, nextRun);
-        mockStepRuns({});
-
-        rerender(<CertificationPageExecution />);
-
-        expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('');
-        expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe('');
-      },
-    );
-
-    it('keeps typed inputs when the first execution creates the initial run', () => {
-      mockRunState(true, null);
+    it('clears typed inputs from the previous run when another run is opened', () => {
       const { rerender } = renderAuthenticated();
       select(0);
       fillStep189();
-      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+      openRun(8);
+      mockStepRuns({});
 
       rerender(<CertificationPageExecution />);
 
-      expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('255901');
+      expect((screen.getByLabelText('First school id') as HTMLInputElement).value).toBe('');
+      expect((screen.getByLabelText('First begin date') as HTMLInputElement).value).toBe('');
     });
 
     it('closes response details when the same step belongs to a different run', () => {
@@ -850,7 +801,7 @@ describe('CertificationPageExecution', () => {
       const { rerender } = renderAuthenticated();
       select(0);
       fireEvent.click(screen.getByRole('button', { name: /View response details/ }));
-      mockRunState(true, { runId: 8, status: 'DRAFT', canExecuteSteps: true });
+      openRun(8);
 
       rerender(<CertificationPageExecution />);
 
@@ -870,7 +821,7 @@ describe('CertificationPageExecution', () => {
       });
 
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: certificationQueryKeys.scenarioStatuses(1, 10, undefined, 'v5'),
+        queryKey: certificationQueryKeys.scenarioStatuses(2, 7),
       });
       mockRunState(false, { runId: 7, status: 'IN_REVIEW', canExecuteSteps: false });
       rerender(<CertificationPageExecution />);
@@ -897,7 +848,7 @@ describe('CertificationPageExecution', () => {
       handlers().onError({ statusCode: 404, message: 'Not Found' });
 
       expect(mockQueryClient.invalidateQueries).toHaveBeenCalledWith({
-        queryKey: certificationQueryKeys.all(1),
+        queryKey: certificationQueryKeys.all(2),
       });
       expect(refetch).not.toHaveBeenCalled();
     });
