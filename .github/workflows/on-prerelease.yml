@@ -15,31 +15,38 @@ env:
   ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
   NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
+  MANIFEST_FILE: "_manifest/spdx_2.2/manifest.spdx.json"
   API_IMAGE_NAME: ${{ vars.API_IMAGE_NAME }}
   FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
   DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
   REF: ${{ github.ref_name }}
 
-permissions: read-all
+permissions:
+  contents: read
 
 jobs:
   pack:
-    name: Build and Pack
+    name: Build, Pack, SBOM and Attest
     runs-on: ubuntu-22.04
+    permissions:
+      contents: read
+      id-token: write          # Sigstore signing (actions/attest)
+      attestations: write      # store the attestation in GitHub
+      artifact-metadata: write # artifact storage record (actions/attest v4)
     defaults:
       run:
         shell: pwsh
     outputs:
       adminApp-version: ${{ steps.versions.outputs.adminApp }}
-      api-tgz-hash: ${{ steps.api-tgz-hash.outputs.api-tgz-hash }}
-      fe-tgz-hash: ${{ steps.fe-tgz-hash.outputs.fe-tgz-hash }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ github.ref }}
           fetch-depth: 0
+          # The build never pushes; keep the token out of .git/config for the build tooling.
+          persist-credentials: false
 
       - name: Set up Node.js (from .nvmrc)
         uses: actions/setup-node@v4
@@ -99,14 +106,6 @@ jobs:
         working-directory: packages/api
         run: npm pack
 
-      - name: Upload API npm package
-        uses: actions/upload-artifact@v4
-        with:
-          name: api-npm-package
-          path: packages/api/*.tgz
-          if-no-files-found: error
-          retention-days: 30
-
       - name: Pack Frontend
         working-directory: packages/fe
         run: npm pack
@@ -120,185 +119,194 @@ jobs:
           mv "$API_TGZ" "packages/api/AdminApp.Api-${VERSION}.tgz"
           mv "$FE_TGZ" "packages/fe/AdminApp.FrontEnd-${VERSION}.tgz"
 
+      - name: Generate Software Bill of Materials (SBOM)
+        env:
+          ADMIN_APP_VERSION: ${{ steps.versions.outputs.adminApp }}
+        run: |
+          $packageName = "${{ env.PACKAGE_NAME }}"
+          $version = $env:ADMIN_APP_VERSION
+
+          Get-ChildItem -Path packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz |
+              ForEach-Object { $_.FullName } > buildfilelist.txt
+
+          dotnet tool install --global Microsoft.Sbom.DotNetTool --version 4.1.5
+
+          # -bc points at the repo root so component detection reads the root
+          # package-lock.json and the node_modules installed by the build above.
+          sbom-tool generate `
+              -b ./ `
+              -bl ./buildfilelist.txt `
+              -bc ./ `
+              -pn "EdFi.$packageName" `
+              -pv $version `
+              -nsb https://ed-fi.org `
+              -m ./ `
+              -ps "Ed-Fi Alliance"
+
+          # pwsh does not stop on a native command failure and the step only
+          # reports the last command's exit code, so check sbom-tool explicitly.
+          if ($LASTEXITCODE -ne 0) { throw "sbom-tool failed with exit code $LASTEXITCODE" }
+
+          Compress-Archive "${{ env.MANIFEST_FILE }}" -DestinationPath "$packageName.SBOM.zip"
+
+      # A green sbom-tool run can still produce a manifest with only the product in it
+      # (no package-lock.json in reach, wrong -bc path, ...). Fail before attesting it.
+      - name: Check SBOM content
+        shell: bash
+        env:
+          MANIFEST: ${{ env.MANIFEST_FILE }}
+          MIN_DEPENDENCIES: "10"
+        run: |
+          jq -e . "$MANIFEST" > /dev/null || { echo "::error::SBOM is not valid JSON: $MANIFEST"; exit 1; }
+          root=$(jq -r '.packages[] | select(.SPDXID == "SPDXRef-RootPackage") | .name' "$MANIFEST")
+          total=$(jq '.packages | length' "$MANIFEST")
+          deps=$(jq --arg r "$root" '[.packages[] | select(.name != $r)] | length' "$MANIFEST")
+          echo "SBOM: $total packages, $deps dependencies (root: $root)"
+          if [ "$deps" -lt "$MIN_DEPENDENCIES" ]; then
+            echo "::error::SBOM lists $deps dependencies (minimum $MIN_DEPENDENCIES). Was sbom-tool run without build output?"
+            exit 1
+          fi
+
+      - name: Attest build provenance
+        id: provenance
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            packages/api/AdminApp.Api-*.tgz
+            packages/fe/AdminApp.FrontEnd-*.tgz
+
+      - name: Attest SBOM
+        id: sbom
+        uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
+        with:
+          subject-path: |
+            packages/api/AdminApp.Api-*.tgz
+            packages/fe/AdminApp.FrontEnd-*.tgz
+          sbom-path: ${{ env.MANIFEST_FILE }}
+
+      - name: Collect release assets
+        shell: bash
+        env:
+          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
+        run: |
+          mkdir -p release-assets
+          cp "${PACKAGE_NAME}.SBOM.zip" release-assets/
+          cp "$PROVENANCE_BUNDLE" "release-assets/${PACKAGE_NAME}.provenance.sigstore.json"
+          cp "$SBOM_BUNDLE" "release-assets/${PACKAGE_NAME}.sbom.sigstore.json"
+          ls -l release-assets
+
+      - name: Self-verify attestations
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh --version
+          # The attestations API can take a few seconds to index a new attestation.
+          verify() {
+            for _ in 1 2 3; do
+              if gh attestation verify "$@"; then
+                echo "Verified: $*"
+                return 0
+              fi
+              sleep 10
+            done
+            return 1
+          }
+          # The SBOM predicate type follows the SPDX version sbom-tool emits (SPDX 2.2).
+          for f in packages/api/AdminApp.Api-*.tgz packages/fe/AdminApp.FrontEnd-*.tgz; do
+            verify "$f" -R "$GITHUB_REPOSITORY"
+            verify "$f" -R "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document/v2.2
+          done
+
+      - name: Upload API npm package
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: api-npm-package
+          path: packages/api/AdminApp.Api-*.tgz
+          if-no-files-found: error
+          retention-days: 30
+
       - name: Upload Frontend npm package
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: fe-npm-package
           path: packages/fe/AdminApp.FrontEnd-*.tgz
           if-no-files-found: error
           retention-days: 30
 
-      - name: Generate hash for API tgz
-        id: api-tgz-hash
-        shell: bash
-        run: |
-          api_tgz=$(find packages/api -maxdepth 1 -type f -name 'AdminApp.Api-*.tgz' -print -quit)
-          api_tgz_base64=$(sha256sum "$api_tgz" | base64 -w0)
-          echo "api-tgz-hash=$api_tgz_base64" >> "$GITHUB_OUTPUT"
-
-      - name: Generate hash for FrontEnd tgz
-        id: fe-tgz-hash
-        shell: bash
-        run: |
-          fe_tgz=$(find packages/fe -maxdepth 1 -type f -name 'AdminApp.FrontEnd-*.tgz' -print -quit)
-          fe_tgz_base64=$(sha256sum "$fe_tgz" | base64 -w0)
-          echo "fe-tgz-hash=$fe_tgz_base64" >> "$GITHUB_OUTPUT"
-
-  sbom-create:
-    name: Create SBOM
-    runs-on: ubuntu-latest
-    needs: pack
-    permissions:
-      actions: write  # Required for artifact upload (line 165)
-    outputs:
-      sbom-hash-code: ${{ steps.sbom-hash.outputs.sbom-hash-code }}
-    steps:
-      - name: Checkout repository
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          ref: ${{ github.ref }}
-          fetch-depth: 0
-
-      - name: Install Syft (SBOM generator)
-        shell: bash
-        run: |
-          curl -sSfL https://raw.githubusercontent.com/anchore/syft/main/install.sh | sh -s -- -b /usr/local/bin
-
-      - name: Generate SBOM
-        shell: bash
-        run: |
-          syft dir:. -o spdx-json > manifest.spdx.json
-
-      - name: Upload SBOM
-        if: success()
+      - name: Upload release assets as Artifacts
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: AdminApp.SBOM
-          path: manifest.spdx.json
+          name: "${{ env.PACKAGE_NAME }}-ReleaseAssets"
+          path: release-assets/
           if-no-files-found: error
           retention-days: 30
 
-      - name: Generate hash code for SBOM
-        id: sbom-hash
-        shell: bash
-        run: |
-          sbom_hash=$(sha256sum ./manifest.spdx.json | awk '{print $1}')
-          echo "sbom-hash-code=$sbom_hash" >> "$GITHUB_OUTPUT"
-
-  sbom-attach:
-    name: Attach SBOM file
+  # Only this job holds a write token. The bundles are offline copies of attestations
+  # already stored in GitHub, so verification does not depend on this handoff.
+  release-assets:
+    name: Attach SBOM and attestations to the release
+    needs: pack
     runs-on: ubuntu-latest
-    needs:
-      - sbom-create
-      - pack
     permissions:
-      actions: read
-      contents: write # Required: uploads release assets via GitHub Releases API (line 217-228)
+      contents: write
     steps:
-      - name: Download the SBOM
-        uses: Ed-Fi-Alliance-OSS/slsa-github-generator/.github/actions/secure-download-artifact@main
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
-          name: "AdminApp.SBOM"
-          path: manifest.spdx.json
-          sha256: "${{ needs.sbom-create.outputs.sbom-hash-code }}"
+          name: "${{ env.PACKAGE_NAME }}-ReleaseAssets"
+          path: release-assets
 
-      - name: Attach SBOM to release
-        shell: pwsh
+      - name: Upload to the release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }} # no checkout in this job, so gh cannot infer the repo
+          TAG: ${{ github.ref_name }}
         run: |
-          $release = "${{ github.ref_name }}"
-          $repo = "${{ github.repository }}"
-          $token = "${{ secrets.GITHUB_TOKEN }}"
-          $file = "manifest.spdx.json"
-          $uploadName = "AdminApp.SBOM.zip"
-
-          $url = "https://api.github.com/repos/$repo/releases/tags/$release"
-          $gh_headers = @{
-              "Accept"        = "application/vnd.github+json"
-              "Authorization" = "Bearer $token"
-          }
-          $response = Invoke-RestMethod -Uri $url -Headers $gh_headers
-          $releaseId = $response.id
-          $url = "https://uploads.github.com/repos/$repo/releases/$releaseId/assets"
-
-          Compress-Archive $file -DestinationPath $uploadName
-          $gh_headers["Content-Type"] = "application/octet"
-          Invoke-RestMethod -Method POST `
-              -Uri "$($url)?name=$($uploadName)" `
-              -Headers $gh_headers `
-              -InFile $uploadName
+          gh release upload "$TAG" release-assets/* --clobber
 
   validate-packages:
     name: Validate npm packages
     runs-on: ubuntu-latest
     needs: pack
     permissions:
-      actions: read
+      contents: read
+      attestations: read # gh attestation verify
     steps:
-      - name: Extract API sha256
-        id: api-sha
-        shell: bash
-        run: |
-          decoded=$(echo "${{ needs.pack.outputs.api-tgz-hash }}" | base64 -d)
-          api_sha=$(echo "$decoded" | awk '{print $1}')
-            echo "sha=$api_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Download API package (verified)
-        uses: actions/download-artifact@v4
+      - name: Download API package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: api-npm-package
           path: api-npm-package
 
-      - name: Resolve API filename and verify sha256
-        id: api-file
-        shell: bash
-        run: |
-          set -euo pipefail
-          file=$(find api-npm-package -type f -name '*.tgz' -print -quit)
-          abs=$(realpath "$file")
-            echo "file=$file" >> "$GITHUB_OUTPUT"
-            echo "abs=$abs" >> "$GITHUB_OUTPUT"
-          actual=$(sha256sum "$file" | awk '{print $1}')
-          expected='${{ steps.api-sha.outputs.sha }}'
-          if [ "$actual" != "$expected" ]; then
-            echo "Expected sha256 $expected but got $actual" >&2
-            exit 1
-          fi
-
-      - name: Extract FrontEnd sha256
-        id: fe-sha
-        shell: bash
-        run: |
-          decoded=$(echo "${{ needs.pack.outputs.fe-tgz-hash }}" | base64 -d)
-          fe_sha=$(echo "$decoded" | awk '{print $1}')
-            echo "sha=$fe_sha" >> "$GITHUB_OUTPUT"
-
-      - name: Download FrontEnd package (verified)
-        uses: actions/download-artifact@v4
+      - name: Download FrontEnd package
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
           name: fe-npm-package
           path: fe-npm-package
 
-      - name: Resolve FE filename and verify sha256
-        id: fe-file
+      # The downloaded tarballs must be the exact files attested in the pack job.
+      - name: Resolve filenames and verify provenance
+        id: files
         shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          file=$(find fe-npm-package -type f -name '*.tgz' -print -quit)
-          abs=$(realpath "$file")
-            echo "file=$file" >> "$GITHUB_OUTPUT"
-            echo "abs=$abs" >> "$GITHUB_OUTPUT"
-          actual=$(sha256sum "$file" | awk '{print $1}')
-          expected='${{ steps.fe-sha.outputs.sha }}'
-          if [ "$actual" != "$expected" ]; then
-            echo "Expected sha256 $expected but got $actual" >&2
-            exit 1
-          fi
+          api=$(realpath "$(find api-npm-package -type f -name '*.tgz' -print -quit)")
+          fe=$(realpath "$(find fe-npm-package -type f -name '*.tgz' -print -quit)")
+          gh attestation verify "$api" -R "$GITHUB_REPOSITORY"
+          gh attestation verify "$fe" -R "$GITHUB_REPOSITORY"
+          echo "api=$api" >> "$GITHUB_OUTPUT"
+          echo "fe=$fe" >> "$GITHUB_OUTPUT"
 
       - name: Extract .nvmrc from packed API tarball
         shell: bash
         run: |
           set -euo pipefail
-          tar -xzf "${{ steps.api-file.outputs.abs }}" -O package/.nvmrc > .nvmrc
+          tar -xzf "${{ steps.files.outputs.api }}" -O package/.nvmrc > .nvmrc
 
       - name: Set up Node.js (from .nvmrc)
         uses: actions/setup-node@v4
@@ -312,42 +320,15 @@ jobs:
           mkdir -p /tmp/validate && cd /tmp/validate
           npm init -y >/dev/null 2>&1
           # Use file: URLs with absolute paths so npm treats these as local tarballs even after cd
-          npm install --ignore-scripts "file:${{ steps.api-file.outputs.abs }}"
-          npm install --ignore-scripts "file:${{ steps.fe-file.outputs.abs }}"
+          npm install --ignore-scripts "file:${{ steps.files.outputs.api }}"
+          npm install --ignore-scripts "file:${{ steps.files.outputs.fe }}"
           # Basic existence checks post-install
           test -d node_modules/@edfi/adminapp-api || echo "Warning: API package name not found in node_modules"
           test -d node_modules/@edfi/adminapp-frontend || echo "Warning: FE package name not found in node_modules"
 
-  provenance-api:
-    name: Create Provenance for API
-    needs: pack
-    permissions:
-      actions: read
-      id-token: write
-      contents: write # Required: SLSA generator uploads provenance to release assets (upload-assets: true)
-    uses: Ed-Fi-Alliance-OSS/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
-    with:
-      base64-subjects: ${{ needs.pack.outputs.api-tgz-hash }}
-      provenance-name: AdminApp.Api.intoto.jsonl
-      upload-assets: true
-      compile-generator: true
-
-  provenance-fe:
-    name: Create Provenance for FrontEnd
-    needs: pack
-    permissions:
-      actions: read
-      id-token: write
-      contents: write # Required: SLSA generator uploads provenance to release assets (upload-assets: true)
-    uses: Ed-Fi-Alliance-OSS/slsa-github-generator/.github/workflows/generator_generic_slsa3.yml@v2.0.0
-    with:
-      base64-subjects: ${{ needs.pack.outputs.fe-tgz-hash }}
-      provenance-name: AdminApp.FrontEnd.intoto.jsonl
-      upload-assets: true
-      compile-generator: true
-
   docker-publish:
     name: Publish to Docker Hub
+    if: github.repository_owner == 'Ed-Fi-Alliance-OSS'
     runs-on: ubuntu-latest
     needs:
       - pack
