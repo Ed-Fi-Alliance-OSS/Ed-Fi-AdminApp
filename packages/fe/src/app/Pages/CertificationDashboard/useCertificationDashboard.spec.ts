@@ -19,6 +19,16 @@ describe('useCertificationDashboard', () => {
     });
   });
 
+  it('is a page-load snapshot: refetches on every mount and never on focus or reconnect', () => {
+    useCertificationDashboard(true);
+    expect(mockUseQuery.mock.calls[0][0]).toMatchObject({
+      staleTime: 0,
+      refetchOnMount: 'always',
+      refetchOnWindowFocus: false,
+      refetchOnReconnect: false,
+    });
+  });
+
   it('fetches certification/dashboard when enabled', async () => {
     const dashboard = {
       counts: {},

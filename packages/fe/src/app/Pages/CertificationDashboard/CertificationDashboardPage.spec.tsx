@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { render, screen, within } from '@testing-library/react';
 import { authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { CertificationDashboardPage } from './CertificationDashboardPage';
@@ -87,6 +88,14 @@ describe('CertificationDashboardPage', () => {
     expect(() => render(<CertificationDashboardPage />)).not.toThrow();
     expect(screen.getByText('Loading...')).toBeTruthy();
     expect(screen.queryByText('Not allowed')).toBeNull();
+  });
+
+  it('rethrows a failed privilege cache request instead of "Not allowed" or a spinner', () => {
+    setup({}, { canRead: false });
+    mockCache.mockReturnValue([{ isLoading: false, error: new Error('Auth cache failed') }]);
+    quiet(() =>
+      expect(() => render(<CertificationDashboardPage />)).toThrow('Auth cache failed'),
+    );
   });
 
   it('throws "Not allowed" without certification:read', () => {

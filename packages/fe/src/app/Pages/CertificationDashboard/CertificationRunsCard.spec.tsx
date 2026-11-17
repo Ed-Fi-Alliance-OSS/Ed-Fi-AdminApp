@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { render, screen, within } from '@testing-library/react';
 import { CertificationRunsCard } from './CertificationRunsCard';
 

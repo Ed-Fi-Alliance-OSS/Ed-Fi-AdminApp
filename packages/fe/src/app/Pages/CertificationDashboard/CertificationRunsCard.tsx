@@ -3,21 +3,11 @@ import { ContentSection, PageContentCard } from '@edanalytics/common-ui';
 import {
   CertificationDashboardListDto,
   CertificationDashboardRunDto,
-  CertRunStatus,
+  CERT_RUN_STATUS_LABELS,
 } from '@edanalytics/models';
 import { formatWaiting } from './formatWaiting';
 
 const EMPTY = '—';
-
-export const STATUS_LABELS: Record<CertRunStatus, string> = {
-  DRAFT: 'Draft',
-  READY_FOR_REVIEW: 'Ready for review',
-  IN_REVIEW: 'In review',
-  CHANGES_REQUESTED: 'Changes requested',
-  READY_FOR_REVIEW_WITH_CHANGES: 'Ready for review with new changes',
-  APPROVED: 'Approved',
-  REJECTED: 'Rejected',
-};
 
 export type CertificationRunsTimeColumn = 'Waiting' | 'Last updated';
 
@@ -76,7 +66,7 @@ export const CertificationRunRow = ({
     <Td>{row.teamName ?? EMPTY}</Td>
     <Td>{row.dataStore ?? `${row.sbEnvironmentName} / ${row.edfiTenantName}`}</Td>
     <Td>{row.certificationModel}</Td>
-    <Td>{STATUS_LABELS[row.status]}</Td>
+    <Td>{CERT_RUN_STATUS_LABELS[row.status]}</Td>
     <Td>
       {timeColumn === 'Waiting'
         ? formatWaiting(row.statusChangedAt)

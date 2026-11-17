@@ -19,6 +19,12 @@ export const CertificationDashboardPage = () => {
   const canRead = authorize({ queryClient, config: READ_CERTIFICATION });
   const { data, error, isLoading, dataUpdatedAt } = useCertificationDashboard(canRead);
 
+  // A failed privilege-cache request is not a denial either: show the real error.
+  const privilegeCacheError = privilegeCache.find((cache) => cache.error)?.error;
+  if (privilegeCacheError) {
+    throw privilegeCacheError;
+  }
+
   if (privilegeCache.some((cache) => cache.isLoading)) {
     return (
       <PageTemplate title={TITLE}>

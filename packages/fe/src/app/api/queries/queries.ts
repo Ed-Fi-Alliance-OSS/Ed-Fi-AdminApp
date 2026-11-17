@@ -673,7 +673,7 @@ export function usePrivilegeCacheQueryNew<
     queries: config.map((c): UseQueryOptions<FeAuthCache> => {
       return {
         staleTime: 90 * 1000,
-        notifyOnChangeProps: ['data' as const],
+        notifyOnChangeProps: ['data' as const, 'isLoading' as const, 'error' as const],
         queryKey: authCacheKey(c),
         select: authCachArraysToSets,
         queryFn: () => {
