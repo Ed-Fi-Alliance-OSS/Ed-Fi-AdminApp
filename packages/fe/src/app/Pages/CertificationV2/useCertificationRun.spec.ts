@@ -172,5 +172,8 @@ describe('certificationRunErrorMessage', () => {
 
   it.each([undefined, 'boom', {}, { message: 42 }])('falls back for %p', (error) => {
     expect(certificationRunErrorMessage(error)).toBe("The run couldn't be started. Try again.");
+    expect(certificationRunErrorMessage(error, 'Something else went wrong.')).toBe(
+      'Something else went wrong.',
+    );
   });
 });

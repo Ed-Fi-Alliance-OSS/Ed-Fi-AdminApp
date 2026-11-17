@@ -476,7 +476,7 @@ export const CertificationPageExecution = () => {
                 </HStack>
                 {stepsBlocked && (
                   <Text mt={2} fontSize="sm" color="gray.600">
-                    Steps can't be executed while this run is in review.
+                    Steps can't be executed once the run was sent to review.
                   </Text>
                 )}
               </Box>
