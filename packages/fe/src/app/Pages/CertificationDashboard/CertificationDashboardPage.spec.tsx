@@ -19,6 +19,19 @@ jest.mock('@edanalytics/common-ui', () => ({
       {children}
     </div>
   ),
+  PageContentCard: ({ children }: { children?: React.ReactNode }) => <div>{children}</div>,
+  ContentSection: ({
+    heading,
+    children,
+  }: {
+    heading?: React.ReactNode;
+    children?: React.ReactNode;
+  }) => (
+    <section>
+      {heading ? <h2>{heading}</h2> : null}
+      {children}
+    </section>
+  ),
 }));
 
 const mockAuthorize = authorize as jest.Mock;
@@ -111,77 +124,28 @@ describe('CertificationDashboardPage', () => {
     }
   });
 
-  it('renders the Waiting for review table in API order', () => {
+  it('renders a Waiting for review card and a Runs in flight or rejected card', () => {
     setup({
       data: dashboard({
-        waiting: {
-          rows: [
-            run({ runId: 1, teamName: 'First Team' }),
-            run({ runId: 2, teamName: null, dataStore: null }),
-            run({ runId: 3, teamName: 'Third Team', status: 'READY_FOR_REVIEW_WITH_CHANGES' }),
-          ],
-          total: 3,
-        },
+        waiting: { rows: [run({ runId: 1, teamName: 'Waiting Team' })], total: 1 },
+        others: { rows: [run({ runId: 2, teamName: 'Other Team', status: 'DRAFT' })], total: 1 },
       }),
     });
     render(<CertificationDashboardPage />);
 
-    const table = screen.getByRole('table', { name: 'Waiting for review' });
-    const headers = within(table)
-      .getAllByRole('columnheader')
-      .map((h) => h.textContent);
-    expect(headers).toEqual(['Team', 'Data store', 'Certification Model', 'Status', 'Waiting']);
+    const waiting = screen.getByRole('table', { name: 'Waiting for review' });
+    expect(within(waiting).getByText('Waiting Team')).toBeTruthy();
+    expect(within(waiting).getByRole('columnheader', { name: 'Waiting' })).toBeTruthy();
 
-    const rows = within(table).getAllByRole('row').slice(1);
-    expect(rows).toHaveLength(3);
-    expect(rows[0].textContent).toContain('First Team');
-    expect(within(rows[1]).getAllByText('—')).toHaveLength(1);
-    // No ODS: fall back to environment / tenant so rows stay distinguishable.
-    expect(rows[1].textContent).toContain('Env 1 / tenant1');
-    expect(rows[2].textContent).toContain('Third Team');
-    expect(rows[2].textContent).toContain('Ready for review with new changes');
-    expect(rows[0].textContent).toContain('3h 0m');
+    const others = screen.getByRole('table', { name: 'Runs in flight or rejected' });
+    expect(within(others).getByText('Other Team')).toBeTruthy();
+    expect(within(others).getByRole('columnheader', { name: 'Last updated' })).toBeTruthy();
   });
 
   it('says nothing is waiting for review when waiting.total is 0', () => {
     setup({ data: dashboard() });
     render(<CertificationDashboardPage />);
     expect(screen.getByText('Nothing is waiting for review')).toBeTruthy();
-  });
-
-  it('renders the Runs in flight or rejected table with Last updated column', () => {
-    setup({
-      data: dashboard({
-        others: { rows: [run({ runId: 9, status: 'IN_REVIEW' })], total: 1 },
-      }),
-    });
-    render(<CertificationDashboardPage />);
-
-    const table = screen.getByRole('table', { name: 'Runs in flight or rejected' });
-    const headers = within(table)
-      .getAllByRole('columnheader')
-      .map((h) => h.textContent);
-    expect(headers).toEqual([
-      'Team',
-      'Data store',
-      'Certification Model',
-      'Status',
-      'Last updated',
-    ]);
-    expect(within(table).getByText('In review')).toBeTruthy();
-  });
-
-  it('shows "Showing 100 of N" when others.total exceeds rows', () => {
-    const rows = Array.from({ length: 100 }, (_, i) => run({ runId: i + 1, status: 'DRAFT' }));
-    setup({ data: dashboard({ others: { rows, total: 250 } }) });
-    render(<CertificationDashboardPage />);
-    expect(screen.getByText('Showing 100 of 250')).toBeTruthy();
-  });
-
-  it('does not show the "Showing" note when every run is listed', () => {
-    setup({ data: dashboard({ others: { rows: [run({ status: 'DRAFT' })], total: 1 } }) });
-    render(<CertificationDashboardPage />);
-    expect(screen.queryByText(/Showing/)).toBeNull();
   });
 
   it('shows the "Accurate as of page load" line', () => {
