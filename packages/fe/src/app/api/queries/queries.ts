@@ -55,7 +55,13 @@ import kebabCase from 'kebab-case';
 import path from 'path-browserify';
 import { authCacheKey } from '../../helpers';
 import { apiClient, methods } from '../methods';
-import { EntityQueryBuilder, StandardQueryKeyParams, queryKeyNew, standardPath } from './builder';
+import {
+  EntityQueryBuilder,
+  InvalidationTarget,
+  StandardQueryKeyParams,
+  queryKeyNew,
+  standardPath,
+} from './builder';
 import { TeamOptions } from './team-options';
 
 const baseUrl = '';
@@ -184,6 +190,48 @@ export const odsQueries = new EntityQueryBuilder({
   )
   .build();
 
+const listKeyToInvalidate = (base: {
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
+
+// Like `listKeyToInvalidate`, but for `put` specifically: also keeps the
+// builder's own default key (`base.standard`, built with `id: false`), which
+// matches this entity's `getOne` cache too. `put`'s mutation doesn't create a
+// new id, so unlike post/delete there's an existing detail cache an edit page
+// navigates back to -- dropping `base.standard` here left it stale after a
+// successful edit until the default 5-minute staleTime elapsed.
+const putKeysToInvalidate = (base: {
+  standard: QueryKey;
+  standardQueryKeyParams: StandardQueryKeyParams;
+  teamId?: number | string;
+}) => [base.standard, ...listKeyToInvalidate(base)];
+
+// Teams and team memberships decide which teams the team context picker lists (useMyTeams), so
+// their mutations also refresh that query. Otherwise a new team or membership only shows up in
+// the picker after a reload.
+const myTeamsKey: QueryKey = ['me', 'teams'];
+const alsoMyTeams =
+  <T>(keysToInvalidate: (base: T) => InvalidationTarget[]) =>
+  (base: T) => [...keysToInvalidate(base), myTeamsKey];
+
+// What the menu is built from: the session (useMe), the per-team/environment privilege cache, and
+// each team's env-nav list (which flags certification, vendors, ODSs...). Mutations that change
+// what a user may do refresh all three; otherwise an already-signed-in user keeps the old menu
+// until the 90s staleTime lapses. env-nav keys are the request path, which a key prefix can't
+// match, hence the predicate.
+const menuStateKeys: InvalidationTarget[] = [
+  ['me'],
+  ['auth-cache'],
+  {
+    predicate: (query) =>
+      typeof query.queryKey[0] === 'string' && query.queryKey[0].endsWith('/env-nav'),
+  },
+];
+const alsoMenuState =
+  <T>(keysToInvalidate: (base: T) => InvalidationTarget[]) =>
+  (base: T) => [...keysToInvalidate(base), ...menuStateKeys];
+
 export const ownershipQueries = new EntityQueryBuilder({
   name: 'Ownership',
   includeEdfiTenant: false,
@@ -191,9 +239,17 @@ export const ownershipQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetOwnershipDto })
   .getAll('getAll', { ResDto: GetOwnershipViewDto })
-  .put('put', { ReqDto: PutOwnershipDto, ResDto: GetOwnershipDto })
-  .post('post', { ReqDto: PostOwnershipDto, ResDto: GetOwnershipDto })
-  .delete('delete')
+  .put('put', {
+    ReqDto: PutOwnershipDto,
+    ResDto: GetOwnershipDto,
+    keysToInvalidate: alsoMenuState(putKeysToInvalidate),
+  })
+  .post('post', {
+    ReqDto: PostOwnershipDto,
+    ResDto: GetOwnershipDto,
+    keysToInvalidate: alsoMenuState(listKeyToInvalidate),
+  })
+  .delete('delete', { keysToInvalidate: alsoMenuState(listKeyToInvalidate) })
   .build();
 
 export const roleQueries = new EntityQueryBuilder({
@@ -203,10 +259,15 @@ export const roleQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetRoleDto })
   .getAll('getAll', { ResDto: GetRoleDto })
-  .put('put', { ReqDto: PutRoleDto, ResDto: GetRoleDto })
+  .put('put', {
+    ReqDto: PutRoleDto,
+    ResDto: GetRoleDto,
+    keysToInvalidate: alsoMenuState(putKeysToInvalidate),
+  })
   .post('post', { ReqDto: PostRoleDto, ResDto: GetRoleDto })
   .delete('delete', {
     keysToInvalidate: (params) => [
+      ...menuStateKeys,
       params.standard,
       queryKey({
         resourceName: 'UserTeamMembership',
@@ -226,6 +287,7 @@ export const roleQueries = new EntityQueryBuilder({
     'deleteForce',
     {
       keysToInvalidate: (params) => [
+        ...menuStateKeys,
         params.standard,
         queryKey({
           resourceName: 'UserTeamMembership',
@@ -393,31 +455,6 @@ export const edfiTenantQueries = new EntityQueryBuilder({
 // so a put/post/delete's default invalidation actually matches the list query
 // it's meant to refresh, instead of a mismatched literal key. See applicationQueriesV1's
 // `put` above for the original instance of this pattern.
-const listKeyToInvalidate = (base: {
-  standardQueryKeyParams: StandardQueryKeyParams;
-  teamId?: number | string;
-}) => [queryKeyNew({ ...base.standardQueryKeyParams, teamId: base.teamId, id: undefined })];
-
-// Like `listKeyToInvalidate`, but for `put` specifically: also keeps the
-// builder's own default key (`base.standard`, built with `id: false`), which
-// matches this entity's `getOne` cache too. `put`'s mutation doesn't create a
-// new id, so unlike post/delete there's an existing detail cache an edit page
-// navigates back to -- dropping `base.standard` here left it stale after a
-// successful edit until the default 5-minute staleTime elapsed.
-const putKeysToInvalidate = (base: {
-  standard: QueryKey;
-  standardQueryKeyParams: StandardQueryKeyParams;
-  teamId?: number | string;
-}) => [base.standard, ...listKeyToInvalidate(base)];
-
-// Teams and team memberships decide which teams the team context picker lists (useMyTeams), so
-// their mutations also refresh that query. Otherwise a new team or membership only shows up in
-// the picker after a reload.
-const myTeamsKey: QueryKey = ['me', 'teams'];
-const alsoMyTeams =
-  <T>(keysToInvalidate: (base: T) => QueryKey[]) =>
-  (base: T) => [...keysToInvalidate(base), myTeamsKey];
-
 export const teamQueries = new EntityQueryBuilder({
   name: 'Team',
   includeEdfiTenant: false,
@@ -450,7 +487,11 @@ export const userQueries = new EntityQueryBuilder({
 })
   .getOne('getOne', { ResDto: GetUserDto })
   .getAll('getAll', { ResDto: GetUserDto })
-  .put('put', { ReqDto: PutUserDto, ResDto: GetUserDto, keysToInvalidate: putKeysToInvalidate })
+  .put('put', {
+    ReqDto: PutUserDto,
+    ResDto: GetUserDto,
+    keysToInvalidate: alsoMenuState(putKeysToInvalidate),
+  })
   .post('post', { ReqDto: PostUserDto, ResDto: GetUserDto, keysToInvalidate: listKeyToInvalidate })
   .delete('delete', { keysToInvalidate: listKeyToInvalidate })
   .build();
@@ -465,14 +506,14 @@ export const userTeamMembershipQueries = new EntityQueryBuilder({
   .put('put', {
     ReqDto: PutUserTeamMembershipDto,
     ResDto: GetUserTeamMembershipDto,
-    keysToInvalidate: alsoMyTeams(putKeysToInvalidate),
+    keysToInvalidate: alsoMenuState(alsoMyTeams(putKeysToInvalidate)),
   })
   .post('post', {
     ReqDto: PostUserTeamMembershipDto,
     ResDto: GetUserTeamMembershipDto,
-    keysToInvalidate: alsoMyTeams(listKeyToInvalidate),
+    keysToInvalidate: alsoMenuState(alsoMyTeams(listKeyToInvalidate)),
   })
-  .delete('delete', { keysToInvalidate: alsoMyTeams(listKeyToInvalidate) })
+  .delete('delete', { keysToInvalidate: alsoMenuState(alsoMyTeams(listKeyToInvalidate)) })
   .build();
 
 export const vendorQueriesV1 = new EntityQueryBuilder({
