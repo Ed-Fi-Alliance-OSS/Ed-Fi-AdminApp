@@ -52,6 +52,14 @@ jest.mock('./CertificationAuthenticateForm', () => ({
   ),
 }));
 
+let mockReviewBarProps: Record<string, unknown> | undefined;
+jest.mock('./CertificationRunReviewBar', () => ({
+  CertificationRunReviewBar: (props: Record<string, unknown>) => {
+    mockReviewBarProps = props;
+    return <div data-testid="review-bar" />;
+  },
+}));
+
 const catalogDomains = [
   {
     domainId: 17,
@@ -414,6 +422,60 @@ describe('CertificationScenariosPage', () => {
 
       expect(screen.getByText(/may be out of date/)).toBeTruthy();
       expect(within(rowFor('Calendars')).getByText('Successful')).toBeTruthy();
+    });
+  });
+
+  describe('status and Send to Review', () => {
+    beforeEach(() => {
+      mockReviewBarProps = undefined;
+    });
+
+    it("gives the review bar the run and every scenario's status", () => {
+      const statusByScenarioId = { 52: 'completed', 51: 'failed' };
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({ statusByScenarioId }),
+      );
+      render(<CertificationScenariosPage />);
+
+      expect(screen.getByTestId('review-bar')).toBeTruthy();
+      expect(mockReviewBarProps).toEqual({
+        teamId: 2,
+        edfiTenantId: 10,
+        runId: 7,
+        status: 'DRAFT',
+        scenarioIds: [52, 51, 60],
+        statusByScenarioId,
+        isStatusUnknown: false,
+      });
+    });
+
+    it('counts the scenarios of every domain even when a domain filter is selected', () => {
+      render(<CertificationScenariosPage />);
+      fireEvent.change(screen.getByRole('combobox'), { target: { value: '18' } });
+
+      expect(mockReviewBarProps?.scenarioIds).toEqual([52, 51, 60]);
+    });
+
+    it('shows the status the statuses read last returned, so a sent run shows as sent', () => {
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({
+          run: { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false },
+          canExecuteSteps: false,
+        }),
+      );
+      render(<CertificationScenariosPage />);
+
+      expect(mockReviewBarProps?.status).toBe('READY_FOR_REVIEW');
+      expect(screen.queryByTestId('auth-form')).toBeNull();
+    });
+
+    it("falls back to the run's own status while the statuses are unknown", () => {
+      (useCertificationScenarioStatuses as jest.Mock).mockReturnValue(
+        loadedStatuses({ run: undefined, isUnknown: true }),
+      );
+      render(<CertificationScenariosPage />);
+
+      expect(mockReviewBarProps).toMatchObject({ status: 'DRAFT', isStatusUnknown: true });
     });
   });
 

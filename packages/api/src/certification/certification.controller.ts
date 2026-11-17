@@ -93,6 +93,25 @@ export class CertificationController {
   }
 
   /**
+   * Sends the run to review once every scenario succeeded (AC-659): Draft goes to Ready for
+   * review, Changes requested to Ready for review with new changes. 409 otherwise. The run is
+   * locked after, so it returns the run as the Scenarios page shows it.
+   */
+  @Post('send-to-review')
+  @HttpCode(200)
+  @Authorize({ privilege: CERT_RUN, subject: CERT_TENANT_SUBJECT })
+  async sendToReview(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @ReqEdfiTenant() edfiTenant: EdfiTenant,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @InjectFilter(CERT_RUN) validOdsIds: Ids,
+  ) {
+    const certificationRun = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
+    const status = await this.certificationService.sendToReview(certificationRun);
+    return this.runsService.toDto({ ...certificationRun, status });
+  }
+
+  /**
    * The saved result of each step of one scenario (AC-475). Read-only: it never contacts the
    * ODS/API, so it needs no token.
    */
