@@ -80,22 +80,22 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
   });
 
-  it('waiting query filters to the two review statuses and orders by statusChangedAt ASC then certificationRunId ASC and takes 100', async () => {
+  it('waiting query filters to the review statuses and IN_REVIEW and orders by statusChangedAt ASC then certificationRunId ASC and takes 100', async () => {
     const { service, waitingBuilder } = setup();
     await service.getDashboard();
     expect(waitingBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
-      statuses: ['READY_FOR_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'],
+      statuses: ['READY_FOR_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES', 'IN_REVIEW'],
     });
     expect(waitingBuilder.orderBy).toHaveBeenCalledWith('run.statusChangedAt', 'ASC');
     expect(waitingBuilder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'ASC');
     expect(waitingBuilder.take).toHaveBeenCalledWith(100);
   });
 
-  it('others query filters to DRAFT, IN_REVIEW, CHANGES_REQUESTED, APPROVED, REJECTED, orders by updatedAt DESC then certificationRunId DESC and takes 100', async () => {
+  it('others query filters to DRAFT, CHANGES_REQUESTED, APPROVED, REJECTED, orders by updatedAt DESC then certificationRunId DESC and takes 100', async () => {
     const { service, othersBuilder } = setup();
     await service.getDashboard();
     expect(othersBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
-      statuses: ['DRAFT', 'IN_REVIEW', 'CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
+      statuses: ['DRAFT', 'CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
     });
     expect(othersBuilder.orderBy).toHaveBeenCalledWith('run.updatedAt', 'DESC');
     expect(othersBuilder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'DESC');

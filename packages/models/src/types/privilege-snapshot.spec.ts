@@ -13,6 +13,7 @@ import { privilegeCodes } from './privileges';
  */
 const GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT = [
   'certification:read',
+  'certification:review',
   'edorg:read',
   'me:read',
   'ods:read',

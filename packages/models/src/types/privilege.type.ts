@@ -35,6 +35,7 @@ export type BasePrivilege =
   | 'sb-sync-queue:read'
   | 'sb-sync-queue:archive'
   | 'certification:read'
+  | 'certification:review'
   | 'ods:read'
   | 'ods:read-row-counts'
   | 'edorg:read'

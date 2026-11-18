@@ -9,16 +9,16 @@ export const CERT_DASHBOARD_OTHERS_LIMIT = 100;
 /** The "Waiting for review" list shows at most this many rows, oldest first; `total` is the real count. */
 export const CERT_DASHBOARD_WAITING_LIMIT = 100;
 
-/** Runs waiting for a reviewer. */
+/** Runs waiting for a reviewer, including those a reviewer has picked up. */
 export const CERT_DASHBOARD_WAITING_STATUSES: readonly CertRunStatus[] = [
   CERT_RUN_STATUS.READY_FOR_REVIEW,
   CERT_RUN_STATUS.READY_FOR_REVIEW_WITH_CHANGES,
+  CERT_RUN_STATUS.IN_REVIEW,
 ];
 
-/** Every status that is not waiting for review. Remove IN_REVIEW here to hide picked-up runs. */
+/** Every status that is not waiting for review: the vendor's turn, or already decided. */
 export const CERT_DASHBOARD_OTHER_STATUSES: readonly CertRunStatus[] = [
   CERT_RUN_STATUS.DRAFT,
-  CERT_RUN_STATUS.IN_REVIEW,
   CERT_RUN_STATUS.CHANGES_REQUESTED,
   CERT_RUN_STATUS.APPROVED,
   CERT_RUN_STATUS.REJECTED,

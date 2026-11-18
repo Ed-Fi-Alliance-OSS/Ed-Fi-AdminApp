@@ -63,14 +63,15 @@ export const CERT_RUN_TRANSITIONS: Record<CertRunStatus, readonly CertRunStatus[
 export const canTransitionRun = (from: CertRunStatus, to: CertRunStatus): boolean =>
   CERT_RUN_TRANSITIONS[from].includes(to);
 
-const REVIEW_QUEUE_STATUSES: readonly CertRunStatus[] = [
+/** The statuses a run waits in for a reviewer to pick it up. */
+export const CERT_REVIEW_QUEUE_STATUSES: readonly CertRunStatus[] = [
   CERT_RUN_STATUS.READY_FOR_REVIEW,
   CERT_RUN_STATUS.READY_FOR_REVIEW_WITH_CHANGES,
 ];
 
 /** The status Send to Review moves a run to, or null when it can't be sent from `from`. */
 export const sendToReviewStatus = (from: CertRunStatus): CertRunStatus | null =>
-  CERT_RUN_TRANSITIONS[from].find((to) => REVIEW_QUEUE_STATUSES.includes(to)) ?? null;
+  CERT_RUN_TRANSITIONS[from].find((to) => CERT_REVIEW_QUEUE_STATUSES.includes(to)) ?? null;
 
 /** Why a run can't be sent to review yet; the API's refusal and the Scenarios page's note. */
 export const CERT_NOT_ALL_SCENARIOS_COMPLETED =
