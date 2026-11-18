@@ -1,4 +1,8 @@
-import { CertificationReviewDto, CertReviewDecision } from '@edanalytics/models';
+import {
+  CertificationReviewDto,
+  CertificationReviewStatusDto,
+  CertReviewDecision,
+} from '@edanalytics/models';
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api-v2/apiClient';
 import { QUERY_KEYS } from '../../api-v2/queryKeys';
@@ -42,7 +46,7 @@ export const usePickUpCertificationRun = () => {
       (await apiClient.post(
         `${reviewUrl(runId)}/pick-up`,
         {},
-      )) as unknown as CertificationReviewDto,
+      )) as unknown as CertificationReviewStatusDto,
     onSuccess: refresh,
     onError: refresh,
   });
@@ -74,7 +78,7 @@ export const useCertificationReviewDecision = () => {
     mutationFn: async ({ runId, decision, comment }: CertificationReviewDecisionVariables) =>
       (await apiClient.post(`${reviewUrl(runId)}/${DECISION_PATH[decision]}`, {
         comment,
-      })) as unknown as CertificationReviewDto,
+      })) as unknown as CertificationReviewStatusDto,
     onSuccess: (_result, { runId, decision }) => {
       invalidateDashboard();
       if (decision !== 'CHANGES_REQUESTED') {

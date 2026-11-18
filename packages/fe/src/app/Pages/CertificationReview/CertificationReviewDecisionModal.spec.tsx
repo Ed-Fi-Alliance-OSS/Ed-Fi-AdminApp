@@ -132,4 +132,17 @@ describe('CertificationReviewDecisionModal', () => {
     expect(onClose).toHaveBeenCalled();
     expect(mutateAsync).not.toHaveBeenCalled();
   });
+
+  it('cannot be dismissed while the decision is saving', () => {
+    mutation.isPending = true;
+    render(modal('APPROVED'));
+
+    expect(confirm('Cancel').disabled).toBe(true);
+    expect((screen.getByRole('button', { name: 'Close' }) as HTMLButtonElement).disabled).toBe(
+      true,
+    );
+    fireEvent.keyDown(screen.getByRole('dialog'), { key: 'Escape', code: 'Escape' });
+    fireEvent.click(document.querySelector('.chakra-modal__content-container') as Element);
+    expect(onClose).not.toHaveBeenCalled();
+  });
 });

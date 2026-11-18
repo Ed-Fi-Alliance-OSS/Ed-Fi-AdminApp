@@ -103,11 +103,18 @@ export const CertificationReviewDecisionModal = ({
   };
 
   return (
-    <Modal isOpen={decision !== null} onClose={onClose} isCentered>
+    <Modal
+      isOpen={decision !== null}
+      onClose={onClose}
+      isCentered
+      // Leaving mid-request would still fire onDecided after the page has moved on.
+      closeOnEsc={!isPending}
+      closeOnOverlayClick={!isPending}
+    >
       <ModalOverlay />
       <ModalContent>
         <ModalHeader>{copy?.title}</ModalHeader>
-        <ModalCloseButton />
+        <ModalCloseButton isDisabled={isPending} />
         <ModalBody>
           <FormControl>
             <FormLabel>{copy?.label}</FormLabel>
@@ -129,7 +136,7 @@ export const CertificationReviewDecisionModal = ({
           )}
         </ModalBody>
         <ModalFooter gap={2}>
-          <Button variant="ghost" onClick={onClose}>
+          <Button variant="ghost" onClick={onClose} isDisabled={isPending}>
             Cancel
           </Button>
           <Button
