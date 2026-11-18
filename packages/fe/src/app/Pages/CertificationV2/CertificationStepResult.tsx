@@ -15,9 +15,12 @@ const formatRanAt = (ranAt: string) => {
 export const CertificationStepResult = ({
   run,
   isRunning,
+  notRunMessage = 'Execute this step to see its result.',
 }: {
   run: CertificationSavedStepRunDto | undefined;
   isRunning: boolean;
+  /** Shown when the step has no result; the default invites the vendor to run it. */
+  notRunMessage?: string;
 }) => {
   const display = STEP_STATUS_DISPLAY[toDisplayStatus(run?.status, isRunning)];
   const shownRun = isRunning ? undefined : run;
@@ -39,7 +42,7 @@ export const CertificationStepResult = ({
       </HStack>
 
       {isRunning && <Text color="gray.600">Running this step. This can take up to a minute.</Text>}
-      {!isRunning && !run && <Text color="gray.600">Execute this step to see its result.</Text>}
+      {!isRunning && !run && <Text color="gray.600">{notRunMessage}</Text>}
 
       {shownRun && (
         <>

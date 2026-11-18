@@ -262,8 +262,20 @@ describe('CertificationReviewPage', () => {
     render(<CertificationReviewPage />);
     await openStep(/Enroll a student/, 'Never ran');
 
-    expect(screen.getByText('Execute this step to see its result.')).toBeTruthy();
+    expect(screen.getByText("This step wasn't run.")).toBeTruthy();
+    expect(screen.queryByText('Execute this step to see its result.')).toBeNull();
     expect(screen.queryByRole('button', { name: /View response details/ })).toBeNull();
+  });
+
+  it('shows each step with its pass, fail or not-run status', async () => {
+    setup(review());
+    render(<CertificationReviewPage />);
+    fireEvent.click(screen.getByRole('button', { name: /Enroll a student/ }));
+    const created = await screen.findByRole('button', { name: 'Create the student' });
+    const never = screen.getByRole('button', { name: 'Never ran' });
+
+    expect(within(created.parentElement as HTMLElement).getByText('Failed')).toBeTruthy();
+    expect(within(never.parentElement as HTMLElement).getByText('Not executed')).toBeTruthy();
   });
 
   it('shows "couldn\'t be loaded" when the snapshot request fails, and keeps working', async () => {

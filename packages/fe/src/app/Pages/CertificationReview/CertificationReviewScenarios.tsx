@@ -18,6 +18,8 @@ import { CertificationStepResponseDetails } from '../CertificationV2/Certificati
 import { CertificationStepResult } from '../CertificationV2/CertificationStepResult';
 import {
   SCENARIO_STATUS_DISPLAY,
+  STEP_STATUS_DISPLAY,
+  toDisplayStatus,
   toScenarioDisplayStatus,
 } from '../CertificationV2/certificationStepResults';
 import type { CertificationSnapshotSource } from '../CertificationV2/useCertificationStepSnapshot';
@@ -63,22 +65,31 @@ const ScenarioItem = ({
         ) : (
           <Stack spacing={1} align="flex-start">
             {scenario.steps.map((step) => (
-              <Button
-                key={step.stepId}
-                size="sm"
-                variant={step.stepId === selectedStepId ? 'solid' : 'ghost'}
-                aria-pressed={step.stepId === selectedStepId}
-                onClick={() => onSelectStep(step.stepId)}
-              >
-                {step.name}
-              </Button>
+              <HStack key={step.stepId} spacing={3}>
+                <Button
+                  size="sm"
+                  variant={step.stepId === selectedStepId ? 'solid' : 'ghost'}
+                  aria-pressed={step.stepId === selectedStepId}
+                  onClick={() => onSelectStep(step.stepId)}
+                >
+                  {step.name}
+                </Button>
+                <CertificationStatusIndicator
+                  display={STEP_STATUS_DISPLAY[toDisplayStatus(step.result?.status, false)]}
+                  fontSize="sm"
+                />
+              </HStack>
             ))}
           </Stack>
         )}
         {selectedStep && (
           <Stack spacing={4} mt={4}>
             <Box p={5} border="1px solid" borderColor="gray.200" borderRadius="md">
-              <CertificationStepResult run={result} isRunning={false} />
+              <CertificationStepResult
+                run={result}
+                isRunning={false}
+                notRunMessage="This step wasn't run."
+              />
             </Box>
             <CertificationStepResponseDetails
               // A fresh, closed panel for each step.
