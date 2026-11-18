@@ -1,6 +1,7 @@
 import { config } from '../../config/config';
 import { CertificationDashboardPage } from '../Pages/CertificationDashboard/CertificationDashboardPage';
 import { CertificationReviewPage } from '../Pages/CertificationReview/CertificationReviewPage';
+import { CertificationReviewStepsPage } from '../Pages/CertificationReview/CertificationReviewStepsPage';
 import { getCertificationDashboardRoutes } from './certification-dashboard.routes';
 
 jest.mock('../Pages/CertificationDashboard/CertificationDashboardPage', () => ({
@@ -8,6 +9,9 @@ jest.mock('../Pages/CertificationDashboard/CertificationDashboardPage', () => ({
 }));
 jest.mock('../Pages/CertificationReview/CertificationReviewPage', () => ({
   CertificationReviewPage: () => null,
+}));
+jest.mock('../Pages/CertificationReview/CertificationReviewStepsPage', () => ({
+  CertificationReviewStepsPage: () => null,
 }));
 // paths.ts only needs useNavContext from the helpers barrel, which pulls in ESM-only modules.
 jest.mock('../helpers', () => ({ useNavContext: jest.fn() }));
@@ -38,6 +42,18 @@ describe('getCertificationDashboardRoutes', () => {
     expect(route).toBeDefined();
     expect(route?.element).toMatchObject({ type: CertificationReviewPage });
     expect((route?.handle as { crumb: () => string }).crumb()).toBe('Review');
+  });
+
+  it('registers the review steps page when the flag is on', () => {
+    jest.replaceProperty(config, 'showRequestCertification', true);
+
+    const route = getCertificationDashboardRoutes().find(
+      (r) => r.path === '/certification/runs/:runId/review/steps',
+    );
+
+    expect(route).toBeDefined();
+    expect(route?.element).toMatchObject({ type: CertificationReviewStepsPage });
+    expect((route?.handle as { crumb: () => string }).crumb()).toBe('Steps');
   });
 
   it('registers nothing when the flag is off', () => {

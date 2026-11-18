@@ -2,6 +2,7 @@ import { RouteObject } from 'react-router';
 import { config } from '../../config/config';
 import { CertificationDashboardPage } from '../Pages/CertificationDashboard/CertificationDashboardPage';
 import { CertificationReviewPage } from '../Pages/CertificationReview/CertificationReviewPage';
+import { CertificationReviewStepsPage } from '../Pages/CertificationReview/CertificationReviewStepsPage';
 import { routeDefinitions } from './paths';
 
 /**
@@ -20,6 +21,11 @@ export const getCertificationDashboardRoutes = (): RouteObject[] =>
           path: routeDefinitions.certificationReview.index,
           element: <CertificationReviewPage />,
           handle: { crumb: () => 'Review' },
+        },
+        {
+          path: routeDefinitions.certificationReviewSteps.index,
+          element: <CertificationReviewStepsPage />,
+          handle: { crumb: () => 'Steps' },
         },
       ]
     : [];

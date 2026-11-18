@@ -7,6 +7,9 @@ import {
   StepDisplayStatus,
 } from '../CertificationV2/certificationStepResults';
 
+/** The title of both review pages. */
+export const REVIEW_PAGE_TITLE = 'Review certification run';
+
 const PASSED = 'Passed';
 
 /** Scenario statuses as the review pages show them: the vendor's, with "Passed" for a pass. */

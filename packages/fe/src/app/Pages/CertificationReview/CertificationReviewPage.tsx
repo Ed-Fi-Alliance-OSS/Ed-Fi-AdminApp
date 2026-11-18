@@ -9,10 +9,9 @@ import { toRunId } from '../CertificationV2/useCertificationRun';
 import { CertificationReviewDecisionModal } from './CertificationReviewDecisionModal';
 import { CertificationReviewHeader } from './CertificationReviewHeader';
 import { CertificationReviewScenariosTable } from './CertificationReviewScenariosTable';
+import { REVIEW_PAGE_TITLE } from './reviewDisplay';
 import { certificationReviewQueryKeys } from './useCertificationReview';
 import { useReviewRun } from './useReviewRun';
-
-export const REVIEW_PAGE_TITLE = 'Review certification run';
 
 const DECISION_BUTTONS: { decision: CertReviewDecision; label: string; colorScheme: string }[] = [
   { decision: CERT_REVIEW_DECISION.APPROVED, label: 'Approve', colorScheme: 'green' },
