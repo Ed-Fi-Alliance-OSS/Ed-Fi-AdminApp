@@ -34,7 +34,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import fs from 'fs';
-import { DataSource, FindOptionsWhere, In, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, EntityManager, FindOptionsWhere, In, IsNull, Not, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
 import { CertificationTarget, CertificationTargetService } from './certification-target.service';
@@ -137,9 +137,34 @@ const stepSegments = (step: StepCatalog): string[] => [
 ];
 
 /** Columns every run status change must write; statusChangedAt drives the dashboard's waiting time. */
-const statusChange = (status: CertRunStatus) => {
-  const now = new Date();
+const statusChange = (status: CertRunStatus, now = new Date()) => {
   return { status, updatedAt: now, statusChangedAt: now };
+};
+
+/**
+ * Moves a run from one status to another, refusing any change CERT_RUN_TRANSITIONS doesn't
+ * allow. The update only matches while the run is still in `from`, so of two concurrent
+ * changes the second finds no row and gets a 409. Call it with the transaction's manager when
+ * the change must roll back together with other writes. `extra` columns are written with it; a
+ * `statusChangedAt` in `extra` also sets `updatedAt`, so the three stay one instant.
+ */
+export const transitionRun = async (
+  em: EntityManager,
+  certificationRunId: number,
+  from: CertRunStatus,
+  to: CertRunStatus,
+  extra: Partial<CertificationRun> = {},
+): Promise<void> => {
+  if (!canTransitionRun(from, to)) {
+    throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+  }
+  const moved = await em
+    .getRepository(CertificationRun)
+    .update(
+      { certificationRunId, status: from },
+      { ...statusChange(to, extra.statusChangedAt), ...extra },
+    );
+  if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
 };
 
 @Injectable()
@@ -227,28 +252,6 @@ export class CertificationService {
   }
 
   /**
-   * Moves a run to another workflow status, refusing any change CERT_RUN_TRANSITIONS doesn't
-   * allow. No endpoint calls this yet: it is for the review decisions (AC-660). Send to Review
-   * uses sendToReview, which also checks the scenarios.
-   */
-  async changeRunStatus(certificationRunId: number, to: CertRunStatus): Promise<CertificationRun> {
-    const certificationRun = await this.runRepository.findOne({ where: { certificationRunId } });
-    if (!certificationRun) throw new NotFoundException();
-    if (!canTransitionRun(certificationRun.status, to)) {
-      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
-    }
-    const change = statusChange(to);
-    const result = await this.runRepository.update(
-      { certificationRunId, status: certificationRun.status },
-      change,
-    );
-    if (result.affected !== 1) {
-      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
-    }
-    return { ...certificationRun, ...change };
-  }
-
-  /**
    * Sends a Draft or Changes requested run to review (AC-659) and returns its new status. Every
    * enabled scenario of the run's catalog version must be completed, else 409.
    *
@@ -267,10 +270,12 @@ export class CertificationService {
     }
 
     return this.dataSource.transaction(async (em) => {
-      const moved = await em
-        .getRepository(CertificationRun)
-        .update({ certificationRunId, status: from }, statusChange(to));
-      if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+      // submittedAt is the same instant as statusChangedAt; statusChangedAt moves again at pick-up.
+      const submittedAt = new Date();
+      await transitionRun(em, certificationRunId, from, to, {
+        statusChangedAt: submittedAt,
+        submittedAt,
+      });
 
       const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId } };
       const enabled = await em.getRepository(ScenarioCatalog).count({ where: enabledScenario });
