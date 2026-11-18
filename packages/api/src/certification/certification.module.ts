@@ -19,6 +19,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationDashboardController } from './certification-dashboard.controller';
 import { CertificationDashboardService } from './certification-dashboard.service';
+import { CertificationReviewController } from './certification-review.controller';
 import { CertificationReviewService } from './certification-review.service';
 import { CertificationController } from './certification.controller';
 import {
@@ -56,6 +57,7 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationTokenController,
     CertificationCatalogController,
     CertificationDashboardController,
+    CertificationReviewController,
     CertificationRunsController,
     CertificationTeamRunsController,
   ],
