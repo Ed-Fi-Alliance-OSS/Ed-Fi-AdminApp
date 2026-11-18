@@ -15,7 +15,6 @@ env:
   ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
   NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
-  MANIFEST_FILE: "_manifest/spdx_2.2/manifest.spdx.json"
   API_IMAGE_NAME: ${{ vars.API_IMAGE_NAME }}
   FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
@@ -38,7 +37,7 @@ jobs:
       run:
         shell: pwsh
     outputs:
-      adminApp-version: ${{ steps.versions.outputs.adminApp }}
+      adminApp-version: ${{ steps.build.outputs.adminApp }}
 
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -54,118 +53,19 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      - name: Set Version Numbers
-        id: versions
-        run: |
-          $apiPrefix = "v"
+      # The build, pack and SBOM steps are scripts in eng/release so they can be run
+      # locally. See eng/README.md.
+      - name: Build and pack API and FrontEnd
+        id: build
+        run: ./eng/release/build-packages.ps1
 
-          # Install the MinVer CLI tool
-          &dotnet tool install --global minver-cli
-
-          $adminAppVersion = $(minver -t $apiPrefix)
-
-          # Full release name
-          "adminApp=$adminAppVersion" >> $env:GITHUB_OUTPUT
-
-          # SemVer
-          "adminApp-semver=$($adminAppVersion -Replace $apiPrefix)" >> $env:GITHUB_OUTPUT
-
-
-      # --- TypeScript API and Frontend Build/Pack/Upload ---
-      # Install deps once at root, build both API and Frontend via Nx
-      - name: Install dependencies (root)
-        run: npm ci --legacy-peer-deps --prefer-offline --no-audit --progress=false
-
-      - name: Build API (root)
-        run: npm run build:api
-
-      - name: Build Frontend (root)
-        run: npm run build:fe
-
-      - name: Prepare package versions
-        shell: pwsh
-        run: |
-          pushd packages/api
-          npm pkg set version="${{ steps.versions.outputs.adminApp-semver }}"
-          popd
-          pushd packages/fe
-          npm pkg set version="${{ steps.versions.outputs.adminApp-semver }}"
-          popd
-
-      - name: Copy build outputs under package roots
-        shell: bash
-        run: |
-          rm -rf packages/api/dist packages/fe/dist
-          mkdir -p packages/api/dist packages/fe/dist
-          cp -R dist/packages/api/* packages/api/dist/
-          cp -R dist/packages/fe/* packages/fe/dist/
-          cp .nvmrc packages/api/.nvmrc
-          cp .nvmrc packages/fe/.nvmrc
-
-      - name: Pack API (npm pack)
-        working-directory: packages/api
-        run: npm pack
-
-      - name: Pack Frontend
-        working-directory: packages/fe
-        run: npm pack
-
-      - name: Rename API and Frontend tgz with version
-        shell: bash
-        run: |
-          VERSION="${{ steps.versions.outputs.adminApp-semver }}"
-            API_TGZ=$(find packages/api -maxdepth 1 -type f -name '*.tgz' -print -quit)
-            FE_TGZ=$(find packages/fe -maxdepth 1 -type f -name '*.tgz' -print -quit)
-          mv "$API_TGZ" "packages/api/AdminApp.Api-${VERSION}.tgz"
-          mv "$FE_TGZ" "packages/fe/AdminApp.FrontEnd-${VERSION}.tgz"
-
-      - name: Generate Software Bill of Materials (SBOM)
-        env:
-          ADMIN_APP_VERSION: ${{ steps.versions.outputs.adminApp }}
-        run: |
-          $packageName = "${{ env.PACKAGE_NAME }}"
-          $version = $env:ADMIN_APP_VERSION
-
-          Get-ChildItem -Path packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz |
-              ForEach-Object { $_.FullName } > buildfilelist.txt
-
-          dotnet tool install --global Microsoft.Sbom.DotNetTool --version 4.1.5
-
-          # -bc points at the repo root so component detection reads the root
-          # package-lock.json and the node_modules installed by the build above.
-          sbom-tool generate `
-              -b ./ `
-              -bl ./buildfilelist.txt `
-              -bc ./ `
-              -pn "EdFi.$packageName" `
-              -pv $version `
-              -nsb https://ed-fi.org `
-              -m ./ `
-              -ps "Ed-Fi Alliance"
-
-          # pwsh does not stop on a native command failure and the step only
-          # reports the last command's exit code, so check sbom-tool explicitly.
-          if ($LASTEXITCODE -ne 0) { throw "sbom-tool failed with exit code $LASTEXITCODE" }
-
-          Compress-Archive "${{ env.MANIFEST_FILE }}" -DestinationPath "$packageName.SBOM.zip"
-
-      # A green sbom-tool run can still produce a manifest with only the product in it
-      # (no package-lock.json in reach, wrong -bc path, ...). Fail before attesting it.
-      - name: Check SBOM content
-        shell: bash
-        env:
-          MANIFEST: ${{ env.MANIFEST_FILE }}
-          MIN_DEPENDENCIES: "10"
-        run: |
-          jq -e . "$MANIFEST" > /dev/null || { echo "::error::SBOM is not valid JSON: $MANIFEST"; exit 1; }
-          root=$(jq -r '.packages[] | select(.SPDXID == "SPDXRef-RootPackage") | .name' "$MANIFEST")
-          total=$(jq '.packages | length' "$MANIFEST")
-          deps=$(jq --arg r "$root" '[.packages[] | select(.name != $r)] | length' "$MANIFEST")
-          echo "SBOM: $total packages, $deps dependencies (root: $root)"
-          if [ "$deps" -lt "$MIN_DEPENDENCIES" ]; then
-            echo "::error::SBOM lists $deps dependencies (minimum $MIN_DEPENDENCIES). Was sbom-tool run without build output?"
-            exit 1
-          fi
+      - name: Generate and check SBOM
+        id: sbom-gen
+        run: >
+          ./eng/release/new-sbom.ps1
+          -PackagePath packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz
+          -Version ${{ steps.build.outputs.adminApp }}
+          -PackageName ${{ env.PACKAGE_NAME }}
 
       - name: Attest build provenance
         id: provenance
@@ -182,42 +82,27 @@ jobs:
           subject-path: |
             packages/api/AdminApp.Api-*.tgz
             packages/fe/AdminApp.FrontEnd-*.tgz
-          sbom-path: ${{ env.MANIFEST_FILE }}
+          sbom-path: ${{ steps.sbom-gen.outputs.manifest-path }}
 
       - name: Collect release assets
         shell: bash
         env:
           PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
           SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
+          SBOM_ZIP: ${{ steps.sbom-gen.outputs.zip-path }}
         run: |
           mkdir -p release-assets
-          cp "${PACKAGE_NAME}.SBOM.zip" release-assets/
+          cp "$SBOM_ZIP" release-assets/
           cp "$PROVENANCE_BUNDLE" "release-assets/${PACKAGE_NAME}.provenance.sigstore.json"
           cp "$SBOM_BUNDLE" "release-assets/${PACKAGE_NAME}.sbom.sigstore.json"
           ls -l release-assets
 
       - name: Self-verify attestations
-        shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-        run: |
-          gh --version
-          # The attestations API can take a few seconds to index a new attestation.
-          verify() {
-            for _ in 1 2 3; do
-              if gh attestation verify "$@"; then
-                echo "Verified: $*"
-                return 0
-              fi
-              sleep 10
-            done
-            return 1
-          }
-          # The SBOM predicate type follows the SPDX version sbom-tool emits (SPDX 2.2).
-          for f in packages/api/AdminApp.Api-*.tgz packages/fe/AdminApp.FrontEnd-*.tgz; do
-            verify "$f" -R "$GITHUB_REPOSITORY"
-            verify "$f" -R "$GITHUB_REPOSITORY" --predicate-type https://spdx.dev/Document/v2.2
-          done
+        run: >
+          ./eng/release/test-attestations.ps1
+          -PackagePath packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz
 
       - name: Upload API npm package
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -275,6 +160,11 @@ jobs:
       contents: read
       attestations: read # gh attestation verify
     steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: eng/release
+          persist-credentials: false
+
       - name: Download API package
         uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
         with:
@@ -288,19 +178,21 @@ jobs:
           path: fe-npm-package
 
       # The downloaded tarballs must be the exact files attested in the pack job.
-      - name: Resolve filenames and verify provenance
-        id: files
-        shell: bash
+      - name: Verify attestations
+        shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
+        run: >
+          ./eng/release/test-attestations.ps1
+          -PackagePath api-npm-package/*.tgz, fe-npm-package/*.tgz
+
+      - name: Resolve filenames
+        id: files
+        shell: bash
         run: |
           set -euo pipefail
-          api=$(realpath "$(find api-npm-package -type f -name '*.tgz' -print -quit)")
-          fe=$(realpath "$(find fe-npm-package -type f -name '*.tgz' -print -quit)")
-          gh attestation verify "$api" -R "$GITHUB_REPOSITORY"
-          gh attestation verify "$fe" -R "$GITHUB_REPOSITORY"
-          echo "api=$api" >> "$GITHUB_OUTPUT"
-          echo "fe=$fe" >> "$GITHUB_OUTPUT"
+          echo "api=$(realpath "$(find api-npm-package -type f -name '*.tgz' -print -quit)")" >> "$GITHUB_OUTPUT"
+          echo "fe=$(realpath "$(find fe-npm-package -type f -name '*.tgz' -print -quit)")" >> "$GITHUB_OUTPUT"
 
       - name: Extract .nvmrc from packed API tarball
         shell: bash

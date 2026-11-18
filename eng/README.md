@@ -35,6 +35,29 @@ This folder contains local engineering and test automation scripts used by Admin
   pwsh ./eng/testing/run-e2e-ui.ps1 -DbEngine mssql -Rebuild -StopServices
   ```
 
+### `eng\release`
+
+Scripts behind the `pack` and `validate-packages` jobs in `.github/workflows/on-prerelease.yml`. They run the same way locally, so release changes can be tested before they reach GitHub. Requirements: PowerShell 7, Node.js (see `.nvmrc`), the .NET SDK (for `minver-cli` and `sbom-tool`, installed on first use) and, for `test-attestations.ps1`, the GitHub CLI (`gh`).
+
+- `build-packages.ps1` — Computes the version with MinVer (or takes `-Version`), runs `npm ci` (skip with `-SkipInstall`), builds the API and FrontEnd, and packs `packages/api/AdminApp.Api-<version>.tgz` and `packages/fe/AdminApp.FrontEnd-<version>.tgz`. Reverts the `package.json` version changes after packing.
+- `new-sbom.ps1` — Generates the SPDX 2.2 SBOM with `sbom-tool` and writes `_manifest/` and `AdminApp.SBOM.zip`. Fails if `sbom-tool` exits non-zero, or if the manifest is invalid JSON or lists fewer than `-MinDependencies` (default 10) dependencies.
+- `test-attestations.ps1` — Runs `gh attestation verify` for the provenance and SBOM predicates of each package, with retries. Pass `-ProvenanceBundle` and `-SbomBundle` to check the offline `*.sigstore.json` bundles attached to a release.
+
+  ```powershell
+  # Build, pack and generate the SBOM locally
+  pwsh ./eng/release/build-packages.ps1 -Version 0.0.0-local.1
+  pwsh ./eng/release/new-sbom.ps1 -PackagePath packages/*/AdminApp.*.tgz -Version 0.0.0-local.1
+
+  # Confirm the SBOM guard fails the build
+  pwsh ./eng/release/new-sbom.ps1 -PackagePath packages/*/AdminApp.*.tgz -Version 0.0.0-local.1 -MinDependencies 99999
+
+  # Verify tarballs downloaded from a release against its offline bundles
+  pwsh ./eng/release/test-attestations.ps1 -PackagePath ./AdminApp.*.tgz -Repository Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp `
+    -ProvenanceBundle ./AdminApp.provenance.sigstore.json -SbomBundle ./AdminApp.sbom.sigstore.json
+  ```
+
+  Attestations themselves are only created in GitHub Actions (`actions/attest` needs the workflow's OIDC token).
+
 For full usage, flags, and troubleshooting:
 - `run-bruno.ps1` — see [API Bruno E2E Tests](testing/README.md#api-bruno-e2e-tests)
 - `run-e2e-ui.ps1` — see [UI Playwright E2E Tests](testing/README.md#ui-playwright-e2e-tests)
