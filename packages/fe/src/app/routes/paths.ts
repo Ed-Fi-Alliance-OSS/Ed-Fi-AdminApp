@@ -8,6 +8,7 @@ const pathPartials = {
     dashboard: 'certification/dashboard',
     run: 'certification/runs/:runId',
     review: 'certification/runs/:runId/review',
+    reviewSteps: 'certification/runs/:runId/review/steps',
     runExecution: 'certification/runs/:runId/execution',
   },
   create: 'create',
@@ -31,6 +32,9 @@ const globalPaths = {
   },
   certificationReview: {
     index: `/${pathPartials.certification.review}`,
+  },
+  certificationReviewSteps: {
+    index: `/${pathPartials.certification.reviewSteps}`,
   },
   integrationProvider: {
     index: `/${pathPartials.integrationProvider.index}`,
@@ -91,12 +95,20 @@ export const certificationRunExecutionPath = (asId: Id, runId: Id) =>
 export const certificationReviewPath = (runId: Id) =>
   replaceKeyIds(globalPaths.certificationReview.index, { runId });
 
+/** The global admin's steps page of one scenario of a run; the scenario goes in the query string. */
+export const certificationReviewStepsPath = (runId: Id, scenarioId: Id) =>
+  `${replaceKeyIds(globalPaths.certificationReviewSteps.index, { runId })}?scenarioId=${scenarioId}`;
+
 const dynamicGlobalPaths = {
   certificationDashboard: {
     index: () => globalPaths.certificationDashboard.index,
   },
   certificationReview: {
     index: (ids: { runId: Id }) => certificationReviewPath(ids.runId),
+  },
+  certificationReviewSteps: {
+    index: (ids: { runId: Id; scenarioId: Id }) =>
+      certificationReviewStepsPath(ids.runId, ids.scenarioId),
   },
   integrationProvider: {
     index: () => globalPaths.integrationProvider.index,
@@ -124,6 +136,10 @@ const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
   certificationReview: {
     // global-only page; dummy function for TypeScript satisfaction
     index: (_: { runId: Id }) => '',
+  },
+  certificationReviewSteps: {
+    // global-only page; dummy function for TypeScript satisfaction
+    index: (_: { runId: Id; scenarioId: Id }) => '',
   },
   myProducts: {
     index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
