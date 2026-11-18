@@ -1,5 +1,5 @@
 # Dependencies
-node_modules
+**/node_modules
 npm-debug.log*
 
 # Build outputs
@@ -49,3 +49,7 @@ coverage
 *.tgz
 .cache
 .parcel-cache
+
+# Certification artifacts the API downloads at runtime (gitignored). Their
+# package.json files would become Nx projects inside the image build.
+packages/api/certification/
