@@ -153,7 +153,7 @@ export const transitionRun = async (
   certificationRunId: number,
   from: CertRunStatus,
   to: CertRunStatus,
-  extra: Partial<CertificationRun> = {},
+  extra: Partial<Pick<CertificationRun, 'submittedAt' | 'statusChangedAt'>> = {},
 ): Promise<void> => {
   if (!canTransitionRun(from, to)) {
     throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
