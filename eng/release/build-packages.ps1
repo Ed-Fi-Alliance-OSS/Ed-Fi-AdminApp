@@ -62,7 +62,15 @@ Push-Location $repoRoot
 try {
   if (-not $Version) {
     $minver = Get-DotnetTool -Name minver -Package minver-cli
-    $Version = & $minver -t v
+    # Let minver run on a newer .NET runtime when its target runtime is not installed.
+    $rollForward = $env:DOTNET_ROLL_FORWARD
+    $env:DOTNET_ROLL_FORWARD = 'Major'
+    try {
+      $Version = & $minver -t v
+    }
+    finally {
+      $env:DOTNET_ROLL_FORWARD = $rollForward
+    }
     if ($LASTEXITCODE -ne 0 -or -not $Version) { throw "minver failed to compute a version" }
   }
   $semver = $Version -replace '^v'
@@ -113,7 +121,8 @@ try {
     }
     finally {
       Set-Content $packageJson $original -NoNewline
-      Remove-Item $nvmrc -ErrorAction SilentlyContinue
+      # -Force: dotfiles count as hidden on Linux and macOS.
+      Remove-Item $nvmrc -Force -ErrorAction SilentlyContinue
     }
   }
 }

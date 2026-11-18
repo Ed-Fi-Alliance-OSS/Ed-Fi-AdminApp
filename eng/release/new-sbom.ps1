@@ -84,6 +84,13 @@ $zip = Join-Path $OutputDirectory "$PackageName.SBOM.zip"
 # sbom-tool refuses to overwrite an existing manifest; clear leftovers from a previous run.
 Remove-Item $manifestDir -Recurse -Force -ErrorAction SilentlyContinue
 
+# sbom-tool 4.1.5 runs on .NET 8. Do not roll it forward to a newer runtime: on .NET 11
+# component detection crashes while writing its results, yet sbom-tool still exits 0
+# with an SBOM that lists no dependencies.
+if (-not (dotnet --list-runtimes | Select-String '^Microsoft\.NETCore\.App 8\.')) {
+  throw "sbom-tool needs the .NET 8 runtime (Microsoft.NETCore.App 8.x). Install it and run again."
+}
+
 $buildFileList = New-TemporaryFile
 try {
   $packages | Set-Content $buildFileList
