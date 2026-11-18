@@ -415,7 +415,7 @@ export const TeamNav = (props: { teamId: string }) => {
     ? [
         {
           route: paths.myProducts.index(),
-          icon: Icons.CheckCircle,
+          icon: Icons.MyProducts,
           text: 'My products',
         },
       ]
