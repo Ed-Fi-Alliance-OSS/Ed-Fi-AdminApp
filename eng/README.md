@@ -37,10 +37,10 @@ This folder contains local engineering and test automation scripts used by Admin
 
 ### `eng\release`
 
-Scripts behind the `pack` and `validate-packages` jobs in `.github/workflows/on-prerelease.yml`. They run the same way locally, so release changes can be tested before they reach GitHub. Requirements: PowerShell 7, Node.js (see `.nvmrc`), the .NET SDK (for `minver-cli` and `sbom-tool`, installed on first use) with the .NET 8 runtime, which `sbom-tool` 4.1.5 needs and, for `test-attestations.ps1`, the GitHub CLI (`gh`).
+Scripts behind the `pack` and `validate-packages` jobs in `.github/workflows/on-prerelease.yml`. They run the same way locally, so release changes can be tested before they reach GitHub. Requirements: PowerShell 7, Node.js (see `.nvmrc`), the .NET SDK (for `minver-cli`, installed on first use) and, for `test-attestations.ps1`, the GitHub CLI (`gh`).
 
 - `build-packages.ps1` — Computes the version with MinVer (or takes `-Version`), runs `npm ci` (skip with `-SkipInstall`), builds the API and FrontEnd, and packs `packages/api/AdminApp.Api-<version>.tgz` and `packages/fe/AdminApp.FrontEnd-<version>.tgz`. Reverts the `package.json` version changes after packing.
-- `new-sbom.ps1` — Generates the SPDX 2.2 SBOM with `sbom-tool` and writes `_manifest/` and `AdminApp.SBOM.zip`. Fails if `sbom-tool` exits non-zero, or if the manifest is invalid JSON or lists fewer than `-MinDependencies` (default 10) dependencies.
+- `new-sbom.ps1` — Generates the SPDX 2.2 SBOM with `sbom-tool` and writes `_manifest/` and `AdminApp.SBOM.zip`. Fails if `sbom-tool` exits non-zero, or if the manifest is invalid JSON or lists fewer than `-MinDependencies` (default 10) dependencies. Downloads the self-contained `sbom-tool` release binary (pinned version, sha256-checked, cached in the temp folder), so it does not need .NET.
 - `test-attestations.ps1` — Runs `gh attestation verify` for the provenance and SBOM predicates of each package, with retries. Pass `-ProvenanceBundle` and `-SbomBundle` to check the offline `*.sigstore.json` bundles attached to a release.
 
   ```powershell

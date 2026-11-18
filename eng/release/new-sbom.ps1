@@ -8,7 +8,9 @@
 Generate and check the SPDX 2.2 SBOM for the Admin App release packages.
 
 .DESCRIPTION
-Runs Microsoft sbom-tool against the packed tarballs, with component detection over
+Downloads the pinned, self-contained Microsoft sbom-tool release binary for this platform
+(sha256-checked, cached in the temp folder, no .NET needed) and runs it against the
+packed tarballs, with component detection over
 the repository root (package-lock.json and node_modules), then fails if:
 - sbom-tool exits non-zero (pwsh does not stop on a native command failure), or
 - the manifest is not valid JSON, or lists fewer than -MinDependencies packages
@@ -66,16 +68,45 @@ $OutputDirectory = (Resolve-Path $OutputDirectory).Path
 $packages = @(Resolve-Path $PackagePath | ForEach-Object Path)
 if ($packages.Count -eq 0) { throw "No packages found for: $($PackagePath -join ', ')" }
 
-$sbomTool = Get-Command sbom-tool -ErrorAction SilentlyContinue
-if ($sbomTool) {
-  $sbomTool = $sbomTool.Source
+# Use the self-contained sbom-tool release binary rather than the .NET global tool. The
+# global tool targets .NET 8, and rolled forward to .NET 10 or 11 its component detection
+# crashes while writing results, yet sbom-tool still exits 0 with an SBOM that lists no
+# dependencies. Digests are from https://github.com/microsoft/sbom-tool/releases/tag/v4.1.5
+$sbomToolVersion = '4.1.5'
+$sbomToolSha256 = @{
+  'linux-x64' = 'bf5d4f99bc98c119d549d08fc02ae92598a7a42772f17317c01031a92632e05b'
+  'osx-arm64' = 'bb25842fd707fbe78d3ac9de0d2b27ee2f4a97764f3b8a5c2068c826e75f3535'
+  'osx-x64'   = 'e9a45e3ffdcab920c7bbd2987ce0a133f275241e080bb48c1a3dbe6b558e8ee6'
+  'win-x64'   = '625767b371b7fdd58f40f618b8a86da0247a33c89e419039c86b4edba1dad4b5'
 }
-else {
-  dotnet tool install --global Microsoft.Sbom.DotNetTool --version 4.1.5 | Out-Host
-  if ($LASTEXITCODE -ne 0) { throw "Installing sbom-tool failed with exit code $LASTEXITCODE" }
-  # A fresh install may not be on PATH yet in the current session.
-  $sbomTool = Join-Path $HOME '.dotnet/tools/sbom-tool'
+
+function Get-SbomTool {
+  $os = if ($IsWindows) { 'win' } elseif ($IsMacOS) { 'osx' } else { 'linux' }
+  $arch = ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture).ToString().ToLowerInvariant()
+  $rid = "$os-$arch"
+  $sha256 = $sbomToolSha256[$rid]
+  if (-not $sha256) { throw "No sbom-tool $sbomToolVersion binary is published for $rid" }
+
+  $name = "sbom-tool-$rid$(if ($IsWindows) { '.exe' })"
+  $cacheDir = Join-Path ($env:RUNNER_TEMP ?? [System.IO.Path]::GetTempPath()) "sbom-tool/$sbomToolVersion"
+  $path = Join-Path $cacheDir $name
+
+  if (-not (Test-Path $path) -or (Get-FileHash $path -Algorithm SHA256).Hash -ne $sha256) {
+    New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
+    $url = "https://github.com/microsoft/sbom-tool/releases/download/v$sbomToolVersion/$name"
+    Write-Output "Downloading $url" | Out-Host
+    Invoke-WebRequest $url -OutFile $path
+    $hash = (Get-FileHash $path -Algorithm SHA256).Hash
+    if ($hash -ne $sha256) {
+      Remove-Item $path -Force
+      throw "sha256 mismatch for $name. Expected $sha256, got $hash"
+    }
+    if (-not $IsWindows) { chmod +x $path }
+  }
+  return $path
 }
+
+$sbomTool = Get-SbomTool
 
 $manifestDir = Join-Path $OutputDirectory '_manifest'
 $manifest = Join-Path $manifestDir 'spdx_2.2/manifest.spdx.json'
@@ -83,13 +114,6 @@ $zip = Join-Path $OutputDirectory "$PackageName.SBOM.zip"
 
 # sbom-tool refuses to overwrite an existing manifest; clear leftovers from a previous run.
 Remove-Item $manifestDir -Recurse -Force -ErrorAction SilentlyContinue
-
-# sbom-tool 4.1.5 runs on .NET 8. Do not roll it forward to a newer runtime: on .NET 11
-# component detection crashes while writing its results, yet sbom-tool still exits 0
-# with an SBOM that lists no dependencies.
-if (-not (dotnet --list-runtimes | Select-String '^Microsoft\.NETCore\.App 8\.')) {
-  throw "sbom-tool needs the .NET 8 runtime (Microsoft.NETCore.App 8.x). Install it and run again."
-}
 
 $buildFileList = New-TemporaryFile
 try {
