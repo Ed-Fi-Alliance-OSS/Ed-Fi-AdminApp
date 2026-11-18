@@ -1,6 +1,7 @@
 import {
   CatalogVersion,
   CertificationRun,
+  CertificationRunComment,
   CertificationRunScenario,
   EdfiTenant,
   Ods,
@@ -40,6 +41,7 @@ import { CertificationTokenService } from './certification-token.service';
       ScenarioCatalog,
       StepCatalog,
       CertificationRun,
+      CertificationRunComment,
       CertificationRunScenario,
       ScenarioStep,
       ScenarioStepError,

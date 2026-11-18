@@ -9,4 +9,11 @@ describe('CertificationRun', () => {
     );
     expect(typeof column?.options.default).toBe('function');
   });
+
+  it('declares submittedAt as a nullable column', () => {
+    const column = getMetadataArgsStorage().columns.find(
+      (args) => args.target === CertificationRun && args.propertyName === 'submittedAt',
+    );
+    expect(column?.options.nullable).toBe(true);
+  });
 });

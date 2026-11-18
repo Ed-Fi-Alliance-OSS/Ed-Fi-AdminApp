@@ -84,6 +84,13 @@ export class CertificationRun {
   })
   statusChangedAt: Date;
 
+  /** When the vendor sent the run to review; unlike statusChangedAt it survives the pick-up. */
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
+    nullable: true,
+  })
+  submittedAt: Date | null;
+
   @CreateDateColumn()
   createdAt: Date;
 
