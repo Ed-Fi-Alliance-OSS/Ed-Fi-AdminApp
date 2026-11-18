@@ -55,6 +55,7 @@ import {
   edorgsRoute,
 } from './edorg.routes';
 import { certificationTeamRoutes } from './certification-team.routes';
+import { getCertificationDashboardRoutes } from './certification-dashboard.routes';
 import { integrationAppsTeamRoutes } from './integration-apps-team.routes';
 import {
   integrationProvidersGlobalRoutes,
@@ -375,6 +376,7 @@ export const authenticatedRoutes: RouteObject = {
     ...integrationAppsTeamRoutes,
     ...integrationProvidersTeamRoutes,
     ...certificationTeamRoutes,
+    ...getCertificationDashboardRoutes(),
 
     asRoute,
     adminRoutes,

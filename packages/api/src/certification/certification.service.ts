@@ -136,6 +136,12 @@ const stepSegments = (step: StepCatalog): string[] => [
   step.fileName,
 ];
 
+/** Columns every run status change must write; statusChangedAt drives the dashboard's waiting time. */
+const statusChange = (status: CertRunStatus) => {
+  const now = new Date();
+  return { status, updatedAt: now, statusChangedAt: now };
+};
+
 @Injectable()
 export class CertificationService {
   private readonly logger = new Logger(CertificationService.name);
@@ -231,15 +237,15 @@ export class CertificationService {
     if (!canTransitionRun(certificationRun.status, to)) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
-    const updatedAt = new Date();
+    const change = statusChange(to);
     const result = await this.runRepository.update(
       { certificationRunId, status: certificationRun.status },
-      { status: to, updatedAt },
+      change,
     );
     if (result.affected !== 1) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
-    return { ...certificationRun, status: to, updatedAt };
+    return { ...certificationRun, ...change };
   }
 
   /**
@@ -263,7 +269,7 @@ export class CertificationService {
     return this.dataSource.transaction(async (em) => {
       const moved = await em
         .getRepository(CertificationRun)
-        .update({ certificationRunId, status: from }, { status: to, updatedAt: new Date() });
+        .update({ certificationRunId, status: from }, statusChange(to));
       if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
 
       const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId } };

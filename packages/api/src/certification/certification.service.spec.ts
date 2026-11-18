@@ -694,11 +694,15 @@ describe('CertificationService.changeRunStatus', () => {
     ['IN_REVIEW', 'APPROVED'],
   ] as const)('moves a %s run to %s', async (from, to) => {
     runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: from });
-    await expect(service.changeRunStatus(7, to)).resolves.toMatchObject({ status: to });
+    const result = await service.changeRunStatus(7, to);
+    expect(result).toMatchObject({ status: to });
     expect(runRepository.update).toHaveBeenCalledWith(
       { certificationRunId: 7, status: from },
-      { status: to, updatedAt: expect.any(Date) },
+      { status: to, updatedAt: expect.any(Date), statusChangedAt: expect.any(Date) },
     );
+    const [, changes] = runRepository.update.mock.calls[0];
+    expect(changes.statusChangedAt).toBe(changes.updatedAt);
+    expect(result.statusChangedAt).toBe(changes.statusChangedAt);
     expect(runRepository.save).not.toHaveBeenCalled();
   });
 
@@ -815,8 +819,10 @@ describe('CertificationService.sendToReview', () => {
     await expect(service.sendToReview(run(from))).resolves.toBe(to);
     expect(runUpdate).toHaveBeenCalledWith(
       { certificationRunId: 7, status: from },
-      { status: to, updatedAt: expect.any(Date) },
+      { status: to, updatedAt: expect.any(Date), statusChangedAt: expect.any(Date) },
     );
+    const payload = runUpdate.mock.calls[0][1];
+    expect(payload.statusChangedAt).toBe(payload.updatedAt);
   });
 
   it.each([

@@ -85,6 +85,13 @@ export const queryKeyNew = (params: StandardQueryKeyParams) => {
   ];
 };
 
+/** Something a mutation refreshes: a partial query key, or a predicate for keys no prefix can match. */
+type InvalidationPredicate = { predicate: (query: { queryKey: QueryKey }) => boolean };
+export type InvalidationTarget = QueryKey | InvalidationPredicate;
+
+const toInvalidateFilter = (target: InvalidationTarget): { queryKey: QueryKey } | InvalidationPredicate =>
+  'predicate' in target ? target : { queryKey: target };
+
 type EdfiTenantParams = { edfiTenant: GetEdfiTenantDto };
 type SbEnvironmentParams = { sbEnvironmentId: string | number };
 
@@ -425,7 +432,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     }
   ): EntityQueryBuilder<
     T &
@@ -456,7 +463,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     },
     /** Applies after the standardized stem.
      *
@@ -511,7 +518,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     },
     path: (
       base: BaseParams<
@@ -593,9 +600,9 @@ export class EntityQueryBuilder<
           const standard = queryKeyNew(standardQueryKeyParams);
           if (keysToInvalidate) {
             keysToInvalidate({ ...queryParams, entity, standard, standardQueryKeyParams }).forEach(
-              (key: QueryKey) => {
+              (key: InvalidationTarget) => {
                 queryClient.invalidateQueries({
-                  queryKey: key,
+                  ...toInvalidateFilter(key),
                 });
               }
             );
@@ -631,7 +638,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     }
   ): EntityQueryBuilder<
     T &
@@ -662,7 +669,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     }
   ): EntityQueryBuilder<
     T &
@@ -693,7 +700,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     },
     /** Applies after the standardized stem.
      *
@@ -783,9 +790,9 @@ export class EntityQueryBuilder<
           const standard = queryKeyNew(standardQueryKeyParams);
           if (keysToInvalidate) {
             keysToInvalidate({ ...queryParams, entity, standard, standardQueryKeyParams }).forEach(
-              (key: QueryKey) => {
+              (key: InvalidationTarget) => {
                 queryClient.invalidateQueries({
-                  queryKey: key,
+                  ...toInvalidateFilter(key),
                 });
               }
             );
@@ -819,7 +826,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     }
   ): EntityQueryBuilder<
     T &
@@ -854,7 +861,7 @@ export class EntityQueryBuilder<
           standard: QueryKey;
           standardQueryKeyParams: StandardQueryKeyParams;
         }
-      ) => QueryKey[];
+      ) => InvalidationTarget[];
     },
     /** Applies after the standardized stem.
      *
@@ -942,9 +949,9 @@ export class EntityQueryBuilder<
           const standard = queryKeyNew(standardQueryKeyParams);
           if (keysToInvalidate) {
             keysToInvalidate({ ...queryParams, id, standard, standardQueryKeyParams }).forEach(
-              (key: QueryKey) => {
+              (key: InvalidationTarget) => {
                 queryClient.invalidateQueries({
-                  queryKey: key,
+                  ...toInvalidateFilter(key),
                 });
               }
             );

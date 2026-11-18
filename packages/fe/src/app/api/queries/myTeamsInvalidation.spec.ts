@@ -27,7 +27,13 @@ jest.mock('../methods', () => ({
 // queries.ts only needs authCacheKey from helpers; the real module pulls in react-router (ESM).
 jest.mock('../../helpers', () => ({ authCacheKey: jest.fn(() => ['auth-cache']) }));
 
-import { teamQueries, userTeamMembershipQueries } from './queries';
+import {
+  ownershipQueries,
+  roleQueries,
+  teamQueries,
+  userQueries,
+  userTeamMembershipQueries,
+} from './queries';
 
 type MutationConfig = { onSuccess: (data: unknown, variables: unknown) => void };
 
@@ -70,5 +76,57 @@ describe('team and membership mutations refresh the team context picker', () => 
     makeMutation().onSuccess({ id: 1 }, variables);
 
     expect(mockInvalidateQueries).toHaveBeenCalledWith({ queryKey: ['me', 'teams'] });
+  });
+});
+
+// The menu (certification, vendors, ODSs...) is driven by the session (['me']), the privilege
+// cache (['auth-cache']) and each team's env-nav list. Anything that changes what a user may do
+// must refresh all three, or an already-signed-in user keeps the old menu until the caches expire.
+describe('permission-changing mutations refresh the menu state', () => {
+  afterEach(() => jest.clearAllMocks());
+
+  const cases: Array<[string, () => MutationConfig, unknown]> = [
+    [
+      'membership post',
+      () => userTeamMembershipQueries.post({}) as unknown as MutationConfig,
+      { entity: { teamId: 1, userId: 1 } },
+    ],
+    [
+      'membership put',
+      () => userTeamMembershipQueries.put({}) as unknown as MutationConfig,
+      { entity: { id: 1, teamId: 1, userId: 1 } },
+    ],
+    [
+      'membership delete',
+      () => userTeamMembershipQueries.delete({}) as unknown as MutationConfig,
+      { id: 1 },
+    ],
+    ['user put', () => userQueries.put({}) as unknown as MutationConfig, { entity: { id: 1 } }],
+    ['role put', () => roleQueries.put({}) as unknown as MutationConfig, { entity: { id: 1 } }],
+    ['role delete', () => roleQueries.delete({}) as unknown as MutationConfig, { id: 1 }],
+    [
+      'ownership post',
+      () => ownershipQueries.post({}) as unknown as MutationConfig,
+      { entity: { teamId: 1 } },
+    ],
+    [
+      'ownership put',
+      () => ownershipQueries.put({}) as unknown as MutationConfig,
+      { entity: { id: 1, teamId: 1 } },
+    ],
+    ['ownership delete', () => ownershipQueries.delete({}) as unknown as MutationConfig, { id: 1 }],
+  ];
+
+  it.each(cases)('%s invalidates me, auth-cache and env-nav', (_name, makeMutation, variables) => {
+    makeMutation().onSuccess({ id: 1 }, variables);
+
+    const calls = mockInvalidateQueries.mock.calls.map(([filter]) => filter);
+    expect(calls).toContainEqual({ queryKey: ['me'] });
+    expect(calls).toContainEqual({ queryKey: ['auth-cache'] });
+
+    const predicate = calls.find((f) => typeof f?.predicate === 'function')?.predicate;
+    expect(predicate).toBeDefined();
+    expect(predicate({ queryKey: ['/teams/7/env-nav'] })).toBe(true);
+    expect(predicate({ queryKey: ['users', 'list'] })).toBe(false);
   });
 });

@@ -4,6 +4,11 @@ type Id = string | number;
 
 const pathPartials = {
   asTeam: 'as/:asId',
+  certification: {
+    dashboard: 'certification/dashboard',
+    run: 'certification/runs/:runId',
+    runExecution: 'certification/runs/:runId/execution',
+  },
   create: 'create',
   edit: 'edit=true',
   integrationApp: {
@@ -17,13 +22,12 @@ const pathPartials = {
   myProducts: {
     index: 'my-products',
   },
-  certification: {
-    run: 'certification/runs/:runId',
-    runExecution: 'certification/runs/:runId/execution',
-  },
 };
 
 const globalPaths = {
+  certificationDashboard: {
+    index: `/${pathPartials.certification.dashboard}`,
+  },
   integrationProvider: {
     index: `/${pathPartials.integrationProvider.index}`,
     create: `/${pathPartials.integrationProvider.index}/${pathPartials.create}`,
@@ -80,6 +84,9 @@ export const certificationRunExecutionPath = (asId: Id, runId: Id) =>
   replaceKeyIds(asTeamPaths.certification.runExecution, { asId, runId });
 
 const dynamicGlobalPaths = {
+  certificationDashboard: {
+    index: () => globalPaths.certificationDashboard.index,
+  },
   integrationProvider: {
     index: () => globalPaths.integrationProvider.index,
     create: () => globalPaths.integrationProvider.create,
@@ -99,6 +106,10 @@ const dynamicGlobalPaths = {
 };
 
 const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
+  certificationDashboard: {
+    // global-only page; dummy function for TypeScript satisfaction
+    index: () => '',
+  },
   myProducts: {
     index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
   },
