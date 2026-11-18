@@ -115,4 +115,36 @@ describe('CertificationReviewPage after Request changes', () => {
     ).toBeUndefined();
     spy.mockRestore();
   });
+
+  it('keeps the cached run and shows an alert when a refetch fails, instead of throwing', async () => {
+    mockNavigate.mockClear();
+    mockGet
+      .mockReset()
+      .mockResolvedValueOnce(review)
+      .mockRejectedValue({ statusCode: 404, message: 'Not Found' });
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    render(
+      <QueryClientProvider client={queryClient}>
+        <Boundary>
+          <CertificationReviewPage />
+        </Boundary>
+      </QueryClientProvider>,
+    );
+    await screen.findByRole('button', { name: 'Approve' });
+
+    // Another reviewer moved the run on: the next refetch answers 404.
+    await act(async () => {
+      await queryClient.invalidateQueries({ queryKey: certificationReviewQueryKeys.review(7) });
+    });
+    await flush();
+
+    expect(screen.queryByText(/Error boundary/)).toBeNull();
+    expect(screen.getByText('This run is no longer available for review.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Certification dashboard' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/certification/dashboard');
+    spy.mockRestore();
+  });
 });

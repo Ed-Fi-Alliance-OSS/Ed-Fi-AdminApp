@@ -91,7 +91,7 @@ export const CertificationReviewPage = () => {
     );
   }
 
-  if (error) {
+  if (error && !data) {
     // A failed request is not a denial: show the real error, not "Not allowed".
     throw error;
   }
@@ -117,11 +117,24 @@ export const CertificationReviewPage = () => {
     setDecision(null);
   };
 
+  // A refetch failed while the run is cached (another reviewer moved it on): keep it readable.
+  const isUnavailable = Boolean(error);
+
   return (
     <PageTemplate title={TITLE}>
+      {isUnavailable && (
+        <Alert status="warning" mb={4}>
+          <AlertIcon />
+          <Text flex="1">This run is no longer available for review.</Text>
+          <Button size="sm" onClick={() => navigate(routeDefinitions.certificationDashboard.index)}>
+            Back to the Certification dashboard
+          </Button>
+        </Alert>
+      )}
+
       <CertificationReviewHeader run={data.run} />
 
-      {data.run.canDecide && (
+      {data.run.canDecide && !isUnavailable && (
         <HStack role="group" aria-label="Decision" spacing={2} mb={4}>
           {DECISION_BUTTONS.map(({ decision: value, label, colorScheme }) => (
             <Button key={value} colorScheme={colorScheme} onClick={() => setDecision(value)}>
@@ -140,7 +153,7 @@ export const CertificationReviewPage = () => {
 
       <CertificationReviewDecisionModal
         runId={runId}
-        decision={decision}
+        decision={isUnavailable ? null : decision}
         onClose={() => setDecision(null)}
         onDecided={onDecided}
       />
