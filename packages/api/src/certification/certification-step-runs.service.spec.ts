@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { NotFoundException } from '@nestjs/common';
 import { In } from 'typeorm';
-import { CertificationStepRunsService } from './certification-step-runs.service';
+import { CertificationStepRunsService, toSavedStepRunDto } from './certification-step-runs.service';
 
 type Deps = Partial<{
   runScenarioRepository: unknown;
@@ -257,5 +257,38 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
     stepRunRepository.findOne.mockResolvedValue(null);
 
     await expect(findSnapshot()).rejects.toBeInstanceOf(NotFoundException);
+  });
+});
+
+describe('toSavedStepRunDto', () => {
+  it('maps a saved step run with only its own errors', () => {
+    const stepRun = {
+      stepRunId: 55,
+      stepId: 101,
+      status: 'failed',
+      runAt: new Date('2026-10-15T15:00:00.000Z'),
+      inputs: { studentUniqueId: 'S1' },
+      responseStatus: undefined,
+    } as never;
+    const errors = [
+      {
+        stepRunId: 55,
+        kind: 'exception',
+        field: null,
+        expected: null,
+        observed: 'x',
+        message: 'm',
+      },
+      { stepRunId: 99, kind: 'assertion', field: 'f', expected: 'a', observed: 'b', message: null },
+    ] as never;
+
+    expect(toSavedStepRunDto(stepRun, errors)).toEqual({
+      stepId: 101,
+      status: 'failed',
+      ranAt: '2026-10-15T15:00:00.000Z',
+      inputs: { studentUniqueId: 'S1' },
+      responseStatus: null,
+      errors: [{ kind: 'exception', field: null, expected: null, observed: 'x', message: 'm' }],
+    });
   });
 });

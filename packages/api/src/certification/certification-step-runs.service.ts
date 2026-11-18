@@ -1,5 +1,6 @@
 import {
   CERT_SNAPSHOT_STATE,
+  CertificationSavedStepRunDto,
   CertificationScenarioStatusDto,
   CertificationScenarioStatusesDto,
   CertificationStepRunsDto,
@@ -19,6 +20,30 @@ import {
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { In, Repository } from 'typeorm';
+
+/** A saved step run as the pages show it, with its own errors out of `errors`. */
+export const toSavedStepRunDto = (
+  stepRun: Pick<
+    ScenarioStep,
+    'stepRunId' | 'stepId' | 'status' | 'runAt' | 'inputs' | 'responseStatus'
+  >,
+  errors: ScenarioStepError[],
+): CertificationSavedStepRunDto => ({
+  stepId: stepRun.stepId,
+  status: stepRun.status as CertificationSavedStepRunDto['status'],
+  ranAt: stepRun.runAt.toISOString(),
+  inputs: stepRun.inputs,
+  responseStatus: stepRun.responseStatus ?? null,
+  errors: errors
+    .filter((error) => error.stepRunId === stepRun.stepRunId)
+    .map((error) => ({
+      kind: error.kind as CertStepErrorKind,
+      field: error.field,
+      expected: error.expected,
+      observed: error.observed,
+      message: error.message,
+    })),
+});
 
 export interface FindStepRunsParams {
   certificationRunId: number;
@@ -58,22 +83,7 @@ export class CertificationStepRunsService {
 
     return toCertificationStepRunsDto({
       scenarioStatus: (scenarioRow?.status ?? null) as CertificationStepRunsDto['scenarioStatus'],
-      steps: stepRuns.map((stepRun) => ({
-        stepId: stepRun.stepId,
-        status: stepRun.status as CertificationStepRunsDto['steps'][number]['status'],
-        ranAt: stepRun.runAt.toISOString(),
-        inputs: stepRun.inputs,
-        responseStatus: stepRun.responseStatus ?? null,
-        errors: errors
-          .filter((error) => error.stepRunId === stepRun.stepRunId)
-          .map((error) => ({
-            kind: error.kind as CertStepErrorKind,
-            field: error.field,
-            expected: error.expected,
-            observed: error.observed,
-            message: error.message,
-          })),
-      })),
+      steps: stepRuns.map((stepRun) => toSavedStepRunDto(stepRun, errors)),
     });
   }
 

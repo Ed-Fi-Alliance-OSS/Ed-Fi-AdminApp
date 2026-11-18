@@ -3,6 +3,7 @@ import {
   CertificationRun,
   CertificationRunComment,
   CertificationRunScenario,
+  DomainCatalog,
   EdfiTenant,
   Ods,
   SbEnvironment,
@@ -18,6 +19,7 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationDashboardController } from './certification-dashboard.controller';
 import { CertificationDashboardService } from './certification-dashboard.service';
+import { CertificationReviewService } from './certification-review.service';
 import { CertificationController } from './certification.controller';
 import {
   CertificationRunsController,
@@ -38,6 +40,7 @@ import { CertificationTokenService } from './certification-token.service';
       Ods,
       EdfiTenant,
       SbEnvironment,
+      DomainCatalog,
       ScenarioCatalog,
       StepCatalog,
       CertificationRun,
@@ -58,6 +61,7 @@ import { CertificationTokenService } from './certification-token.service';
   ],
   providers: [
     CertificationDashboardService,
+    CertificationReviewService,
     CertificationService,
     CertificationRunsService,
     CertificationStepRunsService,
