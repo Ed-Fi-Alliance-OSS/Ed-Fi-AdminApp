@@ -121,10 +121,9 @@ export const isGlobalPrivilege = (privilege: PrivilegeCode): privilege is BasePr
  * make it possible to entirely avoid having to query the Admin API during cache
  * building.
  */
-export interface ITeamCache
-  extends Partial<
-    Record<TeamBasePrivilege, Ids> & Record<TeamEdfiTenantPrivilege, Record<IEdfiTenant['id'], Ids>>
-  > {
+export interface ITeamCache extends Partial<
+  Record<TeamBasePrivilege, Ids> & Record<TeamEdfiTenantPrivilege, Record<IEdfiTenant['id'], Ids>>
+> {
   'team.ownership:read'?: Ids;
   'team.role:read'?: Ids;
   'team.role:update'?: Ids;

@@ -110,14 +110,17 @@ const GLOBAL_ADMIN_WITHHELD_PRIVILEGES = [
 describe('privilege snapshot (AC-644 tripwire)', () => {
   it('accounts for every privilege as either held by or withheld from Global admin', () => {
     const actual: string[] = [...privilegeCodes].sort();
-    const expected = [...GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT, ...GLOBAL_ADMIN_WITHHELD_PRIVILEGES].sort();
+    const expected = [
+      ...GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT,
+      ...GLOBAL_ADMIN_WITHHELD_PRIVILEGES,
+    ].sort();
     const added = actual.filter((c) => !expected.includes(c));
     const removed = expected.filter((c) => !actual.includes(c));
     if (added.length || removed.length) {
       throw new Error(
         `Privilege list changed (added: [${added.join(', ')}], removed: [${removed.join(', ')}]). ` +
           'New privilege added: either write a migration adding it to Global admin (role 2) and ' +
-          'add it to GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT, or add it to GLOBAL_ADMIN_WITHHELD_PRIVILEGES.'
+          'add it to GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT, or add it to GLOBAL_ADMIN_WITHHELD_PRIVILEGES.',
       );
     }
     expect(actual).toEqual(expected);
@@ -125,7 +128,7 @@ describe('privilege snapshot (AC-644 tripwire)', () => {
 
   it('never lists a privilege as both held and withheld', () => {
     const overlap = GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT.filter((c) =>
-      GLOBAL_ADMIN_WITHHELD_PRIVILEGES.includes(c)
+      GLOBAL_ADMIN_WITHHELD_PRIVILEGES.includes(c),
     );
     expect(overlap).toEqual([]);
   });
