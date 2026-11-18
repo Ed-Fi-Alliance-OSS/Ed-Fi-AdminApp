@@ -14,8 +14,10 @@ jest.mock('react-router', () => ({
 }));
 
 const mockRemoveQueries = jest.fn();
+// One client for every render, as the real QueryClientProvider gives.
+const mockQueryClient = { removeQueries: mockRemoveQueries };
 jest.mock('@tanstack/react-query', () => ({
-  useQueryClient: () => ({ removeQueries: mockRemoveQueries }),
+  useQueryClient: () => mockQueryClient,
 }));
 
 jest.mock('@edanalytics/common-ui', () => ({
@@ -311,20 +313,29 @@ describe('CertificationReviewPage', () => {
     expect(screen.queryByTestId('decision-modal')).toBeNull();
   });
 
-  it('goes to the dashboard after Request changes, then drops the review query', () => {
+  it('goes to the dashboard after Request changes and drops the review query only on unmount', () => {
     setup(review());
-    render(<CertificationReviewPage />);
+    const { unmount } = render(<CertificationReviewPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Request changes' }));
     fireEvent.click(screen.getByRole('button', { name: 'Confirm decision' }));
 
     expect(mockNavigate).toHaveBeenCalledWith('/certification/dashboard');
+    // The query stops before the page leaves, and stays cached while the page is mounted.
+    expect(mockReview).toHaveBeenLastCalledWith(7, false);
+    expect(mockRemoveQueries).not.toHaveBeenCalled();
+    expect(screen.getByRole('heading', { name: 'Review certification run' })).toBeTruthy();
+
+    unmount();
     expect(mockRemoveQueries).toHaveBeenCalledWith({
       queryKey: ['certification', 'review', 7],
     });
-    expect(mockNavigate.mock.invocationCallOrder[0]).toBeLessThan(
-      mockRemoveQueries.mock.invocationCallOrder[0],
-    );
-    expect(screen.getByRole('heading', { name: 'Review certification run' })).toBeTruthy();
+  });
+
+  it('keeps the review query when the page unmounts without a change request', () => {
+    setup(review());
+    const { unmount } = render(<CertificationReviewPage />);
+    unmount();
+    expect(mockRemoveQueries).not.toHaveBeenCalled();
   });
 
   it('says the run was not found for an address without a valid run ID', () => {

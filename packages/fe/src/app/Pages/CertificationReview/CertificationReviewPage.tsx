@@ -2,7 +2,7 @@ import { Alert, AlertIcon, Box, Button, HStack, Spinner, Text } from '@chakra-ui
 import { PageTemplate } from '@edanalytics/common-ui';
 import { CERT_REVIEW_DECISION, CertReviewDecision } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
 import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { routeDefinitions } from '../../routes/paths';
@@ -39,13 +39,26 @@ export const CertificationReviewPage = () => {
   const navigate = useNavigate();
   const runId = toRunId(useParams().runId);
   const [decision, setDecision] = useState<CertReviewDecision | null>(null);
+  // Set after Request changes: the run is no longer readable, so the page must never fetch it again.
+  const [isLeaving, setLeaving] = useState(false);
+  const isLeavingRef = useRef(false);
   // Until the privilege cache arrives authorize() is false, which must not read as "not allowed".
   const privilegeCache = usePrivilegeCacheForConfig(REVIEW_CERTIFICATION);
   const canReview = authorize({ queryClient, config: REVIEW_CERTIFICATION });
-  const { data, error, isLoading } = useCertificationReview(runId, canReview);
+  const { data, error, isLoading } = useCertificationReview(runId, canReview && !isLeaving);
   const snapshotSource = useMemo(
     () => (runId === undefined ? undefined : reviewSnapshotSource(runId)),
     [runId],
+  );
+
+  // Dropped only once the page is gone: removed while mounted, its observer would refetch a 404.
+  useEffect(
+    () => () => {
+      if (isLeavingRef.current && runId !== undefined) {
+        queryClient.removeQueries({ queryKey: certificationReviewQueryKeys.review(runId) });
+      }
+    },
+    [queryClient, runId],
   );
 
   // A failed privilege-cache request is not a denial either: show the real error.
@@ -92,12 +105,16 @@ export const CertificationReviewPage = () => {
   }
 
   const onDecided = (decided: CertReviewDecision) => {
-    setDecision(null);
+    if (decided === CERT_REVIEW_DECISION.CHANGES_REQUESTED) {
+      // The run is no longer readable: stop its query before leaving, and keep the cached run on
+      // screen until the dashboard replaces this page. The unmount cleanup drops it.
+      isLeavingRef.current = true;
+      setLeaving(true);
+      navigate(routeDefinitions.certificationDashboard.index);
+      return;
+    }
     // Approve and reject stay here: the invalidated review re-renders the run read-only.
-    if (decided !== CERT_REVIEW_DECISION.CHANGES_REQUESTED) return;
-    // The run is no longer readable. Leave first, so no mounted observer refetches it into a 404.
-    navigate(routeDefinitions.certificationDashboard.index);
-    queryClient.removeQueries({ queryKey: certificationReviewQueryKeys.review(runId) });
+    setDecision(null);
   };
 
   return (
