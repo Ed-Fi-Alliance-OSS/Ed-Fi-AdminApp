@@ -33,7 +33,7 @@ export class CertificationRunComment {
   @JoinColumn({ name: 'authorId' })
   author: User | null;
 
-  /** Null for a reviewer whose user was deleted. */
+  /** Null once its author's user was deleted. */
   @Column({ type: 'int', nullable: true })
   authorId: number | null;
 
