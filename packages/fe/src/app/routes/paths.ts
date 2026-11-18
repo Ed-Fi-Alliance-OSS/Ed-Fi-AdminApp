@@ -7,6 +7,7 @@ const pathPartials = {
   certification: {
     dashboard: 'certification/dashboard',
     run: 'certification/runs/:runId',
+    review: 'certification/runs/:runId/review',
     runExecution: 'certification/runs/:runId/execution',
   },
   create: 'create',
@@ -27,6 +28,9 @@ const pathPartials = {
 const globalPaths = {
   certificationDashboard: {
     index: `/${pathPartials.certification.dashboard}`,
+  },
+  certificationReview: {
+    index: `/${pathPartials.certification.review}`,
   },
   integrationProvider: {
     index: `/${pathPartials.integrationProvider.index}`,
@@ -83,9 +87,16 @@ export const certificationRunPath = (asId: Id, runId: Id) =>
 export const certificationRunExecutionPath = (asId: Id, runId: Id) =>
   replaceKeyIds(asTeamPaths.certification.runExecution, { asId, runId });
 
+/** The global admin's review page of one certification run. */
+export const certificationReviewPath = (runId: Id) =>
+  replaceKeyIds(globalPaths.certificationReview.index, { runId });
+
 const dynamicGlobalPaths = {
   certificationDashboard: {
     index: () => globalPaths.certificationDashboard.index,
+  },
+  certificationReview: {
+    index: (ids: { runId: Id }) => certificationReviewPath(ids.runId),
   },
   integrationProvider: {
     index: () => globalPaths.integrationProvider.index,
@@ -109,6 +120,10 @@ const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
   certificationDashboard: {
     // global-only page; dummy function for TypeScript satisfaction
     index: () => '',
+  },
+  certificationReview: {
+    // global-only page; dummy function for TypeScript satisfaction
+    index: (_: { runId: Id }) => '',
   },
   myProducts: {
     index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
