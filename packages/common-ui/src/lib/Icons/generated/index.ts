@@ -4,6 +4,7 @@ export { Account } from './Account';
 export { Application } from './Application';
 export { Arch } from './Arch';
 export { CaretRightFill } from './CaretRightFill';
+export { CertificationDashboard } from './CertificationDashboard';
 export { CheckAll } from './CheckAll';
 export { CheckCircle } from './CheckCircle';
 export { ChevronLeft } from './ChevronLeft';

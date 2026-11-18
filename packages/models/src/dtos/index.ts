@@ -1,6 +1,7 @@
 export * from './certification-catalog.dto';
 export * from './certification-token.dto';
 export * from './certification-run.dto';
+export * from './certification-dashboard.dto';
 export * from './certification-step-run.dto';
 export * from './edfi-admin-api.dto';
 export * from './edfi-admin-api.v2.dto';

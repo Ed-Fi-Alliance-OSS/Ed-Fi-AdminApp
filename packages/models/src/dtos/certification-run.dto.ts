@@ -14,6 +14,17 @@ export const CERT_RUN_STATUS = {
 } as const;
 export type CertRunStatus = (typeof CERT_RUN_STATUS)[keyof typeof CERT_RUN_STATUS];
 
+/** How each run status reads in the UI. Keep next to CERT_RUN_STATUS so a rename or removal fails to compile here. */
+export const CERT_RUN_STATUS_LABELS: Record<CertRunStatus, string> = {
+  [CERT_RUN_STATUS.DRAFT]: 'Draft',
+  [CERT_RUN_STATUS.READY_FOR_REVIEW]: 'Ready for review',
+  [CERT_RUN_STATUS.IN_REVIEW]: 'In review',
+  [CERT_RUN_STATUS.CHANGES_REQUESTED]: 'Changes requested',
+  [CERT_RUN_STATUS.READY_FOR_REVIEW_WITH_CHANGES]: 'Ready for review with new changes',
+  [CERT_RUN_STATUS.APPROVED]: 'Approved',
+  [CERT_RUN_STATUS.REJECTED]: 'Rejected',
+};
+
 export const CERT_MODEL = { sis: 'SIS', mtss: 'MTSS', assessments: 'ASSESSMENTS' } as const;
 export type CertModel = (typeof CERT_MODEL)[keyof typeof CERT_MODEL];
 

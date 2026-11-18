@@ -18,6 +18,7 @@ Ownership, Menu item, BsClipboard, BsClipboardFill
 Role, Menu item, BsPersonVcard, BsPersonVcardFill
 SbEnvironment, Menu item, BsHdd, BsHddFill
 SyncQueue, Menu item, BsInboxes, BsInboxesFill
+CertificationDashboard, Menu item, BsBarChart, BsBarChartFill
 Team, Menu item, BsBuildings, BsBuildingsFill
 TeamMembership, Menu item, BsPersonBadge, BsPersonBadgeFill
 Vendor, Menu item, BsBuilding, BsBuildingFill

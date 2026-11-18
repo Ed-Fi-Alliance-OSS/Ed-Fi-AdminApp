@@ -15,6 +15,8 @@ import { TypeOrmModule } from '@nestjs/typeorm';
 import { ArtifactModule } from './artifact/artifact.module';
 import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
+import { CertificationDashboardController } from './certification-dashboard.controller';
+import { CertificationDashboardService } from './certification-dashboard.service';
 import { CertificationController } from './certification.controller';
 import {
   CertificationRunsController,
@@ -48,10 +50,12 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationController,
     CertificationTokenController,
     CertificationCatalogController,
+    CertificationDashboardController,
     CertificationRunsController,
     CertificationTeamRunsController,
   ],
   providers: [
+    CertificationDashboardService,
     CertificationService,
     CertificationRunsService,
     CertificationStepRunsService,

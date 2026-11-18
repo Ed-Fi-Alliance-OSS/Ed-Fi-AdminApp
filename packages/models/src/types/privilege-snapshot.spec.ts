@@ -12,6 +12,7 @@ import { privilegeCodes } from './privileges';
  *   - No: add it to GLOBAL_ADMIN_WITHHELD_PRIVILEGES instead.
  */
 const GLOBAL_ADMIN_PRIVILEGE_SNAPSHOT = [
+  'certification:read',
   'edorg:read',
   'me:read',
   'ods:read',
