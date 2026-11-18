@@ -7,9 +7,23 @@ import { useCertificationReview } from './useCertificationReview';
 
 const mockNavigate = jest.fn();
 let mockParams: { runId?: string } = { runId: '7' };
+let mockSearch = '';
+const mockSetSearchParams = jest.fn();
 jest.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
   useParams: () => mockParams,
+  // Holds the query string in component state, as the router does, so a filter change re-renders.
+  useSearchParams: () => {
+    const { useState } = require('react');
+    const [params, setParams] = useState(() => new URLSearchParams(mockSearch));
+    return [
+      params,
+      (next: Record<string, string>, options?: unknown) => {
+        mockSetSearchParams(next, options);
+        setParams(new URLSearchParams(next));
+      },
+    ];
+  },
 }));
 
 const mockRemoveQueries = jest.fn();
@@ -149,6 +163,7 @@ describe('CertificationReviewPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockParams = { runId: '7' };
+    mockSearch = '';
   });
 
   it('shows a spinner while the privilege cache loads', () => {
@@ -276,7 +291,7 @@ describe('CertificationReviewPage', () => {
     expect(screen.getByText('Hire a teacher')).toBeTruthy();
   });
 
-  it('says so when the selected domain has no scenarios after a refetch', () => {
+  it('falls back to all domains when the selected domain disappears after a refetch', () => {
     setup(review());
     const { rerender } = render(<CertificationReviewPage />);
     fireEvent.change(screen.getByLabelText('Domain Filter'), { target: { value: 'Staff' } });
@@ -284,13 +299,54 @@ describe('CertificationReviewPage', () => {
     setup(review({}, [review().scenarios[0]]));
     rerender(<CertificationReviewPage />);
 
-    expect(screen.getByText('No scenarios found for the current filters.')).toBeTruthy();
+    expect((screen.getByLabelText('Domain Filter') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByText('Enroll a student')).toBeTruthy();
+    expect(screen.queryByText('No scenarios found for the current filters.')).toBeNull();
   });
 
   it('says so when the run has no scenarios', () => {
     setup(review({}, []));
     render(<CertificationReviewPage />);
     expect(screen.getByText('This run has no scenarios to show.')).toBeTruthy();
+  });
+
+  it('keeps the selected domain in the address', () => {
+    setup(review());
+    render(<CertificationReviewPage />);
+    fireEvent.change(screen.getByLabelText('Domain Filter'), { target: { value: 'Staff' } });
+    expect(mockSetSearchParams).toHaveBeenLastCalledWith({ domain: 'Staff' }, { replace: true });
+
+    fireEvent.change(screen.getByLabelText('Domain Filter'), { target: { value: '' } });
+    expect(mockSetSearchParams).toHaveBeenLastCalledWith({}, { replace: true });
+  });
+
+  it('starts filtered by the domain in the address (coming back from a steps page)', () => {
+    mockSearch = 'domain=Staff';
+    setup(review());
+    render(<CertificationReviewPage />);
+    expect((screen.getByLabelText('Domain Filter') as HTMLSelectElement).value).toBe('Staff');
+    expect(screen.queryByText('Enroll a student')).toBeNull();
+    expect(screen.getByText('Hire a teacher')).toBeTruthy();
+  });
+
+  it('shows all domains when the domain in the address is not in the run', () => {
+    mockSearch = 'domain=Nope';
+    setup(review());
+    render(<CertificationReviewPage />);
+    expect((screen.getByLabelText('Domain Filter') as HTMLSelectElement).value).toBe('');
+    expect(screen.getByText('Enroll a student')).toBeTruthy();
+    expect(screen.getByText('Hire a teacher')).toBeTruthy();
+  });
+
+  it('carries the selected domain to the steps page', () => {
+    mockSearch = 'domain=Staff';
+    setup(review());
+    render(<CertificationReviewPage />);
+    const hire = screen.getByText('Hire a teacher').closest('tr') as HTMLElement;
+    fireEvent.click(within(hire).getByRole('button', { name: 'View steps' }));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/certification/runs/7/review/steps?scenarioId=2&domain=Staff',
+    );
   });
 
   it('opens the steps page of a scenario from View steps', () => {

@@ -91,13 +91,29 @@ export const certificationRunPath = (asId: Id, runId: Id) =>
 export const certificationRunExecutionPath = (asId: Id, runId: Id) =>
   replaceKeyIds(asTeamPaths.certification.runExecution, { asId, runId });
 
-/** The global admin's review page of one certification run. */
-export const certificationReviewPath = (runId: Id) =>
-  replaceKeyIds(globalPaths.certificationReview.index, { runId });
+/** The review pages' query string; `domain` is the scenarios page's filter, carried to and from the steps page. */
+const reviewQuery = (params: Record<string, string | undefined>) => {
+  const query = new URLSearchParams(
+    Object.entries(params).filter((entry): entry is [string, string] => Boolean(entry[1])),
+  )
+    .toString()
+    .replace(/\+/g, '%20');
+  return query ? `?${query}` : '';
+};
 
-/** The global admin's steps page of one scenario of a run; the scenario goes in the query string. */
-export const certificationReviewStepsPath = (runId: Id, scenarioId: Id) =>
-  `${replaceKeyIds(globalPaths.certificationReviewSteps.index, { runId })}?scenarioId=${scenarioId}`;
+/** The global admin's review page of one certification run, filtered to `domain` when given. */
+export const certificationReviewPath = (runId: Id, domain?: string) =>
+  `${replaceKeyIds(globalPaths.certificationReview.index, { runId })}${reviewQuery({ domain })}`;
+
+/**
+ * The global admin's steps page of one scenario of a run; the scenario goes in the query string,
+ * with the scenarios page's domain filter so Back returns to it.
+ */
+export const certificationReviewStepsPath = (runId: Id, scenarioId: Id, domain?: string) =>
+  `${replaceKeyIds(globalPaths.certificationReviewSteps.index, { runId })}${reviewQuery({
+    scenarioId: String(scenarioId),
+    domain,
+  })}`;
 
 const dynamicGlobalPaths = {
   certificationDashboard: {

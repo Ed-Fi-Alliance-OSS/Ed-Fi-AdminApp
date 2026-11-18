@@ -80,7 +80,9 @@ export const CertificationReviewStepsPage = () => {
       <Button
         variant="ghost"
         type="button"
-        onClick={() => navigate(certificationReviewPath(runId))}
+        onClick={() =>
+          navigate(certificationReviewPath(runId, searchParams.get('domain') ?? undefined))
+        }
       >
         Back
       </Button>

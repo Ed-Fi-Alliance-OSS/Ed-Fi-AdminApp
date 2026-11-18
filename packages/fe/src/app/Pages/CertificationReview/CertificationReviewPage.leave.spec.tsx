@@ -13,6 +13,7 @@ const mockNavigate = jest.fn();
 jest.mock('react-router', () => ({
   useNavigate: () => mockNavigate,
   useParams: () => ({ runId: '7' }),
+  useSearchParams: () => [new URLSearchParams(), jest.fn()],
 }));
 jest.mock('@edanalytics/common-ui', () => ({
   PageTemplate: ({ title, children }: { title?: ReactNode; children?: ReactNode }) => (

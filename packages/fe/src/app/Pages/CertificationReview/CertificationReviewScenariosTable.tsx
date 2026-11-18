@@ -13,8 +13,8 @@ import {
   Tr,
 } from '@chakra-ui/react';
 import { CertificationReviewScenarioDto } from '@edanalytics/models';
-import { useMemo, useState } from 'react';
-import { useNavigate } from 'react-router';
+import { useMemo } from 'react';
+import { useNavigate, useSearchParams } from 'react-router';
 import { certificationReviewStepsPath } from '../../routes/paths';
 import { CertificationStatusIndicator } from '../CertificationV2/CertificationStatusIndicator';
 import { toScenarioDisplayStatus } from '../CertificationV2/certificationStepResults';
@@ -36,9 +36,12 @@ export const CertificationReviewScenariosTable = ({
   scenarios: CertificationReviewScenarioDto[];
 }) => {
   const navigate = useNavigate();
-  // Kept across refetches (e.g. after Approve), so the reviewer's filter survives them.
-  const [domainName, setDomainName] = useState('');
+  // The filter lives in the address, so it survives refetches and the way back from a steps page.
+  const [searchParams, setSearchParams] = useSearchParams();
   const domainNames = useMemo(() => reviewDomainNames(scenarios), [scenarios]);
+  // A domain the run doesn't have (an edited address, or one gone after a refetch) shows them all.
+  const requested = searchParams.get('domain') ?? '';
+  const domainName = domainNames.includes(requested) ? requested : '';
   const shown = domainName
     ? scenarios.filter((scenario) => scenario.domainName === domainName)
     : scenarios;
@@ -55,7 +58,11 @@ export const CertificationReviewScenariosTable = ({
           <Select
             placeholder="All domains"
             value={domainName}
-            onChange={(event) => setDomainName(event.target.value)}
+            onChange={(event) =>
+              setSearchParams(event.target.value ? { domain: event.target.value } : {}, {
+                replace: true,
+              })
+            }
           >
             {domainNames.map((name) => (
               <option key={name} value={name}>
@@ -101,7 +108,9 @@ export const CertificationReviewScenariosTable = ({
                       colorScheme="primary"
                       type="button"
                       onClick={() =>
-                        navigate(certificationReviewStepsPath(runId, scenario.scenarioId))
+                        navigate(
+                          certificationReviewStepsPath(runId, scenario.scenarioId, domainName),
+                        )
                       }
                     >
                       View steps

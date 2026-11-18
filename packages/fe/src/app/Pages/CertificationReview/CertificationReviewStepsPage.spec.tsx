@@ -191,6 +191,15 @@ describe('CertificationReviewStepsPage', () => {
     expect(mockNavigate).toHaveBeenCalledWith('/certification/runs/7/review');
   });
 
+  it('goes back to the scenarios page with the domain filter it came from', () => {
+    mockSearch = 'scenarioId=1&domain=Student%20Enrollment';
+    render(<CertificationReviewStepsPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(mockNavigate).toHaveBeenCalledWith(
+      '/certification/runs/7/review?domain=Student%20Enrollment',
+    );
+  });
+
   it('says so when the scenario has no steps', () => {
     mockSearch = 'scenarioId=2';
     render(<CertificationReviewStepsPage />);
