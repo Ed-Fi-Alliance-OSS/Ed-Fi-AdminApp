@@ -82,8 +82,8 @@ export class CertificationDashboardService {
 const toRow = (run: CertificationRun): CertificationDashboardRunDto => ({
   runId: run.certificationRunId,
   teamName: run.team?.name ?? null,
-  sbEnvironmentName: run.edfiTenant.sbEnvironment.displayName,
-  edfiTenantName: run.edfiTenant.name,
+  sbEnvironmentName: run.edfiTenant?.sbEnvironment?.displayName ?? '',
+  edfiTenantName: run.edfiTenant?.name ?? '',
   dataStore: run.ods ? (run.ods.odsInstanceName ?? run.ods.dbName) : null,
   certificationModel: run.certificationModel,
   status: run.status,

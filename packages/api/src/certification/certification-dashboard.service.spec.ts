@@ -125,6 +125,13 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
   });
 
+  it('does not fail the dashboard when a run has no tenant', async () => {
+    const { service } = setup({ waiting: [[isoRun({ edfiTenant: null })], 1] });
+    const { waiting } = await service.getDashboard();
+    expect(waiting.rows[0].edfiTenantName).toBe('');
+    expect(waiting.rows[0].sbEnvironmentName).toBe('');
+  });
+
   it('falls back to the database name when the ODS has no instance name', async () => {
     const { service } = setup({
       waiting: [[isoRun({ ods: { odsInstanceName: null, dbName: 'EdFi_Ods_1' } })], 1],

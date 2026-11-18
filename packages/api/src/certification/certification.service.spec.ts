@@ -819,8 +819,10 @@ describe('CertificationService.sendToReview', () => {
     await expect(service.sendToReview(run(from))).resolves.toBe(to);
     expect(runUpdate).toHaveBeenCalledWith(
       { certificationRunId: 7, status: from },
-      { status: to, updatedAt: expect.any(Date) },
+      { status: to, updatedAt: expect.any(Date), statusChangedAt: expect.any(Date) },
     );
+    const payload = runUpdate.mock.calls[0][1];
+    expect(payload.statusChangedAt).toBe(payload.updatedAt);
   });
 
   it.each([
