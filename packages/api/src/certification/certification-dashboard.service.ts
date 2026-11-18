@@ -1,5 +1,6 @@
 import {
   CERT_DASHBOARD_OTHERS_LIMIT,
+  CERT_DASHBOARD_WAITING_LIMIT,
   CERT_DASHBOARD_OTHER_STATUSES,
   CERT_DASHBOARD_WAITING_STATUSES,
   CERT_RUN_STATUS,
@@ -55,6 +56,7 @@ export class CertificationDashboardService {
     const [runs, total] = await this.listQuery(CERT_DASHBOARD_WAITING_STATUSES)
       .orderBy('run.statusChangedAt', 'ASC')
       .addOrderBy('run.certificationRunId', 'ASC')
+      .take(CERT_DASHBOARD_WAITING_LIMIT)
       .getManyAndCount();
     return { rows: runs.map(toRow), total };
   }

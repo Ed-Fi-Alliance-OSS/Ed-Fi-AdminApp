@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import * as config from 'config';
 import { CatalogVersion } from './cert-catalog-version.entity';
 import { EdfiTenant } from './edfi-tenant.entity';
 import { Ods } from './ods.entity';
@@ -77,7 +78,10 @@ export class CertificationRun {
   status: CertRunStatus;
 
   /** When the run entered its current status; set by changeRunStatus, defaulted by the DB on insert. */
-  @Column({ default: () => 'CURRENT_TIMESTAMP' })
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
   statusChangedAt: Date;
 
   @CreateDateColumn()

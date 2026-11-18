@@ -80,7 +80,7 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
   });
 
-  it('waiting query filters to the two review statuses and orders by statusChangedAt ASC then certificationRunId ASC, with no row limit', async () => {
+  it('waiting query filters to the two review statuses and orders by statusChangedAt ASC then certificationRunId ASC and takes 100', async () => {
     const { service, waitingBuilder } = setup();
     await service.getDashboard();
     expect(waitingBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
@@ -88,7 +88,7 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
     expect(waitingBuilder.orderBy).toHaveBeenCalledWith('run.statusChangedAt', 'ASC');
     expect(waitingBuilder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'ASC');
-    expect(waitingBuilder.take).not.toHaveBeenCalled();
+    expect(waitingBuilder.take).toHaveBeenCalledWith(100);
   });
 
   it('others query filters to DRAFT, IN_REVIEW, CHANGES_REQUESTED, APPROVED, REJECTED, orders by updatedAt DESC then certificationRunId DESC and takes 100', async () => {

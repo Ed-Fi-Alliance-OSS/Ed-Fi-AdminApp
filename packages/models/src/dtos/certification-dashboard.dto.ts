@@ -6,6 +6,9 @@ import type { CertModel, CertRunStatus } from './certification-run.dto';
 /** The "Runs in flight or rejected" list shows at most this many rows; `total` is the real count. */
 export const CERT_DASHBOARD_OTHERS_LIMIT = 100;
 
+/** The "Waiting for review" list shows at most this many rows, oldest first; `total` is the real count. */
+export const CERT_DASHBOARD_WAITING_LIMIT = 100;
+
 /** Runs waiting for a reviewer. */
 export const CERT_DASHBOARD_WAITING_STATUSES: readonly CertRunStatus[] = [
   CERT_RUN_STATUS.READY_FOR_REVIEW,

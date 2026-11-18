@@ -3,6 +3,7 @@ import { instanceToPlain } from 'class-transformer';
 import { CERT_RUN_STATUS } from './certification-run.dto';
 import {
   CERT_DASHBOARD_OTHERS_LIMIT,
+  CERT_DASHBOARD_WAITING_LIMIT,
   CERT_DASHBOARD_OTHER_STATUSES,
   CERT_DASHBOARD_WAITING_STATUSES,
   toCertificationDashboardDto,
@@ -41,6 +42,7 @@ describe('certification dashboard constants', () => {
 
   it('limit is 100', () => {
     expect(CERT_DASHBOARD_OTHERS_LIMIT).toBe(100);
+    expect(CERT_DASHBOARD_WAITING_LIMIT).toBe(100);
   });
 });
 
