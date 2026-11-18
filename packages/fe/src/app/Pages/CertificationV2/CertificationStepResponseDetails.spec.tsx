@@ -2,11 +2,14 @@ import 'reflect-metadata';
 import { fireEvent, render, screen } from '@testing-library/react';
 import { CertificationSavedStepRunDto, CertificationStepSnapshotDto } from '@edanalytics/models';
 import { CertificationStepResponseDetails } from './CertificationStepResponseDetails';
-import { useCertificationStepSnapshot } from './useCertificationStepSnapshot';
+import { teamSnapshotSource, useCertificationStepSnapshot } from './useCertificationStepSnapshot';
 
-jest.mock('./useCertificationStepSnapshot', () => ({ useCertificationStepSnapshot: jest.fn() }));
+jest.mock('./useCertificationStepSnapshot', () => ({
+  teamSnapshotSource: () => ({ url: jest.fn(), queryKey: jest.fn() }),
+  useCertificationStepSnapshot: jest.fn(),
+}));
 
-const snapshotArgs = { sbEnvironmentId: 1, edfiTenantId: 10, odsId: 5, sisVersion: 'v5', runId: 7 };
+const snapshotSource = teamSnapshotSource(2, 10, 7);
 
 const fieldsRun: CertificationSavedStepRunDto = {
   stepId: 189,
@@ -31,7 +34,7 @@ const renderResult = (run: CertificationSavedStepRunDto | undefined, isRunning =
     <CertificationStepResponseDetails
       run={run}
       isRunning={isRunning}
-      snapshotArgs={snapshotArgs}
+      snapshotSource={snapshotSource}
     />,
   );
 
@@ -97,7 +100,7 @@ describe('CertificationStepResponseDetails', () => {
       renderResult(fieldsRun);
       openPanel();
 
-      expect(lastHookArgs()).toMatchObject({ ...snapshotArgs, enabled: true, stepId: 189 });
+      expect(lastHookArgs()).toMatchObject({ source: snapshotSource, enabled: true, stepId: 189 });
       expect(
         screen.getByText(
           'This snapshot is deleted when the certification request is approved or rejected.',

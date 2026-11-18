@@ -1,37 +1,52 @@
 import { CertificationStepSnapshotDto } from '@edanalytics/models';
-import { useQuery } from '@tanstack/react-query';
+import { QueryKey, useQuery } from '@tanstack/react-query';
 import { methods } from '../../api';
 import { certificationQueryKeys, certificationTenantUrl } from './useCertificationCatalog';
 
+/** Where a step's snapshot is read from: the URL and the cache key of one step run. */
+export type CertificationSnapshotSource = {
+  url: (stepId: number) => string;
+  queryKey: (stepId: number, ranAt: string | undefined) => QueryKey;
+};
+
 export type UseCertificationStepSnapshotArgs = {
-  teamId: number;
-  /** The run's tenant; undefined until the run has loaded. */
-  edfiTenantId: number | undefined;
-  runId: number | undefined;
+  /** Undefined until the source is known (for the vendor page, until the run has loaded). */
+  source: CertificationSnapshotSource | undefined;
   stepId: number | undefined;
   ranAt: string | undefined;
-  /** True once the vendor opens the response panel; the snapshot is never loaded before. */
+  /** True once the user opens the response panel; the snapshot is never loaded before. */
   enabled: boolean;
 };
 
+/** The vendor page's source: the run's snapshot route under its team and tenant. */
+export const teamSnapshotSource = (
+  teamId: number,
+  edfiTenantId: number | undefined,
+  runId: number | undefined,
+): CertificationSnapshotSource | undefined =>
+  edfiTenantId === undefined || runId === undefined
+    ? undefined
+    : {
+        url: (stepId) =>
+          `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/step-runs/${stepId}/snapshot`,
+        queryKey: (stepId, ranAt) =>
+          certificationQueryKeys.stepSnapshot(teamId, runId, stepId, ranAt),
+      };
+
 /** The saved Ed-Fi API response of one step's latest run (AC-690). */
 export const useCertificationStepSnapshot = ({
-  teamId,
-  edfiTenantId,
-  runId,
+  source,
   stepId,
   ranAt,
   enabled: isOpen,
 }: UseCertificationStepSnapshotArgs) => {
-  const enabled =
-    isOpen && edfiTenantId !== undefined && stepId !== undefined && runId !== undefined;
+  const enabled = isOpen && source !== undefined && stepId !== undefined;
   const query = useQuery({
-    queryKey: certificationQueryKeys.stepSnapshot(teamId, runId, stepId, ranAt),
-    queryFn: () =>
-      methods.getOne(
-        `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/step-runs/${stepId}/snapshot`,
-        CertificationStepSnapshotDto,
-      ),
+    queryKey:
+      source && stepId !== undefined
+        ? source.queryKey(stepId, ranAt)
+        : ['certification', 'step-snapshot', 'disabled'],
+    queryFn: () => methods.getOne(source!.url(stepId!), CertificationStepSnapshotDto),
     enabled,
   });
 
