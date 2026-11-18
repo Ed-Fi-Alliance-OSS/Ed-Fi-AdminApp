@@ -155,4 +155,23 @@ describe('CertificationRunsCard', () => {
     );
     expect(screen.queryByText(/Showing/)).toBeNull();
   });
+
+  it('has no Action column without renderAction', () => {
+    render(<CertificationRunsCard title="Waiting" list={list([run()])} timeColumn="Waiting" />);
+    expect(screen.queryByRole('columnheader', { name: 'Action' })).toBeNull();
+  });
+
+  it('adds an Action column with per-row content when renderAction is given', () => {
+    render(
+      <CertificationRunsCard
+        title="Waiting"
+        list={list([run({ runId: 1 }), run({ runId: 2 })])}
+        timeColumn="Waiting"
+        renderAction={(row) => <span>Act on {row.runId}</span>}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'Action' })).toBeTruthy();
+    expect(screen.getByText('Act on 1')).toBeTruthy();
+    expect(screen.getByText('Act on 2')).toBeTruthy();
+  });
 });

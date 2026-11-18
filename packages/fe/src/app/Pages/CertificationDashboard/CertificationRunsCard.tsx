@@ -5,6 +5,7 @@ import {
   CertificationDashboardRunDto,
   CERT_RUN_STATUS_LABELS,
 } from '@edanalytics/models';
+import { ReactNode } from 'react';
 import { formatWaiting } from './formatWaiting';
 
 const EMPTY = '—';
@@ -17,11 +18,14 @@ export const CertificationRunsCard = ({
   list,
   timeColumn,
   emptyMessage,
+  renderAction,
 }: {
   title: string;
   list: CertificationDashboardListDto;
   timeColumn: CertificationRunsTimeColumn;
   emptyMessage?: string;
+  /** When given, adds an "Action" column rendering this per row. */
+  renderAction?: (row: CertificationDashboardRunDto) => ReactNode;
 }) => (
   <PageContentCard>
     <ContentSection heading={title}>
@@ -36,11 +40,17 @@ export const CertificationRunsCard = ({
                 <Th>Certification Model</Th>
                 <Th>Status</Th>
                 <Th>{timeColumn}</Th>
+                {renderAction && <Th>Action</Th>}
               </Tr>
             </Thead>
             <Tbody>
               {list.rows.map((row) => (
-                <CertificationRunRow key={row.runId} row={row} timeColumn={timeColumn} />
+                <CertificationRunRow
+                  key={row.runId}
+                  row={row}
+                  timeColumn={timeColumn}
+                  renderAction={renderAction}
+                />
               ))}
             </Tbody>
           </Table>
@@ -58,9 +68,11 @@ export const CertificationRunsCard = ({
 export const CertificationRunRow = ({
   row,
   timeColumn,
+  renderAction,
 }: {
   row: CertificationDashboardRunDto;
   timeColumn: CertificationRunsTimeColumn;
+  renderAction?: (row: CertificationDashboardRunDto) => ReactNode;
 }) => (
   <Tr>
     <Td>{row.teamName ?? EMPTY}</Td>
@@ -72,5 +84,6 @@ export const CertificationRunRow = ({
         ? formatWaiting(row.statusChangedAt)
         : new Date(row.updatedAt).toLocaleString()}
     </Td>
+    {renderAction && <Td>{renderAction(row)}</Td>}
   </Tr>
 );
