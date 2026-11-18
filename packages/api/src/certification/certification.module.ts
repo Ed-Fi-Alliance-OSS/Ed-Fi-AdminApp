@@ -28,6 +28,8 @@ import { CertificationService } from './certification.service';
 import { CertificationTargetService } from './certification-target.service';
 import { CertificationTokenController } from './certification-token.controller';
 import { CertificationTokenService } from './certification-token.service';
+import { CertificationTeamDashboardController } from './certification-team-dashboard.controller';
+import { CertificationTeamDashboardService } from './certification-team-dashboard.service';
 
 @Module({
   imports: [
@@ -53,9 +55,11 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationDashboardController,
     CertificationRunsController,
     CertificationTeamRunsController,
+    CertificationTeamDashboardController,
   ],
   providers: [
     CertificationDashboardService,
+    CertificationTeamDashboardService,
     CertificationService,
     CertificationRunsService,
     CertificationStepRunsService,
