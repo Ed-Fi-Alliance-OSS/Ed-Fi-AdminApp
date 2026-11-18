@@ -1,27 +1,18 @@
-import { Alert, AlertIcon, Box, Button, HStack, Spinner, Text } from '@chakra-ui/react';
+import { Alert, AlertIcon, Button, HStack, Spinner, Text } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { CERT_REVIEW_DECISION, CertReviewDecision } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useNavigate, useParams } from 'react-router';
-import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { routeDefinitions } from '../../routes/paths';
 import { toRunId } from '../CertificationV2/useCertificationRun';
 import { CertificationReviewDecisionModal } from './CertificationReviewDecisionModal';
 import { CertificationReviewHeader } from './CertificationReviewHeader';
-import { CertificationReviewScenarios } from './CertificationReviewScenarios';
-import {
-  certificationReviewQueryKeys,
-  reviewSnapshotSource,
-  useCertificationReview,
-} from './useCertificationReview';
+import { CertificationReviewScenariosTable } from './CertificationReviewScenariosTable';
+import { certificationReviewQueryKeys } from './useCertificationReview';
+import { useReviewRun } from './useReviewRun';
 
-const TITLE = 'Review certification run';
-
-const REVIEW_CERTIFICATION: AuthorizeConfig = {
-  privilege: 'certification:review',
-  subject: { id: '__filtered__' },
-};
+export const REVIEW_PAGE_TITLE = 'Review certification run';
 
 const DECISION_BUTTONS: { decision: CertReviewDecision; label: string; colorScheme: string }[] = [
   { decision: CERT_REVIEW_DECISION.APPROVED, label: 'Approve', colorScheme: 'green' },
@@ -33,7 +24,10 @@ const DECISION_BUTTONS: { decision: CertReviewDecision; label: string; colorSche
   },
 ];
 
-/** A global admin reads a run's results and snapshots and decides it. Nothing here runs steps. */
+/**
+ * A global admin's overview of a run: its scenarios, with a way into each one's steps, and the
+ * decision. Nothing here runs steps.
+ */
 export const CertificationReviewPage = () => {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -42,14 +36,7 @@ export const CertificationReviewPage = () => {
   // Set after Request changes: the run is no longer readable, so the page must never fetch it again.
   const [isLeaving, setLeaving] = useState(false);
   const isLeavingRef = useRef(false);
-  // Until the privilege cache arrives authorize() is false, which must not read as "not allowed".
-  const privilegeCache = usePrivilegeCacheForConfig(REVIEW_CERTIFICATION);
-  const canReview = authorize({ queryClient, config: REVIEW_CERTIFICATION });
-  const { data, error, isLoading } = useCertificationReview(runId, canReview && !isLeaving);
-  const snapshotSource = useMemo(
-    () => (runId === undefined ? undefined : reviewSnapshotSource(runId)),
-    [runId],
-  );
+  const reviewRun = useReviewRun({ disabled: isLeaving });
 
   // Dropped only once the page is gone: removed while mounted, its observer would refetch a 404.
   useEffect(
@@ -61,28 +48,17 @@ export const CertificationReviewPage = () => {
     [queryClient, runId],
   );
 
-  // A failed privilege-cache request is not a denial either: show the real error.
-  const privilegeCacheError = privilegeCache.find((cache) => cache.error)?.error;
-  if (privilegeCacheError) {
-    throw privilegeCacheError;
-  }
-
-  if (privilegeCache.some((cache) => cache.isLoading)) {
+  if (reviewRun.state === 'loading') {
     return (
-      <PageTemplate title={TITLE}>
+      <PageTemplate title={REVIEW_PAGE_TITLE}>
         <Spinner />
       </PageTemplate>
     );
   }
 
-  if (!canReview) {
-    // Caught by the route errorElement (ErrorFallback), which displays the message.
-    throw new Error('Not allowed');
-  }
-
-  if (runId === undefined || !snapshotSource) {
+  if (reviewRun.state === 'notFound') {
     return (
-      <PageTemplate title={TITLE}>
+      <PageTemplate title={REVIEW_PAGE_TITLE}>
         <Alert status="warning">
           <AlertIcon />
           This certification run wasn&apos;t found.
@@ -91,18 +67,7 @@ export const CertificationReviewPage = () => {
     );
   }
 
-  if (error && !data) {
-    // A failed request is not a denial: show the real error, not "Not allowed".
-    throw error;
-  }
-
-  if (isLoading || !data) {
-    return (
-      <PageTemplate title={TITLE}>
-        <Spinner />
-      </PageTemplate>
-    );
-  }
+  const { data, isUnavailable } = reviewRun;
 
   const onDecided = (decided: CertReviewDecision) => {
     if (decided === CERT_REVIEW_DECISION.CHANGES_REQUESTED) {
@@ -117,11 +82,8 @@ export const CertificationReviewPage = () => {
     setDecision(null);
   };
 
-  // A refetch failed while the run is cached (another reviewer moved it on): keep it readable.
-  const isUnavailable = Boolean(error);
-
   return (
-    <PageTemplate title={TITLE}>
+    <PageTemplate title={REVIEW_PAGE_TITLE}>
       {isUnavailable && (
         <Alert status="warning" mb={4}>
           <AlertIcon />
@@ -144,15 +106,10 @@ export const CertificationReviewPage = () => {
         </HStack>
       )}
 
-      <Box p={4} border="1px solid" borderColor="gray.200" borderRadius="md">
-        <Text mb={3} fontWeight="semibold">
-          Scenarios
-        </Text>
-        <CertificationReviewScenarios scenarios={data.scenarios} snapshotSource={snapshotSource} />
-      </Box>
+      <CertificationReviewScenariosTable runId={reviewRun.runId} scenarios={data.scenarios} />
 
       <CertificationReviewDecisionModal
-        runId={runId}
+        runId={reviewRun.runId}
         decision={isUnavailable ? null : decision}
         onClose={() => setDecision(null)}
         onDecided={onDecided}

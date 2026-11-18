@@ -2,9 +2,8 @@ import 'reflect-metadata';
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { CertificationReviewDto, CertReviewDecision } from '@edanalytics/models';
 import { authorize, usePrivilegeCacheForConfig } from '../../helpers';
-import { useCertificationStepSnapshot } from '../CertificationV2/useCertificationStepSnapshot';
 import { CertificationReviewPage } from './CertificationReviewPage';
-import { reviewSnapshotSource, useCertificationReview } from './useCertificationReview';
+import { useCertificationReview } from './useCertificationReview';
 
 const mockNavigate = jest.fn();
 let mockParams: { runId?: string } = { runId: '7' };
@@ -42,12 +41,16 @@ jest.mock('./useCertificationReview', () => ({
   certificationReviewQueryKeys: { review: (runId: number) => ['certification', 'review', runId] },
 }));
 
-jest.mock('../CertificationV2/useCertificationRun', () => ({
-  toRunId: (value: string | undefined) => Number(value) || undefined,
+jest.mock('../CertificationV2/useCertificationStepSnapshot', () => ({
+  useCertificationStepSnapshot: jest.fn(() => ({
+    snapshot: undefined,
+    isPending: false,
+    isError: false,
+  })),
 }));
 
-jest.mock('../CertificationV2/useCertificationStepSnapshot', () => ({
-  useCertificationStepSnapshot: jest.fn(),
+jest.mock('../CertificationV2/useCertificationRun', () => ({
+  toRunId: (value: string | undefined) => Number(value) || undefined,
 }));
 
 // The modal has its own spec; here it only shows which decision is open and reports one.
@@ -73,7 +76,6 @@ jest.mock('./CertificationReviewDecisionModal', () => ({
 const mockAuthorize = authorize as jest.Mock;
 const mockCache = usePrivilegeCacheForConfig as jest.Mock;
 const mockReview = useCertificationReview as jest.Mock;
-const mockSnapshot = useCertificationStepSnapshot as jest.Mock;
 
 const review = (
   run: Partial<CertificationReviewDto['run']> = {},
@@ -143,17 +145,10 @@ const fact = (label: string) =>
     .getByText(label)
     .closest('div')?.textContent;
 
-// The accordion panel animates open, so its steps appear asynchronously.
-const openStep = async (scenario: RegExp, step: string) => {
-  fireEvent.click(screen.getByRole('button', { name: scenario }));
-  fireEvent.click(await screen.findByRole('button', { name: step }));
-};
-
 describe('CertificationReviewPage', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     mockParams = { runId: '7' };
-    mockSnapshot.mockReturnValue({ snapshot: undefined, isPending: false, isError: false });
   });
 
   it('shows a spinner while the privilege cache loads', () => {
@@ -215,25 +210,81 @@ describe('CertificationReviewPage', () => {
     expect(fact('Sent')).toBe('Sent—');
   });
 
-  it('has no Run button and no credentials form', async () => {
+  it('has no Run button and no credentials form', () => {
     setup(review());
     render(<CertificationReviewPage />);
-    await openStep(/Enroll a student/, 'Create the student');
 
     expect(screen.queryByRole('button', { name: /^(Run|Execute)/ })).toBeNull();
     expect(screen.queryByText(/Client ID|Client secret|Authenticate/i)).toBeNull();
   });
 
-  it('groups the scenarios by domain with their status', () => {
+  it('lists the scenarios in a table with tasks verified and a Passed status', () => {
     setup(review());
     render(<CertificationReviewPage />);
 
-    expect(screen.getByRole('heading', { name: 'Enrollment' })).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Staff' })).toBeTruthy();
-    const enroll = screen.getByRole('button', { name: /Enroll a student/ });
-    expect(within(enroll).getByText('Successful')).toBeTruthy();
-    const hire = screen.getByRole('button', { name: /Hire a teacher/ });
+    const table = screen.getByRole('table', { name: 'Scenarios' });
+    expect(
+      within(table)
+        .getAllByRole('columnheader')
+        .map((th) => th.textContent),
+    ).toEqual(['Domain', 'Scenario', 'Tasks verified', 'Status', 'Action']);
+    const enroll = within(table).getByText('Enroll a student').closest('tr') as HTMLElement;
+    expect(within(enroll).getByText('Enrollment')).toBeTruthy();
+    expect(within(enroll).getByText('0 of 2')).toBeTruthy();
+    expect(within(enroll).getByText('Passed')).toBeTruthy();
+    const hire = within(table).getByText('Hire a teacher').closest('tr') as HTMLElement;
+    expect(within(hire).getByText('0 of 0')).toBeTruthy();
     expect(within(hire).getByText('Not executed')).toBeTruthy();
+    expect(screen.queryByText('Successful')).toBeNull();
+  });
+
+  it('filters the scenarios by domain, and All domains shows them all again', () => {
+    setup(review());
+    render(<CertificationReviewPage />);
+    const filter = screen.getByLabelText('Domain Filter');
+
+    fireEvent.change(filter, { target: { value: 'Staff' } });
+    expect(screen.queryByText('Enroll a student')).toBeNull();
+    expect(screen.getByText('Hire a teacher')).toBeTruthy();
+
+    fireEvent.change(filter, { target: { value: '' } });
+    expect(screen.getByText('Enroll a student')).toBeTruthy();
+    expect(screen.getByText('Hire a teacher')).toBeTruthy();
+  });
+
+  it('lists the domains in the order the scenarios come', () => {
+    setup(review());
+    render(<CertificationReviewPage />);
+    const options = within(screen.getByLabelText('Domain Filter')).getAllByRole('option');
+    expect(options.map((option) => option.textContent)).toEqual([
+      'All domains',
+      'Enrollment',
+      'Staff',
+    ]);
+  });
+
+  it('keeps the selected domain when the run refetches', () => {
+    setup(review());
+    const { rerender } = render(<CertificationReviewPage />);
+    fireEvent.change(screen.getByLabelText('Domain Filter'), { target: { value: 'Staff' } });
+
+    setup(review({ status: 'APPROVED', canDecide: false }));
+    rerender(<CertificationReviewPage />);
+
+    expect((screen.getByLabelText('Domain Filter') as HTMLSelectElement).value).toBe('Staff');
+    expect(screen.queryByText('Enroll a student')).toBeNull();
+    expect(screen.getByText('Hire a teacher')).toBeTruthy();
+  });
+
+  it('says so when the selected domain has no scenarios after a refetch', () => {
+    setup(review());
+    const { rerender } = render(<CertificationReviewPage />);
+    fireEvent.change(screen.getByLabelText('Domain Filter'), { target: { value: 'Staff' } });
+
+    setup(review({}, [review().scenarios[0]]));
+    rerender(<CertificationReviewPage />);
+
+    expect(screen.getByText('No scenarios found for the current filters.')).toBeTruthy();
   });
 
   it('says so when the run has no scenarios', () => {
@@ -242,51 +293,20 @@ describe('CertificationReviewPage', () => {
     expect(screen.getByText('This run has no scenarios to show.')).toBeTruthy();
   });
 
-  it('shows the selected step result and the snapshot panel read through the review source', async () => {
+  it('opens the steps page of a scenario from View steps', () => {
     setup(review());
     render(<CertificationReviewPage />);
-    await openStep(/Enroll a student/, 'Create the student');
-
-    expect(screen.getByText('Execution result')).toBeTruthy();
-    expect(screen.getByText('Boom')).toBeTruthy();
-    expect(reviewSnapshotSource).toHaveBeenCalledWith(7);
-
-    fireEvent.click(screen.getByRole('button', { name: /View response details/ }));
-    expect(mockSnapshot).toHaveBeenLastCalledWith(
-      expect.objectContaining({ source: mockSource, stepId: 5, enabled: true }),
-    );
+    const enroll = screen.getByText('Enroll a student').closest('tr') as HTMLElement;
+    fireEvent.click(within(enroll).getByRole('button', { name: 'View steps' }));
+    expect(mockNavigate).toHaveBeenCalledWith('/certification/runs/7/review/steps?scenarioId=1');
   });
 
-  it('shows a step that never ran as not executed', async () => {
-    setup(review());
+  it('shows the warning and hides the decisions when the run is no longer available', () => {
+    setup(review(), { error: { statusCode: 404, message: 'Not Found' } });
     render(<CertificationReviewPage />);
-    await openStep(/Enroll a student/, 'Never ran');
-
-    expect(screen.getByText("This step wasn't run.")).toBeTruthy();
-    expect(screen.queryByText('Execute this step to see its result.')).toBeNull();
-    expect(screen.queryByRole('button', { name: /View response details/ })).toBeNull();
-  });
-
-  it('shows each step with its pass, fail or not-run status', async () => {
-    setup(review());
-    render(<CertificationReviewPage />);
-    fireEvent.click(screen.getByRole('button', { name: /Enroll a student/ }));
-    const created = await screen.findByRole('button', { name: 'Create the student' });
-    const never = screen.getByRole('button', { name: 'Never ran' });
-
-    expect(within(created.parentElement as HTMLElement).getByText('Failed')).toBeTruthy();
-    expect(within(never.parentElement as HTMLElement).getByText('Not executed')).toBeTruthy();
-  });
-
-  it('shows "couldn\'t be loaded" when the snapshot request fails, and keeps working', async () => {
-    setup(review());
-    mockSnapshot.mockReturnValue({ snapshot: undefined, isPending: false, isError: true });
-    render(<CertificationReviewPage />);
-    await openStep(/Enroll a student/, 'Create the student');
-    fireEvent.click(screen.getByRole('button', { name: /View response details/ }));
-
-    expect(screen.getByText("The response couldn't be loaded.")).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Review certification run' })).toBeTruthy();
+    expect(screen.getByText('This run is no longer available for review.')).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+    expect(screen.getByText('Enroll a student')).toBeTruthy();
   });
 
   it('shows Approve, Reject and Request changes when the run can be decided', () => {
