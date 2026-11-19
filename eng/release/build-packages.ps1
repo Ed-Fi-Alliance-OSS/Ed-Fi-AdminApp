@@ -47,10 +47,10 @@ function Invoke-Native {
 }
 
 function Get-DotnetTool {
-  param([string]$Name, [string]$Package)
+  param([string]$Name, [string]$Package, [string]$Version)
   $tool = Get-Command $Name -ErrorAction SilentlyContinue
   if (-not $tool) {
-    Invoke-Native dotnet @('tool', 'install', '--global', $Package) | Out-Host
+    Invoke-Native dotnet @('tool', 'install', '--global', $Package, '--version', $Version) | Out-Host
     # A fresh install may not be on PATH yet in the current session.
     return Join-Path $HOME ".dotnet/tools/$Name"
   }
@@ -61,7 +61,8 @@ $repoRoot = Resolve-Path (Join-Path $PSScriptRoot '../..')
 Push-Location $repoRoot
 try {
   if (-not $Version) {
-    $minver = Get-DotnetTool -Name minver -Package minver-cli
+    # Pinned: this job holds id-token: write, so it must not pick up a new release unreviewed.
+    $minver = Get-DotnetTool -Name minver -Package minver-cli -Version 8.0.0
     # Let minver run on a newer .NET runtime when its target runtime is not installed.
     $rollForward = $env:DOTNET_ROLL_FORWARD
     $env:DOTNET_ROLL_FORWARD = 'Major'
