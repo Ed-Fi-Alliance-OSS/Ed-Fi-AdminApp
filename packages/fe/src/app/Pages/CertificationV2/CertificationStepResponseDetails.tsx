@@ -3,8 +3,8 @@ import { CertificationSavedStepRunDto, CertificationStepSnapshotDto } from '@eda
 import { useState } from 'react';
 import { httpStatusColorScheme, httpStatusLabel } from './certificationStepResults';
 import {
+  CertificationSnapshotSource,
   useCertificationStepSnapshot,
-  UseCertificationStepSnapshotArgs,
 } from './useCertificationStepSnapshot';
 
 export const SNAPSHOT_DISCLAIMER =
@@ -42,16 +42,16 @@ const SnapshotContent = ({
 export const CertificationStepResponseDetails = ({
   run,
   isRunning,
-  snapshotArgs,
+  snapshotSource,
 }: {
   run: CertificationSavedStepRunDto | undefined;
   isRunning: boolean;
-  snapshotArgs: Omit<UseCertificationStepSnapshotArgs, 'enabled' | 'stepId' | 'ranAt'>;
+  snapshotSource: CertificationSnapshotSource | undefined;
 }) => {
   const [isOpen, setOpen] = useState(false);
   const shownRun = isRunning ? undefined : run;
   const snapshot = useCertificationStepSnapshot({
-    ...snapshotArgs,
+    source: snapshotSource,
     stepId: shownRun?.stepId,
     ranAt: shownRun?.ranAt,
     enabled: isOpen && shownRun !== undefined,

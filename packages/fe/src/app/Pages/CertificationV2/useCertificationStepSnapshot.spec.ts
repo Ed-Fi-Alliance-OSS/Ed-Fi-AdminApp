@@ -4,7 +4,11 @@ import { useQuery } from '@tanstack/react-query';
 import { CertificationStepSnapshotDto } from '@edanalytics/models';
 import { methods } from '../../api';
 import { certificationQueryKeys } from './useCertificationCatalog';
-import { useCertificationStepSnapshot } from './useCertificationStepSnapshot';
+import {
+  CertificationSnapshotSource,
+  teamSnapshotSource,
+  useCertificationStepSnapshot,
+} from './useCertificationStepSnapshot';
 
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
 jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
@@ -12,11 +16,9 @@ jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
 type QueryOptions = { queryKey: unknown[]; enabled?: boolean; queryFn: () => unknown };
 
 const args = {
-  teamId: 2,
-  edfiTenantId: 10 as number | undefined,
+  source: teamSnapshotSource(2, 10, 7) as CertificationSnapshotSource | undefined,
   stepId: 189 as number | undefined,
   ranAt: '2026-10-15T15:00:00.000Z' as string | undefined,
-  runId: 7 as number | undefined,
   enabled: true,
 };
 
@@ -67,10 +69,26 @@ describe('useCertificationStepSnapshot', () => {
     ]);
   });
 
-  it('stays disabled while the step, tenant or run is unknown', () => {
+  it('stays disabled while the step or the source is unknown', () => {
     expect(render({ stepId: undefined }).options.enabled).toBe(false);
-    expect(render({ edfiTenantId: undefined }).options.enabled).toBe(false);
-    expect(render({ runId: undefined }).options.enabled).toBe(false);
+    expect(render({ source: undefined }).options.enabled).toBe(false);
+    expect(render({ source: teamSnapshotSource(2, undefined, 7) }).options.enabled).toBe(false);
+    expect(render({ source: teamSnapshotSource(2, 10, undefined) }).options.enabled).toBe(false);
+  });
+
+  it('reads from any source it is given', async () => {
+    const source: CertificationSnapshotSource = {
+      url: (stepId) => `certification/runs/5/step-runs/${stepId}/snapshot`,
+      queryKey: (stepId, ranAt) => ['review', 5, stepId, ranAt],
+    };
+    const { options } = render({ source });
+    await options.queryFn();
+
+    expect(methods.getOne).toHaveBeenCalledWith(
+      'certification/runs/5/step-runs/189/snapshot',
+      CertificationStepSnapshotDto,
+    );
+    expect(options.queryKey).toEqual(['review', 5, 189, '2026-10-15T15:00:00.000Z']);
   });
 
   it('returns the snapshot and its loading and error state', () => {

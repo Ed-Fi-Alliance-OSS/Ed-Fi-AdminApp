@@ -1,7 +1,9 @@
 import {
   CatalogVersion,
   CertificationRun,
+  CertificationRunComment,
   CertificationRunScenario,
+  DomainCatalog,
   EdfiTenant,
   Ods,
   SbEnvironment,
@@ -17,6 +19,8 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationDashboardController } from './certification-dashboard.controller';
 import { CertificationDashboardService } from './certification-dashboard.service';
+import { CertificationReviewController } from './certification-review.controller';
+import { CertificationReviewService } from './certification-review.service';
 import { CertificationController } from './certification.controller';
 import {
   CertificationRunsController,
@@ -37,9 +41,11 @@ import { CertificationTokenService } from './certification-token.service';
       Ods,
       EdfiTenant,
       SbEnvironment,
+      DomainCatalog,
       ScenarioCatalog,
       StepCatalog,
       CertificationRun,
+      CertificationRunComment,
       CertificationRunScenario,
       ScenarioStep,
       ScenarioStepError,
@@ -51,11 +57,13 @@ import { CertificationTokenService } from './certification-token.service';
     CertificationTokenController,
     CertificationCatalogController,
     CertificationDashboardController,
+    CertificationReviewController,
     CertificationRunsController,
     CertificationTeamRunsController,
   ],
   providers: [
     CertificationDashboardService,
+    CertificationReviewService,
     CertificationService,
     CertificationRunsService,
     CertificationStepRunsService,

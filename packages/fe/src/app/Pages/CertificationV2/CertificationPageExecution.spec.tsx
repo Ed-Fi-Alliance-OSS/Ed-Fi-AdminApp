@@ -59,6 +59,7 @@ jest.mock('./useCertificationScenarioStatuses', () => ({
   useCertificationScenarioStatuses: jest.fn(),
 }));
 jest.mock('./useCertificationStepSnapshot', () => ({
+  teamSnapshotSource: () => undefined,
   useCertificationStepSnapshot: () => ({ snapshot: undefined, isPending: false, isError: false }),
 }));
 jest.mock('../../api-v2/useRunCertificationStep', () => ({ useRunCertificationStep: jest.fn() }));

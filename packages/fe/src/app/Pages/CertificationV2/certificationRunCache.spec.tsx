@@ -5,7 +5,7 @@ import { CertificationStepRunsDto } from '@edanalytics/models';
 import { ReactNode } from 'react';
 import { methods } from '../../api';
 import { useCertificationStepRuns } from './useCertificationStepRuns';
-import { useCertificationStepSnapshot } from './useCertificationStepSnapshot';
+import { teamSnapshotSource, useCertificationStepSnapshot } from './useCertificationStepSnapshot';
 
 jest.mock('../../api', () => ({ methods: { getOne: jest.fn() } }));
 
@@ -73,11 +73,10 @@ describe('certification result caches (real QueryClient)', () => {
       const { result, rerender } = renderHook(
         (props) =>
           useCertificationStepSnapshot({
-            ...scope,
+            source: teamSnapshotSource(scope.teamId, scope.edfiTenantId, props.runId),
             stepId: 189,
             ranAt: priorStep.ranAt,
             enabled: true,
-            ...props,
           }),
         { wrapper, initialProps },
       );
