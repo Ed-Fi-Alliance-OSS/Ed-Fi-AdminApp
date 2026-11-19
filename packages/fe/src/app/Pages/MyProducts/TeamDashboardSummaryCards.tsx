@@ -24,7 +24,7 @@ export const TeamDashboardSummaryCards = ({
         borderRadius="md"
         p={4}
         bg={counts ? undefined : 'gray.50'}
-        color={counts ? undefined : 'gray.400'}
+        color={counts ? undefined : 'gray.600'}
       >
         <Stat>
           <StatLabel>{label}</StatLabel>

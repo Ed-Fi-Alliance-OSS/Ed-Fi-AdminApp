@@ -117,6 +117,18 @@ describe('MyProductsPage', () => {
     expect(screen.queryByTestId('request-modal')).toBeNull();
   });
 
+  it('throws the dashboard error, not "Not allowed", when the dashboard request fails', () => {
+    mockUseCanSee.mockReturnValue({ canSee: true, canRun: true, isLoading: false, error: null });
+    mockUseDashboard.mockReturnValue({
+      data: undefined,
+      isLoading: false,
+      error: new Error('Dashboard request failed'),
+    });
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    expect(() => render(<MyProductsPage />)).toThrow('Dashboard request failed');
+    spy.mockRestore();
+  });
+
   it('offers no button while the access check is loading', () => {
     mockUseCanSee.mockReturnValue({ canSee: false, isLoading: true, error: null });
     render(<MyProductsPage />);

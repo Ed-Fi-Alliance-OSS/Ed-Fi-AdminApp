@@ -35,7 +35,11 @@ export const DataStoreCard = ({
             >
               {CERT_RUN_STATUS_LABELS[run.status]}
             </Badge>
-            <Link as={RouterLink} to={certificationRunPath(teamId, run.runId)}>
+            <Link
+              as={RouterLink}
+              to={certificationRunPath(teamId, run.runId)}
+              aria-label={`Open ${run.certificationModel} run on ${dataStore.dataStoreName}`}
+            >
               Open
             </Link>
           </Flex>
