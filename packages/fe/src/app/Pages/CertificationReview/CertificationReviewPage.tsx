@@ -1,4 +1,4 @@
-import { Alert, AlertIcon, Button, HStack, Spinner, Text } from '@chakra-ui/react';
+import { Alert, AlertIcon, Button, HStack, Spinner } from '@chakra-ui/react';
 import { PageTemplate } from '@edanalytics/common-ui';
 import { CERT_REVIEW_DECISION, CertReviewDecision } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
@@ -10,6 +10,7 @@ import { CertificationReviewDecisionModal } from './CertificationReviewDecisionM
 import { CertificationReviewHeader } from './CertificationReviewHeader';
 import { CertificationReviewScenariosTable } from './CertificationReviewScenariosTable';
 import { REVIEW_PAGE_TITLE } from './reviewDisplay';
+import { ReviewRunAlert } from './ReviewRunAlert';
 import { certificationReviewQueryKeys } from './useCertificationReview';
 import { useReviewRun } from './useReviewRun';
 
@@ -83,15 +84,11 @@ export const CertificationReviewPage = () => {
 
   return (
     <PageTemplate title={REVIEW_PAGE_TITLE}>
-      {isUnavailable && (
-        <Alert status="warning" mb={4}>
-          <AlertIcon />
-          <Text flex="1">This run is no longer available for review.</Text>
-          <Button size="sm" onClick={() => navigate(routeDefinitions.certificationDashboard.index)}>
-            Back to the Certification dashboard
-          </Button>
-        </Alert>
-      )}
+      <ReviewRunAlert
+        isUnavailable={isUnavailable}
+        refetchFailed={reviewRun.refetchFailed}
+        retry={reviewRun.retry}
+      />
 
       <CertificationReviewHeader run={data.run} />
 

@@ -17,13 +17,14 @@ import {
 import { PageTemplate } from '@edanalytics/common-ui';
 import { useState } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { certificationReviewPath, routeDefinitions } from '../../routes/paths';
+import { certificationReviewPath } from '../../routes/paths';
 import { CertificationStatusIndicator } from '../CertificationV2/CertificationStatusIndicator';
 import { CertificationStepResponseDetails } from '../CertificationV2/CertificationStepResponseDetails';
 import { CertificationStepResult } from '../CertificationV2/CertificationStepResult';
 import { toDisplayStatus } from '../CertificationV2/certificationStepResults';
 import { CertificationReviewHeader } from './CertificationReviewHeader';
 import { REVIEW_PAGE_TITLE, REVIEW_STEP_STATUS_DISPLAY } from './reviewDisplay';
+import { ReviewRunAlert } from './ReviewRunAlert';
 import { useReviewRun } from './useReviewRun';
 
 /** The scenario of the address (`?scenarioId=`), or undefined when it isn't a positive whole number. */
@@ -106,15 +107,11 @@ export const CertificationReviewStepsPage = () => {
 
   return (
     <PageTemplate title={REVIEW_PAGE_TITLE}>
-      {isUnavailable && (
-        <Alert status="warning" mb={4}>
-          <AlertIcon />
-          <Text flex="1">This run is no longer available for review.</Text>
-          <Button size="sm" onClick={() => navigate(routeDefinitions.certificationDashboard.index)}>
-            Back to the Certification dashboard
-          </Button>
-        </Alert>
-      )}
+      <ReviewRunAlert
+        isUnavailable={isUnavailable}
+        refetchFailed={reviewRun.refetchFailed}
+        retry={reviewRun.retry}
+      />
 
       <CertificationReviewHeader run={data.run} />
 

@@ -33,6 +33,7 @@ jest.mock('../CertificationV2/useCertificationRun', () => ({
 const mockAuthorize = authorize as jest.Mock;
 const mockCache = usePrivilegeCacheForConfig as jest.Mock;
 const mockReview = useCertificationReview as jest.Mock;
+const mockRefetch = jest.fn();
 
 const data = { run: { runId: 7 }, scenarios: [] } as unknown as CertificationReviewDto;
 
@@ -47,6 +48,7 @@ const setup = ({
   mockReview.mockReturnValue({
     ...review,
     isLoading: review.data === undefined && !review.error,
+    refetch: mockRefetch,
   });
 };
 
@@ -106,15 +108,38 @@ describe('useReviewRun', () => {
       runId: 7,
       data,
       isUnavailable: false,
+      refetchFailed: false,
+      retry: expect.any(Function),
       snapshotSource: mockSource,
     });
     expect(mockReview).toHaveBeenCalledWith(7, true);
   });
 
-  it('keeps the cached run and flags it unavailable when a refetch fails', () => {
+  it('keeps the cached run and flags it unavailable when a refetch gets a 404', () => {
     setup({ review: { data, error: { statusCode: 404, message: 'Not Found' } } });
     const { result } = renderHook(() => useReviewRun());
-    expect(result.current).toMatchObject({ state: 'ready', data, isUnavailable: true });
+    expect(result.current).toMatchObject({
+      state: 'ready',
+      data,
+      isUnavailable: true,
+      refetchFailed: false,
+    });
+  });
+
+  it.each([
+    ['a server error', { statusCode: 500, message: 'Internal server error' }],
+    ['a dropped connection', new TypeError('Failed to fetch')],
+  ])('keeps the cached run and offers a retry when a refetch fails with %s', (_, error) => {
+    setup({ review: { data, error } });
+    const { result } = renderHook(() => useReviewRun());
+    expect(result.current).toMatchObject({
+      state: 'ready',
+      data,
+      isUnavailable: false,
+      refetchFailed: true,
+    });
+    if (result.current.state === 'ready') result.current.retry();
+    expect(mockRefetch).toHaveBeenCalledTimes(1);
   });
 
   it('stops fetching the run when disabled', () => {

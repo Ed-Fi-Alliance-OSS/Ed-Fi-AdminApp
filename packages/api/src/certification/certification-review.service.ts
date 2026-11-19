@@ -39,6 +39,13 @@ export interface DecideParams {
   userId: number | null;
 }
 
+/** The status each decision moves an In review run to. */
+const DECISION_STATUS: Record<CertReviewDecision, CertRunStatus> = {
+  [CERT_REVIEW_DECISION.APPROVED]: CERT_RUN_STATUS.APPROVED,
+  [CERT_REVIEW_DECISION.REJECTED]: CERT_RUN_STATUS.REJECTED,
+  [CERT_REVIEW_DECISION.CHANGES_REQUESTED]: CERT_RUN_STATUS.CHANGES_REQUESTED,
+};
+
 /** The catalog's name for an item, as the vendor pages show it. */
 const nameOf = (displayName: string | null, name: string) => displayName?.trim() || name;
 
@@ -96,7 +103,7 @@ export class CertificationReviewService {
     // Only for the 404; the guarded update below is what refuses a run that isn't In review.
     await this.findRunStatus(runId);
 
-    const to = decision as CertRunStatus;
+    const to = DECISION_STATUS[decision];
     await this.dataSource.transaction(async (em) => {
       await transitionRun(em, runId, CERT_RUN_STATUS.IN_REVIEW, to);
       const comments = em.getRepository(CertificationRunComment);

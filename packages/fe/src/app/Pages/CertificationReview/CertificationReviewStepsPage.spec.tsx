@@ -92,6 +92,8 @@ const ready = (overrides: Partial<Extract<ReviewRun, { state: 'ready' }>> = {}):
   runId: 7,
   data,
   isUnavailable: false,
+  refetchFailed: false,
+  retry: jest.fn(),
   snapshotSource: mockSource,
   ...overrides,
 });
@@ -221,6 +223,18 @@ describe('CertificationReviewStepsPage', () => {
     mockReviewRun.mockReturnValue({ state: 'notFound' });
     render(<CertificationReviewStepsPage />);
     expect(screen.getByText("This certification run wasn't found.")).toBeTruthy();
+  });
+
+  it('offers a retry when a refetch fails, and keeps the steps readable', () => {
+    const retry = jest.fn();
+    mockReviewRun.mockReturnValue(ready({ refetchFailed: true, retry }));
+    render(<CertificationReviewStepsPage />);
+    expect(
+      screen.getByText("This run couldn't be refreshed. What you see may be out of date."),
+    ).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(retry).toHaveBeenCalled();
+    expect(stepRow('Create the student')).toBeTruthy();
   });
 
   it('warns when the run is no longer available, and keeps the steps readable', () => {

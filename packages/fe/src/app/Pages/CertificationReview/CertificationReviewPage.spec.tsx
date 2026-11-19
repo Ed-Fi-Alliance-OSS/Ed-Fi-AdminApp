@@ -90,6 +90,7 @@ jest.mock('./CertificationReviewDecisionModal', () => ({
 const mockAuthorize = authorize as jest.Mock;
 const mockCache = usePrivilegeCacheForConfig as jest.Mock;
 const mockReview = useCertificationReview as jest.Mock;
+const mockRefetch = jest.fn();
 
 const review = (
   run: Partial<CertificationReviewDto['run']> = {},
@@ -142,7 +143,12 @@ const setup = (
 ) => {
   mockCache.mockReturnValue([{ isLoading: cacheLoading }]);
   mockAuthorize.mockReturnValue(canReview);
-  mockReview.mockReturnValue({ data, error, isLoading: data === undefined && !error });
+  mockReview.mockReturnValue({
+    data,
+    error,
+    isLoading: data === undefined && !error,
+    refetch: mockRefetch,
+  });
 };
 
 const quiet = (fn: () => void) => {
@@ -363,6 +369,18 @@ describe('CertificationReviewPage', () => {
     expect(screen.getByText('This run is no longer available for review.')).toBeTruthy();
     expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
     expect(screen.getByText('Enroll a student')).toBeTruthy();
+  });
+
+  it('offers a retry and keeps the decisions when a refetch fails for another reason', () => {
+    setup(review(), { error: { statusCode: 500, message: 'Internal server error' } });
+    render(<CertificationReviewPage />);
+    expect(screen.queryByText('This run is no longer available for review.')).toBeNull();
+    expect(
+      screen.getByText("This run couldn't be refreshed. What you see may be out of date."),
+    ).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Approve' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Try again' }));
+    expect(mockRefetch).toHaveBeenCalled();
   });
 
   it('shows Approve, Reject and Request changes when the run can be decided', () => {
