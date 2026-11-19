@@ -1,4 +1,4 @@
-import { Box, Flex, Heading, Link, Text } from '@chakra-ui/react';
+import { Badge, Box, Code, Divider, Flex, Heading, Link, Text } from '@chakra-ui/react';
 import { CERT_RUN_STATUS_LABELS, CertificationTeamDashboardDataStoreDto } from '@edanalytics/models';
 import { Link as RouterLink } from 'react-router';
 import { certificationRunPath } from '../../routes/paths';
@@ -15,17 +15,32 @@ export const DataStoreCard = ({
     <Heading as="h3" size="sm">
       {dataStore.dataStoreName}
     </Heading>
-    <Text color="gray.600" mb={3}>
-      {dataStore.environmentName} / {dataStore.tenantName}
-    </Text>
+    <Flex align="center" gap={2} mt={1} mb={3} color="gray.600" wrap="wrap">
+      <Code>{dataStore.environmentName}</Code>
+      <Code>{dataStore.tenantName}</Code>
+    </Flex>
     {dataStore.runs.map((run) => (
-      <Flex key={run.runId} justify="space-between" align="center" py={1} gap={4}>
-        <Text fontWeight="semibold">{run.certificationModel}</Text>
-        <Text flex="1">{CERT_RUN_STATUS_LABELS[run.status]}</Text>
-        <Link as={RouterLink} to={certificationRunPath(teamId, run.runId)}>
-          Open
-        </Link>
-      </Flex>
+      <Box key={run.runId}>
+        <Divider />
+        <Flex justify="space-between" align="center" py={3} gap={4}>
+          <Text fontWeight="semibold">{run.certificationModel}</Text>
+          <Flex align="center" gap={4}>
+            <Badge
+              colorScheme="gray"
+              borderRadius="full"
+              px={3}
+              py={1}
+              textTransform="none"
+              fontWeight="semibold"
+            >
+              {CERT_RUN_STATUS_LABELS[run.status]}
+            </Badge>
+            <Link as={RouterLink} to={certificationRunPath(teamId, run.runId)}>
+              Open
+            </Link>
+          </Flex>
+        </Flex>
+      </Box>
     ))}
   </Box>
 );

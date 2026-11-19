@@ -30,6 +30,13 @@ jest.mock('./DataStoreCard', () => ({
 
 jest.mock('@edanalytics/common-ui', () => ({
   Icons: { Plus: () => null },
+  PageContentCard: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  ContentSection: ({ heading, children }: { heading: string; children: React.ReactNode }) => (
+    <section>
+      <h2>{heading}</h2>
+      {children}
+    </section>
+  ),
   // Renders each action as a plain button, the way the real action bar does.
   PageActions: ({
     actions,

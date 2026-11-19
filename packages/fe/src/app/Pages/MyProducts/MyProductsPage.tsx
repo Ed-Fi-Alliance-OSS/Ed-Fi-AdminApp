@@ -1,5 +1,11 @@
 import { SimpleGrid, Spinner, Text, useDisclosure } from '@chakra-ui/react';
-import { Icons, PageActions, PageTemplate } from '@edanalytics/common-ui';
+import {
+  ContentSection,
+  Icons,
+  PageActions,
+  PageContentCard,
+  PageTemplate,
+} from '@edanalytics/common-ui';
 import { useParams } from 'react-router';
 import { DataStoreCard } from './DataStoreCard';
 import { RequestCertificationModal } from './RequestCertificationModal';
@@ -52,6 +58,7 @@ export const MyProductsPage = () => {
   return (
     <PageTemplate
       title="My products"
+      customPageContentCard
       // Starting a run needs certification:run, which a read-only role doesn't have.
       actions={
         canRun ? (
@@ -68,29 +75,37 @@ export const MyProductsPage = () => {
         ) : undefined
       }
     >
-      {!canRun && (
-        <Text color="gray.600">
-          You can view certifications for your team, but your role can&apos;t start a certification
-          run.
-        </Text>
-      )}
-      <TeamDashboardSummaryCards counts={isEmpty ? null : counts} />
-      {isEmpty ? (
-        <Text color="gray.600" mt={6}>
-          No certification runs yet.
-          {canRun && ' Use Request New Certification to start your first one.'}
-        </Text>
-      ) : (
-        <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4} mt={6}>
-          {dataStores.map((dataStore) => (
-            <DataStoreCard
-              key={`${dataStore.edfiTenantId}:${dataStore.odsId}`}
-              teamId={teamId}
-              dataStore={dataStore}
-            />
-          ))}
-        </SimpleGrid>
-      )}
+      <PageContentCard>
+        <ContentSection heading="Review status">
+          {!canRun && (
+            <Text color="gray.600" mb={4}>
+              You can view certifications for your team, but your role can&apos;t start a
+              certification run.
+            </Text>
+          )}
+          <TeamDashboardSummaryCards counts={isEmpty ? null : counts} />
+        </ContentSection>
+      </PageContentCard>
+      <PageContentCard>
+        <ContentSection heading="Products">
+          {isEmpty ? (
+            <Text color="gray.600">
+              No certification runs yet.
+              {canRun && ' Use Request New Certification to start your first one.'}
+            </Text>
+          ) : (
+            <SimpleGrid columns={{ base: 1, lg: 2 }} spacing={4}>
+              {dataStores.map((dataStore) => (
+                <DataStoreCard
+                  key={`${dataStore.edfiTenantId}:${dataStore.odsId}`}
+                  teamId={teamId}
+                  dataStore={dataStore}
+                />
+              ))}
+            </SimpleGrid>
+          )}
+        </ContentSection>
+      </PageContentCard>
       {/* Mounted only while open, so each opening starts empty and refetches the open runs. */}
       {requestModal.isOpen && (
         <RequestCertificationModal teamId={teamId} onClose={requestModal.onClose} />
