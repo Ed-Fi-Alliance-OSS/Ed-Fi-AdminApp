@@ -2,8 +2,10 @@
 --
 -- Marks every scenario of one certification run as completed, the way running every step
 -- successfully would, so "Send to Review" becomes enabled without running each scenario.
--- Only the scenario results are written (cert.certification_run_scenario). Step rows
--- (cert.scenario_step) are left alone, so a scenario's steps still show "not run" when opened.
+-- Both levels are written, so they agree the way a real run does: every enabled step gets a
+-- passed result (cert.scenario_step) and every scenario is completed
+-- (cert.certification_run_scenario). No response snapshot is written (the API encrypts it), so
+-- a step's response details show none.
 --
 -- "Every scenario" is what the API checks: enabled scenarios in enabled domains of the run's
 -- catalog version.
@@ -34,7 +36,25 @@ JOIN cert.scenario_catalog s ON s."domainId" = d."domainId" AND s."isEnabled"
 ON CONFLICT ("certificationRunId", "scenarioId")
 DO UPDATE SET "status" = 'completed', "updatedAt" = now();
 
--- 3. OPTIONAL: demo "Send it again after changes were requested". Uncomment to put the run in
+-- 3. Every enabled step of those scenarios passes, with errors from earlier failed runs removed.
+INSERT INTO cert.scenario_step
+  ("certificationRunId", "scenarioId", "stepId", "status", "inputs", "runAt", "responseStatus")
+SELECT r."certificationRunId", s."scenarioId", st."stepId", 'success', '{}'::jsonb, now(), 200
+FROM cert_demo_params p
+JOIN cert.certification_run r ON r."certificationRunId" = p.run_id
+JOIN cert.domain_catalog d ON d."catalogVersionId" = r."catalogVersionId" AND d."isEnabled"
+JOIN cert.scenario_catalog s ON s."domainId" = d."domainId" AND s."isEnabled"
+JOIN cert.step_catalog st ON st."scenarioId" = s."scenarioId" AND st."isEnabled"
+ON CONFLICT ("certificationRunId", "stepId")
+DO UPDATE SET "status" = 'success', "runAt" = now(), "responseStatus" = 200;
+
+DELETE FROM cert.scenario_step_error e
+USING cert.scenario_step ss, cert_demo_params p
+WHERE e."stepRunId" = ss."stepRunId"
+  AND ss."certificationRunId" = p.run_id
+  AND ss."status" = 'success';
+
+-- 4. OPTIONAL: demo "Send it again after changes were requested". Uncomment to put the run in
 --    Changes requested (normally a reviewer does this, AC-660). This skips the workflow rules.
 -- UPDATE cert.certification_run r
 -- SET "status" = 'CHANGES_REQUESTED', "updatedAt" = now()
@@ -43,7 +63,7 @@ DO UPDATE SET "status" = 'completed', "updatedAt" = now();
 
 COMMIT;
 
--- 4. Check: completed must equal enabled for Send to Review to be enabled.
+-- 5. Check: completed must equal enabled for Send to Review to be enabled.
 SELECT
   (SELECT count(*)
    FROM cert_demo_params p
@@ -75,5 +95,6 @@ SELECT
 --   UPDATE cert.certification_run SET "status" = 'DRAFT', "updatedAt" = now()
 --   WHERE "certificationRunId" = <runId>;
 --
--- Undo this script (removes every scenario result of the run, including real ones):
+-- Undo this script (removes every scenario and step result of the run, including real ones):
+--   DELETE FROM cert.scenario_step WHERE "certificationRunId" = <runId>;
 --   DELETE FROM cert.certification_run_scenario WHERE "certificationRunId" = <runId>;
