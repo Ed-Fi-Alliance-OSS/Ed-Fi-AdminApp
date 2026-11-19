@@ -92,6 +92,8 @@ jobs:
           SBOM_ZIP: ${{ steps.sbom-gen.outputs.zip-path }}
         run: |
           mkdir -p release-assets
+          # Attach the attested packages so consumers can verify what they download.
+          cp packages/api/AdminApp.Api-*.tgz packages/fe/AdminApp.FrontEnd-*.tgz release-assets/
           cp "$SBOM_ZIP" release-assets/
           cp "$PROVENANCE_BUNDLE" "release-assets/${PACKAGE_NAME}.provenance.sigstore.json"
           cp "$SBOM_BUNDLE" "release-assets/${PACKAGE_NAME}.sbom.sigstore.json"
