@@ -37,6 +37,8 @@ ON CONFLICT ("certificationRunId", "scenarioId")
 DO UPDATE SET "status" = 'completed', "updatedAt" = now();
 
 -- 3. Every enabled step of those scenarios passes, with errors from earlier failed runs removed.
+--    A step that already passed for real is left as it ran (time, response code, snapshot);
+--    a step that failed for real is overwritten to passed, keeping its inputs and snapshot.
 INSERT INTO cert.scenario_step
   ("certificationRunId", "scenarioId", "stepId", "status", "inputs", "runAt", "responseStatus")
 SELECT r."certificationRunId", s."scenarioId", st."stepId", 'success', '{}'::jsonb, now(), 200
@@ -46,7 +48,8 @@ JOIN cert.domain_catalog d ON d."catalogVersionId" = r."catalogVersionId" AND d.
 JOIN cert.scenario_catalog s ON s."domainId" = d."domainId" AND s."isEnabled"
 JOIN cert.step_catalog st ON st."scenarioId" = s."scenarioId" AND st."isEnabled"
 ON CONFLICT ("certificationRunId", "stepId")
-DO UPDATE SET "status" = 'success', "runAt" = now(), "responseStatus" = 200;
+DO UPDATE SET "status" = 'success', "runAt" = now(), "responseStatus" = 200
+WHERE cert.scenario_step."status" <> 'success';
 
 DELETE FROM cert.scenario_step_error e
 USING cert.scenario_step ss, cert_demo_params p
