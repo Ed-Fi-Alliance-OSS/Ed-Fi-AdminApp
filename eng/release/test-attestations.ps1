@@ -13,6 +13,11 @@ predicate (the default) and once for the SPDX 2.2 SBOM predicate. Each check is
 retried, because the attestations API can take a few seconds to index a new
 attestation. Fails if any check does not pass.
 
+Every check pins the signer: the attestation must be signed by the pre-release
+workflow in -Repository (not any workflow there that can mint an OIDC token), and,
+when -SourceRef is set, built from that ref. In GitHub Actions -SourceRef defaults to
+the ref that triggered the run, so the packages must come from this release's tag.
+
 Pass -ProvenanceBundle and -SbomBundle to verify against the offline
 *.sigstore.json bundles attached to a release instead of the attestations API.
 
@@ -23,6 +28,14 @@ Tarballs to verify. Wildcards are allowed.
 
 .PARAMETER Repository
 Repository the attestations must come from (owner/name). Defaults to $env:GITHUB_REPOSITORY.
+
+.PARAMETER SignerWorkflow
+Workflow that must have signed the attestations (owner/repo/path). Defaults to
+<Repository>/.github/workflows/on-prerelease.yml.
+
+.PARAMETER SourceRef
+Git ref the packages must have been built from, for example refs/tags/v4.1.0.
+Defaults to $env:GITHUB_REF; not checked when empty.
 
 .PARAMETER ProvenanceBundle
 Optional offline provenance bundle (AdminApp.provenance.sigstore.json).
@@ -51,6 +64,10 @@ param(
 
   [string]$Repository = $env:GITHUB_REPOSITORY,
 
+  [string]$SignerWorkflow,
+
+  [string]$SourceRef = $env:GITHUB_REF,
+
   [string]$ProvenanceBundle,
 
   [string]$SbomBundle,
@@ -68,6 +85,11 @@ $PSNativeCommandUseErrorActionPreference = $false
 $sbomPredicateType = 'https://spdx.dev/Document/v2.2'
 
 if (-not $Repository) { throw "Pass -Repository or set GITHUB_REPOSITORY." }
+if (-not $SignerWorkflow) { $SignerWorkflow = "$Repository/.github/workflows/on-prerelease.yml" }
+
+# Applied to every check, so an attestation from another workflow or ref does not pass.
+$signer = @('-R', $Repository, '--signer-workflow', $SignerWorkflow)
+if ($SourceRef) { $signer += @('--source-ref', $SourceRef) }
 
 $packages = @(Resolve-Path $PackagePath | ForEach-Object Path)
 if ($packages.Count -eq 0) { throw "No packages found for: $($PackagePath -join ', ')" }
@@ -86,11 +108,11 @@ function Invoke-Verify {
 }
 
 foreach ($package in $packages) {
-  $provenance = @($package, '-R', $Repository)
+  $provenance = @($package) + $signer
   if ($ProvenanceBundle) { $provenance += @('--bundle', $ProvenanceBundle) }
   Invoke-Verify $provenance
 
-  $sbom = @($package, '-R', $Repository, '--predicate-type', $sbomPredicateType)
+  $sbom = @($package) + $signer + @('--predicate-type', $sbomPredicateType)
   if ($SbomBundle) { $sbom += @('--bundle', $SbomBundle) }
   Invoke-Verify $sbom
 }

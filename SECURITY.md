@@ -87,11 +87,13 @@ gh attestation verify AdminApp.Api-<version>.tgz \
 # SBOM attestation
 gh attestation verify AdminApp.Api-<version>.tgz \
   --repo Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp \
+  --signer-workflow Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/.github/workflows/on-prerelease.yml \
   --predicate-type https://spdx.dev/Document/v2.2
 
 # Using the bundles from the release instead of the GitHub attestations API
 gh attestation verify AdminApp.Api-<version>.tgz \
   --repo Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp \
+  --signer-workflow Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp/.github/workflows/on-prerelease.yml \
   --bundle AdminApp.provenance.sigstore.json
 ```
 
