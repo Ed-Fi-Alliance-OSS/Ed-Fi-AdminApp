@@ -8,22 +8,28 @@
 Generate and check the SPDX 2.2 SBOM for the Admin App release packages.
 
 .DESCRIPTION
-Downloads the pinned, self-contained Microsoft sbom-tool release binary for this platform
-(sha256-checked, cached in the temp folder, no .NET needed) and runs it against the
-packed tarballs, with component detection over
+Runs Microsoft sbom-tool against the packed tarballs, with component detection over
 the repository root (package-lock.json and node_modules), then fails if:
-- sbom-tool exits non-zero (pwsh does not stop on a native command failure), or
-- the manifest is not valid JSON, or lists fewer than -MinDependencies packages
-  besides the root package (a green sbom-tool run can still produce an empty SBOM).
+- sbom-tool exits non-zero (pwsh does not stop on a native command failure),
+- the manifest is missing or not valid JSON,
+- the manifest has no root package (SPDXRef-RootPackage), or
+- it lists fewer than -MinDependencies packages besides the root package.
+
+The SBOM covers the whole monorepo lockfile, devDependencies included, so it lists
+more than what ships in the tarballs. That is deliberate: it records everything that
+went into the build.
+
+sbom-tool is the pinned, self-contained release binary for this platform
+(sha256-checked, cached in the temp folder, no .NET needed).
 
 Writes <OutputDirectory>/_manifest/spdx_2.2/manifest.spdx.json and
 <OutputDirectory>/<PackageName>.SBOM.zip. When run in GitHub Actions, the paths are
 written to $GITHUB_OUTPUT as 'manifest-path' and 'zip-path'.
 
-Run after npm ci and build-packages.ps1, so node_modules and the tarballs exist.
+Run after build-packages.ps1, so node_modules and the tarballs exist.
 
 .PARAMETER PackagePath
-Tarballs the SBOM describes. Wildcards are allowed.
+Tarballs the SBOM describes. Wildcards are allowed. Defaults to dist/release/*.tgz.
 
 .PARAMETER Version
 Package version recorded in the SBOM.
@@ -32,20 +38,30 @@ Package version recorded in the SBOM.
 Base name for the SBOM package ('EdFi.<PackageName>') and zip. Defaults to 'AdminApp'.
 
 .PARAMETER MinDependencies
-Minimum number of non-root packages the SBOM must list. Defaults to 10.
+Minimum number of non-root packages the SBOM must list. Defaults to 10. A real
+release lists over 2,000; when sbom-tool's component detection fails it can still
+exit 0 with an SBOM that lists none, and this check catches that.
 
 .PARAMETER OutputDirectory
-Where the manifest and zip are written. Defaults to the repository root.
+Where the manifest and zip are written. Defaults to dist/release.
+
+.PARAMETER NamespaceBase
+SPDX document namespace base URI. Defaults to https://ed-fi.org.
+
+.PARAMETER Supplier
+Package supplier recorded in the SBOM. Defaults to 'Ed-Fi Alliance'.
+
+.PARAMETER SbomToolPath
+Use this sbom-tool executable instead of downloading the pinned release.
 
 .EXAMPLE
-./eng/release/new-sbom.ps1 -PackagePath packages/*/AdminApp.*.tgz -Version 0.0.0-local.1
+./eng/release/new-sbom.ps1 -Version 0.0.0-local.1
 
 # Negative test: the content check must fail
-./eng/release/new-sbom.ps1 -PackagePath packages/*/AdminApp.*.tgz -Version 0.0.0-local.1 -MinDependencies 99999
+./eng/release/new-sbom.ps1 -Version 0.0.0-local.1 -MinDependencies 99999
 #>
 
 param(
-  [Parameter(Mandatory)]
   [string[]]$PackagePath,
 
   [Parameter(Mandatory)]
@@ -55,18 +71,25 @@ param(
 
   [int]$MinDependencies = 10,
 
-  [string]$OutputDirectory
+  [string]$OutputDirectory,
+
+  [string]$NamespaceBase = 'https://ed-fi.org',
+
+  [string]$Supplier = 'Ed-Fi Alliance',
+
+  [string]$SbomToolPath
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'ReleaseHelpers.psm1') -Force
 
-$repoRoot = (Resolve-Path (Join-Path $PSScriptRoot '../..')).Path
-if (-not $OutputDirectory) { $OutputDirectory = $repoRoot }
+$repoRoot = Get-RepoRoot
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repoRoot $DefaultReleaseDirectory }
+if (-not $PackagePath) { $PackagePath = @(Join-Path $OutputDirectory '*.tgz') }
 New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
 $OutputDirectory = (Resolve-Path $OutputDirectory).Path
 
-$packages = @(Resolve-Path $PackagePath | ForEach-Object Path)
-if ($packages.Count -eq 0) { throw "No packages found for: $($PackagePath -join ', ')" }
+$packages = Resolve-PackagePath $PackagePath
 
 # Use the self-contained sbom-tool release binary rather than the .NET global tool. The
 # global tool targets .NET 8, and rolled forward to .NET 10 or 11 its component detection
@@ -85,7 +108,7 @@ function Get-SbomTool {
   $arch = ([System.Runtime.InteropServices.RuntimeInformation]::OSArchitecture).ToString().ToLowerInvariant()
   $rid = "$os-$arch"
   $sha256 = $sbomToolSha256[$rid]
-  if (-not $sha256) { throw "No sbom-tool $sbomToolVersion binary is published for $rid" }
+  if (-not $sha256) { throw "No sbom-tool $sbomToolVersion binary is published for $rid. Pass -SbomToolPath." }
 
   $name = "sbom-tool-$rid$(if ($IsWindows) { '.exe' })"
   $cacheDir = Join-Path ($env:RUNNER_TEMP ?? [System.IO.Path]::GetTempPath()) "sbom-tool/$sbomToolVersion"
@@ -94,8 +117,8 @@ function Get-SbomTool {
   if (-not (Test-Path $path) -or (Get-FileHash $path -Algorithm SHA256).Hash -ne $sha256) {
     New-Item -ItemType Directory -Path $cacheDir -Force | Out-Null
     $url = "https://github.com/microsoft/sbom-tool/releases/download/v$sbomToolVersion/$name"
-    Write-Output "Downloading $url" | Out-Host
-    Invoke-WebRequest $url -OutFile $path
+    Write-Host "Downloading $url"
+    Invoke-WebRequest $url -OutFile $path -MaximumRetryCount 3 -RetryIntervalSec 5 -TimeoutSec 300
     $hash = (Get-FileHash $path -Algorithm SHA256).Hash
     if ($hash -ne $sha256) {
       Remove-Item $path -Force
@@ -106,7 +129,7 @@ function Get-SbomTool {
   return $path
 }
 
-$sbomTool = Get-SbomTool
+$sbomTool = if ($SbomToolPath) { $SbomToolPath } else { Get-SbomTool }
 
 $manifestDir = Join-Path $OutputDirectory '_manifest'
 $manifest = Join-Path $manifestDir 'spdx_2.2/manifest.spdx.json'
@@ -119,23 +142,27 @@ $buildFileList = New-TemporaryFile
 try {
   $packages | Set-Content $buildFileList
 
-  & $sbomTool generate `
-    -b $repoRoot `
-    -bl $buildFileList `
-    -bc $repoRoot `
-    -pn "EdFi.$PackageName" `
-    -pv $Version `
-    -nsb https://ed-fi.org `
-    -m $OutputDirectory `
-    -ps "Ed-Fi Alliance"
+  Invoke-LogGroup 'sbom-tool generate' {
+    & $sbomTool generate `
+      -b $repoRoot `
+      -bl $buildFileList `
+      -bc $repoRoot `
+      -pn "EdFi.$PackageName" `
+      -pv $Version `
+      -nsb $NamespaceBase `
+      -m $OutputDirectory `
+      -ps $Supplier
+  }
 
-  if ($LASTEXITCODE -ne 0) { throw "sbom-tool failed with exit code $LASTEXITCODE" }
+  if ($LASTEXITCODE -ne 0) {
+    throw "sbom-tool failed with exit code $LASTEXITCODE. See its output above."
+  }
 }
 finally {
   Remove-Item $buildFileList -ErrorAction SilentlyContinue
 }
 
-if (-not (Test-Path $manifest)) { throw "sbom-tool did not write $manifest" }
+if (-not (Test-Path $manifest)) { throw "sbom-tool exited 0 but did not write $manifest" }
 
 try {
   $sbom = Get-Content $manifest -Raw | ConvertFrom-Json
@@ -144,18 +171,21 @@ catch {
   throw "SBOM is not valid JSON: $manifest. $_"
 }
 
-$root = ($sbom.packages | Where-Object SPDXID -eq 'SPDXRef-RootPackage').name
-$dependencies = @($sbom.packages | Where-Object name -ne $root).Count
-Write-Output "SBOM: $(@($sbom.packages).Count) packages, $dependencies dependencies (root: $root)"
+$root = @($sbom.packages | Where-Object SPDXID -eq 'SPDXRef-RootPackage')
+if ($root.Count -ne 1) {
+  throw "SBOM has $($root.Count) root packages (SPDXRef-RootPackage), expected 1: $manifest"
+}
+$dependencies = @($sbom.packages | Where-Object SPDXID -ne 'SPDXRef-RootPackage').Count
+Write-Output "SBOM: $(@($sbom.packages).Count) packages, $dependencies dependencies (root: $($root[0].name))"
 
 if ($dependencies -lt $MinDependencies) {
-  throw "SBOM lists $dependencies dependencies (minimum $MinDependencies). Was sbom-tool run without build output?"
+  throw ("SBOM lists $dependencies dependencies, minimum $MinDependencies. Component detection " +
+    "found no packages: check that npm ci ran in $repoRoot (node_modules and package-lock.json), " +
+    "and look for component detection errors in the sbom-tool output above.")
 }
 
 Compress-Archive $manifest -DestinationPath $zip -Force
 Write-Output "SBOM zip: $zip"
 
-if ($env:GITHUB_OUTPUT) {
-  "manifest-path=$manifest" >> $env:GITHUB_OUTPUT
-  "zip-path=$zip" >> $env:GITHUB_OUTPUT
-}
+Set-GitHubOutput -Name 'manifest-path' -Value $manifest
+Set-GitHubOutput -Name 'zip-path' -Value $zip

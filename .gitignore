@@ -77,8 +77,5 @@ tests/e2e/.features-gen
 docs/superpowers
 .worktrees/
 
-# release build output (eng/release)
-packages/*/AdminApp.*.tgz
-/_manifest
-/AdminApp.SBOM.zip
+# release assets (eng/release); the build output itself is in dist/release
 /release-assets

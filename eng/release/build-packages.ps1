@@ -13,14 +13,21 @@ Performs the same steps as the pack job in .github/workflows/on-prerelease.yml:
 2. Installs dependencies and builds the API and FrontEnd via Nx
 3. Stamps the version into packages/api and packages/fe, copies build output and
    .nvmrc under each package root, and runs npm pack
-4. Renames the tarballs to AdminApp.Api-<version>.tgz and AdminApp.FrontEnd-<version>.tgz
+4. Moves the tarballs to -OutputDirectory as AdminApp.Api-<version>.tgz and
+   AdminApp.FrontEnd-<version>.tgz
 
-The package.json version changes and copied .nvmrc files are reverted after packing,
-so a local run leaves only the tarballs behind. When run in GitHub Actions, the
-version is written to $GITHUB_OUTPUT as 'adminApp' and 'adminApp-semver'.
+The package.json version changes and copied .nvmrc files (not tracked in git) are
+reverted after packing, so a local run leaves only the tarballs behind. When run in
+GitHub Actions, the version (without the 'v' prefix) is written to $GITHUB_OUTPUT as
+'version'.
 
 .PARAMETER Version
-Version to stamp into the packages. Defaults to the MinVer version of HEAD.
+Version to stamp into the packages, with or without a 'v' prefix. Defaults to the
+MinVer version of HEAD.
+
+.PARAMETER OutputDirectory
+Where the tarballs are written. Defaults to dist/release under the repository root.
+Existing tarballs there are removed first.
 
 .PARAMETER SkipInstall
 Skip 'npm ci' and reuse the existing node_modules.
@@ -35,34 +42,40 @@ Skip 'npm ci' and reuse the existing node_modules.
 
 param(
   [string]$Version,
+  [string]$OutputDirectory,
   [switch]$SkipInstall
 )
 
 $ErrorActionPreference = 'Stop'
+Import-Module (Join-Path $PSScriptRoot 'ReleaseHelpers.psm1') -Force
 
-function Invoke-Native {
-  param([string]$Command, [string[]]$Arguments)
-  & $Command @Arguments
-  if ($LASTEXITCODE -ne 0) { throw "$Command $($Arguments -join ' ') failed with exit code $LASTEXITCODE" }
+# Pinned: this job runs untrusted build code, so it must not pick up a new release unreviewed.
+$minverVersion = '8.0.0'
+# SemVer 2.0 (https://semver.org), as produced by MinVer.
+$semverPattern = '^\d+\.\d+\.\d+(-[0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$'
+
+function Get-Minver {
+  $tool = Get-Command minver -ErrorAction SilentlyContinue
+  if ($tool) { return $tool.Source }
+  Invoke-Native dotnet @('tool', 'install', '--global', 'minver-cli', '--version', $minverVersion) | Out-Host
+  # A fresh install may not be on PATH yet in the current session.
+  Join-Path $HOME ".dotnet/tools/minver$(if ($IsWindows) { '.exe' })"
 }
 
-function Get-DotnetTool {
-  param([string]$Name, [string]$Package, [string]$Version)
-  $tool = Get-Command $Name -ErrorAction SilentlyContinue
-  if (-not $tool) {
-    Invoke-Native dotnet @('tool', 'install', '--global', $Package, '--version', $Version) | Out-Host
-    # A fresh install may not be on PATH yet in the current session.
-    return Join-Path $HOME ".dotnet/tools/$Name"
+$repoRoot = Get-RepoRoot
+if (-not $OutputDirectory) { $OutputDirectory = Join-Path $repoRoot $DefaultReleaseDirectory }
+
+# Preflight: fail early with a clear message instead of partway through the build.
+foreach ($command in @('node', 'npm') + @(if (-not $Version) { 'dotnet' })) {
+  if (-not (Get-Command $command -ErrorAction SilentlyContinue)) {
+    throw "$command was not found on PATH. See eng/README.md for the requirements."
   }
-  return $tool.Source
 }
 
-$repoRoot = Resolve-Path (Join-Path $PSScriptRoot '../..')
 Push-Location $repoRoot
 try {
   if (-not $Version) {
-    # Pinned: this job holds id-token: write, so it must not pick up a new release unreviewed.
-    $minver = Get-DotnetTool -Name minver -Package minver-cli -Version 8.0.0
+    $minver = Get-Minver
     # Let minver run on a newer .NET runtime when its target runtime is not installed.
     $rollForward = $env:DOTNET_ROLL_FORWARD
     $env:DOTNET_ROLL_FORWARD = 'Major'
@@ -72,21 +85,23 @@ try {
     finally {
       $env:DOTNET_ROLL_FORWARD = $rollForward
     }
-    if ($LASTEXITCODE -ne 0 -or -not $Version) { throw "minver failed to compute a version" }
+    if ($LASTEXITCODE -ne 0) { throw "minver failed with exit code $LASTEXITCODE" }
   }
-  $semver = $Version -replace '^v'
-  Write-Output "Admin App version: $Version"
-
-  if ($env:GITHUB_OUTPUT) {
-    "adminApp=$Version" >> $env:GITHUB_OUTPUT
-    "adminApp-semver=$semver" >> $env:GITHUB_OUTPUT
-  }
+  $semver = "$Version".Trim() -replace '^v'
+  if ($semver -notmatch $semverPattern) { throw "'$Version' is not a SemVer version." }
+  Write-Output "Admin App version: $semver"
+  Set-GitHubOutput -Name 'version' -Value $semver
 
   if (-not $SkipInstall) {
-    Invoke-Native npm @('ci', '--legacy-peer-deps', '--prefer-offline', '--no-audit', '--progress=false')
+    Invoke-LogGroup 'npm ci' {
+      Invoke-Native npm @('ci', '--legacy-peer-deps', '--prefer-offline', '--no-audit', '--progress=false')
+    }
   }
-  Invoke-Native npm @('run', 'build:api')
-  Invoke-Native npm @('run', 'build:fe')
+  Invoke-LogGroup 'Build API' { Invoke-Native npm @('run', 'build:api') }
+  Invoke-LogGroup 'Build FrontEnd' { Invoke-Native npm @('run', 'build:fe') }
+
+  New-Item -ItemType Directory -Path $OutputDirectory -Force | Out-Null
+  Get-ChildItem $OutputDirectory -Filter '*.tgz' | Remove-Item
 
   $packages = @(
     @{ Dir = 'packages/api'; Dist = 'dist/packages/api'; Name = 'AdminApp.Api' }
@@ -99,31 +114,33 @@ try {
     $nvmrc = Join-Path $dir '.nvmrc'
     $original = Get-Content $packageJson -Raw
 
-    try {
-      Get-ChildItem $dir -Filter '*.tgz' | Remove-Item
-      Remove-Item (Join-Path $dir 'dist') -Recurse -Force -ErrorAction SilentlyContinue
-      Copy-Item $package.Dist (Join-Path $dir 'dist') -Recurse
-      Copy-Item .nvmrc $nvmrc
-
-      Push-Location $dir
+    Invoke-LogGroup "Pack $($package.Name)" {
       try {
-        Invoke-Native npm @('pkg', 'set', "version=$semver")
-        Invoke-Native npm @('pack')
+        Get-ChildItem $dir -Filter '*.tgz' | Remove-Item
+        Remove-Item (Join-Path $dir 'dist') -Recurse -Force -ErrorAction SilentlyContinue
+        Copy-Item $package.Dist (Join-Path $dir 'dist') -Recurse
+        Copy-Item .nvmrc $nvmrc
+
+        Push-Location $dir
+        try {
+          Invoke-Native npm @('pkg', 'set', "version=$semver")
+          Invoke-Native npm @('pack')
+        }
+        finally {
+          Pop-Location
+        }
+
+        $tgz = Get-ChildItem $dir -Filter '*.tgz' | Select-Object -First 1
+        if (-not $tgz) { throw "npm pack produced no tarball in $dir" }
+        $target = Join-Path $OutputDirectory "$($package.Name)-$semver.tgz"
+        Move-Item $tgz.FullName $target
+        Write-Output "Packed $target"
       }
       finally {
-        Pop-Location
+        Set-Content $packageJson $original -NoNewline
+        # -Force: dotfiles count as hidden on Linux and macOS.
+        Remove-Item $nvmrc -Force -ErrorAction SilentlyContinue
       }
-
-      $tgz = Get-ChildItem $dir -Filter '*.tgz' | Select-Object -First 1
-      if (-not $tgz) { throw "npm pack produced no tarball in $dir" }
-      $target = "$($package.Name)-$semver.tgz"
-      Rename-Item $tgz.FullName $target
-      Write-Output "Packed $(Join-Path $dir $target)"
-    }
-    finally {
-      Set-Content $packageJson $original -NoNewline
-      # -Force: dotfiles count as hidden on Linux and macOS.
-      Remove-Item $nvmrc -Force -ErrorAction SilentlyContinue
     }
   }
 }

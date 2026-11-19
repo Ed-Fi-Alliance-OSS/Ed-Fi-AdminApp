@@ -9,36 +9,33 @@ on:
     types:
       - prereleased
 
+# Secrets are set on the jobs that use them, not here, so other jobs never see them.
 env:
-  # ARTIFACTS_API_KEY, NPM_REGISTRY, PACKAGE_NAME are intended for use by the Ed-Fi
-  # Artifacts publishing action in the future.
-  ARTIFACTS_API_KEY: ${{ secrets.AZURE_ARTIFACTS_PERSONAL_ACCESS_TOKEN }}
+  # NPM_REGISTRY and PACKAGE_NAME are intended for use by the Ed-Fi Artifacts publishing
+  # action in the future. Add its token to that job's env, not here.
   NPM_REGISTRY: //pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/npm/registry/
   PACKAGE_NAME: "AdminApp"
+  # Build output (tarballs, SBOM) shared by the jobs below; the eng/release scripts default to it.
+  RELEASE_DIR: dist/release
   API_IMAGE_NAME: ${{ vars.API_IMAGE_NAME }}
   FRONTEND_IMAGE_NAME: ${{ vars.FRONTEND_IMAGE_NAME }}
   DOCKER_USERNAME: ${{ vars.DOCKER_USERNAME }}
-  DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
   REF: ${{ github.ref_name }}
 
 permissions:
   contents: read
 
+# The release scripts are in eng/release so they can be run locally. See eng/README.md.
 jobs:
+  # Runs npm ci and the build, so it gets no token that can sign or write anything.
   pack:
-    name: Build, Pack, SBOM and Attest
+    name: Build, pack and SBOM
     runs-on: ubuntu-22.04
     permissions:
       contents: read
-      id-token: write          # Sigstore signing (actions/attest)
-      attestations: write      # store the attestation in GitHub
-      artifact-metadata: write # artifact storage record (actions/attest v4)
     defaults:
       run:
         shell: pwsh
-    outputs:
-      adminApp-version: ${{ steps.build.outputs.adminApp }}
-
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -53,76 +50,100 @@ jobs:
           node-version-file: '.nvmrc'
           cache: 'npm'
 
-      # The build, pack and SBOM steps are scripts in eng/release so they can be run
-      # locally. See eng/README.md.
       - name: Build and pack API and FrontEnd
         id: build
-        run: ./eng/release/build-packages.ps1
+        run: ./eng/release/build-packages.ps1 -OutputDirectory $env:RELEASE_DIR
+
+      - name: Check package.json versions were reverted
+        run: git diff --exit-code -- packages/api/package.json packages/fe/package.json
 
       - name: Generate and check SBOM
-        id: sbom-gen
+        env:
+          VERSION: ${{ steps.build.outputs.version }}
         run: >
           ./eng/release/new-sbom.ps1
-          -PackagePath packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz
-          -Version ${{ steps.build.outputs.adminApp }}
-          -PackageName ${{ env.PACKAGE_NAME }}
+          -Version $env:VERSION
+          -PackageName $env:PACKAGE_NAME
+          -OutputDirectory $env:RELEASE_DIR
+
+      - name: Upload build output
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: release-build
+          path: ${{ env.RELEASE_DIR }}/
+          if-no-files-found: error
+          retention-days: 30
+
+  # The only job that can sign. It runs no npm or build code: it attests the files the
+  # pack job uploaded, then verifies them before anything is published.
+  attest:
+    name: Attest and verify
+    needs: pack
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write          # Sigstore signing (actions/attest)
+      attestations: write      # store the attestation in GitHub
+      artifact-metadata: write # artifact storage record (actions/attest v4)
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: eng/release
+          persist-credentials: false
+
+      - name: Download build output
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: release-build
+          path: ${{ env.RELEASE_DIR }}
 
       - name: Attest build provenance
-        id: provenance
+        id: attest-provenance
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: |
-            packages/api/AdminApp.Api-*.tgz
-            packages/fe/AdminApp.FrontEnd-*.tgz
+          subject-path: ${{ env.RELEASE_DIR }}/*.tgz
 
       - name: Attest SBOM
-        id: sbom
+        id: attest-sbom
         uses: actions/attest@1e69f48acb82d1966a394da916b4c1698aa569d6 # v4.2.2
         with:
-          subject-path: |
-            packages/api/AdminApp.Api-*.tgz
-            packages/fe/AdminApp.FrontEnd-*.tgz
-          sbom-path: ${{ steps.sbom-gen.outputs.manifest-path }}
+          subject-path: ${{ env.RELEASE_DIR }}/*.tgz
+          sbom-path: ${{ env.RELEASE_DIR }}/_manifest/spdx_2.2/manifest.spdx.json
 
       - name: Collect release assets
-        shell: bash
+        id: assets
         env:
-          PROVENANCE_BUNDLE: ${{ steps.provenance.outputs.bundle-path }}
-          SBOM_BUNDLE: ${{ steps.sbom.outputs.bundle-path }}
-          SBOM_ZIP: ${{ steps.sbom-gen.outputs.zip-path }}
-        run: |
-          mkdir -p release-assets
-          # Attach the attested packages so consumers can verify what they download.
-          cp packages/api/AdminApp.Api-*.tgz packages/fe/AdminApp.FrontEnd-*.tgz release-assets/
-          cp "$SBOM_ZIP" release-assets/
-          cp "$PROVENANCE_BUNDLE" "release-assets/${PACKAGE_NAME}.provenance.sigstore.json"
-          cp "$SBOM_BUNDLE" "release-assets/${PACKAGE_NAME}.sbom.sigstore.json"
-          ls -l release-assets
+          PROVENANCE_BUNDLE: ${{ steps.attest-provenance.outputs.bundle-path }}
+          SBOM_BUNDLE: ${{ steps.attest-sbom.outputs.bundle-path }}
+        run: >
+          ./eng/release/collect-release-assets.ps1
+          -ProvenanceBundle $env:PROVENANCE_BUNDLE
+          -SbomBundle $env:SBOM_BUNDLE
+          -PackageName $env:PACKAGE_NAME
+          -SourceDirectory $env:RELEASE_DIR
+          -OutputDirectory release-assets
 
-      - name: Self-verify attestations
+      - name: Verify attestations (attestations API)
         env:
           GH_TOKEN: ${{ github.token }}
+        run: ./eng/release/verify-attestations.ps1 -PackagePath release-assets/*.tgz
+
+      # The bundles are what consumers download, so check them as well as the API.
+      - name: Verify release bundles
+        env:
+          GH_TOKEN: ${{ github.token }}
+          PROVENANCE_BUNDLE: ${{ steps.assets.outputs.provenance-bundle }}
+          SBOM_BUNDLE: ${{ steps.assets.outputs.sbom-bundle }}
         run: >
-          ./eng/release/test-attestations.ps1
-          -PackagePath packages/api/AdminApp.Api-*.tgz, packages/fe/AdminApp.FrontEnd-*.tgz
+          ./eng/release/verify-attestations.ps1
+          -PackagePath release-assets/*.tgz
+          -ProvenanceBundle $env:PROVENANCE_BUNDLE
+          -SbomBundle $env:SBOM_BUNDLE
 
-      - name: Upload API npm package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: api-npm-package
-          path: packages/api/AdminApp.Api-*.tgz
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload Frontend npm package
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: fe-npm-package
-          path: packages/fe/AdminApp.FrontEnd-*.tgz
-          if-no-files-found: error
-          retention-days: 30
-
-      - name: Upload release assets as Artifacts
+      - name: Upload release assets
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: "${{ env.PACKAGE_NAME }}-ReleaseAssets"
@@ -130,11 +151,76 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
-  # Only this job holds a write token. The bundles are offline copies of attestations
-  # already stored in GitHub, so verification does not depend on this handoff.
+  validate-packages:
+    name: Validate npm packages
+    runs-on: ubuntu-latest
+    needs: attest
+    permissions:
+      contents: read
+      attestations: read # gh attestation verify
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          sparse-checkout: eng/release
+          persist-credentials: false
+
+      - name: Download release assets
+        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
+        with:
+          name: "${{ env.PACKAGE_NAME }}-ReleaseAssets"
+          path: release-assets
+
+      # On a fresh runner, as a consumer would: the tarballs must be the files attested.
+      - name: Verify attestations
+        shell: pwsh
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: ./eng/release/verify-attestations.ps1 -PackagePath release-assets/*.tgz
+
+      - name: Resolve filenames
+        id: files
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "api=$(realpath release-assets/"${PACKAGE_NAME}".Api-*.tgz)" >> "$GITHUB_OUTPUT"
+          echo "fe=$(realpath release-assets/"${PACKAGE_NAME}".FrontEnd-*.tgz)" >> "$GITHUB_OUTPUT"
+
+      - name: Extract .nvmrc from packed API tarball
+        shell: bash
+        env:
+          API_TGZ: ${{ steps.files.outputs.api }}
+        run: |
+          set -euo pipefail
+          tar -xzf "$API_TGZ" -O package/.nvmrc > .nvmrc
+
+      - name: Set up Node.js (from .nvmrc)
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: '.nvmrc'
+
+      - name: Install smoke test
+        shell: bash
+        env:
+          API_TGZ: ${{ steps.files.outputs.api }}
+          FE_TGZ: ${{ steps.files.outputs.fe }}
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/validate && cd /tmp/validate
+          npm init -y >/dev/null 2>&1
+          # Use file: URLs with absolute paths so npm treats these as local tarballs even after cd
+          npm install --ignore-scripts "file:$API_TGZ"
+          npm install --ignore-scripts "file:$FE_TGZ"
+          # Basic existence checks post-install
+          test -d node_modules/@edfi/adminapp-api || echo "Warning: API package name not found in node_modules"
+          test -d node_modules/@edfi/adminapp-frontend || echo "Warning: FE package name not found in node_modules"
+
+  # Only this job holds a write token, and it runs only after the packages are attested
+  # and validated.
   release-assets:
-    name: Attach SBOM and attestations to the release
-    needs: pack
+    name: Attach packages, SBOM and attestations to the release
+    needs:
+      - attest
+      - validate-packages
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -151,86 +237,33 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }} # no checkout in this job, so gh cannot infer the repo
           TAG: ${{ github.ref_name }}
+        # --clobber lets a re-run of this job replace assets a failed run left behind.
+        # The files are always the ones attested and verified by this run.
         run: |
           gh release upload "$TAG" release-assets/* --clobber
 
-  validate-packages:
-    name: Validate npm packages
-    runs-on: ubuntu-latest
-    needs: pack
-    permissions:
-      contents: read
-      attestations: read # gh attestation verify
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          sparse-checkout: eng/release
-          persist-credentials: false
-
-      - name: Download API package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: api-npm-package
-          path: api-npm-package
-
-      - name: Download FrontEnd package
-        uses: actions/download-artifact@3e5f45b2cfb9172054b4087a40e8e0b5a5461e7c # v8.0.1
-        with:
-          name: fe-npm-package
-          path: fe-npm-package
-
-      # The downloaded tarballs must be the exact files attested in the pack job.
-      - name: Verify attestations
-        shell: pwsh
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: >
-          ./eng/release/test-attestations.ps1
-          -PackagePath api-npm-package/*.tgz, fe-npm-package/*.tgz
-
-      - name: Resolve filenames
-        id: files
+      - name: Note skipped publish jobs
+        if: github.repository_owner != 'Ed-Fi-Alliance-OSS'
         shell: bash
         run: |
-          set -euo pipefail
-          echo "api=$(realpath "$(find api-npm-package -type f -name '*.tgz' -print -quit)")" >> "$GITHUB_OUTPUT"
-          echo "fe=$(realpath "$(find fe-npm-package -type f -name '*.tgz' -print -quit)")" >> "$GITHUB_OUTPUT"
+          echo "Docker Hub publishing was skipped: it only runs in the Ed-Fi-Alliance-OSS organization." >> "$GITHUB_STEP_SUMMARY"
 
-      - name: Extract .nvmrc from packed API tarball
-        shell: bash
-        run: |
-          set -euo pipefail
-          tar -xzf "${{ steps.files.outputs.api }}" -O package/.nvmrc > .nvmrc
-
-      - name: Set up Node.js (from .nvmrc)
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
-        with:
-          node-version-file: '.nvmrc'
-
-      - name: Install smoke test
-        shell: bash
-        run: |
-          set -euo pipefail
-          mkdir -p /tmp/validate && cd /tmp/validate
-          npm init -y >/dev/null 2>&1
-          # Use file: URLs with absolute paths so npm treats these as local tarballs even after cd
-          npm install --ignore-scripts "file:${{ steps.files.outputs.api }}"
-          npm install --ignore-scripts "file:${{ steps.files.outputs.fe }}"
-          # Basic existence checks post-install
-          test -d node_modules/@edfi/adminapp-api || echo "Warning: API package name not found in node_modules"
-          test -d node_modules/@edfi/adminapp-frontend || echo "Warning: FE package name not found in node_modules"
-
+  # Publishes outside this repository with organization secrets, so forks skip it and
+  # can still test the build, attestation and release steps (see eng/README.md).
   docker-publish:
     name: Publish to Docker Hub
     if: github.repository_owner == 'Ed-Fi-Alliance-OSS'
     runs-on: ubuntu-latest
     needs:
       - pack
+    permissions:
+      contents: read
+    env:
+      DOCKER_HUB_TOKEN: ${{ secrets.DOCKER_HUB_TOKEN }}
     steps:
       - name: Prepare Tags
         id: prepare-tags
         run: |
-          REF="${{ env.REF }}"
           if [[ $REF =~ "Pre-Release" ]]
           then
              # Remove Pre-Release prefix
@@ -243,15 +276,15 @@ jobs:
           if [[ $PACKAGEVERSION =~ "alpha" ]]
           then
             # Pre-releases get the tag "pre"
-            APITAGS="${{ env.API_IMAGE_NAME }}:pre"
-            FETAGS="${{ env.FRONTEND_IMAGE_NAME }}:pre"
+            APITAGS="${API_IMAGE_NAME}:pre"
+            FETAGS="${FRONTEND_IMAGE_NAME}:pre"
           else
             # Releases get the version, plus shortened form for minor release.
             # We are not using shortened form for major or using "latest"
             # because they are too imprecise.
               MINOR=$(echo "$PACKAGEVERSION" | awk -F"." '{print $1"."$2}')
-            APITAGS="${{ env.API_IMAGE_NAME }}:${PACKAGEVERSION},${{ env.API_IMAGE_NAME }}:${MINOR}"
-            FETAGS="${{ env.FRONTEND_IMAGE_NAME }}:${PACKAGEVERSION},${{ env.FRONTEND_IMAGE_NAME }}:${MINOR}"
+            APITAGS="${API_IMAGE_NAME}:${PACKAGEVERSION},${API_IMAGE_NAME}:${MINOR}"
+            FETAGS="${FRONTEND_IMAGE_NAME}:${PACKAGEVERSION},${FRONTEND_IMAGE_NAME}:${MINOR}"
           fi
 
             echo "APITAGS=$APITAGS" >> "$GITHUB_OUTPUT"
