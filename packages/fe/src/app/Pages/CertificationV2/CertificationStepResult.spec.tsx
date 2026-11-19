@@ -53,6 +53,13 @@ describe('CertificationStepResult', () => {
     expect(screen.getByText('Execute this step to see its result.')).toBeTruthy();
   });
 
+  it('shows a custom message for a step with no result', () => {
+    render(<CertificationStepResult run={undefined} isRunning={false} notRunMessage="Not run." />);
+
+    expect(screen.getByText('Not run.')).toBeTruthy();
+    expect(screen.queryByText('Execute this step to see its result.')).toBeNull();
+  });
+
   it('shows Running while the step runs, even over a saved failure', () => {
     renderResult(exceptionRun, true);
 

@@ -35,6 +35,7 @@ export type BasePrivilege =
   | 'sb-sync-queue:read'
   | 'sb-sync-queue:archive'
   | 'certification:read'
+  | 'certification:review'
   | 'ods:read'
   | 'ods:read-row-counts'
   | 'edorg:read'
@@ -99,10 +100,10 @@ export type TeamEdfiTenantPrivilege =
   | 'team.sb-environment.edfi-tenant.ods.edorg.application:reset-credentials';
 
 export const PRIVILEGES = Object.fromEntries(
-  Object.keys(privileges).map((p) => [p, { code: p, description: privileges[p as PrivilegeCode] }])
+  Object.keys(privileges).map((p) => [p, { code: p, description: privileges[p as PrivilegeCode] }]),
 ) as Record<PrivilegeCode, IPrivilege>;
 
 export const PRIVILEGE_CODES = Object.keys(privileges) as PrivilegeCode[];
 export const TEAM_EDFI_TENANT_PRIVILEGES: TeamEdfiTenantPrivilege[] = PRIVILEGE_CODES.filter((p) =>
-  p.startsWith('team.sb-environment.edfi-tenant')
+  p.startsWith('team.sb-environment.edfi-tenant'),
 ) as TeamEdfiTenantPrivilege[];

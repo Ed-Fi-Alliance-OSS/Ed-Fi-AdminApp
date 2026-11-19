@@ -75,6 +75,24 @@ describe('CertificationRunsCard', () => {
     expect(within(table).getByText('In review')).toBeTruthy();
   });
 
+  it('times a picked-up run from when it was sent to review, not from the pick-up', () => {
+    render(
+      <CertificationRunsCard
+        title="Waiting for review"
+        list={list([
+          run({
+            status: 'IN_REVIEW',
+            statusChangedAt: new Date().toISOString(),
+            submittedAt: new Date(Date.now() - (3 * 24 + 2) * 60 * 60 * 1000).toISOString(),
+          }),
+        ])}
+        timeColumn="Waiting"
+      />,
+    );
+    const table = screen.getByRole('table', { name: 'Waiting for review' });
+    expect(within(table).getByText('3d 2h')).toBeTruthy();
+  });
+
   it('renders rows in the order given, with status labels and elapsed time', () => {
     render(
       <CertificationRunsCard
@@ -154,5 +172,24 @@ describe('CertificationRunsCard', () => {
       />,
     );
     expect(screen.queryByText(/Showing/)).toBeNull();
+  });
+
+  it('has no Action column without renderAction', () => {
+    render(<CertificationRunsCard title="Waiting" list={list([run()])} timeColumn="Waiting" />);
+    expect(screen.queryByRole('columnheader', { name: 'Action' })).toBeNull();
+  });
+
+  it('adds an Action column with per-row content when renderAction is given', () => {
+    render(
+      <CertificationRunsCard
+        title="Waiting"
+        list={list([run({ runId: 1 }), run({ runId: 2 })])}
+        timeColumn="Waiting"
+        renderAction={(row) => <span>Act on {row.runId}</span>}
+      />,
+    );
+    expect(screen.getByRole('columnheader', { name: 'Action' })).toBeTruthy();
+    expect(screen.getByText('Act on 1')).toBeTruthy();
+    expect(screen.getByText('Act on 2')).toBeTruthy();
   });
 });

@@ -36,6 +36,7 @@ import {
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
 import { isAuthValidFor, useCertificationAuth } from './CertificationAuthContext';
 import { CertificationStepResponseDetails } from './CertificationStepResponseDetails';
+import { teamSnapshotSource } from './useCertificationStepSnapshot';
 import { CertificationStepResult } from './CertificationStepResult';
 import { CertificationStatusIndicator } from './CertificationStatusIndicator';
 import { useCertificationSelection } from './useCertificationSelection';
@@ -504,7 +505,7 @@ export const CertificationPageExecution = () => {
                 key={`${runId}:${validatedStep.stepId}`}
                 run={selectedRun}
                 isRunning={isRunningStep(validatedStep.stepId)}
-                snapshotArgs={{ teamId, edfiTenantId, runId }}
+                snapshotSource={teamSnapshotSource(teamId, edfiTenantId, runId)}
               />
             </Box>
           )}

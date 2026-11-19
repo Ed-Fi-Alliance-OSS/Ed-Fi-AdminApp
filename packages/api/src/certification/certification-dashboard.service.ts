@@ -52,13 +52,31 @@ export class CertificationDashboardService {
     };
   }
 
+  /**
+   * Runs no one has picked up come first, then those in review, each oldest submission first.
+   * `submittedAt` survives the pick-up, so a picked-up run keeps its place and its waiting time,
+   * and the row cap never hides a queued run behind picked-up ones.
+   */
   private async getWaiting(): Promise<CertificationDashboardListDto> {
-    const [runs, total] = await this.listQuery(CERT_DASHBOARD_WAITING_STATUSES)
-      .orderBy('run.statusChangedAt', 'ASC')
+    const queuedStatuses = CERT_DASHBOARD_WAITING_STATUSES.filter(
+      (status) => status !== CERT_RUN_STATUS.IN_REVIEW,
+    );
+    const [[queued, queuedTotal], [inReview, inReviewTotal]] = await Promise.all([
+      this.waitingQuery(queuedStatuses),
+      this.waitingQuery([CERT_RUN_STATUS.IN_REVIEW]),
+    ]);
+    return {
+      rows: [...queued, ...inReview].slice(0, CERT_DASHBOARD_WAITING_LIMIT).map(toRow),
+      total: queuedTotal + inReviewTotal,
+    };
+  }
+
+  private waitingQuery(statuses: readonly string[]) {
+    return this.listQuery(statuses)
+      .orderBy('run.submittedAt', 'ASC')
       .addOrderBy('run.certificationRunId', 'ASC')
       .take(CERT_DASHBOARD_WAITING_LIMIT)
       .getManyAndCount();
-    return { rows: runs.map(toRow), total };
   }
 
   private async getOthers(): Promise<CertificationDashboardListDto> {
@@ -90,5 +108,6 @@ const toRow = (run: CertificationRun): CertificationDashboardRunDto => ({
   certificationModel: run.certificationModel,
   status: run.status,
   statusChangedAt: run.statusChangedAt.toISOString(),
+  submittedAt: run.submittedAt?.toISOString() ?? null,
   updatedAt: run.updatedAt.toISOString(),
 });

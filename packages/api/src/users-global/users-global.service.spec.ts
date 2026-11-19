@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getEntityManagerToken, getRepositoryToken } from '@nestjs/typeorm';
-import { CertificationRun, User } from '@edanalytics/models-server';
+import { CertificationRun, CertificationRunComment, User } from '@edanalytics/models-server';
 import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
 import { UsersGlobalService } from './users-global.service';
 import { PrivilegeGrantGuardService } from '../auth/authorization/privilege-grant-guard.service';
@@ -25,11 +25,16 @@ const mockRepo = {
 };
 
 const mockRunRepo = { update: jest.fn(async () => undefined) };
+const mockCommentRepo = { update: jest.fn(async () => undefined) };
 const order: string[] = [];
 const mockEntityManager = {
   transaction: jest.fn(async (work: (em: unknown) => Promise<unknown>) =>
     work({
-      getRepository: (entity: unknown) => (entity === CertificationRun ? mockRunRepo : mockRepo),
+      getRepository: (entity: unknown) => {
+        if (entity === CertificationRun) return mockRunRepo;
+        if (entity === CertificationRunComment) return mockCommentRepo;
+        return mockRepo;
+      },
     }),
   ),
 };
@@ -103,9 +108,23 @@ describe('UsersGlobalService', () => {
     expect(mockEntityManager.transaction).toHaveBeenCalledTimes(1);
   });
 
+  it('remove() clears the user as author of review comments, then removes the user', async () => {
+    // certification_run_comment.authorId is NO ACTION on SQL Server, so a leftover reference blocks the delete.
+    order.length = 0;
+    mockCommentRepo.update.mockImplementationOnce(async () => void order.push('clear comments'));
+    mockRepo.remove.mockImplementationOnce(async () => void order.push('remove user'));
+
+    await service.remove(1, { id: 99 } as unknown as GetUserDto);
+
+    expect(mockCommentRepo.update).toHaveBeenCalledWith({ authorId: 1 }, { authorId: null });
+    expect(order).toEqual(['clear comments', 'remove user']);
+  });
+
   it('remove() throws NotFoundException when user not found', async () => {
     const { NotFoundException } = await import('@nestjs/common');
-    await expect(service.remove(999, { id: 1 } as unknown as GetUserDto)).rejects.toThrow(NotFoundException);
+    await expect(service.remove(999, { id: 1 } as unknown as GetUserDto)).rejects.toThrow(
+      NotFoundException,
+    );
   });
 
   it('create() checks the global role', async () => {
@@ -154,18 +173,32 @@ describe('UsersGlobalService', () => {
   it('update() checks the new role against the previous role', async () => {
     // mockUser.roleId === 2
     await service.update(1, { roleId: 5 } as unknown as PutUserDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 5, { kind: 'global-user' }, 2, 'user 1');
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(
+      42,
+      5,
+      { kind: 'global-user' },
+      2,
+      'user 1',
+    );
   });
 
   it('update() without roleId (e.g. name change) is treated as unchanged and saves', async () => {
     await service.update(1, { givenName: 'Al' } as unknown as PutUserDto, 42);
-    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(42, 2, { kind: 'global-user' }, 2, 'user 1');
+    expect(mockGuard.assertCanAssignRole).toHaveBeenCalledWith(
+      42,
+      2,
+      { kind: 'global-user' },
+      2,
+      'user 1',
+    );
     expect(mockRepo.save).toHaveBeenCalled();
   });
 
   it('update() does not save when the guard rejects', async () => {
     mockGuard.assertCanAssignRole.mockRejectedValueOnce(new Error('403'));
-    await expect(service.update(1, { roleId: 5 } as unknown as PutUserDto, 42)).rejects.toThrow('403');
+    await expect(service.update(1, { roleId: 5 } as unknown as PutUserDto, 42)).rejects.toThrow(
+      '403',
+    );
     expect(mockRepo.save).not.toHaveBeenCalled();
   });
 });

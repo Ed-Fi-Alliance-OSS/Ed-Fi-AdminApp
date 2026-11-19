@@ -77,12 +77,19 @@ export class CertificationRun {
   @Column({ type: 'varchar', length: 50 })
   status: CertRunStatus;
 
-  /** When the run entered its current status; set by changeRunStatus, defaulted by the DB on insert. */
+  /** When the run entered its current status; set by transitionRun, defaulted by the DB on insert. */
   @Column({
     type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
     default: () => 'CURRENT_TIMESTAMP',
   })
   statusChangedAt: Date;
+
+  /** When the vendor sent the run to review; unlike statusChangedAt it survives the pick-up. */
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
+    nullable: true,
+  })
+  submittedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;

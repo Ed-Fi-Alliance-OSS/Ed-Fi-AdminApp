@@ -10,24 +10,25 @@ import {
 } from './certification-dashboard.dto';
 
 describe('certification dashboard constants', () => {
-  it('waiting statuses are exactly the review queue', () => {
+  it('waiting statuses are the review queue plus picked-up runs', () => {
     expect([...CERT_DASHBOARD_WAITING_STATUSES]).toEqual([
       CERT_RUN_STATUS.READY_FOR_REVIEW,
       CERT_RUN_STATUS.READY_FOR_REVIEW_WITH_CHANGES,
+      CERT_RUN_STATUS.IN_REVIEW,
     ]);
   });
 
-  it('other statuses are every status except the two waiting ones (IN_REVIEW included)', () => {
+  it('other statuses are every status except the waiting ones (IN_REVIEW excluded)', () => {
     expect([...CERT_DASHBOARD_OTHER_STATUSES].sort()).toEqual(
       [
         CERT_RUN_STATUS.DRAFT,
-        CERT_RUN_STATUS.IN_REVIEW,
         CERT_RUN_STATUS.CHANGES_REQUESTED,
         CERT_RUN_STATUS.APPROVED,
         CERT_RUN_STATUS.REJECTED,
       ].sort(),
     );
-    expect(CERT_DASHBOARD_OTHER_STATUSES).toContain(CERT_RUN_STATUS.IN_REVIEW);
+    expect(CERT_DASHBOARD_OTHER_STATUSES).not.toContain(CERT_RUN_STATUS.IN_REVIEW);
+    expect(CERT_DASHBOARD_WAITING_STATUSES).toContain(CERT_RUN_STATUS.IN_REVIEW);
   });
 
   it('waiting and other statuses never overlap', () => {

@@ -26,6 +26,7 @@ const isoRun = (overrides: Record<string, unknown> = {}) => ({
   certificationModel: 'SIS',
   status: 'READY_FOR_REVIEW',
   statusChangedAt: new Date('2026-11-10T10:00:00.000Z'),
+  submittedAt: new Date('2026-11-09T09:00:00.000Z'),
   updatedAt: new Date('2026-11-11T11:00:00.000Z'),
   team: { name: 'Team A' },
   edfiTenant: { name: 'tenant1', sbEnvironment: { displayName: 'Env 1' } },
@@ -36,18 +37,21 @@ const isoRun = (overrides: Record<string, unknown> = {}) => ({
 const setup = ({
   raw = [] as { status: string; count: string | number }[],
   waiting = [[], 0] as [unknown[], number],
+  inReview = [[], 0] as [unknown[], number],
   others = [[], 0] as [unknown[], number],
 } = {}) => {
   const counts = makeBuilder('getRawMany', raw);
   const waitingBuilder = makeBuilder('getManyAndCount', waiting);
+  const inReviewBuilder = makeBuilder('getManyAndCount', inReview);
   const othersBuilder = makeBuilder('getManyAndCount', others);
   const createQueryBuilder = jest
     .fn()
     .mockReturnValueOnce(counts)
     .mockReturnValueOnce(waitingBuilder)
+    .mockReturnValueOnce(inReviewBuilder)
     .mockReturnValueOnce(othersBuilder);
   const service = new CertificationDashboardService({ createQueryBuilder } as never);
-  return { service, counts, waitingBuilder, othersBuilder };
+  return { service, counts, waitingBuilder, inReviewBuilder, othersBuilder };
 };
 
 describe('CertificationDashboardService.getDashboard', () => {
@@ -80,22 +84,42 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
   });
 
-  it('waiting query filters to the two review statuses and orders by statusChangedAt ASC then certificationRunId ASC and takes 100', async () => {
-    const { service, waitingBuilder } = setup();
+  it('waiting queries list runs not yet picked up, then IN_REVIEW, each by submittedAt ASC then certificationRunId ASC, taking 100', async () => {
+    const { service, waitingBuilder, inReviewBuilder } = setup();
     await service.getDashboard();
     expect(waitingBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
       statuses: ['READY_FOR_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'],
     });
-    expect(waitingBuilder.orderBy).toHaveBeenCalledWith('run.statusChangedAt', 'ASC');
-    expect(waitingBuilder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'ASC');
-    expect(waitingBuilder.take).toHaveBeenCalledWith(100);
+    expect(inReviewBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
+      statuses: ['IN_REVIEW'],
+    });
+    for (const builder of [waitingBuilder, inReviewBuilder]) {
+      expect(builder.orderBy).toHaveBeenCalledWith('run.submittedAt', 'ASC');
+      expect(builder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'ASC');
+      expect(builder.take).toHaveBeenCalledWith(100);
+    }
   });
 
-  it('others query filters to DRAFT, IN_REVIEW, CHANGES_REQUESTED, APPROVED, REJECTED, orders by updatedAt DESC then certificationRunId DESC and takes 100', async () => {
+  it('lists runs not yet picked up before runs in review, and caps the rows at 100', async () => {
+    const queued = Array.from({ length: 99 }, (_, i) => isoRun({ certificationRunId: i + 1 }));
+    const picked = [
+      isoRun({ certificationRunId: 500, status: 'IN_REVIEW' }),
+      isoRun({ certificationRunId: 501, status: 'IN_REVIEW' }),
+    ];
+    const { service } = setup({ waiting: [queued, 120], inReview: [picked, 2] });
+    const { waiting } = await service.getDashboard();
+    expect(waiting.rows).toHaveLength(100);
+    expect(waiting.rows[0].runId).toBe(1);
+    expect(waiting.rows[98].runId).toBe(99);
+    expect(waiting.rows[99].runId).toBe(500);
+    expect(waiting.total).toBe(122);
+  });
+
+  it('others query filters to DRAFT, CHANGES_REQUESTED, APPROVED, REJECTED, orders by updatedAt DESC then certificationRunId DESC and takes 100', async () => {
     const { service, othersBuilder } = setup();
     await service.getDashboard();
     expect(othersBuilder.where).toHaveBeenCalledWith('run.status IN (:...statuses)', {
-      statuses: ['DRAFT', 'IN_REVIEW', 'CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
+      statuses: ['DRAFT', 'CHANGES_REQUESTED', 'APPROVED', 'REJECTED'],
     });
     expect(othersBuilder.orderBy).toHaveBeenCalledWith('run.updatedAt', 'DESC');
     expect(othersBuilder.addOrderBy).toHaveBeenCalledWith('run.certificationRunId', 'DESC');
@@ -121,6 +145,7 @@ describe('CertificationDashboardService.getDashboard', () => {
       certificationModel: 'SIS',
       status: 'READY_FOR_REVIEW',
       statusChangedAt: '2026-11-10T10:00:00.000Z',
+      submittedAt: '2026-11-09T09:00:00.000Z',
       updatedAt: '2026-11-11T11:00:00.000Z',
     });
   });
@@ -138,6 +163,12 @@ describe('CertificationDashboardService.getDashboard', () => {
     });
     const { waiting } = await service.getDashboard();
     expect(waiting.rows[0].dataStore).toBe('EdFi_Ods_1');
+  });
+
+  it('maps a run never sent to review to a null submittedAt', async () => {
+    const { service } = setup({ others: [[isoRun({ status: 'DRAFT', submittedAt: null })], 1] });
+    const { others } = await service.getDashboard();
+    expect(others.rows[0].submittedAt).toBeNull();
   });
 
   it('maps null team and null ods to null labels', async () => {
