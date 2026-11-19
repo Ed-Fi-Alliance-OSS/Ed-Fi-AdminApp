@@ -149,3 +149,34 @@ describe('CertificationReviewPage after Request changes', () => {
     spy.mockRestore();
   });
 });
+
+describe('CertificationReviewPage on a new visit', () => {
+  it('loads the current submission instead of showing the one cached on an earlier visit', async () => {
+    mockGet
+      .mockReset()
+      .mockResolvedValueOnce(review)
+      // The second visit's request is still in flight.
+      .mockReturnValueOnce(new Promise(() => undefined));
+    // The app's default: data stays fresh for five minutes.
+    const queryClient = new QueryClient({
+      defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } },
+    });
+    const renderPage = () =>
+      render(
+        <QueryClientProvider client={queryClient}>
+          <CertificationReviewPage />
+        </QueryClientProvider>,
+      );
+
+    const firstVisit = renderPage();
+    await screen.findByRole('button', { name: 'Approve' });
+    firstVisit.unmount();
+    await flush();
+
+    renderPage();
+    await flush();
+
+    expect(mockGet).toHaveBeenCalledTimes(2);
+    expect(screen.queryByRole('button', { name: 'Approve' })).toBeNull();
+  });
+});

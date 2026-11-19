@@ -18,7 +18,12 @@ export const certificationReviewQueryKeys = {
 
 const reviewUrl = (runId: number) => `certification/runs/${runId}`;
 
-/** The run's results as a global admin reads them. A refetch that fails keeps the data on screen. */
+/**
+ * The run's results as a global admin reads them. A refetch that fails keeps the data on screen.
+ * The run can be sent again with new results between two visits, so it's never cached past the
+ * review pages (gcTime 0: each visit loads it before showing decisions) and always refetched
+ * when a review page opens (staleTime 0).
+ */
 export const useCertificationReview = (runId: number | undefined, enabled: boolean) =>
   useQuery({
     queryKey: certificationReviewQueryKeys.review(runId as number),
@@ -27,6 +32,8 @@ export const useCertificationReview = (runId: number | undefined, enabled: boole
         `${reviewUrl(runId as number)}/review`,
       )) as unknown as CertificationReviewDto,
     enabled: enabled && runId !== undefined,
+    staleTime: 0,
+    gcTime: 0,
     throwOnError: (_error, query) => query.state.data === undefined,
   });
 
