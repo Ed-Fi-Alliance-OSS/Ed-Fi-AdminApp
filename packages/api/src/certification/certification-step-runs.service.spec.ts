@@ -223,6 +223,19 @@ describe('CertificationStepRunsService.findStepSnapshot', () => {
     });
   });
 
+  it("reads through the caller's transaction when given one", async () => {
+    const txRepository = {
+      findOne: jest.fn().mockResolvedValue({ responseStatus: null, responseSnapshot: null }),
+    };
+    const em = { withRepository: jest.fn(() => txRepository) };
+
+    await service.findStepSnapshot({ certificationRunId: 7, stepId: 101 }, em as never);
+
+    expect(em.withRepository).toHaveBeenCalledWith(stepRunRepository);
+    expect(txRepository.findOne).toHaveBeenCalled();
+    expect(stepRunRepository.findOne).not.toHaveBeenCalled();
+  });
+
   it('returns a stored body', async () => {
     stepRunRepository.findOne.mockResolvedValue({
       responseStatus: 200,

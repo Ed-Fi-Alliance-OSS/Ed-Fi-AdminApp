@@ -19,7 +19,7 @@ import {
 } from '@edanalytics/models-server';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
+import { EntityManager, In, Repository } from 'typeorm';
 
 /** A saved step run as the pages show it, with its own errors out of `errors`. */
 export const toSavedStepRunDto = (
@@ -115,11 +115,13 @@ export class CertificationStepRunsService {
    * The decrypted response snapshot of one step's latest run (AC-690). A run that received a
    * response but has no snapshot had it cleared when the request was decided (AC-660).
    */
-  async findStepSnapshot(params: {
-    certificationRunId: number;
-    stepId: number;
-  }): Promise<CertificationStepSnapshotDto> {
-    const stepRun = await this.stepRunRepository.findOne({
+  async findStepSnapshot(
+    params: { certificationRunId: number; stepId: number },
+    /** The caller's transaction, when the read must see the same state as the caller's checks. */
+    em?: EntityManager,
+  ): Promise<CertificationStepSnapshotDto> {
+    const repository = em ? em.withRepository(this.stepRunRepository) : this.stepRunRepository;
+    const stepRun = await repository.findOne({
       where: { stepId: params.stepId, certificationRunId: params.certificationRunId },
       select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
     });

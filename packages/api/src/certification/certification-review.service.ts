@@ -26,7 +26,7 @@ import {
 } from '@edanalytics/models-server';
 import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { DataSource, Repository } from 'typeorm';
+import { DataSource, EntityManager, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationStepRunsService, toSavedStepRunDto } from './certification-step-runs.service';
 import { CERT_RUN_MESSAGES, transitionRun } from './certification.service';
@@ -117,17 +117,49 @@ export class CertificationReviewService {
 
   /** A readable run with its scenarios, steps and saved results. */
   async getReview(runId: number): Promise<CertificationReviewDto> {
-    const run = await this.runRepository.findOne({
+    return this.dataSource.transaction(async (em) => {
+      await this.lockReadableRun(em, runId);
+      const run = await em.withRepository(this.runRepository).findOne({
+        where: { certificationRunId: runId },
+        relations: {
+          team: true,
+          ods: true,
+          edfiTenant: { sbEnvironment: true },
+          catalogVersion: true,
+        },
+      });
+      if (!run || !isReviewReadable(run.status)) throw new NotFoundException();
+      return this.toReview(em, runId, run);
+    });
+  }
+
+  /** A step's response snapshot, while its run is readable. */
+  async getSnapshot(runId: number, stepId: number): Promise<CertificationStepSnapshotDto> {
+    return this.dataSource.transaction(async (em) => {
+      await this.lockReadableRun(em, runId);
+      return this.stepRunsService.findStepSnapshot({ certificationRunId: runId, stepId }, em);
+    });
+  }
+
+  /**
+   * Share-locks the run row until the read's transaction ends, else 404 when it isn't readable.
+   * A decision and a vendor's step save both update this row first, so neither can change the
+   * status or the evidence half-way through the read.
+   */
+  private async lockReadableRun(em: EntityManager, runId: number) {
+    const run = await em.withRepository(this.runRepository).findOne({
       where: { certificationRunId: runId },
-      relations: {
-        team: true,
-        ods: true,
-        edfiTenant: { sbEnvironment: true },
-        catalogVersion: true,
-      },
+      select: { certificationRunId: true, status: true },
+      lock: { mode: 'pessimistic_read' },
     });
     if (!run || !isReviewReadable(run.status)) throw new NotFoundException();
+  }
 
+  private async toReview(
+    em: EntityManager,
+    runId: number,
+    run: CertificationRun,
+  ): Promise<CertificationReviewDto> {
     return toCertificationReviewDto({
       run: {
         runId,
@@ -142,15 +174,10 @@ export class CertificationReviewService {
         canDecide: run.status === CERT_RUN_STATUS.IN_REVIEW,
       },
       scenarios:
-        run.catalogVersionId === null ? [] : await this.findScenarios(runId, run.catalogVersionId),
+        run.catalogVersionId === null
+          ? []
+          : await this.findScenarios(em, runId, run.catalogVersionId),
     });
-  }
-
-  /** A step's response snapshot, while its run is readable. */
-  async getSnapshot(runId: number, stepId: number): Promise<CertificationStepSnapshotDto> {
-    const run = await this.findRunStatus(runId);
-    if (!isReviewReadable(run.status)) throw new NotFoundException();
-    return this.stepRunsService.findStepSnapshot({ certificationRunId: runId, stepId });
   }
 
   private async findRunStatus(runId: number) {
@@ -167,25 +194,26 @@ export class CertificationReviewService {
    * this run saved a result for it, so a reviewer still sees what the vendor ran.
    */
   private async findScenarios(
+    em: EntityManager,
     certificationRunId: number,
     catalogVersionId: number,
   ): Promise<CertificationReviewScenarioDto[]> {
     const [domains, scenarios, steps, runScenarios, stepRuns, errors] = await Promise.all([
-      this.domainRepository.find({
+      em.withRepository(this.domainRepository).find({
         where: { catalogVersionId },
         order: { displayOrder: 'ASC', domainId: 'ASC' },
       }),
-      this.scenarioRepository.find({
+      em.withRepository(this.scenarioRepository).find({
         where: { domain: { catalogVersionId } },
         order: { displayOrder: 'ASC', scenarioId: 'ASC' },
       }),
-      this.stepRepository.find({
+      em.withRepository(this.stepRepository).find({
         where: { scenario: { domain: { catalogVersionId } } },
         order: { displayOrder: 'ASC', stepId: 'ASC' },
       }),
-      this.runScenarioRepository.find({ where: { certificationRunId } }),
-      this.stepRunRepository.find({ where: { certificationRunId } }),
-      this.stepErrorRepository.find({
+      em.withRepository(this.runScenarioRepository).find({ where: { certificationRunId } }),
+      em.withRepository(this.stepRunRepository).find({ where: { certificationRunId } }),
+      em.withRepository(this.stepErrorRepository).find({
         where: { stepRun: { certificationRunId } },
         order: { errorId: 'ASC' },
       }),

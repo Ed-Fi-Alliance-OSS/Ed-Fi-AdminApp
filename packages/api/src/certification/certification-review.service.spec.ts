@@ -69,6 +69,19 @@ const makeTransactionalDb = (initialStatus: string) => {
   return { state, runUpdate, commentSave, snapshotUpdate, dataSource };
 };
 
+/** A read-only transaction: its repositories are the injected ones, and it says when it's open. */
+const makeReadTransaction = () => {
+  const em = { withRepository: jest.fn((repository: unknown) => repository) };
+  const dataSource = { transaction: jest.fn(async (work) => work(em)) };
+  return { em, dataSource };
+};
+
+const LOCKED_RUN_READ = {
+  where: { certificationRunId: 7 },
+  select: { certificationRunId: true, status: true },
+  lock: { mode: 'pessimistic_read' },
+};
+
 describe('CertificationReviewService.pickUp', () => {
   let runRepository: { findOne: jest.Mock };
   let db: ReturnType<typeof makeTransactionalDb>;
@@ -227,6 +240,7 @@ describe('CertificationReviewService.getReview', () => {
   let runScenarioRepository: { find: jest.Mock };
   let stepRunRepository: { find: jest.Mock };
   let stepErrorRepository: { find: jest.Mock };
+  let tx: ReturnType<typeof makeReadTransaction>;
   let service: CertificationReviewService;
 
   const makeRun = (overrides: object = {}) => ({
@@ -302,6 +316,7 @@ describe('CertificationReviewService.getReview', () => {
         },
       ]),
     };
+    tx = makeReadTransaction();
     service = makeService({
       runRepository,
       domainRepository,
@@ -310,7 +325,25 @@ describe('CertificationReviewService.getReview', () => {
       runScenarioRepository,
       stepRunRepository,
       stepErrorRepository,
+      dataSource: tx.dataSource,
     });
+  });
+
+  it('locks the run first and reads everything in that one transaction', async () => {
+    await service.getReview(7);
+    expect(tx.dataSource.transaction).toHaveBeenCalledTimes(1);
+    expect(runRepository.findOne).toHaveBeenNthCalledWith(1, LOCKED_RUN_READ);
+    for (const repository of [
+      runRepository,
+      domainRepository,
+      scenarioRepository,
+      stepRepository,
+      runScenarioRepository,
+      stepRunRepository,
+      stepErrorRepository,
+    ]) {
+      expect(tx.em.withRepository).toHaveBeenCalledWith(repository);
+    }
   });
 
   it.each(['DRAFT', 'CHANGES_REQUESTED'])('returns 404 for a %s run', async (status) => {
@@ -471,12 +504,14 @@ describe('CertificationReviewService.getReview', () => {
 describe('CertificationReviewService.getSnapshot', () => {
   let runRepository: { findOne: jest.Mock };
   let stepRunsService: { findStepSnapshot: jest.Mock };
+  let tx: ReturnType<typeof makeReadTransaction>;
   let service: CertificationReviewService;
 
   beforeEach(() => {
     runRepository = { findOne: jest.fn() };
     stepRunsService = { findStepSnapshot: jest.fn().mockResolvedValue({ state: 'none' }) };
-    service = makeService({ runRepository, stepRunsService });
+    tx = makeReadTransaction();
+    service = makeService({ runRepository, stepRunsService, dataSource: tx.dataSource });
   });
 
   it('returns 404 for a CHANGES_REQUESTED run without reading the snapshot', async () => {
@@ -490,12 +525,14 @@ describe('CertificationReviewService.getSnapshot', () => {
     await expect(service.getSnapshot(7, 101)).rejects.toThrow(NotFoundException);
   });
 
-  it("reads an IN_REVIEW run's step snapshot", async () => {
+  it("reads an IN_REVIEW run's step snapshot in the transaction that locked the run", async () => {
     runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'IN_REVIEW' });
     await expect(service.getSnapshot(7, 101)).resolves.toEqual({ state: 'none' });
-    expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith({
-      certificationRunId: 7,
-      stepId: 101,
-    });
+    expect(runRepository.findOne).toHaveBeenCalledWith(LOCKED_RUN_READ);
+    expect(tx.em.withRepository).toHaveBeenCalledWith(runRepository);
+    expect(stepRunsService.findStepSnapshot).toHaveBeenCalledWith(
+      { certificationRunId: 7, stepId: 101 },
+      tx.em,
+    );
   });
 });
