@@ -75,6 +75,24 @@ describe('CertificationRunsCard', () => {
     expect(within(table).getByText('In review')).toBeTruthy();
   });
 
+  it('times a picked-up run from when it was sent to review, not from the pick-up', () => {
+    render(
+      <CertificationRunsCard
+        title="Waiting for review"
+        list={list([
+          run({
+            status: 'IN_REVIEW',
+            statusChangedAt: new Date().toISOString(),
+            submittedAt: new Date(Date.now() - (3 * 24 + 2) * 60 * 60 * 1000).toISOString(),
+          }),
+        ])}
+        timeColumn="Waiting"
+      />,
+    );
+    const table = screen.getByRole('table', { name: 'Waiting for review' });
+    expect(within(table).getByText('3d 2h')).toBeTruthy();
+  });
+
   it('renders rows in the order given, with status labels and elapsed time', () => {
     render(
       <CertificationRunsCard

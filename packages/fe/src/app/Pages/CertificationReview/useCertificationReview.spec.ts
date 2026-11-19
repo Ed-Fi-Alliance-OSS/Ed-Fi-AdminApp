@@ -94,12 +94,17 @@ describe('usePickUpCertificationRun', () => {
 describe('useCertificationReviewDecision', () => {
   const invalidateQueries = jest.fn();
   const removeQueries = jest.fn();
+  const setQueryData = jest.fn();
   const options = () => (useMutation as jest.Mock).mock.calls[0][0];
   const invalidatedKeys = () => invalidateQueries.mock.calls.map(([arg]) => arg.queryKey);
 
   beforeEach(() => {
     jest.clearAllMocks();
-    (useQueryClient as jest.Mock).mockReturnValue({ invalidateQueries, removeQueries });
+    (useQueryClient as jest.Mock).mockReturnValue({
+      invalidateQueries,
+      removeQueries,
+      setQueryData,
+    });
     useCertificationReviewDecision();
   });
 
@@ -115,7 +120,7 @@ describe('useCertificationReviewDecision', () => {
   });
 
   it('invalidates the dashboard and the review after an approval', () => {
-    options().onSuccess(undefined, { runId: 7, decision: 'APPROVED' });
+    options().onSuccess({ runId: 7, status: 'APPROVED' }, { runId: 7, decision: 'APPROVED' });
     expect(invalidatedKeys()).toEqual([
       CERTIFICATION_DASHBOARD_QUERY_KEY,
       certificationReviewQueryKeys.review(7),
@@ -123,17 +128,36 @@ describe('useCertificationReviewDecision', () => {
   });
 
   it('invalidates the dashboard and the review after a rejection', () => {
-    options().onSuccess(undefined, { runId: 7, decision: 'REJECTED' });
+    options().onSuccess({ runId: 7, status: 'REJECTED' }, { runId: 7, decision: 'REJECTED' });
     expect(invalidatedKeys()).toEqual([
       CERTIFICATION_DASHBOARD_QUERY_KEY,
       certificationReviewQueryKeys.review(7),
     ]);
   });
 
+  it.each(['APPROVED', 'REJECTED'])(
+    'writes the %s status into the cached run so the page is read-only before the refetch',
+    (status) => {
+      options().onSuccess({ runId: 7, status }, { runId: 7, decision: status });
+      const [key, update] = setQueryData.mock.calls[0];
+      expect(key).toEqual(certificationReviewQueryKeys.review(7));
+      const cached = { run: { runId: 7, status: 'IN_REVIEW', canDecide: true }, scenarios: [] };
+      expect(update(cached)).toEqual({
+        run: { runId: 7, status, canDecide: false },
+        scenarios: [],
+      });
+      expect(update(undefined)).toBeUndefined();
+    },
+  );
+
   it('leaves the review query alone after a change request, since the run is no longer readable', () => {
-    options().onSuccess(undefined, { runId: 7, decision: 'CHANGES_REQUESTED' });
+    options().onSuccess(
+      { runId: 7, status: 'CHANGES_REQUESTED' },
+      { runId: 7, decision: 'CHANGES_REQUESTED' },
+    );
     expect(invalidatedKeys()).toEqual([CERTIFICATION_DASHBOARD_QUERY_KEY]);
     expect(removeQueries).not.toHaveBeenCalled();
+    expect(setQueryData).not.toHaveBeenCalled();
   });
 
   it('refetches the dashboard and the run after a refusal such as a 409', () => {

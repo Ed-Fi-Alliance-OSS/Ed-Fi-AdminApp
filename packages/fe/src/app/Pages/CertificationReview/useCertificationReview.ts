@@ -86,9 +86,14 @@ export const useCertificationReviewDecision = () => {
       (await apiClient.post(`${reviewUrl(runId)}/${DECISION_PATH[decision]}`, {
         comment,
       })) as unknown as CertificationReviewStatusDto,
-    onSuccess: (_result, { runId, decision }) => {
+    onSuccess: (result, { runId, decision }) => {
       invalidateDashboard();
       if (decision !== 'CHANGES_REQUESTED') {
+        // Read-only at once: until the refetch lands, the cached run would still offer decisions.
+        queryClient.setQueryData<CertificationReviewDto>(
+          certificationReviewQueryKeys.review(runId),
+          (old) => old && { ...old, run: { ...old.run, status: result.status, canDecide: false } },
+        );
         invalidateReview(runId);
       }
     },

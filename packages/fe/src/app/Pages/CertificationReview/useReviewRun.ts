@@ -2,15 +2,11 @@ import { CertificationReviewDto } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { useParams } from 'react-router';
-import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
+import { authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { toRunId } from '../CertificationV2/useCertificationRun';
 import type { CertificationSnapshotSource } from '../CertificationV2/useCertificationStepSnapshot';
+import { REVIEW_CERTIFICATION } from './reviewAuthorization';
 import { reviewSnapshotSource, useCertificationReview } from './useCertificationReview';
-
-export const REVIEW_CERTIFICATION: AuthorizeConfig = {
-  privilege: 'certification:review',
-  subject: { id: '__filtered__' },
-};
 
 export type ReviewRun =
   | { state: 'loading' }

@@ -6,7 +6,10 @@ import type { CertModel, CertRunStatus } from './certification-run.dto';
 /** The "Runs in flight or rejected" list shows at most this many rows; `total` is the real count. */
 export const CERT_DASHBOARD_OTHERS_LIMIT = 100;
 
-/** The "Waiting for review" list shows at most this many rows, oldest first; `total` is the real count. */
+/**
+ * The "Waiting for review" list shows at most this many rows: runs not yet picked up, then runs in
+ * review, each oldest submission first. `total` is the real count.
+ */
 export const CERT_DASHBOARD_WAITING_LIMIT = 100;
 
 /** Runs waiting for a reviewer, including those a reviewer has picked up. */
@@ -63,6 +66,10 @@ export class CertificationDashboardRunDto {
   /** ISO string. */
   @Expose()
   statusChangedAt: string;
+
+  /** ISO string: when the vendor last sent the run to review. Unlike statusChangedAt, pick-up keeps it. */
+  @Expose()
+  submittedAt: string | null;
 
   /** ISO string. */
   @Expose()

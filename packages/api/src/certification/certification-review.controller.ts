@@ -10,6 +10,9 @@ import { Authorize } from '../auth/authorization';
 import { ReqUser } from '../auth/helpers/user.decorator';
 import { CertificationReviewService } from './certification-review.service';
 
+/** Every review route, reads included, needs the global `certification:review` privilege. */
+const REVIEW = { privilege: 'certification:review', subject: { id: '__filtered__' } } as const;
+
 /** Global (not tenant-scoped) review routes for global admins, so no tenant interceptor. */
 @ApiTags('Certification')
 @Controller('certification/runs/:runId')
@@ -18,20 +21,20 @@ export class CertificationReviewController {
 
   @Post('pick-up')
   @HttpCode(200)
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   pickUp(@Param('runId', ParseIntPipe) runId: number) {
     return this.reviewService.pickUp(runId);
   }
 
   @Get('review')
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   getReview(@Param('runId', ParseIntPipe) runId: number) {
     return this.reviewService.getReview(runId);
   }
 
   @Get('step-runs/:stepId/snapshot')
   @Header('Cache-Control', 'no-store')
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   getSnapshot(
     @Param('runId', ParseIntPipe) runId: number,
     @Param('stepId', ParseIntPipe) stepId: number,
@@ -41,7 +44,7 @@ export class CertificationReviewController {
 
   @Post('approve')
   @HttpCode(200)
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   approve(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,
@@ -52,7 +55,7 @@ export class CertificationReviewController {
 
   @Post('reject')
   @HttpCode(200)
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   reject(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,
@@ -63,7 +66,7 @@ export class CertificationReviewController {
 
   @Post('request-changes')
   @HttpCode(200)
-  @Authorize({ privilege: 'certification:review', subject: { id: '__filtered__' } })
+  @Authorize(REVIEW)
   requestChanges(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,

@@ -3,12 +3,14 @@ import {
   CERT_REVIEW_MESSAGES,
   CERT_REVIEW_QUEUE_STATUSES,
   CERT_RUN_STATUS,
+  CERT_SCENARIO_STATUS,
   CertificationReviewDto,
   CertificationReviewScenarioDto,
   CertificationReviewStatusDto,
   CertificationStepSnapshotDto,
   CertReviewDecision,
   CertRunStatus,
+  CertScenarioStatus,
   isReviewReadable,
   reviewDecisionNeedsComment,
   toCertificationReviewDto,
@@ -45,6 +47,12 @@ const DECISION_STATUS: Record<CertReviewDecision, CertRunStatus> = {
   [CERT_REVIEW_DECISION.REJECTED]: CERT_RUN_STATUS.REJECTED,
   [CERT_REVIEW_DECISION.CHANGES_REQUESTED]: CERT_RUN_STATUS.CHANGES_REQUESTED,
 };
+
+const SCENARIO_STATUSES: readonly unknown[] = Object.values(CERT_SCENARIO_STATUS);
+
+/** A saved scenario status the review DTO knows; anything else is shown as no status. */
+const isScenarioStatus = (value: unknown): value is CertScenarioStatus =>
+  SCENARIO_STATUSES.includes(value);
 
 /** The catalog's name for an item, as the vendor pages show it. */
 const nameOf = (displayName: string | null, name: string) => displayName?.trim() || name;
@@ -245,15 +253,15 @@ export class CertificationReviewService {
                 result: stepRun ? toSavedStepRunDto(stepRun, errors) : null,
               };
             });
-          const status = scenarioStatus.get(scenario.scenarioId) ?? null;
-          const kept = enabled || status !== null || scenarioSteps.some((step) => step.result);
+          const savedStatus = scenarioStatus.get(scenario.scenarioId) ?? null;
+          const kept = enabled || savedStatus !== null || scenarioSteps.some((step) => step.result);
           if (!kept) return [];
           return [
             {
               scenarioId: scenario.scenarioId,
               domainName: nameOf(domain.displayName, domain.name),
               name: nameOf(scenario.displayName, scenario.name),
-              status: status as CertificationReviewScenarioDto['status'],
+              status: isScenarioStatus(savedStatus) ? savedStatus : null,
               steps: scenarioSteps,
             },
           ];

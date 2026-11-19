@@ -81,7 +81,7 @@ export const CertificationRunRow = ({
     <Td>{CERT_RUN_STATUS_LABELS[row.status]}</Td>
     <Td>
       {timeColumn === 'Waiting'
-        ? formatWaiting(row.statusChangedAt)
+        ? formatWaiting(row.submittedAt ?? row.statusChangedAt)
         : new Date(row.updatedAt).toLocaleString()}
     </Td>
     {renderAction && <Td>{renderAction(row)}</Td>}

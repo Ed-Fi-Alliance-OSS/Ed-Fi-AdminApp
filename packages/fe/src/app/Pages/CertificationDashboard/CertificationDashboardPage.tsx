@@ -19,6 +19,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Link as RouterLink, useNavigate } from 'react-router';
 import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { usePickUpCertificationRun } from '../CertificationReview/useCertificationReview';
+import { REVIEW_CERTIFICATION } from '../CertificationReview/reviewAuthorization';
 import { certificationReviewPath } from '../../routes/paths';
 import { CertificationRunsCard } from './CertificationRunsCard';
 import { useCertificationDashboard } from './useCertificationDashboard';
@@ -27,11 +28,6 @@ const TITLE = 'Certification dashboard';
 
 const READ_CERTIFICATION: AuthorizeConfig = {
   privilege: 'certification:read',
-  subject: { id: '__filtered__' },
-};
-
-const REVIEW_CERTIFICATION: AuthorizeConfig = {
-  privilege: 'certification:review',
   subject: { id: '__filtered__' },
 };
 
