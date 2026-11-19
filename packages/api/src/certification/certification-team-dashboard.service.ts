@@ -13,6 +13,12 @@ import { checkId } from '../auth/helpers/where-ids';
 
 const MODEL_ORDER: string[] = Object.values(CERT_MODEL);
 
+/** A model outside CERT_MODEL (e.g. legacy data) sorts last instead of first. */
+const modelRank = (model: string) => {
+  const index = MODEL_ORDER.indexOf(model);
+  return index === -1 ? MODEL_ORDER.length : index;
+};
+
 /**
  * Read-only data behind the vendor "My products" dashboard (AC-671): the latest run of each model
  * on each data store the user can read, plus counts computed from those same runs.
@@ -92,8 +98,7 @@ export class CertificationTeamDashboardService {
     );
     for (const dataStore of dataStores) {
       dataStore.runs.sort(
-        (a, b) =>
-          MODEL_ORDER.indexOf(a.certificationModel) - MODEL_ORDER.indexOf(b.certificationModel)
+        (a, b) => modelRank(a.certificationModel) - modelRank(b.certificationModel)
       );
     }
 

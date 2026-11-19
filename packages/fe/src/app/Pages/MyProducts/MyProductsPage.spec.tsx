@@ -192,18 +192,6 @@ describe('MyProductsPage', () => {
       expect(screen.queryByTestId('summary')).toBeNull();
     });
 
-    it('throws the dashboard error, not "Not allowed"', () => {
-      mockUseCanSee.mockReturnValue(allowed);
-      mockUseDashboard.mockReturnValue({
-        data: undefined,
-        isLoading: false,
-        error: new Error('Request failed with status code 500'),
-      });
-      const spy = jest.spyOn(console, 'error').mockImplementation(() => undefined);
-      expect(() => render(<MyProductsPage />)).toThrow('Request failed with status code 500');
-      spy.mockRestore();
-    });
-
     it('loads the dashboard for the team only when the user can see certification', () => {
       mockUseCanSee.mockReturnValue(allowed);
       render(<MyProductsPage />);

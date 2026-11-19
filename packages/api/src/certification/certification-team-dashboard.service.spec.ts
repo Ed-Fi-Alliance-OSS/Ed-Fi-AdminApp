@@ -132,13 +132,30 @@ describe('CertificationTeamDashboardService.getDashboard', () => {
     expect(find).not.toHaveBeenCalled();
   });
 
-  it('queries only the given team', async () => {
+  it('"latest" is per team: only runs started by the given team are grouped', async () => {
     const { service, builder } = setup([], []);
     await service.getDashboard({ teamId: 42, validOdsIds: all });
     expect(builder.where).toHaveBeenCalledWith(
       expect.stringContaining('run.teamId = :teamId'),
       { teamId: 42 }
     );
+  });
+
+  it('sorts a model outside CERT_MODEL after the known ones', async () => {
+    const { service } = setup(
+      [g(1, 10, 'LEGACY', 1), g(1, 10, 'MTSS', 2), g(1, 10, 'SIS', 3)],
+      [
+        run(1, 'LEGACY', 'DRAFT', 1, 10),
+        run(2, 'MTSS', 'DRAFT', 1, 10),
+        run(3, 'SIS', 'DRAFT', 1, 10),
+      ]
+    );
+    const result = await service.getDashboard({ teamId: 7, validOdsIds: all });
+    expect(result.dataStores[0].runs.map((r) => r.certificationModel)).toEqual([
+      'SIS',
+      'MTSS',
+      'LEGACY',
+    ]);
   });
 
   it('numeric ids from either database engine', async () => {
