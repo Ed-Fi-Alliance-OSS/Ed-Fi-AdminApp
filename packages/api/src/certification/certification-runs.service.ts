@@ -1,7 +1,9 @@
 import {
+  CERT_FORMER_REVIEWER_NAME,
   CERT_MODEL,
   CERT_RUN_STATUS,
   CertificationLatestRunDto,
+  CertificationRunCommentDto,
   CertificationRunDto,
   CertModel,
   Ids,
@@ -9,11 +11,13 @@ import {
   canExecuteSteps,
   isOpenRunStatus,
   toCertificationLatestRunDto,
+  toCertificationRunCommentDto,
   toCertificationRunDto,
 } from '@edanalytics/models';
 import {
   CatalogVersion,
   CertificationRun,
+  CertificationRunComment,
   EdfiTenant,
   Ods,
   SbEnvironment,
@@ -25,7 +29,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { Repository } from 'typeorm';
+import { IsNull, Not, Repository } from 'typeorm';
 import { checkId } from '../auth/helpers/where-ids';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
@@ -61,7 +65,30 @@ export class CertificationRunsService {
     private readonly odsRepository: Repository<Ods>,
     @InjectRepository(CatalogVersion)
     private readonly catalogVersionRepository: Repository<CatalogVersion>,
+    @InjectRepository(CertificationRunComment)
+    private readonly commentRepository: Repository<CertificationRunComment>,
   ) {}
+
+  /**
+   * A run's reviewer comments, newest first. AC-660 saves a row per decision with null text for
+   * a bare approval, so those are skipped here.
+   */
+  async findRunComments(runId: number): Promise<CertificationRunCommentDto[]> {
+    const comments = await this.commentRepository.find({
+      where: { certificationRunId: runId, text: Not(IsNull()) },
+      relations: { author: true },
+      order: { createdAt: 'DESC', certificationRunCommentId: 'DESC' },
+    });
+    return comments.map((comment) =>
+      toCertificationRunCommentDto({
+        commentId: comment.certificationRunCommentId,
+        createdAt: comment.createdAt.toISOString(),
+        reviewerName: comment.author?.displayName ?? CERT_FORMER_REVIEWER_NAME,
+        decision: comment.decision,
+        text: comment.text,
+      }),
+    );
+  }
 
   /**
    * Creates a Draft run of one Certification Model on one data store. A data store has at most

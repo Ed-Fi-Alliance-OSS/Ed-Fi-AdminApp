@@ -141,3 +141,37 @@ export const toCertificationReviewStatusDto = makeSerializer<
   CertificationReviewStatusDto,
   CertificationReviewStatusDto
 >(CertificationReviewStatusDto);
+
+/** How a decision reads in the Reviewer comments card. */
+export const CERT_REVIEW_DECISION_LABELS: Record<CertReviewDecision, string> = {
+  APPROVED: 'Approved',
+  REJECTED: 'Rejected',
+  CHANGES_REQUESTED: 'Changes requested',
+};
+
+/** Shown as the reviewer when the comment's author was deleted. */
+export const CERT_FORMER_REVIEWER_NAME = 'Former reviewer';
+
+/** One reviewer comment on a run. */
+export class CertificationRunCommentDto {
+  @Expose()
+  commentId: number;
+
+  /** ISO string of when the reviewer decided. */
+  @Expose()
+  createdAt: string;
+
+  @Expose()
+  reviewerName: string;
+
+  @Expose()
+  decision: CertReviewDecision;
+
+  @Expose()
+  text: string;
+}
+
+export const toCertificationRunCommentDto = makeSerializer<
+  CertificationRunCommentDto,
+  CertificationRunCommentDto
+>(CertificationRunCommentDto);
