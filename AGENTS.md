@@ -52,9 +52,9 @@ packages/
 - `npm run migrations:generate -- MigrationName` - Generate database migration
 - `npm run migrations:run` - Run pending migrations
 - `npm run migrations:run:mssql` - Run pending migrations against MSSQL
-- `npm run test:api` - Run API tests
+- `npm run test:api` - Run API tests. **REQUIRED**: always use this script, never `npx nx run api:test` directly. The script sets `NODE_OPTIONS=--experimental-vm-modules`; without it the specs fail with `Must use import to load ES Module … @nestjs/common`. To run a subset, pass the pattern through the script: `npm run test:api -- --testPathPatterns=<pattern>`
 - `npm run test:fe` - Run frontend tests
-- `npx nx run fe:test -- --testPathPatterns=<pattern>` - Run only the test files matching a pattern (works for any project; `--testFile` is no longer supported)
+- `npx nx run fe:test -- --testPathPatterns=<pattern>` - Run only the test files matching a pattern (works for any project except `api`, which must go through `npm run test:api`; `--testFile` is no longer supported)
 - `npm run start:api:dev` - Run the API in watch mode (webpack rebuilds incrementally and restarts the API on each change)
 - `npm run test:e2e:bdd` - Run the Playwright BDD E2E suite (requires the stack already running — see below for the full provisioning runner)
 - `npm run lint:check` - Check linting
