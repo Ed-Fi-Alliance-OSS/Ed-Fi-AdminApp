@@ -19,6 +19,7 @@ Role, Menu item, BsPersonVcard, BsPersonVcardFill
 SbEnvironment, Menu item, BsHdd, BsHddFill
 SyncQueue, Menu item, BsInboxes, BsInboxesFill
 CertificationDashboard, Menu item, BsBarChart, BsBarChartFill
+MyProducts, Menu item, BsBoxSeam, BsBoxSeamFill
 Team, Menu item, BsBuildings, BsBuildingsFill
 TeamMembership, Menu item, BsPersonBadge, BsPersonBadgeFill
 Vendor, Menu item, BsBuilding, BsBuildingFill

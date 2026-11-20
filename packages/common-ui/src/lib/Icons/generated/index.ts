@@ -31,6 +31,7 @@ export { Import } from './Import';
 export { InfoCircle } from './InfoCircle';
 export { IntegrationProvider } from './IntegrationProvider';
 export { LargeX } from './LargeX';
+export { MyProducts } from './MyProducts';
 export { ODS } from './ODS';
 export { OpenProfileMenu } from './OpenProfileMenu';
 export { Ownership } from './Ownership';
