@@ -97,13 +97,15 @@ describe('CertificationRunsController', () => {
 describe('CertificationTeamRunsController', () => {
   const certificationRun = { certificationRunId: 7, edfiTenantId: 10 };
   const runDto = { runId: 7 };
-  let runsService: { findTeamRun: jest.Mock; toDto: jest.Mock };
+  const comments = [{ commentId: 1 }];
+  let runsService: { findTeamRun: jest.Mock; toDto: jest.Mock; findRunComments: jest.Mock };
   let controller: CertificationTeamRunsController;
 
   beforeEach(() => {
     runsService = {
       findTeamRun: jest.fn().mockResolvedValue(certificationRun),
       toDto: jest.fn().mockReturnValue(runDto),
+      findRunComments: jest.fn().mockResolvedValue(comments),
     };
     controller = new CertificationTeamRunsController(runsService as never);
   });
@@ -140,6 +142,43 @@ describe('CertificationTeamRunsController', () => {
     ).toEqual({
       privilege: 'team.sb-environment:read',
       subject: { id: '__filtered__', teamId: 'teamId' },
+    });
+  });
+
+  describe('getComments', () => {
+    it("returns the comments of the team's run", async () => {
+      await expect(controller.getComments(2, 7, {})).resolves.toBe(comments);
+      expect(runsService.findTeamRun).toHaveBeenCalledWith(
+        expect.objectContaining({ runId: 7, teamId: 2 }),
+      );
+      expect(runsService.findRunComments).toHaveBeenCalledWith(7);
+    });
+
+    it("checks certification:read on the run's own tenant", async () => {
+      const tenantTenIds = new Set([5]);
+      await controller.getComments(2, 7, { [READ]: { 10: tenantTenIds, 11: true } } as never);
+
+      const { validOdsIds } = runsService.findTeamRun.mock.calls[0][0];
+      expect(validOdsIds(10)).toBe(tenantTenIds);
+      expect(validOdsIds(12)).toBeUndefined();
+    });
+
+    it("answers 404 and reads no comments for another team's run", async () => {
+      runsService.findTeamRun.mockRejectedValue(new NotFoundException());
+      await expect(controller.getComments(3, 7, {})).rejects.toBeInstanceOf(NotFoundException);
+      expect(runsService.findRunComments).not.toHaveBeenCalled();
+    });
+
+    it('is guarded like getRun', () => {
+      expect(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getComments),
+      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun));
+    });
+
+    it('is served at :runId/comments', () => {
+      expect(
+        Reflect.getMetadata(PATH_METADATA, CertificationTeamRunsController.prototype.getComments),
+      ).toBe(':runId/comments');
     });
   });
 });

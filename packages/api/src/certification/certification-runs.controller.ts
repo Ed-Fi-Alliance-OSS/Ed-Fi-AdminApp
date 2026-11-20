@@ -97,11 +97,30 @@ export class CertificationTeamRunsController {
     @Param('runId', new ParseIntPipe()) runId: number,
     @AuthCache() authorizationCache: AuthorizationCache,
   ) {
-    const certificationRun = await this.runsService.findTeamRun({
+    const certificationRun = await this.findReadableRun(teamId, runId, authorizationCache);
+    return this.runsService.toDto(certificationRun);
+  }
+
+  /** The reviewer's comments on a run, visible to exactly those who can see the run. */
+  @Get(':runId/comments')
+  @Authorize({
+    privilege: 'team.sb-environment:read',
+    subject: { id: '__filtered__', teamId: 'teamId' },
+  })
+  async getComments(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @AuthCache() authorizationCache: AuthorizationCache,
+  ) {
+    const certificationRun = await this.findReadableRun(teamId, runId, authorizationCache);
+    return this.runsService.findRunComments(certificationRun.certificationRunId);
+  }
+
+  private findReadableRun(teamId: number, runId: number, authorizationCache: AuthorizationCache) {
+    return this.runsService.findTeamRun({
       runId,
       teamId,
       validOdsIds: (edfiTenantId) => authorizationCache?.[CERT_READ]?.[edfiTenantId],
     });
-    return this.runsService.toDto(certificationRun);
   }
 }
