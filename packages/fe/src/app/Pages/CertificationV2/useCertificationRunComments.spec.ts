@@ -9,12 +9,14 @@ import { useCertificationRunComments } from './useCertificationRunComments';
 
 jest.mock('../../api', () => ({ methods: { getMany: jest.fn() } }));
 
-const wrapper = ({ children }: { children: ReactNode }) =>
-  createElement(
-    QueryClientProvider,
-    { client: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
-    children,
-  );
+// The app keeps reads fresh for 5 minutes (app.tsx), so the tests do too.
+const newClient = () =>
+  new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } });
+const wrapperFor =
+  (client: QueryClient) =>
+  ({ children }: { children: ReactNode }) =>
+    createElement(QueryClientProvider, { client }, children);
+const wrapper = wrapperFor(newClient());
 
 describe('useCertificationRunComments', () => {
   beforeEach(() => jest.clearAllMocks());
@@ -42,10 +44,34 @@ describe('useCertificationRunComments', () => {
   it('returns no comments when the request fails, without throwing', async () => {
     (methods.getMany as jest.Mock).mockRejectedValue(new Error('boom'));
 
-    const { result } = renderHook(() => useCertificationRunComments(2, 7), { wrapper });
+    const client = newClient();
+    const { result } = renderHook(() => useCertificationRunComments(2, 7), {
+      wrapper: wrapperFor(client),
+    });
 
-    await waitFor(() => expect(methods.getMany).toHaveBeenCalled());
+    await waitFor(() =>
+      expect(client.getQueryState(certificationQueryKeys.runComments(2, 7))?.status).toBe('error'),
+    );
     expect(result.current).toEqual({ comments: [] });
+  });
+
+  it('reads again when mounted again, even within the stale time', async () => {
+    (methods.getMany as jest.Mock).mockResolvedValue([]);
+    const client = newClient();
+
+    const first = renderHook(() => useCertificationRunComments(2, 7), {
+      wrapper: wrapperFor(client),
+    });
+    await waitFor(() => expect(methods.getMany).toHaveBeenCalledTimes(1));
+    await waitFor(() =>
+      expect(client.getQueryState(certificationQueryKeys.runComments(2, 7))?.status).toBe(
+        'success',
+      ),
+    );
+    first.unmount();
+
+    renderHook(() => useCertificationRunComments(2, 7), { wrapper: wrapperFor(client) });
+    await waitFor(() => expect(methods.getMany).toHaveBeenCalledTimes(2));
   });
 
   it('does not read without a run ID', () => {

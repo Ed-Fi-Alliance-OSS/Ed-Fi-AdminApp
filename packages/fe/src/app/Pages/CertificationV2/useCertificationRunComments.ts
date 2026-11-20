@@ -18,6 +18,9 @@ export const useCertificationRunComments = (teamId: number, runId: number | unde
         CertificationRunCommentDto,
       ),
     enabled: runId !== undefined,
+    // A reviewer can decide in another session, and the app's 5 minute staleTime would otherwise
+    // keep showing the comments (or their absence) from before.
+    refetchOnMount: 'always',
   });
   return { comments: commentsQuery.data ?? NO_COMMENTS };
 };

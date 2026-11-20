@@ -36,7 +36,7 @@ export const CertificationRunReviewerComments = ({
                 {CERT_REVIEW_DECISION_LABELS[comment.decision]}
               </Badge>
               <Text fontWeight="semibold">{comment.reviewerName}</Text>
-              <Text fontSize="sm" color="gray.600">
+              <Text as="time" dateTime={comment.createdAt} fontSize="sm" color="gray.600">
                 {new Date(comment.createdAt).toLocaleString()}
               </Text>
             </HStack>
