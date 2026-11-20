@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { In, Not } from 'typeorm';
+import { In, IsNull, Not } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationRunsService } from './certification-runs.service';
 import { CERT_RUN_MESSAGES } from './certification.service';
@@ -31,6 +31,7 @@ describe('CertificationRunsService', () => {
   let runRepository: { findOne: jest.Mock; find: jest.Mock; create: jest.Mock; save: jest.Mock };
   let odsRepository: { findOneBy: jest.Mock };
   let catalogVersionRepository: { findOne: jest.Mock };
+  let commentRepository: { find: jest.Mock };
   let artifactService: { currentRef: string | undefined };
   let service: CertificationRunsService;
 
@@ -54,13 +55,82 @@ describe('CertificationRunsService', () => {
     };
     odsRepository = { findOneBy: jest.fn().mockResolvedValue(ods) };
     catalogVersionRepository = { findOne: jest.fn().mockResolvedValue(catalogVersion) };
+    commentRepository = { find: jest.fn() };
     artifactService = { currentRef: 'v2.1.0' };
     service = new CertificationRunsService(
       artifactService as never,
       runRepository as never,
       odsRepository as never,
       catalogVersionRepository as never,
+      commentRepository as never,
     );
+  });
+
+  describe('findRunComments', () => {
+    it('reads only comments with text, joined to the author, newest first with a stable tie-break', async () => {
+      commentRepository.find.mockResolvedValue([]);
+      await service.findRunComments(7);
+      expect(commentRepository.find).toHaveBeenCalledWith({
+        where: { certificationRunId: 7, text: Not(IsNull()) },
+        relations: { author: true },
+        order: { createdAt: 'DESC', certificationRunCommentId: 'DESC' },
+      });
+    });
+
+    it('maps each comment, resolving the reviewer name at read time', async () => {
+      const createdAt = new Date('2026-11-19T15:00:00Z');
+      commentRepository.find.mockResolvedValue([
+        {
+          certificationRunCommentId: 3,
+          createdAt,
+          decision: 'REJECTED',
+          text: 'Missing grades',
+          author: { displayName: 'Ana Ruiz' },
+        },
+        {
+          certificationRunCommentId: 1,
+          createdAt,
+          decision: 'CHANGES_REQUESTED',
+          text: 'Fix X',
+          author: { displayName: 'jdoe' },
+        },
+      ]);
+      await expect(service.findRunComments(7)).resolves.toEqual([
+        {
+          commentId: 3,
+          createdAt: createdAt.toISOString(),
+          reviewerName: 'Ana Ruiz',
+          decision: 'REJECTED',
+          text: 'Missing grades',
+        },
+        {
+          commentId: 1,
+          createdAt: createdAt.toISOString(),
+          reviewerName: 'jdoe',
+          decision: 'CHANGES_REQUESTED',
+          text: 'Fix X',
+        },
+      ]);
+    });
+
+    it('names a deleted reviewer "Former reviewer"', async () => {
+      commentRepository.find.mockResolvedValue([
+        {
+          certificationRunCommentId: 2,
+          createdAt: new Date(),
+          decision: 'APPROVED',
+          text: 'Nice',
+          author: null,
+        },
+      ]);
+      const [comment] = await service.findRunComments(7);
+      expect(comment.reviewerName).toBe('Former reviewer');
+    });
+
+    it('returns an empty list when the run has no comments with text', async () => {
+      commentRepository.find.mockResolvedValue([]);
+      await expect(service.findRunComments(7)).resolves.toEqual([]);
+    });
   });
 
   describe('createRun', () => {

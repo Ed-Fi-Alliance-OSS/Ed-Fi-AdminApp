@@ -60,6 +60,14 @@ jest.mock('./CertificationRunReviewBar', () => ({
   },
 }));
 
+let mockReviewerCommentsProps: Record<string, unknown> | undefined;
+jest.mock('./CertificationRunReviewerComments', () => ({
+  CertificationRunReviewerComments: (props: Record<string, unknown>) => {
+    mockReviewerCommentsProps = props;
+    return <div data-testid="reviewer-comments" />;
+  },
+}));
+
 const catalogDomains = [
   {
     domainId: 17,
@@ -447,6 +455,16 @@ describe('CertificationScenariosPage', () => {
         statusByScenarioId,
         isStatusUnknown: false,
       });
+    });
+
+    it('shows the reviewer comments under the review bar for the run', () => {
+      mockReviewerCommentsProps = undefined;
+      render(<CertificationScenariosPage />);
+
+      expect(mockReviewerCommentsProps).toEqual({ teamId: 2, runId: 7 });
+      const bar = screen.getByTestId('review-bar');
+      const comments = screen.getByTestId('reviewer-comments');
+      expect(bar.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('counts the scenarios of every domain even when a domain filter is selected', () => {
