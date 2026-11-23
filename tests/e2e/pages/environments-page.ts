@@ -742,11 +742,19 @@ class EnvironmentsPage {
   }
 
   async firstEdorgDetailsShouldBeDisplayed() {
+    // Which Ed-Org comes first depends on the ODS template (Data Standard 4 starts with 255901107,
+    // 5.2 with 255901001), so check the details against the row that was opened, not a fixed id.
+    const firstRowLink = this.resourceTable.locator('tbody tr').first().getByRole('link').first()
+    await expect(firstRowLink).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    const edorgName = (await firstRowLink.innerText()).trim()
     await this.clickFirstResourceRow()
+    await expect(this.page.getByRole('heading', { name: edorgName, exact: true })).toBeVisible({
+      timeout: API_FETCH_TIMEOUT_MS,
+    })
 
     const expectedAttributes: Array<[string, string | RegExp]> = [
-      ['Ed-Org ID', '255901107'],
-      ['Type', 'edfi.School'],
+      ['Ed-Org ID', /^\d+$/],
+      ['Type', /^edfi\.\w+$/],
       ['Environment', /^FullSingleEnvironmentv2-/],
       ['Tenant', 'default'],
     ]
