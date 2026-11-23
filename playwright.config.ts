@@ -130,12 +130,29 @@ export default defineConfig({
       }
     },
     {
+      // Vendor certification happy path. It needs the FullSingleEnvironmentv2 environment and the
+      // ApiTest team that the two projects above create and sync, and it creates its own ODS
+      // credentials through the Admin API. The run waits on the Admin API rate limiter and then
+      // executes scenario steps against the ODS, hence the longer timeout. Tracing stays off:
+      // a trace would record the ODS secret typed into the form.
+      name: 'chromium-certification',
+      dependencies: ['chromium-environmentv2andApi'],
+      testMatch: /certification.feature.spec.js/,
+      timeout: 180000,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+        trace: 'off',
+      }
+    },
+    {
       // Must run after `chromium-environmentv2andApi`, not alongside it: these specs
       // change and delete ownerships through the first row of the global ownerships
       // table, which includes the ApiTest ownership the other project depends on
-      // (running them together left ApiTest without its environment or privileges).
+      // (running them together left ApiTest without its environment or privileges). It also
+      // waits for `chromium-certification`, which uses that ApiTest ownership.
       name: 'chromium-ownerships',
-      dependencies: ['chromium-environmentv2andApi'],
+      dependencies: ['chromium-certification'],
       testMatch: /ownerships\.feature\.spec\.js/,
       use: {
         ...devices['Desktop Chrome'],
@@ -199,6 +216,7 @@ export default defineConfig({
       name: 'chromium-sync-queue',
       dependencies: [
         'chromium-environmentv2andApi',
+        'chromium-certification',
         'chromium-ownerships',
         'chromium-users',
         'chromium-roles',
