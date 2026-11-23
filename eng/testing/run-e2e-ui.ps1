@@ -293,7 +293,8 @@ function Set-AdminAppEnvFile {
 
   # Each rewrite must match exactly one line, like the MSSQL rewrites below.
   # The certification feature needs the certification runtime, which is off by default.
-  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true' }
+  # The populated templates have no TPDM tables, so writing a school fails while the TPDM plugin is loaded.
+  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true'; 'TPDM_ENABLED' = 'false' }
   if ($OdsApiTag) { $rewrites['ODS_API_TAG_7X'] = $OdsApiTag }
   if ($OdsTemplateSqlFolder) { $rewrites['SQL_BACKUPS_FOLDER'] = (Resolve-Path -Path $OdsTemplateSqlFolder).Path }
   foreach ($key in $rewrites.Keys) {

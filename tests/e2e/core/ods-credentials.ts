@@ -47,9 +47,10 @@ async function send(
  */
 export async function createOdsCredentials(
   request: APIRequestContext,
-  options: { adminApiUrl?: string } = {}
+  options: { adminApiUrl?: string; claimSetName?: string } = {}
 ): Promise<OdsCredentials> {
   const adminApi = options.adminApiUrl ?? DEFAULT_ADMIN_API_URL
+  const claimSetName = options.claimSetName ?? BASE_CLAIM_SET
   const suffix = `${Date.now()}-${randomBytes(4).toString('hex')}`
   const clientId = `e2e-cert-${suffix}`
   const clientSecret = `Cs-${randomBytes(24).toString('hex')}`
@@ -90,12 +91,12 @@ export async function createOdsCredentials(
   }
 
   const claimSetsResponse = await send('list claim sets', () =>
-    request.get(`${adminApi}/v2/claimSets`, { headers, params: { name: BASE_CLAIM_SET } })
+    request.get(`${adminApi}/v2/claimSets`, { headers, params: { name: claimSetName } })
   )
   // The list is paged (25 by default), so filter by name: the base claim set is not always on page 1.
   const claimSets = (await claimSetsResponse.json()) as { name: string }[]
-  if (!claimSets.some((claimSet) => claimSet.name === BASE_CLAIM_SET)) {
-    throw new Error(`Claim set "${BASE_CLAIM_SET}" not found in the Admin API`)
+  if (!claimSets.some((claimSet) => claimSet.name === claimSetName)) {
+    throw new Error(`Claim set "${claimSetName}" not found in the Admin API`)
   }
 
   const applicationResponse = await send('create application', () =>
@@ -104,7 +105,7 @@ export async function createOdsCredentials(
       data: {
         applicationName: `E2E Cert App ${suffix}`,
         vendorId,
-        claimSetName: BASE_CLAIM_SET,
+        claimSetName,
         educationOrganizationIds: [255901],
         odsInstanceIds: [1],
       },
