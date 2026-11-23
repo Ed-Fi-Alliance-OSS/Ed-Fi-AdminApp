@@ -103,7 +103,6 @@ services:
       ODS_CONNECTION_STRING_ENCRYPTION_KEY: '${ODS_CONNECTION_STRING_ENCRYPTION_KEY}'
       ASPNETCORE_ENVIRONMENT: 'docker'
       FeatureManagement__MultiTenancy: false
-      ApiSettings__OdsContextRouteTemplate: '{instanceId}'
     volumes:
       - ${LOGS_FOLDER}:/app/logs
     depends_on:
@@ -383,7 +382,6 @@ services:
       ODS_CONNECTION_STRING_ENCRYPTION_KEY: '${ODS_CONNECTION_STRING_ENCRYPTION_KEY}'
       ASPNETCORE_ENVIRONMENT: 'docker'
       FeatureManagement__MultiTenancy: false
-      ApiSettings__OdsContextRouteTemplate: '{instanceId}'
     volumes:
       - ${LOGS_FOLDER}:/app/logs
     depends_on:
