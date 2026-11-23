@@ -32,7 +32,9 @@ Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
 
 .PARAMETER OdsDataStandard
 Data Standard of the ODS template packages to download (package EdFi.Suite3.Ods.<Minimal|Populated>.Template.PostgreSQL.Standard.<value>).
-Defaults to '4.0.0', matching the default ODS image in compose/.env.example. For the Data Standard 5 image use '5.2.0'
+Defaults to '4.0.0', matching the default ODS image in compose/.env.example. Templates already present in
+compose/db-backup are used as they are unless this parameter or -OdsTemplateVersion is passed, so a stack
+prepared with Data Standard 5 files keeps them. For the Data Standard 5 image use '5.2.0'
 together with -OdsTemplateVersion '7.3.20057' and -OdsApiTag. Existing ODS volumes keep their old Data Standard: remove
 vol-odsV7-adminV2-* and vol-odsV7-adminV3-* after changing the standard.
 
@@ -73,6 +75,9 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Template files already in compose/db-backup are respected unless a template parameter is passed explicitly.
+$odsTemplateExplicit = $PSBoundParameters.ContainsKey('OdsDataStandard') -or $PSBoundParameters.ContainsKey('OdsTemplateVersion')
 
 if ($PSVersionTable.PSVersion.Major -lt 6) {
   Write-Host "ERROR! This script requires PowerShell 7+ (pwsh). You are running PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))." -ForegroundColor Red
@@ -140,9 +145,15 @@ function Get-OdsTemplateBackup {
 
   $sourcePath = "$sqlPath.source"
   $source = "$OdsDataStandard/$OdsTemplateVersion"
-  if ((Test-Path $sqlPath) -and (Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
-    Write-Host "ODS $TemplateType Template backup ($source) already present, skipping download." -ForegroundColor Cyan
-    return
+  if (Test-Path $sqlPath) {
+    if (-not $odsTemplateExplicit) {
+      Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
+      return
+    }
+    if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
+      Write-Host "ODS $TemplateType Template backup ($source) already present, skipping download." -ForegroundColor Cyan
+      return
+    }
   }
 
   $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.$OdsDataStandard"
