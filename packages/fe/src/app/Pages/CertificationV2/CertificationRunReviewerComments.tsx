@@ -1,13 +1,6 @@
-import { Badge, Box, List, ListItem, Text } from '@chakra-ui/react';
-import { CERT_REVIEW_DECISION_LABELS, CertReviewDecision } from '@edanalytics/models';
-import { CERT_RUN_STATUS_COLOR } from './certificationRunStatus';
+import { List, ListItem, Text } from '@chakra-ui/react';
+import { CertReviewDecision } from '@edanalytics/models';
 import { useCertificationRunComments } from './useCertificationRunComments';
-
-const DECISION_COLOR = {
-  APPROVED: CERT_RUN_STATUS_COLOR.APPROVED,
-  REJECTED: CERT_RUN_STATUS_COLOR.REJECTED,
-  CHANGES_REQUESTED: CERT_RUN_STATUS_COLOR.CHANGES_REQUESTED,
-} as const;
 
 /** How each decision reads after the reviewer's name, and what introduces the comment. */
 const DECISION_SENTENCE: Record<CertReviewDecision, { verb: string; lead: string }> = {
@@ -26,6 +19,7 @@ const formatDate = (iso: string) =>
  * What reviewers wrote on the run, newest first, so a team can see why changes were requested
  * or the run was rejected (AC-662). Each decision reads as a sentence, for example "Ann Ruiz
  * requested changes to this run on Nov 20, 2026, 3:30 PM with the following comments:".
+ * The run's status badge sits in the review bar above, so no decision badge here.
  * Hidden when there are no comments.
  */
 export const CertificationRunReviewerComments = ({
@@ -39,30 +33,25 @@ export const CertificationRunReviewerComments = ({
   if (comments.length === 0) return null;
 
   return (
-    <Box borderWidth="1px" borderRadius="md" p={4}>
-      <List spacing={3} aria-label="Reviewer comments">
-        {comments.map((comment) => {
-          const { verb, lead } = DECISION_SENTENCE[comment.decision];
-          return (
-            <ListItem key={comment.commentId}>
-              <Text mb={1}>
-                <Badge colorScheme={DECISION_COLOR[comment.decision]} mr={2}>
-                  {CERT_REVIEW_DECISION_LABELS[comment.decision]}
-                </Badge>
-                <Text as="span" fontWeight="semibold">
-                  {comment.reviewerName}
-                </Text>{' '}
-                {verb} on{' '}
-                <Text as="time" dateTime={comment.createdAt}>
-                  {formatDate(comment.createdAt)}
-                </Text>{' '}
-                {lead}
-              </Text>
-              <Text whiteSpace="pre-wrap">{comment.text}</Text>
-            </ListItem>
-          );
-        })}
-      </List>
-    </Box>
+    <List spacing={3} aria-label="Reviewer comments">
+      {comments.map((comment) => {
+        const { verb, lead } = DECISION_SENTENCE[comment.decision];
+        return (
+          <ListItem key={comment.commentId}>
+            <Text mb={1}>
+              <Text as="span" fontWeight="semibold">
+                {comment.reviewerName}
+              </Text>{' '}
+              {verb} on{' '}
+              <Text as="time" dateTime={comment.createdAt}>
+                {formatDate(comment.createdAt)}
+              </Text>{' '}
+              {lead}
+            </Text>
+            <Text whiteSpace="pre-wrap">{comment.text}</Text>
+          </ListItem>
+        );
+      })}
+    </List>
   );
 };

@@ -79,7 +79,7 @@ describe('CertificationRunReviewerComments', () => {
     }
   });
 
-  it('keeps the decision badge in front of each sentence', () => {
+  it('starts each sentence with the reviewer, with no decision badge', () => {
     renderCard([
       comment(3, CERT_REVIEW_DECISION.APPROVED, 'Ann Reviewer', 'Looks good'),
       comment(2, CERT_REVIEW_DECISION.REJECTED, 'Bob Reviewer', 'Not compliant'),
@@ -87,9 +87,9 @@ describe('CertificationRunReviewerComments', () => {
     ]);
 
     const items = screen.getAllByRole('listitem');
-    expect(items[0].textContent?.startsWith('Approved')).toBe(true);
-    expect(items[1].textContent?.startsWith('Rejected')).toBe(true);
-    expect(items[2].textContent?.startsWith('Changes requested')).toBe(true);
+    expect(items[0].textContent?.startsWith('Ann Reviewer')).toBe(true);
+    expect(items[1].textContent?.startsWith('Bob Reviewer')).toBe(true);
+    expect(items[2].textContent?.startsWith('Cy Reviewer')).toBe(true);
   });
 
   it('marks the date up as a machine-readable time', () => {
