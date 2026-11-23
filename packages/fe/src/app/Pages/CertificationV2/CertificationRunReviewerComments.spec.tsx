@@ -109,6 +109,34 @@ describe('CertificationRunReviewerComments', () => {
     expect(items[1].textContent).toContain('First round');
   });
 
+  it('falls back to a generic sentence for a decision it does not know', () => {
+    renderCard([
+      comment(1, 'ESCALATED' as CertReviewDecision, 'Dee Reviewer', 'Sent to the board'),
+    ]);
+
+    expect(screen.getByRole('listitem').textContent).toContain(
+      `Dee Reviewer reviewed this run on ${DATE} with the following comments:`,
+    );
+    expect(screen.getByText('Sent to the board')).toBeTruthy();
+  });
+
+  it('leaves space below the list, like the review bar above it', () => {
+    renderCard([comment(1, CERT_REVIEW_DECISION.APPROVED, 'Ann Reviewer', 'Looks good')]);
+
+    // jsdom lets Chakra's `:where(ol, ul) { margin: 0 }` reset beat the class rule, which a
+    // browser wouldn't, so read the list's own style rule instead of its computed style.
+    const classes = screen.getByRole('list').className.split(' ');
+    const ownRules = Array.from(document.styleSheets)
+      .flatMap((sheet) => Array.from(sheet.cssRules))
+      .filter(
+        (rule): rule is CSSStyleRule =>
+          rule instanceof CSSStyleRule && classes.some((c) => rule.selectorText === `.${c}`),
+      );
+    expect(ownRules.map((rule) => rule.cssText).join(' ')).toContain(
+      'margin-bottom: var(--chakra-space-4)',
+    );
+  });
+
   it('keeps line breaks in a comment', () => {
     renderCard([comment(1, CERT_REVIEW_DECISION.REJECTED, 'Bob', 'Line one\nLine two')]);
 

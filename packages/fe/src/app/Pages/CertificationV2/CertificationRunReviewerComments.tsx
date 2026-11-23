@@ -12,6 +12,9 @@ const DECISION_SENTENCE: Record<CertReviewDecision, { verb: string; lead: string
   },
 };
 
+/** Used for a decision this page doesn't know yet, so one odd row can't break the Scenarios page. */
+const FALLBACK_SENTENCE = { verb: 'reviewed this run', lead: 'with the following comments:' };
+
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
@@ -33,9 +36,9 @@ export const CertificationRunReviewerComments = ({
   if (comments.length === 0) return null;
 
   return (
-    <List spacing={3} aria-label="Reviewer comments">
+    <List spacing={3} mb={4} aria-label="Reviewer comments">
       {comments.map((comment) => {
-        const { verb, lead } = DECISION_SENTENCE[comment.decision];
+        const { verb, lead } = DECISION_SENTENCE[comment.decision] ?? FALLBACK_SENTENCE;
         return (
           <ListItem key={comment.commentId}>
             <Text mb={1}>
