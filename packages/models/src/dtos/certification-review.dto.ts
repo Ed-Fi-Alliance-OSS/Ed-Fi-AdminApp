@@ -141,3 +141,27 @@ export const toCertificationReviewStatusDto = makeSerializer<
   CertificationReviewStatusDto,
   CertificationReviewStatusDto
 >(CertificationReviewStatusDto);
+
+export const CERT_FORMER_REVIEWER_NAME = 'Former reviewer';
+
+export class CertificationRunCommentDto {
+  @Expose()
+  commentId: number;
+
+  @Expose()
+  createdAt: string;
+
+  @Expose()
+  reviewerName: string;
+
+  @Expose()
+  decision: CertReviewDecision;
+
+  @Expose()
+  text: string;
+}
+
+export const toCertificationRunCommentDto = makeSerializer<
+  CertificationRunCommentDto,
+  CertificationRunCommentDto
+>(CertificationRunCommentDto);
