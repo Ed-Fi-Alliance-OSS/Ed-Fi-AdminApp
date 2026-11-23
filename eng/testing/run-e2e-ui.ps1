@@ -218,6 +218,10 @@ function Set-AdminAppEnvFile {
       # Keycloak bootstrap, so mirror the retained value (as the generated-env branch does).
       $env:MSSQL_SA_PASSWORD = $script:mssqlSaPassword
     }
+    $certLine = Select-String -Path $envPath -Pattern '^\s*CERT_ENABLED\s*=\s*[''"]?(\w+)' | Select-Object -Last 1
+    if (-not $certLine -or $certLine.Matches.Groups[1].Value -ne 'true') {
+      Write-Warning 'CERT_ENABLED is not true in the existing compose/.env (-KeepEnvFile); the certification feature will fail until it is.'
+    }
     if ($OdsApiTag -or $OdsTemplateSqlFolder) {
       Write-Warning '-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env (-KeepEnvFile). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself.'
     }
@@ -277,7 +281,8 @@ function Set-AdminAppEnvFile {
   $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
 
   # Each rewrite must match exactly one line, like the MSSQL rewrites below.
-  $rewrites = [ordered]@{}
+  # The certification feature needs the certification runtime, which is off by default.
+  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true' }
   if ($OdsApiTag) { $rewrites['ODS_API_TAG_7X'] = $OdsApiTag }
   if ($OdsTemplateSqlFolder) { $rewrites['SQL_BACKUPS_FOLDER'] = (Resolve-Path -Path $OdsTemplateSqlFolder).Path }
   foreach ($key in $rewrites.Keys) {
