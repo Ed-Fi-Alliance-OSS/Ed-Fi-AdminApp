@@ -162,11 +162,28 @@ class CertificationPage {
       { timeout: API_WRITE_TIMEOUT_MS },
     )
     await execute.click()
-    await executed
+    const response = await executed
+    expect(response.ok(), `Execute step ${index + 1} answered ${response.status()}`).toBe(true)
     await expect(row.getByText(STEP_STATUS.running)).toHaveCount(0, { timeout: API_WRITE_TIMEOUT_MS })
     await expect(row.getByText(STEP_STATUS.notExecuted)).toHaveCount(0, {
       timeout: API_WRITE_TIMEOUT_MS,
     })
+  }
+
+  /** Goes from the steps page back to the Scenarios page of the run. */
+  async backToScenarios() {
+    await this.page.getByRole('button', { name: 'Back', exact: true }).click()
+    await expect(this.page.getByRole('heading', { name: 'Scenarios' }).first()).toBeVisible({
+      timeout: API_FETCH_TIMEOUT_MS,
+    })
+  }
+
+  /** The status label of a scenario on the Scenarios page ("Successful" once all its steps pass). */
+  async scenarioStatus(name: string): Promise<string> {
+    const row = this.scenarioRows.filter({
+      has: this.page.getByRole('cell', { name, exact: true }),
+    })
+    return (await row.locator('td:nth-child(3)').innerText()).trim()
   }
 
   async stepStatus(index: number): Promise<string> {
