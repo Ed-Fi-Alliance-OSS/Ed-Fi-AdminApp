@@ -142,15 +142,12 @@ export const toCertificationReviewStatusDto = makeSerializer<
   CertificationReviewStatusDto
 >(CertificationReviewStatusDto);
 
-/** Shown as the reviewer when the comment's author was deleted. */
 export const CERT_FORMER_REVIEWER_NAME = 'Former reviewer';
 
-/** One reviewer comment on a run. */
 export class CertificationRunCommentDto {
   @Expose()
   commentId: number;
 
-  /** ISO string of when the reviewer decided. */
   @Expose()
   createdAt: string;
 

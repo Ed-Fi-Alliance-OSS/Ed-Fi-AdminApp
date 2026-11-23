@@ -31,6 +31,11 @@ import {
 import { CertificationRunsService } from './certification-runs.service';
 import { CertificationSupportInterceptor } from './certification-support.interceptor';
 
+const TEAM_RUN_READ = {
+  privilege: 'team.sb-environment:read',
+  subject: { id: '__filtered__', teamId: 'teamId' },
+} as const;
+
 /** Starting a run on one of the team's data stores, and what the Start Run popup needs (AC-651). */
 @ApiTags('Certification')
 @UseInterceptors(SbEnvironmentEdfiTenantInterceptor, CertificationSupportInterceptor)
@@ -88,10 +93,7 @@ export class CertificationTeamRunsController {
    * may not see is a 404.
    */
   @Get(':runId')
-  @Authorize({
-    privilege: 'team.sb-environment:read',
-    subject: { id: '__filtered__', teamId: 'teamId' },
-  })
+  @Authorize(TEAM_RUN_READ)
   async getRun(
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @Param('runId', new ParseIntPipe()) runId: number,
@@ -101,12 +103,8 @@ export class CertificationTeamRunsController {
     return this.runsService.toDto(certificationRun);
   }
 
-  /** The reviewer's comments on a run, visible to exactly those who can see the run. */
   @Get(':runId/comments')
-  @Authorize({
-    privilege: 'team.sb-environment:read',
-    subject: { id: '__filtered__', teamId: 'teamId' },
-  })
+  @Authorize(TEAM_RUN_READ)
   async getComments(
     @Param('teamId', new ParseIntPipe()) teamId: number,
     @Param('runId', new ParseIntPipe()) runId: number,

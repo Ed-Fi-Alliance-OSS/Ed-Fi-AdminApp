@@ -49,10 +49,10 @@ describe('CertificationRunReviewerComments', () => {
     expect(screen.queryByRole('list')).toBeNull();
   });
 
-  it('has no visible heading, but names the list for screen readers', () => {
+  it('shows a "Reviewer comments" heading that names the list', () => {
     renderCard([comment(1, CERT_REVIEW_DECISION.APPROVED, 'Ann Reviewer', 'Looks good')]);
 
-    expect(screen.queryByRole('heading')).toBeNull();
+    expect(screen.getByRole('heading', { level: 2, name: 'Reviewer comments' })).toBeTruthy();
     expect(screen.getByRole('list', { name: 'Reviewer comments' })).toBeTruthy();
   });
 
@@ -120,21 +120,12 @@ describe('CertificationRunReviewerComments', () => {
     expect(screen.getByText('Sent to the board')).toBeTruthy();
   });
 
-  it('leaves space below the list, like the review bar above it', () => {
+  it('leaves space below the card, like the review bar above it', () => {
     renderCard([comment(1, CERT_REVIEW_DECISION.APPROVED, 'Ann Reviewer', 'Looks good')]);
 
-    // jsdom lets Chakra's `:where(ol, ul) { margin: 0 }` reset beat the class rule, which a
-    // browser wouldn't, so read the list's own style rule instead of its computed style.
-    const classes = screen.getByRole('list').className.split(' ');
-    const ownRules = Array.from(document.styleSheets)
-      .flatMap((sheet) => Array.from(sheet.cssRules))
-      .filter(
-        (rule): rule is CSSStyleRule =>
-          rule instanceof CSSStyleRule && classes.some((c) => rule.selectorText === `.${c}`),
-      );
-    expect(ownRules.map((rule) => rule.cssText).join(' ')).toContain(
-      'margin-bottom: var(--chakra-space-4)',
-    );
+    const card = screen.getByRole('heading', { name: 'Reviewer comments' }).parentElement;
+    expect(card?.contains(screen.getByRole('list'))).toBe(true);
+    expect(getComputedStyle(card as HTMLElement).marginBottom).toBe('var(--chakra-space-4)');
   });
 
   it('keeps line breaks in a comment', () => {

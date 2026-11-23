@@ -69,10 +69,6 @@ export class CertificationRunsService {
     private readonly commentRepository: Repository<CertificationRunComment>,
   ) {}
 
-  /**
-   * A run's reviewer comments, newest first. AC-660 saves a row per decision with null text for
-   * a bare approval, so those are skipped here.
-   */
   async findRunComments(runId: number): Promise<CertificationRunCommentDto[]> {
     const comments = await this.commentRepository.find({
       where: { certificationRunId: runId, text: Not(IsNull()) },

@@ -9,7 +9,6 @@ import { useCertificationRunComments } from './useCertificationRunComments';
 
 jest.mock('../../api', () => ({ methods: { getMany: jest.fn() } }));
 
-// The app keeps reads fresh for 5 minutes (app.tsx), so the tests do too.
 const newClient = () =>
   new QueryClient({ defaultOptions: { queries: { retry: false, staleTime: 5 * 60 * 1000 } } });
 const wrapperFor =
