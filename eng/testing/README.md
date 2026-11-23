@@ -412,7 +412,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 ### What It Does
 
 1. Checks prerequisites (Node dependencies, Playwright Chromium, TLS certificate).
-2. Downloads the ODS Minimal Template backup into `compose/db-backup/` (skipped if already cached).
+2. Downloads the ODS Minimal and Populated Template backups into `compose/db-backup/` (skipped if already cached).
 3. Regenerates `compose/.env` from `compose/.env.example` and, for `-DbEngine mssql`, patches `DB_ENGINE`, the `MSSQL_*` settings, and the active `DB_SECRET_VALUE` line, and generates real values for the `change-me` placeholders (session secret, database password, encryption key, Keycloak client secrets) so `compose/.env` is never run with publicly known secrets.
 4. Starts Docker Compose services (the `v6` — unless `-SkipV1` — and `odsV7-adminV2` topologies plus the Admin App) via `eng/helpers/start-services-target.ps1`.
 5. Waits for the Admin App API, frontend, and Keycloak to be stable — and, for `-DbEngine mssql`, also waits for the Admin App's `sbaa` database to actually exist inside the SQL Server container.
@@ -442,6 +442,22 @@ By default the stack is left running after the suite finishes (pass or fail), so
     Use the existing compose/.env as-is instead of regenerating it. Fails if the
     file is missing or its DB_ENGINE does not match -DbEngine.
 
+-OdsDataStandard <string>
+    Data Standard of the ODS template packages to download. Default: '4.0.0',
+    matching the default ODS image in compose/.env.example.
+
+-OdsTemplateVersion <string>
+    NuGet package version of the ODS templates. Default: '7.3.20068'.
+
+-OdsTemplateSqlFolder <path>
+    Folder with EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql
+    to use instead of the NuGet feed. Written to SQL_BACKUPS_FOLDER in the
+    generated compose/.env (a warning is printed with -KeepEnvFile).
+
+-OdsApiTag <string>
+    ODS/API image tag written to ODS_API_TAG_7X in the generated compose/.env
+    (a warning is printed with -KeepEnvFile).
+
 -ServiceStartTimeoutMinutes <int>
     Abort 'docker compose pull' / 'up' if either exceeds this many minutes
     (each). Default: 20.
@@ -449,6 +465,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 ### Notes
 
+- **Data Standard 5 (certification E2E).** The default stack runs the Data Standard 4 ODS image with the 4.0.0 templates. For the Data Standard 5 image, run `pwsh ./eng/testing/run-e2e-ui.ps1 -OdsDataStandard 5.2.0 -OdsTemplateVersion 7.3.20057 -OdsApiTag 'v7.3.2@sha256:c865f2092994d18eb33f84a36d79bbbfab614dfc32a76e93dd7e9dcb2905e352'`. Downloaded templates are tagged with a `.sql.source` marker next to the file, so a different standard or version downloads again instead of reusing a stale file. The ODS init script runs only once per volume: after changing the standard, image or templates, remove the ODS volumes (`vol-odsV7-adminV2-*`, `vol-odsV7-adminV3-*`), otherwise the stack silently stays on the previous Data Standard.
 - **Retries preserve `compose/.env`.** Secrets, image tags and dataset choices remain unchanged after a timeout or failed test. For MSSQL, the existing SA password is restored into the runner's process environment and readiness checks.
 - **Unsafe configuration stops provisioning.** Existing `change-me` placeholders or a mismatched `DB_ENGINE` cause an error without overwriting the file. If the file is missing but previous stack volumes exist, restore the original configuration or deliberately provision a separate clean environment. The runner does not rotate stored credentials, replace encryption keys or delete volumes automatically.
 - **ODS/API databases are unaffected by `-DbEngine`.** The `v6`, `odsV7-adminV2`, and `odsV7-adminV3` topologies always run on PostgreSQL; only the Admin App's own database switches between PostgreSQL and SQL Server.

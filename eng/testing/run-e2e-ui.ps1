@@ -30,6 +30,23 @@ scenarios tagged @v1 are excluded from the Playwright run. Reduces image pulls a
 Use the existing compose/.env as-is instead of regenerating it from compose/.env.example.
 Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
 
+.PARAMETER OdsDataStandard
+Data Standard of the ODS template packages to download (package EdFi.Suite3.Ods.<Minimal|Populated>.Template.PostgreSQL.Standard.<value>).
+Defaults to '4.0.0', matching the default ODS image in compose/.env.example. For the Data Standard 5 image use '5.2.0'
+together with -OdsTemplateVersion '7.3.20057' and -OdsApiTag. Existing ODS volumes keep their old Data Standard: remove
+vol-odsV7-adminV2-* and vol-odsV7-adminV3-* after changing the standard.
+
+.PARAMETER OdsTemplateVersion
+NuGet package version of the ODS templates. Defaults to '7.3.20068' (Data Standard 4.0.0).
+
+.PARAMETER OdsTemplateSqlFolder
+Optional folder holding EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql. When set, nothing is downloaded
+and SQL_BACKUPS_FOLDER in the generated compose/.env points to it (not applied with -KeepEnvFile).
+
+.PARAMETER OdsApiTag
+Optional ODS/API image tag (for example 'v7.3.2@sha256:...'). When set, it is written to ODS_API_TAG_7X in the generated
+compose/.env (not applied with -KeepEnvFile).
+
 .PARAMETER ServiceStartTimeoutMinutes
 Maximum minutes to wait for 'docker compose pull' and 'docker compose up' (each) before
 aborting. Defaults to 20.
@@ -48,6 +65,10 @@ param(
   [switch]$StopServices,
   [switch]$SkipV1,
   [switch]$KeepEnvFile,
+  [string]$OdsDataStandard = '4.0.0',
+  [string]$OdsTemplateVersion = '7.3.20068',
+  [string]$OdsTemplateSqlFolder,
+  [string]$OdsApiTag,
   [int]$ServiceStartTimeoutMinutes = 20
 )
 
@@ -112,13 +133,20 @@ function Get-OdsTemplateBackup {
   $sqlFileName = "EdFi.Ods.$TemplateType.Template.sql"
   $sqlPath = Join-Path $backupDir $sqlFileName
 
-  if (Test-Path $sqlPath) {
-    Write-Host "ODS $TemplateType Template backup already present, skipping download." -ForegroundColor Cyan
+  if ($OdsTemplateSqlFolder) {
+    Write-Host "Using ODS $TemplateType Template from -OdsTemplateSqlFolder, skipping download." -ForegroundColor Cyan
     return
   }
 
-  $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.4.0.0"
-  $packageVersion = '7.3.20068'
+  $sourcePath = "$sqlPath.source"
+  $source = "$OdsDataStandard/$OdsTemplateVersion"
+  if ((Test-Path $sqlPath) -and (Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
+    Write-Host "ODS $TemplateType Template backup ($source) already present, skipping download." -ForegroundColor Cyan
+    return
+  }
+
+  $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.$OdsDataStandard"
+  $packageVersion = $OdsTemplateVersion
   $feedUrl = "https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/flat2/$packageName/$packageVersion/$packageName.$packageVersion.nupkg"
 
   New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
@@ -140,6 +168,7 @@ function Get-OdsTemplateBackup {
     Write-Host "Found: $($srcSql.FullName)" -ForegroundColor Cyan
 
     Copy-Item -Path $srcSql.FullName -Destination $sqlPath -Force
+    Set-Content -Path $sourcePath -Value $source -NoNewline
   }
   finally {
     Remove-Item -Path $nupkgPath, $zipPath -Force -ErrorAction SilentlyContinue
@@ -189,8 +218,10 @@ function Set-AdminAppEnvFile {
       # Keycloak bootstrap, so mirror the retained value (as the generated-env branch does).
       $env:MSSQL_SA_PASSWORD = $script:mssqlSaPassword
     }
-    Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
-    return
+    if ($OdsApiTag -or $OdsTemplateSqlFolder) {
+      Write-Warning '-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env (-KeepEnvFile). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself.'
+    }
+    Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan    return
   }
 
   if (Test-Path $envPath) {
@@ -244,8 +275,20 @@ function Set-AdminAppEnvFile {
     throw "compose/.env.example must contain exactly one EDFI_ODS_DATASET entry; found $($datasetLines.Count)."
   }
   $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
-  Set-Content -Path $envPath -Value $content
 
+  # Each rewrite must match exactly one line, like the MSSQL rewrites below.
+  $rewrites = [ordered]@{}
+  if ($OdsApiTag) { $rewrites['ODS_API_TAG_7X'] = $OdsApiTag }
+  if ($OdsTemplateSqlFolder) { $rewrites['SQL_BACKUPS_FOLDER'] = (Resolve-Path -Path $OdsTemplateSqlFolder).Path }
+  foreach ($key in $rewrites.Keys) {
+    $matched = @($content | Where-Object { $_ -match "^$key=" })
+    if ($matched.Count -ne 1) {
+      throw "compose/.env.example must contain exactly one active $key entry; found $($matched.Count)."
+    }
+    $value = $rewrites[$key]
+    $content = $content | ForEach-Object { if ($_ -match "^$key=") { "$key=$value" } else { $_ } }
+  }
+  Set-Content -Path $envPath -Value $content
   if ($Engine -ne 'mssql') {
     return
   }
