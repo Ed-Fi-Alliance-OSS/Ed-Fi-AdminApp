@@ -7,7 +7,7 @@ import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
 import { SchoolField, changeSchoolField } from '../core/ods-api'
 import { OdsCredentials, createOdsCredentials } from '../core/ods-credentials'
-import CertificationPage, { STEP_STATUS, StepParameter } from '../pages/certification-page'
+import CertificationPage, { STEP_STATUS, StepParameter, StepRunResult } from '../pages/certification-page'
 import { API_FETCH_TIMEOUT_MS } from '../pages/support'
 
 const { Given, When, Then } = createBdd()
@@ -35,6 +35,9 @@ let certificationPage: CertificationPage
 // Kept in memory only: the key and secret are never printed, attached or written to disk.
 let odsCredentials: OdsCredentials
 let schoolWriter: OdsCredentials | undefined
+// What the run endpoint answered for each executed step: the source of truth for the outcome, because
+// on a rerun the rows already show the previous run's status until the UI refetches.
+let stepResults: StepRunResult[] = []
 
 Given('the vendor has ODS credentials for the data store', async ({ request }) => {
   odsCredentials = await createOdsCredentials(request)
@@ -65,6 +68,7 @@ Then('its steps are listed', async () => {
 
 When('the user executes the steps of the scenario', async ({ request }) => {
   const count = (await certificationPage.stepNames()).length
+  stepResults = []
   for (let index = 0; index < count; index++) {
     const change = SCHOOL_CHANGES[index]
     // An UPDATE step asserts that the school differs from the value captured by the step before it,
@@ -73,12 +77,17 @@ When('the user executes the steps of the scenario', async ({ request }) => {
       schoolWriter ??= await createOdsCredentials(request, { claimSetName: SCHOOL_WRITER_CLAIM_SET })
       await changeSchoolField(request, schoolWriter, change.schoolId, change.field, runSuffix)
     }
-    await certificationPage.executeStep(index, SCHOOL_PARAMETERS)
+    stepResults.push(await certificationPage.executeStep(index, SCHOOL_PARAMETERS))
   }
 })
 
 Then('all steps report Successful', async () => {
   const count = (await certificationPage.stepNames()).length
+  expect(stepResults).toHaveLength(count)
+  stepResults.forEach(({ status }, index) =>
+    expect(status, `step ${index + 1} result from the run endpoint`).toBe('success'),
+  )
+  expect(stepResults[count - 1].scenarioStatus).toBe('completed')
   for (let index = 0; index < count; index++) {
     await expect
       .poll(() => certificationPage.stepStatus(index), { timeout: API_FETCH_TIMEOUT_MS })

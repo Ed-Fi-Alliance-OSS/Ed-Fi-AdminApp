@@ -24,7 +24,10 @@ async function send(
   call: () => Promise<APIResponse>
 ): Promise<APIResponse> {
   for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
-    const response = await call()
+    // A network error from Playwright carries a call log with the request headers (bearer token).
+    const response = await call().catch(() => {
+      throw new Error(`Admin API ${what} request failed`)
+    })
     if (response.status() !== 429) {
       if (!response.ok()) {
         throw new Error(`Admin API ${what} failed with status ${response.status()}`)

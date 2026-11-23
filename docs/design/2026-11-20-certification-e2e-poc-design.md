@@ -355,3 +355,9 @@ own system. The test must do it.
 - **Secrets:** a forced-failure run left no ODS key, token or client secret in `test-results/`.
 - **Dirty stack:** after a full suite `chromium-ownerships` leaves `ApiTest` without ownership; to run the
   certification feature alone again, restore the ownership or reset the stack (`stop.ps1 -V`).
+- **Outcome source:** step and scenario results are asserted from the run endpoint's answer
+  (`status: 'success'`, last step `scenarioStatus: 'completed'`), plus the UI rows; on a rerun the rows keep the
+  previous run's status until they refetch. The e2e project cannot import `@edanalytics/models`, so the values
+  are literals.
+- **Known limits (not fixed):** the school changes are keyed by step position (2 and 3); the helper edits
+  `addresses[0]`; the street value has no 30-character guard (today 27).

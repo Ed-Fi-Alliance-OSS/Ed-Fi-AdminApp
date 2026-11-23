@@ -15,6 +15,18 @@ const STREET_MARKER = ' E2E-'
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
+/**
+ * Runs a request and, if it fails before any response (timeout, reset, TLS), throws a generic error:
+ * Playwright's own message carries a call log with the request headers, including the bearer token.
+ */
+async function guard(what: string, call: () => Promise<APIResponse>): Promise<APIResponse> {
+  try {
+    return await call()
+  } catch {
+    throw new Error(`ODS ${what} request failed`)
+  }
+}
+
 /** Throws with the status only: bodies and headers of this flow carry the token and the ODS secret. */
 function ensureOk(what: string, response: APIResponse): APIResponse {
   if (!response.ok()) throw new Error(`ODS ${what} failed with status ${response.status()}`)
@@ -28,9 +40,11 @@ async function getToken(
 ): Promise<string> {
   let response: APIResponse | undefined
   for (let attempt = 1; attempt <= TOKEN_ATTEMPTS; attempt++) {
-    response = await request.post(`${odsUrl}/oauth/token`, {
-      form: { client_id: creds.key, client_secret: creds.secret, grant_type: 'client_credentials' },
-    })
+    response = await guard('token', () =>
+      request.post(`${odsUrl}/oauth/token`, {
+        form: { client_id: creds.key, client_secret: creds.secret, grant_type: 'client_credentials' },
+      }),
+    )
     if (![401, 403, 429].includes(response.status())) break
     if (attempt < TOKEN_ATTEMPTS) await delay(TOKEN_RETRY_DELAY_MS)
   }
@@ -70,12 +84,12 @@ export async function changeSchoolField(
   const collection = `${odsUrl}/data/v3/ed-fi/schools`
 
   // The resource id of a school is a GUID: find it through its natural key (schoolId).
-  const found = ensureOk('find school', await request.get(collection, { headers, params: { schoolId } }))
+  const found = ensureOk('find school', await guard('find school', () => request.get(collection, { headers, params: { schoolId } })))
   const matches = (await found.json()) as { id: string }[]
   if (matches.length !== 1) throw new Error(`ODS school ${schoolId} was not found`)
   const url = `${collection}/${matches[0].id}`
 
-  const current = ensureOk('get school', await request.get(url, { headers }))
+  const current = ensureOk('get school', await guard('get school', () => request.get(url, { headers })))
   const body = (await current.json()) as { addresses?: Record<string, string>[] }
   const address = body.addresses?.[0]
   if (!address) throw new Error(`ODS school ${schoolId} has no address to change`)
@@ -83,9 +97,11 @@ export async function changeSchoolField(
 
   ensureOk(
     'update school',
-    await request.put(url, {
-      headers: { ...headers, 'If-Match': current.headers()['etag'] ?? '' },
-      data: body,
-    }),
+    await guard('update school', () =>
+      request.put(url, {
+        headers: { ...headers, 'If-Match': current.headers()['etag'] ?? '' },
+        data: body,
+      }),
+    ),
   )
 }

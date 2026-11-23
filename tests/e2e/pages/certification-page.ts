@@ -20,6 +20,9 @@ export const STEP_STATUS = {
   failed: 'Failed',
 } as const
 
+/** What the run endpoint answers for an executed step (CertificationStepRunDto). */
+export type StepRunResult = { status: string; scenarioStatus: string }
+
 /** A validation parameter of a step: the label of its form field and the value to type. */
 export type StepParameter = { label: RegExp; value: string }
 
@@ -138,7 +141,7 @@ class CertificationPage {
    * leaves the running state. `parameters` maps a field label (matched against the form labels of
    * the step) to the value to type; a field with no match stays empty and keeps Execute disabled.
    */
-  async executeStep(index: number, parameters: StepParameter[] = []) {
+  async executeStep(index: number, parameters: StepParameter[] = []): Promise<StepRunResult> {
     const row = this.stepRows.nth(index)
     await row.getByRole('button', { name: 'Open' }).click()
     const execute = this.page.getByRole('button', { name: 'Execute step' })
@@ -164,10 +167,12 @@ class CertificationPage {
     await execute.click()
     const response = await executed
     expect(response.ok(), `Execute step ${index + 1} answered ${response.status()}`).toBe(true)
+    const result = (await response.json()) as StepRunResult
     await expect(row.getByText(STEP_STATUS.running)).toHaveCount(0, { timeout: API_WRITE_TIMEOUT_MS })
     await expect(row.getByText(STEP_STATUS.notExecuted)).toHaveCount(0, {
       timeout: API_WRITE_TIMEOUT_MS,
     })
+    return result
   }
 
   /** Goes from the steps page back to the Scenarios page of the run. */
