@@ -14,5 +14,6 @@ Feature: Certification happy path (PoC)
     When the user opens the Schools scenario
     Then its steps are listed
     When the user executes the steps of the scenario
-    Then the first two steps report Successful
-    And the remaining steps report a result
+    Then all steps report Successful
+    When the user goes back to the scenarios
+    Then the Schools scenario shows as Successful

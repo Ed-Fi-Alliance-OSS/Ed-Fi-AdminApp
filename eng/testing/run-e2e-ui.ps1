@@ -233,6 +233,10 @@ function Set-AdminAppEnvFile {
     if (-not $certLine -or $certLine.Matches.Groups[1].Value -ne 'true') {
       Write-Warning 'CERT_ENABLED is not true in the existing compose/.env (-KeepEnvFile); the certification feature will fail until it is.'
     }
+    $tpdmLine = Select-String -Path $envPath -Pattern '^\s*TPDM_ENABLED\s*=\s*[''"]?(\w+)' | Select-Object -Last 1
+    if (-not $tpdmLine -or $tpdmLine.Matches.Groups[1].Value -ne 'false') {
+      Write-Warning 'TPDM_ENABLED is not false in the existing compose/.env (-KeepEnvFile); the certification feature fails to change schools until it is.'
+    }
     if ($OdsApiTag -or $OdsTemplateSqlFolder) {
       Write-Warning '-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env (-KeepEnvFile). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself.'
     }

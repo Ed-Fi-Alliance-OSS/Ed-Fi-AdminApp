@@ -5,6 +5,7 @@
 
 import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
+import { SchoolField, changeSchoolField } from '../core/ods-api'
 import { OdsCredentials, createOdsCredentials } from '../core/ods-credentials'
 import CertificationPage, { STEP_STATUS, StepParameter } from '../pages/certification-page'
 import { API_FETCH_TIMEOUT_MS } from '../pages/support'
@@ -17,9 +18,23 @@ const SCHOOL_PARAMETERS: StepParameter[] = [
   { label: /second school/i, value: '255901044' },
 ]
 
+// SIS Vendor only reads education organizations, so the school changes use an application on a
+// claim set that can write them.
+const SCHOOL_WRITER_CLAIM_SET = 'Ed-Fi Sandbox'
+
+// The UPDATE steps of the Schools scenario, by step index: the school and field each one expects changed.
+const SCHOOL_CHANGES: Record<number, { schoolId: string; field: SchoolField }> = {
+  2: { schoolId: '255901001', field: 'streetNumberName' },
+  3: { schoolId: '255901044', field: 'postalCode' },
+}
+
+// Unique per run, so a rerun on the same stack always writes a value the ODS does not hold yet.
+const runSuffix = Date.now().toString(36)
+
 let certificationPage: CertificationPage
 // Kept in memory only: the key and secret are never printed, attached or written to disk.
 let odsCredentials: OdsCredentials
+let schoolWriter: OdsCredentials | undefined
 
 Given('the vendor has ODS credentials for the data store', async ({ request }) => {
   odsCredentials = await createOdsCredentials(request)
@@ -48,28 +63,35 @@ Then('its steps are listed', async () => {
   expect(names.length).toBeGreaterThan(0)
 })
 
-When('the user executes the steps of the scenario', async () => {
+When('the user executes the steps of the scenario', async ({ request }) => {
   const count = (await certificationPage.stepNames()).length
   for (let index = 0; index < count; index++) {
+    const change = SCHOOL_CHANGES[index]
+    // An UPDATE step asserts that the school differs from the value captured by the step before it,
+    // so the vendor's own system (here, the ODS API) has to change it first.
+    if (change) {
+      schoolWriter ??= await createOdsCredentials(request, { claimSetName: SCHOOL_WRITER_CLAIM_SET })
+      await changeSchoolField(request, schoolWriter, change.schoolId, change.field, runSuffix)
+    }
     await certificationPage.executeStep(index, SCHOOL_PARAMETERS)
   }
 })
 
-Then('the first two steps report Successful', async () => {
-  await expect
-    .poll(() => certificationPage.stepStatus(0), { timeout: API_FETCH_TIMEOUT_MS })
-    .toBe(STEP_STATUS.success)
-  await expect
-    .poll(() => certificationPage.stepStatus(1), { timeout: API_FETCH_TIMEOUT_MS })
-    .toBe(STEP_STATUS.success)
+Then('all steps report Successful', async () => {
+  const count = (await certificationPage.stepNames()).length
+  for (let index = 0; index < count; index++) {
+    await expect
+      .poll(() => certificationPage.stepStatus(index), { timeout: API_FETCH_TIMEOUT_MS })
+      .toBe(STEP_STATUS.success)
+  }
 })
 
-// The last steps are expected to fail for now (the Schools scenario needs a school address
-// change through the schools endpoint); they only have to report a result.
-Then('the remaining steps report a result', async () => {
-  const count = (await certificationPage.stepNames()).length
-  for (let index = 2; index < count; index++) {
-    const status = await certificationPage.stepStatus(index)
-    expect([STEP_STATUS.success, STEP_STATUS.failed]).toContain(status)
-  }
+When('the user goes back to the scenarios', async () => {
+  await certificationPage.backToScenarios()
+})
+
+Then(/^the (.+) scenario shows as Successful$/, async ({}, name: string) => {
+  await expect
+    .poll(() => certificationPage.scenarioStatus(name), { timeout: API_FETCH_TIMEOUT_MS })
+    .toBe(STEP_STATUS.success)
 })

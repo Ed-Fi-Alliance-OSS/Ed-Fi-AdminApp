@@ -64,6 +64,12 @@ Schools scenario. It runs in the `chromium-certification` project, after `chromi
   call). They stay in memory; `fillWithoutReporting` types them so the value is not in the Allure step
   title, and the project runs with `trace: 'off'`.
 - A second run on the same stack reuses the open run of the data store instead of requesting a new one.
+- The Schools steps 3 and 4 (`UPDATE`) assert that a school field changed, so the test changes it first
+  through the ODS API (`core/ods-api.ts`) with a second application on the `Ed-Fi Sandbox` claim set
+  (`SIS Vendor` can only read education organizations). The new value carries a per-run suffix, so reruns
+  keep passing. All four steps and the scenario status are asserted `Successful`.
+- `run-e2e-ui.ps1` sets `TPDM_ENABLED=false` in the generated `compose/.env`: the DS 5.2 templates have no
+  TPDM tables, and a school write fails while the TPDM plugin is loaded. With `-KeepEnvFile` set it yourself.
 - The Admin API rate limits `/connect/register`; the helper retries on 429 and can wait up to two minutes.
 - The setup projects are not rerunnable on a used stack ("membership already exists"), and
   `chromium-ownerships` changes the `ApiTest` ownership. Reset with `./compose/stop.ps1 -V` before a
