@@ -4,6 +4,7 @@ import {
   CatalogVersion,
   CertificationRun,
   CertificationRunComment,
+  CertificationRunEvent,
   CertificationRunScenario,
   EdfiTenant,
   Edorg,
@@ -83,6 +84,7 @@ import { AddCertificationRunStatusChangedAt1794000000003 as PgsqlAddCertificatio
 import { AddCertificationReadToGlobalAdmin1794000000004 as PgsqlAddCertificationReadToGlobalAdmin1794000000004 } from './migrations/pgsql/1794000000004-AddCertificationReadToGlobalAdmin';
 import { CertificationReview1794000000005 as PgsqlCertificationReview1794000000005 } from './migrations/pgsql/1794000000005-CertificationReview';
 import { AddCertificationReviewToGlobalAdmin1794000000006 as PgsqlAddCertificationReviewToGlobalAdmin1794000000006 } from './migrations/pgsql/1794000000006-AddCertificationReviewToGlobalAdmin';
+import { CertificationRunEvent1794000000007 as PgsqlCertificationRunEvent1794000000007 } from './migrations/pgsql/1794000000007-CertificationRunEvent';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -135,6 +137,7 @@ import { AddCertificationRunStatusChangedAt1794000000003 as MssqlAddCertificatio
 import { AddCertificationReadToGlobalAdmin1794000000004 as MssqlAddCertificationReadToGlobalAdmin1794000000004 } from './migrations/mssql/1794000000004-AddCertificationReadToGlobalAdmin';
 import { CertificationReview1794000000005 as MssqlCertificationReview1794000000005 } from './migrations/mssql/1794000000005-CertificationReview';
 import { AddCertificationReviewToGlobalAdmin1794000000006 as MssqlAddCertificationReviewToGlobalAdmin1794000000006 } from './migrations/mssql/1794000000006-AddCertificationReviewToGlobalAdmin';
+import { CertificationRunEvent1794000000007 as MssqlCertificationRunEvent1794000000007 } from './migrations/mssql/1794000000007-CertificationRunEvent';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -187,6 +190,7 @@ const getPostgreSQLMigrations = () => [
   PgsqlAddCertificationReadToGlobalAdmin1794000000004,
   PgsqlCertificationReview1794000000005,
   PgsqlAddCertificationReviewToGlobalAdmin1794000000006,
+  PgsqlCertificationRunEvent1794000000007,
 ];
 
 const getMSSQLMigrations = () => [
@@ -240,6 +244,7 @@ const getMSSQLMigrations = () => [
   MssqlAddCertificationReadToGlobalAdmin1794000000004,
   MssqlCertificationReview1794000000005,
   MssqlAddCertificationReviewToGlobalAdmin1794000000006,
+  MssqlCertificationRunEvent1794000000007,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
@@ -267,6 +272,7 @@ const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOpt
     StepParameterCatalog,
     CertificationRun,
     CertificationRunComment,
+    CertificationRunEvent,
     CertificationRunScenario,
     ScenarioStep,
     ScenarioStepError,

@@ -22,6 +22,7 @@ export * from './cert-step-catalog.entity';
 export * from './cert-step-parameter-catalog.entity';
 export * from './cert-certification-run.entity';
 export * from './cert-certification-run-comment.entity';
+export * from './cert-certification-run-event.entity';
 export * from './cert-certification-run-scenario.entity';
 export * from './cert-scenario-step.entity';
 export * from './cert-scenario-step-error.entity';
