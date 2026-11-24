@@ -106,10 +106,10 @@ export class CertificationRunsService {
       .leftJoinAndMapOne('event.user', User, 'user', 'user.id = event.userId')
       .leftJoinAndMapOne('event.comment', 'event.comment', 'comment')
       .where('event.certificationRunId = :runId', { runId })
-      .orderBy('event.createdAt', 'ASC')
-      .addOrderBy('event.certificationRunEventId', 'ASC')
-      .skip(page.offset)
-      .take(page.limit)
+      // Ids are in order: a run's transitions are serialized by the guarded status update.
+      .orderBy('event.certificationRunEventId', 'ASC')
+      .offset(page.offset)
+      .limit(page.limit)
       .getManyAndCount();
 
     return toCertificationRunEventPageDto({
@@ -125,7 +125,7 @@ export class CertificationRunsService {
           actorName:
             event.userId === null
               ? CERT_SYSTEM_ACTOR_NAME
-              : user?.displayName ?? CERT_FORMER_USER_NAME,
+              : (user?.displayName ?? CERT_FORMER_USER_NAME),
           comment: event.comment?.text ?? null,
         };
       }),
@@ -292,7 +292,7 @@ export class CertificationRunsService {
           catalogVersionId: catalogVersion.catalogVersionId,
           userId,
           certificationRunCommentId: null,
-          createdAt: run.createdAt,
+          createdAt: new Date(),
         });
         return run;
       });

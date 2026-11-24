@@ -1,9 +1,5 @@
 import 'reflect-metadata';
-import {
-  ConflictException,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
 import { CertificationRun, CertificationRunEvent, User } from '@edanalytics/models-server';
 import { In, IsNull, Not } from 'typeorm';
 import { ValidationHttpException } from '../utils';
@@ -60,7 +56,11 @@ describe('CertificationRunsService', () => {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn((value) => value),
-      save: jest.fn(async (value) => ({ certificationRunId: 7, createdAt: runCreatedAt, ...value })),
+      save: jest.fn(async (value) => ({
+        certificationRunId: 7,
+        createdAt: runCreatedAt,
+        ...value,
+      })),
     };
     eventInsert = jest.fn().mockResolvedValue({});
     // The transaction's manager hands out the same run repository mock plus the event insert.
@@ -69,8 +69,8 @@ describe('CertificationRunsService', () => {
         entity === CertificationRun
           ? runRepository
           : entity === CertificationRunEvent
-          ? { insert: eventInsert }
-          : undefined,
+            ? { insert: eventInsert }
+            : undefined,
     };
     dataSource = { transaction: jest.fn(async (work) => work(em)) };
     odsRepository = { findOneBy: jest.fn().mockResolvedValue(ods) };
@@ -79,7 +79,7 @@ describe('CertificationRunsService', () => {
     scenarioRepository = { createQueryBuilder: jest.fn() };
     runScenarioRepository = { createQueryBuilder: jest.fn() };
     eventQuery = {};
-    for (const name of ['leftJoinAndMapOne', 'where', 'orderBy', 'addOrderBy', 'skip', 'take']) {
+    for (const name of ['leftJoinAndMapOne', 'where', 'orderBy', 'offset', 'limit']) {
       eventQuery[name] = jest.fn().mockReturnValue(eventQuery);
     }
     eventQuery.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
@@ -331,10 +331,14 @@ describe('CertificationRunsService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(catalogVersion);
 
-      const result = create({ sbEnvironment: { ...(sbEnvironment as object), odsDsVersion: '6.1.0' } });
+      const result = create({
+        sbEnvironment: { ...(sbEnvironment as object), odsDsVersion: '6.1.0' },
+      });
 
       await expect(result).rejects.toThrow(ValidationHttpException);
-      expect(catalogVersionRepository.findOne.mock.calls[0][0].where.dataStandardVersion).toBe('v6');
+      expect(catalogVersionRepository.findOne.mock.calls[0][0].where.dataStandardVersion).toBe(
+        'v6',
+      );
       expect(runRepository.save).not.toHaveBeenCalled();
     });
 
@@ -380,8 +384,10 @@ describe('CertificationRunsService', () => {
         catalogVersionId: 3,
         userId: 42,
         certificationRunCommentId: null,
-        createdAt: runCreatedAt,
+        createdAt: expect.any(Date),
       });
+      const [row] = eventInsert.mock.calls[0];
+      expect(row.createdAt).not.toBe(runCreatedAt);
     });
 
     it('a lost Start Run race leaves no event and answers already open', async () => {
@@ -411,7 +417,10 @@ describe('CertificationRunsService', () => {
     });
 
     it.each([
-      ['no catalog matches the loaded artifact', () => catalogVersionRepository.findOne.mockResolvedValue(null)],
+      [
+        'no catalog matches the loaded artifact',
+        () => catalogVersionRepository.findOne.mockResolvedValue(null),
+      ],
       ['the artifact is not loaded', () => (artifactService.currentRef = undefined)],
     ])('answers 503 and creates nothing when %s', async (_name, arrange) => {
       arrange();
@@ -534,10 +543,10 @@ describe('CertificationRunsService', () => {
       expect(eventQuery.where).toHaveBeenCalledWith('event.certificationRunId = :runId', {
         runId: 7,
       });
-      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.createdAt', 'ASC');
-      expect(eventQuery.addOrderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'ASC');
-      expect(eventQuery.skip).toHaveBeenCalledWith(100);
-      expect(eventQuery.take).toHaveBeenCalledWith(25);
+      expect(eventQuery.orderBy).toHaveBeenCalledTimes(1);
+      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'ASC');
+      expect(eventQuery.offset).toHaveBeenCalledWith(100);
+      expect(eventQuery.limit).toHaveBeenCalledWith(25);
     });
 
     it('returns entries oldest first with the total', async () => {
