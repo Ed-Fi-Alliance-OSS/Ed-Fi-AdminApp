@@ -1,8 +1,17 @@
-import { AuthorizationCache, GetSessionDataDto, Ids, PostCertificationRunDto } from '@edanalytics/models';
+import {
+  AuthorizationCache,
+  CERT_RUN_EVENTS_DEFAULT_LIMIT,
+  CERT_RUN_EVENTS_MAX_LIMIT,
+  GetSessionDataDto,
+  Ids,
+  PostCertificationRunDto,
+} from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import {
+  BadRequestException,
   Body,
   Controller,
+  DefaultValuePipe,
   Get,
   NotFoundException,
   Param,
@@ -124,6 +133,27 @@ export class CertificationTeamRunsController {
   ) {
     const certificationRun = await this.findReadableRun(teamId, runId, authorizationCache);
     return this.runsService.findRunComments(certificationRun.certificationRunId);
+  }
+
+  /** A page of the run's append-only history, oldest first. */
+  @Get(':runId/events')
+  @Authorize(TEAM_RUN_READ)
+  async getEvents(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @Param('runId', new ParseIntPipe()) runId: number,
+    @Query('offset', new DefaultValuePipe(0), new ParseIntPipe()) offset: number,
+    @Query('limit', new DefaultValuePipe(CERT_RUN_EVENTS_DEFAULT_LIMIT), new ParseIntPipe())
+    limit: number,
+    @AuthCache() authorizationCache: AuthorizationCache,
+  ) {
+    offset ??= 0;
+    limit ??= CERT_RUN_EVENTS_DEFAULT_LIMIT;
+    if (offset < 0) throw new BadRequestException('offset must be 0 or more.');
+    if (limit < 1 || limit > CERT_RUN_EVENTS_MAX_LIMIT) {
+      throw new BadRequestException(`limit must be between 1 and ${CERT_RUN_EVENTS_MAX_LIMIT}.`);
+    }
+    const certificationRun = await this.findReadableRun(teamId, runId, authorizationCache);
+    return this.runsService.findRunEvents(certificationRun.certificationRunId, { offset, limit });
   }
 
   private findReadableRun(teamId: number, runId: number, authorizationCache: AuthorizationCache) {

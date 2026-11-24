@@ -1,5 +1,6 @@
 import {
   CERT_FORMER_REVIEWER_NAME,
+  CERT_FORMER_USER_NAME,
   CERT_MODEL,
   CERT_RUN_EVENT,
   CERT_RUN_STATUS,
@@ -8,7 +9,9 @@ import {
   CertificationRunCommentDto,
   CertificationRunDto,
   CertificationRunHistoryRowDto,
+  CertificationRunEventPageDto,
   CertModel,
+  CERT_SYSTEM_ACTOR_NAME,
   Ids,
   SUPPORTED_CERT_MODELS,
   canExecuteSteps,
@@ -17,6 +20,7 @@ import {
   toCertificationRunCommentDto,
   toCertificationRunDto,
   toCertificationRunHistoryDto,
+  toCertificationRunEventPageDto,
 } from '@edanalytics/models';
 import {
   CatalogVersion,
@@ -28,6 +32,7 @@ import {
   Ods,
   SbEnvironment,
   ScenarioCatalog,
+  User,
 } from '@edanalytics/models-server';
 import {
   ConflictException,
@@ -85,8 +90,47 @@ export class CertificationRunsService {
     private readonly scenarioRepository: Repository<ScenarioCatalog>,
     @InjectRepository(CertificationRunScenario)
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
+    @InjectRepository(CertificationRunEvent)
+    private readonly eventRepository: Repository<CertificationRunEvent>,
     private readonly dataSource: DataSource,
   ) {}
+
+  /** One page of a run's history, oldest first, with who did each change and the comment it carried. */
+  async findRunEvents(
+    runId: number,
+    page: { offset: number; limit: number },
+  ): Promise<CertificationRunEventPageDto> {
+    // Entries have no FK to user, so the user is joined by condition and may be missing.
+    const [events, total] = await this.eventRepository
+      .createQueryBuilder('event')
+      .leftJoinAndMapOne('event.user', User, 'user', 'user.id = event.userId')
+      .leftJoinAndMapOne('event.comment', 'event.comment', 'comment')
+      .where('event.certificationRunId = :runId', { runId })
+      .orderBy('event.createdAt', 'ASC')
+      .addOrderBy('event.certificationRunEventId', 'ASC')
+      .skip(page.offset)
+      .take(page.limit)
+      .getManyAndCount();
+
+    return toCertificationRunEventPageDto({
+      total,
+      items: events.map((event) => {
+        const { user } = event as CertificationRunEvent & { user?: User | null };
+        return {
+          eventId: event.certificationRunEventId,
+          event: event.event,
+          fromStatus: event.fromStatus,
+          toStatus: event.toStatus,
+          createdAt: event.createdAt.toISOString(),
+          actorName:
+            event.userId === null
+              ? CERT_SYSTEM_ACTOR_NAME
+              : user?.displayName ?? CERT_FORMER_USER_NAME,
+          comment: event.comment?.text ?? null,
+        };
+      }),
+    });
+  }
 
   async findTeamRunHistory(
     params: Pick<FindTeamRunParams, 'teamId' | 'validOdsIds'>,

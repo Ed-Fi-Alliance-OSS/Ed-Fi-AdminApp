@@ -4,7 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
-import { CertificationRun, CertificationRunEvent } from '@edanalytics/models-server';
+import { CertificationRun, CertificationRunEvent, User } from '@edanalytics/models-server';
 import { In, IsNull, Not } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationRunsService } from './certification-runs.service';
@@ -37,6 +37,8 @@ describe('CertificationRunsService', () => {
   let commentRepository: { find: jest.Mock };
   let scenarioRepository: { createQueryBuilder: jest.Mock };
   let runScenarioRepository: { createQueryBuilder: jest.Mock };
+  let eventRepository: { createQueryBuilder: jest.Mock };
+  let eventQuery: Record<string, jest.Mock>;
   let artifactService: { currentRef: string | undefined };
   let eventInsert: jest.Mock;
   let dataSource: { transaction: jest.Mock };
@@ -76,6 +78,12 @@ describe('CertificationRunsService', () => {
     commentRepository = { find: jest.fn() };
     scenarioRepository = { createQueryBuilder: jest.fn() };
     runScenarioRepository = { createQueryBuilder: jest.fn() };
+    eventQuery = {};
+    for (const name of ['leftJoinAndMapOne', 'where', 'orderBy', 'addOrderBy', 'skip', 'take']) {
+      eventQuery[name] = jest.fn().mockReturnValue(eventQuery);
+    }
+    eventQuery.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+    eventRepository = { createQueryBuilder: jest.fn().mockReturnValue(eventQuery) };
     artifactService = { currentRef: 'v2.1.0' };
     service = new CertificationRunsService(
       artifactService as never,
@@ -85,6 +93,7 @@ describe('CertificationRunsService', () => {
       commentRepository as never,
       scenarioRepository as never,
       runScenarioRepository as never,
+      eventRepository as never,
       dataSource as never,
     );
   });
@@ -485,6 +494,97 @@ describe('CertificationRunsService', () => {
       runRepository.findOne.mockResolvedValue(row);
 
       await expect(find({ validOdsIds })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findRunEvents', () => {
+    const at = new Date('2026-11-24T10:00:00Z');
+    const stored = (overrides: object = {}) => ({
+      certificationRunEventId: 1,
+      certificationRunId: 7,
+      event: 'CREATED',
+      fromStatus: null,
+      toStatus: 'DRAFT',
+      userId: null,
+      user: null,
+      comment: null,
+      createdAt: at,
+      ...overrides,
+    });
+    const read = async (rows: object[], total = rows.length) => {
+      eventQuery.getManyAndCount.mockResolvedValue([rows, total]);
+      return service.findRunEvents(7, { offset: 0, limit: 50 });
+    };
+
+    it("queries the run's events oldest first, joined to user and comment, paged", async () => {
+      await service.findRunEvents(7, { offset: 100, limit: 25 });
+
+      expect(eventRepository.createQueryBuilder).toHaveBeenCalledWith('event');
+      expect(eventQuery.leftJoinAndMapOne).toHaveBeenCalledWith(
+        'event.user',
+        User,
+        'user',
+        'user.id = event.userId',
+      );
+      expect(eventQuery.leftJoinAndMapOne).toHaveBeenCalledWith(
+        'event.comment',
+        'event.comment',
+        'comment',
+      );
+      expect(eventQuery.where).toHaveBeenCalledWith('event.certificationRunId = :runId', {
+        runId: 7,
+      });
+      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.createdAt', 'ASC');
+      expect(eventQuery.addOrderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'ASC');
+      expect(eventQuery.skip).toHaveBeenCalledWith(100);
+      expect(eventQuery.take).toHaveBeenCalledWith(25);
+    });
+
+    it('returns entries oldest first with the total', async () => {
+      const page = await read(
+        [
+          stored(),
+          stored({
+            certificationRunEventId: 2,
+            event: 'SUBMITTED',
+            fromStatus: 'DRAFT',
+            toStatus: 'READY_FOR_REVIEW',
+          }),
+        ],
+        9,
+      );
+      expect(page.total).toBe(9);
+      expect(page.items.map((item) => item.eventId)).toEqual([1, 2]);
+      expect(page.items[1]).toMatchObject({
+        event: 'SUBMITTED',
+        fromStatus: 'DRAFT',
+        toStatus: 'READY_FOR_REVIEW',
+        createdAt: at.toISOString(),
+      });
+    });
+
+    it('names the user', async () => {
+      const page = await read([stored({ userId: 11, user: { displayName: 'Vera Vendor' } })]);
+      expect(page.items[0].actorName).toBe('Vera Vendor');
+    });
+
+    it('shows System for a null user', async () => {
+      const page = await read([stored({ userId: null })]);
+      expect(page.items[0].actorName).toBe('System');
+    });
+
+    it('shows Former user when the user no longer exists', async () => {
+      const page = await read([stored({ userId: 11, user: null })]);
+      expect(page.items[0].actorName).toBe('Former user');
+    });
+
+    it('returns the comment text, or null when the comment has none or there is no comment', async () => {
+      const page = await read([
+        stored({ certificationRunEventId: 1, comment: { text: 'Fix step 3' } }),
+        stored({ certificationRunEventId: 2, comment: { text: null } }),
+        stored({ certificationRunEventId: 3, comment: null }),
+      ]);
+      expect(page.items.map((item) => item.comment)).toEqual(['Fix step 3', null, null]);
     });
   });
 });
