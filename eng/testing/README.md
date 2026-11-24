@@ -172,7 +172,9 @@ only one open run per model. Use it only on test databases.
 
 The Scenarios page of a run shows an "Audit history" card that lists every status change of the
 run, oldest first, with who made it, when, and the reviewer's comment where there is one. To see
-it with seven entries, use the script above to get past the scenarios and do this:
+it with seven entries, use the script above to get past the scenarios and do this. Leave the
+script's optional `CHANGES_REQUESTED` block commented out: a status set by SQL records no Audit
+history entry, so request the changes from the reviewer's page instead.
 
 1. Start a run from My products.
 2. Send it to review.
