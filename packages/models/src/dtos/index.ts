@@ -1,6 +1,7 @@
 export * from './certification-catalog.dto';
 export * from './certification-token.dto';
 export * from './certification-run.dto';
+export * from './certification-run-history.dto';
 export * from './certification-dashboard.dto';
 export * from './certification-team-dashboard.dto';
 export * from './certification-review.dto';
