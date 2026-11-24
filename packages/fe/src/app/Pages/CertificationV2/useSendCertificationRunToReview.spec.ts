@@ -65,4 +65,23 @@ describe('useSendCertificationRunToReview', () => {
       });
     },
   );
+
+  it("marks the run's audit history stale on success, so the new entry is read", async () => {
+    const { QueryClient } = jest.requireActual('@tanstack/react-query');
+    const client = new QueryClient();
+    const runEventsKey = certificationQueryKeys.runEvents(2, 7);
+    client.setQueryData(runEventsKey, { pages: [], pageParams: [] });
+    (useQueryClient as jest.Mock).mockReturnValue(client);
+    jest.clearAllMocks();
+    useSendCertificationRunToReview();
+    const spy = jest.spyOn(client, 'invalidateQueries');
+
+    await options().onSuccess(
+      { runId: 7, status: 'READY_FOR_REVIEW', canExecuteSteps: false },
+      { teamId: 2, edfiTenantId: 10, runId: 7 },
+    );
+
+    expect(spy).toHaveBeenCalledWith({ queryKey: certificationQueryKeys.all(2) });
+    expect(client.getQueryState(runEventsKey)?.isInvalidated).toBe(true);
+  });
 });
