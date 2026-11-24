@@ -4,6 +4,7 @@ import {
   NotFoundException,
   ServiceUnavailableException,
 } from '@nestjs/common';
+import { CertificationRun, CertificationRunEvent } from '@edanalytics/models-server';
 import { In, IsNull, Not } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationRunsService } from './certification-runs.service';
@@ -13,6 +14,8 @@ const sbEnvironment = { id: 1, displayName: 'Env One', odsDsVersion: '5.0.0' } a
 const edfiTenant = { id: 10, name: 'tenant1', displayName: 'tenant1', sbEnvironmentId: 1 } as never;
 const ods = { id: 5, edfiTenantId: 10, displayName: 'ods-five' };
 const catalogVersion = { catalogVersionId: 3, dataStandardVersion: 'v5' };
+
+const runCreatedAt = new Date('2026-11-24T10:00:00Z');
 
 const storedRun = (overrides: object = {}) => ({
   certificationRunId: 7,
@@ -35,6 +38,8 @@ describe('CertificationRunsService', () => {
   let scenarioRepository: { createQueryBuilder: jest.Mock };
   let runScenarioRepository: { createQueryBuilder: jest.Mock };
   let artifactService: { currentRef: string | undefined };
+  let eventInsert: jest.Mock;
+  let dataSource: { transaction: jest.Mock };
   let service: CertificationRunsService;
 
   const create = (overrides: object = {}) =>
@@ -53,8 +58,19 @@ describe('CertificationRunsService', () => {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn((value) => value),
-      save: jest.fn(async (value) => ({ certificationRunId: 7, ...value })),
+      save: jest.fn(async (value) => ({ certificationRunId: 7, createdAt: runCreatedAt, ...value })),
     };
+    eventInsert = jest.fn().mockResolvedValue({});
+    // The transaction's manager hands out the same run repository mock plus the event insert.
+    const em = {
+      getRepository: (entity: unknown) =>
+        entity === CertificationRun
+          ? runRepository
+          : entity === CertificationRunEvent
+          ? { insert: eventInsert }
+          : undefined,
+    };
+    dataSource = { transaction: jest.fn(async (work) => work(em)) };
     odsRepository = { findOneBy: jest.fn().mockResolvedValue(ods) };
     catalogVersionRepository = { findOne: jest.fn().mockResolvedValue(catalogVersion) };
     commentRepository = { find: jest.fn() };
@@ -69,6 +85,7 @@ describe('CertificationRunsService', () => {
       commentRepository as never,
       scenarioRepository as never,
       runScenarioRepository as never,
+      dataSource as never,
     );
   });
 
@@ -339,6 +356,37 @@ describe('CertificationRunsService', () => {
       runRepository.save.mockRejectedValue(new Error('connection lost'));
 
       await expect(create()).rejects.toThrow('connection lost');
+      expect(eventInsert).not.toHaveBeenCalled();
+    });
+
+    it('records a CREATED event with the starter in the same transaction', async () => {
+      await create();
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(eventInsert).toHaveBeenCalledWith({
+        certificationRunId: 7,
+        event: 'CREATED',
+        fromStatus: null,
+        toStatus: 'DRAFT',
+        catalogVersionId: 3,
+        userId: 42,
+        certificationRunCommentId: null,
+        createdAt: runCreatedAt,
+      });
+    });
+
+    it('a lost Start Run race leaves no event and answers already open', async () => {
+      runRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(storedRun());
+      runRepository.save.mockRejectedValue(new Error('duplicate key'));
+
+      await expect(create()).rejects.toThrow(ConflictException);
+      expect(eventInsert).not.toHaveBeenCalled();
+    });
+
+    it('a failed event insert fails the start', async () => {
+      eventInsert.mockRejectedValue(new Error('event failed'));
+
+      await expect(create()).rejects.toThrow('event failed');
     });
 
     it('refuses a data store that is not in the tenant', async () => {

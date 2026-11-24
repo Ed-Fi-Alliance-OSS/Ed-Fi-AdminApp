@@ -1,6 +1,7 @@
 import {
   CERT_FORMER_REVIEWER_NAME,
   CERT_MODEL,
+  CERT_RUN_EVENT,
   CERT_RUN_STATUS,
   CERT_SCENARIO_STATUS,
   CertificationLatestRunDto,
@@ -22,6 +23,7 @@ import {
   CertificationRun,
   CertificationRunComment,
   CertificationRunScenario,
+  CertificationRunEvent,
   EdfiTenant,
   Ods,
   SbEnvironment,
@@ -34,7 +36,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { checkId } from '../auth/helpers/where-ids';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
@@ -83,6 +85,7 @@ export class CertificationRunsService {
     private readonly scenarioRepository: Repository<ScenarioCatalog>,
     @InjectRepository(CertificationRunScenario)
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
+    private readonly dataSource: DataSource,
   ) {}
 
   async findTeamRunHistory(
@@ -223,17 +226,32 @@ export class CertificationRunsService {
 
     let created: CertificationRun;
     try {
-      created = await this.runRepository.save(
-        this.runRepository.create({
-          edfiTenantId: edfiTenant.id,
-          odsId,
-          certificationModel,
+      // The history entry is written with the run, so a failure of either leaves neither.
+      created = await this.dataSource.transaction(async (em) => {
+        const runs = em.getRepository(CertificationRun);
+        const run = await runs.save(
+          runs.create({
+            edfiTenantId: edfiTenant.id,
+            odsId,
+            certificationModel,
+            catalogVersionId: catalogVersion.catalogVersionId,
+            createdById: userId,
+            teamId,
+            status: CERT_RUN_STATUS.DRAFT,
+          }),
+        );
+        await em.getRepository(CertificationRunEvent).insert({
+          certificationRunId: run.certificationRunId,
+          event: CERT_RUN_EVENT.CREATED,
+          fromStatus: null,
+          toStatus: CERT_RUN_STATUS.DRAFT,
           catalogVersionId: catalogVersion.catalogVersionId,
-          createdById: userId,
-          teamId,
-          status: CERT_RUN_STATUS.DRAFT,
-        }),
-      );
+          userId,
+          certificationRunCommentId: null,
+          createdAt: run.createdAt,
+        });
+        return run;
+      });
     } catch (error) {
       // Two Start Run requests can race; the unique index lets only one insert win.
       if (await this.runRepository.findOne({ where })) throw alreadyOpen();
