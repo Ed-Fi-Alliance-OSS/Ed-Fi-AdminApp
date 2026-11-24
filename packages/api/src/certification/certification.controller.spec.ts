@@ -143,16 +143,29 @@ describe('CertificationController', () => {
     it("sends the team's run and returns it with its new status", async () => {
       const service = { sendToReview: jest.fn().mockResolvedValue('READY_FOR_REVIEW') };
 
-      const result = await make(service).sendToReview(2, edfiTenant, 7, validOdsIds);
+      const result = await make(service).sendToReview(2, edfiTenant, 7, validOdsIds, {
+        id: 9,
+      } as never);
 
       expectTeamRunLookup();
       expect(runsService.findTeamRun.mock.calls[0][0].validOdsIds(10)).toBe(validOdsIds);
-      expect(service.sendToReview).toHaveBeenCalledWith(certificationRun);
+      expect(service.sendToReview).toHaveBeenCalledWith(certificationRun, 9);
       expect((runsService as unknown as { toDto: jest.Mock }).toDto).toHaveBeenCalledWith({
         ...certificationRun,
         status: 'READY_FOR_REVIEW',
       });
       expect(result).toBe(dto);
+    });
+
+    it('sendToReview passes the session user id, or null without a session', async () => {
+      const service = { sendToReview: jest.fn().mockResolvedValue('READY_FOR_REVIEW') };
+      const controller = make(service);
+
+      await controller.sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never);
+      await controller.sendToReview(2, edfiTenant, 7, validOdsIds, undefined);
+
+      expect(service.sendToReview).toHaveBeenNthCalledWith(1, certificationRun, 9);
+      expect(service.sendToReview).toHaveBeenNthCalledWith(2, certificationRun, null);
     });
 
     it('is a 404 for a run outside the data stores the user may run', async () => {

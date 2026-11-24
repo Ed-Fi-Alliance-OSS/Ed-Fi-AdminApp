@@ -22,8 +22,8 @@ export class CertificationReviewController {
   @Post('pick-up')
   @HttpCode(200)
   @Authorize(REVIEW)
-  pickUp(@Param('runId', ParseIntPipe) runId: number) {
-    return this.reviewService.pickUp(runId);
+  pickUp(@Param('runId', ParseIntPipe) runId: number, @ReqUser() session?: GetSessionDataDto) {
+    return this.reviewService.pickUp(runId, session?.id ?? null);
   }
 
   @Get('review')

@@ -83,21 +83,25 @@ export class CertificationReviewService {
     private readonly dataSource: DataSource,
   ) {}
 
-  /** Moves a run waiting for review to In review. */
-  async pickUp(runId: number): Promise<CertificationReviewStatusDto> {
+  /** Moves a run waiting for review to In review, recorded as picked up by `userId`. */
+  async pickUp(runId: number, userId: number | null): Promise<CertificationReviewStatusDto> {
     const run = await this.findRunStatus(runId);
     if (!CERT_REVIEW_QUEUE_STATUSES.includes(run.status)) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
     await this.dataSource.transaction((em) =>
-      transitionRun(em, runId, run.status, CERT_RUN_STATUS.IN_REVIEW),
+      transitionRun(em, runId, run.status, CERT_RUN_STATUS.IN_REVIEW, {
+        actorId: userId,
+        catalogVersionId: run.catalogVersionId,
+      }),
     );
     return toCertificationReviewStatusDto({ runId, status: CERT_RUN_STATUS.IN_REVIEW });
   }
 
   /**
    * Approves, rejects or asks for changes on a run in review, and records the decision as a
-   * comment. A final decision (approve or reject) also deletes the run's response snapshots.
+   * comment linked from the run's history entry. A final decision (approve or reject) also
+   * deletes the run's response snapshots.
    */
   async decide(params: DecideParams): Promise<CertificationReviewStatusDto> {
     const { runId, decision, userId } = params;
@@ -108,16 +112,22 @@ export class CertificationReviewService {
         message: CERT_REVIEW_MESSAGES.commentRequired,
       });
     }
-    // Only for the 404; the guarded update below is what refuses a run that isn't In review.
-    await this.findRunStatus(runId);
+    // For the 404 and the catalog version; the guarded update below is what refuses a run
+    // that isn't In review.
+    const { catalogVersionId } = await this.findRunStatus(runId);
 
     const to = DECISION_STATUS[decision];
     await this.dataSource.transaction(async (em) => {
-      await transitionRun(em, runId, CERT_RUN_STATUS.IN_REVIEW, to);
+      // Saved first so the history entry can link it; a refused change rolls it back.
       const comments = em.getRepository(CertificationRunComment);
-      await comments.save(
+      const comment = await comments.save(
         comments.create({ certificationRunId: runId, authorId: userId, decision, text }),
       );
+      await transitionRun(em, runId, CERT_RUN_STATUS.IN_REVIEW, to, {
+        actorId: userId,
+        catalogVersionId,
+        commentId: comment.certificationRunCommentId,
+      });
       if (
         decision === CERT_REVIEW_DECISION.APPROVED ||
         decision === CERT_REVIEW_DECISION.REJECTED
@@ -198,7 +208,7 @@ export class CertificationReviewService {
   private async findRunStatus(runId: number) {
     const run = await this.runRepository.findOne({
       where: { certificationRunId: runId },
-      select: { certificationRunId: true, status: true },
+      select: { certificationRunId: true, status: true, catalogVersionId: true },
     });
     if (!run) throw new NotFoundException();
     return run;

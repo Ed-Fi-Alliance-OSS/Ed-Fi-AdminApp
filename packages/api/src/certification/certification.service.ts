@@ -11,11 +11,13 @@ import {
   canExecuteSteps,
   canTransitionRun,
   certRunAlreadyOpenMessage,
+  certRunEventFor,
   isSupportedSisVersion,
   sendToReviewStatus,
 } from '@edanalytics/models';
 import {
   CertificationRun,
+  CertificationRunEvent,
   CertificationRunScenario,
   EdfiTenant,
   SbEnvironment,
@@ -141,30 +143,52 @@ const statusChange = (status: CertRunStatus, now = new Date()) => {
   return { status, updatedAt: now, statusChangedAt: now };
 };
 
+/** Who made a status change and what it is recorded against in the run's history. */
+export type TransitionRunOptions = {
+  /** The signed-in user who made the change; null when the system did. */
+  actorId: number | null;
+  /** The run's catalog version, kept on the history entry. */
+  catalogVersionId: number | null;
+  /** The reviewer's comment the change carries, if any. */
+  commentId?: number;
+  /** Columns written with the status. */
+  extra?: Partial<Pick<CertificationRun, 'submittedAt' | 'statusChangedAt'>>;
+};
+
 /**
  * Moves a run from one status to another, refusing any change CERT_RUN_TRANSITIONS doesn't
- * allow. The update only matches while the run is still in `from`, so of two concurrent
- * changes the second finds no row and gets a 409. Call it with the transaction's manager when
- * the change must roll back together with other writes. `extra` columns are written with it; a
- * `statusChangedAt` in `extra` also sets `updatedAt`, so the three stay one instant.
+ * allow, and records the change in the run's history. The update only matches while the run is
+ * still in `from`, so of two concurrent changes the second finds no row, writes no history and
+ * gets a 409. Call it with the transaction's manager: the history entry must commit or roll back
+ * together with the change. `extra` columns are written with it; a `statusChangedAt` in `extra`
+ * also sets `updatedAt` and the entry's `createdAt`, so all of them stay one instant.
  */
 export const transitionRun = async (
   em: EntityManager,
   certificationRunId: number,
   from: CertRunStatus,
   to: CertRunStatus,
-  extra: Partial<Pick<CertificationRun, 'submittedAt' | 'statusChangedAt'>> = {},
+  options: TransitionRunOptions,
 ): Promise<void> => {
   if (!canTransitionRun(from, to)) {
     throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
   }
+  const { actorId, catalogVersionId, commentId, extra = {} } = options;
+  const now = extra.statusChangedAt ?? new Date();
   const moved = await em
     .getRepository(CertificationRun)
-    .update(
-      { certificationRunId, status: from },
-      { ...statusChange(to, extra.statusChangedAt), ...extra },
-    );
+    .update({ certificationRunId, status: from }, { ...statusChange(to, now), ...extra });
   if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+  await em.getRepository(CertificationRunEvent).insert({
+    certificationRunId,
+    event: certRunEventFor(from, to),
+    fromStatus: from,
+    toStatus: to,
+    catalogVersionId,
+    userId: actorId,
+    certificationRunCommentId: commentId ?? null,
+    createdAt: now,
+  });
 };
 
 @Injectable()
@@ -262,6 +286,7 @@ export class CertificationService {
    */
   async sendToReview(
     certificationRun: Pick<CertificationRun, 'certificationRunId' | 'status' | 'catalogVersionId'>,
+    actorId: number | null,
   ): Promise<CertRunStatus> {
     const { certificationRunId, status: from, catalogVersionId } = certificationRun;
     const to = sendToReviewStatus(from);
@@ -273,8 +298,9 @@ export class CertificationService {
       // submittedAt is the same instant as statusChangedAt; statusChangedAt moves again at pick-up.
       const submittedAt = new Date();
       await transitionRun(em, certificationRunId, from, to, {
-        statusChangedAt: submittedAt,
-        submittedAt,
+        actorId,
+        catalogVersionId,
+        extra: { statusChangedAt: submittedAt, submittedAt },
       });
 
       const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId } };
@@ -286,7 +312,7 @@ export class CertificationService {
           scenario: enabledScenario,
         },
       });
-      // Thrown inside the transaction, so the status change above rolls back.
+      // Thrown inside the transaction, so the status change and its history entry roll back.
       if (enabled === 0 || completed !== enabled) {
         throw new ConflictException(CERT_RUN_MESSAGES.notAllScenariosCompleted);
       }

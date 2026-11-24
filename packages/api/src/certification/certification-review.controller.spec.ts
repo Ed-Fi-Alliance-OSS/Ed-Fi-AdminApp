@@ -51,10 +51,17 @@ describe('CertificationReviewController', () => {
     service.pickUp.mockResolvedValue('p');
     service.getReview.mockResolvedValue('r');
     service.getSnapshot.mockResolvedValue('s');
-    await expect(controller.pickUp(7)).resolves.toBe('p');
+    await expect(controller.pickUp(7, { id: 5 } as never)).resolves.toBe('p');
     await expect(controller.getReview(7)).resolves.toBe('r');
     await expect(controller.getSnapshot(7, 3)).resolves.toBe('s');
     expect(service.getSnapshot).toHaveBeenCalledWith(7, 3);
+  });
+
+  it('pickUp passes the session user id, or null without a session', async () => {
+    await controller.pickUp(7, { id: 5 } as never);
+    await controller.pickUp(8, undefined);
+    expect(service.pickUp).toHaveBeenNthCalledWith(1, 7, 5);
+    expect(service.pickUp).toHaveBeenNthCalledWith(2, 8, null);
   });
 
   it('approve passes the decision, comment and session user', async () => {
