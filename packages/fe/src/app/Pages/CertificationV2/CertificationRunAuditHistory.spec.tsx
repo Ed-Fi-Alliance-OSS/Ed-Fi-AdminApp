@@ -110,6 +110,20 @@ describe('CertificationRunAuditHistory', () => {
     expect(screen.queryByText('No history yet.')).toBeNull();
   });
 
+  it('shows a loading message, not "No history yet.", while the first page loads', () => {
+    renderCard({ isLoading: true });
+
+    expect(screen.getByText('Loading history…')).toBeTruthy();
+    expect(screen.queryByText('No history yet.')).toBeNull();
+  });
+
+  it('keeps the loaded entries visible when a refetch fails', () => {
+    renderCard({ events: [entry({})], isError: true });
+
+    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(screen.queryByText("The audit history couldn't be loaded.")).toBeNull();
+  });
+
   it('has no edit or delete controls', () => {
     renderCard({ events: [entry({})], hasMore: true });
 

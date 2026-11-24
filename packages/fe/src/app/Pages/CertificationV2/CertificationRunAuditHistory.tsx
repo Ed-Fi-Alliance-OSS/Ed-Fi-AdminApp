@@ -20,10 +20,8 @@ export const CertificationRunAuditHistory = ({
 }) => {
   const listId = useId();
   const [isOpen, setIsOpen] = useState(true);
-  const { events, hasMore, loadMore, isLoadingMore, isError } = useCertificationRunEvents(
-    teamId,
-    runId,
-  );
+  const { events, hasMore, loadMore, isLoadingMore, isLoading, isError } =
+    useCertificationRunEvents(teamId, runId);
 
   return (
     <Box mb={4}>
@@ -42,7 +40,9 @@ export const CertificationRunAuditHistory = ({
       </Heading>
       <Collapse in={isOpen} animateOpacity unmountOnExit>
         <Box id={listId}>
-          {isError ? (
+          {events.length === 0 && isLoading ? (
+            <Text color="gray.600">Loading history…</Text>
+          ) : events.length === 0 && isError ? (
             <Text color="red.600">The audit history couldn't be loaded.</Text>
           ) : events.length === 0 ? (
             <Text color="gray.600">No history yet.</Text>
