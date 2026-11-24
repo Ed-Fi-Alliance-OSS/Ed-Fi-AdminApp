@@ -42,6 +42,7 @@ export { Profile } from './Profile';
 export { Refresh } from './Refresh';
 export { Rename } from './Rename';
 export { Role } from './Role';
+export { RunHistory } from './RunHistory';
 export { SbEnvironment } from './SbEnvironment';
 export { Search } from './Search';
 export { ShieldPlus } from './ShieldPlus';
