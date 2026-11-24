@@ -2994,7 +2994,7 @@
   },
   "playwright.config.ts": {
     "local/no-comments": {
-      "count": 57
+      "count": 45
     }
   },
   "release.config.mjs": {
@@ -3010,26 +3010,6 @@
   "tests/e2e/auth.setup.ts": {
     "local/no-comments": {
       "count": 4
-    }
-  },
-  "tests/e2e/certification-page/certification.steps.ts": {
-    "local/no-comments": {
-      "count": 16
-    }
-  },
-  "tests/e2e/core/certification-fixtures.ts": {
-    "local/no-comments": {
-      "count": 10
-    }
-  },
-  "tests/e2e/core/ods-api.ts": {
-    "local/no-comments": {
-      "count": 9
-    }
-  },
-  "tests/e2e/core/ods-credentials.ts": {
-    "local/no-comments": {
-      "count": 8
     }
   },
   "tests/e2e/core/routes.ts": {
@@ -3077,14 +3057,9 @@
       "count": 4
     }
   },
-  "tests/e2e/pages/certification-page.ts": {
-    "local/no-comments": {
-      "count": 26
-    }
-  },
   "tests/e2e/pages/environments-page.ts": {
     "local/no-comments": {
-      "count": 36
+      "count": 32
     }
   },
   "tests/e2e/pages/grant-ownership.ts": {
