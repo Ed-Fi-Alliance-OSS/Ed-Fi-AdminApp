@@ -100,6 +100,7 @@ packages/
 - **REQUIRED**: LF line endings are enforced repo-wide via `.gitattributes` (`* text=auto eol=lf`)
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Husky pre-commit hook**: A `husky` pre-commit hook runs `lint-staged`, which runs `eslint --max-warnings 0` on staged `.ts`/`.tsx`/`.js`/`.jsx` files. Commits with lint errors or warnings are blocked — fix them instead of bypassing the hook (`git commit --no-verify`).
+- **No comments**: The `local/no-comments` ESLint rule rejects every comment in `.ts`/`.tsx`/`.js`/`.jsx`/`.mjs` files, because comments go stale and nothing verifies them. Express intent in names, types and tests. Only these are allowed: `eslint-disable*` directives with a `-- reason`, `@ts-expect-error` with a description, shebangs and `/// <reference>`. Unused `eslint-disable` directives also fail lint. Pre-existing violations are frozen in `eslint-suppressions.json`; after deleting legacy comments, run `npm run lint:prune` and commit the updated file so it only ever shrinks.
 - **Prettier**: Consistent code formatting
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)

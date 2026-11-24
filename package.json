@@ -29,6 +29,7 @@
     "compose:check:update": "pwsh ./eng/testing/check-compose-config.ps1 -UpdateGolden",
     "lint:check": "eslint .",
     "lint:fix": "eslint --fix .",
+    "lint:prune": "eslint --prune-suppressions .",
     "test:lint-rules": "node --test eslint-rules/*.test.mjs",
     "prettier:check": "prettier --check .",
     "prettier:write": "prettier --write .",

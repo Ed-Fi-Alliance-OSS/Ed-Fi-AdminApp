@@ -1,0 +1,3180 @@
+{
+  "jest-global-setup.js": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/config/custom-environment-variables.js": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/config/custom-environment-variables.spec.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/api/config/default.js": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 39
+    }
+  },
+  "packages/api/config/default.spec.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/api/config/testing.js": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/jest.setup.js": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/admin-api-version-strategy.interface.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/client-secret.spec.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/client-secret.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/v1-admin-api-version.strategy.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/v2-admin-api-version.strategy.spec.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/v2-admin-api-version.strategy.ts": {
+    "local/no-comments": {
+      "count": 19
+    }
+  },
+  "packages/api/src/admin-api-version-strategy/v3-admin-api-version.strategy.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/app/aggregate-error-handler.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/app/aggregate-error.filter.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/app/app.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/app/app.module.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/app/app.service.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/app/db-encryption-secret.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/app/global-validation-pipe.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/app/health-error.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/app/health.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/app/production-secrets-guard.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/app/production-secrets.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/api/src/app/sb-environment-edfi-tenant.interceptor.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/app/session-secret.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/audit/admin-api-delete.snapshots.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/admin-api-delete.snapshots.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/audit/audit-action.middleware.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/audit/audit-actor.resolver.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-admin-api-delete.decorator.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/audit/audit-admin-api-delete.interceptor.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/audit/audit-column-lengths.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-column-lengths.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-delete.decorator.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-delete.interceptor.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-enabled.token.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit-event.recorder.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/audit/audit-log.entity.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/audit/audit-log.writer.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/audit/audit-log.writer.ts": {
+    "local/no-comments": {
+      "count": 21
+    }
+  },
+  "packages/api/src/audit/audit-request-context.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/audit/audit-sanitizer.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/audit.module.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/audit/delete-snapshot.registrations.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/audit/delete-snapshot.registrations.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/audit/delete-snapshot.registry.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/audit/delete-snapshot.relations.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/audit/find-options-relations.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/auth/auth.controller.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 25
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/auth/auth.controller.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 33
+    }
+  },
+  "packages/api/src/auth/auth.service.mssql.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/auth/auth.service.spec.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/auth/auth.service.ts": {
+    "local/no-comments": {
+      "count": 35
+    }
+  },
+  "packages/api/src/auth/authorization/authorization-cache.guard.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/auth/authorization/authorized.guard.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/auth/authorization/helpers.spec.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/api/src/auth/authorization/helpers.ts": {
+    "local/no-comments": {
+      "count": 26
+    }
+  },
+  "packages/api/src/auth/authorization/privilege-escalation.spec.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/api/src/auth/authorization/privilege-grant-guard.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/auth/authorization/privilege-grant-guard.service.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/api/src/auth/helpers/session.serializer.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/auth/helpers/where-ids.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/auth/login/authenticated.guard.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/auth/login/authenticated.guard.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/api/src/auth/login/oidc-passport.strategy.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/auth/login/oidc-provider.registry.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/auth/login/oidc-provider.registry.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/auth/login/oidc.strategy.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/api/src/auth/login/oidc.strategy.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/api/src/certification/artifact/artifact.service.spec.ts": {
+    "local/no-comments": {
+      "count": 36
+    }
+  },
+  "packages/api/src/certification/artifact/artifact.service.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/api/src/certification/artifact/npm-command.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/certification/catalog/catalog-query.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/catalog/catalog.service.spec.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/certification/catalog/catalog.service.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/api/src/certification/certification-authorization.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/certification-catalog.controller.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/certification-dashboard.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/certification-dashboard.controller.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/certification-dashboard.service.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/certification/certification-review.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/certification-review.service.spec.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/certification/certification-review.service.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/api/src/certification/certification-runs.controller.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/certification/certification-runs.service.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/certification/certification-runs.service.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/certification/certification-step-runs.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/certification-step-runs.service.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/certification/certification-support.interceptor.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/certification/certification-support.interceptor.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/certification/certification-target.service.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/api/src/certification/certification-team-dashboard.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/certification-team-dashboard.service.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/certification/certification-token.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/certification-token.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/certification-token.service.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/certification/certification.controller.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/api/src/certification/certification.service.spec.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/api/src/certification/certification.service.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/api/src/certification/run-limiter.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/runner/bridge-requests.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/certification/runner/bru-params.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/certification/runner/bruno-cli.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/certification/runner/bruno-report.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/runner/bruno-report.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/certification/runner/captured-vars.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/certification/runner/run-workspace.ts": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/api/src/certification/runner/step-inputs.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/certification/runner/step-result-details.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/certification/runner/step-result-details.ts": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/api/src/database/database-config.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/database/mssql-connection.spec.ts": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/api/src/database/mssql-connection.ts": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/api/src/database/typeorm.config.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/integration-apps-team/integration-apps-team.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/main.ts": {
+    "local/no-comments": {
+      "count": 41
+    }
+  },
+  "packages/api/src/ownerships-global/ownerships-global.service.spec.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/api/src/ownerships-global/ownerships-global.service.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/roles-global/roles-global.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-environments-global/sb-environment-relations.constants.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-environments-global/sb-environments-edfi.services.spec.ts": {
+    "local/no-comments": {
+      "count": 28
+    }
+  },
+  "packages/api/src/sb-environments-global/sb-environments-edfi.services.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 82
+    }
+  },
+  "packages/api/src/sb-environments-global/sb-environments-global.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/sb-environments-global/sb-environments-global.controller.ts": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/api/src/sb-sync/edfi/adminapi-sync.service.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 34
+    }
+  },
+  "packages/api/src/sb-sync/edfi/adminapi-sync.service.ts": {
+    "local/no-comments": {
+      "count": 68
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/job-queue.interface.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/job-queue.module.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/mssql-job-queue.service.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 34
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/mssql-job-queue.service.ts": {
+    "local/no-comments": {
+      "count": 42
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/not-implemented-job-queue.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/pg-boss-adapter.service.spec.ts": {
+    "local/no-comments": {
+      "count": 48
+    }
+  },
+  "packages/api/src/sb-sync/job-queue/pg-boss-adapter.service.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/sb-sync/ods-manage-job.service.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-sync/ods-manage-job.service.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/sb-sync/pg-boss.module.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "packages/api/src/sb-sync/queue-ods-manage-job.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/sb-sync/sb-sync.consumer.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-sync/sb-sync.consumer.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/api/src/sb-sync/sb-sync.controller.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 4
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/sb-sync/sync-ods.spec.ts": {
+    "local/no-comments": {
+      "count": 22
+    }
+  },
+  "packages/api/src/sb-sync/sync-ods.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 38
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/edfi-tenants.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/edorgs/edorg-privileges.constants.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/edorgs/edorgs.controller.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/odss/odss.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/odss/odss.service.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/admin-api-refresh-poll.util.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/metadata.service.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/admin-api-v1x-exception.filter.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/admin-api.v1.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/admin-api.v1.controller.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/admin-api.v1.service.spec.ts": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/admin-api.v1.service.ts": {
+    "local/no-comments": {
+      "count": 14
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/starting-blocks.v1.service.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v1/starting-blocks.v1.service.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 14
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.controller.ts": {
+    "local/no-comments": {
+      "count": 41
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.service.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 55
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/admin-api.v2.service.ts": {
+    "local/no-comments": {
+      "count": 58
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/edorg-mgmt.v2.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/ods-mgmt.v2.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/resource-claims-merge.v2.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/resource-claims-merge.v2.ts": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/starting-blocks.v2.service.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/starting-blocks.v2.service.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 22
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v2/tenant-mgmt.v2.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api-v3-exception.filter.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 49
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.controller.ts": {
+    "local/no-comments": {
+      "count": 67
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.service.spec.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/admin-api.v3.service.ts": {
+    "local/no-comments": {
+      "count": 84
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/resource-claims-merge.v3.spec.ts": {
+    "local/no-comments": {
+      "count": 25
+    }
+  },
+  "packages/api/src/teams/edfi-tenants/starting-blocks/v3/resource-claims-merge.v3.ts": {
+    "local/no-comments": {
+      "count": 42
+    }
+  },
+  "packages/api/src/teams/teams-global.controller.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/teams-global.controller.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/teams/teams-global.service.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/user-team-memberships/user-team-memberships.http.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/teams/user-team-memberships/user-team-memberships.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/teams/user-team-memberships/user-team-memberships.service.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/test/helpers/migration-smoke-test.helper.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/test/helpers/offline-data-source.helper.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/types/express-session.d.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/api/src/user-team-memberships-global/user-team-memberships-global.service.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/user-team-memberships-global/user-team-memberships-global.service.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/users-global/users-global.service.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/api/src/users-global/users-global.service.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/api/src/utils/admin-api-tenancy.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/api/src/utils/api-metadata-utils.spec.ts": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/api/src/utils/api-metadata-utils.ts": {
+    "local/no-comments": {
+      "count": 32
+    }
+  },
+  "packages/api/src/utils/applyDtoUpdates.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/customExceptions.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/db-json-query.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/edorg-tree-builder.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/api/src/utils/edorg-tree-builder.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/api/src/utils/json-env-preflight-run.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/json-env-preflight.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/api/src/utils/resolveNextRoleId.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/throwNotFound.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    }
+  },
+  "packages/api/src/utils/withoutId.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/src/utils/yopass.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/api/typings/config.d.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/api/webpack.config.js": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/api/webpack.migration.config.js": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/common-ui/.storybook/main.js": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/common-ui/src/lib/ActionsType.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generateIcons/createAllComponentFiles.mjs": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Account.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Application.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Arch.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/CaretRightFill.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/CertificationDashboard.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/CheckAll.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/CheckCircle.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ChevronLeft.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ChevronRight.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Claimset.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ClipboardPlus.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Cog.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Copy.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Data.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Delete.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/DotsVerticalRounded.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/DoubleChevronsLeft.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/DoubleChevronsRight.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Download.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/EdFiTenant.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/EdOrg.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Edit.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Export.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Funnel.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/HelpLink.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Home.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/IdCard.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Import.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/InfoCircle.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/IntegrationProvider.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/LargeX.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/MyProducts.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ODS.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/OpenProfileMenu.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Ownership.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Pin.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Plug.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Plus.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Profile.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Refresh.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Rename.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Role.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/SbEnvironment.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Search.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ShieldPlus.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/ShieldX.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/SyncQueue.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Team.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/TeamMembership.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/User.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/UserPlus.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/Vendor.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/View.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/X.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/index.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/Icons/generated/stories.constants.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/OneTimeShareCredentials.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/OneTimeShareLink.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/common-ui/src/lib/PageSectionActions.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/common-ui/src/lib/TableRowActions.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/common-ui/src/lib/TableRowActions.tsx": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/common-ui/src/lib/ToggleButtonGroup.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/MenuItem.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/MenuList.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/Option.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/SingleValue.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/index.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/VirtualizedSelect/utils.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/common-ui/src/lib/confirmAction/index.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/dataTable/index.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 4
+    },
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/common-ui/src/lib/operationResult/OperationResult.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 5
+    },
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/common-ui/src/lib/pageLayout/PageTemplate.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/pageLayout/attribute/Attribute.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/ResourceClaimsTable.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/ResourceClaimsTableV2.stories.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/ResourceClaimsTableV2.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/ResourceClaimsTableV3.stories.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/ResourceClaimsTableV3.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/resourceClaimCells.tsx": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/common-ui/src/lib/resourceClaimsTable/resourceClaimsTreeV3.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/ColumnFilter.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 19
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTable.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTableFilters.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 7
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTablePagination.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTableProvider.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTableProviderServerSide.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTableSearch.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/SbaaTableServerSide.stories.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/ValueAsDate.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/sbaaTable/sbaaTableFeatures.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/common-ui/src/lib/theme/index.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Layout/Breadcrumbs.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Layout/EnvironmentsNav.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Layout/EnvironmentsNav.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Layout/GlobalNav.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Layout/GlobalNav.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Layout/Nav.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/fe/src/app/Layout/NavButton.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Layout/StandardLayout.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Layout/TeamNav.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Layout/TeamNav.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ApiClientPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ApiClientPage.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ApiClientsPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ApiClientsPage.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/CreateApiClientPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/CreateApiClientPage.tsx": {
+    "local/no-comments": {
+      "count": 36
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/CredentialsRequiredLegend.spec.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/CredentialsRequiredLegend.tsx": {
+    "local/no-comments": {
+      "count": 14
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/EditApiClient.spec.tsx": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/EditApiClient.tsx": {
+    "local/no-comments": {
+      "count": 38
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/NameCell.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ViewApiClient.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/ViewApiClient.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/apiClientConfig.spec.ts": {
+    "local/no-comments": {
+      "count": 17
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/apiClientConfig.ts": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/apiClientEntity.spec.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/apiClientEntity.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/useApiClientActions.spec.tsx": {
+    "local/no-comments": {
+      "count": 29
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/useApiClientActions.tsx": {
+    "local/no-comments": {
+      "count": 30
+    }
+  },
+  "packages/fe/src/app/Pages/ApiClientV2Plus/useApplicationApiClients.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/Application/ApplicationsPage.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/ApplicationPage.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/ApplicationsPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/ApplicationsPage.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/CreateApplicationPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/CreateApplicationPage.tsx": {
+    "local/no-comments": {
+      "count": 36
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/EditApplication.spec.tsx": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/EditApplication.tsx": {
+    "local/no-comments": {
+      "count": 50
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/ViewApplication.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/applicationConfig.spec.ts": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/applicationConfig.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/applicationEntity.ts": {
+    "local/no-comments": {
+      "count": 19
+    }
+  },
+  "packages/fe/src/app/Pages/ApplicationV2Plus/useApplicationActions.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationDashboard/CertificationDashboardPage.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationDashboard/CertificationRunsCard.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationDashboard/formatWaiting.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationDashboard/useCertificationDashboard.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewDecisionModal.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewHeader.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewPage.leave.spec.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewPage.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewScenariosTable.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewStepsPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/CertificationReviewStepsPage.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/ReviewRunAlert.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/reviewAuthorization.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/reviewDisplay.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/useCertificationReview.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationReview/useReviewRun.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationAuthContext.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationAuthenticateForm.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationPageExecution.spec.tsx": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationPageExecution.tsx": {
+    "local/no-comments": {
+      "count": 23
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationRunReviewBar.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationRunReviewBar.tsx": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationScenariosPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationScenariosPage.tsx": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationStatusIndicator.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationStepResponseDetails.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/CertificationStepResult.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/certificationCatalog.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/certificationRunStatus.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/certificationStepResults.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/certificationStepResults.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationCatalog.spec.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationCatalog.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationRun.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationRun.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationScenarioStatuses.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationSelection.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationSelection.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationStepRuns.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useCertificationStepSnapshot.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useRecentActivity.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/CertificationV2/useSendCertificationRunToReview.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/Claimset/ImportClaimsetsPage.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/Claimset/useClaimsetActions.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ClaimsetPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ClaimsetPage.tsx": {
+    "local/no-comments": {
+      "count": 14
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ClaimsetsPage.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/CopyClaimset.spec.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/CopyClaimset.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ImportClaimsetsPage.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ImportClaimsetsPageV3.spec.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 5
+    },
+    "local/no-comments": {
+      "count": 19
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/ImportClaimsetsPageV3.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/NameCell.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/claimsetConfig.spec.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/claimsetConfig.ts": {
+    "local/no-comments": {
+      "count": 17
+    }
+  },
+  "packages/fe/src/app/Pages/ClaimsetV2Plus/useClaimsetActions.spec.tsx": {
+    "local/no-comments": {
+      "count": 17
+    }
+  },
+  "packages/fe/src/app/Pages/EdfiTenant/ViewEdfiTenant.spec.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/EdfiTenantGlobal/EdfiTenantsGlobalPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/EdfiTenantGlobal/EdfiTenantsGlobalPage.tsx": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/EdfiTenantGlobal/RegisterEdfiTenantAdminApi.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/Home/GlobalHome.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/IntegrationProvider/CreateIntegrationProviderPage.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/IntegrationProvider/EditIntegrationProviderPage.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/DataStoreCard.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/DataStoreCard.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/MyProductsPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/MyProductsPage.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/RequestCertificationModal.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/RequestCertificationModal.tsx": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/TeamDashboardSummaryCards.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/useCanSeeCertification.coldLoad.spec.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/useCanSeeCertification.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/useCanSeeCertification.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/Pages/MyProducts/useTeamCertificationDashboard.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/CreateOdsPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/CreateOdsPage.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/OdsManageJobPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/OdsManageJobPage.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/OdsRowCountsTable.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/OdssPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/Ods/useOdsActions.spec.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/OwnershipGlobal/CreateOwnershipGlobalPage.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/OwnershipGlobal/ViewOwnershipGlobal.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/CreateProfilePage.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/CreateProfilePage.tsx": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/EditProfile.spec.tsx": {
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/EditProfile.tsx": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/ProfilesPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/profileConfig.spec.ts": {
+    "local/no-comments": {
+      "count": 17
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/profileConfig.ts": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/fe/src/app/Pages/ProfileV2Plus/useProfileActions.tsx": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/RoleGlobal/CreateRoleGlobal.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/RoleGlobal/EditRoleGlobal.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/RoleGlobal/PrivilegesInput.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/Pages/RoleGlobal/grantable-privileges.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/RoleGlobal/grantable-privileges.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironment/SbEnvironmentSyncDate.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironmentGlobal/CreateSbEnvironmentGlobalPage.tsx": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironmentGlobal/EditSbEnvironmentGlobalPage.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 42
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironmentGlobal/EditTenantManagementSection.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironmentGlobal/TenantManagementSection.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 6
+    },
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/fe/src/app/Pages/SbEnvironmentGlobal/useSbEnvironmentGlobalActions.spec.tsx": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/fe/src/app/Pages/SbSyncQueue/SbSyncQueuesPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/fe/src/app/Pages/SbSyncQueue/SbSyncQueuesPage.tsx": {
+    "local/no-comments": {
+      "count": 46
+    }
+  },
+  "packages/fe/src/app/Pages/SbSyncQueue/ViewSbSyncQueue.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/Pages/SbSyncQueue/syncQueueStates.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/fe/src/app/Pages/Secret/getFieldsFromSearchParams.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/Team/useTeamsActions.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/UserGlobal/CreateUserGlobalPage.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/Pages/VendorV2Plus/CreateVendorPage.spec.tsx": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/fe/src/app/Pages/VendorV2Plus/CreateVendorPage.tsx": {
+    "local/no-comments": {
+      "count": 14
+    }
+  },
+  "packages/fe/src/app/Pages/VendorV2Plus/EditVendor.spec.tsx": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/fe/src/app/Pages/VendorV2Plus/EditVendor.tsx": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/fe/src/app/Pages/VendorV2Plus/vendorConfig.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "packages/fe/src/app/api-v2/apiClient.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/api-v2/useRequestCertificationToken.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/api-v2/useRunCertificationStep.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/api/methods.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/api/queries/apiClientQueriesV3.spec.ts": {
+    "local/no-comments": {
+      "count": 53
+    }
+  },
+  "packages/fe/src/app/api/queries/builder.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 18
+    },
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/fe/src/app/api/queries/claimsetQueriesV3.spec.ts": {
+    "local/no-comments": {
+      "count": 19
+    }
+  },
+  "packages/fe/src/app/api/queries/myTeamsInvalidation.spec.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/fe/src/app/api/queries/queries.ts": {
+    "local/no-comments": {
+      "count": 28
+    }
+  },
+  "packages/fe/src/app/api/queries/queries.v7.ts": {
+    "local/no-comments": {
+      "count": 49
+    }
+  },
+  "packages/fe/src/app/api/queries/versioned.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/api/queries/versioned.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/fe/src/app/app.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/helpers/Authorize.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/helpers/EntitySelectors.spec.tsx": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/helpers/EntitySelectors.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/helpers/StandardSelector.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 17
+    },
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/helpers/mutationErrCallback.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/helpers/navContext.tsx": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/helpers/odsSelectableOptions.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/helpers/popSyncBanner.tsx": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/fe/src/app/helpers/useIsStartingBlocksDeployment.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/helpers/useNavToParent.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/helpers/useSearch.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/helpers/useStandardRowActionsNew.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/apiClients.routes.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/fe/src/app/routes/application.routes.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/fe/src/app/routes/certification-dashboard.routes.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/certification-dashboard.routes.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/certification-team.routes.spec.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/certification-team.routes.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/claimset.routes.tsx": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/routes/index.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/src/app/routes/paths.ts": {
+    "local/no-comments": {
+      "count": 13
+    }
+  },
+  "packages/fe/src/app/routes/profile.routes.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/app/routes/user-global.routes.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/user.routes.tsx": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/app/routes/vendor.routes.tsx": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 2
+    },
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/fe/src/bootstrap.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/src/config/config.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/fe/typings/axios.d.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/fe/typings/env.d.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/entities/audit-log.entity.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/models-server/src/entities/cert-certification-run-comment.entity.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/entities/cert-certification-run-scenario.entity.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models-server/src/entities/cert-certification-run.entity.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "packages/models-server/src/entities/cert-scenario-step-error.entity.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models-server/src/entities/cert-scenario-step.entity.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models-server/src/entities/cert-scenario-step.entity.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/models-server/src/entities/cert-step-catalog.entity.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models-server/src/entities/edorg.entity.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models-server/src/entities/job-queue.entity.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/models-server/src/entities/ownership-view.entity.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/entities/sb-environment.entity.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models-server/src/entities/sb-sync-queue.view.entity.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/entities/user.entity.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/helpers/index.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models-server/src/utils/encrypted-json.transformer.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models-server/src/utils/encrypted-json.transformer.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/jest.config.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/decorators/conditional-validation.decorator.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/models/src/dtos/certification-catalog.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/dtos/certification-dashboard.dto.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/models/src/dtos/certification-review.dto.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "packages/models/src/dtos/certification-run.dto.ts": {
+    "local/no-comments": {
+      "count": 15
+    }
+  },
+  "packages/models/src/dtos/certification-step-run.dto.spec.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/dtos/certification-step-run.dto.ts": {
+    "local/no-comments": {
+      "count": 22
+    }
+  },
+  "packages/models/src/dtos/certification-team-dashboard.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/dtos/certification-token.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/dtos/edfi-admin-api.dto.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "packages/models/src/dtos/edfi-admin-api.v2.dto.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models/src/dtos/edfi-admin-api.v2.dto.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/models/src/dtos/edfi-admin-api.v3.dto.spec.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "packages/models/src/dtos/edfi-admin-api.v3.dto.ts": {
+    "local/no-comments": {
+      "count": 63
+    }
+  },
+  "packages/models/src/dtos/env-nav.dto.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/models/src/dtos/ods-manage-job.dto.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "packages/models/src/dtos/ods.dto.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/dtos/operations.dto.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "packages/models/src/dtos/post-login.dto.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/dtos/sb-environment.dto.ts": {
+    "local/no-comments": {
+      "count": 21
+    }
+  },
+  "packages/models/src/dtos/sb-sync-queue.dto.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "packages/models/src/dtos/starting-blocks.v1.dto.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models/src/dtos/starting-blocks.v2.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/dtos/starting-blocks.v3.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/dtos/user.dto.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/interfaces/integration-app.interface.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/interfaces/ods-manage-job.interface.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/interfaces/sb-environment.interface.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/interfaces/user.interface.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/types/authorization.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    },
+    "local/no-comments": {
+      "count": 18
+    }
+  },
+  "packages/models/src/types/privilege-snapshot.spec.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models/src/types/privileges-codegen.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/types/privileges-source.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/utils/TrimTrailingSlashes.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/utils/certification-support.spec.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/models/src/utils/certification-support.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/models/src/utils/get-base.dto.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/utils/getApplicationCacheId.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/models/src/utils/is-arn.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/models/src/utils/minimum-privileges.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/utils/ods-name.spec.ts": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "packages/models/src/utils/ods-name.ts": {
+    "local/no-comments": {
+      "count": 7
+    }
+  },
+  "packages/models/src/utils/post-base.dto.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models/src/utils/put-base.dto.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "packages/models/src/utils/resolve-ods-api-urls.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/models/src/utils/validate-privileges.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 1
+    }
+  },
+  "packages/utils/jest.config.ts": {
+    "local/no-comments": {
+      "count": 1
+    }
+  },
+  "packages/utils/src/lib/form-err-from-validator.ts": {
+    "@eslint-community/eslint-comments/require-description": {
+      "count": 3
+    },
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "packages/utils/src/lib/string-sanitize.ts": {
+    "local/no-comments": {
+      "count": 2
+    }
+  },
+  "playwright.auth.config.ts": {
+    "local/no-comments": {
+      "count": 20
+    }
+  },
+  "playwright.config.ts": {
+    "local/no-comments": {
+      "count": 57
+    }
+  },
+  "release.config.mjs": {
+    "local/no-comments": {
+      "count": 3
+    }
+  },
+  "tests/e2e/account-page/account.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/auth.setup.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/certification-page/certification.steps.ts": {
+    "local/no-comments": {
+      "count": 16
+    }
+  },
+  "tests/e2e/core/certification-fixtures.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "tests/e2e/core/ods-api.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "tests/e2e/core/ods-credentials.ts": {
+    "local/no-comments": {
+      "count": 8
+    }
+  },
+  "tests/e2e/core/routes.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/environments-page/environments.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/error-page/not-found-page.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/home-page/home.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/login-page/login.spec.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/login-page/login.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/main-page/main.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/ownerships-page/ownerships.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/pages/account-page.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/pages/certification-page.ts": {
+    "local/no-comments": {
+      "count": 26
+    }
+  },
+  "tests/e2e/pages/environments-page.ts": {
+    "local/no-comments": {
+      "count": 36
+    }
+  },
+  "tests/e2e/pages/grant-ownership.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "tests/e2e/pages/home-page.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/pages/login-page.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "tests/e2e/pages/main-page.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/pages/ownerships-page.ts": {
+    "local/no-comments": {
+      "count": 9
+    }
+  },
+  "tests/e2e/pages/roles-page.ts": {
+    "local/no-comments": {
+      "count": 6
+    }
+  },
+  "tests/e2e/pages/support.ts": {
+    "local/no-comments": {
+      "count": 11
+    }
+  },
+  "tests/e2e/pages/sync-queue-page.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/pages/team-memberships-page.ts": {
+    "local/no-comments": {
+      "count": 12
+    }
+  },
+  "tests/e2e/pages/teams-page.ts": {
+    "local/no-comments": {
+      "count": 10
+    }
+  },
+  "tests/e2e/pages/users-page.ts": {
+    "local/no-comments": {
+      "count": 21
+    }
+  },
+  "tests/e2e/roles-page/roles.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/sync-queue-page/sync-queue.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/team-memberships-page/team-memberships.steps.ts": {
+    "local/no-comments": {
+      "count": 5
+    }
+  },
+  "tests/e2e/teams-page/teams.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/user-info.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "tests/e2e/users-page/users.steps.ts": {
+    "local/no-comments": {
+      "count": 4
+    }
+  },
+  "types/config-shim.d.ts": {
+    "local/no-comments": {
+      "count": 18
+    }
+  }
+}
