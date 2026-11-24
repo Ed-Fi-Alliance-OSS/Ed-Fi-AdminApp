@@ -1,5 +1,5 @@
 const ALLOWED_DIRECTIVE =
-  /^(eslint-(disable|enable)(-next-line|-line)?(\s|$)|@ts-expect-error\b|\/\s*<reference\b)/;
+  /^(eslint-disable(-next-line|-line)?(\s|$)|@ts-expect-error\b|\/\s*<reference\b)/;
 
 const rule = {
   meta: {

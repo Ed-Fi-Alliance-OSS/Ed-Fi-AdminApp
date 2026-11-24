@@ -30,5 +30,6 @@ ruleTester.run('no-comments', rule, {
     { code: '// TODO: fix\nconst a = 1;', errors: noComment },
     { code: '/* see eslint-disable docs */\nconst a = 1;', errors: noComment },
     { code: 'foo(); // trailing', errors: noComment },
+    { code: '// eslint-enable -- prose\nconst a = 1;', errors: noComment },
   ],
 });

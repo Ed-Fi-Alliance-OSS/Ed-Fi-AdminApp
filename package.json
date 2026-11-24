@@ -272,6 +272,6 @@
     }
   },
   "lint-staged": {
-    "*.{ts,tsx,js,jsx}": "eslint --max-warnings 0 --no-warn-ignored"
+    "*.{ts,tsx,js,jsx,mjs}": "eslint --max-warnings 0 --no-warn-ignored"
   }
 }

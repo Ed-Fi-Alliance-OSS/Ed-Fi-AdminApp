@@ -156,6 +156,12 @@ export default [
     rules: {
       'local/no-comments': 'error',
       '@eslint-community/eslint-comments/require-description': 'error',
+      '@eslint-community/eslint-comments/no-unlimited-disable': 'error',
+      '@eslint-community/eslint-comments/no-unused-enable': 'error',
+      '@eslint-community/eslint-comments/no-restricted-disable': [
+        'error',
+        'local/no-comments',
+      ],
     },
   },
 ];
