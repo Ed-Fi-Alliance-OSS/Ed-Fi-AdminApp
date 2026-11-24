@@ -4,6 +4,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * AC-650: append-only audit history of a certification run.
  *
  * `userId` deliberately has no FK to "user", so a deleted user's entries never change.
+ * `certificationRunCommentId` has no FK either: a comment is only ever deleted with its run, and
+ * a second cascade path to the same table is rejected by SQL Server.
  * Entries go away only with their run (ON DELETE CASCADE).
  */
 export class CertificationRunEvent1794000000007 implements MigrationInterface {
@@ -24,10 +26,7 @@ export class CertificationRunEvent1794000000007 implements MigrationInterface {
         CONSTRAINT "PK_cert_certification_run_event" PRIMARY KEY ("certificationRunEventId"),
         CONSTRAINT "FK_cert_certification_run_event_run"
           FOREIGN KEY ("certificationRunId")
-          REFERENCES "cert"."certification_run"("certificationRunId") ON DELETE CASCADE,
-        CONSTRAINT "FK_cert_certification_run_event_comment"
-          FOREIGN KEY ("certificationRunCommentId")
-          REFERENCES "cert"."certification_run_comment"("certificationRunCommentId") ON DELETE NO ACTION
+          REFERENCES "cert"."certification_run"("certificationRunId") ON DELETE CASCADE
       )
     `);
     await queryRunner.query(

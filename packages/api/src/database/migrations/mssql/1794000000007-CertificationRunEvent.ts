@@ -3,8 +3,9 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
 /**
  * AC-650: append-only audit history of a certification run (see the pgsql twin).
  *
- * The comment FK uses NO ACTION: the event already cascades from its run, and SQL Server
- * rejects a second cascade path.
+ * `certificationRunCommentId` has no FK: a comment is only ever deleted with its run, and the
+ * run -> comment and run -> event cascades plus an event -> comment FK would make a diamond that
+ * can make SQL Server refuse to delete a reviewed run.
  */
 export class CertificationRunEvent1794000000007 implements MigrationInterface {
   name = 'CertificationRunEvent1794000000007';
@@ -24,10 +25,7 @@ export class CertificationRunEvent1794000000007 implements MigrationInterface {
         CONSTRAINT [PK_cert_certification_run_event] PRIMARY KEY ([certificationRunEventId]),
         CONSTRAINT [FK_cert_certification_run_event_run]
           FOREIGN KEY ([certificationRunId])
-          REFERENCES [cert].[certification_run]([certificationRunId]) ON DELETE CASCADE,
-        CONSTRAINT [FK_cert_certification_run_event_comment]
-          FOREIGN KEY ([certificationRunCommentId])
-          REFERENCES [cert].[certification_run_comment]([certificationRunCommentId]) ON DELETE NO ACTION
+          REFERENCES [cert].[certification_run]([certificationRunId]) ON DELETE CASCADE
       )
     `);
     await queryRunner.query(

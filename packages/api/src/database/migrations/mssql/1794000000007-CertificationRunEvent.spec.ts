@@ -22,8 +22,8 @@ describe('CertificationRunEvent1794000000007 (mssql)', () => {
     );
     expect(create).toContain('FK_cert_certification_run_event_run');
     expect(create).toContain('ON DELETE CASCADE');
-    expect(create).toContain('FK_cert_certification_run_event_comment');
-    expect(create).toContain('ON DELETE NO ACTION');
+    expect(create).not.toContain('FK_cert_certification_run_event_comment');
+    expect(create).not.toMatch(/REFERENCES \[cert\]\.\[certification_run_comment\]/);
     expect(create).not.toContain('REFERENCES [user]');
 
     expect(
