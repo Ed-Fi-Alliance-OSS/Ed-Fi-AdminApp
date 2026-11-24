@@ -168,6 +168,24 @@ the team, Ed-Fi tenant and ODS IDs set at the top. It adds five runs in differen
 store with no open runs of the SIS, MTSS or ASSESSMENTS models, because a data store can have
 only one open run per model. Use it only on test databases.
 
+#### Demo the Audit history (AC-650)
+
+The Scenarios page of a run shows an "Audit history" card that lists every status change of the
+run, oldest first, with who made it, when, and the reviewer's comment where there is one. To see
+it with seven entries, use the script above to get past the scenarios and do this:
+
+1. Start a run from My products.
+2. Send it to review.
+3. Pick it up as a reviewer.
+4. Request changes, with a comment.
+5. Send it to review again.
+6. Pick it up again.
+7. Approve it.
+
+Open the run's Scenarios page. The card shows the seven entries (started, sent to review, picked
+up, changes requested, sent to review, picked up, approved) in that order, with the comment on
+"Changes requested".
+
 #### Custom OIDC Grant Type
 
 Use password grant instead of client_credentials:
