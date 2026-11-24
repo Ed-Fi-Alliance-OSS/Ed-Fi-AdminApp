@@ -3,6 +3,7 @@ import { CertificationLayout } from '../Pages/CertificationV2/CertificationAuthC
 import { CertificationPageExecution } from '../Pages/CertificationV2/CertificationPageExecution';
 import { CertificationScenariosPage } from '../Pages/CertificationV2/CertificationScenariosPage';
 import { MyProductsPage } from '../Pages/MyProducts/MyProductsPage';
+import { RunHistoryPage } from '../Pages/RunHistory/RunHistoryPage';
 import { routeDefinitions } from './paths';
 
 /**
@@ -18,6 +19,11 @@ const certificationRoute: RouteObject = {
       path: routeDefinitions.asTeam.myProducts.index,
       element: <MyProductsPage />,
       handle: { crumb: () => 'My products' },
+    },
+    {
+      path: routeDefinitions.asTeam.certification.runHistory,
+      element: <RunHistoryPage />,
+      handle: { crumb: () => 'Run history' },
     },
     {
       path: routeDefinitions.asTeam.certification.run,

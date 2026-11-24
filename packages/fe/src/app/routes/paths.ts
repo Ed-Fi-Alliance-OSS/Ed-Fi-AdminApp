@@ -10,6 +10,7 @@ const pathPartials = {
     review: 'certification/runs/:runId/review',
     reviewSteps: 'certification/runs/:runId/review/steps',
     runExecution: 'certification/runs/:runId/execution',
+    runHistory: 'certification/run-history',
   },
   create: 'create',
   edit: 'edit=true',
@@ -51,6 +52,7 @@ const asTeamPaths = {
   certification: {
     run: `/${pathPartials.asTeam}/${pathPartials.certification.run}`,
     runExecution: `/${pathPartials.asTeam}/${pathPartials.certification.runExecution}`,
+    runHistory: `/${pathPartials.asTeam}/${pathPartials.certification.runHistory}`,
   },
   integrationApp: {
     view: `/${pathPartials.asTeam}/${pathPartials.integrationProvider.id}/${pathPartials.integrationApp.id}`,
@@ -82,6 +84,9 @@ function replaceKeyIds(path: string, ids: Record<string, Id>) {
 
 /** The team's My products page. */
 export const myProductsPath = (asId: Id) => replaceKeyIds(asTeamPaths.myProducts.index, { asId });
+
+/** The team's Run history page: every run the team started. */
+export const runHistoryPath = (asId: Id) => replaceKeyIds(asTeamPaths.certification.runHistory, { asId });
 
 /** The Scenarios page of one certification run. Team-only: a run always belongs to a team. */
 export const certificationRunPath = (asId: Id, runId: Id) =>
@@ -142,6 +147,10 @@ const dynamicGlobalPaths = {
     // team-only page; dummy function for TypeScript satisfaction
     index: () => '',
   },
+  runHistory: {
+    // team-only page; dummy function for TypeScript satisfaction
+    index: () => '',
+  },
 };
 
 const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
@@ -159,6 +168,9 @@ const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
   },
   myProducts: {
     index: () => replaceKeyIds(asTeamPaths.myProducts.index, { asId }),
+  },
+  runHistory: {
+    index: () => replaceKeyIds(asTeamPaths.certification.runHistory, { asId }),
   },
   integrationProvider: {
     index: () => replaceKeyIds(asTeamPaths.integrationProvider.index, { asId }),
