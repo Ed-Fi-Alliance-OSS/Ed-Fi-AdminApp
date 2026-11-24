@@ -30,3 +30,45 @@ describe('the certification module never uses the audit module', () => {
     },
   );
 });
+
+const WRITE_METHODS = 'update|delete|remove|softDelete|softRemove|save|upsert';
+
+/** A run's history entries are only ever inserted; the run's cascade is all that removes them. */
+describe('nothing updates or deletes a history entry', () => {
+  const srcRoot = path.resolve(__dirname, '..');
+  const files = sourceFiles(srcRoot).filter((file) =>
+    fs.readFileSync(file, 'utf-8').includes('CertificationRunEvent'),
+  );
+
+  it('finds the files that use the entity', () => {
+    expect(files.map((file) => path.basename(file))).toContain('certification-runs.service.ts');
+  });
+
+  it.each(files.map((file) => [path.relative(srcRoot, file), file]))(
+    '%s never writes to an entry other than inserting',
+    (_name, file) => {
+      const source = fs.readFileSync(file, 'utf-8');
+
+      // em.getRepository(CertificationRunEvent).delete(...), dataSource.getRepository(...) etc.
+      expect(source).not.toMatch(
+        new RegExp(
+          String.raw`getRepository\(\s*CertificationRunEvent\s*\)\s*\.(${WRITE_METHODS})\(`,
+        ),
+      );
+      // em.update(CertificationRunEvent, ...), em.delete(CertificationRunEvent, ...) etc.
+      expect(source).not.toMatch(
+        new RegExp(String.raw`\.(${WRITE_METHODS})\(\s*CertificationRunEvent\b`),
+      );
+      // createQueryBuilder().delete().from(CertificationRunEvent)
+      expect(source).not.toMatch(/\.from\(\s*CertificationRunEvent\b/);
+
+      // Any injected or declared Repository<CertificationRunEvent>, whatever it is called.
+      const names = [...source.matchAll(/(\w+)\s*:\s*Repository<CertificationRunEvent>/g)].map(
+        (match) => match[1],
+      );
+      for (const name of names) {
+        expect(source).not.toMatch(new RegExp(String.raw`${name}\s*\.(${WRITE_METHODS})\(`));
+      }
+    },
+  );
+});
