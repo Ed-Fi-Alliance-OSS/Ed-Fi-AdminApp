@@ -6,6 +6,8 @@ import { fileURLToPath } from 'node:url';
 import js from '@eslint/js';
 import { FlatCompat } from '@eslint/eslintrc';
 import { fixupConfigRules } from '@eslint/compat';
+import eslintComments from '@eslint-community/eslint-plugin-eslint-comments';
+import noComments from './eslint-rules/no-comments.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -72,6 +74,14 @@ export default [
 
     rules: {
       '@typescript-eslint/no-non-null-assertion': 'off',
+      '@typescript-eslint/ban-ts-comment': [
+        'error',
+        {
+          'ts-expect-error': 'allow-with-description',
+          'ts-ignore': true,
+          'ts-nocheck': true,
+        },
+      ],
       '@typescript-eslint/no-unused-vars': [
         'error',
         {
@@ -134,6 +144,18 @@ export default [
         console: 'readonly',
         process: 'readonly',
       },
+    },
+  },
+  {
+    files: ['**/*.ts', '**/*.tsx', '**/*.js', '**/*.jsx', '**/*.mjs'],
+    plugins: {
+      local: { rules: { 'no-comments': noComments } },
+      '@eslint-community/eslint-comments': eslintComments,
+    },
+    linterOptions: { reportUnusedDisableDirectives: 'error' },
+    rules: {
+      'local/no-comments': 'error',
+      '@eslint-community/eslint-comments/require-description': 'error',
     },
   },
 ];

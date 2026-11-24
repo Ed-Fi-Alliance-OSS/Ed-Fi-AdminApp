@@ -124,6 +124,7 @@
     "@babel/preset-typescript": "^7.29.7",
     "@chakra-ui/cli": "^2.4.1",
     "@chakra-ui/storybook-addon": "^5.2.5",
+    "@eslint-community/eslint-plugin-eslint-comments": "^4.8.1",
     "@eslint/compat": "^2.1.1",
     "@eslint/eslintrc": "^3.3.7",
     "@eslint/js": "^10.0.1",
