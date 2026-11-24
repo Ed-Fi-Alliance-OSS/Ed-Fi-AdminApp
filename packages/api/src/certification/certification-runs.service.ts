@@ -5,6 +5,7 @@ import {
   CertificationLatestRunDto,
   CertificationRunCommentDto,
   CertificationRunDto,
+  CertificationRunHistoryRowDto,
   CertModel,
   Ids,
   SUPPORTED_CERT_MODELS,
@@ -13,14 +14,17 @@ import {
   toCertificationLatestRunDto,
   toCertificationRunCommentDto,
   toCertificationRunDto,
+  toCertificationRunHistoryDto,
 } from '@edanalytics/models';
 import {
   CatalogVersion,
   CertificationRun,
   CertificationRunComment,
+  CertificationRunScenario,
   EdfiTenant,
   Ods,
   SbEnvironment,
+  ScenarioCatalog,
 } from '@edanalytics/models-server';
 import {
   ConflictException,
@@ -67,7 +71,90 @@ export class CertificationRunsService {
     private readonly catalogVersionRepository: Repository<CatalogVersion>,
     @InjectRepository(CertificationRunComment)
     private readonly commentRepository: Repository<CertificationRunComment>,
+    @InjectRepository(ScenarioCatalog)
+    private readonly scenarioRepository: Repository<ScenarioCatalog>,
+    @InjectRepository(CertificationRunScenario)
+    private readonly runScenarioRepository: Repository<CertificationRunScenario>,
   ) {}
+
+  /**
+   * Every run of the team on a data store the user may read, newest first, each with how many of
+   * its catalog's enabled scenarios have completed. Counts are two grouped queries, not one per run.
+   */
+  async findTeamRunHistory(params: {
+    teamId: number;
+    validOdsIds: (edfiTenantId: number) => Ids | undefined;
+  }): Promise<CertificationRunHistoryRowDto[]> {
+    const allRuns = await this.runRepository.find({
+      where: { teamId: params.teamId, odsId: Not(IsNull()) },
+      relations: { ods: true, edfiTenant: { sbEnvironment: true } },
+      order: { certificationRunId: 'DESC' },
+    });
+    const runs = allRuns.filter((run) => {
+      const ids = params.validOdsIds(run.edfiTenantId);
+      return ids !== undefined && run.odsId !== null && checkId(run.odsId, ids);
+    });
+    if (runs.length === 0) return [];
+
+    const catalogVersionIds = [
+      ...new Set(runs.map((run) => run.catalogVersionId).filter((id): id is number => id !== null)),
+    ];
+    type TotalRow = { catalogVersionId: number | string; total: number | string };
+    const totalsQuery: Promise<TotalRow[]> =
+      catalogVersionIds.length === 0
+        ? Promise.resolve([])
+        : this.scenarioRepository
+            .createQueryBuilder('scenario')
+            .innerJoin('scenario.domain', 'domain')
+            .select('domain.catalogVersionId', 'catalogVersionId')
+            .addSelect('COUNT(*)', 'total')
+            .where(
+              'scenario.isEnabled = :enabled AND domain.isEnabled = :enabled AND domain.catalogVersionId IN (:...catalogVersionIds)',
+              { enabled: true, catalogVersionIds },
+            )
+            .groupBy('domain.catalogVersionId')
+            .getRawMany<TotalRow>();
+    const [totalRows, completedRows] = await Promise.all([
+      totalsQuery,
+      this.runScenarioRepository
+        .createQueryBuilder('runScenario')
+        .innerJoin('runScenario.scenario', 'scenario')
+        .innerJoin('scenario.domain', 'domain')
+        .select('runScenario.certificationRunId', 'runId')
+        .addSelect('COUNT(*)', 'completed')
+        .where(
+          'runScenario.status = :status AND scenario.isEnabled = :enabled AND domain.isEnabled = :enabled AND runScenario.certificationRunId IN (:...runIds)',
+          { status: 'completed', enabled: true, runIds: runs.map((run) => run.certificationRunId) },
+        )
+        .groupBy('runScenario.certificationRunId')
+        .getRawMany<{ runId: number | string; completed: number | string }>(),
+    ]);
+
+    // COUNT comes back as a string on pgsql and a number on mssql.
+    const totalByCatalog = new Map(
+      totalRows.map((row) => [Number(row.catalogVersionId), Number(row.total)]),
+    );
+    const completedByRun = new Map(
+      completedRows.map((row) => [Number(row.runId), Number(row.completed)]),
+    );
+
+    return toCertificationRunHistoryDto(
+      runs.map((run) => ({
+        runId: run.certificationRunId,
+        edfiTenantId: run.edfiTenantId,
+        odsId: run.odsId as number,
+        environmentName: run.edfiTenant?.sbEnvironment?.displayName ?? '',
+        tenantName: run.edfiTenant?.displayName ?? '',
+        dataStoreName: run.ods?.displayName ?? '',
+        certificationModel: run.certificationModel,
+        status: run.status,
+        createdAt: run.createdAt.toISOString(),
+        completedScenarios: completedByRun.get(run.certificationRunId) ?? 0,
+        totalScenarios:
+          run.catalogVersionId === null ? 0 : (totalByCatalog.get(run.catalogVersionId) ?? 0),
+      })),
+    );
+  }
 
   async findRunComments(runId: number): Promise<CertificationRunCommentDto[]> {
     const comments = await this.commentRepository.find({

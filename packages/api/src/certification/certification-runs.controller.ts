@@ -88,6 +88,23 @@ export class CertificationTeamRunsController {
   constructor(private readonly runsService: CertificationRunsService) {}
 
   /**
+   * The team's Run history (AC-701). Declared before `:runId` so it is not read as a run ID.
+   * The guard can only check team membership here; certification:read is then applied per data
+   * store and runs on unreadable ones are left out.
+   */
+  @Get()
+  @Authorize(TEAM_RUN_READ)
+  async getRunHistory(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @AuthCache() authorizationCache: AuthorizationCache,
+  ) {
+    return this.runsService.findTeamRunHistory({
+      teamId,
+      validOdsIds: (edfiTenantId) => authorizationCache?.[CERT_READ]?.[edfiTenantId],
+    });
+  }
+
+  /**
    * The guard can only check team membership here, because the tenant isn't in the route.
    * certification:read is then checked on the run's own tenant and data store; a run the user
    * may not see is a 404.

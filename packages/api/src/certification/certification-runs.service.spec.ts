@@ -32,6 +32,8 @@ describe('CertificationRunsService', () => {
   let odsRepository: { findOneBy: jest.Mock };
   let catalogVersionRepository: { findOne: jest.Mock };
   let commentRepository: { find: jest.Mock };
+  let scenarioRepository: { createQueryBuilder: jest.Mock };
+  let runScenarioRepository: { createQueryBuilder: jest.Mock };
   let artifactService: { currentRef: string | undefined };
   let service: CertificationRunsService;
 
@@ -56,6 +58,8 @@ describe('CertificationRunsService', () => {
     odsRepository = { findOneBy: jest.fn().mockResolvedValue(ods) };
     catalogVersionRepository = { findOne: jest.fn().mockResolvedValue(catalogVersion) };
     commentRepository = { find: jest.fn() };
+    scenarioRepository = { createQueryBuilder: jest.fn() };
+    runScenarioRepository = { createQueryBuilder: jest.fn() };
     artifactService = { currentRef: 'v2.1.0' };
     service = new CertificationRunsService(
       artifactService as never,
@@ -63,7 +67,118 @@ describe('CertificationRunsService', () => {
       odsRepository as never,
       catalogVersionRepository as never,
       commentRepository as never,
+      scenarioRepository as never,
+      runScenarioRepository as never,
     );
+  });
+
+  describe('findTeamRunHistory', () => {
+    const allowAll = () => new Set([5, 6]) as never;
+    /** A query builder whose every call chains and whose getRawMany resolves `rows`. */
+    const rawBuilder = (rows: object[]) => {
+      const builder: Record<string, jest.Mock> = {};
+      for (const method of ['innerJoin', 'select', 'addSelect', 'where', 'groupBy']) {
+        builder[method] = jest.fn().mockReturnValue(builder);
+      }
+      builder.getRawMany = jest.fn().mockResolvedValue(rows);
+      return builder;
+    };
+    const historyRun = (overrides: object = {}) =>
+      storedRun({
+        createdAt: new Date('2026-09-07T13:00:00.000Z'),
+        catalogVersionId: 3,
+        ...overrides,
+      });
+    const withCounts = (totals: object[], completed: object[]) => {
+      scenarioRepository.createQueryBuilder.mockReturnValue(rawBuilder(totals));
+      runScenarioRepository.createQueryBuilder.mockReturnValue(rawBuilder(completed));
+    };
+
+    it('reads the team runs that have a data store, newest first', async () => {
+      withCounts([], []);
+      await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      expect(runRepository.find).toHaveBeenCalledWith({
+        where: { teamId: 2, odsId: Not(IsNull()) },
+        relations: { ods: true, edfiTenant: { sbEnvironment: true } },
+        order: { certificationRunId: 'DESC' },
+      });
+    });
+
+    it('keeps the order the database gave and maps each run to a row', async () => {
+      runRepository.find.mockResolvedValue([
+        historyRun({ certificationRunId: 9 }),
+        historyRun({ certificationRunId: 3 }),
+      ]);
+      withCounts([], []);
+      const rows = await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      expect(rows.map((row) => row.runId)).toEqual([9, 3]);
+      expect(rows[0]).toEqual({
+        runId: 9,
+        edfiTenantId: 10,
+        odsId: 5,
+        environmentName: 'Env One',
+        tenantName: 'tenant1',
+        dataStoreName: 'ods-five',
+        certificationModel: 'SIS',
+        status: 'DRAFT',
+        createdAt: '2026-09-07T13:00:00.000Z',
+        completedScenarios: 0,
+        totalScenarios: 0,
+      });
+    });
+
+    it('leaves out runs on data stores the user may not read', async () => {
+      runRepository.find.mockResolvedValue([
+        historyRun({ certificationRunId: 9, odsId: 5 }),
+        historyRun({ certificationRunId: 8, odsId: 99 }),
+        historyRun({ certificationRunId: 7, odsId: 5, edfiTenantId: 11 }),
+      ]);
+      withCounts([], []);
+      const rows = await service.findTeamRunHistory({
+        teamId: 2,
+        validOdsIds: (edfiTenantId) => (edfiTenantId === 10 ? (new Set([5]) as never) : undefined),
+      });
+      expect(rows.map((row) => row.runId)).toEqual([9]);
+    });
+
+    it('returns [] without counting when no run is readable', async () => {
+      runRepository.find.mockResolvedValue([historyRun()]);
+      await expect(
+        service.findTeamRunHistory({ teamId: 2, validOdsIds: () => undefined }),
+      ).resolves.toEqual([]);
+      expect(scenarioRepository.createQueryBuilder).not.toHaveBeenCalled();
+      expect(runScenarioRepository.createQueryBuilder).not.toHaveBeenCalled();
+    });
+
+    it('counts completed and total enabled scenarios, coercing pgsql string counts', async () => {
+      runRepository.find.mockResolvedValue([historyRun({ certificationRunId: 9 })]);
+      withCounts([{ catalogVersionId: 3, total: '30' }], [{ runId: 9, completed: '12' }]);
+      const [row] = await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      expect(row).toMatchObject({ completedScenarios: 12, totalScenarios: 30 });
+    });
+
+    it('only counts enabled scenarios in enabled domains', async () => {
+      runRepository.find.mockResolvedValue([historyRun()]);
+      const totals = rawBuilder([]);
+      const completed = rawBuilder([]);
+      scenarioRepository.createQueryBuilder.mockReturnValue(totals);
+      runScenarioRepository.createQueryBuilder.mockReturnValue(completed);
+      await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      const totalsWhere = totals.where.mock.calls[0][0] as string;
+      const completedWhere = completed.where.mock.calls[0][0] as string;
+      for (const where of [totalsWhere, completedWhere]) {
+        expect(where).toContain('scenario.isEnabled = :enabled');
+        expect(where).toContain('domain.isEnabled = :enabled');
+      }
+      expect(completedWhere).toContain('status = :status');
+    });
+
+    it('reports 0 / 0 for a run without a catalog version', async () => {
+      runRepository.find.mockResolvedValue([historyRun({ catalogVersionId: null })]);
+      withCounts([], []);
+      const [row] = await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      expect(row).toMatchObject({ completedScenarios: 0, totalScenarios: 0 });
+    });
   });
 
   describe('findRunComments', () => {
