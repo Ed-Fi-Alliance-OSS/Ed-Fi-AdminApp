@@ -31,8 +31,7 @@ class CertificationPage {
   private readonly myProductsLink: Locator
   private readonly requestButton: Locator
   private readonly modal: Locator
-  private readonly stepRows: Locator
-  private readonly scenarioRows: Locator
+  private readonly tableRows: Locator
 
   constructor(page: Page) {
     this.page = page
@@ -40,8 +39,7 @@ class CertificationPage {
     this.requestButton = page.getByRole('button', { name: 'Request New Certification' })
     this.modal = page.getByRole('dialog')
     // The steps page lists the steps in the first table; the scenarios page lists scenarios.
-    this.stepRows = page.getByRole('table').first().locator('tbody tr')
-    this.scenarioRows = page.getByRole('table').first().locator('tbody tr')
+    this.tableRows = page.getByRole('table').first().locator('tbody tr')
   }
 
   async openMyProducts() {
@@ -100,14 +98,14 @@ class CertificationPage {
     await expect(this.page.getByRole('heading', { name: 'Scenarios' }).first()).toBeVisible({
       timeout: API_FETCH_TIMEOUT_MS,
     })
-    await expect(this.scenarioRows.first().getByRole('button', { name: 'Open Scenario' })).toBeVisible({
+    await expect(this.tableRows.first().getByRole('button', { name: 'Open Scenario' })).toBeVisible({
       timeout: API_FETCH_TIMEOUT_MS,
     })
-    return this.scenarioRows.locator('td:nth-child(2)').allInnerTexts()
+    return this.tableRows.locator('td:nth-child(2)').allInnerTexts()
   }
 
   async openScenario(name: string) {
-    const row = this.scenarioRows.filter({
+    const row = this.tableRows.filter({
       has: this.page.getByRole('cell', { name, exact: true }),
     })
     const open = row.getByRole('button', { name: 'Open Scenario' })
@@ -118,14 +116,14 @@ class CertificationPage {
   }
 
   async stepNames(): Promise<string[]> {
-    await expect(this.stepRows.first()).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
+    await expect(this.tableRows.first()).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     // The rows render as the steps arrive: the first row can be on screen alone for a moment, so
     // wait until two reads half a second apart agree.
     let previous: string[] = []
     await expect
       .poll(
         async () => {
-          const current = await this.stepRows.locator('td:nth-child(1)').allInnerTexts()
+          const current = await this.tableRows.locator('td:nth-child(1)').allInnerTexts()
           const stable = current.length > 0 && current.join('|') === previous.join('|')
           previous = current
           return stable
@@ -142,7 +140,7 @@ class CertificationPage {
    * the step) to the value to type; a field with no match stays empty and keeps Execute disabled.
    */
   async executeStep(index: number, parameters: StepParameter[] = []): Promise<StepRunResult> {
-    const row = this.stepRows.nth(index)
+    const row = this.tableRows.nth(index)
     await row.getByRole('button', { name: 'Open' }).click()
     const execute = this.page.getByRole('button', { name: 'Execute step' })
     await expect(execute).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
@@ -185,14 +183,14 @@ class CertificationPage {
 
   /** The status label of a scenario on the Scenarios page ("Successful" once all its steps pass). */
   async scenarioStatus(name: string): Promise<string> {
-    const row = this.scenarioRows.filter({
+    const row = this.tableRows.filter({
       has: this.page.getByRole('cell', { name, exact: true }),
     })
     return (await row.locator('td:nth-child(3)').innerText()).trim()
   }
 
   async stepStatus(index: number): Promise<string> {
-    const text = await this.stepRows.nth(index).locator('td:nth-child(2)').innerText()
+    const text = await this.tableRows.nth(index).locator('td:nth-child(2)').innerText()
     return text.trim()
   }
 

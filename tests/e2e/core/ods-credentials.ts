@@ -5,10 +5,10 @@
 
 import type { APIRequestContext, APIResponse } from '@playwright/test'
 import { randomBytes } from 'node:crypto'
+import { ADMIN_API_URL, DISTRICT_EDUCATION_ORGANIZATION_ID, ODS_INSTANCE_ID } from './certification-fixtures'
 
 export type OdsCredentials = { key: string; secret: string }
 
-const DEFAULT_ADMIN_API_URL = 'https://localhost/odsv7-adminv2-single-adminapi'
 const BASE_CLAIM_SET = 'SIS Vendor'
 const MAX_ATTEMPTS = 12
 const RETRY_DELAY_MS = 10_000
@@ -52,7 +52,7 @@ export async function createOdsCredentials(
   request: APIRequestContext,
   options: { adminApiUrl?: string; claimSetName?: string } = {}
 ): Promise<OdsCredentials> {
-  const adminApi = options.adminApiUrl ?? DEFAULT_ADMIN_API_URL
+  const adminApi = options.adminApiUrl ?? ADMIN_API_URL
   const claimSetName = options.claimSetName ?? BASE_CLAIM_SET
   const suffix = `${Date.now()}-${randomBytes(4).toString('hex')}`
   const clientId = `e2e-cert-${suffix}`
@@ -109,8 +109,8 @@ export async function createOdsCredentials(
         applicationName: `E2E Cert App ${suffix}`,
         vendorId,
         claimSetName,
-        educationOrganizationIds: [255901],
-        odsInstanceIds: [1],
+        educationOrganizationIds: [DISTRICT_EDUCATION_ORGANIZATION_ID],
+        odsInstanceIds: [ODS_INSTANCE_ID],
       },
     })
   )

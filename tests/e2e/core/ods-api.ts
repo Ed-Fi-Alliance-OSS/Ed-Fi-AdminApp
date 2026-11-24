@@ -4,11 +4,11 @@
 // See the LICENSE and NOTICES files in the project root for more information.
 
 import type { APIRequestContext, APIResponse } from '@playwright/test'
+import { ODS_URL } from './certification-fixtures'
 import type { OdsCredentials } from './ods-credentials'
 
 export type SchoolField = 'streetNumberName' | 'postalCode'
 
-const DEFAULT_ODS_URL = 'https://localhost/odsv7-adminv2-single-api'
 const TOKEN_ATTEMPTS = 3
 const TOKEN_RETRY_DELAY_MS = 5_000
 const STREET_MARKER = ' E2E-'
@@ -79,7 +79,7 @@ export async function changeSchoolField(
   runSuffix: string,
   options: { odsUrl?: string } = {},
 ): Promise<void> {
-  const odsUrl = options.odsUrl ?? DEFAULT_ODS_URL
+  const odsUrl = options.odsUrl ?? ODS_URL
   const headers = { Authorization: `Bearer ${await getToken(request, creds, odsUrl)}` }
   const collection = `${odsUrl}/data/v3/ed-fi/schools`
 

@@ -747,14 +747,24 @@ class EnvironmentsPage {
     const firstRowLink = this.resourceTable.locator('tbody tr').first().getByRole('link').first()
     await expect(firstRowLink).toBeVisible({ timeout: API_FETCH_TIMEOUT_MS })
     const edorgName = (await firstRowLink.innerText()).trim()
+    // The id and type shown on the details page must be the ones of the row that was opened.
+    const headers = (await this.resourceTable.locator('thead th').allInnerTexts()).map((text) => text.trim())
+    const cellOf = async (header: string) => {
+      // Chakra uppercases the header cells, and innerText follows the CSS, so compare ignoring case.
+      const column = headers.findIndex((text) => text.toLowerCase().startsWith(header.toLowerCase()))
+      expect(column, `column "${header}" in the Ed-Orgs table`).toBeGreaterThanOrEqual(0)
+      return (await this.resourceTable.locator('tbody tr').first().locator('td').nth(column).innerText()).trim()
+    }
+    const rowEdorgId = await cellOf('Education Org ID')
+    const rowType = await cellOf('Type')
     await this.clickFirstResourceRow()
     await expect(this.page.getByRole('heading', { name: edorgName, exact: true })).toBeVisible({
       timeout: API_FETCH_TIMEOUT_MS,
     })
 
     const expectedAttributes: Array<[string, string | RegExp]> = [
-      ['Ed-Org ID', /^\d+$/],
-      ['Type', /^edfi\.\w+$/],
+      ['Ed-Org ID', rowEdorgId],
+      ['Type', rowType],
       ['Environment', /^FullSingleEnvironmentv2-/],
       ['Tenant', 'default'],
     ]

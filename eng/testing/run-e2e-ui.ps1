@@ -32,14 +32,14 @@ Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
 
 .PARAMETER OdsDataStandard
 Data Standard of the ODS template packages to download (package EdFi.Suite3.Ods.<Minimal|Populated>.Template.PostgreSQL.Standard.<value>).
-Defaults to '4.0.0', matching the default ODS image in compose/.env.example. Templates already present in
+Defaults to '5.2.0', matching the default ODS image in compose/.env.example. Templates already present in
 compose/db-backup are used as they are unless this parameter or -OdsTemplateVersion is passed, so a stack
-prepared with Data Standard 5 files keeps them. For the Data Standard 5 image use '5.2.0'
-together with -OdsTemplateVersion '7.3.20057' and -OdsApiTag. Existing ODS volumes keep their old Data Standard: remove
+prepared with another Data Standard keeps them. For the Data Standard 4 image use '4.0.0'
+together with -OdsTemplateVersion '7.3.20068' and -OdsApiTag. Existing ODS volumes keep their old Data Standard: remove
 vol-odsV7-adminV2-* and vol-odsV7-adminV3-* after changing the standard.
 
 .PARAMETER OdsTemplateVersion
-NuGet package version of the ODS templates. Defaults to '7.3.20068' (Data Standard 4.0.0).
+NuGet package version of the ODS templates. Defaults to '7.3.20057' (Data Standard 5.2.0).
 
 .PARAMETER OdsTemplateSqlFolder
 Optional folder holding EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql. When set, nothing is downloaded
@@ -67,8 +67,8 @@ param(
   [switch]$StopServices,
   [switch]$SkipV1,
   [switch]$KeepEnvFile,
-  [string]$OdsDataStandard = '4.0.0',
-  [string]$OdsTemplateVersion = '7.3.20068',
+  [string]$OdsDataStandard = '5.2.0',
+  [string]$OdsTemplateVersion = '7.3.20057',
   [string]$OdsTemplateSqlFolder,
   [string]$OdsApiTag,
   [int]$ServiceStartTimeoutMinutes = 20
@@ -148,6 +148,9 @@ function Get-OdsTemplateBackup {
   if (Test-Path $sqlPath) {
     if (-not $odsTemplateExplicit) {
       Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
+      if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -ne $source)) {
+        Write-Warning "The cached ODS $TemplateType Template ($((Get-Content -Path $sourcePath -Raw).Trim())) differs from the default ($source). Pass -OdsDataStandard / -OdsTemplateVersion explicitly to replace it, or the stack may mix Data Standards."
+      }
       return
     }
     if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
@@ -240,7 +243,8 @@ function Set-AdminAppEnvFile {
     if ($OdsApiTag -or $OdsTemplateSqlFolder) {
       Write-Warning '-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env (-KeepEnvFile). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself.'
     }
-    Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan    return
+    Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
+    return
   }
 
   if (Test-Path $envPath) {

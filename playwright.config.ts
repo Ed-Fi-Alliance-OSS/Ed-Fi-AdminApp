@@ -133,12 +133,13 @@ export default defineConfig({
       // Vendor certification happy path. It needs the FullSingleEnvironmentv2 environment and the
       // ApiTest team that the two projects above create and sync, and it creates its own ODS
       // credentials through the Admin API. The run waits on the Admin API rate limiter and then
-      // executes scenario steps against the ODS, hence the longer timeout. Tracing stays off:
+      // executes scenario steps against the ODS, hence the longer timeout (two credential creations
+      // can each wait up to two minutes on the rate limiter). Tracing stays off:
       // a trace would record the ODS secret typed into the form.
       name: 'chromium-certification',
       dependencies: ['chromium-environmentv2andApi'],
       testMatch: /certification.feature.spec.js/,
-      timeout: 180000,
+      timeout: 300000,
       use: {
         ...devices['Desktop Chrome'],
         storageState: 'playwright/.auth/user.json',

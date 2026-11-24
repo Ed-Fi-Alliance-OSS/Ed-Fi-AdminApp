@@ -56,7 +56,7 @@ Schools scenario. It runs in the `chromium-certification` project, after `chromi
 
 - Stack: Ed-Fi ODS/API 7.3 with Data Standard 5.2 (single tenant, Admin API v2) and the certification
   runtime on (`CERT_ENABLED=true`). `eng/testing/run-e2e-ui.ps1` sets `CERT_ENABLED` in the generated
-  `compose/.env`. For the Data Standard 5 image pass the template and image parameters described in
+  `compose/.env`. The defaults of `run-e2e-ui.ps1` are the DS 5.2 templates and image; for Data Standard 4 see
   `eng/testing/README.md`.
 - Run on its own against a stack that has already run the setup projects:
   `E2E_SKIP_V1=1 npx playwright test certification.feature --project=chromium-certification --no-deps`
@@ -70,7 +70,8 @@ Schools scenario. It runs in the `chromium-certification` project, after `chromi
   keep passing. All four steps and the scenario status are asserted `Successful`.
 - `run-e2e-ui.ps1` sets `TPDM_ENABLED=false` in the generated `compose/.env`: the DS 5.2 templates have no
   TPDM tables, and a school write fails while the TPDM plugin is loaded. With `-KeepEnvFile` set it yourself.
-- The Admin API rate limits `/connect/register`; the helper retries on 429 and can wait up to two minutes.
+- The Admin API rate limits `/connect/register`; the helper retries on 429 and can wait up to two minutes. Both ODS applications are created in the Given step, and the project timeout is 5 minutes to cover that worst case.
+- The test is meant for disposable stacks: every run leaves a vendor and two applications in the Admin API and rewrites two schools in the ODS.
 - The setup projects are not rerunnable on a used stack ("membership already exists"), and
   `chromium-ownerships` changes the `ApiTest` ownership. Reset with `./compose/stop.ps1 -V` before a
   full rerun.

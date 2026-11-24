@@ -202,12 +202,12 @@ Recorded after implementing the plan on 2026-11-23.
 
 ### Resources used
 
-- **ODS image:** `v7.3.2@sha256:c865f209…` (Data Standard 5) as an option in `compose/.env.example`; the Data
-  Standard 4 digest stays the active default, so the DS5 image is selected with `-OdsApiTag`. The ODS
+- **ODS image:** `v7.3.2@sha256:c865f209…` (Data Standard 5) is the active `ODS_API_TAG_7X` in `compose/.env.example`; the
+  Data Standard 4 digest stays as a commented option, selected with `-OdsApiTag`. The ODS
   reports data model Ed-Fi `5.2.0` and all four v7 APIs start healthy.
 - **Templates:** `EdFi.Suite3.Ods.{Minimal|Populated}.Template.PostgreSQL.Standard.5.2.0` version `7.3.20057`
-  from the Ed-Fi feed, selected with `-OdsDataStandard 5.2.0 -OdsTemplateVersion 7.3.20057`. The defaults of
-  `run-e2e-ui.ps1` stay at 4.0.0 / 7.3.20068. A `.sql.source` marker next to each file makes a different
+  from the Ed-Fi feed, the defaults of `run-e2e-ui.ps1` (`-OdsDataStandard 5.2.0 -OdsTemplateVersion 7.3.20057`; Data Standard 4 is
+  opt-in with 4.0.0 / 7.3.20068). A `.sql.source` marker next to each file makes a different
   standard or version download again.
 - **Admin API flow** (single tenant, no `Tenant` header): `/connect/register`, `/connect/token`,
   `POST /v2/vendors`, `GET /v2/claimSets?name=SIS Vendor`, `POST /v2/applications` (the response carries key
@@ -253,12 +253,11 @@ Recorded after implementing the plan on 2026-11-23.
 - One existing check was Data Standard dependent: "View Education Organizations" expected the first Ed-Org to
   be `255901107` (the DS4 template). With 5.2 the first is `255901001` (Grand Bend High School). The check
   now compares the details page with the row that was opened (numeric id, `edfi.*` type) instead of a fixed id.
-- Passing the DS5 template parameters is required whenever `.env` carries the DS5 image: with the DS4
-  defaults the script downloads DS4 templates for the DS5 image.
+- Because the defaults of `run-e2e-ui.ps1` are the DS5.2 template and image, a stack needs no extra parameters; for
+  the DS4 image pass `-OdsDataStandard 4.0.0 -OdsTemplateVersion 7.3.20068 -OdsApiTag <DS4 digest>`.
 - `npm run build` and `npm run lint:check` pass.
-- The first two Schools steps report Successful. The last two are only asserted to report a result (Successful or
-  Failed); their actual status was not captured. The user expects them to fail until a school address
-  change through the schools endpoint is added as a pre-step.
+- All four Schools steps report Successful. Steps 3 and 4 (`UPDATE`) first need the school changed through the
+  ODS API (`tests/e2e/core/ods-api.ts`); the test does that and asserts the outcome from the run endpoint.
 
 ### Needed for multi-tenant and other data standards
 

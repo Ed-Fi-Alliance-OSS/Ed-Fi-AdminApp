@@ -443,13 +443,13 @@ By default the stack is left running after the suite finishes (pass or fail), so
     file is missing or its DB_ENGINE does not match -DbEngine.
 
 -OdsDataStandard <string>
-    Data Standard of the ODS template packages to download. Default: '4.0.0',
+    Data Standard of the ODS template packages to download. Default: '5.2.0',
     matching the default ODS image in compose/.env.example. Template files already
     in compose/db-backup are used as they are unless this or -OdsTemplateVersion
     is passed.
 
 -OdsTemplateVersion <string>
-    NuGet package version of the ODS templates. Default: '7.3.20068'.
+    NuGet package version of the ODS templates. Default: '7.3.20057'.
 
 -OdsTemplateSqlFolder <path>
     Folder with EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql
@@ -467,7 +467,7 @@ By default the stack is left running after the suite finishes (pass or fail), so
 
 ### Notes
 
-- **Data Standard 5 (certification E2E).** The default stack runs the Data Standard 4 ODS image with the 4.0.0 templates. For the Data Standard 5 image, run `pwsh ./eng/testing/run-e2e-ui.ps1 -OdsDataStandard 5.2.0 -OdsTemplateVersion 7.3.20057 -OdsApiTag 'v7.3.2@sha256:c865f2092994d18eb33f84a36d79bbbfab614dfc32a76e93dd7e9dcb2905e352'`. Downloaded templates are tagged with a `.sql.source` marker next to the file. Templates already in `compose/db-backup` are used as they are when neither `-OdsDataStandard` nor `-OdsTemplateVersion` is passed (so a rerun with `-KeepEnvFile` keeps the DS5 files); when either is passed, a different standard or version downloads again instead of reusing a stale file. The ODS init script runs only once per volume: after changing the standard, image or templates, remove the ODS volumes (`vol-odsV7-adminV2-*`, `vol-odsV7-adminV3-*`), otherwise the stack silently stays on the previous Data Standard.
+- **Data Standard 5 by default.** The stack runs the Data Standard 5 ODS image with the 5.2.0 templates, which the certification E2E needs. For the Data Standard 4 image, run `pwsh ./eng/testing/run-e2e-ui.ps1 -OdsDataStandard 4.0.0 -OdsTemplateVersion 7.3.20068 -OdsApiTag 'v7.3.2@sha256:64ec898075da58824ab8a0f91f445abbf3cc8c225bfc7c69ed34fe84d6ef230f'`. Downloaded templates are tagged with a `.sql.source` marker next to the file. Templates already in `compose/db-backup` are used as they are when neither `-OdsDataStandard` nor `-OdsTemplateVersion` is passed (a warning is printed when the marker says they are another Data Standard); when either is passed, a different standard or version downloads again instead of reusing a stale file. The ODS init script runs only once per volume: after changing the standard, image or templates, remove the ODS volumes (`vol-odsV7-adminV2-*`, `vol-odsV7-adminV3-*`), otherwise the stack silently stays on the previous Data Standard.
 - **Retries preserve `compose/.env`.** Secrets, image tags and dataset choices remain unchanged after a timeout or failed test. For MSSQL, the existing SA password is restored into the runner's process environment and readiness checks.
 - **Unsafe configuration stops provisioning.** Existing `change-me` placeholders or a mismatched `DB_ENGINE` cause an error without overwriting the file. If the file is missing but previous stack volumes exist, restore the original configuration or deliberately provision a separate clean environment. The runner does not rotate stored credentials, replace encryption keys or delete volumes automatically.
 - **ODS/API databases are unaffected by `-DbEngine`.** The `v6`, `odsV7-adminV2`, and `odsV7-adminV3` topologies always run on PostgreSQL; only the Admin App's own database switches between PostgreSQL and SQL Server.

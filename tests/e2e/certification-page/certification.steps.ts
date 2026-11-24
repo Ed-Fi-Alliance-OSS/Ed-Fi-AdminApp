@@ -5,6 +5,7 @@
 
 import { expect } from '@playwright/test'
 import { createBdd } from 'playwright-bdd'
+import { FIRST_SCHOOL_ID, SECOND_SCHOOL_ID } from '../core/certification-fixtures'
 import { SchoolField, changeSchoolField } from '../core/ods-api'
 import { OdsCredentials, createOdsCredentials } from '../core/ods-credentials'
 import CertificationPage, { STEP_STATUS, StepParameter, StepRunResult } from '../pages/certification-page'
@@ -14,8 +15,8 @@ const { Given, When, Then } = createBdd()
 
 // Schools of the populated Ed-Fi ODS template (Data Standard 5.2) that the Schools scenario asks for.
 const SCHOOL_PARAMETERS: StepParameter[] = [
-  { label: /first school/i, value: '255901001' },
-  { label: /second school/i, value: '255901044' },
+  { label: /first school/i, value: FIRST_SCHOOL_ID },
+  { label: /second school/i, value: SECOND_SCHOOL_ID },
 ]
 
 // SIS Vendor only reads education organizations, so the school changes use an application on a
@@ -24,8 +25,8 @@ const SCHOOL_WRITER_CLAIM_SET = 'Ed-Fi Sandbox'
 
 // The UPDATE steps of the Schools scenario, by step index: the school and field each one expects changed.
 const SCHOOL_CHANGES: Record<number, { schoolId: string; field: SchoolField }> = {
-  2: { schoolId: '255901001', field: 'streetNumberName' },
-  3: { schoolId: '255901044', field: 'postalCode' },
+  2: { schoolId: FIRST_SCHOOL_ID, field: 'streetNumberName' },
+  3: { schoolId: SECOND_SCHOOL_ID, field: 'postalCode' },
 }
 
 // Unique per run, so a rerun on the same stack always writes a value the ODS does not hold yet.
@@ -34,13 +35,16 @@ const runSuffix = Date.now().toString(36)
 let certificationPage: CertificationPage
 // Kept in memory only: the key and secret are never printed, attached or written to disk.
 let odsCredentials: OdsCredentials
-let schoolWriter: OdsCredentials | undefined
+let schoolWriter: OdsCredentials
 // What the run endpoint answered for each executed step: the source of truth for the outcome, because
 // on a rerun the rows already show the previous run's status until the UI refetches.
 let stepResults: StepRunResult[] = []
 
+// Both applications are created here, up front: the Admin API rate limiter can make each creation
+// wait for minutes, and that wait must not surface in the middle of the step execution.
 Given('the vendor has ODS credentials for the data store', async ({ request }) => {
   odsCredentials = await createOdsCredentials(request)
+  schoolWriter = await createOdsCredentials(request, { claimSetName: SCHOOL_WRITER_CLAIM_SET })
 })
 
 When(
@@ -74,7 +78,6 @@ When('the user executes the steps of the scenario', async ({ request }) => {
     // An UPDATE step asserts that the school differs from the value captured by the step before it,
     // so the vendor's own system (here, the ODS API) has to change it first.
     if (change) {
-      schoolWriter ??= await createOdsCredentials(request, { claimSetName: SCHOOL_WRITER_CLAIM_SET })
       await changeSchoolField(request, schoolWriter, change.schoolId, change.field, runSuffix)
     }
     stepResults.push(await certificationPage.executeStep(index, SCHOOL_PARAMETERS))
