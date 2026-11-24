@@ -27,6 +27,17 @@ const cliInvertsV1 = process.argv.some((arg, index) => {
 const skipV1 = process.env.E2E_SKIP_V1 === '1' || cliInvertsV1
 const skipV1Grep = skipV1 ? { grepInvert: /@v1/ } : {}
 
+// The certification feature needs Data Standard 5: the request modal does not list environments
+// below it, and the certification scenarios target Data Standard 5. E2E_ODS_DATA_STANDARD (set by
+// run-e2e-ui.ps1 from -OdsDataStandard, for example '6.1.0') or E2E_SKIP_CERTIFICATION=1 leaves the
+// certification project without tests. The project stays in the graph, so the projects that depend
+// on it still run.
+const odsDataStandardMajor = process.env.E2E_ODS_DATA_STANDARD?.split('.')[0]
+const skipCertification =
+  process.env.E2E_SKIP_CERTIFICATION === '1' ||
+  (odsDataStandardMajor !== undefined && odsDataStandardMajor !== '' && odsDataStandardMajor !== '5')
+const skipCertificationIgnore = skipCertification ? { testIgnore: /certification.feature.spec.js/ } : {}
+
 export default defineConfig({
   testDir,
   timeout: 120000,
@@ -139,6 +150,7 @@ export default defineConfig({
       name: 'chromium-certification',
       dependencies: ['chromium-environmentv2andApi'],
       testMatch: /certification.feature.spec.js/,
+      ...skipCertificationIgnore,
       timeout: 300000,
       use: {
         ...devices['Desktop Chrome'],

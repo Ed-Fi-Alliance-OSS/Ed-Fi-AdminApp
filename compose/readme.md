@@ -461,8 +461,8 @@ example:
 > [!IMPORTANT]
 > The templates must match the Data Standard of the ODS image set in
 > `ODS_API_TAG_7X`. `compose/.env.example` pins the Data Standard 5 image and keeps
-> the Data Standard 4 image digest as a commented line; when you switch to it, use
-> the Data Standard 4.0.0 templates. `init.sh` runs only once per ODS volume, so
+> the Data Standard 6 image digest as a commented line; when you switch to it, use
+> the matching Data Standard 6 templates. `init.sh` runs only once per ODS volume, so
 > after changing the templates or the image, remove the ODS volumes
 > (`vol-odsV7-adminV2-*` and `vol-odsV7-adminV3-*`) and any stale `.sql` file in
 > `SQL_BACKUPS_FOLDER`, otherwise the stack silently stays on the old Data

@@ -34,8 +34,9 @@ Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
 Data Standard of the ODS template packages to download (package EdFi.Suite3.Ods.<Minimal|Populated>.Template.PostgreSQL.Standard.<value>).
 Defaults to '5.2.0', matching the default ODS image in compose/.env.example. Templates already present in
 compose/db-backup are used as they are unless this parameter or -OdsTemplateVersion is passed, so a stack
-prepared with another Data Standard keeps them. For the Data Standard 4 image use '4.0.0'
-together with -OdsTemplateVersion '7.3.20068' and -OdsApiTag. Existing ODS volumes keep their old Data Standard: remove
+prepared with another Data Standard keeps them. For another Data Standard image pass the matching
+templates (for example '4.0.0' with -OdsTemplateVersion '7.3.20068') and -OdsApiTag. When this parameter is passed and its major
+version is not 5, the certification E2E feature is skipped (it needs Data Standard 5); the other suites still run. Existing ODS volumes keep their old Data Standard: remove
 vol-odsV7-adminV2-* and vol-odsV7-adminV3-* after changing the standard.
 
 .PARAMETER OdsTemplateVersion
@@ -150,6 +151,9 @@ function Get-OdsTemplateBackup {
       Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
       if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -ne $source)) {
         Write-Warning "The cached ODS $TemplateType Template ($((Get-Content -Path $sourcePath -Raw).Trim())) differs from the default ($source). Pass -OdsDataStandard / -OdsTemplateVersion explicitly to replace it, or the stack may mix Data Standards."
+      }
+      if (-not (Test-Path $sourcePath)) {
+        Write-Warning "The cached ODS $TemplateType Template has no .source marker, so its Data Standard is unknown (templates cached by older runners are Data Standard 4). The certification E2E needs Data Standard 5; delete $sqlPath, or pass -OdsDataStandard / -OdsTemplateVersion explicitly, to download the expected one."
       }
       return
     }
@@ -487,6 +491,10 @@ try {
 
   Push-Location $repoRoot
   try {
+    if ($PSBoundParameters.ContainsKey('OdsDataStandard')) {
+      # playwright.config.ts skips the certification feature unless this is Data Standard 5.
+      $env:E2E_ODS_DATA_STANDARD = $OdsDataStandard
+    }
     if ($SkipV1) {
       # playwright.config.ts applies the @v1 exclusion per project through E2E_SKIP_V1,
       # because --grep-invert is ignored by projects that run as dependencies of others.
@@ -509,6 +517,7 @@ catch {
 finally {
   $env:RATE_LIMIT_LIMIT = $previousRateLimit
   Remove-Item Env:E2E_SKIP_V1 -ErrorAction SilentlyContinue
+  Remove-Item Env:E2E_ODS_DATA_STANDARD -ErrorAction SilentlyContinue
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
     & (Join-Path $repoRoot 'compose/stop.ps1')

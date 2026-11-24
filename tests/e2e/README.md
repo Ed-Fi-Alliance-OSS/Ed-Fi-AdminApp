@@ -56,7 +56,9 @@ Schools scenario. It runs in the `chromium-certification` project, after `chromi
 
 - Stack: Ed-Fi ODS/API 7.3 with Data Standard 5.2 (single tenant, Admin API v2) and the certification
   runtime on (`CERT_ENABLED=true`). `eng/testing/run-e2e-ui.ps1` sets `CERT_ENABLED` in the generated
-  `compose/.env`. The defaults of `run-e2e-ui.ps1` are the DS 5.2 templates and image; for Data Standard 4 see
+  `compose/.env`. The defaults of `run-e2e-ui.ps1` are the DS 5.2 templates and image; certification requires Data Standard 5
+  (below it the request modal does not list the environment, so this feature would time out).
+  `run-e2e-ui.ps1 -OdsDataStandard <non-5>` or `E2E_SKIP_CERTIFICATION=1` skip the feature; see
   `eng/testing/README.md`.
 - Run on its own against a stack that has already run the setup projects:
   `E2E_SKIP_V1=1 npx playwright test certification.feature --project=chromium-certification --no-deps`

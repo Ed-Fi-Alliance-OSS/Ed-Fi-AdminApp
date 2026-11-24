@@ -203,7 +203,7 @@ Recorded after implementing the plan on 2026-11-23.
 ### Resources used
 
 - **ODS image:** `v7.3.2@sha256:c865f209…` (Data Standard 5) is the active `ODS_API_TAG_7X` in `compose/.env.example`; the
-  Data Standard 4 digest stays as a commented option, selected with `-OdsApiTag`. The ODS
+  Data Standard 6 digest stays as a commented option, selected with `-OdsApiTag`. The ODS
   reports data model Ed-Fi `5.2.0` and all four v7 APIs start healthy.
 - **Templates:** `EdFi.Suite3.Ods.{Minimal|Populated}.Template.PostgreSQL.Standard.5.2.0` version `7.3.20057`
   from the Ed-Fi feed, the defaults of `run-e2e-ui.ps1` (`-OdsDataStandard 5.2.0 -OdsTemplateVersion 7.3.20057`; Data Standard 4 is
@@ -254,7 +254,8 @@ Recorded after implementing the plan on 2026-11-23.
   be `255901107` (the DS4 template). With 5.2 the first is `255901001` (Grand Bend High School). The check
   now compares the details page with the row that was opened (numeric id, `edfi.*` type) instead of a fixed id.
 - Because the defaults of `run-e2e-ui.ps1` are the DS5.2 template and image, a stack needs no extra parameters; for
-  the DS4 image pass `-OdsDataStandard 4.0.0 -OdsTemplateVersion 7.3.20068 -OdsApiTag <DS4 digest>`.
+  the DS6 image pass the matching `-OdsDataStandard` / `-OdsTemplateVersion` and `-OdsApiTag <DS6 digest>`; the
+  certification feature is then skipped.
 - `npm run build` and `npm run lint:check` pass.
 - All four Schools steps report Successful. Steps 3 and 4 (`UPDATE`) first need the school changed through the
   ODS API (`tests/e2e/core/ods-api.ts`); the test does that and asserts the outcome from the run endpoint.

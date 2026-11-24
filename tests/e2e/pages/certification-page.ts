@@ -227,16 +227,22 @@ class CertificationPage {
     await select.selectOption({ label: wanted })
   }
 
-  /** The first Certification Model whose run is already open, if any. */
+  /**
+   * The first Certification Model whose run is already open, if any. The options render before the
+   * latest-run lookup answers, so wait until it has: either a model is labelled "already open" or
+   * Start Run is enabled (it stays disabled while the lookup is pending).
+   */
   private async firstOpenModel(model: Locator): Promise<string | undefined> {
     await expect(model).toBeVisible({ timeout: UI_RENDER_TIMEOUT_MS })
+    const start = this.modal.getByRole('button', { name: 'Start Run' })
+    const openLabel = async () =>
+      (await model.locator('option').allInnerTexts()).find((text) => text.includes('already open'))
     await expect
-      .poll(async () => (await model.locator('option').allInnerTexts()).length, {
+      .poll(async () => (await openLabel()) !== undefined || (await start.isEnabled()), {
         timeout: API_FETCH_TIMEOUT_MS,
       })
-      .toBeGreaterThan(1)
-    const labels = await model.locator('option').allInnerTexts()
-    return labels.find((text) => text.includes('already open'))
+      .toBe(true)
+    return openLabel()
   }
 }
 
