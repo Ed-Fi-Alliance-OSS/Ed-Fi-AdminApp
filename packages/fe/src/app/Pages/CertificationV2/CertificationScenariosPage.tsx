@@ -25,6 +25,7 @@ import { useNavigate, useParams } from 'react-router';
 import { getOdsTerminology } from '../../helpers';
 import { certificationRunExecutionPath, myProductsPath } from '../../routes/paths';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { CertificationRunAuditHistory } from './CertificationRunAuditHistory';
 import { CertificationRunReviewBar } from './CertificationRunReviewBar';
 import { CertificationRunReviewerComments } from './CertificationRunReviewerComments';
 import { CertificationStatusIndicator } from './CertificationStatusIndicator';
@@ -177,6 +178,8 @@ export const CertificationScenariosPage = () => {
         />
 
         <CertificationRunReviewerComments teamId={teamId} runId={run.runId} />
+
+        <CertificationRunAuditHistory teamId={teamId} runId={run.runId} />
 
         <Box w="30em" maxW="100%">
           {/* Credentials are only for running steps. While the run is in review no step can run,
