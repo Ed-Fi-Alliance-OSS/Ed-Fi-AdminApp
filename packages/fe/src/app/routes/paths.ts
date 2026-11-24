@@ -86,7 +86,8 @@ function replaceKeyIds(path: string, ids: Record<string, Id>) {
 export const myProductsPath = (asId: Id) => replaceKeyIds(asTeamPaths.myProducts.index, { asId });
 
 /** The team's Run history page: every run the team started. */
-export const runHistoryPath = (asId: Id) => replaceKeyIds(asTeamPaths.certification.runHistory, { asId });
+export const runHistoryPath = (asId: Id) =>
+  replaceKeyIds(asTeamPaths.certification.runHistory, { asId });
 
 /** The Scenarios page of one certification run. Team-only: a run always belongs to a team. */
 export const certificationRunPath = (asId: Id, runId: Id) =>

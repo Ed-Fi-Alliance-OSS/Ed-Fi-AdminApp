@@ -97,7 +97,7 @@ export const RunHistoryPage = () => {
                           value={percentComplete(run.completedScenarios, run.totalScenarios)}
                         />
                         <Text fontSize="sm" color="gray.600" mt={1}>
-                          {`${run.completedScenarios} / ${run.totalScenarios}`}
+                          {`${run.completedScenarios} / ${run.totalScenarios} scenarios completed`}
                         </Text>
                       </Box>
                     </Td>

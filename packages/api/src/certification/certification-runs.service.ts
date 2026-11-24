@@ -2,6 +2,7 @@ import {
   CERT_FORMER_REVIEWER_NAME,
   CERT_MODEL,
   CERT_RUN_STATUS,
+  CERT_SCENARIO_STATUS,
   CertificationLatestRunDto,
   CertificationRunCommentDto,
   CertificationRunDto,
@@ -118,13 +119,16 @@ export class CertificationRunsService {
       totalsQuery,
       this.runScenarioRepository
         .createQueryBuilder('runScenario')
+        .innerJoin('runScenario.certificationRun', 'run')
         .innerJoin('runScenario.scenario', 'scenario')
         .innerJoin('scenario.domain', 'domain')
         .select('runScenario.certificationRunId', 'runId')
         .addSelect('COUNT(*)', 'completed')
+        // Selected by team, not by an ID list (mssql caps a query at ~2100 parameters), and only
+        // against the run's own catalog so completed can never exceed that run's total.
         .where(
-          'runScenario.status = :status AND scenario.isEnabled = :enabled AND domain.isEnabled = :enabled AND runScenario.certificationRunId IN (:...runIds)',
-          { status: 'completed', enabled: true, runIds: runs.map((run) => run.certificationRunId) },
+          'run.teamId = :teamId AND run.catalogVersionId = domain.catalogVersionId AND runScenario.status = :status AND scenario.isEnabled = :enabled AND domain.isEnabled = :enabled',
+          { teamId: params.teamId, status: CERT_SCENARIO_STATUS.completed, enabled: true },
         )
         .groupBy('runScenario.certificationRunId')
         .getRawMany<{ runId: number | string; completed: number | string }>(),
@@ -213,7 +217,8 @@ export class CertificationRunsService {
     }
 
     const where = openRunWhere(edfiTenant.id, odsId, certificationModel);
-    const alreadyOpen = () => new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
+    const alreadyOpen = () =>
+      new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
     if (await this.runRepository.findOne({ where })) throw alreadyOpen();
 
     let created: CertificationRun;

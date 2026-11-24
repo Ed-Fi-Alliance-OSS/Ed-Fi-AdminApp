@@ -173,6 +173,20 @@ describe('CertificationRunsService', () => {
       expect(completedWhere).toContain('status = :status');
     });
 
+    it("counts a run's completed rows only against its own catalog, selected by team and not by an ID list", async () => {
+      runRepository.find.mockResolvedValue([historyRun()]);
+      const completed = rawBuilder([]);
+      scenarioRepository.createQueryBuilder.mockReturnValue(rawBuilder([]));
+      runScenarioRepository.createQueryBuilder.mockReturnValue(completed);
+      await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
+      const where = completed.where.mock.calls[0][0] as string;
+      const parameters = completed.where.mock.calls[0][1] as Record<string, unknown>;
+      expect(where).toContain('run.catalogVersionId = domain.catalogVersionId');
+      expect(where).toContain('run.teamId = :teamId');
+      expect(parameters).toMatchObject({ teamId: 2, status: 'completed' });
+      expect(parameters).not.toHaveProperty('runIds');
+    });
+
     it('reports 0 / 0 for a run without a catalog version', async () => {
       runRepository.find.mockResolvedValue([historyRun({ catalogVersionId: null })]);
       withCounts([], []);

@@ -116,7 +116,7 @@ describe('RunHistoryPage', () => {
     expect(rows[0].textContent).toContain('Env 1 · tenant1 · EdFi_Ods_1');
     expect(rows[0].textContent).toContain('SIS');
     expect(rows[0].textContent).toContain('Approved');
-    expect(rows[0].textContent).toContain('12 / 30');
+    expect(rows[0].textContent).toContain('12 / 30 scenarios completed');
     expect(rows[1].textContent).toContain('Changes requested');
     expect(screen.getAllByRole('progressbar')[0].getAttribute('aria-valuenow')).toBe('40');
   });
@@ -128,7 +128,7 @@ describe('RunHistoryPage', () => {
       error: null,
     });
     render(<RunHistoryPage />);
-    expect(screen.getByText('0 / 0')).toBeTruthy();
+    expect(screen.getByText('0 / 0 scenarios completed')).toBeTruthy();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('0');
     expect(document.body.textContent).not.toContain('NaN');
   });
