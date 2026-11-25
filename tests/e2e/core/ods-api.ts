@@ -12,6 +12,8 @@ export type SchoolField = 'streetNumberName' | 'postalCode'
 const TOKEN_ATTEMPTS = 3
 const TOKEN_RETRY_DELAY_MS = 5_000
 const STREET_MARKER = ' E2E-'
+// Maximum length of Address.streetNumberName in the Ed-Fi data model.
+const MAX_STREET_LENGTH = 150
 
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -55,16 +57,20 @@ async function getToken(
 /**
  * The new value of `field`, derived from the current one and `runSuffix` so it differs from it and a
  * rerun on the same stack keeps working:
- * - `streetNumberName`: the current value without a previous ` E2E-<suffix>`, plus the new suffix.
- * - `postalCode`: a 5-digit code from `runSuffix` (base 36), bumped by one if it equals the current.
+ * - `streetNumberName`: the current value without a previous ` E2E-<suffix>`, plus the new suffix,
+ *   with the base cut so the whole value fits the ODS column (`MAX_STREET_LENGTH`).
+ * - `postalCode`: a 5-digit code from `runSuffix` (base 36); when it equals the current one the next
+ *   code is used, wrapping from 99999 back to 10000 so it stays 5 digits.
  */
 function nextValue(field: SchoolField, current: string, runSuffix: string): string {
   if (field === 'streetNumberName') {
-    const base = current.split(STREET_MARKER)[0]
-    return `${base}${STREET_MARKER}${runSuffix}`
+    const marker = `${STREET_MARKER}${runSuffix}`
+    const base = current.split(STREET_MARKER)[0].slice(0, MAX_STREET_LENGTH - marker.length)
+    return `${base}${marker}`
   }
   const code = 10000 + (parseInt(runSuffix, 36) % 90000)
-  return String(`${code}` === current ? code + 1 : code)
+  const next = code === 99999 ? 10000 : code + 1
+  return String(`${code}` === current ? next : code)
 }
 
 /**
@@ -95,11 +101,13 @@ export async function changeSchoolField(
   if (!address) throw new Error(`ODS school ${schoolId} has no address to change`)
   address[field] = nextValue(field, address[field] ?? '', runSuffix)
 
+  // Send If-Match only when the GET returned an ETag: an empty header is not "no precondition".
+  const etag = current.headers()['etag']
   ensureOk(
     'update school',
     await guard('update school', () =>
       request.put(url, {
-        headers: { ...headers, 'If-Match': current.headers()['etag'] ?? '' },
+        headers: etag ? { ...headers, 'If-Match': etag } : headers,
         data: body,
       }),
     ),

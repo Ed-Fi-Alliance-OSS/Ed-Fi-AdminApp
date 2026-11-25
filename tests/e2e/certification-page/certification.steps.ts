@@ -23,11 +23,14 @@ const SCHOOL_PARAMETERS: StepParameter[] = [
 // claim set that can write them.
 const SCHOOL_WRITER_CLAIM_SET = 'Ed-Fi Sandbox'
 
-// The UPDATE steps of the Schools scenario, by step index: the school and field each one expects changed.
-const SCHOOL_CHANGES: Record<number, { schoolId: string; field: SchoolField }> = {
-  2: { schoolId: FIRST_SCHOOL_ID, field: 'streetNumberName' },
-  3: { schoolId: SECOND_SCHOOL_ID, field: 'postalCode' },
-}
+// What each UPDATE step of the Schools scenario expects changed, in the order the UPDATE steps appear.
+// The steps are recognised by name (the catalog derives the step type from it too), not by position, so
+// reordering or adding CREATE steps in the catalog does not move the changes onto the wrong steps.
+const UPDATE_STEP_NAME = /update/i
+const SCHOOL_CHANGES: { schoolId: string; field: SchoolField }[] = [
+  { schoolId: FIRST_SCHOOL_ID, field: 'streetNumberName' },
+  { schoolId: SECOND_SCHOOL_ID, field: 'postalCode' },
+]
 
 // Unique per run, so a rerun on the same stack always writes a value the ODS does not hold yet.
 const runSuffix = Date.now().toString(36)
@@ -71,10 +74,16 @@ Then('its steps are listed', async () => {
 })
 
 When('the user executes the steps of the scenario', async ({ request }) => {
-  const count = (await certificationPage.stepNames()).length
+  const names = await certificationPage.stepNames()
+  const count = names.length
+  const updateSteps = names.flatMap((name, index) => (UPDATE_STEP_NAME.test(name) ? [index] : []))
+  expect(
+    updateSteps,
+    `the scenario should have ${SCHOOL_CHANGES.length} UPDATE steps; its steps are: ${names.join(' | ')}`,
+  ).toHaveLength(SCHOOL_CHANGES.length)
   stepResults = []
   for (let index = 0; index < count; index++) {
-    const change = SCHOOL_CHANGES[index]
+    const change = SCHOOL_CHANGES[updateSteps.indexOf(index)]
     // An UPDATE step asserts that the school differs from the value captured by the step before it,
     // so the vendor's own system (here, the ODS API) has to change it first.
     if (change) {

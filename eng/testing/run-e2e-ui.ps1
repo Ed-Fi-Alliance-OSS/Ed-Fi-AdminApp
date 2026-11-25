@@ -140,6 +140,10 @@ function Get-OdsTemplateBackup {
   $sqlPath = Join-Path $backupDir $sqlFileName
 
   if ($OdsTemplateSqlFolder) {
+    $folderSql = Join-Path $OdsTemplateSqlFolder $sqlFileName
+    if (-not (Test-Path $folderSql)) {
+      throw "-OdsTemplateSqlFolder '$OdsTemplateSqlFolder' does not contain $sqlFileName. It must hold both EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql."
+    }
     Write-Host "Using ODS $TemplateType Template from -OdsTemplateSqlFolder, skipping download." -ForegroundColor Cyan
     return
   }
@@ -148,16 +152,19 @@ function Get-OdsTemplateBackup {
   $source = "$OdsDataStandard/$OdsTemplateVersion"
   if (Test-Path $sqlPath) {
     if (-not $odsTemplateExplicit) {
-      Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
-      if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -ne $source)) {
-        Write-Warning "The cached ODS $TemplateType Template ($((Get-Content -Path $sourcePath -Raw).Trim())) differs from the default ($source). Pass -OdsDataStandard / -OdsTemplateVersion explicitly to replace it, or the stack may mix Data Standards."
+      if (Test-Path $sourcePath) {
+        Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
+        $cachedSource = (Get-Content -Path $sourcePath -Raw).Trim()
+        if ($cachedSource -ne $source) {
+          Write-Warning "The cached ODS $TemplateType Template ($cachedSource) differs from the default ($source). Pass -OdsDataStandard / -OdsTemplateVersion explicitly to replace it, or the stack may mix Data Standards."
+        }
+        return
       }
-      if (-not (Test-Path $sourcePath)) {
-        Write-Warning "The cached ODS $TemplateType Template has no .source marker, so its Data Standard is unknown (templates cached by older runners are Data Standard 4). The certification E2E needs Data Standard 5; delete $sqlPath, or pass -OdsDataStandard / -OdsTemplateVersion explicitly, to download the expected one."
-      }
-      return
+      # No .source marker: the file was cached by an older runner, which always downloaded Data
+      # Standard 4. Reusing it would run the Data Standard 5 image against a Data Standard 4 database.
+      Write-Warning "The cached ODS $TemplateType Template has no .source marker (older runners cached Data Standard 4); downloading $source to replace it."
     }
-    if ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
+    elseif ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
       Write-Host "ODS $TemplateType Template backup ($source) already present, skipping download." -ForegroundColor Cyan
       return
     }
@@ -210,6 +217,32 @@ Get-OdsPopulatedTemplateBackup
 
 . (Join-Path $repoRoot 'eng/helpers/env-secrets.ps1')
 
+function Get-EnvFileValue {
+  param([string]$EnvPath, [string]$Key)
+  $line = Select-String -Path $EnvPath -Pattern "^\s*$Key\s*=\s*['""]?(\w+)" | Select-Object -Last 1
+  if ($line) { $line.Matches.Groups[1].Value } else { $null }
+}
+
+# Warns about settings of an existing compose/.env that the certification E2E needs. The generated
+# compose/.env sets them, but a retained one (-KeepEnvFile) or one reused from an older runner does not.
+function Test-CertificationEnvSettings {
+  param([string]$EnvPath, [string]$Reason)
+
+  $expected = [ordered]@{
+    'CERT_ENABLED'                    = @{ Value = 'true'; Effect = 'the certification run cannot start' }
+    'VITE_SHOW_REQUEST_CERTIFICATION' = @{ Value = 'true'; Effect = 'the My products link is hidden' }
+    'TPDM_ENABLED'                    = @{ Value = 'false'; Effect = 'school updates fail with 500 on the Data Standard 5.2 templates' }
+  }
+  foreach ($key in $expected.Keys) {
+    if ((Get-EnvFileValue -EnvPath $EnvPath -Key $key) -ne $expected[$key].Value) {
+      Write-Warning "$key is not $($expected[$key].Value) in the existing compose/.env ($Reason): $($expected[$key].Effect). Set $key=$($expected[$key].Value) there, or remove compose/.env to regenerate it."
+    }
+  }
+  if ($OdsApiTag -or $OdsTemplateSqlFolder) {
+    Write-Warning "-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env ($Reason). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself."
+  }
+}
+
 function Set-AdminAppEnvFile {
   param(
     [ValidateSet('pgsql', 'mssql')]
@@ -236,17 +269,7 @@ function Set-AdminAppEnvFile {
       # Keycloak bootstrap, so mirror the retained value (as the generated-env branch does).
       $env:MSSQL_SA_PASSWORD = $script:mssqlSaPassword
     }
-    $certLine = Select-String -Path $envPath -Pattern '^\s*CERT_ENABLED\s*=\s*[''"]?(\w+)' | Select-Object -Last 1
-    if (-not $certLine -or $certLine.Matches.Groups[1].Value -ne 'true') {
-      Write-Warning 'CERT_ENABLED is not true in the existing compose/.env (-KeepEnvFile); the certification feature will fail until it is.'
-    }
-    $tpdmLine = Select-String -Path $envPath -Pattern '^\s*TPDM_ENABLED\s*=\s*[''"]?(\w+)' | Select-Object -Last 1
-    if (-not $tpdmLine -or $tpdmLine.Matches.Groups[1].Value -ne 'false') {
-      Write-Warning 'TPDM_ENABLED is not false in the existing compose/.env (-KeepEnvFile); the certification feature fails to change schools until it is.'
-    }
-    if ($OdsApiTag -or $OdsTemplateSqlFolder) {
-      Write-Warning '-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env (-KeepEnvFile). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself.'
-    }
+    Test-CertificationEnvSettings -EnvPath $envPath -Reason '-KeepEnvFile'
     Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
     return
   }
@@ -277,6 +300,7 @@ function Set-AdminAppEnvFile {
       $env:MSSQL_SA_PASSWORD = $mssqlPassword
       $script:mssqlSaPassword = $mssqlPassword
     }
+    Test-CertificationEnvSettings -EnvPath $envPath -Reason 'reused as is'
     Write-Host 'Reusing compose/.env without changing secrets or local settings.' -ForegroundColor Cyan
     return
   }
@@ -304,9 +328,8 @@ function Set-AdminAppEnvFile {
   $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
 
   # Each rewrite must match exactly one line, like the MSSQL rewrites below.
-  # The certification feature needs the certification runtime, which is off by default.
-  # The populated templates have no TPDM tables, so writing a school fails while the TPDM plugin is loaded.
-  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true'; 'TPDM_ENABLED' = 'false' }
+  # The certification feature needs the certification runtime and its UI, which are off by default.
+  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true'; 'VITE_SHOW_REQUEST_CERTIFICATION' = 'true' }
   if ($OdsApiTag) { $rewrites['ODS_API_TAG_7X'] = $OdsApiTag }
   if ($OdsTemplateSqlFolder) { $rewrites['SQL_BACKUPS_FOLDER'] = (Resolve-Path -Path $OdsTemplateSqlFolder).Path }
   foreach ($key in $rewrites.Keys) {
@@ -491,10 +514,20 @@ try {
 
   Push-Location $repoRoot
   try {
-    if ($PSBoundParameters.ContainsKey('OdsDataStandard')) {
-      # playwright.config.ts skips the certification feature unless this is Data Standard 5.
-      $env:E2E_ODS_DATA_STANDARD = $OdsDataStandard
+    # playwright.config.ts skips the certification feature unless this is Data Standard 5.
+    $e2eDataStandard = if ($PSBoundParameters.ContainsKey('OdsDataStandard')) {
+      $OdsDataStandard
+    } elseif ($OdsTemplateSqlFolder) {
+      # A folder of templates tagged by this runner carries its Data Standard in the .source marker.
+      $folderMarker = Join-Path $OdsTemplateSqlFolder 'EdFi.Ods.Populated.Template.sql.source'
+      if (Test-Path $folderMarker) {
+        ((Get-Content -Path $folderMarker -Raw).Trim() -split '/')[0]
+      } else {
+        Write-Warning '-OdsTemplateSqlFolder has no .source marker, so its Data Standard is unknown and the certification E2E runs. Set E2E_SKIP_CERTIFICATION=1 if the templates are not Data Standard 5.'
+        $null
+      }
     }
+    if ($e2eDataStandard) { $env:E2E_ODS_DATA_STANDARD = $e2eDataStandard }
     if ($SkipV1) {
       # playwright.config.ts applies the @v1 exclusion per project through E2E_SKIP_V1,
       # because --grep-invert is ignored by projects that run as dependencies of others.

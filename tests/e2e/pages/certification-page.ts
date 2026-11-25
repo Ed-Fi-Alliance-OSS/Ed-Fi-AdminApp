@@ -85,13 +85,51 @@ class CertificationPage {
       return
     }
 
-    // Reuse the run that is already open.
+    // Reuse the run that is already open, on the card of this environment.
     await this.modal.getByRole('button', { name: 'Cancel' }).click()
-    await this.page
-      .getByRole('link', { name: /^Open .+ run on .+/ })
-      .first()
-      .click()
+    await this.openRunLinks(environmentName).first().click()
     await expect(this.page).toHaveURL(/\/certification\/.*runs?\//, { timeout: UI_RENDER_TIMEOUT_MS })
+  }
+
+  /**
+   * The links into the open runs on the data store cards of `environmentName` (My products). A card
+   * is the nearest ancestor of the environment's `<code>` label that holds run links.
+   */
+  private openRunLinks(environmentName: string): Locator {
+    const literal = environmentName.includes("'") ? `"${environmentName}"` : `'${environmentName}'`
+    return this.page
+      .locator(
+        `xpath=//code[contains(normalize-space(), ${literal})]/ancestor::div[.//a[starts-with(@aria-label, 'Open ')]][1]`,
+      )
+      .getByRole('link', { name: /^Open .+ run on .+/ })
+  }
+
+  /**
+   * The cells of a column of the first table, found by its header text, so that reordering the
+   * columns does not make the test read the wrong one.
+   */
+  private async columnCells(header: string): Promise<Locator> {
+    return this.tableRows.locator(`td:nth-child(${await this.columnPosition(header)})`)
+  }
+
+  /**
+   * The 1-based position of the column whose header text is `header`. The page can still show the
+   * previous page's table for a moment after a navigation, so wait until the header appears.
+   */
+  private async columnPosition(header: string): Promise<number> {
+    const wanted = header.toLowerCase()
+    let headers: string[] = []
+    const positionOf = async () => {
+      headers = await this.page.getByRole('table').first().locator('thead th').allInnerTexts()
+      // Chakra renders the headers uppercase (text-transform), and innerText returns them that way.
+      return headers.map((text) => text.trim().toLowerCase()).indexOf(wanted)
+    }
+    try {
+      await expect.poll(positionOf, { timeout: API_FETCH_TIMEOUT_MS }).toBeGreaterThanOrEqual(0)
+    } catch {
+      throw new Error(`No "${header}" column; the table has: ${headers.join(', ')}`)
+    }
+    return (await positionOf()) + 1
   }
 
   async scenarioNames(): Promise<string[]> {
@@ -101,7 +139,7 @@ class CertificationPage {
     await expect(this.tableRows.first().getByRole('button', { name: 'Open Scenario' })).toBeVisible({
       timeout: API_FETCH_TIMEOUT_MS,
     })
-    return this.tableRows.locator('td:nth-child(2)').allInnerTexts()
+    return (await this.columnCells('Scenario')).allInnerTexts()
   }
 
   async openScenario(name: string) {
@@ -123,7 +161,7 @@ class CertificationPage {
     await expect
       .poll(
         async () => {
-          const current = await this.tableRows.locator('td:nth-child(1)').allInnerTexts()
+          const current = await (await this.columnCells('Step')).allInnerTexts()
           const stable = current.length > 0 && current.join('|') === previous.join('|')
           previous = current
           return stable
@@ -186,11 +224,12 @@ class CertificationPage {
     const row = this.tableRows.filter({
       has: this.page.getByRole('cell', { name, exact: true }),
     })
-    return (await row.locator('td:nth-child(3)').innerText()).trim()
+    const status = row.locator(`td:nth-child(${await this.columnPosition('Status')})`)
+    return (await status.innerText()).trim()
   }
 
   async stepStatus(index: number): Promise<string> {
-    const text = await this.tableRows.nth(index).locator('td:nth-child(2)').innerText()
+    const text = await (await this.columnCells('Status')).nth(index).innerText()
     return text.trim()
   }
 

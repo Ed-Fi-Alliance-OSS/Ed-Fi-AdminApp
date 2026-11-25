@@ -86,7 +86,8 @@ run on the new stack to confirm the risk of A does not materialise.
   The exact parameter names and whether the override is one parameter or two are left to the builder, but
   the defaults must work with no arguments. The cached file name under `compose/db-backup/` must make the
   Data Standard visible or the cache must be invalidated when parameters change, so a stale 4.0 file is
-  never silently reused (this is a real risk: the script skips the download when the file exists, and the
+  never silently reused (a cached file with no `.source` marker came from the old runner, so it is Data Standard 4 and
+  is downloaded again; this is a real risk: the script skips the download when the file exists, and the
   ODS volume is only initialised once, so existing developer volumes need a documented reset).
 - The ODS image digest is also exposed as a script parameter that writes `ODS_API_TAG_7X` into the
   generated `compose/.env` (the script regenerates it from `.env.example`). Default: the value in
@@ -316,7 +317,8 @@ own system. The test must do it.
 2. In `certification.steps.ts`, steps 3 and 4 are preceded by the change: school `255901001`
    `streetNumberName` to `<original> <suffix>`, school `255901044` `postalCode` to a 5-digit value derived
    from the run suffix and different from the current one. The suffix is generated once per run. The step list
-   is mapped by index to keep the existing loop (`UPDATE` steps 3 and 4 know their school and field).
+   is mapped to the `UPDATE` steps, recognised by name and taken in order (review: not by absolute position), to keep
+   the existing loop; the test fails listing the step names if it does not find two.
 3. Assertions tightened: all four steps `Successful` (replaces "report a result"); the step execution POST
    must answer `ok`; the scenario and the run show their completed state, if the UI exposes one (the builder
    checks which label and records it).

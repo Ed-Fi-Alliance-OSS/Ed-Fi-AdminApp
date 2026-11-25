@@ -467,6 +467,10 @@ example:
 > (`vol-odsV7-adminV2-*` and `vol-odsV7-adminV3-*`) and any stale `.sql` file in
 > `SQL_BACKUPS_FOLDER`, otherwise the stack silently stays on the old Data
 > Standard.
+>
+> `TPDM_ENABLED` is `false` in `compose/.env.example` because the Data Standard 5.2
+> templates have no TPDM tables (writes to TPDM-extended resources such as schools
+> fail with 500). Set it to `true` only with templates that include them.
 
 Set the following environment variables:
 

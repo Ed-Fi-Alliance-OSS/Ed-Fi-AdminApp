@@ -36,7 +36,7 @@ const odsDataStandardMajor = process.env.E2E_ODS_DATA_STANDARD?.split('.')[0]
 const skipCertification =
   process.env.E2E_SKIP_CERTIFICATION === '1' ||
   (odsDataStandardMajor !== undefined && odsDataStandardMajor !== '' && odsDataStandardMajor !== '5')
-const skipCertificationIgnore = skipCertification ? { testIgnore: /certification.feature.spec.js/ } : {}
+const skipCertificationIgnore = skipCertification ? { testIgnore: /certification\.feature\.spec\.js/ } : {}
 
 export default defineConfig({
   testDir,
@@ -149,7 +149,7 @@ export default defineConfig({
       // a trace would record the ODS secret typed into the form.
       name: 'chromium-certification',
       dependencies: ['chromium-environmentv2andApi'],
-      testMatch: /certification.feature.spec.js/,
+      testMatch: /certification\.feature\.spec\.js/,
       ...skipCertificationIgnore,
       timeout: 300000,
       use: {
@@ -163,7 +163,10 @@ export default defineConfig({
       // change and delete ownerships through the first row of the global ownerships
       // table, which includes the ApiTest ownership the other project depends on
       // (running them together left ApiTest without its environment or privileges). It also
-      // waits for `chromium-certification`, which uses that ApiTest ownership.
+      // waits for `chromium-certification`, which uses that ApiTest ownership. Playwright skips the
+      // dependents of a project that fails, so a certification failure (the Bruno runtime download, the
+      // Admin API `/connect/register` rate limiter, the step order of the catalog) also skips this project
+      // and `chromium-sync-queue`: look at certification first when all three are missing.
       name: 'chromium-ownerships',
       dependencies: ['chromium-certification'],
       testMatch: /ownerships\.feature\.spec\.js/,
