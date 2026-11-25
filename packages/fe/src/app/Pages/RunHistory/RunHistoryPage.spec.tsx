@@ -27,6 +27,33 @@ jest.mock('../../routes/paths', () => ({
 
 jest.mock('@edanalytics/common-ui', () => ({
   PageContentCard: ({ children }: { children: React.ReactNode }) => <section>{children}</section>,
+  SbaaTableAllInOne: ({
+    data,
+    columns,
+  }: {
+    data: Record<string, unknown>[];
+    columns: {
+      accessorKey?: string;
+      id?: string;
+      cell?: (info: { row: { original: Record<string, unknown> } }) => React.ReactNode;
+    }[];
+  }) => (
+    <table>
+      <tbody>
+        {data.map((original) => (
+          <tr key={String(original.id)}>
+            {columns.map((column) => (
+              <td key={column.accessorKey ?? column.id}>
+                {column.cell
+                  ? column.cell({ row: { original } })
+                  : String(original[column.accessorKey as string])}
+              </td>
+            ))}
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  ),
   PageTemplate: ({ title, children }: { title?: React.ReactNode; children?: React.ReactNode }) => (
     <div>
       <h1>{title}</h1>
@@ -111,14 +138,16 @@ describe('RunHistoryPage', () => {
     });
     render(<RunHistoryPage />);
 
-    const rows = screen.getAllByRole('row').slice(1);
+    const rows = screen.getAllByRole('row');
     expect(rows).toHaveLength(2);
     expect(rows[0].textContent).toContain('Env 1 · tenant1 · EdFi_Ods_1');
     expect(rows[0].textContent).toContain('SIS');
     expect(rows[0].textContent).toContain('Approved');
     expect(rows[0].textContent).toContain('12 / 30 scenarios completed');
     expect(rows[1].textContent).toContain('Changes requested');
-    expect(screen.getAllByRole('progressbar')[0].getAttribute('aria-valuenow')).toBe('40');
+    const bar = screen.getAllByRole('progressbar')[0];
+    expect(bar.getAttribute('aria-valuenow')).toBe('40');
+    expect(bar.getAttribute('aria-label')).toBe('12 / 30 scenarios completed');
   });
 
   it('renders 0 / 0 with an empty bar for a run without scenarios', () => {
@@ -131,6 +160,13 @@ describe('RunHistoryPage', () => {
     expect(screen.getByText('0 / 0 scenarios completed')).toBeTruthy();
     expect(screen.getByRole('progressbar').getAttribute('aria-valuenow')).toBe('0');
     expect(document.body.textContent).not.toContain('NaN');
+  });
+
+  it('formats Started like Last updated on the dashboard', () => {
+    render(<RunHistoryPage />);
+    expect(document.body.textContent).toContain(
+      new Date('2026-09-07T13:00:00.000Z').toLocaleString(),
+    );
   });
 
   it('links Open to the run Scenarios page', () => {

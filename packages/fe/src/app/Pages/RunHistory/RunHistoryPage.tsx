@@ -1,35 +1,99 @@
+import { Box, Button, Progress, Spinner, Text } from '@chakra-ui/react';
 import {
-  Box,
-  Link,
-  Progress,
-  Spinner,
-  Table,
-  TableContainer,
-  Tbody,
-  Td,
-  Text,
-  Th,
-  Thead,
-  Tr,
-} from '@chakra-ui/react';
-import { PageContentCard, PageTemplate } from '@edanalytics/common-ui';
-import { CERT_RUN_STATUS_LABELS } from '@edanalytics/models';
+  PageContentCard,
+  PageTemplate,
+  SbaaColumnDef,
+  SbaaTableAllInOne,
+} from '@edanalytics/common-ui';
+import { CERT_RUN_STATUS_LABELS, CertificationRunHistoryRowDto } from '@edanalytics/models';
+import { useMemo } from 'react';
 import { Link as RouterLink, useParams } from 'react-router';
 import { certificationRunPath } from '../../routes/paths';
 import { useCanSeeCertification } from '../MyProducts/useCanSeeCertification';
 import { useTeamRunHistory } from './useTeamRunHistory';
 
+type RunHistoryTableRow = CertificationRunHistoryRowDto & { id: number; dataStore: string };
+
 /** A run without scenarios (no catalog) has nothing to complete: an empty bar, not NaN. */
 const percentComplete = (completed: number, total: number) =>
   total > 0 ? Math.round((completed / total) * 100) : 0;
 
-/** Every run the team started, newest first, with scenario progress and a link to open it. */
+const progressLabel = (run: CertificationRunHistoryRowDto) =>
+  `${run.completedScenarios} / ${run.totalScenarios} scenarios completed`;
+
+/** Every run the team started, newest first, with scenario progress and a button to open it. */
 export const RunHistoryPage = () => {
   const { asId } = useParams();
   const teamId = Number(asId);
   const { canSee, isLoading, error } = useCanSeeCertification(teamId);
   // Called before the early returns below; it only fetches once the user is known to have access.
   const history = useTeamRunHistory(teamId, canSee);
+
+  // The table needs an `id` per row; the API list is already newest first and the table is
+  // paginated here, in the browser, like Vendors and Applications.
+  const rows = useMemo<RunHistoryTableRow[]>(
+    () =>
+      (history.data ?? []).map((run) => ({
+        ...run,
+        id: run.runId,
+        dataStore: `${run.environmentName} · ${run.tenantName} · ${run.dataStoreName}`,
+      })),
+    [history.data],
+  );
+
+  const columns = useMemo<SbaaColumnDef<RunHistoryTableRow>[]>(
+    () => [
+      { accessorKey: 'dataStore', header: 'Data store' },
+      { accessorKey: 'certificationModel', header: 'Model' },
+      {
+        accessorKey: 'status',
+        header: 'Status',
+        cell: ({ row }) => CERT_RUN_STATUS_LABELS[row.original.status],
+      },
+      {
+        accessorKey: 'completedScenarios',
+        header: 'Progress',
+        cell: ({ row }) => (
+          <Box minW="160px">
+            <Progress
+              size="sm"
+              borderRadius="full"
+              colorScheme="green"
+              aria-label={progressLabel(row.original)}
+              value={percentComplete(row.original.completedScenarios, row.original.totalScenarios)}
+            />
+            <Text fontSize="sm" color="gray.600" mt={1}>
+              {progressLabel(row.original)}
+            </Text>
+          </Box>
+        ),
+      },
+      {
+        accessorKey: 'createdAt',
+        header: 'Started',
+        // Same format as Last updated on the certification dashboard.
+        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+      },
+      {
+        id: 'open',
+        header: '',
+        enableSorting: false,
+        cell: ({ row }) => (
+          <Button
+            as={RouterLink}
+            to={certificationRunPath(teamId, row.original.runId)}
+            size="sm"
+            variant="outline"
+            colorScheme="primary"
+            aria-label={`Open ${row.original.certificationModel} run on ${row.original.dataStoreName}`}
+          >
+            Open
+          </Button>
+        ),
+      },
+    ],
+    [teamId],
+  );
 
   if (isLoading) {
     return (
@@ -62,60 +126,13 @@ export const RunHistoryPage = () => {
     );
   }
 
-  const runs = history.data;
-
   return (
     <PageTemplate title="Run history" customPageContentCard>
       <PageContentCard>
-        {runs.length === 0 ? (
+        {rows.length === 0 ? (
           <Text color="gray.600">No certification runs yet.</Text>
         ) : (
-          <TableContainer>
-            <Table size="sm">
-              <Thead>
-                <Tr>
-                  <Th>Data store</Th>
-                  <Th>Model</Th>
-                  <Th>Status</Th>
-                  <Th>Progress</Th>
-                  <Th>Started</Th>
-                  <Th />
-                </Tr>
-              </Thead>
-              <Tbody>
-                {runs.map((run) => (
-                  <Tr key={run.runId}>
-                    <Td>{`${run.environmentName} · ${run.tenantName} · ${run.dataStoreName}`}</Td>
-                    <Td>{run.certificationModel}</Td>
-                    <Td>{CERT_RUN_STATUS_LABELS[run.status]}</Td>
-                    <Td>
-                      <Box minW="160px">
-                        <Progress
-                          size="sm"
-                          borderRadius="full"
-                          colorScheme="green"
-                          value={percentComplete(run.completedScenarios, run.totalScenarios)}
-                        />
-                        <Text fontSize="sm" color="gray.600" mt={1}>
-                          {`${run.completedScenarios} / ${run.totalScenarios} scenarios completed`}
-                        </Text>
-                      </Box>
-                    </Td>
-                    <Td>{new Date(run.createdAt).toLocaleDateString()}</Td>
-                    <Td>
-                      <Link
-                        as={RouterLink}
-                        to={certificationRunPath(teamId, run.runId)}
-                        aria-label={`Open ${run.certificationModel} run on ${run.dataStoreName}`}
-                      >
-                        Open
-                      </Link>
-                    </Td>
-                  </Tr>
-                ))}
-              </Tbody>
-            </Table>
-          </TableContainer>
+          <SbaaTableAllInOne data={rows} columns={columns} />
         )}
       </PageContentCard>
     </PageTemplate>

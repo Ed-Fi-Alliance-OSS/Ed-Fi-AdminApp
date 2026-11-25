@@ -217,8 +217,7 @@ export class CertificationRunsService {
     }
 
     const where = openRunWhere(edfiTenant.id, odsId, certificationModel);
-    const alreadyOpen = () =>
-      new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
+    const alreadyOpen = () => new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
     if (await this.runRepository.findOne({ where })) throw alreadyOpen();
 
     let created: CertificationRun;
