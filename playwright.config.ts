@@ -27,6 +27,17 @@ const cliInvertsV1 = process.argv.some((arg, index) => {
 const skipV1 = process.env.E2E_SKIP_V1 === '1' || cliInvertsV1
 const skipV1Grep = skipV1 ? { grepInvert: /@v1/ } : {}
 
+// The certification feature needs Data Standard 5: the request modal does not list environments
+// below it, and the certification scenarios target Data Standard 5. E2E_ODS_DATA_STANDARD (set by
+// run-e2e-ui.ps1 from -OdsDataStandard, for example '6.1.0') or E2E_SKIP_CERTIFICATION=1 leaves the
+// certification project without tests. The project stays in the graph, so the projects that depend
+// on it still run.
+const odsDataStandardMajor = process.env.E2E_ODS_DATA_STANDARD?.split('.')[0]
+const skipCertification =
+  process.env.E2E_SKIP_CERTIFICATION === '1' ||
+  (odsDataStandardMajor !== undefined && odsDataStandardMajor !== '' && odsDataStandardMajor !== '5')
+const skipCertificationIgnore = skipCertification ? { testIgnore: /certification\.feature\.spec\.js/ } : {}
+
 export default defineConfig({
   testDir,
   timeout: 120000,
@@ -130,12 +141,34 @@ export default defineConfig({
       }
     },
     {
+      // Vendor certification happy path. It needs the FullSingleEnvironmentv2 environment and the
+      // ApiTest team that the two projects above create and sync, and it creates its own ODS
+      // credentials through the Admin API. The run waits on the Admin API rate limiter and then
+      // executes scenario steps against the ODS, hence the longer timeout (two credential creations
+      // can each wait up to two minutes on the rate limiter). Tracing stays off:
+      // a trace would record the ODS secret typed into the form.
+      name: 'chromium-certification',
+      dependencies: ['chromium-environmentv2andApi'],
+      testMatch: /certification\.feature\.spec\.js/,
+      ...skipCertificationIgnore,
+      timeout: 300000,
+      use: {
+        ...devices['Desktop Chrome'],
+        storageState: 'playwright/.auth/user.json',
+        trace: 'off',
+      }
+    },
+    {
       // Must run after `chromium-environmentv2andApi`, not alongside it: these specs
       // change and delete ownerships through the first row of the global ownerships
       // table, which includes the ApiTest ownership the other project depends on
-      // (running them together left ApiTest without its environment or privileges).
+      // (running them together left ApiTest without its environment or privileges). It also
+      // waits for `chromium-certification`, which uses that ApiTest ownership. Playwright skips the
+      // dependents of a project that fails, so a certification failure (the Bruno runtime download, the
+      // Admin API `/connect/register` rate limiter, the step order of the catalog) also skips this project
+      // and `chromium-sync-queue`: look at certification first when all three are missing.
       name: 'chromium-ownerships',
-      dependencies: ['chromium-environmentv2andApi'],
+      dependencies: ['chromium-certification'],
       testMatch: /ownerships\.feature\.spec\.js/,
       use: {
         ...devices['Desktop Chrome'],
@@ -199,6 +232,7 @@ export default defineConfig({
       name: 'chromium-sync-queue',
       dependencies: [
         'chromium-environmentv2andApi',
+        'chromium-certification',
         'chromium-ownerships',
         'chromium-users',
         'chromium-roles',
