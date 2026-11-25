@@ -30,6 +30,26 @@ scenarios tagged @v1 are excluded from the Playwright run. Reduces image pulls a
 Use the existing compose/.env as-is instead of regenerating it from compose/.env.example.
 Fails if compose/.env does not exist or its DB_ENGINE does not match -DbEngine.
 
+.PARAMETER OdsDataStandard
+Data Standard of the ODS template packages to download (package EdFi.Suite3.Ods.<Minimal|Populated>.Template.PostgreSQL.Standard.<value>).
+Defaults to '5.2.0', matching the default ODS image in compose/.env.example. Templates already present in
+compose/db-backup are used as they are unless this parameter or -OdsTemplateVersion is passed, so a stack
+prepared with another Data Standard keeps them. For another Data Standard image pass the matching
+templates (for example '4.0.0' with -OdsTemplateVersion '7.3.20068') and -OdsApiTag. When this parameter is passed and its major
+version is not 5, the certification E2E feature is skipped (it needs Data Standard 5); the other suites still run. Existing ODS volumes keep their old Data Standard: remove
+vol-odsV7-adminV2-* and vol-odsV7-adminV3-* after changing the standard.
+
+.PARAMETER OdsTemplateVersion
+NuGet package version of the ODS templates. Defaults to '7.3.20057' (Data Standard 5.2.0).
+
+.PARAMETER OdsTemplateSqlFolder
+Optional folder holding EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql. When set, nothing is downloaded
+and SQL_BACKUPS_FOLDER in the generated compose/.env points to it (not applied with -KeepEnvFile).
+
+.PARAMETER OdsApiTag
+Optional ODS/API image tag (for example 'v7.3.2@sha256:...'). When set, it is written to ODS_API_TAG_7X in the generated
+compose/.env (not applied with -KeepEnvFile).
+
 .PARAMETER ServiceStartTimeoutMinutes
 Maximum minutes to wait for 'docker compose pull' and 'docker compose up' (each) before
 aborting. Defaults to 20.
@@ -48,10 +68,17 @@ param(
   [switch]$StopServices,
   [switch]$SkipV1,
   [switch]$KeepEnvFile,
+  [string]$OdsDataStandard = '5.2.0',
+  [string]$OdsTemplateVersion = '7.3.20057',
+  [string]$OdsTemplateSqlFolder,
+  [string]$OdsApiTag,
   [int]$ServiceStartTimeoutMinutes = 20
 )
 
 $ErrorActionPreference = 'Stop'
+
+# Template files already in compose/db-backup are respected unless a template parameter is passed explicitly.
+$odsTemplateExplicit = $PSBoundParameters.ContainsKey('OdsDataStandard') -or $PSBoundParameters.ContainsKey('OdsTemplateVersion')
 
 if ($PSVersionTable.PSVersion.Major -lt 6) {
   Write-Host "ERROR! This script requires PowerShell 7+ (pwsh). You are running PowerShell $($PSVersionTable.PSVersion) ($($PSVersionTable.PSEdition))." -ForegroundColor Red
@@ -112,13 +139,39 @@ function Get-OdsTemplateBackup {
   $sqlFileName = "EdFi.Ods.$TemplateType.Template.sql"
   $sqlPath = Join-Path $backupDir $sqlFileName
 
-  if (Test-Path $sqlPath) {
-    Write-Host "ODS $TemplateType Template backup already present, skipping download." -ForegroundColor Cyan
+  if ($OdsTemplateSqlFolder) {
+    $folderSql = Join-Path $OdsTemplateSqlFolder $sqlFileName
+    if (-not (Test-Path $folderSql)) {
+      throw "-OdsTemplateSqlFolder '$OdsTemplateSqlFolder' does not contain $sqlFileName. It must hold both EdFi.Ods.Minimal.Template.sql and EdFi.Ods.Populated.Template.sql."
+    }
+    Write-Host "Using ODS $TemplateType Template from -OdsTemplateSqlFolder, skipping download." -ForegroundColor Cyan
     return
   }
 
-  $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.4.0.0"
-  $packageVersion = '7.3.20068'
+  $sourcePath = "$sqlPath.source"
+  $source = "$OdsDataStandard/$OdsTemplateVersion"
+  if (Test-Path $sqlPath) {
+    if (-not $odsTemplateExplicit) {
+      if (Test-Path $sourcePath) {
+        Write-Host "ODS $TemplateType Template backup already present, using it as is (pass -OdsDataStandard / -OdsTemplateVersion to replace it)." -ForegroundColor Cyan
+        $cachedSource = (Get-Content -Path $sourcePath -Raw).Trim()
+        if ($cachedSource -ne $source) {
+          Write-Warning "The cached ODS $TemplateType Template ($cachedSource) differs from the default ($source). Pass -OdsDataStandard / -OdsTemplateVersion explicitly to replace it, or the stack may mix Data Standards."
+        }
+        return
+      }
+      # No .source marker: the file was cached by an older runner, which always downloaded Data
+      # Standard 4. Reusing it would run the Data Standard 5 image against a Data Standard 4 database.
+      Write-Warning "The cached ODS $TemplateType Template has no .source marker (older runners cached Data Standard 4); downloading $source to replace it."
+    }
+    elseif ((Test-Path $sourcePath) -and ((Get-Content -Path $sourcePath -Raw).Trim() -eq $source)) {
+      Write-Host "ODS $TemplateType Template backup ($source) already present, skipping download." -ForegroundColor Cyan
+      return
+    }
+  }
+
+  $packageName = "EdFi.Suite3.Ods.$TemplateType.Template.PostgreSQL.Standard.$OdsDataStandard"
+  $packageVersion = $OdsTemplateVersion
   $feedUrl = "https://pkgs.dev.azure.com/ed-fi-alliance/Ed-Fi-Alliance-OSS/_packaging/EdFi/nuget/v3/flat2/$packageName/$packageVersion/$packageName.$packageVersion.nupkg"
 
   New-Item -ItemType Directory -Path $backupDir -Force | Out-Null
@@ -140,6 +193,7 @@ function Get-OdsTemplateBackup {
     Write-Host "Found: $($srcSql.FullName)" -ForegroundColor Cyan
 
     Copy-Item -Path $srcSql.FullName -Destination $sqlPath -Force
+    Set-Content -Path $sourcePath -Value $source -NoNewline
   }
   finally {
     Remove-Item -Path $nupkgPath, $zipPath -Force -ErrorAction SilentlyContinue
@@ -162,6 +216,32 @@ Get-OdsMinimalTemplateBackup
 Get-OdsPopulatedTemplateBackup
 
 . (Join-Path $repoRoot 'eng/helpers/env-secrets.ps1')
+
+function Get-EnvFileValue {
+  param([string]$EnvPath, [string]$Key)
+  $line = Select-String -Path $EnvPath -Pattern "^\s*$Key\s*=\s*['""]?(\w+)" | Select-Object -Last 1
+  if ($line) { $line.Matches.Groups[1].Value } else { $null }
+}
+
+# Warns about settings of an existing compose/.env that the certification E2E needs. The generated
+# compose/.env sets them, but a retained one (-KeepEnvFile) or one reused from an older runner does not.
+function Test-CertificationEnvSettings {
+  param([string]$EnvPath, [string]$Reason)
+
+  $expected = [ordered]@{
+    'CERT_ENABLED'                    = @{ Value = 'true'; Effect = 'the certification run cannot start' }
+    'VITE_SHOW_REQUEST_CERTIFICATION' = @{ Value = 'true'; Effect = 'the My products link is hidden' }
+    'TPDM_ENABLED'                    = @{ Value = 'false'; Effect = 'school updates fail with 500 on the Data Standard 5.2 templates' }
+  }
+  foreach ($key in $expected.Keys) {
+    if ((Get-EnvFileValue -EnvPath $EnvPath -Key $key) -ne $expected[$key].Value) {
+      Write-Warning "$key is not $($expected[$key].Value) in the existing compose/.env ($Reason): $($expected[$key].Effect). Set $key=$($expected[$key].Value) there, or remove compose/.env to regenerate it."
+    }
+  }
+  if ($OdsApiTag -or $OdsTemplateSqlFolder) {
+    Write-Warning "-OdsApiTag and -OdsTemplateSqlFolder are not applied to the existing compose/.env ($Reason). Edit ODS_API_TAG_7X / SQL_BACKUPS_FOLDER there yourself."
+  }
+}
 
 function Set-AdminAppEnvFile {
   param(
@@ -189,6 +269,7 @@ function Set-AdminAppEnvFile {
       # Keycloak bootstrap, so mirror the retained value (as the generated-env branch does).
       $env:MSSQL_SA_PASSWORD = $script:mssqlSaPassword
     }
+    Test-CertificationEnvSettings -EnvPath $envPath -Reason '-KeepEnvFile'
     Write-Host 'Keeping existing compose/.env (-KeepEnvFile); not regenerating it.' -ForegroundColor Cyan
     return
   }
@@ -219,6 +300,7 @@ function Set-AdminAppEnvFile {
       $env:MSSQL_SA_PASSWORD = $mssqlPassword
       $script:mssqlSaPassword = $mssqlPassword
     }
+    Test-CertificationEnvSettings -EnvPath $envPath -Reason 'reused as is'
     Write-Host 'Reusing compose/.env without changing secrets or local settings.' -ForegroundColor Cyan
     return
   }
@@ -244,8 +326,21 @@ function Set-AdminAppEnvFile {
     throw "compose/.env.example must contain exactly one EDFI_ODS_DATASET entry; found $($datasetLines.Count)."
   }
   $content = $content -replace '^EDFI_ODS_DATASET=.*$', 'EDFI_ODS_DATASET=populated'
-  Set-Content -Path $envPath -Value $content
 
+  # Each rewrite must match exactly one line, like the MSSQL rewrites below.
+  # The certification feature needs the certification runtime and its UI, which are off by default.
+  $rewrites = [ordered]@{ 'CERT_ENABLED' = 'true'; 'VITE_SHOW_REQUEST_CERTIFICATION' = 'true' }
+  if ($OdsApiTag) { $rewrites['ODS_API_TAG_7X'] = $OdsApiTag }
+  if ($OdsTemplateSqlFolder) { $rewrites['SQL_BACKUPS_FOLDER'] = (Resolve-Path -Path $OdsTemplateSqlFolder).Path }
+  foreach ($key in $rewrites.Keys) {
+    $matched = @($content | Where-Object { $_ -match "^$key=" })
+    if ($matched.Count -ne 1) {
+      throw "compose/.env.example must contain exactly one active $key entry; found $($matched.Count)."
+    }
+    $value = $rewrites[$key]
+    $content = $content | ForEach-Object { if ($_ -match "^$key=") { "$key=$value" } else { $_ } }
+  }
+  Set-Content -Path $envPath -Value $content
   if ($Engine -ne 'mssql') {
     return
   }
@@ -419,6 +514,20 @@ try {
 
   Push-Location $repoRoot
   try {
+    # playwright.config.ts skips the certification feature unless this is Data Standard 5.
+    $e2eDataStandard = if ($PSBoundParameters.ContainsKey('OdsDataStandard')) {
+      $OdsDataStandard
+    } elseif ($OdsTemplateSqlFolder) {
+      # A folder of templates tagged by this runner carries its Data Standard in the .source marker.
+      $folderMarker = Join-Path $OdsTemplateSqlFolder 'EdFi.Ods.Populated.Template.sql.source'
+      if (Test-Path $folderMarker) {
+        ((Get-Content -Path $folderMarker -Raw).Trim() -split '/')[0]
+      } else {
+        Write-Warning '-OdsTemplateSqlFolder has no .source marker, so its Data Standard is unknown and the certification E2E runs. Set E2E_SKIP_CERTIFICATION=1 if the templates are not Data Standard 5.'
+        $null
+      }
+    }
+    if ($e2eDataStandard) { $env:E2E_ODS_DATA_STANDARD = $e2eDataStandard }
     if ($SkipV1) {
       # playwright.config.ts applies the @v1 exclusion per project through E2E_SKIP_V1,
       # because --grep-invert is ignored by projects that run as dependencies of others.
@@ -441,6 +550,7 @@ catch {
 finally {
   $env:RATE_LIMIT_LIMIT = $previousRateLimit
   Remove-Item Env:E2E_SKIP_V1 -ErrorAction SilentlyContinue
+  Remove-Item Env:E2E_ODS_DATA_STANDARD -ErrorAction SilentlyContinue
   if ($StopServices) {
     Write-Host 'Stopping Docker Compose services...' -ForegroundColor Cyan
     & (Join-Path $repoRoot 'compose/stop.ps1')
