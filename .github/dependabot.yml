@@ -46,3 +46,10 @@ updates:
       - dependency-name: '@babel/*'
         update-types:
           - 'version-update:semver-major'
+
+      # semantic-release 26+ depends on @semantic-release/core, which requires
+      # Node >=26.13. The project is pinned to Node 24 (.nvmrc), so `npm ci` fails
+      # with EBADENGINE. Revisit when .nvmrc moves to Node 26.
+      - dependency-name: 'semantic-release'
+        update-types:
+          - 'version-update:semver-major'
