@@ -725,15 +725,15 @@ describe('transitionRun', () => {
     expect(update.mock.invocationCallOrder[0]).toBeLessThan(insert.mock.invocationCallOrder[0]);
   });
 
-  it('records the system as a null user and no comment', async () => {
+  it('records no comment when the change carries none', async () => {
     await transitionRun(em as never, 7, 'READY_FOR_REVIEW', 'IN_REVIEW', {
-      actorId: null,
+      actorId: 11,
       catalogVersionId: null,
     });
     expect(insert).toHaveBeenCalledWith(
       expect.objectContaining({
         event: 'PICKED_UP',
-        userId: null,
+        userId: 11,
         catalogVersionId: null,
         certificationRunCommentId: null,
       }),

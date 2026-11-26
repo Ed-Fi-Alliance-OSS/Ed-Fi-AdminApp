@@ -145,8 +145,8 @@ const statusChange = (status: CertRunStatus, now = new Date()) => {
 
 /** Who made a status change and what it is recorded against in the run's history. */
 export type TransitionRunOptions = {
-  /** The signed-in user who made the change; null when the system did. */
-  actorId: number | null;
+  /** The signed-in user who made the change. */
+  actorId: number;
   /** The run's catalog version, kept on the history entry. */
   catalogVersionId: number | null;
   /** The reviewer's comment the change carries, if any. */
@@ -286,7 +286,7 @@ export class CertificationService {
    */
   async sendToReview(
     certificationRun: Pick<CertificationRun, 'certificationRunId' | 'status' | 'catalogVersionId'>,
-    actorId: number | null,
+    actorId: number,
   ): Promise<CertRunStatus> {
     const { certificationRunId, status: from, catalogVersionId } = certificationRun;
     const to = sendToReviewStatus(from);

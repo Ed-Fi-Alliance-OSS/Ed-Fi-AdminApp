@@ -111,13 +111,10 @@ export class CertificationController {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('runId', new ParseIntPipe()) runId: number,
     @InjectFilter(CERT_RUN) validOdsIds: Ids,
-    @ReqUser() session?: GetSessionDataDto,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     const certificationRun = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
-    const status = await this.certificationService.sendToReview(
-      certificationRun,
-      session?.id ?? null,
-    );
+    const status = await this.certificationService.sendToReview(certificationRun, session.id);
     return this.runsService.toDto({ ...certificationRun, status });
   }
 

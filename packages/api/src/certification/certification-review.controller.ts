@@ -22,8 +22,8 @@ export class CertificationReviewController {
   @Post('pick-up')
   @HttpCode(200)
   @Authorize(REVIEW)
-  pickUp(@Param('runId', ParseIntPipe) runId: number, @ReqUser() session?: GetSessionDataDto) {
-    return this.reviewService.pickUp(runId, session?.id ?? null);
+  pickUp(@Param('runId', ParseIntPipe) runId: number, @ReqUser() session: GetSessionDataDto) {
+    return this.reviewService.pickUp(runId, session.id);
   }
 
   @Get('review')
@@ -48,7 +48,7 @@ export class CertificationReviewController {
   approve(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,
-    @ReqUser() session?: GetSessionDataDto,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     return this.decide(runId, CERT_REVIEW_DECISION.APPROVED, body, session);
   }
@@ -59,7 +59,7 @@ export class CertificationReviewController {
   reject(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,
-    @ReqUser() session?: GetSessionDataDto,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     return this.decide(runId, CERT_REVIEW_DECISION.REJECTED, body, session);
   }
@@ -70,7 +70,7 @@ export class CertificationReviewController {
   requestChanges(
     @Param('runId', ParseIntPipe) runId: number,
     @Body() body: PostCertificationReviewDecisionDto,
-    @ReqUser() session?: GetSessionDataDto,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     return this.decide(runId, CERT_REVIEW_DECISION.CHANGES_REQUESTED, body, session);
   }
@@ -79,13 +79,13 @@ export class CertificationReviewController {
     runId: number,
     decision: CertReviewDecision,
     body: PostCertificationReviewDecisionDto,
-    session?: GetSessionDataDto,
+    session: GetSessionDataDto,
   ) {
     return this.reviewService.decide({
       runId,
       decision,
       comment: body.comment,
-      userId: session?.id ?? null,
+      userId: session.id,
     });
   }
 }

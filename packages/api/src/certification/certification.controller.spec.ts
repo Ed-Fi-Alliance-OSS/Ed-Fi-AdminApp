@@ -157,23 +157,12 @@ describe('CertificationController', () => {
       expect(result).toBe(dto);
     });
 
-    it('sendToReview passes the session user id, or null without a session', async () => {
-      const service = { sendToReview: jest.fn().mockResolvedValue('READY_FOR_REVIEW') };
-      const controller = make(service);
-
-      await controller.sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never);
-      await controller.sendToReview(2, edfiTenant, 7, validOdsIds, undefined);
-
-      expect(service.sendToReview).toHaveBeenNthCalledWith(1, certificationRun, 9);
-      expect(service.sendToReview).toHaveBeenNthCalledWith(2, certificationRun, null);
-    });
-
     it('is a 404 for a run outside the data stores the user may run', async () => {
       runsService.findTeamRun.mockRejectedValue(new NotFoundException());
       const service = { sendToReview: jest.fn() };
 
       await expect(
-        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(service.sendToReview).not.toHaveBeenCalled();
     });
@@ -182,7 +171,7 @@ describe('CertificationController', () => {
       const service = { sendToReview: jest.fn().mockRejectedValue(new ConflictException('no')) };
 
       await expect(
-        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 

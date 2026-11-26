@@ -38,7 +38,7 @@ export interface DecideParams {
   decision: CertReviewDecision;
   comment?: string;
   /** The signed-in reviewer, recorded as the comment's author. */
-  userId: number | null;
+  userId: number;
 }
 
 /** The status each decision moves an In review run to. */
@@ -84,7 +84,7 @@ export class CertificationReviewService {
   ) {}
 
   /** Moves a run waiting for review to In review, recorded as picked up by `userId`. */
-  async pickUp(runId: number, userId: number | null): Promise<CertificationReviewStatusDto> {
+  async pickUp(runId: number, userId: number): Promise<CertificationReviewStatusDto> {
     const run = await this.findRunStatus(runId);
     if (!CERT_REVIEW_QUEUE_STATUSES.includes(run.status)) {
       throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);

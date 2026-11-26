@@ -57,11 +57,9 @@ describe('CertificationReviewController', () => {
     expect(service.getSnapshot).toHaveBeenCalledWith(7, 3);
   });
 
-  it('pickUp passes the session user id, or null without a session', async () => {
+  it('pickUp passes the session user id', async () => {
     await controller.pickUp(7, { id: 5 } as never);
-    await controller.pickUp(8, undefined);
-    expect(service.pickUp).toHaveBeenNthCalledWith(1, 7, 5);
-    expect(service.pickUp).toHaveBeenNthCalledWith(2, 8, null);
+    expect(service.pickUp).toHaveBeenCalledWith(7, 5);
   });
 
   it('approve passes the decision, comment and session user', async () => {
@@ -90,10 +88,5 @@ describe('CertificationReviewController', () => {
       comment: 'fix',
       userId: 5,
     });
-  });
-
-  it('passes a null userId without a session', async () => {
-    await controller.approve(7, {} as never, undefined);
-    expect(service.decide).toHaveBeenCalledWith(expect.objectContaining({ userId: null }));
   });
 });

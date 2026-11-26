@@ -61,7 +61,7 @@ export class CertificationRunsController {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Body() body: PostCertificationRunDto,
     @InjectFilter(CERT_RUN) validOdsIds: Ids,
-    @ReqUser() session?: GetSessionDataDto,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     if (!checkId(body.odsId, validOdsIds)) throw new NotFoundException();
     return this.runsService.createRun({
@@ -70,7 +70,7 @@ export class CertificationRunsController {
       edfiTenant,
       odsId: body.odsId,
       certificationModel: body.certificationModel,
-      userId: session?.id ?? null,
+      userId: session.id,
     });
   }
 

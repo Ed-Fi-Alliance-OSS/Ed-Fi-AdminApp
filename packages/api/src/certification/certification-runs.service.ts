@@ -54,7 +54,7 @@ export interface CreateRunParams {
   odsId: number;
   certificationModel: CertModel;
   /** The signed-in user, recorded as the run's creator. */
-  userId: number | null;
+  userId: number;
 }
 
 export interface FindTeamRunParams {
