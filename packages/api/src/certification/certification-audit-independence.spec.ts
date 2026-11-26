@@ -67,7 +67,7 @@ describe('nothing updates or deletes a history entry', () => {
         (match) => match[1],
       );
       for (const name of names) {
-        expect(source).not.toMatch(new RegExp(String.raw`${name}\s*\.(${WRITE_METHODS})\(`));
+        expect(source).not.toMatch(new RegExp(String.raw`\b${name}\s*\.(${WRITE_METHODS})\(`));
       }
     },
   );
