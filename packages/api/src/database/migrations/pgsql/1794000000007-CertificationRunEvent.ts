@@ -8,6 +8,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  * on SQL Server the run -> comment and run -> event cascades plus an event -> comment FK would make
  * a diamond that can make deleting a reviewed run fail (see the mssql twin).
  * Entries go away only with their run (ON DELETE CASCADE).
+ * Append-only is enforced in code, not here: the ticket rules out triggers, and revoking
+ * UPDATE/DELETE from the app role would also block the cascade from the run.
  */
 export class CertificationRunEvent1794000000007 implements MigrationInterface {
   name = 'CertificationRunEvent1794000000007';

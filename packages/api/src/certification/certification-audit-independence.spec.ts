@@ -33,7 +33,10 @@ describe('the certification module never uses the audit module', () => {
 
 const WRITE_METHODS = 'update|delete|remove|softDelete|softRemove|save|upsert';
 
-/** A run's history entries are only ever inserted; the run's cascade is all that removes them. */
+/**
+ * A run's history entries are only ever inserted; the run's cascade is all that removes them.
+ * Best-effort: this matches known write spellings and can't see raw SQL or aliased repositories.
+ */
 describe('nothing updates or deletes a history entry', () => {
   const srcRoot = path.resolve(__dirname, '..');
   const files = sourceFiles(srcRoot).filter((file) =>
