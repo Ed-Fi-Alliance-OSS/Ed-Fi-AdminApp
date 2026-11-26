@@ -26,7 +26,7 @@ export const useCertificationRunEvents = (teamId: number, runId: number | undefi
       methods.getOne(
         `teams/${teamId}/certification/runs/${runId}/events`,
         CertificationRunEventPageDto,
-        { offset: pageParam, limit: CERT_RUN_EVENTS_DEFAULT_LIMIT },
+        { params: { offset: pageParam, limit: CERT_RUN_EVENTS_DEFAULT_LIMIT } },
       ),
     initialPageParam: 0,
     getNextPageParam: (lastPage, pages) => {

@@ -32,8 +32,7 @@ describe('useCertificationRunEvents', () => {
     expect(result.current.events).toEqual([]);
     await waitFor(() => expect(result.current.events).toEqual([event(1)]));
     expect(methods.getOne).toHaveBeenCalledWith(URL, CertificationRunEventPageDto, {
-      offset: 0,
-      limit: 50,
+      params: { offset: 0, limit: 50 },
     });
   });
 
@@ -51,8 +50,7 @@ describe('useCertificationRunEvents', () => {
 
     await waitFor(() => expect(result.current.events).toHaveLength(3));
     expect(methods.getOne).toHaveBeenLastCalledWith(URL, CertificationRunEventPageDto, {
-      offset: 2,
-      limit: 50,
+      params: { offset: 2, limit: 50 },
     });
   });
 
