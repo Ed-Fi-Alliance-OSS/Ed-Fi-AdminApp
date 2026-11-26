@@ -101,6 +101,7 @@ packages/
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Husky pre-commit hook**: A `husky` pre-commit hook runs `lint-staged`, which runs `eslint --max-warnings 0` on staged `.ts`/`.tsx`/`.js`/`.jsx` files. Commits with lint errors or warnings are blocked — fix them instead of bypassing the hook (`git commit --no-verify`).
 - **Prettier**: Consistent code formatting
+- **Code comments**: Default to no comments. Make the code say it: clear names, small named helpers or constants, types. Do not add JSDoc that restates a name or signature, comments that narrate what the next line does, or ticket IDs (history lives in git and the PR). Add a comment only for a non-obvious *why* that no rename or extraction can express (a hidden constraint, a driver quirk, a workaround), in one short line. If you feel the need to write a long comment, simplify the code instead, or flag it to the user.
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)
 - **REQUIRED**: Execute `npm run build` before submitting any changes and correct any build errors

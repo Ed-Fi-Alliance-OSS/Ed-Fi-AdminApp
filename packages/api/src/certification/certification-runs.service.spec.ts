@@ -74,7 +74,6 @@ describe('CertificationRunsService', () => {
 
   describe('findTeamRunHistory', () => {
     const allowAll = () => new Set([5, 6]) as never;
-    /** A query builder whose every call chains and whose getRawMany resolves `rows`. */
     const rawBuilder = (rows: object[]) => {
       const builder: Record<string, jest.Mock> = {};
       for (const method of ['innerJoin', 'select', 'addSelect', 'where', 'groupBy']) {
@@ -94,13 +93,13 @@ describe('CertificationRunsService', () => {
       runScenarioRepository.createQueryBuilder.mockReturnValue(rawBuilder(completed));
     };
 
-    it('reads the team runs that have a data store, newest first', async () => {
+    it('reads the team runs that have a data store, newest started first (ties by ID)', async () => {
       withCounts([], []);
       await service.findTeamRunHistory({ teamId: 2, validOdsIds: allowAll });
       expect(runRepository.find).toHaveBeenCalledWith({
         where: { teamId: 2, odsId: Not(IsNull()) },
         relations: { ods: true, edfiTenant: { sbEnvironment: true } },
-        order: { certificationRunId: 'DESC' },
+        order: { createdAt: 'DESC', certificationRunId: 'DESC' },
       });
     });
 

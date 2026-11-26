@@ -87,11 +87,6 @@ export class CertificationRunsController {
 export class CertificationTeamRunsController {
   constructor(private readonly runsService: CertificationRunsService) {}
 
-  /**
-   * The team's Run history (AC-701). Declared before `:runId` so it is not read as a run ID.
-   * The guard can only check team membership here; certification:read is then applied per data
-   * store and runs on unreadable ones are left out.
-   */
   @Get()
   @Authorize(TEAM_RUN_READ)
   async getRunHistory(

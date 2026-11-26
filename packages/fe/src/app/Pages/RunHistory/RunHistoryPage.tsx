@@ -14,23 +14,19 @@ import { useTeamRunHistory } from './useTeamRunHistory';
 
 type RunHistoryTableRow = CertificationRunHistoryRowDto & { id: number; dataStore: string };
 
-/** A run without scenarios (no catalog) has nothing to complete: an empty bar, not NaN. */
 const percentComplete = (completed: number, total: number) =>
   total > 0 ? Math.round((completed / total) * 100) : 0;
 
 const progressLabel = (run: CertificationRunHistoryRowDto) =>
   `${run.completedScenarios} / ${run.totalScenarios} scenarios completed`;
 
-/** Every run the team started, newest first, with scenario progress and a button to open it. */
 export const RunHistoryPage = () => {
   const { asId } = useParams();
   const teamId = Number(asId);
   const { canSee, isLoading, error } = useCanSeeCertification(teamId);
-  // Called before the early returns below; it only fetches once the user is known to have access.
   const history = useTeamRunHistory(teamId, canSee);
+  const loadError = error ?? history.error;
 
-  // The table needs an `id` per row; the API list is already newest first and the table is
-  // paginated here, in the browser, like Vendors and Applications.
   const rows = useMemo<RunHistoryTableRow[]>(
     () =>
       (history.data ?? []).map((run) => ({
@@ -71,7 +67,6 @@ export const RunHistoryPage = () => {
       {
         accessorKey: 'createdAt',
         header: 'Started',
-        // Same format as Last updated on the certification dashboard.
         cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
       },
       {
@@ -103,19 +98,12 @@ export const RunHistoryPage = () => {
     );
   }
 
-  if (error) {
-    // A failed access check is not a denial: show the real error, not "Not allowed".
-    throw error;
+  if (loadError) {
+    throw loadError;
   }
 
   if (!canSee) {
-    // Caught by the route errorElement (ErrorFallback), which displays the message.
     throw new Error('Not allowed');
-  }
-
-  if (history.error) {
-    // A failed request is not a denial: show the real error, not "Not allowed".
-    throw history.error;
   }
 
   if (history.isLoading || !history.data) {

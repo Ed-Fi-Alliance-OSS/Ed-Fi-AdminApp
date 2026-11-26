@@ -85,7 +85,6 @@ function replaceKeyIds(path: string, ids: Record<string, Id>) {
 /** The team's My products page. */
 export const myProductsPath = (asId: Id) => replaceKeyIds(asTeamPaths.myProducts.index, { asId });
 
-/** The team's Run history page: every run the team started. */
 export const runHistoryPath = (asId: Id) =>
   replaceKeyIds(asTeamPaths.certification.runHistory, { asId });
 
@@ -149,7 +148,6 @@ const dynamicGlobalPaths = {
     index: () => '',
   },
   runHistory: {
-    // team-only page; dummy function for TypeScript satisfaction
     index: () => '',
   },
 };

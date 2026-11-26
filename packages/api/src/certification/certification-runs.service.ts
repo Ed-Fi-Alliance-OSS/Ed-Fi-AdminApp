@@ -59,6 +59,13 @@ export interface FindTeamRunParams {
   validOdsIds: (edfiTenantId: number) => Ids | undefined;
 }
 
+/** What a raw `COUNT(*)` or ID column holds: pgsql returns strings, mssql numbers. */
+type DbCount = number | string;
+const toCount = (value: DbCount) => Number(value);
+
+const scenarioTotalFor = (run: CertificationRun, totalByCatalog: Map<number, number>) =>
+  run.catalogVersionId === null ? 0 : (totalByCatalog.get(run.catalogVersionId) ?? 0);
+
 /** Starts certification runs and finds them for a team (AC-651). */
 @Injectable()
 export class CertificationRunsService {
@@ -78,10 +85,6 @@ export class CertificationRunsService {
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
   ) {}
 
-  /**
-   * Every run of the team on a data store the user may read, newest first, each with how many of
-   * its catalog's enabled scenarios have completed. Counts are two grouped queries, not one per run.
-   */
   async findTeamRunHistory(params: {
     teamId: number;
     validOdsIds: (edfiTenantId: number) => Ids | undefined;
@@ -89,7 +92,7 @@ export class CertificationRunsService {
     const allRuns = await this.runRepository.find({
       where: { teamId: params.teamId, odsId: Not(IsNull()) },
       relations: { ods: true, edfiTenant: { sbEnvironment: true } },
-      order: { certificationRunId: 'DESC' },
+      order: { createdAt: 'DESC', certificationRunId: 'DESC' },
     });
     const runs = allRuns.filter((run) => {
       const ids = params.validOdsIds(run.edfiTenantId);
@@ -97,50 +100,10 @@ export class CertificationRunsService {
     });
     if (runs.length === 0) return [];
 
-    const catalogVersionIds = [
-      ...new Set(runs.map((run) => run.catalogVersionId).filter((id): id is number => id !== null)),
-    ];
-    type TotalRow = { catalogVersionId: number | string; total: number | string };
-    const totalsQuery: Promise<TotalRow[]> =
-      catalogVersionIds.length === 0
-        ? Promise.resolve([])
-        : this.scenarioRepository
-            .createQueryBuilder('scenario')
-            .innerJoin('scenario.domain', 'domain')
-            .select('domain.catalogVersionId', 'catalogVersionId')
-            .addSelect('COUNT(*)', 'total')
-            .where(
-              'scenario.isEnabled = :enabled AND domain.isEnabled = :enabled AND domain.catalogVersionId IN (:...catalogVersionIds)',
-              { enabled: true, catalogVersionIds },
-            )
-            .groupBy('domain.catalogVersionId')
-            .getRawMany<TotalRow>();
-    const [totalRows, completedRows] = await Promise.all([
-      totalsQuery,
-      this.runScenarioRepository
-        .createQueryBuilder('runScenario')
-        .innerJoin('runScenario.certificationRun', 'run')
-        .innerJoin('runScenario.scenario', 'scenario')
-        .innerJoin('scenario.domain', 'domain')
-        .select('runScenario.certificationRunId', 'runId')
-        .addSelect('COUNT(*)', 'completed')
-        // Selected by team, not by an ID list (mssql caps a query at ~2100 parameters), and only
-        // against the run's own catalog so completed can never exceed that run's total.
-        .where(
-          'run.teamId = :teamId AND run.catalogVersionId = domain.catalogVersionId AND runScenario.status = :status AND scenario.isEnabled = :enabled AND domain.isEnabled = :enabled',
-          { teamId: params.teamId, status: CERT_SCENARIO_STATUS.completed, enabled: true },
-        )
-        .groupBy('runScenario.certificationRunId')
-        .getRawMany<{ runId: number | string; completed: number | string }>(),
+    const [totalByCatalog, completedByRun] = await Promise.all([
+      this.countEnabledScenariosByCatalog(runs),
+      this.countCompletedScenariosByRun(params.teamId),
     ]);
-
-    // COUNT comes back as a string on pgsql and a number on mssql.
-    const totalByCatalog = new Map(
-      totalRows.map((row) => [Number(row.catalogVersionId), Number(row.total)]),
-    );
-    const completedByRun = new Map(
-      completedRows.map((row) => [Number(row.runId), Number(row.completed)]),
-    );
 
     return toCertificationRunHistoryDto(
       runs.map((run) => ({
@@ -154,10 +117,48 @@ export class CertificationRunsService {
         status: run.status,
         createdAt: run.createdAt.toISOString(),
         completedScenarios: completedByRun.get(run.certificationRunId) ?? 0,
-        totalScenarios:
-          run.catalogVersionId === null ? 0 : (totalByCatalog.get(run.catalogVersionId) ?? 0),
+        totalScenarios: scenarioTotalFor(run, totalByCatalog),
       })),
     );
+  }
+
+  private async countEnabledScenariosByCatalog(
+    runs: CertificationRun[],
+  ): Promise<Map<number, number>> {
+    const catalogVersionIds = [
+      ...new Set(runs.map((run) => run.catalogVersionId).filter((id): id is number => id !== null)),
+    ];
+    if (catalogVersionIds.length === 0) return new Map();
+    const rows = await this.scenarioRepository
+      .createQueryBuilder('scenario')
+      .innerJoin('scenario.domain', 'domain')
+      .select('domain.catalogVersionId', 'catalogVersionId')
+      .addSelect('COUNT(*)', 'total')
+      .where(
+        'scenario.isEnabled = :enabled AND domain.isEnabled = :enabled AND domain.catalogVersionId IN (:...catalogVersionIds)',
+        { enabled: true, catalogVersionIds },
+      )
+      .groupBy('domain.catalogVersionId')
+      .getRawMany<{ catalogVersionId: DbCount; total: DbCount }>();
+    return new Map(rows.map((row) => [toCount(row.catalogVersionId), toCount(row.total)]));
+  }
+
+  /** Filters by team, not by run IDs, which would overflow mssql's parameter limit on a long history. */
+  private async countCompletedScenariosByRun(teamId: number): Promise<Map<number, number>> {
+    const rows = await this.runScenarioRepository
+      .createQueryBuilder('runScenario')
+      .innerJoin('runScenario.certificationRun', 'run')
+      .innerJoin('runScenario.scenario', 'scenario')
+      .innerJoin('scenario.domain', 'domain')
+      .select('runScenario.certificationRunId', 'runId')
+      .addSelect('COUNT(*)', 'completed')
+      .where(
+        'run.teamId = :teamId AND run.catalogVersionId = domain.catalogVersionId AND runScenario.status = :status AND scenario.isEnabled = :enabled AND domain.isEnabled = :enabled',
+        { teamId, status: CERT_SCENARIO_STATUS.completed, enabled: true },
+      )
+      .groupBy('runScenario.certificationRunId')
+      .getRawMany<{ runId: DbCount; completed: DbCount }>();
+    return new Map(rows.map((row) => [toCount(row.runId), toCount(row.completed)]));
   }
 
   async findRunComments(runId: number): Promise<CertificationRunCommentDto[]> {
@@ -217,7 +218,8 @@ export class CertificationRunsService {
     }
 
     const where = openRunWhere(edfiTenant.id, odsId, certificationModel);
-    const alreadyOpen = () => new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
+    const alreadyOpen = () =>
+      new ConflictException(CERT_RUN_MESSAGES.alreadyOpen(certificationModel));
     if (await this.runRepository.findOne({ where })) throw alreadyOpen();
 
     let created: CertificationRun;
