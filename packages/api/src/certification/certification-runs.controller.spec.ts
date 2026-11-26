@@ -1,5 +1,9 @@
 import { BadRequestException, NotFoundException } from '@nestjs/common';
-import { INTERCEPTORS_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import {
+  INTERCEPTORS_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import {
@@ -204,7 +208,9 @@ describe('CertificationTeamRunsController', () => {
     it('is guarded like getRun', () => {
       expect(
         Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getComments),
-      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun));
+      ).toEqual(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun),
+      );
     });
 
     it('is served at :runId/comments', () => {
@@ -223,9 +229,18 @@ describe('CertificationTeamRunsController', () => {
       expect(runsService.findRunEvents).toHaveBeenCalledWith(7, { offset: 100, limit: 25 });
     });
 
-    it('passes default offset and limit', async () => {
-      await controller.getEvents(2, 7, undefined, undefined, {});
-      expect(runsService.findRunEvents).toHaveBeenCalledWith(7, { offset: 0, limit: 50 });
+    it('defaults offset to 0 and limit to 50', () => {
+      const args = Object.values(
+        Reflect.getMetadata(
+          ROUTE_ARGS_METADATA,
+          CertificationTeamRunsController,
+          'getEvents',
+        ) as Record<string, { data: unknown; pipes: unknown[] }>,
+      );
+      const defaultOf = (name: string) =>
+        (args.find((arg) => arg.data === name)?.pipes[0] as { defaultValue: unknown }).defaultValue;
+      expect(defaultOf('offset')).toBe(0);
+      expect(defaultOf('limit')).toBe(50);
     });
 
     it('accepts the largest limit', async () => {
@@ -258,9 +273,7 @@ describe('CertificationTeamRunsController', () => {
 
     it("returns 404 and reads no history for another team's run", async () => {
       runsService.findTeamRun.mockRejectedValue(new NotFoundException());
-      await expect(controller.getEvents(3, 7, 0, 50, {})).rejects.toBeInstanceOf(
-        NotFoundException,
-      );
+      await expect(controller.getEvents(3, 7, 0, 50, {})).rejects.toBeInstanceOf(NotFoundException);
       expect(runsService.findRunEvents).not.toHaveBeenCalled();
     });
 

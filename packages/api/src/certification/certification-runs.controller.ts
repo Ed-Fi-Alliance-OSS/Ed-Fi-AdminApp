@@ -146,8 +146,6 @@ export class CertificationTeamRunsController {
     limit: number,
     @AuthCache() authorizationCache: AuthorizationCache,
   ) {
-    offset ??= 0;
-    limit ??= CERT_RUN_EVENTS_DEFAULT_LIMIT;
     if (offset < 0) throw new BadRequestException('offset must be 0 or more.');
     if (limit < 1 || limit > CERT_RUN_EVENTS_MAX_LIMIT) {
       throw new BadRequestException(`limit must be between 1 and ${CERT_RUN_EVENTS_MAX_LIMIT}.`);
