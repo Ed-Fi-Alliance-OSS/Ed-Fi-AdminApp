@@ -9,7 +9,7 @@ import { certificationQueryKeys } from './useCertificationCatalog';
 
 const NO_EVENTS: CertificationRunEventDto[] = [];
 
-/** The run's audit history (AC-650), oldest first, a page at a time. */
+/** The run's audit history (AC-650), newest first, a page at a time. */
 export const useCertificationRunEvents = (teamId: number, runId: number | undefined) => {
   const query = useInfiniteQuery({
     queryKey: certificationQueryKeys.runEvents(teamId, runId),

@@ -95,7 +95,7 @@ export class CertificationRunsService {
     private readonly dataSource: DataSource,
   ) {}
 
-  /** One page of a run's history, oldest first, with who did each change and the comment it carried. */
+  /** One page of a run's history, newest first, with who did each change and the comment it carried. */
   async findRunEvents(
     runId: number,
     page: { offset: number; limit: number },
@@ -107,7 +107,7 @@ export class CertificationRunsService {
       .leftJoinAndMapOne('event.comment', 'event.comment', 'comment')
       .where('event.certificationRunId = :runId', { runId })
       // Ids are in order: a run's transitions are serialized by the guarded status update.
-      .orderBy('event.certificationRunEventId', 'ASC')
+      .orderBy('event.certificationRunEventId', 'DESC')
       .offset(page.offset)
       .limit(page.limit)
       .getManyAndCount();

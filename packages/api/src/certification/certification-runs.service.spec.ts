@@ -525,7 +525,7 @@ describe('CertificationRunsService', () => {
       return service.findRunEvents(7, { offset: 0, limit: 50 });
     };
 
-    it("queries the run's events oldest first, joined to user and comment, paged", async () => {
+    it("queries the run's events newest first, joined to user and comment, paged", async () => {
       await service.findRunEvents(7, { offset: 100, limit: 25 });
 
       expect(eventRepository.createQueryBuilder).toHaveBeenCalledWith('event');
@@ -544,12 +544,12 @@ describe('CertificationRunsService', () => {
         runId: 7,
       });
       expect(eventQuery.orderBy).toHaveBeenCalledTimes(1);
-      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'ASC');
+      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'DESC');
       expect(eventQuery.offset).toHaveBeenCalledWith(100);
       expect(eventQuery.limit).toHaveBeenCalledWith(25);
     });
 
-    it('returns entries oldest first with the total', async () => {
+    it('returns entries in the order the query gives, with the total', async () => {
       const page = await read(
         [
           stored(),

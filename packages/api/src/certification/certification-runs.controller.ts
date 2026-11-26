@@ -135,7 +135,7 @@ export class CertificationTeamRunsController {
     return this.runsService.findRunComments(certificationRun.certificationRunId);
   }
 
-  /** A page of the run's append-only history, oldest first. */
+  /** A page of the run's append-only history, newest first. */
   @Get(':runId/events')
   @Authorize(TEAM_RUN_READ)
   async getEvents(

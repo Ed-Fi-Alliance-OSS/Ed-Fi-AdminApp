@@ -128,7 +128,7 @@ Content-Type: application/json
 ### === RUN AUDIT HISTORY (AC-650) ===
 ###
 
-### 13. A page of a run's history, oldest first (offset >= 0, limit 1-200, default 50)
+### 13. A page of a run's history, newest first (offset >= 0, limit 1-200, default 50)
 ### Set @runId to the id of one of the team's runs; another team's run returns 404.
 @runId = 1
 # @name getRunEvents
