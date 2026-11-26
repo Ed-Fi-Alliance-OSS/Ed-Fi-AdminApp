@@ -43,6 +43,9 @@ const renderCard = (state: Partial<ReturnType<typeof useCertificationRunEvents>>
   );
 };
 
+// The table's rows without its header row.
+const dataRows = () => screen.getAllByRole('row').slice(1);
+
 describe('CertificationRunAuditHistory', () => {
   beforeEach(() => jest.clearAllMocks());
 
@@ -62,7 +65,9 @@ describe('CertificationRunAuditHistory', () => {
     });
 
     expect(screen.getByRole('heading', { level: 2, name: /Audit history/ })).toBeTruthy();
-    const items = screen.getAllByRole('listitem');
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
+    expect(headers).toEqual(['Date', 'Event', 'Status', 'By']);
+    const items = dataRows();
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain(DATE);
     expect(items[0].textContent).toContain('Run started');
@@ -70,7 +75,8 @@ describe('CertificationRunAuditHistory', () => {
     expect(items[0].textContent).toContain('Ann Vendor');
     expect(items[1].textContent).toContain('Changes requested');
     expect(items[1].textContent).toContain('Rita Reviewer');
-    expect(items[1].textContent).toContain('Please fix step 2');
+    // The comment is on the Reviewer comments card, not in this table.
+    expect(items[1].textContent).not.toContain('Please fix step 2');
     expect(screen.getAllByText(DATE)[0].getAttribute('datetime')).toBe(CREATED_AT);
   });
 
@@ -81,10 +87,10 @@ describe('CertificationRunAuditHistory', () => {
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('false');
-    await waitFor(() => expect(screen.queryByRole('list')).toBeNull());
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
     fireEvent.click(toggle);
     expect(toggle.getAttribute('aria-expanded')).toBe('true');
-    expect(await screen.findByRole('list')).toBeTruthy();
+    expect(await screen.findByRole('table', { name: 'Audit history' })).toBeTruthy();
   });
 
   it('shows "Show more" only while there are more entries', () => {
@@ -120,7 +126,8 @@ describe('CertificationRunAuditHistory', () => {
   it('keeps the loaded entries visible when a refetch fails', () => {
     renderCard({ events: [entry({})], isError: true });
 
-    expect(screen.getAllByRole('listitem')).toHaveLength(1);
+    expect(dataRows()).toHaveLength(1);
+    expect(dataRows()[0].textContent).toContain('Ann Vendor');
     expect(screen.queryByText("The audit history couldn't be loaded.")).toBeNull();
   });
 

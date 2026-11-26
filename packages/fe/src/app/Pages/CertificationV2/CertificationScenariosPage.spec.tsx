@@ -475,16 +475,18 @@ describe('CertificationScenariosPage', () => {
       expect(bar.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
-    it('renders the Audit history card after the reviewer comments', () => {
+    it('renders the Audit history card at the bottom, after the scenarios table', () => {
       mockAuditHistoryProps = undefined;
       render(<CertificationScenariosPage />);
 
       expect(mockAuditHistoryProps).toEqual({ teamId: 2, runId: 7 });
-      const comments = screen.getByTestId('reviewer-comments');
+      const scenarios = screen.getByRole('table');
       const audit = screen.getByTestId('audit-history');
+      const back = screen.getByRole('button', { name: 'Back to My products' });
       expect(
-        comments.compareDocumentPosition(audit) & Node.DOCUMENT_POSITION_FOLLOWING,
+        scenarios.compareDocumentPosition(audit) & Node.DOCUMENT_POSITION_FOLLOWING,
       ).toBeTruthy();
+      expect(audit.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('counts the scenarios of every domain even when a domain filter is selected', () => {

@@ -179,8 +179,6 @@ export const CertificationScenariosPage = () => {
 
         <CertificationRunReviewerComments teamId={teamId} runId={run.runId} />
 
-        <CertificationRunAuditHistory teamId={teamId} runId={run.runId} />
-
         <Box w="30em" maxW="100%">
           {/* Credentials are only for running steps. While the run is in review no step can run,
               so there is nothing to validate and the form is hidden. The form is also how a
@@ -326,6 +324,8 @@ export const CertificationScenariosPage = () => {
             </Tbody>
           </Table>
         </Box>
+
+        <CertificationRunAuditHistory teamId={teamId} runId={run.runId} />
 
         {backButtons}
       </chakra.form>

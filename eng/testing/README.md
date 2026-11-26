@@ -170,8 +170,9 @@ only one open run per model. Use it only on test databases.
 
 #### Demo the Audit history (AC-650)
 
-The Scenarios page of a run shows an "Audit history" card that lists every status change of the
-run, oldest first, with who made it, when, and the reviewer's comment where there is one. To see
+The Scenarios page of a run shows an "Audit history" table below the scenarios that lists every
+status change of the run, newest first, with who made it and when (the reviewer's comments stay
+on the Reviewer comments card). To see
 it with seven entries, use the script above to get past the scenarios and do this. Leave the
 script's optional `CHANGES_REQUESTED` block commented out: a status set by SQL records no Audit
 history entry, so request the changes from the reviewer's page instead.
