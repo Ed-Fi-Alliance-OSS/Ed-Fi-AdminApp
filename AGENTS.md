@@ -192,3 +192,19 @@ Use semantic commit messages for automated versioning (see `release.config.mjs`)
 3. Include unit tests for new functionality
 4. Update documentation as needed
 5. Ensure all checks pass
+
+When creating a pull request, follow `.github/pull_request_template.md`:
+
+1. Read the template file first, and use its sections as the PR body.
+   Passing `--body` to `gh pr create` bypasses the template, so it will not be applied automatically.
+2. **Why comes first and is the most important section.** Describe the motivation,
+   the chosen approach, and rejected alternatives. Do not restate the diff.
+3. **What is a short summary:** 3–5 bullets on architectural impact and behavior changes.
+   Do not list files or narrate code line by line.
+4. **Testing:** state what was run and how a reviewer can reproduce it.
+5. Call out breaking changes and risks under Reviewer notes.
+6. Fill every section. Do not leave template placeholders or HTML comments in the final body.
+7. **Never invent the Why.** If the motivation is not clear from the issue, the
+   conversation, or the commits, ask the user before creating the PR.
+8. Use a Conventional Commit style title (e.g. `feat: paginate Run history in the browser`),
+   since squash merges use it as the final commit message.
