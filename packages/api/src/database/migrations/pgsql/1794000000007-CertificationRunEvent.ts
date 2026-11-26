@@ -5,7 +5,8 @@ import { MigrationInterface, QueryRunner } from 'typeorm';
  *
  * `userId` deliberately has no FK to "user", so a deleted user's entries never change.
  * `certificationRunCommentId` has no FK either: a comment is only ever deleted with its run, and
- * a second cascade path to the same table is rejected by SQL Server.
+ * on SQL Server the run -> comment and run -> event cascades plus an event -> comment FK would make
+ * a diamond that can make deleting a reviewed run fail (see the mssql twin).
  * Entries go away only with their run (ON DELETE CASCADE).
  */
 export class CertificationRunEvent1794000000007 implements MigrationInterface {

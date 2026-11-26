@@ -185,9 +185,9 @@ history entry, so request the changes from the reviewer's page instead.
 6. Pick it up again.
 7. Approve it.
 
-Open the run's Scenarios page. The card shows the seven entries (started, sent to review, picked
-up, changes requested, sent to review, picked up, approved) in that order, with the comment on
-"Changes requested".
+Open the run's Scenarios page. The table shows the seven entries newest first (approved, picked
+up, sent to review, changes requested, picked up, sent to review, started). The reviewer's comment
+is on the Reviewer comments card, not in the table.
 
 #### Custom OIDC Grant Type
 
