@@ -79,8 +79,8 @@ export class CertificationRunsController {
 }
 
 /**
- * One run by its ID alone. The Scenarios page's address only has the run, so this is how the
- * page learns the run's environment, tenant and data store.
+ * The team's run history, and one run by its ID alone. The Scenarios page's address only has the
+ * run, so this is how the page learns the run's environment, tenant and data store.
  */
 @ApiTags('Certification')
 @Controller('teams/:teamId/certification/runs')

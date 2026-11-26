@@ -85,10 +85,9 @@ export class CertificationRunsService {
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
   ) {}
 
-  async findTeamRunHistory(params: {
-    teamId: number;
-    validOdsIds: (edfiTenantId: number) => Ids | undefined;
-  }): Promise<CertificationRunHistoryRowDto[]> {
+  async findTeamRunHistory(
+    params: Pick<FindTeamRunParams, 'teamId' | 'validOdsIds'>,
+  ): Promise<CertificationRunHistoryRowDto[]> {
     const allRuns = await this.runRepository.find({
       where: { teamId: params.teamId, odsId: Not(IsNull()) },
       relations: { ods: true, edfiTenant: { sbEnvironment: true } },

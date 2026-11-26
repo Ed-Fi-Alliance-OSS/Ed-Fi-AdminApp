@@ -3,7 +3,9 @@
 --
 -- A data store can have only one open run per model (unique index), so pick a data store with no
 -- open SIS, MTSS or ASSESSMENTS runs, or the insert fails. The runs use the newest active catalog
--- version, and scenarios are marked completed in cert.certification_run_scenario only.
+-- version, whatever its data standard version. With no active catalog they are inserted with a
+-- NULL catalogVersionId (progress shows 0 scenarios), unlike the PostgreSQL script, which inserts
+-- nothing. Scenarios are marked completed in cert.certification_run_scenario only.
 --
 -- Usage: set the three IDs below (team, Ed-Fi tenant, ODS), then run the whole script in one
 -- batch (SSMS, Azure Data Studio...). Then open /as/<teamId>/certification/run-history.

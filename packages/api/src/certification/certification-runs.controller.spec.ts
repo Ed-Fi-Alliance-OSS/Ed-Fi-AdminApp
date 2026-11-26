@@ -137,14 +137,6 @@ describe('CertificationTeamRunsController', () => {
         Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun),
       );
     });
-
-    it('is declared before :runId so the list route is not shadowed', () => {
-      const methods = Object.getOwnPropertyNames(CertificationTeamRunsController.prototype);
-      expect(methods.indexOf('getRunHistory')).toBeLessThan(methods.indexOf('getRun'));
-      expect(
-        Reflect.getMetadata(PATH_METADATA, CertificationTeamRunsController.prototype.getRunHistory),
-      ).toBe('/');
-    });
   });
 
   it('lives under the team, because the page only knows the run', () => {

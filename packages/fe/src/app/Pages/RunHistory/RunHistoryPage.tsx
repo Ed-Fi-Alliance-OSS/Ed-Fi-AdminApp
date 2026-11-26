@@ -12,7 +12,12 @@ import { certificationRunPath } from '../../routes/paths';
 import { useCanSeeCertification } from '../MyProducts/useCanSeeCertification';
 import { useTeamRunHistory } from './useTeamRunHistory';
 
-type RunHistoryTableRow = CertificationRunHistoryRowDto & { id: number; dataStore: string };
+type RunHistoryTableRow = CertificationRunHistoryRowDto & {
+  id: number;
+  dataStore: string;
+  statusLabel: string;
+  startedLabel: string;
+};
 
 const percentComplete = (completed: number, total: number) =>
   total > 0 ? Math.round((completed / total) * 100) : 0;
@@ -33,6 +38,8 @@ export const RunHistoryPage = () => {
         ...run,
         id: run.runId,
         dataStore: `${run.environmentName} · ${run.tenantName} · ${run.dataStoreName}`,
+        statusLabel: CERT_RUN_STATUS_LABELS[run.status],
+        startedLabel: new Date(run.createdAt).toLocaleString(),
       })),
     [history.data],
   );
@@ -42,12 +49,12 @@ export const RunHistoryPage = () => {
       { accessorKey: 'dataStore', header: 'Data store' },
       { accessorKey: 'certificationModel', header: 'Model' },
       {
-        accessorKey: 'status',
+        accessorKey: 'statusLabel',
         header: 'Status',
-        cell: ({ row }) => CERT_RUN_STATUS_LABELS[row.original.status],
       },
       {
-        accessorKey: 'completedScenarios',
+        id: 'progress',
+        accessorFn: (run) => percentComplete(run.completedScenarios, run.totalScenarios),
         header: 'Progress',
         cell: ({ row }) => (
           <Box minW="160px">
@@ -65,9 +72,9 @@ export const RunHistoryPage = () => {
         ),
       },
       {
-        accessorKey: 'createdAt',
+        accessorKey: 'startedLabel',
         header: 'Started',
-        cell: ({ row }) => new Date(row.original.createdAt).toLocaleString(),
+        sortFn: (a, b) => a.original.createdAt.localeCompare(b.original.createdAt),
       },
       {
         id: 'open',

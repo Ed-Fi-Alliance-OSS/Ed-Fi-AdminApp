@@ -13,7 +13,8 @@
 --
 -- A data store can have only one open run per model (unique index), so the statuses are spread
 -- over models: only one SIS run is open. Pick a data store with no open runs of these models, or
--- the insert fails and nothing is written. The runs use the newest active catalog version.
+-- the insert fails and nothing is written. The runs use the newest active catalog version,
+-- whatever its data standard version. With no active catalog the script inserts nothing.
 -- Scenarios are marked completed in cert.certification_run_scenario only (no step results), which
 -- is what the page's progress reads.
 --
