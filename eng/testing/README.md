@@ -171,9 +171,9 @@ only one open run per model. Use it only on test databases.
 #### Demo the Audit history (AC-650)
 
 The Scenarios page of a run shows an "Audit history" table below the scenarios that lists every
-status change of the run, newest first, with who made it and when (the reviewer's comments stay
-on the Reviewer comments card). To see
-it with seven entries, use the script above to get past the scenarios and do this. Leave the
+status change of the run, newest first, with who made it and when. An entry with a reviewer's
+comment has a "View comment" button that opens the full comment in a dialog. To see it with seven
+entries, use the script above to get past the scenarios and do this. Leave the
 script's optional `CHANGES_REQUESTED` block commented out: a status set by SQL records no Audit
 history entry, so request the changes from the reviewer's page instead.
 
@@ -186,8 +186,8 @@ history entry, so request the changes from the reviewer's page instead.
 7. Approve it.
 
 Open the run's Scenarios page. The table shows the seven entries newest first (approved, picked
-up, sent to review, changes requested, picked up, sent to review, started). The reviewer's comment
-is on the Reviewer comments card, not in the table.
+up, sent to review, changes requested, picked up, sent to review, started). Select "View comment"
+on "Changes requested" to read the reviewer's comment.
 
 #### Custom OIDC Grant Type
 

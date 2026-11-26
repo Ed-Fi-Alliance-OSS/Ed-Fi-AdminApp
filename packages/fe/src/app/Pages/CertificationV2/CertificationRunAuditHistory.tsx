@@ -4,6 +4,13 @@ import {
   Button,
   Collapse,
   Heading,
+  Modal,
+  ModalBody,
+  ModalCloseButton,
+  ModalContent,
+  ModalFooter,
+  ModalHeader,
+  ModalOverlay,
   Table,
   Tbody,
   Td,
@@ -12,20 +19,64 @@ import {
   Thead,
   Tr,
 } from '@chakra-ui/react';
-import { CERT_RUN_EVENT_LABELS, CERT_RUN_STATUS_LABELS } from '@edanalytics/models';
+import {
+  CERT_RUN_EVENT_LABELS,
+  CERT_RUN_STATUS_LABELS,
+  CertificationRunEventDto,
+} from '@edanalytics/models';
 import { useId, useState } from 'react';
 import { CERT_RUN_STATUS_COLOR } from './certificationRunStatus';
 import { useCertificationRunEvents } from './useCertificationRunEvents';
 
-const COLUMN_COUNT = 4;
+const COLUMN_COUNT = 5;
 
 const formatDate = (iso: string) =>
   new Date(iso).toLocaleString(undefined, { dateStyle: 'medium', timeStyle: 'short' });
 
+const eventLabel = (entry: CertificationRunEventDto) =>
+  CERT_RUN_EVENT_LABELS[entry.event] ?? entry.event;
+
+/** The reviewer's full comment on one entry; it can be up to 4000 characters. */
+const CommentModal = ({
+  entry,
+  onClose,
+}: {
+  entry: CertificationRunEventDto | null;
+  onClose: () => void;
+}) => (
+  <Modal isOpen={entry !== null} onClose={onClose} size="lg" scrollBehavior="inside">
+    <ModalOverlay />
+    <ModalContent>
+      <ModalHeader>Comment from {entry?.actorName}</ModalHeader>
+      <ModalCloseButton />
+      <ModalBody>
+        {entry && (
+          <>
+            <Text fontSize="sm" color="gray.600" mb={3}>
+              {eventLabel(entry)} ·{' '}
+              <Text as="time" dateTime={entry.createdAt}>
+                {formatDate(entry.createdAt)}
+              </Text>
+            </Text>
+            <Text data-testid="audit-history-comment" whiteSpace="pre-wrap" overflowWrap="anywhere">
+              {entry.comment}
+            </Text>
+          </>
+        )}
+      </ModalBody>
+      <ModalFooter>
+        <Button type="button" onClick={onClose}>
+          Close
+        </Button>
+      </ModalFooter>
+    </ModalContent>
+  </Modal>
+);
+
 /**
  * The append-only history of the run (AC-650): every status change, newest first, with who made
- * it. Reviewer comments aren't repeated here: they can be long and the Reviewer comments card on
- * the same page shows them. Read-only; nothing here edits an entry.
+ * it. A reviewer's comment can be long, so its row links to it and a dialog shows it in full.
+ * Read-only; nothing here edits an entry.
  */
 export const CertificationRunAuditHistory = ({
   teamId,
@@ -36,6 +87,7 @@ export const CertificationRunAuditHistory = ({
 }) => {
   const tableId = useId();
   const [isOpen, setIsOpen] = useState(true);
+  const [commentEntry, setCommentEntry] = useState<CertificationRunEventDto | null>(null);
   const { events, hasMore, loadMore, isLoadingMore, isLoading, isError } =
     useCertificationRunEvents(teamId, runId);
 
@@ -74,6 +126,7 @@ export const CertificationRunAuditHistory = ({
                 <Th>Event</Th>
                 <Th>Status</Th>
                 <Th>By</Th>
+                <Th>Comment</Th>
               </Tr>
             </Thead>
             <Tbody>
@@ -84,13 +137,29 @@ export const CertificationRunAuditHistory = ({
                       {formatDate(entry.createdAt)}
                     </Text>
                   </Td>
-                  <Td>{CERT_RUN_EVENT_LABELS[entry.event] ?? entry.event}</Td>
+                  <Td>{eventLabel(entry)}</Td>
                   <Td>
                     <Badge colorScheme={CERT_RUN_STATUS_COLOR[entry.toStatus] ?? 'gray'}>
                       {CERT_RUN_STATUS_LABELS[entry.toStatus] ?? entry.toStatus}
                     </Badge>
                   </Td>
                   <Td>{entry.actorName}</Td>
+                  <Td>
+                    {entry.comment ? (
+                      <Button
+                        size="sm"
+                        variant="link"
+                        type="button"
+                        onClick={() => setCommentEntry(entry)}
+                      >
+                        View comment
+                      </Button>
+                    ) : (
+                      <Text as="span" color="gray.500" aria-label="No comment">
+                        —
+                      </Text>
+                    )}
+                  </Td>
                 </Tr>
               ))}
               {placeholder && (
@@ -107,6 +176,7 @@ export const CertificationRunAuditHistory = ({
           )}
         </Box>
       </Collapse>
+      <CommentModal entry={commentEntry} onClose={() => setCommentEntry(null)} />
     </Box>
   );
 };

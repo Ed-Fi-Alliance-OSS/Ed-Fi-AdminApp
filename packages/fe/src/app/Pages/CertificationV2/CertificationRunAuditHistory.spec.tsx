@@ -1,7 +1,7 @@
 import 'reflect-metadata';
 import { ChakraProvider } from '@chakra-ui/react';
 import { CertificationRunEventDto } from '@edanalytics/models';
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
 import { CertificationRunAuditHistory } from './CertificationRunAuditHistory';
 import { useCertificationRunEvents } from './useCertificationRunEvents';
 
@@ -66,7 +66,7 @@ describe('CertificationRunAuditHistory', () => {
 
     expect(screen.getByRole('heading', { level: 2, name: /Audit history/ })).toBeTruthy();
     const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
-    expect(headers).toEqual(['Date', 'Event', 'Status', 'By']);
+    expect(headers).toEqual(['Date', 'Event', 'Status', 'By', 'Comment']);
     const items = dataRows();
     expect(items).toHaveLength(2);
     expect(items[0].textContent).toContain(DATE);
@@ -75,8 +75,11 @@ describe('CertificationRunAuditHistory', () => {
     expect(items[0].textContent).toContain('Ann Vendor');
     expect(items[1].textContent).toContain('Changes requested');
     expect(items[1].textContent).toContain('Rita Reviewer');
-    // The comment is on the Reviewer comments card, not in this table.
+    // The comment can be long, so the table only links to it.
     expect(items[1].textContent).not.toContain('Please fix step 2');
+    expect(within(items[1]).getByRole('button', { name: 'View comment' })).toBeTruthy();
+    expect(within(items[0]).queryByRole('button', { name: 'View comment' })).toBeNull();
+    expect(items[0].textContent).toContain('—');
     expect(screen.getAllByText(DATE)[0].getAttribute('datetime')).toBe(CREATED_AT);
   });
 
@@ -129,6 +132,34 @@ describe('CertificationRunAuditHistory', () => {
     expect(dataRows()).toHaveLength(1);
     expect(dataRows()[0].textContent).toContain('Ann Vendor');
     expect(screen.queryByText("The audit history couldn't be loaded.")).toBeNull();
+  });
+
+  it("opens the reviewer's full comment in a dialog and closes it", async () => {
+    const comment = 'Please fix step 2.\nStep 5 also needs a new response.';
+    renderCard({
+      events: [
+        entry({
+          eventId: 2,
+          event: 'CHANGES_REQUESTED',
+          fromStatus: 'IN_REVIEW',
+          toStatus: 'CHANGES_REQUESTED',
+          actorName: 'Rita Reviewer',
+          comment,
+        }),
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'View comment' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Comment from Rita Reviewer')).toBeTruthy();
+    expect(dialog.textContent).toContain('Changes requested');
+    expect(dialog.textContent).toContain(DATE);
+    expect(within(dialog).getByTestId('audit-history-comment').textContent).toBe(comment);
+
+    // The footer button; the header's X has the same accessible name.
+    fireEvent.click(within(dialog).getByText('Close'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
   });
 
   it('has no edit or delete controls', () => {
