@@ -56,6 +56,21 @@ describe('useCertificationRunEvents', () => {
     });
   });
 
+  it('shows an entry once when a new entry shifted the next page', async () => {
+    (methods.getOne as jest.Mock)
+      .mockResolvedValueOnce({ items: [event(3), event(2)], total: 3 })
+      .mockResolvedValueOnce({ items: [event(2), event(1)], total: 4 });
+
+    const { result } = renderHook(() => useCertificationRunEvents(2, 7), {
+      wrapper: wrapperFor(newClient()),
+    });
+    await waitFor(() => expect(result.current.hasMore).toBe(true));
+
+    act(() => result.current.loadMore());
+
+    await waitFor(() => expect(result.current.events).toEqual([event(3), event(2), event(1)]));
+  });
+
   it('hasMore is false once all entries loaded', async () => {
     (methods.getOne as jest.Mock).mockResolvedValue({ items: [event(1), event(2)], total: 2 });
 
