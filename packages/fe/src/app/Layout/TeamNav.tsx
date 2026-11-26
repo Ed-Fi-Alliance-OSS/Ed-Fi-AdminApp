@@ -418,6 +418,11 @@ export const TeamNav = (props: { teamId: string }) => {
           icon: Icons.MyProducts,
           text: 'My products',
         },
+        {
+          route: paths.runHistory.index(),
+          icon: Icons.RunHistory,
+          text: 'Run history',
+        },
       ]
     : [];
 

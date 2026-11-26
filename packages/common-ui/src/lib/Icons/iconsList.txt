@@ -20,6 +20,7 @@ SbEnvironment, Menu item, BsHdd, BsHddFill
 SyncQueue, Menu item, BsInboxes, BsInboxesFill
 CertificationDashboard, Menu item, BsBarChart, BsBarChartFill
 MyProducts, Menu item, BsBoxSeam, BsBoxSeamFill
+RunHistory, Menu item, BsClock, BsClockFill
 Team, Menu item, BsBuildings, BsBuildingsFill
 TeamMembership, Menu item, BsPersonBadge, BsPersonBadgeFill
 Vendor, Menu item, BsBuilding, BsBuildingFill

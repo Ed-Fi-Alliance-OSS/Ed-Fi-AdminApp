@@ -79,13 +79,25 @@ export class CertificationRunsController {
 }
 
 /**
- * One run by its ID alone. The Scenarios page's address only has the run, so this is how the
- * page learns the run's environment, tenant and data store.
+ * The team's run history, and one run by its ID alone. The Scenarios page's address only has the
+ * run, so this is how the page learns the run's environment, tenant and data store.
  */
 @ApiTags('Certification')
 @Controller('teams/:teamId/certification/runs')
 export class CertificationTeamRunsController {
   constructor(private readonly runsService: CertificationRunsService) {}
+
+  @Get()
+  @Authorize(TEAM_RUN_READ)
+  async getRunHistory(
+    @Param('teamId', new ParseIntPipe()) teamId: number,
+    @AuthCache() authorizationCache: AuthorizationCache,
+  ) {
+    return this.runsService.findTeamRunHistory({
+      teamId,
+      validOdsIds: (edfiTenantId) => authorizationCache?.[CERT_READ]?.[edfiTenantId],
+    });
+  }
 
   /**
    * The guard can only check team membership here, because the tenant isn't in the route.

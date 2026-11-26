@@ -3,9 +3,11 @@ import { CertificationLayout } from '../Pages/CertificationV2/CertificationAuthC
 import { CertificationPageExecution } from '../Pages/CertificationV2/CertificationPageExecution';
 import { CertificationScenariosPage } from '../Pages/CertificationV2/CertificationScenariosPage';
 import { MyProductsPage } from '../Pages/MyProducts/MyProductsPage';
+import { RunHistoryPage } from '../Pages/RunHistory/RunHistoryPage';
 import { certificationTeamRoutes } from './certification-team.routes';
 
 jest.mock('../Pages/MyProducts/MyProductsPage', () => ({ MyProductsPage: () => null }));
+jest.mock('../Pages/RunHistory/RunHistoryPage', () => ({ RunHistoryPage: () => null }));
 jest.mock('../Pages/CertificationV2/CertificationAuthContext', () => ({
   CertificationLayout: () => null,
 }));
@@ -20,13 +22,20 @@ jest.mock('../helpers', () => ({ useNavContext: jest.fn() }));
 
 describe('certificationTeamRoutes', () => {
   const [layoutRoute] = certificationTeamRoutes;
-  const [myProductsRoute, scenariosRoute, executionRoute] = layoutRoute.children as RouteObject[];
+  const [myProductsRoute, runHistoryRoute, scenariosRoute, executionRoute] =
+    layoutRoute.children as RouteObject[];
 
   it('is one pathless layout, so the token survives going from the popup to the run pages', () => {
     expect(certificationTeamRoutes).toHaveLength(1);
     expect(layoutRoute.path).toBeUndefined();
     expect(layoutRoute.element).toMatchObject({ type: CertificationLayout });
-    expect(layoutRoute.children).toHaveLength(3);
+    expect(layoutRoute.children).toHaveLength(4);
+  });
+
+  it('serves Run history at /as/:asId/certification/run-history', () => {
+    expect(runHistoryRoute.path).toBe('/as/:asId/certification/run-history');
+    expect(runHistoryRoute.element).toMatchObject({ type: RunHistoryPage });
+    expect(runHistoryRoute.handle.crumb()).toBe('Run history');
   });
 
   it('serves My products at /as/:asId/my-products', () => {

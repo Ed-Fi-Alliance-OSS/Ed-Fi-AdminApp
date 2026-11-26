@@ -98,7 +98,13 @@ describe('CertificationTeamRunsController', () => {
   const certificationRun = { certificationRunId: 7, edfiTenantId: 10 };
   const runDto = { runId: 7 };
   const comments = [{ commentId: 1 }];
-  let runsService: { findTeamRun: jest.Mock; toDto: jest.Mock; findRunComments: jest.Mock };
+  const history = [{ runId: 9 }, { runId: 7 }];
+  let runsService: {
+    findTeamRun: jest.Mock;
+    toDto: jest.Mock;
+    findRunComments: jest.Mock;
+    findTeamRunHistory: jest.Mock;
+  };
   let controller: CertificationTeamRunsController;
 
   beforeEach(() => {
@@ -106,8 +112,31 @@ describe('CertificationTeamRunsController', () => {
       findTeamRun: jest.fn().mockResolvedValue(certificationRun),
       toDto: jest.fn().mockReturnValue(runDto),
       findRunComments: jest.fn().mockResolvedValue(comments),
+      findTeamRunHistory: jest.fn().mockResolvedValue(history),
     };
     controller = new CertificationTeamRunsController(runsService as never);
+  });
+
+  describe('getRunHistory', () => {
+    it("returns the team's run history, reading certification:read per tenant", async () => {
+      const tenantTenIds = new Set([5]);
+      await expect(
+        controller.getRunHistory(2, { [READ]: { 10: tenantTenIds } } as never),
+      ).resolves.toBe(history);
+
+      const params = runsService.findTeamRunHistory.mock.calls[0][0];
+      expect(params.teamId).toBe(2);
+      expect(params.validOdsIds(10)).toBe(tenantTenIds);
+      expect(params.validOdsIds(12)).toBeUndefined();
+    });
+
+    it('is guarded like getRun', () => {
+      expect(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRunHistory),
+      ).toEqual(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun),
+      );
+    });
   });
 
   it('lives under the team, because the page only knows the run', () => {

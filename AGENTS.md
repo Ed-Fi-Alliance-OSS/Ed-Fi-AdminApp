@@ -101,6 +101,7 @@ packages/
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Husky pre-commit hook**: A `husky` pre-commit hook runs `lint-staged`, which runs `eslint --max-warnings 0` on staged `.ts`/`.tsx`/`.js`/`.jsx` files. Commits with lint errors or warnings are blocked — fix them instead of bypassing the hook (`git commit --no-verify`).
 - **Prettier**: Consistent code formatting
+- **Code comments**: Default to no comments. Make the code say it: clear names, small named helpers or constants, types. Do not add JSDoc that restates a name or signature, comments that narrate what the next line does, or ticket IDs (history lives in git and the PR). Add a comment only for a non-obvious *why* that no rename or extraction can express (a hidden constraint, a driver quirk, a workaround), in one short line. If you feel the need to write a long comment, simplify the code instead, or flag it to the user.
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)
 - **REQUIRED**: Execute `npm run build` before submitting any changes and correct any build errors
@@ -191,3 +192,19 @@ Use semantic commit messages for automated versioning (see `release.config.mjs`)
 3. Include unit tests for new functionality
 4. Update documentation as needed
 5. Ensure all checks pass
+
+When creating a pull request, follow `.github/pull_request_template.md`:
+
+1. Read the template file first, and use its sections as the PR body.
+   Passing `--body` to `gh pr create` bypasses the template, so it will not be applied automatically.
+2. **Why comes first and is the most important section.** Describe the motivation,
+   the chosen approach, and rejected alternatives. Do not restate the diff.
+3. **What is a short summary:** 3–5 bullets on architectural impact and behavior changes.
+   Do not list files or narrate code line by line.
+4. **Testing:** state what was run and how a reviewer can reproduce it.
+5. Call out breaking changes and risks under Reviewer notes.
+6. Fill every section. Do not leave template placeholders or HTML comments in the final body.
+7. **Never invent the Why.** If the motivation is not clear from the issue, the
+   conversation, or the commits, ask the user before creating the PR.
+8. Use a Conventional Commit style title (e.g. `feat: paginate Run history in the browser`),
+   since squash merges use it as the final commit message.

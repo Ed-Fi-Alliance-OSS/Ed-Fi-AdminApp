@@ -157,6 +157,17 @@ changes". Comments at the end of the script fail one scenario again, put the run
 `DRAFT`, or remove the run's scenario results. Use it only on test databases: it skips the
 workflow rules.
 
+#### Fill the team's Run history with demo runs (AC-701)
+
+The team's Run history page lists every run of the team, newest first, with its status and
+"X / Y scenarios completed". To see it with several runs without starting them one by one, run
+[`sql/cert-demo-run-history.pgsql.sql`](sql/cert-demo-run-history.pgsql.sql) (or the
+[`.mssql.sql`](sql/cert-demo-run-history.mssql.sql) twin) against the Admin App database, with
+the team, Ed-Fi tenant and ODS IDs set at the top. It adds five runs in different statuses
+(approved, rejected, draft, in review, ready for review) with different progress. Pick a data
+store with no open runs of the SIS, MTSS or ASSESSMENTS models, because a data store can have
+only one open run per model. Use it only on test databases.
+
 #### Custom OIDC Grant Type
 
 Use password grant instead of client_credentials:
