@@ -114,11 +114,14 @@ export const CertificationRunAuditHistory = ({
           aria-controls={tableId}
           onClick={() => setIsOpen((open) => !open)}
         >
-          {isOpen ? '▾' : '▸'} Audit history
+          <Text as="span" aria-hidden="true">
+            {isOpen ? '▾' : '▸'}
+          </Text>{' '}
+          Audit history
         </Button>
       </Heading>
-      <Collapse in={isOpen} animateOpacity unmountOnExit>
-        <Box id={tableId}>
+      <Box id={tableId}>
+        <Collapse in={isOpen} animateOpacity unmountOnExit>
           <Table size="sm" mt={0} aria-label="Audit history">
             <Thead>
               <Tr>
@@ -174,8 +177,8 @@ export const CertificationRunAuditHistory = ({
               Show more
             </Button>
           )}
-        </Box>
-      </Collapse>
+        </Collapse>
+      </Box>
       <CommentModal entry={commentEntry} onClose={() => setCommentEntry(null)} />
     </Box>
   );

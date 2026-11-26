@@ -96,6 +96,16 @@ describe('CertificationRunAuditHistory', () => {
     expect(await screen.findByRole('table', { name: 'Audit history' })).toBeTruthy();
   });
 
+  it('names the toggle without its arrow and points it at an element that stays when collapsed', async () => {
+    renderCard({ events: [entry({})] });
+    const toggle = screen.getByRole('button', { name: 'Audit history' });
+    const controlledId = toggle.getAttribute('aria-controls') ?? '';
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    expect(document.getElementById(controlledId)).not.toBeNull();
+  });
+
   it('shows "Show more" only while there are more entries', () => {
     const { unmount } = renderCard({ events: [entry({})], hasMore: false });
     expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
