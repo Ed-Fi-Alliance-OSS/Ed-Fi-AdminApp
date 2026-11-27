@@ -19,6 +19,7 @@ Role, Menu item, BsPersonVcard, BsPersonVcardFill
 SbEnvironment, Menu item, BsHdd, BsHddFill
 SyncQueue, Menu item, BsInboxes, BsInboxesFill
 CertificationDashboard, Menu item, BsBarChart, BsBarChartFill
+CertificationQueue, Menu item, BsClipboardCheck, BsClipboardCheckFill
 MyProducts, Menu item, BsBoxSeam, BsBoxSeamFill
 RunHistory, Menu item, BsClock, BsClockFill
 Team, Menu item, BsBuildings, BsBuildingsFill

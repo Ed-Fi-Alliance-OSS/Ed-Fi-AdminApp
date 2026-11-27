@@ -1,11 +1,15 @@
 import { config } from '../../config/config';
 import { CertificationDashboardPage } from '../Pages/CertificationDashboard/CertificationDashboardPage';
+import { CertificationQueuePage } from '../Pages/CertificationQueue/CertificationQueuePage';
 import { CertificationReviewPage } from '../Pages/CertificationReview/CertificationReviewPage';
 import { CertificationReviewStepsPage } from '../Pages/CertificationReview/CertificationReviewStepsPage';
 import { getCertificationDashboardRoutes } from './certification-dashboard.routes';
 
 jest.mock('../Pages/CertificationDashboard/CertificationDashboardPage', () => ({
   CertificationDashboardPage: () => null,
+}));
+jest.mock('../Pages/CertificationQueue/CertificationQueuePage', () => ({
+  CertificationQueuePage: () => null,
 }));
 jest.mock('../Pages/CertificationReview/CertificationReviewPage', () => ({
   CertificationReviewPage: () => null,
@@ -30,6 +34,16 @@ describe('getCertificationDashboardRoutes', () => {
     expect(route).toBeDefined();
     expect(route?.element).toMatchObject({ type: CertificationDashboardPage });
     expect((route?.handle as { crumb: () => string }).crumb()).toBe('Certification dashboard');
+  });
+
+  it('registers /certification/queue when the flag is on', () => {
+    jest.replaceProperty(config, 'showRequestCertification', true);
+
+    const route = getCertificationDashboardRoutes().find((r) => r.path === '/certification/queue');
+
+    expect(route).toBeDefined();
+    expect(route?.element).toMatchObject({ type: CertificationQueuePage });
+    expect((route?.handle as { crumb: () => string }).crumb()).toBe('Review queue');
   });
 
   it('registers the review page when the flag is on', () => {

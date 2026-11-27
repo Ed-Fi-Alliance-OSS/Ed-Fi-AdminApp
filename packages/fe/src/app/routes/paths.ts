@@ -6,6 +6,7 @@ const pathPartials = {
   asTeam: 'as/:asId',
   certification: {
     dashboard: 'certification/dashboard',
+    queue: 'certification/queue',
     run: 'certification/runs/:runId',
     review: 'certification/runs/:runId/review',
     reviewSteps: 'certification/runs/:runId/review/steps',
@@ -30,6 +31,9 @@ const pathPartials = {
 const globalPaths = {
   certificationDashboard: {
     index: `/${pathPartials.certification.dashboard}`,
+  },
+  certificationQueue: {
+    index: `/${pathPartials.certification.queue}`,
   },
   certificationReview: {
     index: `/${pathPartials.certification.review}`,
@@ -121,6 +125,9 @@ const dynamicGlobalPaths = {
   certificationDashboard: {
     index: () => globalPaths.certificationDashboard.index,
   },
+  certificationQueue: {
+    index: () => globalPaths.certificationQueue.index,
+  },
   certificationReview: {
     index: (ids: { runId: Id }) => certificationReviewPath(ids.runId),
   },
@@ -151,6 +158,10 @@ const dynamicGlobalPaths = {
 
 const dynamicTeamPaths = (asId: Id = 'no-team-given') => ({
   certificationDashboard: {
+    // global-only page; dummy function for TypeScript satisfaction
+    index: () => '',
+  },
+  certificationQueue: {
     // global-only page; dummy function for TypeScript satisfaction
     index: () => '',
   },

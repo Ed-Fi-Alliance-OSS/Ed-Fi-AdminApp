@@ -26,6 +26,7 @@ jest.mock('../routes/paths', () => ({
   usePaths: jest.fn(() => ({
     integrationProvider: { index: () => '/integration-providers' },
     certificationDashboard: { index: () => '/certification/dashboard' },
+    certificationQueue: { index: () => '/certification/queue' },
   })),
 }));
 
@@ -91,6 +92,31 @@ describe('GlobalNav — Certification menu', () => {
     grantAllExcept();
     render(<GlobalNav />);
     expect(screen.getByText('Dashboard')).toHaveAttribute('href', '/certification/dashboard');
+  });
+
+  it('shows Review queue under Certification when privileged and flag on', () => {
+    grantAllExcept();
+    render(<GlobalNav />);
+    expect(screen.getByText('Review queue')).toBeInTheDocument();
+  });
+
+  it('hides Review queue without certification:read', () => {
+    grantAllExcept('certification:read');
+    render(<GlobalNav />);
+    expect(screen.queryByText('Review queue')).not.toBeInTheDocument();
+  });
+
+  it('hides Review queue when the flag is off', () => {
+    jest.replaceProperty(config, 'showRequestCertification', false);
+    grantAllExcept();
+    render(<GlobalNav />);
+    expect(screen.queryByText('Review queue')).not.toBeInTheDocument();
+  });
+
+  it('Review queue links to /certification/queue', () => {
+    grantAllExcept();
+    render(<GlobalNav />);
+    expect(screen.getByText('Review queue')).toHaveAttribute('href', '/certification/queue');
   });
 
   it('keeps the other global items unchanged', () => {

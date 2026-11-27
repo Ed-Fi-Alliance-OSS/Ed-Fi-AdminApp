@@ -223,7 +223,6 @@ export const GlobalNav = () => {
     ),
   ];
 
-  // Later Certification stories append more items here.
   const certificationItems: INavButtonProps[] = [
     ...arrayElemIf(
       config.showRequestCertification && authorize({ queryClient, config: CERTIFICATION_READ }),
@@ -231,6 +230,14 @@ export const GlobalNav = () => {
         route: paths.certificationDashboard.index(),
         icon: Icons.CertificationDashboard,
         text: 'Dashboard',
+      },
+    ),
+    ...arrayElemIf(
+      config.showRequestCertification && authorize({ queryClient, config: CERTIFICATION_READ }),
+      {
+        route: paths.certificationQueue.index(),
+        icon: Icons.CertificationQueue,
+        text: 'Review queue',
       },
     ),
   ];
