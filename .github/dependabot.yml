@@ -49,7 +49,8 @@ updates:
 
       # semantic-release 26+ depends on @semantic-release/core, which requires
       # Node >=26.13. The project is pinned to Node 24 (.nvmrc), so `npm ci` fails
-      # with EBADENGINE. Revisit when .nvmrc moves to Node 26.
+      # with EBADENGINE. Remove when AC-723 moves .nvmrc and package.json engines
+      # to Node >=26.13.
       - dependency-name: 'semantic-release'
         update-types:
           - 'version-update:semver-major'
