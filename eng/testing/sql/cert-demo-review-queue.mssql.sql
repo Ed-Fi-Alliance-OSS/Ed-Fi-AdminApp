@@ -14,6 +14,7 @@
 -- admin with certification:read (and certification:review to use Pick up).
 
 SET XACT_ABORT ON;
+SET QUOTED_IDENTIFIER ON; -- required by the filtered unique indexes on cert.certification_run (classic sqlcmd defaults to OFF)
 
 DECLARE @team_a_id INT = 0;        -- <-- SET DATA STORE A'S TEAM ID HERE
 DECLARE @edfi_tenant_a_id INT = 0; -- <-- SET DATA STORE A'S EDFI TENANT ID HERE

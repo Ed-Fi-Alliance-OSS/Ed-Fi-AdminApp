@@ -1,4 +1,4 @@
-import { Badge, Box, Button, Spinner, Text } from '@chakra-ui/react';
+import { Badge, Box, Button, Spinner, Text, Tooltip } from '@chakra-ui/react';
 import {
   PageContentCard,
   PageTemplate,
@@ -19,6 +19,7 @@ import { useCertificationRunList } from './useCertificationRunList';
 
 const TITLE = 'Review queue';
 const EMPTY = '—';
+const NO_REVIEW_PERMISSION = 'You need review permission';
 
 const READ_CERTIFICATION: AuthorizeConfig = {
   privilege: 'certification:read',
@@ -96,15 +97,25 @@ export const CertificationQueuePage = () => {
                 isDisabled={disabledReason !== null}
                 disabledReason={disabledReason ?? undefined}
               />
-              <Button
-                as={RouterLink}
-                to={certificationReviewPath(runId)}
-                size="sm"
-                variant="outline"
-                colorScheme="primary"
-              >
-                Open
-              </Button>
+              {canReview ? (
+                <Button
+                  as={RouterLink}
+                  to={certificationReviewPath(runId)}
+                  size="sm"
+                  variant="outline"
+                  colorScheme="primary"
+                >
+                  Open
+                </Button>
+              ) : (
+                <Tooltip label={NO_REVIEW_PERMISSION}>
+                  <span>
+                    <Button size="sm" variant="outline" colorScheme="primary" isDisabled>
+                      Open
+                    </Button>
+                  </span>
+                </Tooltip>
+              )}
             </Box>
           );
         },

@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 import '@testing-library/jest-dom';
 import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { authorize, usePrivilegeCacheForConfig } from '../../helpers';
 import { CertificationQueuePage } from './CertificationQueuePage';
 import { useCertificationRunList } from './useCertificationRunList';
@@ -239,12 +240,17 @@ describe('CertificationQueuePage', () => {
     expect(screen.getByTestId('pick-up-4')).toBeDisabled();
   });
 
-  it('disables Pick up for a user without certification:review but keeps Open', () => {
+  it('disables Pick up and Open for a user without certification:review', async () => {
     setup({ data: { rows: [run()], total: 1 } }, { canReview: false });
     render(<CertificationQueuePage />);
     expect(screen.getByTestId('pick-up-1')).toBeDisabled();
     expect(screen.getByTestId('pick-up-1')).toHaveAttribute('title', 'You need review permission');
-    expect(within(rowOf(1)).getByRole('link', { name: /Open/ })).toBeInTheDocument();
+    const row = within(rowOf(1));
+    expect(row.queryByRole('link', { name: /Open/ })).toBeNull();
+    const open = row.getByRole('button', { name: 'Open' });
+    expect(open).toBeDisabled();
+    await userEvent.hover(open.parentElement as HTMLElement);
+    expect(await screen.findByText('You need review permission')).toBeInTheDocument();
   });
 
   it('filters by status through an options filter on the Status column', () => {

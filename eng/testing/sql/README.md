@@ -145,7 +145,7 @@ shows every status, and Pick up is enabled only on runs that can be picked up:
   vendors in the Vendor column).
 - An **active catalog version**, as for the Run history demo.
 - A **global admin** with `certification:read` (to see the page) and `certification:review`
-  (to use Pick up).
+  (to use Open and Pick up; without it both buttons are disabled).
 
 ### Run it
 
