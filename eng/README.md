@@ -38,3 +38,49 @@ This folder contains local engineering and test automation scripts used by Admin
 For full usage, flags, and troubleshooting:
 - `run-bruno.ps1` — see [API Bruno E2E Tests](testing/README.md#api-bruno-e2e-tests)
 - `run-e2e-ui.ps1` — see [UI Playwright E2E Tests](testing/README.md#ui-playwright-e2e-tests)
+
+### `eng\release`
+
+Scripts behind the `pack`, `attest` and `validate-packages` jobs in `.github/workflows/on-prerelease.yml`. They run the same way locally, so release changes can be tested before they reach GitHub. Requirements: PowerShell 7, Node.js (see `.nvmrc`), the .NET SDK (for `minver-cli`, installed on first use) and, for `verify-attestations.ps1`, the GitHub CLI (`gh`). Build output goes to `dist/release`.
+
+- `build-packages.ps1` — Computes the version with MinVer (or takes `-Version`), runs `npm ci` (skip with `-SkipInstall`), builds the API and FrontEnd, and packs `dist/release/AdminApp.Api-<version>.tgz` and `dist/release/AdminApp.FrontEnd-<version>.tgz`. Reverts the `package.json` version changes after packing.
+- `new-sbom.ps1` — Generates the SPDX 2.2 SBOM for the tarballs with `sbom-tool` and writes `dist/release/_manifest/` and `dist/release/AdminApp.SBOM.zip`. Fails if `sbom-tool` exits non-zero, or if the manifest is missing, invalid JSON, has no root package, or lists fewer than `-MinDependencies` (default 10) dependencies. Downloads the self-contained `sbom-tool` release binary (pinned version, sha256-checked, cached in the temp folder), so it does not need .NET. The SBOM covers the whole monorepo lockfile, devDependencies included, not only what ships in the tarballs.
+- `collect-release-assets.ps1` — Gathers the tarballs, SBOM zip and attestation bundles into `release-assets/`, naming the bundles `<PackageName>.provenance.sigstore.json` and `<PackageName>.SBOM.sigstore.json`.
+- `verify-attestations.ps1` — Runs `gh attestation verify` for the provenance and SBOM predicates of each package. Each check requires the attestation to be signed by `on-prerelease.yml` in `-Repository` and, in CI, built from the triggering ref (`-SignerWorkflow`, `-SourceRef`). Checks against the attestations API are retried; pass both `-ProvenanceBundle` and `-SbomBundle` to check the bundles attached to a release instead.
+- `tests/run-tests.ps1` — Runs the Pester tests for these scripts (installs the pinned Pester version if needed). `sbom-tool` and `gh` are stubbed, so no network access or token is needed. Runs in CI as the `Release Script Tests` job.
+
+```powershell
+# Build, pack and generate the SBOM locally
+pwsh ./eng/release/build-packages.ps1 -Version 0.0.0-local.1
+pwsh ./eng/release/new-sbom.ps1 -Version 0.0.0-local.1
+
+# Verify tarballs downloaded from a release against its bundles (quote the glob so
+# PowerShell expands it, not your shell)
+pwsh ./eng/release/verify-attestations.ps1 -PackagePath './AdminApp.*.tgz' -Repository Ed-Fi-Alliance-OSS/Ed-Fi-AdminApp `
+  -ProvenanceBundle ./AdminApp.provenance.sigstore.json -SbomBundle ./AdminApp.SBOM.sigstore.json
+
+# Run the tests
+pwsh ./eng/release/tests/run-tests.ps1
+```
+
+Attestations themselves are only created in GitHub Actions (`actions/attest` needs the workflow's OIDC token).
+
+#### Testing the release workflow on a fork
+
+1. Enable Actions on the fork, and merge the change to a branch there.
+2. Create a pre-release on the fork whose tag targets that branch. A release runs the workflow from the tagged commit.
+3. `pack`, `attest`, `validate-packages` and `release-assets` run as they do upstream, and the packages, SBOM zip and bundles are attached to the fork's release. Check them with `verify-attestations.ps1 -Repository <you>/Ed-Fi-AdminApp`.
+4. `docker-publish` only runs in the `Ed-Fi-Alliance-OSS` organization, because it needs the organization's Docker Hub secrets. On a fork it is skipped, and the run summary says so.
+
+Notes:
+
+- Artifact attestations need a public repository (or GitHub Enterprise Cloud for a private one), so test on a public fork.
+- Re-running a failed `release-assets` job replaces the assets already attached (`gh release upload --clobber`).
+
+### `eng` (top level)
+
+- `lint-workflows.ps1` — Lints `.github/workflows` with `actionlint`, downloading the pinned release (sha256-checked) on first use. Shell scripts in `run:` steps are also checked when `shellcheck` is installed. Runs in CI as the `Workflow Lint` job.
+
+  ```powershell
+  pwsh ./eng/lint-workflows.ps1
+  ```

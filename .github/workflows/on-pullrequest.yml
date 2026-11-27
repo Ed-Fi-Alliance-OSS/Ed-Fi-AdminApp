@@ -196,6 +196,37 @@ jobs:
       - name: Validate compose configuration
         run: pwsh ./eng/testing/check-compose-config.ps1
 
+  workflow_lint:
+    name: Workflow Lint
+    runs-on: ubuntu-latest
+    # Reads files and runs a linter; needs no API access and no git credential.
+    permissions: {}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Downloads a pinned, sha256-checked actionlint release rather than using a
+      # third-party action. Runnable locally - see eng/README.md.
+      - name: Lint workflows with actionlint
+        run: pwsh ./eng/lint-workflows.ps1
+
+  release_script_tests:
+    name: Release Script Tests
+    runs-on: ubuntu-latest
+    # The tests stub sbom-tool and gh; they need no API access and no git credential.
+    permissions: {}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Pester tests for eng/release. Runnable locally - see eng/README.md.
+      - name: Run Pester tests
+        run: pwsh ./eng/release/tests/run-tests.ps1
+
   event_file:
     name: "Event File"
     runs-on: ubuntu-latest

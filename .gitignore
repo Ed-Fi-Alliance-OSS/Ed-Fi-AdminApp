@@ -76,3 +76,6 @@ tests/e2e/.features-gen
 # ai auxiliary files, plans, specs, etc. that are not part of the source code
 docs/superpowers
 .worktrees/
+
+# release assets (eng/release); the build output itself is in dist/release
+/release-assets
