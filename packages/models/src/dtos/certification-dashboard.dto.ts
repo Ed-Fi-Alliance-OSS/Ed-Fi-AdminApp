@@ -103,3 +103,8 @@ export const toCertificationDashboardDto = makeSerializer<
   CertificationDashboardDto,
   CertificationDashboardDto
 >(CertificationDashboardDto);
+
+export const toCertificationDashboardListDto = makeSerializer<
+  CertificationDashboardListDto,
+  CertificationDashboardListDto
+>(CertificationDashboardListDto);

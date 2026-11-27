@@ -99,7 +99,7 @@ export class CertificationDashboardService {
   }
 }
 
-const toRow = (run: CertificationRun): CertificationDashboardRunDto => ({
+export const toRow = (run: CertificationRun): CertificationDashboardRunDto => ({
   runId: run.certificationRunId,
   teamName: run.team?.name ?? null,
   sbEnvironmentName: run.edfiTenant?.sbEnvironment?.displayName ?? '',

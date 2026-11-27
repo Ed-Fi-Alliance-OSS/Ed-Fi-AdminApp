@@ -7,6 +7,7 @@ import {
   CERT_DASHBOARD_OTHER_STATUSES,
   CERT_DASHBOARD_WAITING_STATUSES,
   toCertificationDashboardDto,
+  toCertificationDashboardListDto,
 } from './certification-dashboard.dto';
 
 describe('certification dashboard constants', () => {
@@ -70,5 +71,31 @@ describe('toCertificationDashboardDto', () => {
       excludeExtraneousValues: true,
     });
     expect(plain).toEqual(dashboard);
+  });
+});
+
+describe('toCertificationDashboardListDto', () => {
+  it('keeps the rows and the total once class-transformer strips unexposed fields', () => {
+    const list = {
+      rows: [
+        {
+          runId: 1,
+          teamName: 'Team A',
+          sbEnvironmentName: 'env',
+          edfiTenantName: 'tenant',
+          dataStore: 'ods',
+          certificationModel: 'SIS',
+          status: 'IN_REVIEW',
+          statusChangedAt: '2026-11-13T10:00:00.000Z',
+          submittedAt: '2026-11-12T10:00:00.000Z',
+          updatedAt: '2026-11-13T11:00:00.000Z',
+        },
+      ],
+      total: 1,
+    };
+    const plain = instanceToPlain(toCertificationDashboardListDto(list as never), {
+      excludeExtraneousValues: true,
+    });
+    expect(plain).toEqual(list);
   });
 });

@@ -20,6 +20,8 @@ import { CatalogModule } from './catalog/catalog.module';
 import { CertificationCatalogController } from './certification-catalog.controller';
 import { CertificationDashboardController } from './certification-dashboard.controller';
 import { CertificationDashboardService } from './certification-dashboard.service';
+import { CertificationRunListController } from './certification-run-list.controller';
+import { CertificationRunListService } from './certification-run-list.service';
 import { CertificationReviewController } from './certification-review.controller';
 import { CertificationReviewService } from './certification-review.service';
 import { CertificationController } from './certification.controller';
@@ -61,6 +63,7 @@ import { CertificationTeamDashboardService } from './certification-team-dashboar
     CertificationTokenController,
     CertificationCatalogController,
     CertificationDashboardController,
+    CertificationRunListController,
     CertificationReviewController,
     CertificationRunsController,
     CertificationTeamRunsController,
@@ -68,6 +71,7 @@ import { CertificationTeamDashboardService } from './certification-team-dashboar
   ],
   providers: [
     CertificationDashboardService,
+    CertificationRunListService,
     CertificationTeamDashboardService,
     CertificationReviewService,
     CertificationService,
