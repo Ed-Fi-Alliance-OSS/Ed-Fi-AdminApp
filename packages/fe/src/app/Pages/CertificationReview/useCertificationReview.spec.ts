@@ -9,6 +9,7 @@ import {
   useCertificationReviewDecision,
   usePickUpCertificationRun,
 } from './useCertificationReview';
+import { CERTIFICATION_RUN_LIST_QUERY_KEY } from '../CertificationQueue/useCertificationRunList';
 
 jest.mock('@tanstack/react-query', () => ({
   useMutation: jest.fn(),
@@ -88,6 +89,11 @@ describe('usePickUpCertificationRun', () => {
   it.each(['onSuccess', 'onError'] as const)('refreshes the dashboard %s', (handler) => {
     options()[handler](undefined, { runId: 7 });
     expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: CERTIFICATION_DASHBOARD_QUERY_KEY });
+  });
+
+  it.each(['onSuccess', 'onError'] as const)('refreshes the run list %s', (handler) => {
+    options()[handler](undefined, { runId: 7 });
+    expect(invalidateQueries).toHaveBeenCalledWith({ queryKey: CERTIFICATION_RUN_LIST_QUERY_KEY });
   });
 });
 

@@ -7,7 +7,6 @@ import {
   StatLabel,
   StatNumber,
   Text,
-  useToast,
 } from '@chakra-ui/react';
 import { ContentSection, PageContentCard, PageTemplate } from '@edanalytics/common-ui';
 import {
@@ -16,9 +15,9 @@ import {
   CertificationDashboardRunDto,
 } from '@edanalytics/models';
 import { useQueryClient } from '@tanstack/react-query';
-import { Link as RouterLink, useNavigate } from 'react-router';
+import { Link as RouterLink } from 'react-router';
 import { AuthorizeConfig, authorize, usePrivilegeCacheForConfig } from '../../helpers';
-import { usePickUpCertificationRun } from '../CertificationReview/useCertificationReview';
+import { PickUpCertificationRunButton } from '../CertificationReview/PickUpCertificationRunButton';
 import { REVIEW_CERTIFICATION } from '../CertificationReview/reviewAuthorization';
 import { certificationReviewPath } from '../../routes/paths';
 import { CertificationRunsCard } from './CertificationRunsCard';
@@ -29,42 +28,6 @@ const TITLE = 'Certification dashboard';
 const READ_CERTIFICATION: AuthorizeConfig = {
   privilege: 'certification:read',
   subject: { id: '__filtered__' },
-};
-
-/** One mutation per row, so each Pick up button shows its own pending state. */
-const PickUpButton = ({ runId }: { runId: number }) => {
-  const navigate = useNavigate();
-  const toast = useToast();
-  const { mutateAsync, isPending } = usePickUpCertificationRun();
-
-  const pickUp = async () => {
-    try {
-      await mutateAsync({ runId });
-    } catch (error) {
-      const e = error as { statusCode?: number; message?: string } | undefined;
-      if (e?.statusCode === 409) {
-        toast({
-          title: 'Someone already picked up this run.',
-          status: 'warning',
-          isClosable: true,
-        });
-      } else {
-        toast({
-          title: e?.message || 'Could not pick up this run.',
-          status: 'error',
-          isClosable: true,
-        });
-      }
-      return;
-    }
-    navigate(certificationReviewPath(runId));
-  };
-
-  return (
-    <Button size="sm" colorScheme="primary" isLoading={isPending} onClick={pickUp}>
-      Pick up
-    </Button>
-  );
 };
 
 const renderReviewAction = (row: CertificationDashboardRunDto) => {
@@ -82,7 +45,7 @@ const renderReviewAction = (row: CertificationDashboardRunDto) => {
     );
   }
   if (CERT_REVIEW_QUEUE_STATUSES.includes(row.status)) {
-    return <PickUpButton runId={row.runId} />;
+    return <PickUpCertificationRunButton runId={row.runId} />;
   }
   return null;
 };

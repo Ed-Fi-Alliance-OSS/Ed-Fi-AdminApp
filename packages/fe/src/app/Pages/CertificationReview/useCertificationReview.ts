@@ -7,6 +7,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { apiClient } from '../../api-v2/apiClient';
 import { QUERY_KEYS } from '../../api-v2/queryKeys';
 import { CERTIFICATION_DASHBOARD_QUERY_KEY } from '../CertificationDashboard/useCertificationDashboard';
+import { CERTIFICATION_RUN_LIST_QUERY_KEY } from '../CertificationQueue/useCertificationRunList';
 import type { CertificationSnapshotSource } from '../CertificationV2/useCertificationStepSnapshot';
 
 export const certificationReviewQueryKeys = {
@@ -47,7 +48,10 @@ export const reviewSnapshotSource = (runId: number): CertificationSnapshotSource
 export const usePickUpCertificationRun = () => {
   const queryClient = useQueryClient();
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: CERTIFICATION_DASHBOARD_QUERY_KEY });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: CERTIFICATION_DASHBOARD_QUERY_KEY }),
+      queryClient.invalidateQueries({ queryKey: CERTIFICATION_RUN_LIST_QUERY_KEY }),
+    ]);
   return useMutation({
     mutationFn: async ({ runId }: { runId: number }) =>
       (await apiClient.post(
