@@ -38,6 +38,8 @@ export const certificationQueryKeys = {
     [...certificationQueryKeys.all(teamId), 'latest-runs', edfiTenantId, odsId] as const,
   runComments: (teamId: number, runId: number | undefined) =>
     [...certificationQueryKeys.all(teamId), 'run-comments', runId] as const,
+  runEvents: (teamId: number, runId: number | undefined) =>
+    [...certificationQueryKeys.all(teamId), 'run-events', runId] as const,
   stepRuns: (teamId: number, runId: number | undefined, scenarioId: number | undefined) =>
     [...certificationQueryKeys.all(teamId), 'step-runs', runId, scenarioId] as const,
   scenarioStatuses: (teamId: number, runId: number | undefined) =>

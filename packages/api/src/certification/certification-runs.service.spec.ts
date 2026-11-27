@@ -1,9 +1,6 @@
 import 'reflect-metadata';
-import {
-  ConflictException,
-  NotFoundException,
-  ServiceUnavailableException,
-} from '@nestjs/common';
+import { ConflictException, NotFoundException, ServiceUnavailableException } from '@nestjs/common';
+import { CertificationRun, CertificationRunEvent, User } from '@edanalytics/models-server';
 import { In, IsNull, Not } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { CertificationRunsService } from './certification-runs.service';
@@ -13,6 +10,8 @@ const sbEnvironment = { id: 1, displayName: 'Env One', odsDsVersion: '5.0.0' } a
 const edfiTenant = { id: 10, name: 'tenant1', displayName: 'tenant1', sbEnvironmentId: 1 } as never;
 const ods = { id: 5, edfiTenantId: 10, displayName: 'ods-five' };
 const catalogVersion = { catalogVersionId: 3, dataStandardVersion: 'v5' };
+
+const runCreatedAt = new Date('2026-11-24T10:00:00Z');
 
 const storedRun = (overrides: object = {}) => ({
   certificationRunId: 7,
@@ -34,7 +33,11 @@ describe('CertificationRunsService', () => {
   let commentRepository: { find: jest.Mock };
   let scenarioRepository: { createQueryBuilder: jest.Mock };
   let runScenarioRepository: { createQueryBuilder: jest.Mock };
+  let eventRepository: { createQueryBuilder: jest.Mock };
+  let eventQuery: Record<string, jest.Mock>;
   let artifactService: { currentRef: string | undefined };
+  let eventInsert: jest.Mock;
+  let dataSource: { transaction: jest.Mock };
   let service: CertificationRunsService;
 
   const create = (overrides: object = {}) =>
@@ -53,13 +56,34 @@ describe('CertificationRunsService', () => {
       findOne: jest.fn().mockResolvedValue(null),
       find: jest.fn().mockResolvedValue([]),
       create: jest.fn((value) => value),
-      save: jest.fn(async (value) => ({ certificationRunId: 7, ...value })),
+      save: jest.fn(async (value) => ({
+        certificationRunId: 7,
+        createdAt: runCreatedAt,
+        ...value,
+      })),
     };
+    eventInsert = jest.fn().mockResolvedValue({});
+    // The transaction's manager hands out the same run repository mock plus the event insert.
+    const em = {
+      getRepository: (entity: unknown) =>
+        entity === CertificationRun
+          ? runRepository
+          : entity === CertificationRunEvent
+            ? { insert: eventInsert }
+            : undefined,
+    };
+    dataSource = { transaction: jest.fn(async (work) => work(em)) };
     odsRepository = { findOneBy: jest.fn().mockResolvedValue(ods) };
     catalogVersionRepository = { findOne: jest.fn().mockResolvedValue(catalogVersion) };
     commentRepository = { find: jest.fn() };
     scenarioRepository = { createQueryBuilder: jest.fn() };
     runScenarioRepository = { createQueryBuilder: jest.fn() };
+    eventQuery = {};
+    for (const name of ['leftJoinAndMapOne', 'where', 'orderBy', 'offset', 'limit']) {
+      eventQuery[name] = jest.fn().mockReturnValue(eventQuery);
+    }
+    eventQuery.getManyAndCount = jest.fn().mockResolvedValue([[], 0]);
+    eventRepository = { createQueryBuilder: jest.fn().mockReturnValue(eventQuery) };
     artifactService = { currentRef: 'v2.1.0' };
     service = new CertificationRunsService(
       artifactService as never,
@@ -69,6 +93,8 @@ describe('CertificationRunsService', () => {
       commentRepository as never,
       scenarioRepository as never,
       runScenarioRepository as never,
+      eventRepository as never,
+      dataSource as never,
     );
   });
 
@@ -305,10 +331,14 @@ describe('CertificationRunsService', () => {
         .mockResolvedValueOnce(null)
         .mockResolvedValueOnce(catalogVersion);
 
-      const result = create({ sbEnvironment: { ...(sbEnvironment as object), odsDsVersion: '6.1.0' } });
+      const result = create({
+        sbEnvironment: { ...(sbEnvironment as object), odsDsVersion: '6.1.0' },
+      });
 
       await expect(result).rejects.toThrow(ValidationHttpException);
-      expect(catalogVersionRepository.findOne.mock.calls[0][0].where.dataStandardVersion).toBe('v6');
+      expect(catalogVersionRepository.findOne.mock.calls[0][0].where.dataStandardVersion).toBe(
+        'v6',
+      );
       expect(runRepository.save).not.toHaveBeenCalled();
     });
 
@@ -339,6 +369,39 @@ describe('CertificationRunsService', () => {
       runRepository.save.mockRejectedValue(new Error('connection lost'));
 
       await expect(create()).rejects.toThrow('connection lost');
+      expect(eventInsert).not.toHaveBeenCalled();
+    });
+
+    it('records a CREATED event with the starter in the same transaction', async () => {
+      await create();
+
+      expect(dataSource.transaction).toHaveBeenCalledTimes(1);
+      expect(eventInsert).toHaveBeenCalledWith({
+        certificationRunId: 7,
+        event: 'CREATED',
+        fromStatus: null,
+        toStatus: 'DRAFT',
+        catalogVersionId: 3,
+        userId: 42,
+        certificationRunCommentId: null,
+        createdAt: expect.any(Date),
+      });
+      const [row] = eventInsert.mock.calls[0];
+      expect(row.createdAt).not.toBe(runCreatedAt);
+    });
+
+    it('a lost Start Run race leaves no event and answers already open', async () => {
+      runRepository.findOne.mockResolvedValueOnce(null).mockResolvedValueOnce(storedRun());
+      runRepository.save.mockRejectedValue(new Error('duplicate key'));
+
+      await expect(create()).rejects.toThrow(ConflictException);
+      expect(eventInsert).not.toHaveBeenCalled();
+    });
+
+    it('a failed event insert fails the start', async () => {
+      eventInsert.mockRejectedValue(new Error('event failed'));
+
+      await expect(create()).rejects.toThrow('event failed');
     });
 
     it('refuses a data store that is not in the tenant', async () => {
@@ -354,7 +417,10 @@ describe('CertificationRunsService', () => {
     });
 
     it.each([
-      ['no catalog matches the loaded artifact', () => catalogVersionRepository.findOne.mockResolvedValue(null)],
+      [
+        'no catalog matches the loaded artifact',
+        () => catalogVersionRepository.findOne.mockResolvedValue(null),
+      ],
       ['the artifact is not loaded', () => (artifactService.currentRef = undefined)],
     ])('answers 503 and creates nothing when %s', async (_name, arrange) => {
       arrange();
@@ -437,6 +503,97 @@ describe('CertificationRunsService', () => {
       runRepository.findOne.mockResolvedValue(row);
 
       await expect(find({ validOdsIds })).rejects.toThrow(NotFoundException);
+    });
+  });
+
+  describe('findRunEvents', () => {
+    const at = new Date('2026-11-24T10:00:00Z');
+    const stored = (overrides: object = {}) => ({
+      certificationRunEventId: 1,
+      certificationRunId: 7,
+      event: 'CREATED',
+      fromStatus: null,
+      toStatus: 'DRAFT',
+      userId: null,
+      user: null,
+      comment: null,
+      createdAt: at,
+      ...overrides,
+    });
+    const read = async (rows: object[], total = rows.length) => {
+      eventQuery.getManyAndCount.mockResolvedValue([rows, total]);
+      return service.findRunEvents(7, { offset: 0, limit: 50 });
+    };
+
+    it("queries the run's events newest first, joined to user and comment, paged", async () => {
+      await service.findRunEvents(7, { offset: 100, limit: 25 });
+
+      expect(eventRepository.createQueryBuilder).toHaveBeenCalledWith('event');
+      expect(eventQuery.leftJoinAndMapOne).toHaveBeenCalledWith(
+        'event.user',
+        User,
+        'user',
+        'user.id = event.userId',
+      );
+      expect(eventQuery.leftJoinAndMapOne).toHaveBeenCalledWith(
+        'event.comment',
+        'event.comment',
+        'comment',
+      );
+      expect(eventQuery.where).toHaveBeenCalledWith('event.certificationRunId = :runId', {
+        runId: 7,
+      });
+      expect(eventQuery.orderBy).toHaveBeenCalledTimes(1);
+      expect(eventQuery.orderBy).toHaveBeenCalledWith('event.certificationRunEventId', 'DESC');
+      expect(eventQuery.offset).toHaveBeenCalledWith(100);
+      expect(eventQuery.limit).toHaveBeenCalledWith(25);
+    });
+
+    it('returns entries in the order the query gives, with the total', async () => {
+      const page = await read(
+        [
+          stored(),
+          stored({
+            certificationRunEventId: 2,
+            event: 'SUBMITTED',
+            fromStatus: 'DRAFT',
+            toStatus: 'READY_FOR_REVIEW',
+          }),
+        ],
+        9,
+      );
+      expect(page.total).toBe(9);
+      expect(page.items.map((item) => item.eventId)).toEqual([1, 2]);
+      expect(page.items[1]).toMatchObject({
+        event: 'SUBMITTED',
+        fromStatus: 'DRAFT',
+        toStatus: 'READY_FOR_REVIEW',
+        createdAt: at.toISOString(),
+      });
+    });
+
+    it('names the user', async () => {
+      const page = await read([stored({ userId: 11, user: { displayName: 'Vera Vendor' } })]);
+      expect(page.items[0].actorName).toBe('Vera Vendor');
+    });
+
+    it('shows System for a null user', async () => {
+      const page = await read([stored({ userId: null })]);
+      expect(page.items[0].actorName).toBe('System');
+    });
+
+    it('shows Former user when the user no longer exists', async () => {
+      const page = await read([stored({ userId: 11, user: null })]);
+      expect(page.items[0].actorName).toBe('Former user');
+    });
+
+    it('returns the comment text, or null when the comment has none or there is no comment', async () => {
+      const page = await read([
+        stored({ certificationRunEventId: 1, comment: { text: 'Fix step 3' } }),
+        stored({ certificationRunEventId: 2, comment: { text: null } }),
+        stored({ certificationRunEventId: 3, comment: null }),
+      ]);
+      expect(page.items.map((item) => item.comment)).toEqual(['Fix step 3', null, null]);
     });
   });
 });

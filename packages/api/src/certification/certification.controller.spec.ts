@@ -143,11 +143,13 @@ describe('CertificationController', () => {
     it("sends the team's run and returns it with its new status", async () => {
       const service = { sendToReview: jest.fn().mockResolvedValue('READY_FOR_REVIEW') };
 
-      const result = await make(service).sendToReview(2, edfiTenant, 7, validOdsIds);
+      const result = await make(service).sendToReview(2, edfiTenant, 7, validOdsIds, {
+        id: 9,
+      } as never);
 
       expectTeamRunLookup();
       expect(runsService.findTeamRun.mock.calls[0][0].validOdsIds(10)).toBe(validOdsIds);
-      expect(service.sendToReview).toHaveBeenCalledWith(certificationRun);
+      expect(service.sendToReview).toHaveBeenCalledWith(certificationRun, 9);
       expect((runsService as unknown as { toDto: jest.Mock }).toDto).toHaveBeenCalledWith({
         ...certificationRun,
         status: 'READY_FOR_REVIEW',
@@ -160,7 +162,7 @@ describe('CertificationController', () => {
       const service = { sendToReview: jest.fn() };
 
       await expect(
-        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never),
       ).rejects.toBeInstanceOf(NotFoundException);
       expect(service.sendToReview).not.toHaveBeenCalled();
     });
@@ -169,7 +171,7 @@ describe('CertificationController', () => {
       const service = { sendToReview: jest.fn().mockRejectedValue(new ConflictException('no')) };
 
       await expect(
-        make(service).sendToReview(2, edfiTenant, 7, validOdsIds),
+        make(service).sendToReview(2, edfiTenant, 7, validOdsIds, { id: 9 } as never),
       ).rejects.toBeInstanceOf(ConflictException);
     });
 

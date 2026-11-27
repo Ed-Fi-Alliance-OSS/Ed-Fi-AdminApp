@@ -68,6 +68,14 @@ jest.mock('./CertificationRunReviewerComments', () => ({
   },
 }));
 
+let mockAuditHistoryProps: Record<string, unknown> | undefined;
+jest.mock('./CertificationRunAuditHistory', () => ({
+  CertificationRunAuditHistory: (props: Record<string, unknown>) => {
+    mockAuditHistoryProps = props;
+    return <div data-testid="audit-history" />;
+  },
+}));
+
 const catalogDomains = [
   {
     domainId: 17,
@@ -176,7 +184,7 @@ describe('CertificationScenariosPage', () => {
   });
 
   describe('the run', () => {
-    it("loads the run from the address and the catalog the run was started with", () => {
+    it('loads the run from the address and the catalog the run was started with', () => {
       render(<CertificationScenariosPage />);
 
       expect(useCertificationRun).toHaveBeenCalledWith(2, 7);
@@ -465,6 +473,20 @@ describe('CertificationScenariosPage', () => {
       const bar = screen.getByTestId('review-bar');
       const comments = screen.getByTestId('reviewer-comments');
       expect(bar.compareDocumentPosition(comments) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    });
+
+    it('renders the Audit history card at the bottom, after the scenarios table', () => {
+      mockAuditHistoryProps = undefined;
+      render(<CertificationScenariosPage />);
+
+      expect(mockAuditHistoryProps).toEqual({ teamId: 2, runId: 7 });
+      const scenarios = screen.getByRole('table');
+      const audit = screen.getByTestId('audit-history');
+      const back = screen.getByRole('button', { name: 'Back to My products' });
+      expect(
+        scenarios.compareDocumentPosition(audit) & Node.DOCUMENT_POSITION_FOLLOWING,
+      ).toBeTruthy();
+      expect(audit.compareDocumentPosition(back) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     });
 
     it('counts the scenarios of every domain even when a domain filter is selected', () => {

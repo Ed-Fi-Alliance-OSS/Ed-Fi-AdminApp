@@ -25,6 +25,7 @@ import { useNavigate, useParams } from 'react-router';
 import { getOdsTerminology } from '../../helpers';
 import { certificationRunExecutionPath, myProductsPath } from '../../routes/paths';
 import { CertificationAuthenticateForm } from './CertificationAuthenticateForm';
+import { CertificationRunAuditHistory } from './CertificationRunAuditHistory';
 import { CertificationRunReviewBar } from './CertificationRunReviewBar';
 import { CertificationRunReviewerComments } from './CertificationRunReviewerComments';
 import { CertificationStatusIndicator } from './CertificationStatusIndicator';
@@ -323,6 +324,8 @@ export const CertificationScenariosPage = () => {
             </Tbody>
           </Table>
         </Box>
+
+        <CertificationRunAuditHistory teamId={teamId} runId={run.runId} />
 
         {backButtons}
       </chakra.form>

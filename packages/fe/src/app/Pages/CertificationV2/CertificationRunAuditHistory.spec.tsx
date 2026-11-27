@@ -1,0 +1,183 @@
+import 'reflect-metadata';
+import { ChakraProvider } from '@chakra-ui/react';
+import { CertificationRunEventDto } from '@edanalytics/models';
+import { fireEvent, render, screen, waitFor, within } from '@testing-library/react';
+import { CertificationRunAuditHistory } from './CertificationRunAuditHistory';
+import { useCertificationRunEvents } from './useCertificationRunEvents';
+
+jest.mock('../../api', () => ({ methods: {} }));
+jest.mock('./useCertificationRunEvents', () => ({ useCertificationRunEvents: jest.fn() }));
+
+const CREATED_AT = '2026-11-20T15:30:00.000Z';
+const DATE = new Date(CREATED_AT).toLocaleString(undefined, {
+  dateStyle: 'medium',
+  timeStyle: 'short',
+});
+
+const entry = (over: Partial<CertificationRunEventDto>): CertificationRunEventDto => ({
+  eventId: 1,
+  event: 'CREATED',
+  fromStatus: null,
+  toStatus: 'DRAFT',
+  createdAt: CREATED_AT,
+  actorName: 'Ann Vendor',
+  comment: null,
+  ...over,
+});
+
+const loadMore = jest.fn();
+const renderCard = (state: Partial<ReturnType<typeof useCertificationRunEvents>> = {}) => {
+  (useCertificationRunEvents as jest.Mock).mockReturnValue({
+    events: [],
+    hasMore: false,
+    loadMore,
+    isLoadingMore: false,
+    isLoading: false,
+    isError: false,
+    ...state,
+  });
+  return render(
+    <ChakraProvider>
+      <CertificationRunAuditHistory teamId={2} runId={7} />
+    </ChakraProvider>,
+  );
+};
+
+// The table's rows without its header row.
+const dataRows = () => screen.getAllByRole('row').slice(1);
+
+describe('CertificationRunAuditHistory', () => {
+  beforeEach(() => jest.clearAllMocks());
+
+  it('shows an "Audit history" heading and its entries', () => {
+    renderCard({
+      events: [
+        entry({}),
+        entry({
+          eventId: 2,
+          event: 'CHANGES_REQUESTED',
+          fromStatus: 'IN_REVIEW',
+          toStatus: 'CHANGES_REQUESTED',
+          actorName: 'Rita Reviewer',
+          comment: 'Please fix step 2',
+        }),
+      ],
+    });
+
+    expect(screen.getByRole('heading', { level: 2, name: /Audit history/ })).toBeTruthy();
+    const headers = screen.getAllByRole('columnheader').map((h) => h.textContent);
+    expect(headers).toEqual(['Date', 'Event', 'Status', 'By', 'Comment']);
+    const items = dataRows();
+    expect(items).toHaveLength(2);
+    expect(items[0].textContent).toContain(DATE);
+    expect(items[0].textContent).toContain('Run started');
+    expect(items[0].textContent).toContain('Draft');
+    expect(items[0].textContent).toContain('Ann Vendor');
+    expect(items[1].textContent).toContain('Changes requested');
+    expect(items[1].textContent).toContain('Rita Reviewer');
+    // The comment can be long, so the table only links to it.
+    expect(items[1].textContent).not.toContain('Please fix step 2');
+    expect(within(items[1]).getByRole('button', { name: 'View comment' })).toBeTruthy();
+    expect(within(items[0]).queryByRole('button', { name: 'View comment' })).toBeNull();
+    expect(items[0].textContent).toContain('—');
+    expect(screen.getAllByText(DATE)[0].getAttribute('datetime')).toBe(CREATED_AT);
+  });
+
+  it('collapses and expands', async () => {
+    renderCard({ events: [entry({})] });
+    const toggle = screen.getByRole('button', { name: /Audit history/ });
+
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('false');
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    fireEvent.click(toggle);
+    expect(toggle.getAttribute('aria-expanded')).toBe('true');
+    expect(await screen.findByRole('table', { name: 'Audit history' })).toBeTruthy();
+  });
+
+  it('names the toggle without its arrow and points it at an element that stays when collapsed', async () => {
+    renderCard({ events: [entry({})] });
+    const toggle = screen.getByRole('button', { name: 'Audit history' });
+    const controlledId = toggle.getAttribute('aria-controls') ?? '';
+
+    fireEvent.click(toggle);
+    await waitFor(() => expect(screen.queryByRole('table')).toBeNull());
+    expect(document.getElementById(controlledId)).not.toBeNull();
+  });
+
+  it('shows "Show more" only while there are more entries', () => {
+    const { unmount } = renderCard({ events: [entry({})], hasMore: false });
+    expect(screen.queryByRole('button', { name: 'Show more' })).toBeNull();
+    unmount();
+
+    renderCard({ events: [entry({})], hasMore: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Show more' }));
+    expect(loadMore).toHaveBeenCalledTimes(1);
+  });
+
+  it('shows an empty message with no entries', () => {
+    renderCard();
+
+    expect(screen.getByText('No history yet.')).toBeTruthy();
+  });
+
+  it('shows an error message when the read fails', () => {
+    renderCard({ isError: true });
+
+    expect(screen.getByText("The audit history couldn't be loaded.")).toBeTruthy();
+    expect(screen.queryByText('No history yet.')).toBeNull();
+  });
+
+  it('shows a loading message, not "No history yet.", while the first page loads', () => {
+    renderCard({ isLoading: true });
+
+    expect(screen.getByText('Loading history…')).toBeTruthy();
+    expect(screen.queryByText('No history yet.')).toBeNull();
+  });
+
+  it('keeps the loaded entries visible when a refetch fails', () => {
+    renderCard({ events: [entry({})], isError: true });
+
+    expect(dataRows()).toHaveLength(1);
+    expect(dataRows()[0].textContent).toContain('Ann Vendor');
+    expect(screen.queryByText("The audit history couldn't be loaded.")).toBeNull();
+  });
+
+  it("opens the reviewer's full comment in a dialog and closes it", async () => {
+    const comment = 'Please fix step 2.\nStep 5 also needs a new response.';
+    renderCard({
+      events: [
+        entry({
+          eventId: 2,
+          event: 'CHANGES_REQUESTED',
+          fromStatus: 'IN_REVIEW',
+          toStatus: 'CHANGES_REQUESTED',
+          actorName: 'Rita Reviewer',
+          comment,
+        }),
+      ],
+    });
+
+    fireEvent.click(screen.getByRole('button', { name: 'View comment' }));
+
+    const dialog = await screen.findByRole('dialog');
+    expect(within(dialog).getByText('Comment from Rita Reviewer')).toBeTruthy();
+    expect(dialog.textContent).toContain('Changes requested');
+    expect(dialog.textContent).toContain(DATE);
+    expect(within(dialog).getByTestId('audit-history-comment').textContent).toBe(comment);
+
+    // The footer button; the header's X has the same accessible name.
+    fireEvent.click(within(dialog).getByText('Close'));
+    await waitFor(() => expect(screen.queryByRole('dialog')).toBeNull());
+  });
+
+  it('has no edit or delete controls', () => {
+    renderCard({ events: [entry({})], hasMore: true });
+
+    const names = screen.getAllByRole('button').map((b) => b.textContent);
+    expect(names).toHaveLength(2);
+    expect(names[0]).toContain('Audit history');
+    expect(names[1]).toBe('Show more');
+  });
+});

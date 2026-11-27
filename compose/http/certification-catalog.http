@@ -123,3 +123,22 @@ Content-Type: application/json
 GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/catalog-versions
 Authorization: Bearer invalid.jwt.token
 Content-Type: application/json
+
+###
+### === RUN AUDIT HISTORY (AC-650) ===
+###
+
+### 13. A page of a run's history, newest first (offset >= 0, limit 1-200, default 50)
+### Set @runId to the id of one of the team's runs; another team's run returns 404.
+@runId = 1
+# @name getRunEvents
+GET {{baseUrl}}/api/teams/{{teamId}}/certification/runs/{{runId}}/events?offset=0&limit=50
+Authorization: Bearer {{machineToken}}
+Content-Type: application/json
+
+###
+### 14. Limit over 200 - Should return 400
+# @name getRunEventsLimitTooHigh
+GET {{baseUrl}}/api/teams/{{teamId}}/certification/runs/{{runId}}/events?limit=201
+Authorization: Bearer {{machineToken}}
+Content-Type: application/json

@@ -1,5 +1,9 @@
-import { NotFoundException } from '@nestjs/common';
-import { INTERCEPTORS_METADATA, PATH_METADATA } from '@nestjs/common/constants';
+import { BadRequestException, NotFoundException } from '@nestjs/common';
+import {
+  INTERCEPTORS_METADATA,
+  PATH_METADATA,
+  ROUTE_ARGS_METADATA,
+} from '@nestjs/common/constants';
 import { SbEnvironmentEdfiTenantInterceptor } from '../app/sb-environment-edfi-tenant.interceptor';
 import { AUTHORIZE_KEY } from '../auth/authorization/authorize.decorator';
 import {
@@ -99,11 +103,13 @@ describe('CertificationTeamRunsController', () => {
   const runDto = { runId: 7 };
   const comments = [{ commentId: 1 }];
   const history = [{ runId: 9 }, { runId: 7 }];
+  const eventPage = { items: [], total: 0 };
   let runsService: {
     findTeamRun: jest.Mock;
     toDto: jest.Mock;
     findRunComments: jest.Mock;
     findTeamRunHistory: jest.Mock;
+    findRunEvents: jest.Mock;
   };
   let controller: CertificationTeamRunsController;
 
@@ -113,6 +119,7 @@ describe('CertificationTeamRunsController', () => {
       toDto: jest.fn().mockReturnValue(runDto),
       findRunComments: jest.fn().mockResolvedValue(comments),
       findTeamRunHistory: jest.fn().mockResolvedValue(history),
+      findRunEvents: jest.fn().mockResolvedValue(eventPage),
     };
     controller = new CertificationTeamRunsController(runsService as never);
   });
@@ -201,13 +208,81 @@ describe('CertificationTeamRunsController', () => {
     it('is guarded like getRun', () => {
       expect(
         Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getComments),
-      ).toEqual(Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun));
+      ).toEqual(
+        Reflect.getMetadata(AUTHORIZE_KEY, CertificationTeamRunsController.prototype.getRun),
+      );
     });
 
     it('is served at :runId/comments', () => {
       expect(
         Reflect.getMetadata(PATH_METADATA, CertificationTeamRunsController.prototype.getComments),
       ).toBe(':runId/comments');
+    });
+  });
+
+  describe('getEvents', () => {
+    it("returns a page of the team's run history", async () => {
+      await expect(controller.getEvents(2, 7, 100, 25, {})).resolves.toBe(eventPage);
+      expect(runsService.findTeamRun).toHaveBeenCalledWith(
+        expect.objectContaining({ runId: 7, teamId: 2 }),
+      );
+      expect(runsService.findRunEvents).toHaveBeenCalledWith(7, { offset: 100, limit: 25 });
+    });
+
+    it('defaults offset to 0 and limit to 50', () => {
+      const args = Object.values(
+        Reflect.getMetadata(
+          ROUTE_ARGS_METADATA,
+          CertificationTeamRunsController,
+          'getEvents',
+        ) as Record<string, { data: unknown; pipes: unknown[] }>,
+      );
+      const defaultOf = (name: string) =>
+        (args.find((arg) => arg.data === name)?.pipes[0] as { defaultValue: unknown }).defaultValue;
+      expect(defaultOf('offset')).toBe(0);
+      expect(defaultOf('limit')).toBe(50);
+    });
+
+    it('accepts the largest limit', async () => {
+      await controller.getEvents(2, 7, 0, 200, {});
+      expect(runsService.findRunEvents).toHaveBeenCalledWith(7, { offset: 0, limit: 200 });
+    });
+
+    it.each([[201], [0], [-1]])('rejects a limit of %d', async (limit) => {
+      await expect(controller.getEvents(2, 7, 0, limit, {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(runsService.findRunEvents).not.toHaveBeenCalled();
+    });
+
+    it('rejects a negative offset', async () => {
+      await expect(controller.getEvents(2, 7, -1, 50, {})).rejects.toBeInstanceOf(
+        BadRequestException,
+      );
+      expect(runsService.findRunEvents).not.toHaveBeenCalled();
+    });
+
+    it("checks certification:read on the run's own tenant", async () => {
+      const tenantTenIds = new Set([5]);
+      await controller.getEvents(2, 7, 0, 50, { [READ]: { 10: tenantTenIds, 11: true } } as never);
+
+      const { validOdsIds } = runsService.findTeamRun.mock.calls[0][0];
+      expect(validOdsIds(10)).toBe(tenantTenIds);
+      expect(validOdsIds(12)).toBeUndefined();
+    });
+
+    it("returns 404 and reads no history for another team's run", async () => {
+      runsService.findTeamRun.mockRejectedValue(new NotFoundException());
+      await expect(controller.getEvents(3, 7, 0, 50, {})).rejects.toBeInstanceOf(NotFoundException);
+      expect(runsService.findRunEvents).not.toHaveBeenCalled();
+    });
+
+    it('is guarded like getRun and served at :runId/events', () => {
+      const proto = CertificationTeamRunsController.prototype;
+      expect(Reflect.getMetadata(AUTHORIZE_KEY, proto.getEvents)).toEqual(
+        Reflect.getMetadata(AUTHORIZE_KEY, proto.getRun),
+      );
+      expect(Reflect.getMetadata(PATH_METADATA, proto.getEvents)).toBe(':runId/events');
     });
   });
 });

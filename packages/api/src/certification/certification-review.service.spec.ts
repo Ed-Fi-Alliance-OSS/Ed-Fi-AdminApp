@@ -3,6 +3,7 @@ import { CERT_REVIEW_MESSAGES } from '@edanalytics/models';
 import {
   CertificationRun,
   CertificationRunComment,
+  CertificationRunEvent,
   ScenarioStep,
 } from '@edanalytics/models-server';
 import { NotFoundException } from '@nestjs/common';
@@ -36,37 +37,49 @@ const makeService = (deps: Deps) =>
     (deps.dataSource ?? {}) as never,
   );
 
-/** A transaction that undoes the run's status change when its callback throws. */
+/** A transaction that undoes the run's status change, comments and events when its callback throws. */
 const makeTransactionalDb = (initialStatus: string) => {
-  const state = { status: initialStatus, comments: [] as unknown[] };
-  const runUpdate = jest.fn(async (where: { status: string }, set: { status: string }) => {
-    if (where.status !== state.status) return { affected: 0 };
-    state.status = set.status;
-    return { affected: 1 };
-  });
-  const commentSave = jest.fn(async (value: unknown) => {
+  const state = { status: initialStatus, comments: [] as unknown[], events: [] as unknown[] };
+  const runUpdate = jest.fn(
+    async (where: { status: string }, set: { status: string; statusChangedAt?: Date }) => {
+      if (where.status !== state.status) return { affected: 0 };
+      state.status = set.status;
+      return { affected: 1 };
+    },
+  );
+  const commentSave = jest.fn(async (value: object) => {
     state.comments.push(value);
-    return value;
+    return { ...value, certificationRunCommentId: 42 };
+  });
+  const eventInsert = jest.fn(async (value: unknown) => {
+    state.events.push(value);
+    return {};
   });
   const snapshotUpdate = jest.fn().mockResolvedValue({ affected: 2 });
   const em: Record<string, Record<string, jest.Mock>> = {
     [CertificationRun.name]: { update: runUpdate },
     [CertificationRunComment.name]: { create: jest.fn((value) => value), save: commentSave },
     [ScenarioStep.name]: { update: snapshotUpdate },
+    [CertificationRunEvent.name]: { insert: eventInsert },
   };
   const dataSource = {
     transaction: jest.fn(async (work) => {
-      const before = { status: state.status, comments: [...state.comments] };
+      const before = {
+        status: state.status,
+        comments: [...state.comments],
+        events: [...state.events],
+      };
       try {
         return await work({ getRepository: (entity: { name: string }) => em[entity.name] });
       } catch (error) {
         state.status = before.status;
         state.comments = before.comments;
+        state.events = before.events;
         throw error;
       }
     }),
   };
-  return { state, runUpdate, commentSave, snapshotUpdate, dataSource };
+  return { state, runUpdate, commentSave, eventInsert, snapshotUpdate, dataSource };
 };
 
 /** A read-only transaction: its repositories are the injected ones, and it says when it's open. */
@@ -92,7 +105,9 @@ describe('CertificationReviewService.pickUp', () => {
     runRepository = {
       findOne: jest
         .fn()
-        .mockResolvedValue(status === null ? null : { certificationRunId: 7, status }),
+        .mockResolvedValue(
+          status === null ? null : { certificationRunId: 7, status, catalogVersionId: 3 },
+        ),
     };
     service = makeService({ runRepository, dataSource: db.dataSource });
   };
@@ -101,7 +116,7 @@ describe('CertificationReviewService.pickUp', () => {
     'moves a %s run to IN_REVIEW',
     async (from) => {
       setUp(from);
-      await expect(service.pickUp(7)).resolves.toEqual({ runId: 7, status: 'IN_REVIEW' });
+      await expect(service.pickUp(7, 5)).resolves.toEqual({ runId: 7, status: 'IN_REVIEW' });
       expect(db.runUpdate).toHaveBeenCalledWith(
         { certificationRunId: 7, status: from },
         expect.objectContaining({ status: 'IN_REVIEW', statusChangedAt: expect.any(Date) }),
@@ -110,9 +125,35 @@ describe('CertificationReviewService.pickUp', () => {
     },
   );
 
+  it("records PICKED_UP with the reviewer and the run's catalog version", async () => {
+    setUp('READY_FOR_REVIEW_WITH_CHANGES');
+    await service.pickUp(7, 5);
+    const payload = db.runUpdate.mock.calls[0][1];
+    expect(db.eventInsert).toHaveBeenCalledTimes(1);
+    expect(db.eventInsert).toHaveBeenCalledWith({
+      certificationRunId: 7,
+      event: 'PICKED_UP',
+      fromStatus: 'READY_FOR_REVIEW_WITH_CHANGES',
+      toStatus: 'IN_REVIEW',
+      catalogVersionId: 3,
+      userId: 5,
+      certificationRunCommentId: null,
+      createdAt: payload.statusChangedAt,
+    });
+  });
+
+  it('findRunStatus selects the catalog version', async () => {
+    setUp('READY_FOR_REVIEW');
+    await service.pickUp(7, 5);
+    expect(runRepository.findOne).toHaveBeenCalledWith({
+      where: { certificationRunId: 7 },
+      select: { certificationRunId: true, status: true, catalogVersionId: true },
+    });
+  });
+
   it('refuses an IN_REVIEW run with 409 without opening a transaction', async () => {
     setUp('IN_REVIEW');
-    await expect(service.pickUp(7)).rejects.toMatchObject({
+    await expect(service.pickUp(7, 5)).rejects.toMatchObject({
       status: 409,
       message: CERT_RUN_MESSAGES.invalidTransition,
     });
@@ -121,13 +162,14 @@ describe('CertificationReviewService.pickUp', () => {
 
   it('returns 404 for a run that does not exist', async () => {
     setUp(null);
-    await expect(service.pickUp(7)).rejects.toThrow(NotFoundException);
+    await expect(service.pickUp(7, 5)).rejects.toThrow(NotFoundException);
   });
 
   it('returns 409 when another reviewer picked the run up first', async () => {
     setUp('READY_FOR_REVIEW');
     db.runUpdate.mockResolvedValue({ affected: 0 });
-    await expect(service.pickUp(7)).rejects.toMatchObject({ status: 409 });
+    await expect(service.pickUp(7, 5)).rejects.toMatchObject({ status: 409 });
+    expect(db.eventInsert).not.toHaveBeenCalled();
   });
 });
 
@@ -139,7 +181,9 @@ describe('CertificationReviewService.decide', () => {
   beforeEach(() => {
     db = makeTransactionalDb('IN_REVIEW');
     runRepository = {
-      findOne: jest.fn().mockResolvedValue({ certificationRunId: 7, status: 'IN_REVIEW' }),
+      findOne: jest
+        .fn()
+        .mockResolvedValue({ certificationRunId: 7, status: 'IN_REVIEW', catalogVersionId: 3 }),
     };
     service = makeService({ runRepository, dataSource: db.dataSource });
   });
@@ -178,6 +222,36 @@ describe('CertificationReviewService.decide', () => {
     );
   });
 
+  it('saves the comment before the transition and links it', async () => {
+    await service.decide({ runId: 7, decision: 'CHANGES_REQUESTED', comment: 'Fix it', userId: 5 });
+    expect(db.commentSave.mock.invocationCallOrder[0]).toBeLessThan(
+      db.runUpdate.mock.invocationCallOrder[0],
+    );
+    expect(db.runUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      db.eventInsert.mock.invocationCallOrder[0],
+    );
+    const payload = db.runUpdate.mock.calls[0][1];
+    expect(db.eventInsert).toHaveBeenCalledTimes(1);
+    expect(db.eventInsert).toHaveBeenCalledWith({
+      certificationRunId: 7,
+      event: 'CHANGES_REQUESTED',
+      fromStatus: 'IN_REVIEW',
+      toStatus: 'CHANGES_REQUESTED',
+      catalogVersionId: 3,
+      userId: 5,
+      certificationRunCommentId: 42,
+      createdAt: payload.statusChangedAt,
+    });
+  });
+
+  it('an approve with a blank comment still links the comment row', async () => {
+    await service.decide({ runId: 7, decision: 'APPROVED', comment: '   ', userId: 5 });
+    expect(db.commentSave).toHaveBeenCalledWith(expect.objectContaining({ text: null }));
+    expect(db.eventInsert).toHaveBeenCalledWith(
+      expect.objectContaining({ event: 'APPROVED', certificationRunCommentId: 42 }),
+    );
+  });
+
   it('requests changes and keeps the response snapshots', async () => {
     await expect(
       service.decide({ runId: 7, decision: 'CHANGES_REQUESTED', comment: 'Fix it', userId: 5 }),
@@ -213,21 +287,25 @@ describe('CertificationReviewService.decide', () => {
     expect(db.dataSource.transaction).not.toHaveBeenCalled();
   });
 
-  it('returns 409 and saves no comment when the run is no longer IN_REVIEW', async () => {
+  it('returns 409 and keeps no comment or event when the run is no longer IN_REVIEW', async () => {
     db.runUpdate.mockResolvedValue({ affected: 0 });
     await expect(
       service.decide({ runId: 7, decision: 'REJECTED', comment: 'No', userId: 5 }),
     ).rejects.toMatchObject({ status: 409 });
-    expect(db.commentSave).not.toHaveBeenCalled();
+    // The comment is saved first, then rolled back with the refused change.
+    expect(db.state.comments).toEqual([]);
+    expect(db.eventInsert).not.toHaveBeenCalled();
     expect(db.snapshotUpdate).not.toHaveBeenCalled();
   });
 
-  it('rolls the status back when the comment cannot be saved', async () => {
+  it('changes nothing when the comment cannot be saved', async () => {
     db.commentSave.mockRejectedValue(new Error('insert failed'));
     await expect(service.decide({ runId: 7, decision: 'APPROVED', userId: 5 })).rejects.toThrow(
       'insert failed',
     );
     expect(db.state.status).toBe('IN_REVIEW');
+    expect(db.runUpdate).not.toHaveBeenCalled();
+    expect(db.eventInsert).not.toHaveBeenCalled();
     expect(db.snapshotUpdate).not.toHaveBeenCalled();
   });
 });

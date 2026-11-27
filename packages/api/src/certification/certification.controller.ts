@@ -1,4 +1,9 @@
-import { Ids, PostCertificationStepRunDto, toCertificationStepRunDto } from '@edanalytics/models';
+import {
+  GetSessionDataDto,
+  Ids,
+  PostCertificationStepRunDto,
+  toCertificationStepRunDto,
+} from '@edanalytics/models';
 import { EdfiTenant, SbEnvironment } from '@edanalytics/models-server';
 import {
   Body,
@@ -23,6 +28,7 @@ import {
 } from '../app/sb-environment-edfi-tenant.interceptor';
 import { Authorize } from '../auth/authorization';
 import { InjectFilter } from '../auth/helpers/inject-filter';
+import { ReqUser } from '../auth/helpers/user.decorator';
 import {
   CERT_READ,
   CERT_RUN,
@@ -105,9 +111,10 @@ export class CertificationController {
     @ReqEdfiTenant() edfiTenant: EdfiTenant,
     @Param('runId', new ParseIntPipe()) runId: number,
     @InjectFilter(CERT_RUN) validOdsIds: Ids,
+    @ReqUser() session: GetSessionDataDto,
   ) {
     const certificationRun = await this.findRun(teamId, edfiTenant, runId, validOdsIds);
-    const status = await this.certificationService.sendToReview(certificationRun);
+    const status = await this.certificationService.sendToReview(certificationRun, session.id);
     return this.runsService.toDto({ ...certificationRun, status });
   }
 

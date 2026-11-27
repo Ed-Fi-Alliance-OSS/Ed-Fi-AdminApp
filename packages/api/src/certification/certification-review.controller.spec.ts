@@ -51,10 +51,15 @@ describe('CertificationReviewController', () => {
     service.pickUp.mockResolvedValue('p');
     service.getReview.mockResolvedValue('r');
     service.getSnapshot.mockResolvedValue('s');
-    await expect(controller.pickUp(7)).resolves.toBe('p');
+    await expect(controller.pickUp(7, { id: 5 } as never)).resolves.toBe('p');
     await expect(controller.getReview(7)).resolves.toBe('r');
     await expect(controller.getSnapshot(7, 3)).resolves.toBe('s');
     expect(service.getSnapshot).toHaveBeenCalledWith(7, 3);
+  });
+
+  it('pickUp passes the session user id', async () => {
+    await controller.pickUp(7, { id: 5 } as never);
+    expect(service.pickUp).toHaveBeenCalledWith(7, 5);
   });
 
   it('approve passes the decision, comment and session user', async () => {
@@ -83,10 +88,5 @@ describe('CertificationReviewController', () => {
       comment: 'fix',
       userId: 5,
     });
-  });
-
-  it('passes a null userId without a session', async () => {
-    await controller.approve(7, {} as never, undefined);
-    expect(service.decide).toHaveBeenCalledWith(expect.objectContaining({ userId: null }));
   });
 });

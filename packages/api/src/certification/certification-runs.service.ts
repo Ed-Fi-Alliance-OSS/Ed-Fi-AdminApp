@@ -1,13 +1,17 @@
 import {
   CERT_FORMER_REVIEWER_NAME,
+  CERT_FORMER_USER_NAME,
   CERT_MODEL,
+  CERT_RUN_EVENT,
   CERT_RUN_STATUS,
   CERT_SCENARIO_STATUS,
   CertificationLatestRunDto,
   CertificationRunCommentDto,
   CertificationRunDto,
   CertificationRunHistoryRowDto,
+  CertificationRunEventPageDto,
   CertModel,
+  CERT_SYSTEM_ACTOR_NAME,
   Ids,
   SUPPORTED_CERT_MODELS,
   canExecuteSteps,
@@ -16,16 +20,19 @@ import {
   toCertificationRunCommentDto,
   toCertificationRunDto,
   toCertificationRunHistoryDto,
+  toCertificationRunEventPageDto,
 } from '@edanalytics/models';
 import {
   CatalogVersion,
   CertificationRun,
   CertificationRunComment,
   CertificationRunScenario,
+  CertificationRunEvent,
   EdfiTenant,
   Ods,
   SbEnvironment,
   ScenarioCatalog,
+  User,
 } from '@edanalytics/models-server';
 import {
   ConflictException,
@@ -34,7 +41,7 @@ import {
   ServiceUnavailableException,
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { IsNull, Not, Repository } from 'typeorm';
+import { DataSource, IsNull, Not, Repository } from 'typeorm';
 import { checkId } from '../auth/helpers/where-ids';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
@@ -47,7 +54,7 @@ export interface CreateRunParams {
   odsId: number;
   certificationModel: CertModel;
   /** The signed-in user, recorded as the run's creator. */
-  userId: number | null;
+  userId: number;
 }
 
 export interface FindTeamRunParams {
@@ -83,7 +90,47 @@ export class CertificationRunsService {
     private readonly scenarioRepository: Repository<ScenarioCatalog>,
     @InjectRepository(CertificationRunScenario)
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
+    @InjectRepository(CertificationRunEvent)
+    private readonly eventRepository: Repository<CertificationRunEvent>,
+    private readonly dataSource: DataSource,
   ) {}
+
+  /** One page of a run's history, newest first, with who did each change and the comment it carried. */
+  async findRunEvents(
+    runId: number,
+    page: { offset: number; limit: number },
+  ): Promise<CertificationRunEventPageDto> {
+    // Entries have no FK to user, so the user is joined by condition and may be missing.
+    const [events, total] = await this.eventRepository
+      .createQueryBuilder('event')
+      .leftJoinAndMapOne('event.user', User, 'user', 'user.id = event.userId')
+      .leftJoinAndMapOne('event.comment', 'event.comment', 'comment')
+      .where('event.certificationRunId = :runId', { runId })
+      // Ids are in order: a run's transitions are serialized by the guarded status update.
+      .orderBy('event.certificationRunEventId', 'DESC')
+      .offset(page.offset)
+      .limit(page.limit)
+      .getManyAndCount();
+
+    return toCertificationRunEventPageDto({
+      total,
+      items: events.map((event) => {
+        const { user } = event as CertificationRunEvent & { user?: User | null };
+        return {
+          eventId: event.certificationRunEventId,
+          event: event.event,
+          fromStatus: event.fromStatus,
+          toStatus: event.toStatus,
+          createdAt: event.createdAt.toISOString(),
+          actorName:
+            event.userId === null
+              ? CERT_SYSTEM_ACTOR_NAME
+              : (user?.displayName ?? CERT_FORMER_USER_NAME),
+          comment: event.comment?.text ?? null,
+        };
+      }),
+    });
+  }
 
   async findTeamRunHistory(
     params: Pick<FindTeamRunParams, 'teamId' | 'validOdsIds'>,
@@ -223,17 +270,32 @@ export class CertificationRunsService {
 
     let created: CertificationRun;
     try {
-      created = await this.runRepository.save(
-        this.runRepository.create({
-          edfiTenantId: edfiTenant.id,
-          odsId,
-          certificationModel,
+      // The history entry is written with the run, so a failure of either leaves neither.
+      created = await this.dataSource.transaction(async (em) => {
+        const runs = em.getRepository(CertificationRun);
+        const run = await runs.save(
+          runs.create({
+            edfiTenantId: edfiTenant.id,
+            odsId,
+            certificationModel,
+            catalogVersionId: catalogVersion.catalogVersionId,
+            createdById: userId,
+            teamId,
+            status: CERT_RUN_STATUS.DRAFT,
+          }),
+        );
+        await em.getRepository(CertificationRunEvent).insert({
+          certificationRunId: run.certificationRunId,
+          event: CERT_RUN_EVENT.CREATED,
+          fromStatus: null,
+          toStatus: CERT_RUN_STATUS.DRAFT,
           catalogVersionId: catalogVersion.catalogVersionId,
-          createdById: userId,
-          teamId,
-          status: CERT_RUN_STATUS.DRAFT,
-        }),
-      );
+          userId,
+          certificationRunCommentId: null,
+          createdAt: new Date(),
+        });
+        return run;
+      });
     } catch (error) {
       // Two Start Run requests can race; the unique index lets only one insert win.
       if (await this.runRepository.findOne({ where })) throw alreadyOpen();
