@@ -146,7 +146,7 @@ class UsersPage {
     await this.captureFirstUserNameFromTable()
     const firstRow = this.page.locator('tbody td').first()
     await firstRow.hover()
-    const rowActionButton = this.page.getByRole('link', { name: optionLabel }).first()
+    const rowActionButton = this.page.locator('tbody').getByRole('link', { name: optionLabel }).first()
     // isVisible() answers instantly, so right after hover() it could miss the not-yet-rendered
     // action and silently skip the click. Delete may be a button instead, so it waits less.
     const actionTimeout = option === 'delete' ? POLL_ATTEMPT_TIMEOUT_MS : UI_RENDER_TIMEOUT_MS
