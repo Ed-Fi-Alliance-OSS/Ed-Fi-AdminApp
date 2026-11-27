@@ -67,7 +67,11 @@ const googleOidcRow = {
   scope: 'openid profile email',
 };
 
-const userinfo = { sub: 'user-1', email: 'teacher@example.org' };
+// openid-client >= 6.9 brands the userinfo response type with a symbol property,
+// so plain object literals must be cast to the function's return type.
+type UserInfo = Awaited<ReturnType<typeof client.fetchUserInfo>>;
+
+const userinfo = { sub: 'user-1', email: 'teacher@example.org' } as UserInfo;
 
 const keycloakConfig = new client.Configuration(
   {
@@ -340,7 +344,9 @@ describe('OidcIdpBootstrapper', () => {
       const verify = await captureVerify(jest.fn());
       const done = jest.fn();
 
-      jest.spyOn(client, 'fetchUserInfo').mockResolvedValueOnce({ sub: 'user-1', email: '' });
+      jest
+        .spyOn(client, 'fetchUserInfo')
+        .mockResolvedValueOnce({ sub: 'user-1', email: '' } as UserInfo);
 
       await expect(
         verify({ access_token: 'tok', claims: () => ({ sub: 'user-1' }) }, done)

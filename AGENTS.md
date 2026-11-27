@@ -52,9 +52,9 @@ packages/
 - `npm run migrations:generate -- MigrationName` - Generate database migration
 - `npm run migrations:run` - Run pending migrations
 - `npm run migrations:run:mssql` - Run pending migrations against MSSQL
-- `npm run test:api` - Run API tests
+- `npm run test:api` - Run API tests. **REQUIRED**: always use this script, never `npx nx run api:test` directly. The script sets `NODE_OPTIONS=--experimental-vm-modules`; without it the specs fail with `Must use import to load ES Module … @nestjs/common`. To run a subset, pass the pattern through the script: `npm run test:api -- --testPathPatterns=<pattern>`
 - `npm run test:fe` - Run frontend tests
-- `npx nx run fe:test -- --testPathPatterns=<pattern>` - Run only the test files matching a pattern (works for any project; `--testFile` is no longer supported)
+- `npx nx run fe:test -- --testPathPatterns=<pattern>` - Run only the test files matching a pattern (works for any project except `api`, which must go through `npm run test:api`; `--testFile` is no longer supported)
 - `npm run start:api:dev` - Run the API in watch mode (webpack rebuilds incrementally and restarts the API on each change)
 - `npm run test:e2e:bdd` - Run the Playwright BDD E2E suite (requires the stack already running — see below for the full provisioning runner)
 - `npm run lint:check` - Check linting
@@ -101,6 +101,7 @@ packages/
 - **ESLint**: Enforce coding standards with TypeScript rules
 - **Husky pre-commit hook**: A `husky` pre-commit hook runs `lint-staged`, which runs `eslint --max-warnings 0` on staged `.ts`/`.tsx`/`.js`/`.jsx` files. Commits with lint errors or warnings are blocked — fix them instead of bypassing the hook (`git commit --no-verify`).
 - **Prettier**: Consistent code formatting
+- **Code comments**: Default to no comments. Make the code say it: clear names, small named helpers or constants, types. Do not add JSDoc that restates a name or signature, comments that narrate what the next line does, or ticket IDs (history lives in git and the PR). Add a comment only for a non-obvious *why* that no rename or extraction can express (a hidden constraint, a driver quirk, a workaround), in one short line. If you feel the need to write a long comment, simplify the code instead, or flag it to the user.
 - **Semantic Release**: Automated versioning based on commit messages
 - **PR Guidelines**: Use semantic commit messages (feat:, fix:, docs:, etc.)
 - **REQUIRED**: Execute `npm run build` before submitting any changes and correct any build errors
@@ -191,3 +192,19 @@ Use semantic commit messages for automated versioning (see `release.config.mjs`)
 3. Include unit tests for new functionality
 4. Update documentation as needed
 5. Ensure all checks pass
+
+When creating a pull request, follow `.github/pull_request_template.md`:
+
+1. Read the template file first, and use its sections as the PR body.
+   Passing `--body` to `gh pr create` bypasses the template, so it will not be applied automatically.
+2. **Why comes first and is the most important section.** Describe the motivation,
+   the chosen approach, and rejected alternatives. Do not restate the diff.
+3. **What is a short summary:** 3–5 bullets on architectural impact and behavior changes.
+   Do not list files or narrate code line by line.
+4. **Testing:** state what was run and how a reviewer can reproduce it.
+5. Call out breaking changes and risks under Reviewer notes.
+6. Fill every section. Do not leave template placeholders or HTML comments in the final body.
+7. **Never invent the Why.** If the motivation is not clear from the issue, the
+   conversation, or the commits, ask the user before creating the PR.
+8. Use a Conventional Commit style title (e.g. `feat: paginate Run history in the browser`),
+   since squash merges use it as the final commit message.

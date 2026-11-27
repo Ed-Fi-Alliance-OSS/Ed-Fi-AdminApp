@@ -1,5 +1,5 @@
 import { GetUserDto, PostUserDto, PutUserDto } from '@edanalytics/models';
-import { CertificationRun, User } from '@edanalytics/models-server';
+import { CertificationRun, CertificationRunComment, User } from '@edanalytics/models-server';
 import { Injectable } from '@nestjs/common';
 import { InjectEntityManager, InjectRepository } from '@nestjs/typeorm';
 import { EntityManager, Repository } from 'typeorm';
@@ -13,7 +13,7 @@ export class UsersGlobalService {
     private usersRepository: Repository<User>,
     @InjectEntityManager()
     private readonly entityManager: EntityManager,
-    private readonly privilegeGrantGuard: PrivilegeGrantGuardService
+    private readonly privilegeGrantGuard: PrivilegeGrantGuardService,
   ) {}
 
   async create(createUserDto: PostUserDto, actorId: number) {
@@ -33,7 +33,7 @@ export class UsersGlobalService {
         clientId: createUserDto.clientId,
         description: createUserDto.description,
         createdById: createUserDto.createdById,
-      })
+      }),
     );
   }
 
@@ -53,7 +53,7 @@ export class UsersGlobalService {
       nextRoleId,
       { kind: 'global-user' },
       old.roleId ?? null,
-      `user ${id}`
+      `user ${id}`,
     );
     const updated = applyDtoUpdates(old, updateUserDto, [
       'username',
@@ -70,9 +70,11 @@ export class UsersGlobalService {
   async remove(id: number, _user: GetUserDto) {
     const old = await this.findOne(id).catch(throwNotFound);
     await this.entityManager.transaction(async (em) => {
-      // certification_run.createdById is NO ACTION on SQL Server (SET NULL on PostgreSQL), so
-      // clear it first or the delete fails for anyone who started a certification run.
+      // certification_run.createdById and certification_run_comment.authorId are NO ACTION on
+      // SQL Server (SET NULL on PostgreSQL), so clear them first or the delete fails for anyone
+      // who started a certification run or wrote a review comment.
       await em.getRepository(CertificationRun).update({ createdById: id }, { createdById: null });
+      await em.getRepository(CertificationRunComment).update({ authorId: id }, { authorId: null });
       await em.getRepository(User).remove(old);
     });
     return undefined;

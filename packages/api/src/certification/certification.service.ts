@@ -1,5 +1,5 @@
 import {
-  CERT_MODEL,
+  CERT_NOT_ALL_SCENARIOS_COMPLETED,
   CERT_RUN_STATUS,
   CERT_SCENARIO_STATUS,
   CERT_STEP_STATUS,
@@ -10,13 +10,16 @@ import {
   CertScenarioStatus,
   canExecuteSteps,
   canTransitionRun,
+  certRunAlreadyOpenMessage,
   isSupportedSisVersion,
+  sendToReviewStatus,
 } from '@edanalytics/models';
 import {
   CertificationRun,
   CertificationRunScenario,
   EdfiTenant,
   SbEnvironment,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
@@ -31,7 +34,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import config from 'config';
 import fs from 'fs';
-import { DataSource, FindOptionsWhere, In, IsNull, Not, Repository } from 'typeorm';
+import { DataSource, EntityManager, FindOptionsWhere, In, IsNull, Not, Repository } from 'typeorm';
 import { ValidationHttpException } from '../utils';
 import { ArtifactService } from './artifact/artifact.service';
 import { CertificationTarget, CertificationTargetService } from './certification-target.service';
@@ -56,18 +59,21 @@ export const CERT_RUN_MESSAGES = {
   atCapacity: 'Too many certification steps are running right now. Try again in a minute.',
   runLocked: "This certification run can't take new step results in its current status.",
   invalidTransition: "This certification run can't move to that status.",
+  notAllScenariosCompleted: CERT_NOT_ALL_SCENARIOS_COMPLETED,
+  unsupportedModel: "This Certification Model isn't available yet.",
+  unsupportedDataStandard: (odsDsVersion: string | undefined) =>
+    `Certification scenarios aren't available yet for Ed-Fi Data Standard ${odsDsVersion ?? '(unknown)'}.`,
+  alreadyOpen: certRunAlreadyOpenMessage,
 };
 
 export interface RunStepParams {
   sbEnvironment: SbEnvironment;
   edfiTenant: EdfiTenant;
-  sisVersion: string;
+  /** The team's run, loaded with its catalog version. It fixes the data store and SIS version. */
+  certificationRun: CertificationRun;
   stepId: number;
-  odsId?: number | null;
   token: string;
   inputs: Record<string, string>;
-  /** The signed-in user, recorded as the creator when this step run starts a new run. */
-  userId: number | null;
 }
 
 /** Matches the open run of one data store and Certification Model: at most one row (see the unique indexes). */
@@ -130,6 +136,37 @@ const stepSegments = (step: StepCatalog): string[] => [
   step.fileName,
 ];
 
+/** Columns every run status change must write; statusChangedAt drives the dashboard's waiting time. */
+const statusChange = (status: CertRunStatus, now = new Date()) => {
+  return { status, updatedAt: now, statusChangedAt: now };
+};
+
+/**
+ * Moves a run from one status to another, refusing any change CERT_RUN_TRANSITIONS doesn't
+ * allow. The update only matches while the run is still in `from`, so of two concurrent
+ * changes the second finds no row and gets a 409. Call it with the transaction's manager when
+ * the change must roll back together with other writes. `extra` columns are written with it; a
+ * `statusChangedAt` in `extra` also sets `updatedAt`, so the three stay one instant.
+ */
+export const transitionRun = async (
+  em: EntityManager,
+  certificationRunId: number,
+  from: CertRunStatus,
+  to: CertRunStatus,
+  extra: Partial<Pick<CertificationRun, 'submittedAt' | 'statusChangedAt'>> = {},
+): Promise<void> => {
+  if (!canTransitionRun(from, to)) {
+    throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+  }
+  const moved = await em
+    .getRepository(CertificationRun)
+    .update(
+      { certificationRunId, status: from },
+      { ...statusChange(to, extra.statusChangedAt), ...extra },
+    );
+  if (moved.affected !== 1) throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
+};
+
 @Injectable()
 export class CertificationService {
   private readonly logger = new Logger(CertificationService.name);
@@ -157,11 +194,18 @@ export class CertificationService {
     if (!this.artifactService.isRunTimeReady || !fs.existsSync(this.artifactService.brunoCliPath)) {
       throw new ServiceUnavailableException(CERT_RUN_MESSAGES.runtimeNotReady);
     }
-    if (!isSupportedSisVersion(params.sisVersion)) {
+    const { certificationRun } = params;
+    const sisVersion = certificationRun.catalogVersion?.dataStandardVersion;
+    if (!sisVersion || !isSupportedSisVersion(sisVersion)) {
       throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
     }
+    // A safeguard behind the pages' disabled Run buttons (a stale tab, or a direct API call).
+    // A run that doesn't exist was already refused: Start Run creates runs, a step run never does.
+    if (!canExecuteSteps(certificationRun.status)) {
+      throw new ConflictException(CERT_RUN_MESSAGES.runLocked);
+    }
 
-    const step = await this.findRunnableStep(params.stepId, params.sisVersion);
+    const step = await this.findRunnableStep(params.stepId, sisVersion);
     // The step file is what runs, so it decides which inputs are expected (not the synced catalog rows).
     const inputNames = await readStepInputNames(this.artifactService.sisRoot, stepSegments(step));
     const inputErrors = validateStepInputs(inputNames, params.inputs);
@@ -169,23 +213,11 @@ export class CertificationService {
       throw new ValidationHttpException(...inputErrors);
     }
 
-    // null (from a JSON body) means "not chosen", the same as omitted.
-    const odsId = params.odsId ?? null;
     const target = await this.targetService.resolve({
       sbEnvironment: params.sbEnvironment,
       edfiTenant: params.edfiTenant,
-      odsId,
+      odsId: certificationRun.odsId,
     });
-    const certificationRun = await this.findOrCreateOpenRun(
-      params.edfiTenant.id,
-      odsId,
-      step.scenario.domain.catalogVersionId,
-      params.userId,
-    );
-    // A safeguard behind the pages' disabled Run buttons (a stale tab, or a direct API call).
-    if (!canExecuteSteps(certificationRun.status)) {
-      throw new ConflictException(CERT_RUN_MESSAGES.runLocked);
-    }
 
     const slot = this.runLimiter.tryAcquire(
       `${certificationRun.certificationRunId}:${step.scenarioId}`,
@@ -220,60 +252,46 @@ export class CertificationService {
   }
 
   /**
-   * The data store's open SIS run, or a new Draft one. An Approved or Rejected run isn't open,
-   * so the next step run starts a new run and the finished one keeps its results.
-   * Temporary until AC-651: once Start Run exists it creates the run, and a step run with no
-   * open run is refused.
+   * Sends a Draft or Changes requested run to review (AC-659) and returns its new status. Every
+   * enabled scenario of the run's catalog version must be completed, else 409.
+   *
+   * The status changes first and the scenarios are counted after, in the same transaction.
+   * The update locks the run row, which saveResult also updates before saving a step result,
+   * so a step finishing meanwhile either commits before the count (and is counted) or finds
+   * the run locked and is refused.
    */
-  private async findOrCreateOpenRun(
-    edfiTenantId: number,
-    odsId: number | null,
-    catalogVersionId: number,
-    userId: number | null,
-  ): Promise<CertificationRun> {
-    const where = openRunWhere(edfiTenantId, odsId, CERT_MODEL.sis);
-    const existing = await this.runRepository.findOne({ where });
-    if (existing) return existing;
-    try {
-      return await this.runRepository.save(
-        this.runRepository.create({
-          edfiTenantId,
-          odsId,
-          certificationModel: CERT_MODEL.sis,
-          // Recorded once; a later catalog version doesn't start a new run.
-          catalogVersionId,
-          createdById: userId,
-          teamId: null,
-          status: CERT_RUN_STATUS.DRAFT,
-        }),
-      );
-    } catch (error) {
-      // Two first runs can race; the unique index lets only one insert win.
-      const created = await this.runRepository.findOne({ where });
-      if (created) return created;
-      throw error;
+  async sendToReview(
+    certificationRun: Pick<CertificationRun, 'certificationRunId' | 'status' | 'catalogVersionId'>,
+  ): Promise<CertRunStatus> {
+    const { certificationRunId, status: from, catalogVersionId } = certificationRun;
+    const to = sendToReviewStatus(from);
+    if (!to || catalogVersionId === null) {
+      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
     }
-  }
 
-  /**
-   * Moves a run to another workflow status, refusing any change CERT_RUN_TRANSITIONS doesn't
-   * allow. No endpoint calls this yet: Send to Review is AC-659 and the review decisions AC-660.
-   */
-  async changeRunStatus(certificationRunId: number, to: CertRunStatus): Promise<CertificationRun> {
-    const certificationRun = await this.runRepository.findOne({ where: { certificationRunId } });
-    if (!certificationRun) throw new NotFoundException();
-    if (!canTransitionRun(certificationRun.status, to)) {
-      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
-    }
-    const updatedAt = new Date();
-    const result = await this.runRepository.update(
-      { certificationRunId, status: certificationRun.status },
-      { status: to, updatedAt },
-    );
-    if (result.affected !== 1) {
-      throw new ConflictException(CERT_RUN_MESSAGES.invalidTransition);
-    }
-    return { ...certificationRun, status: to, updatedAt };
+    return this.dataSource.transaction(async (em) => {
+      // submittedAt is the same instant as statusChangedAt; statusChangedAt moves again at pick-up.
+      const submittedAt = new Date();
+      await transitionRun(em, certificationRunId, from, to, {
+        statusChangedAt: submittedAt,
+        submittedAt,
+      });
+
+      const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId } };
+      const enabled = await em.getRepository(ScenarioCatalog).count({ where: enabledScenario });
+      const completed = await em.getRepository(CertificationRunScenario).count({
+        where: {
+          certificationRunId,
+          status: CERT_SCENARIO_STATUS.completed,
+          scenario: enabledScenario,
+        },
+      });
+      // Thrown inside the transaction, so the status change above rolls back.
+      if (enabled === 0 || completed !== enabled) {
+        throw new ConflictException(CERT_RUN_MESSAGES.notAllScenariosCompleted);
+      }
+      return to;
+    });
   }
 
   private async execute(

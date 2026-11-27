@@ -37,10 +37,14 @@ jest.mock('../api-v2', () => ({
   useGetManyIntegrationProviders: jest.fn(() => ({ data: [] })),
 }));
 
+// TeamNav imports GlobalNav helpers, and GlobalNav reads the certification flag from config.
+jest.mock('../../config/config', () => ({ config: { showRequestCertification: false } }));
+
 jest.mock('../routes/paths', () => ({
   usePaths: jest.fn(() => ({
     integrationProvider: { index: () => '/integration-providers' },
     myProducts: { index: () => '/as/7/my-products' },
+    runHistory: { index: () => '/as/7/certification/run-history' },
   })),
 }));
 
@@ -160,11 +164,25 @@ describe('TeamNav - Certification menu', () => {
     expect(screen.getByTitle('My products')).toHaveAttribute('to', '/as/7/my-products');
   });
 
+  it('shows Run history after My products, linking to the Run history page', () => {
+    mockUseCanSeeCertification.mockReturnValue({ canSee: true, isLoading: false });
+
+    render(<TeamNav teamId="7" />);
+
+    const runHistory = screen.getByTitle('Run history');
+    expect(runHistory).toHaveAttribute('to', '/as/7/certification/run-history');
+    expect(
+      screen.getByTitle('My products').compareDocumentPosition(runHistory) &
+        Node.DOCUMENT_POSITION_FOLLOWING
+    ).toBeTruthy();
+  });
+
   it('hides the Certification heading when the hook denies it', () => {
     render(<TeamNav teamId="7" />);
 
     expect(screen.queryByText('Certification')).not.toBeInTheDocument();
     expect(screen.queryByText('My products')).not.toBeInTheDocument();
+    expect(screen.queryByText('Run history')).not.toBeInTheDocument();
   });
 
   it('marks My products active on /as/:asId/my-products', () => {

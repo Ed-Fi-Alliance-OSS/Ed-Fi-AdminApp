@@ -11,10 +11,18 @@ import {
 jest.mock('@tanstack/react-query', () => ({ useQuery: jest.fn() }));
 jest.mock('../../api', () => ({
   methods: { getMany: jest.fn() },
-  sbEnvironmentQueriesGlobal: { getOne: ({ id }: { id: number }) => ({ queryKey: ['env', id] }) },
+  sbEnvironmentQueries: {
+    getOne: ({ id, teamId, enabled }: { id: number; teamId: number; enabled: boolean }) => ({
+      queryKey: ['env', id, teamId],
+      enabled,
+    }),
+  },
 }));
 
 type QueryState = { data?: unknown; isPending: boolean };
+
+/** The team, and the environment and tenant of the run being worked on. */
+const catalogArgs = { teamId: 2, sbEnvironmentId: 7, edfiTenantId: 10 };
 type QueryOptions = { queryKey: unknown[]; enabled?: boolean; queryFn?: () => unknown };
 
 const settled = (data: unknown): QueryState => ({ data, isPending: false });
@@ -67,13 +75,13 @@ describe('useCertificationCatalog', () => {
       scenarios: settled([domain(2, 2), domain(1, 1)]),
     });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(result.current.unsupportedMessage).toBeUndefined();
     expect(result.current.catalogVersion?.catalogVersionId).toBe(2);
     expect(result.current.isPending).toBe(false);
     expect(optionsFor('scenarios')).toMatchObject({
-      queryKey: certificationQueryKeys.scenarios(7, 2),
+      queryKey: certificationQueryKeys.scenarios(2, 10, 2),
       enabled: true,
     });
     // Domains and their scenarios come back sorted by displayOrder.
@@ -81,11 +89,27 @@ describe('useCertificationCatalog', () => {
     expect(result.current.domains[0].scenarios.map((s) => s.scenarioId)).toEqual([11, 12]);
   });
 
+  it("uses the run's data standard, not the environment's current one", () => {
+    // The environment moved to 6.1.0 after the run was started with v5.
+    mockQueries({
+      env: settled({ odsDsVersion: '6.1.0' }),
+      versions: settled(versions),
+      scenarios: settled([domain(1, 1)]),
+    });
+
+    const { result } = renderHook(() =>
+      useCertificationCatalog({ ...catalogArgs, runDataStandardVersion: 'v5' }),
+    );
+
+    expect(result.current.dataStandardVersion).toBe('v5');
+    expect(result.current.catalogVersion?.catalogVersionId).toBe(2);
+  });
+
   // The API refuses these environments with a 400; asking would land on the route error page.
   it('does not request the catalog for data standard 4.0.0 and says why', () => {
     mockQueries({ env: settled({ odsDsVersion: '4.0.0' }), versions: settled(versions) });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(optionsFor('catalog-versions')?.enabled).toBe(false);
     expect(result.current.unsupportedMessage).toBe(
@@ -99,7 +123,7 @@ describe('useCertificationCatalog', () => {
   it('does not request the catalog when the data standard is unknown and says why', () => {
     mockQueries({ env: settled({ odsDsVersion: undefined }), versions: settled(versions) });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(optionsFor('catalog-versions')?.enabled).toBe(false);
     expect(result.current.unsupportedMessage).toMatch(/couldn't read this environment's data standard version/);
@@ -109,7 +133,7 @@ describe('useCertificationCatalog', () => {
   it('waits for the environment before requesting the catalog or judging support', () => {
     mockQueries({ env: loading, versions: settled(versions) });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(optionsFor('catalog-versions')?.enabled).toBe(false);
     expect(result.current.isSupported).toBe(false);
@@ -123,7 +147,7 @@ describe('useCertificationCatalog', () => {
   ])('reports whether data standard %s supports certification', (odsDsVersion, isSupported) => {
     mockQueries({ env: settled({ odsDsVersion }), versions: settled(versions) });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(result.current.isSupported).toBe(isSupported);
   });
@@ -137,12 +161,31 @@ describe('useCertificationCatalog', () => {
       return loading;
     });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(result.current.catalogVersion).toBeUndefined();
     expect(optionsFor('scenarios')?.enabled).toBe(false);
     expect(result.current.unsupportedMessage).toBeDefined();
     expect(result.current.isPending).toBe(false);
+  });
+
+  it("reads the team's environment, and nothing until the run says which one", () => {
+    mockQueries({ env: loading });
+
+    renderHook(() =>
+      useCertificationCatalog({ teamId: 2, sbEnvironmentId: undefined, edfiTenantId: undefined }),
+    );
+
+    const envOptions = (useQuery as jest.Mock).mock.calls[0][0] as QueryOptions;
+    expect(envOptions.enabled).toBe(false);
+    expect(optionsFor('catalog-versions')?.enabled).toBe(false);
+
+    renderHook(() => useCertificationCatalog(catalogArgs));
+    expect(
+      (useQuery as jest.Mock).mock.calls
+        .map(([options]) => options as QueryOptions)
+        .find((options) => options.queryKey[0] === 'env' && options.enabled),
+    ).toMatchObject({ queryKey: ['env', 7, 2] });
   });
 
   it('requests only the matched catalog version', () => {
@@ -151,12 +194,12 @@ describe('useCertificationCatalog', () => {
       versions: settled(versions),
       scenarios: settled([]),
     });
-    renderHook(() => useCertificationCatalog(7));
+    renderHook(() => useCertificationCatalog(catalogArgs));
 
     optionsFor('scenarios')?.queryFn?.();
 
     expect(methods.getMany).toHaveBeenCalledWith(
-      'sb-environments/7/certification/scenarios',
+      'teams/2/edfi-tenants/10/certification/scenarios',
       expect.anything(),
       { params: { catalogVersionId: 2 } },
     );
@@ -165,7 +208,7 @@ describe('useCertificationCatalog', () => {
   it('is not pending and loads no domains when no catalog version matches', () => {
     mockQueries({ env: settled({ odsDsVersion: '6.1.0' }), versions: settled(versions) });
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(optionsFor('scenarios')?.enabled).toBe(false);
     expect(result.current.dataStandardVersion).toBe('v6');
@@ -184,7 +227,7 @@ describe('useCertificationCatalog', () => {
   ])('is pending while %s load', (_, states) => {
     mockQueries(states);
 
-    const { result } = renderHook(() => useCertificationCatalog(7));
+    const { result } = renderHook(() => useCertificationCatalog(catalogArgs));
 
     expect(result.current.isPending).toBe(true);
   });
@@ -202,13 +245,13 @@ describe('useCertificationSteps', () => {
       ]),
     });
 
-    const { result } = renderHook(() => useCertificationSteps(7, 52));
+    const { result } = renderHook(() => useCertificationSteps({ teamId: 2, edfiTenantId: 10, scenarioId: 52 }));
     optionsFor('steps')?.queryFn?.();
 
     expect(result.current.steps.map((s) => s.stepId)).toEqual([1, 2]);
     expect(result.current.isPending).toBe(false);
     expect(methods.getMany).toHaveBeenCalledWith(
-      'sb-environments/7/certification/steps',
+      'teams/2/edfi-tenants/10/certification/steps',
       expect.anything(),
       { params: { scenarioId: 52 } },
     );
@@ -217,7 +260,7 @@ describe('useCertificationSteps', () => {
   it('is not pending and does not query without a scenario', () => {
     mockQueries({ env: loading });
 
-    const { result } = renderHook(() => useCertificationSteps(7, undefined));
+    const { result } = renderHook(() => useCertificationSteps({ teamId: 2, edfiTenantId: 10, scenarioId: undefined }));
 
     expect(optionsFor('steps')?.enabled).toBe(false);
     expect(result.current).toEqual({ steps: [], isPending: false });

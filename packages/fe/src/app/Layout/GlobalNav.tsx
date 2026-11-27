@@ -1,4 +1,4 @@
-import { Box, Link } from '@chakra-ui/react';
+import { Box, Link, Text } from '@chakra-ui/react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import sortBy from 'lodash/sortBy';
 import { Link as RouterLink, useMatches } from 'react-router';
@@ -8,10 +8,11 @@ import { INavButtonProps, NavButton } from './NavButton';
 import { UniversalNavLinks } from './UniversalNavLinks';
 import { usePaths } from '../routes/paths';
 import { Icons } from '@edanalytics/common-ui';
+import { config } from '../../config/config';
 
 export const findDeepestMatch = (
   matches: { pathname: string }[],
-  flatRoutes: INavButtonProps[]
+  flatRoutes: INavButtonProps[],
 ) => {
   let deepestMatch: string | null = null;
 
@@ -20,7 +21,7 @@ export const findDeepestMatch = (
       matches.some(
         (m) =>
           (deepestMatch === null || item.route.length > deepestMatch.length) &&
-          m.pathname.startsWith(item.route)
+          m.pathname.startsWith(item.route),
       )
     ) {
       deepestMatch = item.route;
@@ -33,7 +34,7 @@ export const isMatch = (deepestMatch: string, item: INavButtonProps) => deepestM
 
 export const tagMatch = (
   items: INavButtonProps[],
-  deepestMatch: string | null
+  deepestMatch: string | null,
 ): INavButtonProps[] =>
   deepestMatch === null
     ? items
@@ -42,6 +43,11 @@ export const tagMatch = (
         isActive: isMatch(deepestMatch, item),
         childItems: tagMatch(item.childItems || [], deepestMatch),
       }));
+
+const CERTIFICATION_READ = {
+  privilege: 'certification:read',
+  subject: { id: '__filtered__' },
+} as const;
 
 export const GlobalNav = () => {
   const paths = usePaths({ asTeam: false });
@@ -100,6 +106,7 @@ export const GlobalNav = () => {
         id: '__filtered__',
       },
     },
+    CERTIFICATION_READ,
   ]);
   const globalItems: INavButtonProps[] = [
     ...arrayElemIf(
@@ -114,7 +121,7 @@ export const GlobalNav = () => {
         route: `/sb-environments`,
         icon: Icons.SbEnvironment,
         text: 'Environments',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -128,7 +135,7 @@ export const GlobalNav = () => {
         route: `/teams`,
         icon: Icons.Team,
         text: 'Teams',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -142,7 +149,7 @@ export const GlobalNav = () => {
         route: `/users`,
         icon: Icons.User,
         text: 'Users',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -156,7 +163,7 @@ export const GlobalNav = () => {
         route: `/user-team-memberships`,
         icon: Icons.TeamMembership,
         text: 'Team memberships',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -170,7 +177,7 @@ export const GlobalNav = () => {
         route: `/roles`,
         icon: Icons.Role,
         text: 'Roles',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -184,7 +191,7 @@ export const GlobalNav = () => {
         route: `/ownerships`,
         icon: Icons.Ownership,
         text: 'Ownerships',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -198,7 +205,7 @@ export const GlobalNav = () => {
         route: paths.integrationProvider.index(),
         icon: Icons.IntegrationProvider,
         text: 'Integration Providers',
-      }
+      },
     ),
     ...arrayElemIf(
       authorize({
@@ -212,12 +219,24 @@ export const GlobalNav = () => {
         route: `/sb-sync-queues`,
         icon: Icons.SyncQueue,
         text: 'Sync queue',
-      }
+      },
+    ),
+  ];
+
+  // Later Certification stories append more items here.
+  const certificationItems: INavButtonProps[] = [
+    ...arrayElemIf(
+      config.showRequestCertification && authorize({ queryClient, config: CERTIFICATION_READ }),
+      {
+        route: paths.certificationDashboard.index(),
+        icon: Icons.CertificationDashboard,
+        text: 'Dashboard',
+      },
     ),
   ];
 
   const environmentItems = sortBy(Object.values(sbEnvironments.data || {}), (sbEnvironment) =>
-    sbEnvironment.displayName.toLocaleLowerCase()
+    sbEnvironment.displayName.toLocaleLowerCase(),
   )
     .map((sbEnvironment) =>
       arrayElemIf(
@@ -232,8 +251,8 @@ export const GlobalNav = () => {
           route: `/sb-environments/${sbEnvironment.id}`,
           icon: Icons.SbEnvironment,
           text: sbEnvironment.displayName,
-        }
-      )
+        },
+      ),
     )
     .flat();
 
@@ -241,7 +260,7 @@ export const GlobalNav = () => {
     item,
     ...(item.childItems ?? []).flatMap(flatten),
   ];
-  const flatItems = [...globalItems, ...environmentItems].flatMap(flatten);
+  const flatItems = [...globalItems, ...certificationItems, ...environmentItems].flatMap(flatten);
 
   const deepestMatch: string | null = findDeepestMatch(useMatches(), flatItems);
 
@@ -251,6 +270,16 @@ export const GlobalNav = () => {
       {tagMatch(globalItems, deepestMatch).map((item) => (
         <NavButton key={item.text + item.route} {...item} />
       ))}
+      {certificationItems.length ? (
+        <>
+          <Text px={3} mt={4} as="h3" color="gray.600" mb={2} fontWeight="600">
+            Certification
+          </Text>
+          {tagMatch(certificationItems, deepestMatch).map((item) => (
+            <NavButton key={item.text + item.route} {...item} />
+          ))}
+        </>
+      ) : null}
       {environmentItems.length ? (
         <>
           <Link

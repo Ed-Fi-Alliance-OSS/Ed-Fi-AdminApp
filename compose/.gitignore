@@ -5,3 +5,4 @@
 
 logs/
 db-backup/*.sql
+db-backup/*.sql.source

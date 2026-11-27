@@ -7,9 +7,10 @@ import { useRunCertificationStep } from './useRunCertificationStep';
 jest.mock('./apiClient', () => ({ apiClient: { post: jest.fn() } }));
 
 const variables = {
-  sbEnvironmentId: 1,
+  teamId: 2,
   edfiTenantId: 10,
-  sisVersion: 'v5',
+  runId: 7,
+  scenarioId: 52,
   stepId: 189,
   body: { token: 't', inputs: {} },
 };

@@ -24,12 +24,12 @@ const formatTime = (iso: string) =>
   new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
 
 export const CertificationAuthenticateForm = ({
-  sbEnvironmentId,
+  teamId,
   edfiTenantId,
   odsId,
   isDisabled = false,
 }: {
-  sbEnvironmentId: number;
+  teamId: number;
   edfiTenantId: number | undefined;
   odsId: number | undefined;
   isDisabled?: boolean;
@@ -50,13 +50,18 @@ export const CertificationAuthenticateForm = ({
     setSecret('');
   }, [edfiTenantId, odsId, reset]);
 
-  const canAuthenticate = !isDisabled && edfiTenantId !== undefined && !!key.trim() && !!secret;
+  const canAuthenticate =
+    !isDisabled &&
+    edfiTenantId !== undefined &&
+    odsId !== undefined &&
+    !!key.trim() &&
+    !!secret;
 
   const authenticate = async () => {
-    if (edfiTenantId === undefined) return;
+    if (edfiTenantId === undefined || odsId === undefined) return;
     try {
       const result = await requestToken.mutateAsync({
-        sbEnvironmentId,
+        teamId,
         edfiTenantId,
         body: { key: key.trim(), secret, odsId },
       });

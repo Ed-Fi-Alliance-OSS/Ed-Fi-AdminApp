@@ -1,13 +1,8 @@
-import {
-  GetSbEnvironmentDto,
-  OWNERSHIP_RESOURCE_TYPE,
-  supportsCertification,
-} from '@edanalytics/models';
+import { GetSbEnvironmentDto, OWNERSHIP_RESOURCE_TYPE } from '@edanalytics/models';
 import { useNavigate } from 'react-router';
 import { usePopBanner } from '../../Layout/FeedbackBanner';
 import { sbEnvironmentQueriesGlobal } from '../../api';
 import {
-  globalEdfiTenantAuthConfig,
   globalOwnershipAuthConfig,
   globalSbEnvironmentAuthConfig,
   popSyncBanner,
@@ -16,13 +11,6 @@ import {
 import { mutationErrCallback } from '../../helpers/mutationErrCallback';
 import { useSearchParamsObject } from '../../helpers/useSearch';
 import { Icons } from '@edanalytics/common-ui';
-import { config } from '../../../config/config';
-
-// Admin API versions that offer "Request certification". Listed explicitly
-// (rather than allowing any version) so a future version never inherits the
-// action without someone deciding it should, and an environment whose
-// version can't be determined never shows it.
-const CERTIFICATION_VERSIONS: readonly string[] = ['v1', 'v2', 'v3'];
 
 export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto | undefined) => {
   const refreshResources = sbEnvironmentQueriesGlobal.refreshResources({});
@@ -38,22 +26,16 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
 
   const canGrantOwnership = useAuthorize(globalOwnershipAuthConfig('ownership:create'));
   const canView = useAuthorize(
-    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:read')
+    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:read'),
   );
   const canUpdate = useAuthorize(
-    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:update')
+    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:update'),
   );
-  // The certification page lists the environment's tenants and ODSs, so the
-  // action needs those reads too (sb-environment:update doesn't imply them).
-  const canReadTenants = useAuthorize(
-    globalEdfiTenantAuthConfig('__filtered__', 'sb-environment.edfi-tenant:read')
-  );
-  const canReadOdss = useAuthorize({ privilege: 'ods:read', subject: { id: '__filtered__' } });
   const canDelete = useAuthorize(
-    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:delete')
+    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:delete'),
   );
   const canRefreshResources = useAuthorize(
-    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:refresh-resources')
+    globalSbEnvironmentAuthConfig(sbEnvironment?.id, 'sb-environment:refresh-resources'),
   );
 
   return sbEnvironment === undefined
@@ -68,7 +50,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                 to: `/ownerships/create?sbEnvironmentId=${sbEnvironment.id}&type=${OWNERSHIP_RESOURCE_TYPE.sbEnvironment}`,
                 onClick: () =>
                   navigate(
-                    `/ownerships/create?sbEnvironmentId=${sbEnvironment.id}&type=${OWNERSHIP_RESOURCE_TYPE.sbEnvironment}`
+                    `/ownerships/create?sbEnvironmentId=${sbEnvironment.id}&type=${OWNERSHIP_RESOURCE_TYPE.sbEnvironment}`,
                   ),
               },
             }
@@ -135,7 +117,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                     {
                       ...mutationErrCallback({ popGlobalBanner: popBanner }),
                       onSuccess: () => navigate(`/sb-environments`),
-                    }
+                    },
                   ),
                 confirm: true,
               },
@@ -159,7 +141,7 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                           syncQueue: result,
                         });
                       },
-                    }
+                    },
                   );
                 },
               },
@@ -180,33 +162,9 @@ export const useSbEnvironmentGlobalActions = (sbEnvironment: GetSbEnvironmentDto
                       onSuccess(result, _variables, _context) {
                         popBanner(result);
                       },
-                    }
+                    },
                   );
                 },
-              },
-            }
-          : {}),
-        // overflowOnly keeps it in the "More" menu without counting toward the
-        // inline slots, so it never pushes Edit/Delete/Sync out of view.
-        // Gated on update, not read: certification starts a workflow. The page
-        // also lists tenants and ODSs, so it needs those read privileges too.
-        // A dedicated privilege, enforced server-side, is tracked in AC-466.
-        // The data model gate is also enforced server-side on every certification route.
-        ...(config.showRequestCertification &&
-        canUpdate &&
-        canReadTenants &&
-        canReadOdss &&
-        CERTIFICATION_VERSIONS.includes(sbEnvironment.version ?? '') &&
-        supportsCertification(sbEnvironment.odsDsVersion)
-          ? {
-              RequestCert: {
-                overflowOnly: true,
-                icon: Icons.Data,
-                text: 'Request certification',
-                title: 'Request certification for ' + sbEnvironment.displayName,
-                to: `/sb-environments/${sbEnvironment.id}/request-certification`,
-                onClick: () =>
-                  navigate(`/sb-environments/${sbEnvironment.id}/request-certification`),
               },
             }
           : {}),

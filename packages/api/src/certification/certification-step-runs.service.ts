@@ -1,13 +1,12 @@
 import {
-  CERT_MODEL,
   CERT_SNAPSHOT_STATE,
+  CertificationSavedStepRunDto,
   CertificationScenarioStatusDto,
   CertificationScenarioStatusesDto,
   CertificationStepRunsDto,
   CertificationStepSnapshotDto,
   CertStepErrorKind,
   canExecuteSteps,
-  isSupportedSisVersion,
   toCertificationScenarioStatusesDto,
   toCertificationStepRunsDto,
   toCertificationStepSnapshotDto,
@@ -15,44 +14,51 @@ import {
 import {
   CertificationRun,
   CertificationRunScenario,
-  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
 } from '@edanalytics/models-server';
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
-import { In, Repository } from 'typeorm';
-import { ValidationHttpException } from '../utils';
-import { CERT_RUN_MESSAGES, openRunWhere } from './certification.service';
+import { EntityManager, In, Repository } from 'typeorm';
+
+/** A saved step run as the pages show it, with its own errors out of `errors`. */
+export const toSavedStepRunDto = (
+  stepRun: Pick<
+    ScenarioStep,
+    'stepRunId' | 'stepId' | 'status' | 'runAt' | 'inputs' | 'responseStatus'
+  >,
+  errors: ScenarioStepError[],
+): CertificationSavedStepRunDto => ({
+  stepId: stepRun.stepId,
+  status: stepRun.status as CertificationSavedStepRunDto['status'],
+  ranAt: stepRun.runAt.toISOString(),
+  inputs: stepRun.inputs,
+  responseStatus: stepRun.responseStatus ?? null,
+  errors: errors
+    .filter((error) => error.stepRunId === stepRun.stepRunId)
+    .map((error) => ({
+      kind: error.kind as CertStepErrorKind,
+      field: error.field,
+      expected: error.expected,
+      observed: error.observed,
+      message: error.message,
+    })),
+});
 
 export interface FindStepRunsParams {
-  edfiTenantId: number;
-  odsId: number | null;
-  sisVersion: string;
+  certificationRunId: number;
   scenarioId: number;
 }
-
-export interface FindScenarioStatusesParams {
-  edfiTenantId: number;
-  odsId: number | null;
-  sisVersion: string;
-}
-
-const EMPTY: CertificationStepRunsDto = { scenarioStatus: null, steps: [] };
 
 /**
  * Reads the saved step results that CertificationService.runStep writes (AC-475).
  * Read-only: it never creates a certification run and never contacts the ODS/API.
- * Every read is of the data store's open SIS run, so a finished (Approved or Rejected) run's
- * results never show under the run that follows it.
+ * Every read is of one run, which the controller has already checked belongs to the team
+ * (AC-651), so a finished run's results never show under the run that follows it.
  */
 @Injectable()
 export class CertificationStepRunsService {
   constructor(
-    @InjectRepository(ScenarioCatalog)
-    private readonly scenarioRepository: Repository<ScenarioCatalog>,
-    @InjectRepository(CertificationRun)
-    private readonly runRepository: Repository<CertificationRun>,
     @InjectRepository(CertificationRunScenario)
     private readonly runScenarioRepository: Repository<CertificationRunScenario>,
     @InjectRepository(ScenarioStep)
@@ -62,26 +68,7 @@ export class CertificationStepRunsService {
   ) {}
 
   async findStepRuns(params: FindStepRunsParams): Promise<CertificationStepRunsDto> {
-    if (!isSupportedSisVersion(params.sisVersion)) {
-      throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
-    }
-
-    // The scenario is read only to check that it belongs to the requested SIS version.
-    const scenario = await this.scenarioRepository.findOne({
-      where: { scenarioId: params.scenarioId },
-      relations: { domain: { catalogVersion: true } },
-    });
-    if (!scenario || scenario.domain.catalogVersion.dataStandardVersion !== params.sisVersion) {
-      return EMPTY;
-    }
-
-    const certificationRun = await this.runRepository.findOne({
-      where: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
-    });
-    if (!certificationRun) return EMPTY;
-
-    const { certificationRunId } = certificationRun;
-    const { scenarioId } = params;
+    const { certificationRunId, scenarioId } = params;
     const [stepRuns, scenarioRow] = await Promise.all([
       this.stepRunRepository.find({ where: { certificationRunId, scenarioId } }),
       this.runScenarioRepository.findOne({ where: { certificationRunId, scenarioId } }),
@@ -96,43 +83,17 @@ export class CertificationStepRunsService {
 
     return toCertificationStepRunsDto({
       scenarioStatus: (scenarioRow?.status ?? null) as CertificationStepRunsDto['scenarioStatus'],
-      steps: stepRuns.map((stepRun) => ({
-        stepId: stepRun.stepId,
-        status: stepRun.status as CertificationStepRunsDto['steps'][number]['status'],
-        ranAt: stepRun.runAt.toISOString(),
-        inputs: stepRun.inputs,
-        responseStatus: stepRun.responseStatus ?? null,
-        errors: errors
-          .filter((error) => error.stepRunId === stepRun.stepRunId)
-          .map((error) => ({
-            kind: error.kind as CertStepErrorKind,
-            field: error.field,
-            expected: error.expected,
-            observed: error.observed,
-            message: error.message,
-          })),
-      })),
+      steps: stepRuns.map((stepRun) => toSavedStepRunDto(stepRun, errors)),
     });
   }
 
   /**
-   * The data store's open SIS run and its scenario statuses, read-only: it never creates a
-   * run. With no open run there are no statuses, because the next step run starts a new run.
-   * Scenarios without a saved row are left out. The pages use `run.canExecuteSteps` to decide
-   * whether their Run buttons work.
+   * The run and its scenario statuses. Scenarios without a saved row are left out. The pages
+   * use `run.canExecuteSteps` to decide whether their Run buttons work.
    */
   async findScenarioStatuses(
-    params: FindScenarioStatusesParams,
+    certificationRun: Pick<CertificationRun, 'certificationRunId' | 'status'>,
   ): Promise<CertificationScenarioStatusesDto> {
-    if (!isSupportedSisVersion(params.sisVersion)) {
-      throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
-    }
-
-    const certificationRun = await this.runRepository.findOne({
-      where: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
-    });
-    if (!certificationRun) return toCertificationScenarioStatusesDto({ run: null, scenarios: [] });
-
     const rows = await this.runScenarioRepository.find({
       where: { certificationRunId: certificationRun.certificationRunId },
     });
@@ -155,16 +116,13 @@ export class CertificationStepRunsService {
    * response but has no snapshot had it cleared when the request was decided (AC-660).
    */
   async findStepSnapshot(
-    params: Omit<FindStepRunsParams, 'scenarioId'> & { stepId: number },
+    params: { certificationRunId: number; stepId: number },
+    /** The caller's transaction, when the read must see the same state as the caller's checks. */
+    em?: EntityManager,
   ): Promise<CertificationStepSnapshotDto> {
-    if (!isSupportedSisVersion(params.sisVersion)) {
-      throw new ValidationHttpException(CERT_RUN_MESSAGES.unsupportedVersion);
-    }
-    const stepRun = await this.stepRunRepository.findOne({
-      where: {
-        stepId: params.stepId,
-        certificationRun: openRunWhere(params.edfiTenantId, params.odsId, CERT_MODEL.sis),
-      },
+    const repository = em ? em.withRepository(this.stepRunRepository) : this.stepRunRepository;
+    const stepRun = await repository.findOne({
+      where: { stepId: params.stepId, certificationRunId: params.certificationRunId },
       select: { stepRunId: true, responseStatus: true, responseSnapshot: true },
     });
     if (!stepRun) throw new NotFoundException();

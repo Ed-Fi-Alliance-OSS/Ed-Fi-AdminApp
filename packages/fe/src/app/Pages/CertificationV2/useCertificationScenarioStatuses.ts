@@ -2,51 +2,43 @@ import { CertificationScenarioStatusesDto, CertScenarioStatus } from '@edanalyti
 import { useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import { methods } from '../../api';
-import { certificationQueryKeys } from './useCertificationCatalog';
+import { certificationQueryKeys, certificationTenantUrl } from './useCertificationCatalog';
 
 type UseCertificationScenarioStatusesArgs = {
-  sbEnvironmentId: number;
+  teamId: number;
+  /** The run's tenant; undefined until the run has loaded. */
   edfiTenantId: number | undefined;
-  odsId: number | undefined;
-  sisVersion: string | undefined;
-  /** True once the tenant/ODS selection is complete and valid. */
+  runId: number | undefined;
   enabled: boolean;
 };
 
 /**
- * The data store's open SIS run and every scenario's saved status in it (AC-689, AC-649), keyed under
- * `certificationQueryKeys.scenarioStatuses`. It refetches on every mount, so a run saved on
+ * One run's status and every scenario's saved status in it (AC-689, AC-649, AC-651), keyed under
+ * `certificationQueryKeys.scenarioStatuses`. It refetches on every mount, so a step saved on
  * the execution page shows when the vendor comes back; that page also invalidates the key
  * after a step run.
  *
  * `isUnknown` is true until a list has loaded (query not runnable yet, loading, or failed).
  * It is not the same as an empty list: with a loaded list, a scenario that has no entry
- * really has no saved run.
+ * really has no saved result.
  *
- * `run` is the open run: null when the data store has none, undefined while unknown.
- * `canExecuteSteps` is false only when a loaded open run can't take step runs (it is in or
- * waiting for review). An unknown run doesn't block: the API refuses the step run instead.
+ * `canExecuteSteps` is false only when the loaded run can't take step runs (it is in or
+ * waiting for review, or finished). An unknown run doesn't block: the API refuses the step
+ * run instead.
  */
 export const useCertificationScenarioStatuses = ({
-  sbEnvironmentId,
+  teamId,
   edfiTenantId,
-  odsId,
-  sisVersion,
+  runId,
   enabled,
 }: UseCertificationScenarioStatusesArgs) => {
-  const queryEnabled = enabled && edfiTenantId !== undefined && sisVersion !== undefined;
+  const queryEnabled = enabled && edfiTenantId !== undefined && runId !== undefined;
   const statusesQuery = useQuery({
-    queryKey: certificationQueryKeys.scenarioStatuses(
-      sbEnvironmentId,
-      edfiTenantId,
-      odsId,
-      sisVersion,
-    ),
+    queryKey: certificationQueryKeys.scenarioStatuses(teamId, runId),
     queryFn: () =>
       methods.getOne(
-        `sb-environments/${sbEnvironmentId}/edfi-tenants/${edfiTenantId}/certification/sis/${sisVersion}/scenario-statuses`,
+        `${certificationTenantUrl(teamId, edfiTenantId)}/runs/${runId}/scenario-statuses`,
         CertificationScenarioStatusesDto,
-        { params: odsId === undefined ? {} : { odsId } },
       ),
     enabled: queryEnabled,
     refetchOnMount: 'always',

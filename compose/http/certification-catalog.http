@@ -1,14 +1,15 @@
 ###
 ### Certification Catalog endpoints (AC-463)
 ### Read-only access to the catalog synced from the certification artifact.
-### Requires the sb-environment:read privilege on the environment.
+### Requires team.sb-environment.edfi-tenant.ods.certification:read on a data store of the team's tenant.
 ###
 
 ### Variables (update these with your values)
 @baseUrl = http://localhost:3333
 @keycloakUrl = https://localhost/auth
 @realm = edfi
-@sbEnvironmentId = 1
+@teamId = 1
+@edfiTenantId = 1
 
 # Machine Client (for M2M authentication)
 @machineClientId = edfiadminapp-machine
@@ -33,7 +34,7 @@ grant_type=client_credentials
 
 ### 2. List catalog versions (newest first, no importedAt)
 # @name getCatalogVersions
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/catalog-versions
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/catalog-versions
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
@@ -47,7 +48,7 @@ Content-Type: application/json
 
 ### 3. Areas with scenarios for one catalog version
 # @name getScenarios
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/scenarios?catalogVersionId={{catalogVersionId}}
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/scenarios?catalogVersionId={{catalogVersionId}}
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
@@ -58,14 +59,14 @@ Content-Type: application/json
 ###
 ### 4. Areas with scenarios across every catalog version (no filter)
 # @name getScenariosUnfiltered
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/scenarios
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/scenarios
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
 ###
 ### 5. Unknown catalog version - Should return []
 # @name getScenariosUnknownVersion
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/scenarios?catalogVersionId=999999
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/scenarios?catalogVersionId=999999
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
@@ -75,21 +76,21 @@ Content-Type: application/json
 
 ### 6. Steps with parameters for one scenario
 # @name getSteps
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/steps?scenarioId={{scenarioId}}
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/steps?scenarioId={{scenarioId}}
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
 ###
 ### 7. Steps with parameters for every scenario (no filter)
 # @name getStepsUnfiltered
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/steps
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/steps
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
 ###
 ### 8. Unknown scenario - Should return []
 # @name getStepsUnknownScenario
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/steps?scenarioId=999999
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/steps?scenarioId=999999
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
@@ -99,26 +100,26 @@ Content-Type: application/json
 
 ### 9. Non-integer catalogVersionId - Should return 400
 # @name getScenariosInvalidFilter
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/scenarios?catalogVersionId=abc
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/scenarios?catalogVersionId=abc
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
 ###
 ### 10. Non-integer scenarioId - Should return 400
 # @name getStepsInvalidFilter
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/steps?scenarioId=abc
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/steps?scenarioId=abc
 Authorization: Bearer {{machineToken}}
 Content-Type: application/json
 
 ###
 ### 11. No token - Should return 401
 # @name getCatalogVersionsNoToken
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/catalog-versions
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/catalog-versions
 Content-Type: application/json
 
 ###
 ### 12. Invalid token - Should return 401
 # @name getCatalogVersionsInvalidToken
-GET {{baseUrl}}/api/sb-environments/{{sbEnvironmentId}}/certification/catalog-versions
+GET {{baseUrl}}/api/teams/{{teamId}}/edfi-tenants/{{edfiTenantId}}/certification/catalog-versions
 Authorization: Bearer invalid.jwt.token
 Content-Type: application/json

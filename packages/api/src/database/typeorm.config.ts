@@ -3,6 +3,7 @@ import {
   DomainCatalog,
   CatalogVersion,
   CertificationRun,
+  CertificationRunComment,
   CertificationRunScenario,
   EdfiTenant,
   Edorg,
@@ -78,6 +79,10 @@ import { AddCertificationVendorRole1793100000000 as PgsqlAddCertificationVendorR
 import { CertificationRuns1794000000000 as PgsqlCertificationRuns1794000000000 } from './migrations/pgsql/1794000000000-CertificationRuns';
 import { CertificationDomainCatalog1794000000001 as PgsqlCertificationDomainCatalog1794000000001 } from './migrations/pgsql/1794000000001-CertificationDomainCatalog';
 import { UppercaseCertificationRunStatuses1794000000002 as PgsqlUppercaseCertificationRunStatuses1794000000002 } from './migrations/pgsql/1794000000002-UppercaseCertificationRunStatuses';
+import { AddCertificationRunStatusChangedAt1794000000003 as PgsqlAddCertificationRunStatusChangedAt1794000000003 } from './migrations/pgsql/1794000000003-AddCertificationRunStatusChangedAt';
+import { AddCertificationReadToGlobalAdmin1794000000004 as PgsqlAddCertificationReadToGlobalAdmin1794000000004 } from './migrations/pgsql/1794000000004-AddCertificationReadToGlobalAdmin';
+import { CertificationReview1794000000005 as PgsqlCertificationReview1794000000005 } from './migrations/pgsql/1794000000005-CertificationReview';
+import { AddCertificationReviewToGlobalAdmin1794000000006 as PgsqlAddCertificationReviewToGlobalAdmin1794000000006 } from './migrations/pgsql/1794000000006-AddCertificationReviewToGlobalAdmin';
 
 // MSSQL migrations
 import { Initial1688158300508 as MssqlInitial1688158300508 } from './migrations/mssql/1687190483471-initial';
@@ -126,6 +131,10 @@ import { AddCertificationVendorRole1793100000000 as MssqlAddCertificationVendorR
 import { CertificationRuns1794000000000 as MssqlCertificationRuns1794000000000 } from './migrations/mssql/1794000000000-CertificationRuns';
 import { CertificationDomainCatalog1794000000001 as MssqlCertificationDomainCatalog1794000000001 } from './migrations/mssql/1794000000001-CertificationDomainCatalog';
 import { UppercaseCertificationRunStatuses1794000000002 as MssqlUppercaseCertificationRunStatuses1794000000002 } from './migrations/mssql/1794000000002-UppercaseCertificationRunStatuses';
+import { AddCertificationRunStatusChangedAt1794000000003 as MssqlAddCertificationRunStatusChangedAt1794000000003 } from './migrations/mssql/1794000000003-AddCertificationRunStatusChangedAt';
+import { AddCertificationReadToGlobalAdmin1794000000004 as MssqlAddCertificationReadToGlobalAdmin1794000000004 } from './migrations/mssql/1794000000004-AddCertificationReadToGlobalAdmin';
+import { CertificationReview1794000000005 as MssqlCertificationReview1794000000005 } from './migrations/mssql/1794000000005-CertificationReview';
+import { AddCertificationReviewToGlobalAdmin1794000000006 as MssqlAddCertificationReviewToGlobalAdmin1794000000006 } from './migrations/mssql/1794000000006-AddCertificationReviewToGlobalAdmin';
 
 // Get migrations based on database engine
 const getPostgreSQLMigrations = () => [
@@ -174,6 +183,10 @@ const getPostgreSQLMigrations = () => [
   PgsqlCertificationRuns1794000000000,
   PgsqlCertificationDomainCatalog1794000000001,
   PgsqlUppercaseCertificationRunStatuses1794000000002,
+  PgsqlAddCertificationRunStatusChangedAt1794000000003,
+  PgsqlAddCertificationReadToGlobalAdmin1794000000004,
+  PgsqlCertificationReview1794000000005,
+  PgsqlAddCertificationReviewToGlobalAdmin1794000000006,
 ];
 
 const getMSSQLMigrations = () => [
@@ -223,6 +236,10 @@ const getMSSQLMigrations = () => [
   MssqlCertificationRuns1794000000000,
   MssqlCertificationDomainCatalog1794000000001,
   MssqlUppercaseCertificationRunStatuses1794000000002,
+  MssqlAddCertificationRunStatusChangedAt1794000000003,
+  MssqlAddCertificationReadToGlobalAdmin1794000000004,
+  MssqlCertificationReview1794000000005,
+  MssqlAddCertificationReviewToGlobalAdmin1794000000006,
 ];
 
 const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOptions => {
@@ -249,6 +266,7 @@ const getDatabaseConfig = (): PostgresDataSourceOptions | SqlServerDataSourceOpt
     StepCatalog,
     StepParameterCatalog,
     CertificationRun,
+    CertificationRunComment,
     CertificationRunScenario,
     ScenarioStep,
     ScenarioStepError,

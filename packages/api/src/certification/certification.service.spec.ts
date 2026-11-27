@@ -10,17 +10,20 @@ import {
 import {
   CertificationRun,
   CertificationRunScenario,
+  ScenarioCatalog,
   ScenarioStep,
   ScenarioStepError,
   StepCatalog,
 } from '@edanalytics/models-server';
+import { CERT_NOT_ALL_SCENARIOS_COMPLETED } from '@edanalytics/models';
 import {
   CERT_RUN_MESSAGES,
   CertificationService,
   deriveScenarioStatus,
   positiveNumber,
+  transitionRun,
 } from './certification.service';
-import { In, Not } from 'typeorm';
+import { In } from 'typeorm';
 import { runBrunoCli } from './runner/bruno-cli';
 import { readBrunoReport, INCOMPLETE_RUN_MESSAGE } from './runner/bruno-report';
 import { createRunWorkspace, readStepInputNames } from './runner/run-workspace';
@@ -72,6 +75,17 @@ const makeStep = () => ({
   },
 });
 
+/** The run the controller loaded for the team; runStep never looks one up or creates one. */
+const makeRun = (overrides: object = {}) =>
+  ({
+    certificationRunId: 7,
+    edfiTenantId: 10,
+    odsId: 5,
+    status: 'DRAFT',
+    catalogVersion: { catalogVersionId: 3, dataStandardVersion: 'v5' },
+    ...overrides,
+  }) as never;
+
 describe('CertificationService.runStep', () => {
   let stepRepository: { findOne: jest.Mock };
   let runRepository: { findOne: jest.Mock; create: jest.Mock; save: jest.Mock };
@@ -93,12 +107,10 @@ describe('CertificationService.runStep', () => {
     service.runStep({
       sbEnvironment,
       edfiTenant,
-      sisVersion: 'v5',
+      certificationRun: makeRun(),
       stepId: 101,
-      odsId: 5,
       token: TOKEN,
       inputs: { studentUniqueId: 'S1' },
-      userId: 42,
       ...overrides,
     });
 
@@ -244,7 +256,13 @@ describe('CertificationService.runStep', () => {
     expect(dispose).toHaveBeenCalled();
   });
 
-  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES', 'APPROVED', 'REJECTED'])(
+  it.each([
+    'READY_FOR_REVIEW',
+    'IN_REVIEW',
+    'READY_FOR_REVIEW_WITH_CHANGES',
+    'APPROVED',
+    'REJECTED',
+  ])(
     'does not save evidence if the run changes to %s while Bruno is executing',
     async (nextStatus) => {
       let currentStatus = 'DRAFT';
@@ -339,7 +357,13 @@ describe('CertificationService.runStep', () => {
 
     expect(result.status).toBe('failed');
     expect(result.errors).toEqual([
-      { kind: 'exception', field: null, expected: null, observed: null, message: INCOMPLETE_RUN_MESSAGE },
+      {
+        kind: 'exception',
+        field: null,
+        expected: null,
+        observed: null,
+        message: INCOMPLETE_RUN_MESSAGE,
+      },
     ]);
     expect(em.CertificationRunScenario.save).toHaveBeenCalledWith(
       expect.objectContaining({ capturedVars: { firstStudentUniqueId: 'old' } }),
@@ -404,80 +428,41 @@ describe('CertificationService.runStep', () => {
     expect(dispose).toHaveBeenCalled();
   });
 
-  it('creates a Draft SIS run on the first step run', async () => {
-    runRepository.findOne.mockResolvedValue(null);
+  it('saves the result under the given run, and neither looks up nor creates a run', async () => {
     await run();
-    expect(runRepository.create).toHaveBeenCalledWith({
-      edfiTenantId: 10,
-      odsId: 5,
-      certificationModel: 'SIS',
-      catalogVersionId: 3,
-      createdById: 42,
-      teamId: null,
-      status: 'DRAFT',
-    });
-    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
-      expect.objectContaining({ certificationRunId: 7 }),
-    );
-  });
-
-  it('creates the run on the first step run of a tenant without an ODS', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    await run({ odsId: undefined });
-    expect(runRepository.save).toHaveBeenCalledWith(
-      expect.objectContaining({ edfiTenantId: 10, odsId: null, status: 'DRAFT' }),
-    );
-  });
-
-  it('uses the open run and creates none', async () => {
-    await run();
+    expect(runRepository.findOne).not.toHaveBeenCalled();
+    expect(runRepository.create).not.toHaveBeenCalled();
     expect(runRepository.save).not.toHaveBeenCalled();
     expect(em.ScenarioStep.save).toHaveBeenCalledWith(
       expect.objectContaining({ certificationRunId: 7 }),
     );
   });
 
-  it('looks up the open SIS run without the catalog version', async () => {
-    await run();
-    const { where } = runRepository.findOne.mock.calls[0][0];
-    expect(where).toMatchObject({ edfiTenantId: 10, odsId: 5, certificationModel: 'SIS' });
-    expect(where.status).toEqual(Not(In(['APPROVED', 'REJECTED'])));
-    expect(where).not.toHaveProperty('catalogVersionId');
+  it("sends the step to the run's data store", async () => {
+    await run({ certificationRun: makeRun({ odsId: 8 }) });
+    expect(targetService.resolve).toHaveBeenCalledWith({ sbEnvironment, edfiTenant, odsId: 8 });
   });
 
-  it('re-reads the open run when the insert loses the race', async () => {
-    runRepository.findOne
-      .mockResolvedValueOnce(null)
-      .mockResolvedValueOnce({ certificationRunId: 9, status: 'DRAFT' });
-    runRepository.save.mockRejectedValue(new Error('duplicate key'));
-    await run();
-    expect(em.ScenarioStep.save).toHaveBeenCalledWith(
-      expect.objectContaining({ certificationRunId: 9 }),
-    );
+  it.each([
+    'READY_FOR_REVIEW',
+    'IN_REVIEW',
+    'READY_FOR_REVIEW_WITH_CHANGES',
+    'APPROVED',
+    'REJECTED',
+  ])('returns 409 and saves nothing while the run is %s', async (status) => {
+    await expect(run({ certificationRun: makeRun({ status }) })).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.runLocked,
+    });
+    expect(targetService.resolve).not.toHaveBeenCalled();
+    expect(runBrunoCli).not.toHaveBeenCalled();
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
-
-  it('rethrows the insert error when no open run appeared', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    runRepository.save.mockRejectedValue(new Error('connection lost'));
-    await expect(run()).rejects.toThrow('connection lost');
-  });
-
-  it.each(['READY_FOR_REVIEW', 'IN_REVIEW', 'READY_FOR_REVIEW_WITH_CHANGES'])(
-    'returns 409 and saves nothing while the run is %s',
-    async (status) => {
-      runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status });
-      await expect(run()).rejects.toMatchObject({
-        status: 409,
-        message: CERT_RUN_MESSAGES.runLocked,
-      });
-      expect(runBrunoCli).not.toHaveBeenCalled();
-      expect(dataSource.transaction).not.toHaveBeenCalled();
-    },
-  );
 
   it('runs steps while the run is Changes requested', async () => {
-    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'CHANGES_REQUESTED' });
-    await expect(run()).resolves.toMatchObject({ status: 'success' });
+    await expect(
+      run({ certificationRun: makeRun({ status: 'CHANGES_REQUESTED' }) }),
+    ).resolves.toMatchObject({ status: 'success' });
   });
 
   it('returns 503 while the runtime is not ready', async () => {
@@ -492,8 +477,13 @@ describe('CertificationService.runStep', () => {
     expect(createRunWorkspace).not.toHaveBeenCalled();
   });
 
-  it('rejects an unsupported SIS version before touching the catalog', async () => {
-    await expect(run({ sisVersion: 'v4' })).rejects.toMatchObject({ status: 400 });
+  it.each([
+    ['an unsupported SIS version', { catalogVersionId: 2, dataStandardVersion: 'v4' }],
+    ['no catalog', null],
+  ])('rejects a run with %s before touching the catalog', async (_name, catalogVersion) => {
+    await expect(run({ certificationRun: makeRun({ catalogVersion }) })).rejects.toMatchObject({
+      status: 400,
+    });
     expect(stepRepository.findOne).not.toHaveBeenCalled();
   });
 
@@ -546,13 +536,6 @@ describe('CertificationService.runStep', () => {
     await expect(run({ inputs: { studentUniqueId: 'S1', schoolId: '1' } })).rejects.toMatchObject({
       status: 400,
     });
-  });
-
-  it('treats a null odsId like an omitted one', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    await run({ odsId: null });
-    expect(targetService.resolve).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
-    expect(runRepository.save).toHaveBeenCalledWith(expect.objectContaining({ odsId: null }));
   });
 
   it('returns 409 while another step of the same scenario is running', async () => {
@@ -686,93 +669,187 @@ describe('deriveScenarioStatus', () => {
   });
 });
 
-describe('CertificationService.changeRunStatus', () => {
-  let runRepository: { findOne: jest.Mock; save: jest.Mock; update: jest.Mock };
-  let service: CertificationService;
+describe('transitionRun', () => {
+  let update: jest.Mock;
+  let em: { getRepository: jest.Mock };
 
   beforeEach(() => {
-    runRepository = {
-      findOne: jest.fn(),
-      save: jest.fn(async (value) => value),
-      update: jest.fn().mockResolvedValue({ affected: 1 }),
+    update = jest.fn().mockResolvedValue({ affected: 1 });
+    em = { getRepository: jest.fn(() => ({ update })) };
+  });
+
+  it('updates the run guarded by its current status and resolves when one row changed', async () => {
+    await expect(
+      transitionRun(em as never, 7, 'IN_REVIEW', 'APPROVED', { submittedAt: null }),
+    ).resolves.toBeUndefined();
+    expect(em.getRepository).toHaveBeenCalledWith(CertificationRun);
+    expect(update).toHaveBeenCalledWith(
+      { certificationRunId: 7, status: 'IN_REVIEW' },
+      {
+        status: 'APPROVED',
+        updatedAt: expect.any(Date),
+        statusChangedAt: expect.any(Date),
+        submittedAt: null,
+      },
+    );
+    const [, changes] = update.mock.calls[0];
+    expect(changes.statusChangedAt).toBe(changes.updatedAt);
+  });
+
+  it('returns a conflict when the status changed after it was read', async () => {
+    update.mockResolvedValue({ affected: 0 });
+    await expect(transitionRun(em as never, 7, 'IN_REVIEW', 'APPROVED')).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.invalidTransition,
+    });
+  });
+
+  it('refuses Draft straight to Approved without updating', async () => {
+    await expect(transitionRun(em as never, 7, 'DRAFT', 'APPROVED')).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.invalidTransition,
+    });
+    expect(update).not.toHaveBeenCalled();
+  });
+});
+
+describe('CertificationService.sendToReview', () => {
+  let runUpdate: jest.Mock;
+  let scenarioCount: jest.Mock;
+  let completedCount: jest.Mock;
+  let dataSource: { transaction: jest.Mock };
+  let service: CertificationService;
+
+  const run = (status: string) =>
+    ({ certificationRunId: 7, status, catalogVersionId: 11 }) as Parameters<
+      CertificationService['sendToReview']
+    >[0];
+
+  let runRow: { status: string };
+
+  beforeEach(() => {
+    runRow = { status: 'DRAFT' };
+    runUpdate = jest.fn(async (_where, set: { status: string }) => {
+      runRow.status = set.status;
+      return { affected: 1 };
+    });
+    scenarioCount = jest.fn().mockResolvedValue(3);
+    completedCount = jest.fn().mockResolvedValue(3);
+    const em: Record<string, Record<string, jest.Mock>> = {
+      [CertificationRun.name]: { update: runUpdate },
+      [ScenarioCatalog.name]: { count: scenarioCount },
+      [CertificationRunScenario.name]: { count: completedCount },
+    };
+    dataSource = {
+      // Like a real transaction: a callback that throws undoes the run's status update.
+      transaction: jest.fn(async (work) => {
+        const before = { ...runRow };
+        try {
+          return await work({ getRepository: (entity: { name: string }) => em[entity.name] });
+        } catch (error) {
+          runRow = before;
+          throw error;
+        }
+      }),
     };
     service = new CertificationService(
       {} as never,
       {} as never,
       {} as never,
-      runRepository as never,
       {} as never,
       {} as never,
+      dataSource as never,
     );
   });
 
   it.each([
     ['DRAFT', 'READY_FOR_REVIEW'],
     ['CHANGES_REQUESTED', 'READY_FOR_REVIEW_WITH_CHANGES'],
-    ['IN_REVIEW', 'APPROVED'],
-  ] as const)('moves a %s run to %s', async (from, to) => {
-    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: from });
-    await expect(service.changeRunStatus(7, to)).resolves.toMatchObject({ status: to });
-    expect(runRepository.update).toHaveBeenCalledWith(
+  ] as const)('moves a %s run to %s when every scenario is completed', async (from, to) => {
+    await expect(service.sendToReview(run(from))).resolves.toBe(to);
+    expect(runUpdate).toHaveBeenCalledWith(
       { certificationRunId: 7, status: from },
-      { status: to, updatedAt: expect.any(Date) },
+      {
+        status: to,
+        updatedAt: expect.any(Date),
+        statusChangedAt: expect.any(Date),
+        submittedAt: expect.any(Date),
+      },
     );
-    expect(runRepository.save).not.toHaveBeenCalled();
+    const payload = runUpdate.mock.calls[0][1];
+    expect(payload.statusChangedAt).toBe(payload.updatedAt);
+    expect(payload.submittedAt).toBe(payload.statusChangedAt);
   });
 
-  it('returns a conflict if the status changed after it was read', async () => {
-    runRepository.findOne.mockResolvedValue({ certificationRunId: 7, status: 'IN_REVIEW' });
-    runRepository.update.mockResolvedValue({ affected: 0 });
-
-    await expect(service.changeRunStatus(7, 'CHANGES_REQUESTED')).rejects.toMatchObject({
+  it.each([
+    'READY_FOR_REVIEW',
+    'IN_REVIEW',
+    'READY_FOR_REVIEW_WITH_CHANGES',
+    'APPROVED',
+    'REJECTED',
+  ])('refuses a %s run without opening a transaction', async (from) => {
+    await expect(service.sendToReview(run(from))).rejects.toMatchObject({
       status: 409,
       message: CERT_RUN_MESSAGES.invalidTransition,
     });
+    expect(dataSource.transaction).not.toHaveBeenCalled();
   });
 
-  it('does not reopen an approved run when two decisions race', async () => {
-    const storedRun = { certificationRunId: 7, status: 'IN_REVIEW' };
-    runRepository.findOne.mockImplementation(async () => ({ ...storedRun }));
-    runRepository.save.mockImplementation(async (value) => {
-      Object.assign(storedRun, value);
-      return { ...storedRun };
-    });
-    runRepository.update.mockImplementation(async (where, changes) => {
-      if (
-        where.certificationRunId !== storedRun.certificationRunId ||
-        where.status !== storedRun.status
-      ) {
-        return { affected: 0 };
-      }
-      Object.assign(storedRun, changes);
-      return { affected: 1 };
-    });
-
-    const decisions = await Promise.allSettled([
-      service.changeRunStatus(7, 'APPROVED'),
-      service.changeRunStatus(7, 'CHANGES_REQUESTED'),
-    ]);
-
-    expect(decisions[0]).toMatchObject({ status: 'fulfilled', value: { status: 'APPROVED' } });
-    expect(decisions[1]).toMatchObject({ status: 'rejected', reason: { status: 409 } });
-    expect(storedRun.status).toBe('APPROVED');
-  });
-
-  it('refuses Draft straight to Approved and leaves the run Draft', async () => {
-    const certificationRun = { certificationRunId: 7, status: 'DRAFT' };
-    runRepository.findOne.mockResolvedValue(certificationRun);
-    await expect(service.changeRunStatus(7, 'APPROVED')).rejects.toMatchObject({
+  it('refuses when the status changed after it was read', async () => {
+    runUpdate.mockResolvedValue({ affected: 0 });
+    await expect(service.sendToReview(run('DRAFT'))).rejects.toMatchObject({
       status: 409,
       message: CERT_RUN_MESSAGES.invalidTransition,
     });
-    expect(runRepository.save).not.toHaveBeenCalled();
-    expect(runRepository.update).not.toHaveBeenCalled();
-    expect(certificationRun.status).toBe('DRAFT');
+    expect(scenarioCount).not.toHaveBeenCalled();
   });
 
-  it('returns 404 for a run that does not exist', async () => {
-    runRepository.findOne.mockResolvedValue(null);
-    await expect(service.changeRunStatus(7, 'IN_REVIEW')).rejects.toBeInstanceOf(NotFoundException);
-    expect(runRepository.update).not.toHaveBeenCalled();
+  it('puts the status back when a scenario is not completed', async () => {
+    completedCount.mockResolvedValue(2);
+    await expect(service.sendToReview(run('DRAFT'))).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.notAllScenariosCompleted,
+    });
+    expect(runUpdate).toHaveBeenCalled();
+    expect(runRow.status).toBe('DRAFT');
+  });
+
+  it('shares the "every scenario" message with the Scenarios page', () => {
+    expect(CERT_RUN_MESSAGES.notAllScenariosCompleted).toBe(CERT_NOT_ALL_SCENARIOS_COMPLETED);
+  });
+
+  it('refuses a run without a catalog version', async () => {
+    await expect(
+      service.sendToReview({ certificationRunId: 7, status: 'DRAFT', catalogVersionId: null }),
+    ).rejects.toMatchObject({ status: 409, message: CERT_RUN_MESSAGES.invalidTransition });
+    expect(dataSource.transaction).not.toHaveBeenCalled();
+  });
+
+  it('refuses a catalog version with no enabled scenarios', async () => {
+    scenarioCount.mockResolvedValue(0);
+    completedCount.mockResolvedValue(0);
+    await expect(service.sendToReview(run('DRAFT'))).rejects.toMatchObject({
+      status: 409,
+      message: CERT_RUN_MESSAGES.notAllScenariosCompleted,
+    });
+  });
+
+  it('updates the run before counting scenarios, so a step save cannot slip in between', async () => {
+    await service.sendToReview(run('DRAFT'));
+    expect(runUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      scenarioCount.mock.invocationCallOrder[0],
+    );
+    expect(runUpdate.mock.invocationCallOrder[0]).toBeLessThan(
+      completedCount.mock.invocationCallOrder[0],
+    );
+  });
+
+  it("counts only enabled scenarios in enabled domains of the run's catalog version", async () => {
+    await service.sendToReview(run('DRAFT'));
+    const enabledScenario = { isEnabled: true, domain: { isEnabled: true, catalogVersionId: 11 } };
+    expect(scenarioCount).toHaveBeenCalledWith({ where: enabledScenario });
+    expect(completedCount).toHaveBeenCalledWith({
+      where: { certificationRunId: 7, status: 'completed', scenario: enabledScenario },
+    });
   });
 });

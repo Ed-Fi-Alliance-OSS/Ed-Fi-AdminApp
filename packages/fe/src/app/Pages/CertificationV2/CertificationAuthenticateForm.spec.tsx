@@ -17,7 +17,7 @@ const mockedHook = useRequestCertificationToken as jest.Mock;
 const renderForm = (props: Partial<Parameters<typeof CertificationAuthenticateForm>[0]> = {}) =>
   render(
     <CertificationAuthProvider>
-      <CertificationAuthenticateForm sbEnvironmentId={1} edfiTenantId={10} odsId={5} {...props} />
+      <CertificationAuthenticateForm teamId={2} edfiTenantId={10} odsId={5} {...props} />
     </CertificationAuthProvider>,
   );
 
@@ -59,7 +59,7 @@ describe('CertificationAuthenticateForm', () => {
     mockReset.mockClear();
     rerender(
       <CertificationAuthProvider>
-        <CertificationAuthenticateForm sbEnvironmentId={1} edfiTenantId={11} odsId={5} />
+        <CertificationAuthenticateForm teamId={2} edfiTenantId={11} odsId={5} />
       </CertificationAuthProvider>,
     );
     expect(mockReset).toHaveBeenCalled();
@@ -96,7 +96,7 @@ describe('CertificationAuthenticateForm', () => {
       expect(screen.getByText(/^Credentials validated · next refresh around /)).toBeTruthy(),
     );
     expect(mutateAsync).toHaveBeenCalledWith({
-      sbEnvironmentId: 1,
+      teamId: 2,
       edfiTenantId: 10,
       body: { key: 'k', secret: 's', odsId: 5 },
     });
@@ -128,7 +128,7 @@ describe('CertificationAuthenticateForm', () => {
       render(
         <CertificationAuthProvider>
           <Probe />
-          <CertificationAuthenticateForm sbEnvironmentId={1} edfiTenantId={10} odsId={5} />
+          <CertificationAuthenticateForm teamId={2} edfiTenantId={10} odsId={5} />
         </CertificationAuthProvider>,
       );
       act(() =>
@@ -171,7 +171,7 @@ describe('CertificationAuthenticateForm', () => {
         <CertificationAuthProvider>
           <Probe />
           <CertificationAuthenticateForm
-            sbEnvironmentId={1}
+            teamId={2}
             edfiTenantId={edfiTenantId}
             odsId={5}
           />
@@ -237,7 +237,7 @@ describe('CertificationAuthenticateForm', () => {
       render(
         <CertificationAuthProvider>
           <Probe />
-          <CertificationAuthenticateForm sbEnvironmentId={1} edfiTenantId={10} odsId={5} />
+          <CertificationAuthenticateForm teamId={2} edfiTenantId={10} odsId={5} />
         </CertificationAuthProvider>,
       );
       act(() => api.setAuth({ ...tokenFor(expiresInMs), edfiTenantId: 10, odsId: 5 }));

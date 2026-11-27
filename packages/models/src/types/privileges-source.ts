@@ -109,6 +109,9 @@ export const privileges = {
     "Reset credentials for your team's applications.",
   'sb-sync-queue:read': 'Read SB sync queue in the global scope.',
   'sb-sync-queue:archive': 'Archive SB sync queue in the global scope.',
+  'certification:read': "Read the certification dashboard and every team's certification runs.",
+  'certification:review':
+    'Pick up certification runs and approve, reject or request changes on them.',
   ...integrationProviderPrivileges,
   ...integrationAppPrivileges,
 };

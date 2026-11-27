@@ -458,6 +458,20 @@ example:
 > open the downloaded file as a Zip file, then place both `.sql` files in your
 > `SQL_BACKUPS_FOLDER`.
 
+> [!IMPORTANT]
+> The templates must match the Data Standard of the ODS image set in
+> `ODS_API_TAG_7X`. `compose/.env.example` pins the Data Standard 5 image and keeps
+> the Data Standard 6 image digest as a commented line; when you switch to it, use
+> the matching Data Standard 6 templates. `init.sh` runs only once per ODS volume, so
+> after changing the templates or the image, remove the ODS volumes
+> (`vol-odsV7-adminV2-*` and `vol-odsV7-adminV3-*`) and any stale `.sql` file in
+> `SQL_BACKUPS_FOLDER`, otherwise the stack silently stays on the old Data
+> Standard.
+>
+> `TPDM_ENABLED` is `false` in `compose/.env.example` because the Data Standard 5.2
+> templates have no TPDM tables (writes to TPDM-extended resources such as schools
+> fail with 500). Set it to `true` only with templates that include them.
+
 Set the following environment variables:
 
 - **`SQL_BACKUPS_FOLDER`**: host path to a folder containing

@@ -9,6 +9,7 @@ import {
   PrimaryGeneratedColumn,
   UpdateDateColumn,
 } from 'typeorm';
+import * as config from 'config';
 import { CatalogVersion } from './cert-catalog-version.entity';
 import { EdfiTenant } from './edfi-tenant.entity';
 import { Ods } from './ods.entity';
@@ -24,6 +25,7 @@ import { User } from './user.entity';
  */
 @Index('UQ_cert_certification_run_open_ods', { synchronize: false })
 @Index('UQ_cert_certification_run_open_no_ods', { synchronize: false })
+@Index('IDX_cert_certification_run_status_changed', ['status', 'statusChangedAt'])
 @Entity({ schema: 'cert', name: 'certification_run' })
 export class CertificationRun {
   @PrimaryGeneratedColumn()
@@ -60,7 +62,7 @@ export class CertificationRun {
   @JoinColumn({ name: 'teamId' })
   team: Team | null;
 
-  /** Null on the global Certification page, which has no team. */
+  /** The team that started the run. Null for a run from before AC-651, or whose team was deleted. */
   @Column({ type: 'int', nullable: true })
   teamId: number | null;
 
@@ -74,6 +76,20 @@ export class CertificationRun {
   /** The workflow status (CERT_RUN_STATUS), not a result: results live on the scenario and step rows. */
   @Column({ type: 'varchar', length: 50 })
   status: CertRunStatus;
+
+  /** When the run entered its current status; set by transitionRun, defaulted by the DB on insert. */
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
+    default: () => 'CURRENT_TIMESTAMP',
+  })
+  statusChangedAt: Date;
+
+  /** When the vendor sent the run to review; unlike statusChangedAt it survives the pick-up. */
+  @Column({
+    type: config.DB_ENGINE === 'pgsql' ? 'timestamp' : 'datetime2',
+    nullable: true,
+  })
+  submittedAt: Date | null;
 
   @CreateDateColumn()
   createdAt: Date;
