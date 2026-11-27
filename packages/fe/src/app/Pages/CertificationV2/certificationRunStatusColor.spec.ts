@@ -1,3 +1,4 @@
+import 'reflect-metadata';
 import { CERT_RUN_STATUS } from '@edanalytics/models';
 import { CERT_RUN_STATUS_COLOR_SCHEMES, certRunStatusColor } from './certificationRunStatusColor';
 
