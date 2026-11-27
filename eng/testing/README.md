@@ -173,7 +173,7 @@ only one open run per model. Use it only on test databases.
 The Scenarios page of a run shows an "Audit history" table below the scenarios that lists every
 status change of the run, newest first, with who made it and when. An entry with a reviewer's
 comment has a "View comment" button that opens the full comment in a dialog. To see it with seven
-entries, use the script above to get past the scenarios and do this. Leave the
+entries, use `cert-complete-run-scenarios` (above) to get past the scenarios and do this. Leave the
 script's optional `CHANGES_REQUESTED` block commented out: a status set by SQL records no Audit
 history entry, so request the changes from the reviewer's page instead.
 
