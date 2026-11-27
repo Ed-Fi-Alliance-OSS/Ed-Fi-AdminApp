@@ -8,6 +8,8 @@ production.
 | --- | --- | --- |
 | `cert-demo-run-history.pgsql.sql` | PostgreSQL | Adds five runs to a team (AC-701) so its Run history page has data |
 | `cert-demo-run-history.mssql.sql` | SQL Server | Same as above, in T-SQL |
+| `cert-demo-review-queue.pgsql.sql` | PostgreSQL | Adds eight runs on two data stores, covering every status, for the global Review queue page (AC-661) |
+| `cert-demo-review-queue.mssql.sql` | SQL Server | Same as above, in T-SQL |
 | `cert-complete-run-scenarios.pgsql.sql` | PostgreSQL | Marks every scenario of one run as completed (AC-659, Send to Review) |
 
 ## Run history demo data (AC-701)
@@ -118,6 +120,65 @@ WHERE "teamId" = <team_id> AND "odsId" = <ods_id>
 
 SQL Server: the same `DELETE` with bracketed names and the run IDs from the script's last
 table. The runs' scenario rows are removed by cascade.
+
+## Review queue demo data (AC-661)
+
+The script gives two data stores eight runs between them, so the global Review queue page
+shows every status, and Pick up is enabled only on runs that can be picked up:
+
+| Data store | Status | Model | Submitted |
+| --- | --- | --- | --- |
+| A | `READY_FOR_REVIEW` | SIS | 3 days ago |
+| A | `IN_REVIEW` | MTSS | 6 days ago |
+| A | `CHANGES_REQUESTED` | ASSESSMENTS | 8 days ago |
+| A | `APPROVED` | SIS | 25 days ago |
+| B | `READY_FOR_REVIEW_WITH_CHANGES` | SIS | 2 days ago |
+| B | `DRAFT` | MTSS | never |
+| B | `READY_FOR_REVIEW` | ASSESSMENTS | never (`submittedAt` is null, so the queue uses the last status change) |
+| B | `REJECTED` | SIS | 18 days ago |
+
+### Before you run it
+
+- Two **different** data stores, each with **no open run** of the SIS, MTSS or ASSESSMENTS
+  models. A data store can have only one open run per model, so seven statuses do not fit in
+  one. The two may belong to the same team or to different teams (different teams show several
+  vendors in the Vendor column).
+- An **active catalog version**, as for the Run history demo.
+- A **global admin** with `certification:read` (to see the page) and `certification:review`
+  (to use Pick up).
+
+### Run it
+
+Find the team, Ed-Fi tenant and ODS IDs of both data stores as in the Run history demo, replace
+the six `0` values at the top of the script, and run the whole script in one session, with the
+same tools as the Run history demo:
+
+```bash
+psql -h localhost -U <user> -d <database> -f eng/testing/sql/cert-demo-review-queue.pgsql.sql
+sqlcmd -S <server> -U <user> -P <password> -d <database> -i eng/testing/sql/cert-demo-review-queue.mssql.sql
+```
+
+The script ends with a table of the runs it created.
+
+### Check it in the app
+
+Sign in as a global admin and open **Certification > Review queue** (`/certification/queue`).
+You should see eight rows; the Status column shows each status in its own color, filtering by
+status narrows the list, **Open** goes to the run's review page and **Pick up** is enabled only
+for the two `READY_FOR_REVIEW` runs and the one `READY_FOR_REVIEW_WITH_CHANGES` run. Picking up
+a run moves it to `IN_REVIEW` and opens its review page.
+
+### Undo
+
+PostgreSQL, in the same session:
+
+```sql
+DELETE FROM cert.certification_run
+WHERE "certificationRunId" IN (SELECT run_id FROM cert_demo_runs);
+```
+
+From another session, or on SQL Server, delete by the run IDs the script printed (the runs' scenario
+rows are removed by cascade).
 
 ## Complete a run's scenarios (AC-659)
 
